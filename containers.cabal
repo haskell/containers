@@ -1,0 +1,24 @@
+name:       containers
+version:    0.1
+license:    BSD3
+license-file:    LICENSE
+maintainer:    libraries@haskell.org
+synopsis:    Containers
+description:
+    This package contains various basic containers.
+build-depends: base
+exposed-modules:
+        Data.Foldable
+        Data.Graph
+        Data.IntMap
+        Data.IntSet
+        Data.Map
+        Data.Sequence
+        Data.Set
+        Data.Tree
+        Data.Traversable
+extensions: CPP
+-- We need this for Data deriving, but we can't just turn on that
+-- extension because we only try to do it when building with GHC.
+ghc-options: -fglasgow-exts
+
