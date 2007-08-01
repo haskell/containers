@@ -6,7 +6,7 @@ maintainer:    libraries@haskell.org
 synopsis:    Containers
 description:
     This package contains various basic containers.
-build-depends: base
+build-depends: base, array
 exposed-modules:
         Data.Foldable
         Data.Graph
