@@ -8,7 +8,6 @@ description:
     This package contains various basic containers.
 build-depends: base, array
 exposed-modules:
-        Data.Foldable
         Data.Graph
         Data.IntMap
         Data.IntSet
@@ -16,7 +15,6 @@ exposed-modules:
         Data.Sequence
         Data.Set
         Data.Tree
-        Data.Traversable
 extensions: CPP
 -- We need this for Data deriving, but we can't just turn on that
 -- extension because we only try to do it when building with GHC.
