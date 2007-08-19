@@ -3,9 +3,12 @@ version:    0.1
 license:    BSD3
 license-file:    LICENSE
 maintainer:    libraries@haskell.org
-synopsis:    Containers
+synopsis:   Assorted concrete container types
 description:
-    This package contains various basic containers.
+        This package contains efficient general-purpose implementations
+        of various basic immutable container types.  The declared cost of
+        each operation is either worst-case or amortized, but remains
+        valid even if structures are shared.
 build-depends: base, array
 exposed-modules:
         Data.Graph
