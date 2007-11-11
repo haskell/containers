@@ -110,9 +110,10 @@ import Data.Typeable
 
 {-
 -- just for testing
-import QuickCheck 
+import Test.QuickCheck 
 import List (nub,sort)
 import qualified List
+import qualified Data.Set as Set
 -}
 
 #if __GLASGOW_HASKELL__
@@ -167,6 +168,12 @@ data IntSet = Nil
             | Tip {-# UNPACK #-} !Int
             | Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 -- Invariant: Nil is never found as a child of Bin.
+-- Invariant: The Mask is a power of 2.  It is the largest bit position at which
+--            two elements of the set differ.
+-- Invariant: Prefix is the common high-order bits that all elements share to
+--            the left of the Mask bit.
+-- Invariant: In Bin prefix mask left right, left consists of the elements that
+--            don't have the mask bit set; right is all the elements that do.
 
 
 type Prefix = Int
@@ -403,7 +410,9 @@ isProperSubsetOf t1 t2
 
 subsetCmp t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2  = GT
-  | shorter m2 m1  = subsetCmpLt
+  | shorter m2 m1  = case subsetCmpLt of
+                       GT -> GT
+                       _ -> LT
   | p1 == p2       = subsetCmpEq
   | otherwise      = GT  -- disjoint
   where
@@ -852,6 +861,8 @@ nomatch i p m
 match i p m
   = (mask i m) == p
 
+-- Suppose a is largest such that 2^a divides 2*m.
+-- Then mask i m is i with the low a bits zeroed out.
 mask :: Int -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
@@ -1017,4 +1028,43 @@ prop_Ordered
 prop_List :: [Int] -> Bool
 prop_List xs
   = (sort (nub xs) == toAscList (fromList xs))
+
+{--------------------------------------------------------------------
+  Bin invariants
+--------------------------------------------------------------------}
+powersOf2 :: IntSet
+powersOf2 = fromList [2^i | i <- [0..63]]
+
+-- Check the invariant that the mask is a power of 2.
+prop_MaskPow2 :: IntSet -> Bool
+prop_MaskPow2 (Bin _ msk left right) = member msk powersOf2 && prop_MaskPow2 left && prop_MaskPow2 right
+prop_MaskPow2 _ = True
+
+-- Check that the prefix satisfies its invariant.
+prop_Prefix :: IntSet -> Bool
+prop_Prefix s@(Bin prefix msk left right) = all (\elem -> match elem prefix msk) (toList s) && prop_Prefix left && prop_Prefix right
+prop_Prefix _ = True
+
+-- Check that the left elements don't have the mask bit set, and the right
+-- ones do.
+prop_LeftRight :: IntSet -> Bool
+prop_LeftRight (Bin _ msk left right) = and [x .&. msk == 0 | x <- toList left] && and [x .&. msk == msk | x <- toList right]
+prop_LeftRight _ = True
+
+{--------------------------------------------------------------------
+  IntSet operations are like Set operations
+--------------------------------------------------------------------}
+toSet :: IntSet -> Set.Set Int
+toSet = Set.fromList . toList
+
+-- Check that IntSet.isProperSubsetOf is the same as Set.isProperSubsetOf.
+prop_isProperSubsetOf :: IntSet -> IntSet -> Bool
+prop_isProperSubsetOf a b = isProperSubsetOf a b == Set.isProperSubsetOf (toSet a) (toSet b)
+
+-- In the above test, isProperSubsetOf almost always returns False (since a
+-- random set is almost never a subset of another random set).  So this second
+-- test checks the True case.
+prop_isProperSubsetOf2 :: IntSet -> IntSet -> Bool
+prop_isProperSubsetOf2 a b = isProperSubsetOf a c == (a /= c) where
+  c = union a b
 -}
