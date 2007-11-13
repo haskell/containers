@@ -2,4 +2,4 @@
 # http://darcs.haskell.org/testsuite
 
 test('datamap001', normal, compile_and_run, ['-package containers'])
-
+test('dataintset001', normal, compile_and_run, ['-package containers'])
