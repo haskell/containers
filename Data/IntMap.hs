@@ -20,7 +20,7 @@
 -- structure performs especially well on binary operations like 'union'
 -- and 'intersection'.  However, my benchmarks show that it is also
 -- (much) faster on insertions and deletions when compared to a generic
--- size-balanced map implementation (see "Data.Map" and "Data.FiniteMap").
+-- size-balanced map implementation (see "Data.Map").
 --
 --    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
