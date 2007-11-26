@@ -20,7 +20,7 @@
 --
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --	Journal of Functional Programming 3(4):553-562, October 1993,
---	<http://www.swiss.ai.mit.edu/~adams/BB>.
+--	<http://www.swiss.ai.mit.edu/~adams/BB/>.
 --
 --    * J. Nievergelt and E.M. Reingold,
 --	\"/Binary search trees of bounded balance/\",

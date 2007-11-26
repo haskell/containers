@@ -23,12 +23,12 @@
 -- size-balanced set implementation (see "Data.Set").
 --
 --    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
---	Workshop on ML, September 1998, pages 77-86,
---	<http://www.cse.ogi.edu/~andy/pub/finite.htm>
+--      Workshop on ML, September 1998, pages 77-86,
+--      <http://citeseer.ist.psu.edu/okasaki98fast.html>
 --
 --    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
---	Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
---	October 1968, pages 514-534.
+--      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
+--      October 1968, pages 514-534.
 --
 -- Many operations have a worst-case complexity of /O(min(n,W))/.
 -- This means that the operation can become linear in the number of
