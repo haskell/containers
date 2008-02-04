@@ -4,6 +4,7 @@
 -- |
 -- Module      :  Data.Map
 -- Copyright   :  (c) Daan Leijen 2002
+--                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
@@ -31,6 +32,9 @@
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.
+--
+-- Operation comments contain the operation time complexity in
+-- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 -----------------------------------------------------------------------------
 
 module Data.Map  ( 
@@ -92,9 +96,9 @@ module Data.Map  (
             , mapWithKey
             , mapAccum
             , mapAccumWithKey
-	    , mapKeys
-	    , mapKeysWith
-	    , mapKeysMonotonic
+            , mapKeys
+            , mapKeysWith
+            , mapKeysMonotonic
 
             -- ** Fold
             , fold
@@ -103,7 +107,7 @@ module Data.Map  (
             -- * Conversion
             , elems
             , keys
-	    , keysSet
+            , keysSet
             , assocs
             
             -- ** Lists
@@ -196,10 +200,14 @@ infixl 9 !,\\ --
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
+--
+-- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
+-- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
+
 (!) :: Ord k => Map k a -> k -> a
 m ! k    = find k m
 
--- | /O(n+m)/. See 'difference'.
+-- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
 
@@ -239,6 +247,10 @@ instance (Data k, Data a, Ord k) => Data (Map k a) where
   Query
 --------------------------------------------------------------------}
 -- | /O(1)/. Is the map empty?
+--
+-- > Data.Map.null (empty)           == True
+-- > Data.Map.null (singleton 1 'a') == False
+
 null :: Map k a -> Bool
 null t
   = case t of
@@ -246,6 +258,11 @@ null t
       Bin sz k x l r  -> False
 
 -- | /O(1)/. The number of elements in the map.
+--
+-- > size empty                                   == 0
+-- > size (singleton 1 'a')                       == 1
+-- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
+
 size :: Map k a -> Int
 size t
   = case t of
@@ -253,12 +270,44 @@ size t
       Bin sz k x l r  -> sz
 
 
--- | /O(log n)/. Lookup the value at a key in the map. 
+-- | /O(log n)/. Lookup the value at a key in the map.
 --
 -- The function will 
 -- @return@ the result in the monad or @fail@ in it the key isn't in the 
 -- map. Often, the monad to use is 'Maybe', so you get either 
 -- @('Just' result)@ or @'Nothing'@.
+--
+-- > let m = fromList [(5,'a'), (3,'b'), (7,'c')]
+-- > value1 <- Data.Map.lookup 5 m
+-- > value1
+-- >   'a'
+-- > value2 <- Data.Map.lookup 1 m
+-- >   Error: Key not found
+--
+-- An example of using @lookup@ with @Maybe@ monad:
+--
+-- > import Prelude hiding (lookup)
+-- > import Data.Map
+-- >
+-- > employeeDept = fromList([("John","Sales"), ("Bob","IT")])
+-- > deptCountry = fromList([("IT","USA"), ("Sales","France")])
+-- > countryCurrency = fromList([("USA", "Dollar"), ("France", "Euro")])
+-- >
+-- > employeeCurrency :: String -> Maybe String
+-- > employeeCurrency name = do
+-- >     dept <- lookup name employeeDept
+-- >     country <- lookup dept deptCountry
+-- >     lookup country countryCurrency
+-- >
+-- > main = do
+-- >     putStrLn $ "John's currency: " ++ (show (employeeCurrency "John"))
+-- >     putStrLn $ "Pete's currency: " ++ (show (employeeCurrency "Pete"))
+--
+-- The output of this program:
+--
+-- >   John's currency: Just "Euro"
+-- >   Pete's currency: Nothing
+
 lookup :: (Monad m,Ord k) => k -> Map k a -> m a
 lookup k t = case lookup' k t of
     Just x -> return x
@@ -283,14 +332,22 @@ lookupAssoc  k t
                GT -> lookupAssoc k r
                EQ -> Just (kx,x)
 
--- | /O(log n)/. Is the key a member of the map?
+-- | /O(log n)/. Is the key a member of the map? See also 'notMember'.
+--
+-- > member 5 (fromList [(5,'a'), (3,'b')]) == True
+-- > member 1 (fromList [(5,'a'), (3,'b')]) == False
+
 member :: Ord k => k -> Map k a -> Bool
 member k m
   = case lookup k m of
       Nothing -> False
       Just x  -> True
 
--- | /O(log n)/. Is the key not a member of the map?
+-- | /O(log n)/. Is the key not a member of the map? See also 'member'.
+--
+-- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
+-- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
+
 notMember :: Ord k => k -> Map k a -> Bool
 notMember k m = not $ member k m
 
@@ -303,7 +360,12 @@ find k m
       Just x  -> x
 
 -- | /O(log n)/. The expression @('findWithDefault' def k map)@ returns
--- the value at key @k@ or returns @def@ when the key is not in the map.
+-- the value at key @k@ or returns default value @def@
+-- when the key is not in the map.
+--
+-- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
+-- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
+
 findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault def k m
   = case lookup k m of
@@ -316,11 +378,19 @@ findWithDefault def k m
   Construction
 --------------------------------------------------------------------}
 -- | /O(1)/. The empty map.
+--
+-- > empty      == fromList []
+-- > size empty == 0
+
 empty :: Map k a
 empty 
   = Tip
 
 -- | /O(1)/. A map with a single element.
+--
+-- > singleton 1 'a'        == fromList [(1, 'a')]
+-- > size (singleton 1 'a') == 1
+
 singleton :: k -> a -> Map k a
 singleton k x  
   = Bin 1 k x Tip Tip
@@ -330,8 +400,13 @@ singleton k x
 --------------------------------------------------------------------}
 -- | /O(log n)/. Insert a new key and value in the map.
 -- If the key is already present in the map, the associated value is
--- replaced with the supplied value, i.e. 'insert' is equivalent to
+-- replaced with the supplied value. 'insert' is equivalent to
 -- @'insertWith' 'const'@.
+--
+-- > insert 5 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'x')]
+-- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
+-- > insert 5 'x' empty                         == singleton 5 'x'
+
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert kx x t
   = case t of
@@ -342,11 +417,16 @@ insert kx x t
                GT -> balance ky y l (insert kx x r)
                EQ -> Bin sz kx x l r
 
--- | /O(log n)/. Insert with a combining function.
+-- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@ 
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key, f new_value old_value)@.
+--
+-- > insertWith (++) 5 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "xxxa")]
+-- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
+-- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
+
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f k x m          
   = insertWithKey (\k x y -> f x y) k x m
@@ -357,12 +437,18 @@ insertWith' f k x m
   = insertWithKey' (\k x y -> f x y) k x m
 
 
--- | /O(log n)/. Insert with a combining function.
+-- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@ 
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key,f key new_value old_value)@.
 -- Note that the key passed to f is the same key passed to 'insertWithKey'.
+--
+-- > let f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
+-- > insertWithKey f 5 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "5:xxx|a")]
+-- > insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
+-- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
+
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey f kx x t
   = case t of
@@ -385,9 +471,22 @@ insertWithKey' f kx x t
                EQ -> let x' = f kx x y in seq x' (Bin sy kx x' l r)
 
 
--- | /O(log n)/. The expression (@'insertLookupWithKey' f k x map@)
+-- | /O(log n)/. Combines insert operation with old value retrieval.
+-- The expression (@'insertLookupWithKey' f k x map@)
 -- is a pair where the first element is equal to (@'lookup' k map@)
 -- and the second element equal to (@'insertWithKey' f k x map@).
+--
+-- > let f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
+-- > insertLookupWithKey f 5 "xxx" (fromList [(5,"a"), (3,"b")]) == (Just "a", fromList [(3, "b"), (5, "5:xxx|a")])
+-- > insertLookupWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "xxx")])
+-- > insertLookupWithKey f 5 "xxx" empty                         == (Nothing,  singleton 5 "xxx")
+--
+-- This is how to define @insertLookup@ using @insertLookupWithKey@:
+--
+-- > let insertLookup kx x t = insertLookupWithKey (\_ a _ -> a) kx x t
+-- > insertLookup 5 "x" (fromList [(5,"a"), (3,"b")]) == (Just "a", fromList [(3, "b"), (5, "x")])
+-- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
+
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a,Map k a)
 insertLookupWithKey f kx x t
   = case t of
@@ -404,6 +503,11 @@ insertLookupWithKey f kx x t
 --------------------------------------------------------------------}
 -- | /O(log n)/. Delete a key and its value from the map. When the key is not
 -- a member of the map, the original map is returned.
+--
+-- > delete 5 (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > delete 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > delete 5 empty                         == empty
+
 delete :: Ord k => k -> Map k a -> Map k a
 delete k t
   = case t of
@@ -414,14 +518,26 @@ delete k t
                GT -> balance kx x l (delete k r)
                EQ -> glue l r
 
--- | /O(log n)/. Adjust a value at a specific key. When the key is not
+-- | /O(log n)/. Update a value at a specific key with the result of the provided function.
+-- When the key is not
 -- a member of the map, the original map is returned.
+--
+-- > adjust ("new " ++) 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "new a")]
+-- > adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > adjust ("new " ++) 7 empty                         == empty
+
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f k m
   = adjustWithKey (\k x -> f x) k m
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
+--
+-- > let f key x = (show key) ++ ":new " ++ x
+-- > adjustWithKey f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "5:new a")]
+-- > adjustWithKey f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > adjustWithKey f 7 empty                         == empty
+
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f k m
   = updateWithKey (\k x -> Just (f k x)) k m
@@ -429,6 +545,12 @@ adjustWithKey f k m
 -- | /O(log n)/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
 -- deleted. If it is (@'Just' y@), the key @k@ is bound to the new value @y@.
+--
+-- > let f x = if x == "a" then Just "new a" else Nothing
+-- > update f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "new a")]
+-- > update f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > update f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f k m
   = updateWithKey (\k x -> f x) k m
@@ -437,6 +559,12 @@ update f k m
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
 -- the element is deleted. If it is (@'Just' y@), the key @k@ is bound
 -- to the new value @y@.
+--
+-- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
+-- > updateWithKey f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "5:new a")]
+-- > updateWithKey f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey f k t
   = case t of
@@ -449,7 +577,15 @@ updateWithKey f k t
                        Just x' -> Bin sx kx x' l r
                        Nothing -> glue l r
 
--- | /O(log n)/. Lookup and update.
+-- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
+-- The function returns changed value, if it is updated.
+-- Returns the original key value if the map entry is deleted. 
+--
+-- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
+-- > updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) == (Just "5:new a", fromList [(3, "b"), (5, "5:new a")])
+-- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
+-- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
+
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey f k t
   = case t of
@@ -464,7 +600,16 @@ updateLookupWithKey f k t
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
--- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@
+-- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
+--
+-- > let f _ = Nothing
+-- > alter f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > alter f 5 (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- >
+-- > let f _ = Just "c"
+-- > alter f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "c")]
+-- > alter f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "c")]
+
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter f k t
   = case t of
@@ -485,6 +630,12 @@ alter f k t
 -- | /O(log n)/. Return the /index/ of a key. The index is a number from
 -- /0/ up to, but not including, the 'size' of the map. Calls 'error' when
 -- the key is not a 'member' of the map.
+--
+-- > findIndex 2 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
+-- > findIndex 3 (fromList [(5,"a"), (3,"b")]) == 0
+-- > findIndex 5 (fromList [(5,"a"), (3,"b")]) == 1
+-- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
+
 findIndex :: Ord k => k -> Map k a -> Int
 findIndex k t
   = case lookupIndex k t of
@@ -492,7 +643,13 @@ findIndex k t
       Just idx -> idx
 
 -- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
--- /0/ up to, but not including, the 'size' of the map. 
+-- /0/ up to, but not including, the 'size' of the map.
+--
+-- > isJust (lookupIndex 2 (fromList [(5,"a"), (3,"b")]))   == False
+-- > fromJust (lookupIndex 3 (fromList [(5,"a"), (3,"b")])) == 0
+-- > fromJust (lookupIndex 5 (fromList [(5,"a"), (3,"b")])) == 1
+-- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
+
 lookupIndex :: (Monad m,Ord k) => k -> Map k a -> m Int
 lookupIndex k t = case lookup 0 t of
     Nothing -> fail "Data.Map.lookupIndex: Key not found."
@@ -507,6 +664,11 @@ lookupIndex k t = case lookup 0 t of
 
 -- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
 -- invalid index is used.
+--
+-- > elemAt 0 (fromList [(5,"a"), (3,"b")]) == (3,"b")
+-- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
+-- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
+
 elemAt :: Int -> Map k a -> (k,a)
 elemAt i Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
@@ -519,6 +681,16 @@ elemAt i (Bin _ kx x l r)
 
 -- | /O(log n)/. Update the element at /index/. Calls 'error' when an
 -- invalid index is used.
+--
+-- > updateAt (\ _ _ -> Just "x") 0    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "x"), (5, "a")]
+-- > updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "x")]
+-- > updateAt (\ _ _ -> Just "x") 2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
+-- > updateAt (\ _ _ -> Just "x") (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
+-- > updateAt (\_ _  -> Nothing)  0    (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > updateAt (\_ _  -> Nothing)  1    (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
+-- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
+
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i Tip  = error "Map.updateAt: index out of range"
 updateAt f i (Bin sx kx x l r)
@@ -533,6 +705,12 @@ updateAt f i (Bin sx kx x l r)
 
 -- | /O(log n)/. Delete the element at /index/.
 -- Defined as (@'deleteAt' i map = 'updateAt' (\k x -> 'Nothing') i map@).
+--
+-- > deleteAt 0  (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > deleteAt 1  (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
+-- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
+
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i map
   = updateAt (\k x -> Nothing) i map
@@ -541,42 +719,70 @@ deleteAt i map
 {--------------------------------------------------------------------
   Minimal, Maximal
 --------------------------------------------------------------------}
--- | /O(log n)/. The minimal key of the map.
+-- | /O(log n)/. The minimal key of the map. Calls 'error' is the map is empty.
+--
+-- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
+-- > findMin empty                            Error: empty map has no minimal element
+
 findMin :: Map k a -> (k,a)
 findMin (Bin _ kx x Tip r)  = (kx,x)
 findMin (Bin _ kx x l r)    = findMin l
 findMin Tip                 = error "Map.findMin: empty map has no minimal element"
 
--- | /O(log n)/. The maximal key of the map.
+-- | /O(log n)/. The maximal key of the map. Calls 'error' is the map is empty.
+--
+-- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
+-- > findMax empty                            Error: empty map has no maximal element
+
 findMax :: Map k a -> (k,a)
 findMax (Bin _ kx x l Tip)  = (kx,x)
 findMax (Bin _ kx x l r)    = findMax r
 findMax Tip                 = error "Map.findMax: empty map has no maximal element"
 
--- | /O(log n)/. Delete the minimal key.
+-- | /O(log n)/. Delete the minimal key. Returns an empty map if the map is empty.
+--
+-- > deleteMin (fromList [(5,"a"), (3,"b"), (7,"c")]) == fromList [(5,"a"), (7,"c")]
+-- > deleteMin empty == empty
+
 deleteMin :: Map k a -> Map k a
 deleteMin (Bin _ kx x Tip r)  = r
 deleteMin (Bin _ kx x l r)    = balance kx x (deleteMin l) r
 deleteMin Tip                 = Tip
 
--- | /O(log n)/. Delete the maximal key.
+-- | /O(log n)/. Delete the maximal key. Returns an empty map if the map is empty.
+--
+-- > deleteMax (fromList [(5,"a"), (3,"b"), (7,"c")]) == fromList [(3,"b"), (5,"a")]
+-- > deleteMax empty == empty
+
 deleteMax :: Map k a -> Map k a
 deleteMax (Bin _ kx x l Tip)  = l
 deleteMax (Bin _ kx x l r)    = balance kx x l (deleteMax r)
 deleteMax Tip                 = Tip
 
 -- | /O(log n)/. Update the value at the minimal key.
+--
+-- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
+-- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
 updateMin :: (a -> Maybe a) -> Map k a -> Map k a
 updateMin f m
   = updateMinWithKey (\k x -> f x) m
 
 -- | /O(log n)/. Update the value at the maximal key.
+--
+-- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
+-- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+
 updateMax :: (a -> Maybe a) -> Map k a -> Map k a
 updateMax f m
   = updateMaxWithKey (\k x -> f x) m
 
 
 -- | /O(log n)/. Update the value at the minimal key.
+--
+-- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
+-- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
 updateMinWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMinWithKey f t
   = case t of
@@ -587,6 +793,10 @@ updateMinWithKey f t
       Tip                -> Tip
 
 -- | /O(log n)/. Update the value at the maximal key.
+--
+-- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
+-- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+
 updateMaxWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMaxWithKey f t
   = case t of
@@ -598,24 +808,44 @@ updateMaxWithKey f t
 
 -- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and the map stripped from that element
 -- @fail@s (in the monad) when passed an empty map.
+--
+-- > v <- minViewWithKey (fromList [(5,"a"), (3,"b")])
+-- > v ==  ((3,"b"), singleton 5 "a")
+-- > minViewWithKey empty              Error: empty map
+
 minViewWithKey :: Monad m => Map k a -> m ((k,a), Map k a)
-minViewWithKey Tip = fail "Map.minView: empty map"
+minViewWithKey Tip = fail "Map.minViewWithKey: empty map"
 minViewWithKey x = return (deleteFindMin x)
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and the map stripped from that element
 -- @fail@s (in the monad) when passed an empty map.
+--
+-- > v <- maxViewWithKey (fromList [(5,"a"), (3,"b")])
+-- > v == ((5,"a"), singleton 3 "b")
+-- > maxViewWithKey empty              Error: empty map
+
 maxViewWithKey :: Monad m => Map k a -> m ((k,a), Map k a)
-maxViewWithKey Tip = fail "Map.maxView: empty map"
+maxViewWithKey Tip = fail "Map.maxViewWithKey: empty map"
 maxViewWithKey x = return (deleteFindMax x)
 
 -- | /O(log n)/. Retrieves the minimal key\'s value of the map, and the map stripped from that element
 -- @fail@s (in the monad) when passed an empty map.
+--
+-- > v <- minView (fromList [(5,"a"), (3,"b")])
+-- > v == ("b", singleton 5 "a")
+-- > minView empty                     Error: empty map
+
 minView :: Monad m => Map k a -> m (a, Map k a)
 minView Tip = fail "Map.minView: empty map"
 minView x = return (first snd $ deleteFindMin x)
 
 -- | /O(log n)/. Retrieves the maximal key\'s value of the map, and the map stripped from that element
 -- @fail@s (in the monad) when passed an empty map.
+--
+-- > v <- maxView (fromList [(5,"a"), (3,"b")]) 
+-- > v == ("a", singleton 3 "b")
+-- > maxView empty                     Error: empty map
+
 maxView :: Monad m => Map k a -> m (a, Map k a)
 maxView Tip = fail "Map.maxView: empty map"
 maxView x = return (first snd $ deleteFindMax x)
@@ -629,12 +859,22 @@ first f (x,y) = (f x, y)
 --------------------------------------------------------------------}
 -- | The union of a list of maps:
 --   (@'unions' == 'Prelude.foldl' 'union' 'empty'@).
+--
+-- > unions [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
+-- >     == fromList [(3, "b"), (5, "a"), (7, "C")]
+-- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
+-- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
+
 unions :: Ord k => [Map k a] -> Map k a
 unions ts
   = foldlStrict union empty ts
 
 -- | The union of a list of maps, with a combining operation:
 --   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
+--
+-- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
+-- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
+
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
@@ -644,7 +884,10 @@ unionsWith f ts
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
 -- The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset `union` smallset)
+-- Hedge-union is more efficient on (bigset \``union`\` smallset).
+--
+-- > union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "a"), (7, "C")]
+
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
@@ -681,13 +924,20 @@ hedgeUnionR cmplo cmphi (Bin _ kx x l r) t2
   Union with a combining function
 --------------------------------------------------------------------}
 -- | /O(n+m)/. Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
+--
+-- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
+
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\k x y -> f x y) m1 m2
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset `union` smallset).
+-- Hedge-union is more efficient on (bigset \``union`\` smallset).
+--
+-- > let f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
+-- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
+
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f Tip t2  = t2
 unionWithKey f t1 Tip  = t1
@@ -712,7 +962,11 @@ hedgeUnionWithKey f cmplo cmphi (Bin _ kx x l r) t2
   Difference
 --------------------------------------------------------------------}
 -- | /O(n+m)/. Difference of two maps. 
+-- Return elements of the first map not existing in the second map.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
+--
+-- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
+
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip t2  = Tip
 difference t1 Tip  = t1
@@ -729,7 +983,16 @@ hedgeDiff cmplo cmphi t (Bin _ kx x l r)
     cmpkx k = compare kx k   
 
 -- | /O(n+m)/. Difference with a combining function. 
+-- When two equal keys are
+-- encountered, the combining function is applied to the values of these keys.
+-- If it returns 'Nothing', the element is discarded (proper set difference). If
+-- it returns (@'Just' y@), the element is updated with a new value @y@. 
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
+--
+-- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
+-- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
+-- >     == singleton 3 "b:B"
+
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\k x y -> f x y) m1 m2
@@ -739,6 +1002,11 @@ differenceWith f m1 m2
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
 -- it returns (@'Just' y@), the element is updated with a new value @y@. 
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
+--
+-- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
+-- > differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
+-- >     == singleton 3 "3:b|B"
+
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f Tip t2  = Tip
 differenceWithKey f t1 Tip  = t1
@@ -767,19 +1035,30 @@ hedgeDiffWithKey f cmplo cmphi t (Bin _ kx x l r)
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. Intersection of two maps. The values in the first
--- map are returned, i.e. (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
+-- | /O(n+m)/. Intersection of two maps.
+-- Return data in the first map for the keys existing in both maps.
+-- (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
+--
+-- > intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "a"
+
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection m1 m2
   = intersectionWithKey (\k x y -> x) m1 m2
 
 -- | /O(n+m)/. Intersection with a combining function.
+--
+-- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
+
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\k x y -> f x y) m1 m2
 
 -- | /O(n+m)/. Intersection with a combining function.
--- Intersection is more efficient on (bigset `intersection` smallset)
+-- Intersection is more efficient on (bigset \``intersection`\` smallset).
+--
+-- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
+-- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
+
 --intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 --intersectionWithKey f Tip t = Tip
 --intersectionWithKey f t Tip = Tip
@@ -795,7 +1074,6 @@ intersectionWith f m1 m2
 --    (lt,found,gt) = splitLookup kx t
 --    tl            = intersectWithKey f lt l
 --    tr            = intersectWithKey f gt r
-
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f Tip t = Tip
@@ -820,13 +1098,14 @@ intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
 {--------------------------------------------------------------------
   Submap
 --------------------------------------------------------------------}
--- | /O(n+m)/. 
+-- | /O(n+m)/.
 -- This function is defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
+--
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isSubmapOf m1 m2
   = isSubmapOfBy (==) m1 m2
 
-{- | /O(n+m)/. 
+{- | /O(n+m)/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
  all keys in @t1@ are in tree @t2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following 
@@ -841,6 +1120,8 @@ isSubmapOf m1 m2
  > isSubmapOfBy (==) (fromList [('a',2)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (<)  (fromList [('a',1)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (==) (fromList [('a',1),('b',2)]) (fromList [('a',1)])
+ 
+
 -}
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
@@ -876,6 +1157,8 @@ isProperSubmapOf m1 m2
   > isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1),(2,2)])
   > isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)])
   > isProperSubmapOfBy (<)  (fromList [(1,1)])       (fromList [(1,1),(2,2)])
+  
+ 
 -}
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
@@ -885,11 +1168,19 @@ isProperSubmapOfBy f t1 t2
   Filter and partition
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all values that satisfy the predicate.
+--
+-- > filter (> "a") (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > filter (> "x") (fromList [(5,"a"), (3,"b")]) == empty
+-- > filter (< "a") (fromList [(5,"a"), (3,"b")]) == empty
+
 filter :: Ord k => (a -> Bool) -> Map k a -> Map k a
 filter p m
   = filterWithKey (\k x -> p x) m
 
 -- | /O(n)/. Filter all keys\/values that satisfy the predicate.
+--
+-- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
 filterWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey p Tip = Tip
 filterWithKey p (Bin _ kx x l r)
@@ -897,16 +1188,26 @@ filterWithKey p (Bin _ kx x l r)
   | otherwise = merge (filterWithKey p l) (filterWithKey p r)
 
 
--- | /O(n)/. partition the map according to a predicate. The first
+-- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
 -- elements that fail the predicate. See also 'split'.
+--
+-- > partition (> "a") (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", singleton 5 "a")
+-- > partition (< "x") (fromList [(5,"a"), (3,"b")]) == (fromList [(3, "b"), (5, "a")], empty)
+-- > partition (> "x") (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
+
 partition :: Ord k => (a -> Bool) -> Map k a -> (Map k a,Map k a)
 partition p m
   = partitionWithKey (\k x -> p x) m
 
--- | /O(n)/. partition the map according to a predicate. The first
+-- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
 -- elements that fail the predicate. See also 'split'.
+--
+-- > partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (3,"b")]) == (singleton 5 "a", singleton 3 "b")
+-- > partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) == (fromList [(3, "b"), (5, "a")], empty)
+-- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
+
 partitionWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
 partitionWithKey p Tip = (Tip,Tip)
 partitionWithKey p (Bin _ kx x l r)
@@ -917,11 +1218,19 @@ partitionWithKey p (Bin _ kx x l r)
     (r1,r2) = partitionWithKey p r
 
 -- | /O(n)/. Map values and collect the 'Just' results.
+--
+-- > let f x = if x == "a" then Just "new a" else Nothing
+-- > mapMaybe f (fromList [(5,"a"), (3,"b")]) == singleton 5 "new a"
+
 mapMaybe :: Ord k => (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f m
   = mapMaybeWithKey (\k x -> f x) m
 
 -- | /O(n)/. Map keys\/values and collect the 'Just' results.
+--
+-- > let f k _ = if k < 5 then Just ("key : " ++ (show k)) else Nothing
+-- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
+
 mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey f Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
@@ -929,11 +1238,27 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
+--
+-- > let f a = if a < "c" then Left a else Right a
+-- > mapEither f (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+-- >     == (fromList [(3,"b"), (5,"a")], fromList [(1,"x"), (7,"z")])
+-- >
+-- > mapEither (\ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+-- >     == (empty, fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+
 mapEither :: Ord k => (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m
   = mapEitherWithKey (\k x -> f x) m
 
 -- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results.
+--
+-- > let f k a = if k < 5 then Left (k * 2) else Right (a ++ a)
+-- > mapEitherWithKey f (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+-- >     == (fromList [(1,2), (3,6)], fromList [(5,"aa"), (7,"zz")])
+-- >
+-- > mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+-- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
+
 mapEitherWithKey :: Ord k =>
   (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey f Tip = (Tip, Tip)
@@ -948,11 +1273,18 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
   Mapping
 --------------------------------------------------------------------}
 -- | /O(n)/. Map a function over all values in the map.
+--
+-- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
+
 map :: (a -> b) -> Map k a -> Map k b
 map f m
   = mapWithKey (\k x -> f x) m
 
 -- | /O(n)/. Map a function over all values in the map.
+--
+-- > let f key x = (show key) ++ ":" ++ x
+-- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
+
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey f Tip = Tip
 mapWithKey f (Bin sx kx x l r) 
@@ -960,12 +1292,20 @@ mapWithKey f (Bin sx kx x l r)
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
+--
+-- > let f a b = (a ++ b, b ++ "X")
+-- > mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) == ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
+
 mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccum f a m
   = mapAccumWithKey (\a k x -> f a x) a m
 
 -- | /O(n)/. The function 'mapAccumWithKey' threads an accumulating
 -- argument through the map in ascending order of keys.
+--
+-- > let f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
+-- > mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) == ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
+
 mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumWithKey f a t
   = mapAccumL f a t
@@ -994,22 +1334,29 @@ mapAccumR f a t
                  (a3,l') = mapAccumR f a2 l
              in (a3,Bin sx kx x' l' r')
 
--- | /O(n*log n)/. 
+-- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
 -- 
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the value at the smallest of
 -- these keys is retained.
+--
+-- > mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        == fromList [(4, "b"), (6, "a")]
+-- > mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "c"
+-- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
 mapKeys = mapKeysWith (\x y->x)
 
--- | /O(n*log n)/. 
+-- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
 -- 
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
 -- combined using @c@.
+--
+-- > mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "cdab"
+-- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . List.map fFirst . toList
@@ -1019,12 +1366,20 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 -- | /O(n)/.
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
 -- is strictly monotonic.
+-- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
 -- /The precondition is not checked./
 -- Semi-formally, we have:
 -- 
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls] 
 -- >                     ==> mapKeysMonotonic f s == mapKeys f s
 -- >     where ls = keys s
+--
+-- This means that @f@ maps distinct original keys to distinct resulting keys.
+-- This function has better performance than 'mapKeys'.
+--
+-- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
+-- > valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) == True
+-- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
 
 mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic f Tip = Tip
@@ -1041,6 +1396,9 @@ mapKeysMonotonic f (Bin sz k x l r) =
 --
 -- > elems map = fold (:) [] map
 --
+-- > let f a len = len + (length a)
+-- > fold f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold f z m
   = foldWithKey (\k x z -> f x z) z m
@@ -1051,6 +1409,9 @@ fold f z m
 --
 -- > keys map = foldWithKey (\k x ks -> k:ks) [] map
 --
+-- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
+-- > foldWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
+
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey f z t
   = foldr f z t
@@ -1075,20 +1436,36 @@ foldl f z (Bin _ kx x l r) = foldl f (f (foldl f z l) kx x) r
 --------------------------------------------------------------------}
 -- | /O(n)/.
 -- Return all elements of the map in the ascending order of their keys.
+--
+-- > elems (fromList [(5,"a"), (3,"b")]) == ["b","a"]
+-- > elems empty == []
+
 elems :: Map k a -> [a]
 elems m
   = [x | (k,x) <- assocs m]
 
 -- | /O(n)/. Return all keys of the map in ascending order.
+--
+-- > keys (fromList [(5,"a"), (3,"b")]) == [3,5]
+-- > keys empty == []
+
 keys  :: Map k a -> [k]
 keys m
   = [k | (k,x) <- assocs m]
 
 -- | /O(n)/. The set of all keys of the map.
+--
+-- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [3,5]
+-- > keysSet empty == Data.Set.empty
+
 keysSet :: Map k a -> Set.Set k
 keysSet m = Set.fromDistinctAscList (keys m)
 
 -- | /O(n)/. Return all key\/value pairs in the map in ascending key order.
+--
+-- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
+-- > assocs empty == []
+
 assocs :: Map k a -> [(k,a)]
 assocs m
   = toList m
@@ -1098,6 +1475,13 @@ assocs m
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
+-- If the list contains more than one value for the same key, the last value
+-- for the key is retained.
+--
+-- > fromList [] == empty
+-- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
+-- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
+
 fromList :: Ord k => [(k,a)] -> Map k a 
 fromList xs       
   = foldlStrict ins empty xs
@@ -1105,11 +1489,20 @@ fromList xs
     ins t (k,x) = insert k x t
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+--
+-- > fromListWith (++) [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "ab"), (5, "aba")]
+-- > fromListWith (++) [] == empty
+
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromListWith f xs
   = fromListWithKey (\k x y -> f x y) xs
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
+--
+-- > let f k a1 a2 = (show k) ++ a1 ++ a2
+-- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "3ab"), (5, "5a5ba")]
+-- > fromListWithKey f [] == empty
+
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
 fromListWithKey f xs 
   = foldlStrict ins empty xs
@@ -1117,14 +1510,21 @@ fromListWithKey f xs
     ins t (k,x) = insertWithKey f k x t
 
 -- | /O(n)/. Convert to a list of key\/value pairs.
+--
+-- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
+-- > toList empty == []
+
 toList :: Map k a -> [(k,a)]
 toList t      = toAscList t
 
 -- | /O(n)/. Convert to an ascending list.
+--
+-- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
+
 toAscList :: Map k a -> [(k,a)]
 toAscList t   = foldr (\k x xs -> (k,x):xs) [] t
 
--- | /O(n)/. 
+-- | /O(n)/.
 toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldl (\xs k x -> (k,x):xs) [] t
 
@@ -1138,12 +1538,23 @@ toDescList t  = foldl (\xs k x -> (k,x):xs) [] t
 --------------------------------------------------------------------}
 -- | /O(n)/. Build a map from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
+--
+-- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
+-- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
+-- > valid (fromAscList [(3,"b"), (5,"a"), (5,"b")]) == True
+-- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
+
 fromAscList :: Eq k => [(k,a)] -> Map k a 
 fromAscList xs
   = fromAscListWithKey (\k x y -> x) xs
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
+--
+-- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
+-- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
+-- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
+
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromAscListWith f xs
   = fromAscListWithKey (\k x y -> f x y) xs
@@ -1151,6 +1562,12 @@ fromAscListWith f xs
 -- | /O(n)/. Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
+--
+-- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
+-- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
+-- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")]) == True
+-- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
+
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
 fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
@@ -1170,6 +1587,11 @@ fromAscListWithKey f xs
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
 -- /The precondition is not checked./
+--
+-- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
+-- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
+-- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
+
 fromDistinctAscList :: [(k,a)] -> Map k a 
 fromDistinctAscList xs
   = build const (length xs) xs
@@ -1256,7 +1678,15 @@ filterLt cmp (Bin sx kx x l r)
   Split
 --------------------------------------------------------------------}
 -- | /O(log n)/. The expression (@'split' k map@) is a pair @(map1,map2)@ where
--- the keys in @map1@ are smaller than @k@ and the keys in @map2@ larger than @k@. Any key equal to @k@ is found in neither @map1@ nor @map2@.
+-- the keys in @map1@ are smaller than @k@ and the keys in @map2@ larger than @k@.
+-- Any key equal to @k@ is found in neither @map1@ nor @map2@.
+--
+-- > split 2 (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3,"b"), (5,"a")])
+-- > split 3 (fromList [(5,"a"), (3,"b")]) == (empty, singleton 5 "a")
+-- > split 4 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", singleton 5 "a")
+-- > split 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", empty)
+-- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
+
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
 split k Tip = (Tip,Tip)
 split k (Bin sx kx x l r)
@@ -1267,6 +1697,13 @@ split k (Bin sx kx x l r)
 
 -- | /O(log n)/. The expression (@'splitLookup' k map@) splits a map just
 -- like 'split' but also returns @'lookup' k map@.
+--
+-- > splitLookup 2 (fromList [(5,"a"), (3,"b")]) == (empty, Nothing, fromList [(3,"b"), (5,"a")])
+-- > splitLookup 3 (fromList [(5,"a"), (3,"b")]) == (empty, Just "b", singleton 5 "a")
+-- > splitLookup 4 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Nothing, singleton 5 "a")
+-- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
+-- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
+
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
 splitLookup k Tip = (Tip,Nothing,Tip)
 splitLookup k (Bin sx kx x l r)
@@ -1370,6 +1807,10 @@ glue l r
 
 
 -- | /O(log n)/. Delete and find the minimal element.
+--
+-- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")]) 
+-- > deleteFindMin                                            Error: can not return the minimal element of an empty map
+
 deleteFindMin :: Map k a -> ((k,a),Map k a)
 deleteFindMin t 
   = case t of
@@ -1378,6 +1819,10 @@ deleteFindMin t
       Tip             -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
 
 -- | /O(log n)/. Delete and find the maximal element.
+--
+-- > deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((10,"c"), fromList [(3,"b"), (5,"a")])
+-- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
+
 deleteFindMax :: Map k a -> ((k,a),Map k a)
 deleteFindMax t
   = case t of
@@ -1532,7 +1977,7 @@ showMap (x:xs)
   
 
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
--- in a compressed, hanging format.
+-- in a compressed, hanging format. See 'showTreeWith'.
 showTree :: (Show k,Show a) => Map k a -> String
 showTree m
   = showTreeWith showElem True False m
@@ -1633,6 +2078,10 @@ INSTANCE_TYPEABLE2(Map,mapTc,"Map")
   Assertions
 --------------------------------------------------------------------}
 -- | /O(n)/. Test if the internal map structure is valid.
+--
+-- > valid (fromAscList [(3,"b"), (5,"a")]) == True
+-- > valid (fromAscList [(5,"a"), (3,"b")]) == False
+
 valid :: Ord k => Map k a -> Bool
 valid t
   = balanced t && ordered t && validsize t
