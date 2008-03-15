@@ -969,7 +969,7 @@ splitTree i (Deep _ pr m sf)
 deepL :: Sized a => Maybe (Digit a) -> FingerTree (Node a) -> Digit a -> FingerTree a
 deepL Nothing m sf	= case viewLTree m of
 	Nothing2	-> digitToTree sf
-	Just2 a m'	-> deep (nodeToDigit a) m' sf
+	Just2 a m'	-> Deep (size m + size sf) (nodeToDigit a) m' sf
 deepL (Just pr) m sf	= deep pr m sf
 
 {-# SPECIALIZE deepR :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Maybe (Digit (Elem a)) -> FingerTree (Elem a) #-}
@@ -977,7 +977,7 @@ deepL (Just pr) m sf	= deep pr m sf
 deepR :: Sized a => Digit a -> FingerTree (Node a) -> Maybe (Digit a) -> FingerTree a
 deepR pr m Nothing	= case viewRTree m of
 	Nothing2	-> digitToTree pr
-	Just2 m' a	-> deep pr m' (nodeToDigit a)
+	Just2 m' a	-> Deep (size pr + size m) pr m' (nodeToDigit a)
 deepR pr m (Just sf)	= deep pr m sf
 
 {-# SPECIALIZE splitNode :: Int -> Node (Elem a) -> Split (Maybe (Digit (Elem a))) (Elem a) #-}
