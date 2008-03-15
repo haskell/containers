@@ -786,7 +786,9 @@ viewRTree (Deep s pr m (Four w x y z)) =
 
 -- Indexing
 
--- | /O(log(min(i,n-i)))/. The element at the specified position
+-- | /O(log(min(i,n-i)))/. The element at the specified position,
+-- which should be a positive integer less than the size of the sequence.
+-- If the position is out of range, 'index' fails with an error.
 index		:: Seq a -> Int -> a
 index (Seq xs) i
   | 0 <= i && i < size xs = case lookupTree i xs of
@@ -848,11 +850,13 @@ lookupDigit i (Four a b c d)
 	sab	= sa + size b
 	sabc	= sab + size c
 
--- | /O(log(min(i,n-i)))/. Replace the element at the specified position
+-- | /O(log(min(i,n-i)))/. Replace the element at the specified position.
+-- If the position is out of range, the original sequence is returned.
 update		:: Int -> a -> Seq a -> Seq a
 update i x	= adjust (const x) i
 
--- | /O(log(min(i,n-i)))/. Update the element at the specified position
+-- | /O(log(min(i,n-i)))/. Update the element at the specified position.
+-- If the position is out of range, the original sequence is returned.
 adjust		:: (a -> a) -> Int -> Seq a -> Seq a
 adjust f i (Seq xs)
   | 0 <= i && i < size xs = Seq (adjustTree (const (fmap f)) i xs)
@@ -911,14 +915,21 @@ adjustDigit f i (Four a b c d)
 -- Splitting
 
 -- | /O(log(min(i,n-i)))/. The first @i@ elements of a sequence.
+-- If @i@ is negative, @'take' i s@ yields the empty sequence.
+-- If the sequence contains fewer than @i@ elements, the whole sequence
+-- is returned.
 take		:: Int -> Seq a -> Seq a
 take i		=  fst . splitAt i
 
 -- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
+-- If @i@ is negative, @'take' i s@ yields the whole sequence.
+-- If the sequence contains fewer than @i@ elements, the empty sequence
+-- is returned.
 drop		:: Int -> Seq a -> Seq a
 drop i		=  snd . splitAt i
 
 -- | /O(log(min(i,n-i)))/. Split a sequence at a given position.
+-- @'splitAt' i s = ('take' i s, 'drop' i s)@.
 splitAt			:: Int -> Seq a -> (Seq a, Seq a)
 splitAt i (Seq xs)	=  (Seq l, Seq r)
   where	(l, r)		=  split i xs
