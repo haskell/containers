@@ -4,7 +4,7 @@
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
 -- License     :  BSD-style
--- Maintainer  :  ross@soi.city.ac.uk
+-- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
 -- Portability :  portable
 --
