@@ -173,7 +173,7 @@ import Control.Monad ( liftM )
 {-
 -- just for testing
 import qualified Prelude
-import Debug.QuickCheck 
+import Test.QuickCheck 
 import List (nub,sort)
 import qualified List
 -}  
@@ -1452,7 +1452,7 @@ fromListWithKey f xs
   where
     ins t (k,x) = insertWithKey f k x t
 
--- | /O(n*min(n,W))/. Build a map from a list of key\/value pairs where
+-- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
 --
 -- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
@@ -1460,34 +1460,62 @@ fromListWithKey f xs
 
 fromAscList :: [(Key,a)] -> IntMap a
 fromAscList xs
-  = fromList xs
+  = fromAscListWithKey (\k x y -> x) xs
 
--- | /O(n*min(n,W))/. Build a map from a list of key\/value pairs where
+-- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
+-- /The precondition (input list is ascending) is not checked./
 --
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
 fromAscListWith f xs
-  = fromListWith f xs
+  = fromAscListWithKey (\k x y -> f x y) xs
 
--- | /O(n*min(n,W))/. Build a map from a list of key\/value pairs where
+-- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
+-- /The precondition (input list is ascending) is not checked./
 --
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey f xs
-  = fromListWithKey f xs
+fromAscListWithKey _ []     = Nil
+fromAscListWithKey f (x:xs) = fromDistinctAscList (combineEq x xs)
+  where
+    -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
+    combineEq z [] = [z]
+    combineEq z@(kz,zz) (x@(kx,xx):xs)
+      | kx==kz    = let yy = f kx xx zz in combineEq (kx,yy) xs
+      | otherwise = z:combineEq x xs
 
--- | /O(n*min(n,W))/. Build a map from a list of key\/value pairs where
+-- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
+-- /The precondition (input list is strictly ascending) is not checked./
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
 fromDistinctAscList :: [(Key,a)] -> IntMap a
-fromDistinctAscList xs
-  = fromList xs
+fromDistinctAscList []     = Nil
+fromDistinctAscList (z:zs) = work z zs Nada
+  where
+    work x@(kx,vx) []            stk = finish kx (Tip kx vx) stk
+    work x@(kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
+
+    reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
+    reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
+    reduce z zs m px tx stk@(Push py ty stk') =
+        let mxy = branchMask px py
+            pxy = mask px mxy
+        in  if shorter m mxy
+                 then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
+                 else work z zs (Push px tx stk)
+
+    finish _  t  Nada = t
+    finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
+        where m = branchMask px py
+              p = mask px m
+
+data Stack a = Push {-# UNPACK #-} !Prefix !(IntMap a) !(Stack a) | Nada
 
 
 {--------------------------------------------------------------------
@@ -1847,7 +1875,7 @@ prop_Int xs ys
 --------------------------------------------------------------------}
 prop_Ordered
   = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]] 
+    let xs = concat [[(x-n,()),(x-n,())] | x <- [0..2*n::Int]] 
     in fromAscList xs == fromList xs
 
 prop_List :: [Key] -> Bool
