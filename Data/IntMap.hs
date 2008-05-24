@@ -576,8 +576,9 @@ updateLookupWithKey f k t
 
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
--- 'alter' can be used to insert, delete, or update a value in a 'Map'.
+-- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
+alter :: (Maybe a -> Maybe a) -> Int -> IntMap a -> IntMap a
 alter f k t
   = case t of
       Bin p m l r 
@@ -938,28 +939,36 @@ first f (x,y) = (f x,y)
 
 -- | /O(log n)/. Retrieves the maximal key of the map, and the map stripped from that element.
 -- @fail@s (in the monad) when passed an empty map.
+maxView :: (Monad m) => IntMap a -> m (a, IntMap a)
 maxView t = liftM (first snd) (maxViewWithKey t)
 
 -- | /O(log n)/. Retrieves the minimal key of the map, and the map stripped from that element.
 -- @fail@s (in the monad) when passed an empty map.
+minView :: (Monad m) => IntMap a -> m (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
 -- | /O(log n)/. Delete and find the maximal element.
+deleteFindMax :: IntMap a -> (a, IntMap a)
 deleteFindMax = runIdentity . maxView
 
 -- | /O(log n)/. Delete and find the minimal element.
+deleteFindMin :: IntMap a -> (a, IntMap a)
 deleteFindMin = runIdentity . minView
 
 -- | /O(log n)/. The minimal key of the map.
+findMin :: IntMap a -> a
 findMin = fst . runIdentity . minView
 
 -- | /O(log n)/. The maximal key of the map.
+findMax :: IntMap a -> a
 findMax = fst . runIdentity . maxView
 
 -- | /O(log n)/. Delete the minimal key.
+deleteMin :: IntMap a -> IntMap a
 deleteMin = snd . runIdentity . minView
 
 -- | /O(log n)/. Delete the maximal key.
+deleteMax :: IntMap a -> IntMap a
 deleteMax = snd . runIdentity . maxView
 
 
