@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -fno-bang-patterns #-}
+{-# OPTIONS_GHC -XNoBangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |

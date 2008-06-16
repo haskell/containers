@@ -1,4 +1,4 @@
-{-# OPTIONS -cpp -fglasgow-exts -fno-bang-patterns #-} 
+{-# OPTIONS_GHC -cpp -fglasgow-exts -XNoBangPatterns #-} 
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap
