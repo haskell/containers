@@ -10,8 +10,11 @@ description:
         each operation is either worst-case or amortized, but remains
         valid even if structures are shared.
 build-type: Simple
-build-depends: base, array
-exposed-modules:
+cabal-version:  >=1.2
+
+Library {
+    build-depends: base, array
+    exposed-modules:
         Data.Graph
         Data.IntMap
         Data.IntSet
@@ -19,8 +22,10 @@ exposed-modules:
         Data.Sequence
         Data.Set
         Data.Tree
-include-dirs: include
-extensions: CPP
--- We need this for Data deriving, but we can't just turn on that
--- extension because we only try to do it when building with GHC.
-ghc-options: -fglasgow-exts
+    include-dirs: include
+    extensions: CPP
+    if impl(ghc) {
+        extensions: DeriveDataTypeable, MagicHash, Rank2Types
+    }
+}
+
