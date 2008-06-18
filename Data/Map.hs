@@ -174,7 +174,6 @@ import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
-import Data.Typeable
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
@@ -190,7 +189,7 @@ import List(nub,sort)
 #if __GLASGOW_HASKELL__
 import Text.Read
 import Data.Generics.Basics
-import Data.Generics.Instances
+import Data.Generics.Instances ()
 #endif
 
 {--------------------------------------------------------------------
@@ -235,7 +234,7 @@ instance (Ord k) => Monoid (Map k v) where
 -- We omit reflection services for the sake of data abstraction.
 
 instance (Data k, Data a, Ord k) => Data (Map k a) where
-  gfoldl f z map = z fromList `f` (toList map)
+  gfoldl f z m   = z fromList `f` toList m
   toConstr _     = error "toConstr"
   gunfold _ _    = error "gunfold"
   dataTypeOf _   = mkNorepType "Data.Map.Map"
@@ -254,8 +253,8 @@ instance (Data k, Data a, Ord k) => Data (Map k a) where
 null :: Map k a -> Bool
 null t
   = case t of
-      Tip             -> True
-      Bin sz k x l r  -> False
+      Tip    -> True
+      Bin {} -> False
 
 -- | /O(1)/. The number of elements in the map.
 --
@@ -267,7 +266,7 @@ size :: Map k a -> Int
 size t
   = case t of
       Tip             -> 0
-      Bin sz k x l r  -> sz
+      Bin sz _ _ _ _  -> sz
 
 
 -- | /O(log n)/. Lookup the value at a key in the map.
@@ -316,7 +315,7 @@ lookup' :: Ord k => k -> Map k a -> Maybe a
 lookup' k t
   = case t of
       Tip -> Nothing
-      Bin sz kx x l r
+      Bin _ kx x l r
           -> case compare k kx of
                LT -> lookup' k l
                GT -> lookup' k r
@@ -326,7 +325,7 @@ lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupAssoc  k t
   = case t of
       Tip -> Nothing
-      Bin sz kx x l r
+      Bin _ kx x l r
           -> case compare k kx of
                LT -> lookupAssoc k l
                GT -> lookupAssoc k r
@@ -341,7 +340,7 @@ member :: Ord k => k -> Map k a -> Bool
 member k m
   = case lookup k m of
       Nothing -> False
-      Just x  -> True
+      Just _  -> True
 
 -- | /O(log n)/. Is the key not a member of the map? See also 'member'.
 --
@@ -429,12 +428,12 @@ insert kx x t
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f k x m          
-  = insertWithKey (\k x y -> f x y) k x m
+  = insertWithKey (\_ x' y' -> f x' y') k x m
 
 -- | Same as 'insertWith', but the combining function is applied strictly.
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' f k x m          
-  = insertWithKey' (\k x y -> f x y) k x m
+  = insertWithKey' (\_ x' y' -> f x' y') k x m
 
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
@@ -512,7 +511,7 @@ delete :: Ord k => k -> Map k a -> Map k a
 delete k t
   = case t of
       Tip -> Tip
-      Bin sx kx x l r 
+      Bin _ kx x l r
           -> case compare k kx of
                LT -> balance kx x (delete k l) r
                GT -> balance kx x l (delete k r)
@@ -528,7 +527,7 @@ delete k t
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f k m
-  = adjustWithKey (\k x -> f x) k m
+  = adjustWithKey (\_ x -> f x) k m
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -540,7 +539,7 @@ adjust f k m
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f k m
-  = updateWithKey (\k x -> Just (f k x)) k m
+  = updateWithKey (\k' x' -> Just (f k' x')) k m
 
 -- | /O(log n)/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -553,7 +552,7 @@ adjustWithKey f k m
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f k m
-  = updateWithKey (\k x -> f x) k m
+  = updateWithKey (\_ x -> f x) k m
 
 -- | /O(log n)/. The expression (@'updateWithKey' f k map@) updates the
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
@@ -651,15 +650,15 @@ findIndex k t
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 lookupIndex :: (Monad m,Ord k) => k -> Map k a -> m Int
-lookupIndex k t = case lookup 0 t of
+lookupIndex k t = case f 0 t of
     Nothing -> fail "Data.Map.lookupIndex: Key not found."
     Just x -> return x
   where
-    lookup idx Tip  = Nothing
-    lookup idx (Bin _ kx x l r)
+    f _   Tip  = Nothing
+    f idx (Bin _ kx _ l r)
       = case compare k kx of
-          LT -> lookup idx l
-          GT -> lookup (idx + size l + 1) r 
+          LT -> f idx l
+          GT -> f (idx + size l + 1) r 
           EQ -> Just (idx + size l)
 
 -- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
@@ -670,7 +669,7 @@ lookupIndex k t = case lookup 0 t of
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 elemAt :: Int -> Map k a -> (k,a)
-elemAt i Tip = error "Map.elemAt: index out of range"
+elemAt _ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of
       LT -> elemAt i l
@@ -692,7 +691,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-updateAt f i Tip  = error "Map.updateAt: index out of range"
+updateAt _ _ Tip  = error "Map.updateAt: index out of range"
 updateAt f i (Bin sx kx x l r)
   = case compare i sizeL of
       LT -> balance kx x (updateAt f i l) r
@@ -712,8 +711,8 @@ updateAt f i (Bin sx kx x l r)
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
 deleteAt :: Int -> Map k a -> Map k a
-deleteAt i map
-  = updateAt (\k x -> Nothing) i map
+deleteAt i m
+  = updateAt (\_ _ -> Nothing) i m
 
 
 {--------------------------------------------------------------------
@@ -725,8 +724,8 @@ deleteAt i map
 -- > findMin empty                            Error: empty map has no minimal element
 
 findMin :: Map k a -> (k,a)
-findMin (Bin _ kx x Tip r)  = (kx,x)
-findMin (Bin _ kx x l r)    = findMin l
+findMin (Bin _ kx x Tip _)  = (kx,x)
+findMin (Bin _ _  _ l _)    = findMin l
 findMin Tip                 = error "Map.findMin: empty map has no minimal element"
 
 -- | /O(log n)/. The maximal key of the map. Calls 'error' is the map is empty.
@@ -735,8 +734,8 @@ findMin Tip                 = error "Map.findMin: empty map has no minimal eleme
 -- > findMax empty                            Error: empty map has no maximal element
 
 findMax :: Map k a -> (k,a)
-findMax (Bin _ kx x l Tip)  = (kx,x)
-findMax (Bin _ kx x l r)    = findMax r
+findMax (Bin _ kx x _ Tip)  = (kx,x)
+findMax (Bin _ _  _ _ r)    = findMax r
 findMax Tip                 = error "Map.findMax: empty map has no maximal element"
 
 -- | /O(log n)/. Delete the minimal key. Returns an empty map if the map is empty.
@@ -745,7 +744,7 @@ findMax Tip                 = error "Map.findMax: empty map has no maximal eleme
 -- > deleteMin empty == empty
 
 deleteMin :: Map k a -> Map k a
-deleteMin (Bin _ kx x Tip r)  = r
+deleteMin (Bin _ _  _ Tip r)  = r
 deleteMin (Bin _ kx x l r)    = balance kx x (deleteMin l) r
 deleteMin Tip                 = Tip
 
@@ -755,7 +754,7 @@ deleteMin Tip                 = Tip
 -- > deleteMax empty == empty
 
 deleteMax :: Map k a -> Map k a
-deleteMax (Bin _ kx x l Tip)  = l
+deleteMax (Bin _ _  _ l Tip)  = l
 deleteMax (Bin _ kx x l r)    = balance kx x l (deleteMax r)
 deleteMax Tip                 = Tip
 
@@ -766,7 +765,7 @@ deleteMax Tip                 = Tip
 
 updateMin :: (a -> Maybe a) -> Map k a -> Map k a
 updateMin f m
-  = updateMinWithKey (\k x -> f x) m
+  = updateMinWithKey (\_ x -> f x) m
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -775,7 +774,7 @@ updateMin f m
 
 updateMax :: (a -> Maybe a) -> Map k a -> Map k a
 updateMax f m
-  = updateMaxWithKey (\k x -> f x) m
+  = updateMaxWithKey (\_ x -> f x) m
 
 
 -- | /O(log n)/. Update the value at the minimal key.
@@ -789,7 +788,7 @@ updateMinWithKey f t
       Bin sx kx x Tip r  -> case f kx x of
                               Nothing -> r
                               Just x' -> Bin sx kx x' Tip r
-      Bin sx kx x l r    -> balance kx x (updateMinWithKey f l) r
+      Bin _ kx x l r     -> balance kx x (updateMinWithKey f l) r
       Tip                -> Tip
 
 -- | /O(log n)/. Update the value at the maximal key.
@@ -803,7 +802,7 @@ updateMaxWithKey f t
       Bin sx kx x l Tip  -> case f kx x of
                               Nothing -> l
                               Just x' -> Bin sx kx x' l Tip
-      Bin sx kx x l r    -> balance kx x l (updateMaxWithKey f r)
+      Bin _ kx x l r     -> balance kx x l (updateMaxWithKey f r)
       Tip                -> Tip
 
 -- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and the map stripped from that element
@@ -894,7 +893,10 @@ union t1 Tip  = t1
 union t1 t2 = hedgeUnionL (const LT) (const GT) t1 t2
 
 -- left-biased hedge union
-hedgeUnionL cmplo cmphi t1 Tip 
+hedgeUnionL :: Ord a
+            => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a b
+            -> Map a b
+hedgeUnionL _     _     t1 Tip
   = t1
 hedgeUnionL cmplo cmphi Tip (Bin _ kx x l r)
   = join kx x (filterGt cmplo l) (filterLt cmphi r)
@@ -904,8 +906,14 @@ hedgeUnionL cmplo cmphi (Bin _ kx x l r) t2
   where
     cmpkx k  = compare kx k
 
+{-
+XXX unused code
+
 -- right-biased hedge union
-hedgeUnionR cmplo cmphi t1 Tip 
+hedgeUnionR :: Ord a
+            => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a b
+            -> Map a b
+hedgeUnionR _     _     t1 Tip
   = t1
 hedgeUnionR cmplo cmphi Tip (Bin _ kx x l r)
   = join kx x (filterGt cmplo l) (filterLt cmphi r)
@@ -919,6 +927,7 @@ hedgeUnionR cmplo cmphi (Bin _ kx x l r) t2
     newx        = case found of
                     Nothing -> x
                     Just (_,y) -> y
+-}
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -929,7 +938,7 @@ hedgeUnionR cmplo cmphi (Bin _ kx x l r) t2
 
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
-  = unionWithKey (\k x y -> f x y) m1 m2
+  = unionWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -939,13 +948,18 @@ unionWith f m1 m2
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWithKey f Tip t2  = t2
-unionWithKey f t1 Tip  = t1
+unionWithKey _ Tip t2  = t2
+unionWithKey _ t1 Tip  = t1
 unionWithKey f t1 t2 = hedgeUnionWithKey f (const LT) (const GT) t1 t2
 
-hedgeUnionWithKey f cmplo cmphi t1 Tip 
+hedgeUnionWithKey :: Ord a
+                  => (a -> b -> b -> b)
+                  -> (a -> Ordering) -> (a -> Ordering)
+                  -> Map a b -> Map a b
+                  -> Map a b
+hedgeUnionWithKey _ _     _     t1 Tip
   = t1
-hedgeUnionWithKey f cmplo cmphi Tip (Bin _ kx x l r)
+hedgeUnionWithKey _ cmplo cmphi Tip (Bin _ kx x l r)
   = join kx x (filterGt cmplo l) (filterLt cmphi r)
 hedgeUnionWithKey f cmplo cmphi (Bin _ kx x l r) t2
   = join kx newx (hedgeUnionWithKey f cmplo cmpkx l lt) 
@@ -968,15 +982,18 @@ hedgeUnionWithKey f cmplo cmphi (Bin _ kx x l r) t2
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
 difference :: Ord k => Map k a -> Map k b -> Map k a
-difference Tip t2  = Tip
+difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
 
-hedgeDiff cmplo cmphi Tip t     
+hedgeDiff :: Ord a
+          => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a c
+          -> Map a b
+hedgeDiff _     _     Tip _
   = Tip
 hedgeDiff cmplo cmphi (Bin _ kx x l r) Tip 
   = join kx x (filterGt cmplo l) (filterLt cmphi r)
-hedgeDiff cmplo cmphi t (Bin _ kx x l r) 
+hedgeDiff cmplo cmphi t (Bin _ kx _ l r) 
   = merge (hedgeDiff cmplo cmpkx (trim cmplo cmpkx t) l) 
           (hedgeDiff cmpkx cmphi (trim cmpkx cmphi t) r)
   where
@@ -995,7 +1012,7 @@ hedgeDiff cmplo cmphi t (Bin _ kx x l r)
 
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
-  = differenceWithKey (\k x y -> f x y) m1 m2
+  = differenceWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -1008,13 +1025,18 @@ differenceWith f m1 m2
 -- >     == singleton 3 "3:b|B"
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWithKey f Tip t2  = Tip
-differenceWithKey f t1 Tip  = t1
+differenceWithKey _ Tip _   = Tip
+differenceWithKey _ t1 Tip  = t1
 differenceWithKey f t1 t2   = hedgeDiffWithKey f (const LT) (const GT) t1 t2
 
-hedgeDiffWithKey f cmplo cmphi Tip t     
+hedgeDiffWithKey :: Ord a
+                 => (a -> b -> c -> Maybe b)
+                 -> (a -> Ordering) -> (a -> Ordering)
+                 -> Map a b -> Map a c
+                 -> Map a b
+hedgeDiffWithKey _ _     _     Tip _
   = Tip
-hedgeDiffWithKey f cmplo cmphi (Bin _ kx x l r) Tip 
+hedgeDiffWithKey _ cmplo cmphi (Bin _ kx x l r) Tip
   = join kx x (filterGt cmplo l) (filterLt cmphi r)
 hedgeDiffWithKey f cmplo cmphi t (Bin _ kx x l r) 
   = case found of
@@ -1043,7 +1065,7 @@ hedgeDiffWithKey f cmplo cmphi t (Bin _ kx x l r)
 
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection m1 m2
-  = intersectionWithKey (\k x y -> x) m1 m2
+  = intersectionWithKey (\_ x _ -> x) m1 m2
 
 -- | /O(n+m)/. Intersection with a combining function.
 --
@@ -1051,7 +1073,7 @@ intersection m1 m2
 
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
-  = intersectionWithKey (\k x y -> f x y) m1 m2
+  = intersectionWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/. Intersection with a combining function.
 -- Intersection is more efficient on (bigset \``intersection`\` smallset).
@@ -1076,8 +1098,8 @@ intersectionWith f m1 m2
 --    tr            = intersectWithKey f gt r
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f Tip t = Tip
-intersectionWithKey f t Tip = Tip
+intersectionWithKey _ Tip _ = Tip
+intersectionWithKey _ _ Tip = Tip
 intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
    if s1 >= s2 then
       let (lt,found,gt) = splitLookupWithKey k2 t1
@@ -1127,8 +1149,9 @@ isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
   = (size t1 <= size t2) && (submap' f t1 t2)
 
-submap' f Tip t = True
-submap' f t Tip = False
+submap' :: Ord a => (b -> c -> Bool) -> Map a b -> Map a c -> Bool
+submap' _ Tip _ = True
+submap' _ _ Tip = False
 submap' f (Bin _ kx x l r) t
   = case found of
       Nothing -> False
@@ -1175,14 +1198,14 @@ isProperSubmapOfBy f t1 t2
 
 filter :: Ord k => (a -> Bool) -> Map k a -> Map k a
 filter p m
-  = filterWithKey (\k x -> p x) m
+  = filterWithKey (\_ x -> p x) m
 
 -- | /O(n)/. Filter all keys\/values that satisfy the predicate.
 --
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> Map k a
-filterWithKey p Tip = Tip
+filterWithKey _ Tip = Tip
 filterWithKey p (Bin _ kx x l r)
   | p kx x    = join kx x (filterWithKey p l) (filterWithKey p r)
   | otherwise = merge (filterWithKey p l) (filterWithKey p r)
@@ -1198,7 +1221,7 @@ filterWithKey p (Bin _ kx x l r)
 
 partition :: Ord k => (a -> Bool) -> Map k a -> (Map k a,Map k a)
 partition p m
-  = partitionWithKey (\k x -> p x) m
+  = partitionWithKey (\_ x -> p x) m
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1209,7 +1232,7 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
-partitionWithKey p Tip = (Tip,Tip)
+partitionWithKey _ Tip = (Tip,Tip)
 partitionWithKey p (Bin _ kx x l r)
   | p kx x    = (join kx x l1 r1,merge l2 r2)
   | otherwise = (merge l1 r1,join kx x l2 r2)
@@ -1224,7 +1247,7 @@ partitionWithKey p (Bin _ kx x l r)
 
 mapMaybe :: Ord k => (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f m
-  = mapMaybeWithKey (\k x -> f x) m
+  = mapMaybeWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map keys\/values and collect the 'Just' results.
 --
@@ -1232,7 +1255,7 @@ mapMaybe f m
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
 mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
-mapMaybeWithKey f Tip = Tip
+mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
@@ -1248,7 +1271,7 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
 
 mapEither :: Ord k => (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m
-  = mapEitherWithKey (\k x -> f x) m
+  = mapEitherWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results.
 --
@@ -1261,7 +1284,7 @@ mapEither f m
 
 mapEitherWithKey :: Ord k =>
   (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
-mapEitherWithKey f Tip = (Tip, Tip)
+mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
   Left y  -> (join kx y l1 r1, merge l2 r2)
   Right z -> (merge l1 r1, join kx z l2 r2)
@@ -1278,7 +1301,7 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
 
 map :: (a -> b) -> Map k a -> Map k b
 map f m
-  = mapWithKey (\k x -> f x) m
+  = mapWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1286,7 +1309,7 @@ map f m
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
-mapWithKey f Tip = Tip
+mapWithKey _ Tip = Tip
 mapWithKey f (Bin sx kx x l r) 
   = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
 
@@ -1298,7 +1321,7 @@ mapWithKey f (Bin sx kx x l r)
 
 mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccum f a m
-  = mapAccumWithKey (\a k x -> f a x) a m
+  = mapAccumWithKey (\a' _ x' -> f a' x') a m
 
 -- | /O(n)/. The function 'mapAccumWithKey' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1322,6 +1345,9 @@ mapAccumL f a t
                  (a3,r') = mapAccumL f a2 r
              in (a3,Bin sx kx x' l' r')
 
+{-
+XXX unused code
+
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument throught the map in descending order of keys.
 mapAccumR :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
@@ -1333,6 +1359,7 @@ mapAccumR f a t
                  (a2,x') = f a1 kx x
                  (a3,l') = mapAccumR f a2 l
              in (a3,Bin sx kx x' l' r')
+-}
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1346,7 +1373,7 @@ mapAccumR f a t
 -- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
-mapKeys = mapKeysWith (\x y->x)
+mapKeys = mapKeysWith (\x _ -> x)
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1382,7 +1409,7 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 -- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
 
 mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
-mapKeysMonotonic f Tip = Tip
+mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
     Bin sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
 
@@ -1401,7 +1428,7 @@ mapKeysMonotonic f (Bin sz k x l r) =
 
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold f z m
-  = foldWithKey (\k x z -> f x z) z m
+  = foldWithKey (\_ x' z' -> f x' z') z m
 
 -- | /O(n)/. Fold the keys and values in the map, such that
 -- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -1416,20 +1443,28 @@ foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey f z t
   = foldr f z t
 
+{-
+XXX unused code
+
 -- | /O(n)/. In-order fold.
 foldi :: (k -> a -> b -> b -> b) -> b -> Map k a -> b 
-foldi f z Tip               = z
+foldi _ z Tip               = z
 foldi f z (Bin _ kx x l r)  = f kx x (foldi f z l) (foldi f z r)
+-}
 
 -- | /O(n)/. Post-order fold.
 foldr :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldr f z Tip              = z
+foldr _ z Tip              = z
 foldr f z (Bin _ kx x l r) = foldr f (f kx x (foldr f z r)) l
+
+{-
+XXX unused code
 
 -- | /O(n)/. Pre-order fold.
 foldl :: (b -> k -> a -> b) -> b -> Map k a -> b
-foldl f z Tip              = z
+foldl _ z Tip              = z
 foldl f z (Bin _ kx x l r) = foldl f (f (foldl f z l) kx x) r
+-}
 
 {--------------------------------------------------------------------
   List variations 
@@ -1442,7 +1477,7 @@ foldl f z (Bin _ kx x l r) = foldl f (f (foldl f z l) kx x) r
 
 elems :: Map k a -> [a]
 elems m
-  = [x | (k,x) <- assocs m]
+  = [x | (_,x) <- assocs m]
 
 -- | /O(n)/. Return all keys of the map in ascending order.
 --
@@ -1451,7 +1486,7 @@ elems m
 
 keys  :: Map k a -> [k]
 keys m
-  = [k | (k,x) <- assocs m]
+  = [k | (k,_) <- assocs m]
 
 -- | /O(n)/. The set of all keys of the map.
 --
@@ -1495,7 +1530,7 @@ fromList xs
 
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromListWith f xs
-  = fromListWithKey (\k x y -> f x y) xs
+  = fromListWithKey (\_ x y -> f x y) xs
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
@@ -1524,10 +1559,13 @@ toList t      = toAscList t
 toAscList :: Map k a -> [(k,a)]
 toAscList t   = foldr (\k x xs -> (k,x):xs) [] t
 
+{-
+XXX unused code
+
 -- | /O(n)/.
 toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldl (\xs k x -> (k,x):xs) [] t
-
+-}
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1546,7 +1584,7 @@ toDescList t  = foldl (\xs k x -> (k,x):xs) [] t
 
 fromAscList :: Eq k => [(k,a)] -> Map k a 
 fromAscList xs
-  = fromAscListWithKey (\k x y -> x) xs
+  = fromAscListWithKey (\_ x _ -> x) xs
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
@@ -1557,7 +1595,7 @@ fromAscList xs
 
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromAscListWith f xs
-  = fromAscListWithKey (\k x y -> f x y) xs
+  = fromAscListWithKey (\_ x y -> f x y) xs
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
@@ -1573,16 +1611,16 @@ fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
   where
   -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq f xs
-    = case xs of
+  combineEq _ xs'
+    = case xs' of
         []     -> []
         [x]    -> [x]
         (x:xx) -> combineEq' x xx
 
   combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs)
-    | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs
-    | otherwise = z:combineEq' x xs
+  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+    | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
+    | otherwise = z:combineEq' x xs'
 
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
@@ -1598,16 +1636,18 @@ fromDistinctAscList xs
   where
     -- 1) use continutations so that we use heap space instead of stack space.
     -- 2) special case for n==5 to build bushier trees. 
-    build c 0 xs   = c Tip xs 
-    build c 5 xs   = case xs of
+    build c 0 xs'  = c Tip xs'
+    build c 5 xs'  = case xs' of
                        ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx) 
                             -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
-    build c n xs   = seq nr $ build (buildR nr c) nl xs
+                       _ -> error "fromDistinctAscList build"
+    build c n xs'  = seq nr $ build (buildR nr c) nl xs'
                    where
                      nl = n `div` 2
                      nr = n - nl - 1
 
     buildR n c l ((k,x):ys) = build (buildB l k x c) n ys
+    buildR _ _ _ []         = error "fromDistinctAscList buildR []"
     buildB l k x c r zs     = c (bin k x l r) zs
                       
 
@@ -1635,21 +1675,21 @@ fromDistinctAscList xs
   empty or the key of the root is between @lo@ and @hi@.
 --------------------------------------------------------------------}
 trim :: (k -> Ordering) -> (k -> Ordering) -> Map k a -> Map k a
-trim cmplo cmphi Tip = Tip
-trim cmplo cmphi t@(Bin sx kx x l r)
+trim _     _     Tip = Tip
+trim cmplo cmphi t@(Bin _ kx _ l r)
   = case cmplo kx of
       LT -> case cmphi kx of
               GT -> t
-              le -> trim cmplo cmphi l
-      ge -> trim cmplo cmphi r
+              _  -> trim cmplo cmphi l
+      _  -> trim cmplo cmphi r
               
 trimLookupLo :: Ord k => k -> (k -> Ordering) -> Map k a -> (Maybe (k,a), Map k a)
-trimLookupLo lo cmphi Tip = (Nothing,Tip)
-trimLookupLo lo cmphi t@(Bin sx kx x l r)
+trimLookupLo _  _     Tip = (Nothing,Tip)
+trimLookupLo lo cmphi t@(Bin _ kx x l r)
   = case compare lo kx of
       LT -> case cmphi kx of
               GT -> (lookupAssoc lo t, t)
-              le -> trimLookupLo lo cmphi l
+              _  -> trimLookupLo lo cmphi l
       GT -> trimLookupLo lo cmphi r
       EQ -> (Just (kx,x),trim (compare lo) cmphi r)
 
@@ -1659,16 +1699,16 @@ trimLookupLo lo cmphi t@(Bin sx kx x l r)
   [filterLt k t] filter all keys <[k] from tree [t]
 --------------------------------------------------------------------}
 filterGt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
-filterGt cmp Tip = Tip
-filterGt cmp (Bin sx kx x l r)
+filterGt _   Tip = Tip
+filterGt cmp (Bin _ kx x l r)
   = case cmp kx of
       LT -> join kx x (filterGt cmp l) r
       GT -> filterGt cmp r
       EQ -> r
       
 filterLt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
-filterLt cmp Tip = Tip
-filterLt cmp (Bin sx kx x l r)
+filterLt _   Tip = Tip
+filterLt cmp (Bin _ kx x l r)
   = case cmp kx of
       LT -> filterLt cmp l
       GT -> join kx x l (filterLt cmp r)
@@ -1688,8 +1728,8 @@ filterLt cmp (Bin sx kx x l r)
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split k Tip = (Tip,Tip)
-split k (Bin sx kx x l r)
+split _ Tip = (Tip,Tip)
+split k (Bin _ kx x l r)
   = case compare k kx of
       LT -> let (lt,gt) = split k l in (lt,join kx x gt r)
       GT -> let (lt,gt) = split k r in (join kx x l lt,gt)
@@ -1705,8 +1745,8 @@ split k (Bin sx kx x l r)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k Tip = (Tip,Nothing,Tip)
-splitLookup k (Bin sx kx x l r)
+splitLookup _ Tip = (Tip,Nothing,Tip)
+splitLookup k (Bin _ kx x l r)
   = case compare k kx of
       LT -> let (lt,z,gt) = splitLookup k l in (lt,z,join kx x gt r)
       GT -> let (lt,z,gt) = splitLookup k r in (join kx x l lt,z,gt)
@@ -1714,19 +1754,22 @@ splitLookup k (Bin sx kx x l r)
 
 -- | /O(log n)/.
 splitLookupWithKey :: Ord k => k -> Map k a -> (Map k a,Maybe (k,a),Map k a)
-splitLookupWithKey k Tip = (Tip,Nothing,Tip)
-splitLookupWithKey k (Bin sx kx x l r)
+splitLookupWithKey _ Tip = (Tip,Nothing,Tip)
+splitLookupWithKey k (Bin _ kx x l r)
   = case compare k kx of
       LT -> let (lt,z,gt) = splitLookupWithKey k l in (lt,z,join kx x gt r)
       GT -> let (lt,z,gt) = splitLookupWithKey k r in (join kx x l lt,z,gt)
       EQ -> (l,Just (kx, x),r)
+
+{-
+XXX unused code
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord k => k -> Map k a -> (Map k a,Bool,Map k a)
 splitMember x t = let (l,m,r) = splitLookup x t in
      (l,maybe False (const True) m,r)
-
+-}
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.
@@ -1774,13 +1817,13 @@ insertMax,insertMin :: k -> a -> Map k a -> Map k a
 insertMax kx x t
   = case t of
       Tip -> singleton kx x
-      Bin sz ky y l r
+      Bin _ ky y l r
           -> balance ky y l (insertMax kx x r)
              
 insertMin kx x t
   = case t of
       Tip -> singleton kx x
-      Bin sz ky y l r
+      Bin _ ky y l r
           -> balance ky y (insertMin kx x l) r
              
 {--------------------------------------------------------------------
@@ -1877,20 +1920,30 @@ balance k x l r
     sizeX = sizeL + sizeR + 1
 
 -- rotate
+rotateL :: a -> b -> Map a b -> Map a b -> Map a b
 rotateL k x l r@(Bin _ _ _ ly ry)
   | size ly < ratio*size ry = singleL k x l r
   | otherwise               = doubleL k x l r
+rotateL _ _ _ Tip = error "rotateL Tip"
 
+rotateR :: a -> b -> Map a b -> Map a b -> Map a b
 rotateR k x l@(Bin _ _ _ ly ry) r
   | size ry < ratio*size ly = singleR k x l r
   | otherwise               = doubleR k x l r
+rotateR _ _ Tip _ = error "rotateR Tip"
 
 -- basic rotations
+singleL, singleR :: a -> b -> Map a b -> Map a b -> Map a b
 singleL k1 x1 t1 (Bin _ k2 x2 t2 t3)  = bin k2 x2 (bin k1 x1 t1 t2) t3
+singleL _ _ _ Tip = error "singleL Tip"
 singleR k1 x1 (Bin _ k2 x2 t1 t2) t3  = bin k2 x2 t1 (bin k1 x1 t2 t3)
+singleR _ _ Tip _ = error "singleR Tip"
 
+doubleL, doubleR :: a -> b -> Map a b -> Map a b -> Map a b
 doubleL k1 x1 t1 (Bin _ k2 x2 (Bin _ k3 x3 t2 t3) t4) = bin k3 x3 (bin k1 x1 t1 t2) (bin k2 x2 t3 t4)
+doubleL _ _ _ _ = error "doubleL"
 doubleR k1 x1 (Bin _ k2 x2 t1 (Bin _ k3 x3 t2 t3)) t4 = bin k3 x3 (bin k2 x2 t1 t2) (bin k1 x1 t3 t4)
+doubleR _ _ _ _ = error "doubleR"
 
 
 {--------------------------------------------------------------------
@@ -1923,7 +1976,7 @@ instance Functor (Map k) where
   fmap f m  = map f m
 
 instance Traversable (Map k) where
-  traverse f Tip = pure Tip
+  traverse _ Tip = pure Tip
   traverse f (Bin s k v l r)
     = flip (Bin s k) <$> traverse f l <*> f v <*> traverse f r
 
@@ -1950,12 +2003,16 @@ instance (Ord k, Read k, Read e) => Read (Map k e) where
     return (fromList xs,t)
 #endif
 
+{-
+XXX unused code
+
 -- parses a pair of things with the syntax a:=b
 readPair :: (Read a, Read b) => ReadS (a,b)
 readPair s = do (a, ct1)    <- reads s
                 (":=", ct2) <- lex ct1
                 (b, ct3)    <- reads ct2
                 return ((a,b), ct3)
+-}
 
 {--------------------------------------------------------------------
   Show
@@ -1964,6 +2021,9 @@ instance (Show k, Show a) => Show (Map k a) where
   showsPrec d m  = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
+{-
+XXX unused code
+
 showMap :: (Show k,Show a) => [(k,a)] -> ShowS
 showMap []     
   = showString "{}" 
@@ -1971,10 +2031,10 @@ showMap (x:xs)
   = showChar '{' . showElem x . showTail xs
   where
     showTail []     = showChar '}'
-    showTail (x:xs) = showString ", " . showElem x . showTail xs
+    showTail (x':xs') = showString ", " . showElem x' . showTail xs'
     
-    showElem (k,x)  = shows k . showString " := " . shows x
-  
+    showElem (k,x')  = shows k . showString " := " . shows x'
+-}
 
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format. See 'showTreeWith'.
@@ -2030,9 +2090,9 @@ showsTree :: (k -> a -> String) -> Bool -> [String] -> [String] -> Map k a -> Sh
 showsTree showelem wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      Bin sz kx x Tip Tip
+      Bin _ kx x Tip Tip
           -> showsBars lbars . showString (showelem kx x) . showString "\n" 
-      Bin sz kx x l r
+      Bin _ kx x l r
           -> showsTree showelem wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . showString (showelem kx x) . showString "\n" .
@@ -2043,16 +2103,16 @@ showsTreeHang :: (k -> a -> String) -> Bool -> [String] -> Map k a -> ShowS
 showsTreeHang showelem wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n" 
-      Bin sz kx x Tip Tip
+      Bin _ kx x Tip Tip
           -> showsBars bars . showString (showelem kx x) . showString "\n" 
-      Bin sz kx x l r
+      Bin _ kx x l r
           -> showsBars bars . showString (showelem kx x) . showString "\n" . 
              showWide wide bars .
              showsTreeHang showelem wide (withBar bars) l .
              showWide wide bars .
              showsTreeHang showelem wide (withEmpty bars) r
 
-
+showWide :: Bool -> [String] -> String -> String
 showWide wide bars 
   | wide      = showString (concat (reverse bars)) . showString "|\n" 
   | otherwise = id
@@ -2063,7 +2123,10 @@ showsBars bars
       [] -> id
       _  -> showString (concat (reverse (tail bars))) . showString node
 
+node :: String
 node           = "+--"
+
+withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
 withEmpty bars = "   ":bars
 
@@ -2086,36 +2149,38 @@ valid :: Ord k => Map k a -> Bool
 valid t
   = balanced t && ordered t && validsize t
 
+ordered :: Ord a => Map a b -> Bool
 ordered t
   = bounded (const True) (const True) t
   where
-    bounded lo hi t
-      = case t of
+    bounded lo hi t'
+      = case t' of
           Tip              -> True
-          Bin sz kx x l r  -> (lo kx) && (hi kx) && bounded lo (<kx) l && bounded (>kx) hi r
+          Bin _ kx _ l r  -> (lo kx) && (hi kx) && bounded lo (<kx) l && bounded (>kx) hi r
 
 -- | Exported only for "Debug.QuickCheck"
 balanced :: Map k a -> Bool
 balanced t
   = case t of
-      Tip              -> True
-      Bin sz kx x l r  -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
-                          balanced l && balanced r
+      Tip            -> True
+      Bin _ _ _ l r  -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
+                        balanced l && balanced r
 
-
+validsize :: Map a b -> Bool
 validsize t
   = (realsize t == Just (size t))
   where
-    realsize t
-      = case t of
-          Tip             -> Just 0
-          Bin sz kx x l r -> case (realsize l,realsize r) of
-                              (Just n,Just m)  | n+m+1 == sz  -> Just sz
-                              other            -> Nothing
+    realsize t'
+      = case t' of
+          Tip            -> Just 0
+          Bin sz _ _ l r -> case (realsize l,realsize r) of
+                            (Just n,Just m)  | n+m+1 == sz  -> Just sz
+                            _                               -> Nothing
 
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
+foldlStrict :: (a -> b -> a) -> a -> [b] -> a
 foldlStrict f z xs
   = case xs of
       []     -> z

@@ -206,15 +206,15 @@ instance Data IntSet where
 --------------------------------------------------------------------}
 -- | /O(1)/. Is the set empty?
 null :: IntSet -> Bool
-null Nil   = True
-null other = False
+null Nil = True
+null _   = False
 
 -- | /O(n)/. Cardinality of the set.
 size :: IntSet -> Int
 size t
   = case t of
-      Bin p m l r -> size l + size r
-      Tip y -> 1
+      Bin _ _ l r -> size l + size r
+      Tip _ -> 1
       Nil   -> 0
 
 -- | /O(min(n,W))/. Is the value a member of the set?
@@ -240,10 +240,10 @@ lookup k t
 lookupN :: Nat -> IntSet -> Maybe Int
 lookupN k t
   = case t of
-      Bin p m l r 
+      Bin _ m l r
         | zeroN k (natFromInt m) -> lookupN k l
         | otherwise              -> lookupN k r
-      Tip kx 
+      Tip kx
         | (k == natFromInt kx)  -> Just kx
         | otherwise             -> Nothing
       Nil -> Nothing
@@ -361,7 +361,7 @@ difference t1@(Tip x) t2
   | member x t2  = Nil
   | otherwise    = t1
 
-difference Nil t     = Nil
+difference Nil _     = Nil
 difference t (Tip x) = delete x t
 difference t Nil     = t
 
@@ -393,8 +393,8 @@ intersection t (Tip x)
   = case lookup x t of
       Just y  -> Tip y
       Nothing -> Nil
-intersection Nil t = Nil
-intersection t Nil = Nil
+intersection Nil _ = Nil
+intersection _ Nil = Nil
 
 
 
@@ -406,9 +406,10 @@ isProperSubsetOf :: IntSet -> IntSet -> Bool
 isProperSubsetOf t1 t2
   = case subsetCmp t1 t2 of 
       LT -> True
-      ge -> False
+      _  -> False
 
-subsetCmp t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+subsetCmp :: IntSet -> IntSet -> Ordering
+subsetCmp t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = GT
   | shorter m2 m1  = case subsetCmpLt of
                        GT -> GT
@@ -423,9 +424,9 @@ subsetCmp t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                     (GT,_ ) -> GT
                     (_ ,GT) -> GT
                     (EQ,EQ) -> EQ
-                    other   -> LT
+                    _       -> LT
 
-subsetCmp (Bin p m l r) t  = GT
+subsetCmp (Bin _ _ _ _) _  = GT
 subsetCmp (Tip x) (Tip y)  
   | x==y       = EQ
   | otherwise  = GT  -- disjoint
@@ -433,20 +434,20 @@ subsetCmp (Tip x) t
   | member x t = LT
   | otherwise  = GT  -- disjoint
 subsetCmp Nil Nil = EQ
-subsetCmp Nil t   = LT
+subsetCmp Nil _   = LT
 
 -- | /O(n+m)/. Is this a subset?
 -- @(s1 `isSubsetOf` s2)@ tells whether @s1@ is a subset of @s2@.
 
 isSubsetOf :: IntSet -> IntSet -> Bool
-isSubsetOf t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = False
   | shorter m2 m1  = match p1 p2 m2 && (if zero p1 m2 then isSubsetOf t1 l2
                                                       else isSubsetOf t1 r2)                     
   | otherwise      = (p1==p2) && isSubsetOf l1 l2 && isSubsetOf r1 r2
-isSubsetOf (Bin p m l r) t  = False
+isSubsetOf (Bin _ _ _ _) _  = False
 isSubsetOf (Tip x) t        = member x t
-isSubsetOf Nil t            = True
+isSubsetOf Nil _            = True
 
 
 {--------------------------------------------------------------------
@@ -454,26 +455,26 @@ isSubsetOf Nil t            = True
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy some predicate.
 filter :: (Int -> Bool) -> IntSet -> IntSet
-filter pred t
+filter predicate t
   = case t of
       Bin p m l r 
-        -> bin p m (filter pred l) (filter pred r)
+        -> bin p m (filter predicate l) (filter predicate r)
       Tip x 
-        | pred x    -> t
-        | otherwise -> Nil
+        | predicate x -> t
+        | otherwise   -> Nil
       Nil -> Nil
 
 -- | /O(n)/. partition the set according to some predicate.
 partition :: (Int -> Bool) -> IntSet -> (IntSet,IntSet)
-partition pred t
+partition predicate t
   = case t of
       Bin p m l r 
-        -> let (l1,l2) = partition pred l
-               (r1,r2) = partition pred r
+        -> let (l1,l2) = partition predicate l
+               (r1,r2) = partition predicate r
            in (bin p m l1 r1, bin p m l2 r2)
       Tip x 
-        | pred x    -> (t,Nil)
-        | otherwise -> (Nil,t)
+        | predicate x -> (t,Nil)
+        | otherwise   -> (Nil,t)
       Nil -> (Nil,Nil)
 
 
@@ -485,7 +486,7 @@ partition pred t
 split :: Int -> IntSet -> (IntSet,IntSet)
 split x t
   = case t of
-      Bin p m l r
+      Bin _ m l r
         | m < 0       -> if x >= 0 then let (lt,gt) = split' x l in (union r lt, gt)
                                    else let (lt,gt) = split' x r in (lt, union gt l)
                                    -- handle negative numbers.
@@ -515,7 +516,7 @@ split' x t
 splitMember :: Int -> IntSet -> (IntSet,Bool,IntSet)
 splitMember x t
   = case t of
-      Bin p m l r
+      Bin _ m l r
         | m < 0       -> if x >= 0 then let (lt,found,gt) = splitMember' x l in (union r lt, found, gt)
                                    else let (lt,found,gt) = splitMember' x r in (lt, found, union gt l)
                                    -- handle negative numbers.
@@ -559,6 +560,7 @@ maxViewUnsigned t
     = case t of
         Bin p m l r -> let (result,t') = maxViewUnsigned r in (result, bin p m l t')
         Tip y -> (y, Nil)
+        Nil -> error "maxViewUnsigned Nil"
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the set, and the set stripped from that element
 -- @fail@s (in the monad) when passed an empty set.
@@ -575,6 +577,7 @@ minViewUnsigned t
     = case t of
         Bin p m l r -> let (result,t') = minViewUnsigned l in (result, bin p m t' r)
         Tip y -> (y, Nil)
+        Nil -> error "minViewUnsigned Nil"
 
 
 -- Duplicate the Identity monad here because base < mtl.
@@ -639,14 +642,14 @@ fold f z t
   = case t of
       Bin 0 m l r | m < 0 -> foldr f (foldr f z l) r  
       -- put negative numbers before.
-      Bin p m l r -> foldr f z t
+      Bin _ _ _ _ -> foldr f z t
       Tip x       -> f x z
       Nil         -> z
 
 foldr :: (Int -> b -> b) -> b -> IntSet -> b
 foldr f z t
   = case t of
-      Bin p m l r -> foldr f (foldr f z r) l
+      Bin _ _ l r -> foldr f (foldr f z r) l
       Tip x       -> f x z
       Nil         -> z
           
@@ -701,7 +704,7 @@ equal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
 equal (Tip x) (Tip y)
   = (x==y)
 equal Nil Nil = True
-equal t1 t2   = False
+equal _   _   = False
 
 nequal :: IntSet -> IntSet -> Bool
 nequal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
@@ -709,7 +712,7 @@ nequal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
 nequal (Tip x) (Tip y)
   = (x/=y)
 nequal Nil Nil = False
-nequal t1 t2   = True
+nequal _   _   = True
 
 {--------------------------------------------------------------------
   Ord 
@@ -726,6 +729,8 @@ instance Show IntSet where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
+{-
+XXX unused code
 showSet :: [Int] -> ShowS
 showSet []     
   = showString "{}" 
@@ -733,7 +738,8 @@ showSet (x:xs)
   = showChar '{' . shows x . showTail xs
   where
     showTail []     = showChar '}'
-    showTail (x:xs) = showChar ',' . shows x . showTail xs
+    showTail (x':xs') = showChar ',' . shows x' . showTail xs'
+-}
 
 {--------------------------------------------------------------------
   Read
@@ -805,10 +811,12 @@ showsTreeHang wide bars t
       Tip x
           -> showsBars bars . showString " " . shows x . showString "\n" 
       Nil -> showsBars bars . showString "|\n" 
-      
-showBin p m
+
+showBin :: Prefix -> Mask -> String
+showBin _ _
   = "*" -- ++ show (p,m)
 
+showWide :: Bool -> [String] -> String -> String
 showWide wide bars 
   | wide      = showString (concat (reverse bars)) . showString "|\n" 
   | otherwise = id
@@ -819,7 +827,10 @@ showsBars bars
       [] -> id
       _  -> showString (concat (reverse (tail bars))) . showString node
 
+node :: String
 node           = "+--"
+
+withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
 withEmpty bars = "   ":bars
 
@@ -842,8 +853,8 @@ join p1 t1 p2 t2
   @bin@ assures that we never have empty trees within a tree.
 --------------------------------------------------------------------}
 bin :: Prefix -> Mask -> IntSet -> IntSet -> IntSet
-bin p m l Nil = l
-bin p m Nil r = r
+bin _ _ l Nil = l
+bin _ _ Nil r = r
 bin p m l r   = Bin p m l r
 
   
@@ -928,19 +939,20 @@ branchMask p1 p2
   machine code. The algorithm is derived from Jorg Arndt's FXT library.
 ----------------------------------------------------------------------}
 highestBitMask :: Nat -> Nat
-highestBitMask x
-  = case (x .|. shiftRL x 1) of 
-     x -> case (x .|. shiftRL x 2) of 
-      x -> case (x .|. shiftRL x 4) of 
-       x -> case (x .|. shiftRL x 8) of 
-        x -> case (x .|. shiftRL x 16) of 
-         x -> case (x .|. shiftRL x 32) of   -- for 64 bit platforms
-          x -> (x `xor` (shiftRL x 1))
+highestBitMask x0
+  = case (x0 .|. shiftRL x0 1) of
+     x1 -> case (x1 .|. shiftRL x1 2) of
+      x2 -> case (x2 .|. shiftRL x2 4) of
+       x3 -> case (x3 .|. shiftRL x3 8) of
+        x4 -> case (x4 .|. shiftRL x4 16) of
+         x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
+          x6 -> (x6 `xor` (shiftRL x6 1))
 
 
 {--------------------------------------------------------------------
   Utilities 
 --------------------------------------------------------------------}
+foldlStrict :: (a -> b -> a) -> a -> [b] -> a
 foldlStrict f z xs
   = case xs of
       []     -> z

@@ -103,7 +103,6 @@ module Data.Set  (
 import Prelude hiding (filter,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
-import Data.Typeable
 import Data.Foldable (Foldable(foldMap))
 
 {-
@@ -116,7 +115,7 @@ import qualified List
 #if __GLASGOW_HASKELL__
 import Text.Read
 import Data.Generics.Basics
-import Data.Generics.Instances
+import Data.Generics.Instances ()
 #endif
 
 {--------------------------------------------------------------------
@@ -143,7 +142,7 @@ instance Ord a => Monoid (Set a) where
     mconcat = unions
 
 instance Foldable Set where
-    foldMap f Tip = mempty
+    foldMap _ Tip = mempty
     foldMap f (Bin _s k l r) = foldMap f l `mappend` f k `mappend` foldMap f r
 
 #if __GLASGOW_HASKELL__
@@ -171,22 +170,22 @@ instance (Data a, Ord a) => Data (Set a) where
 null :: Set a -> Bool
 null t
   = case t of
-      Tip           -> True
-      Bin sz x l r  -> False
+      Tip    -> True
+      Bin {} -> False
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
 size t
   = case t of
-      Tip           -> 0
-      Bin sz x l r  -> sz
+      Tip          -> 0
+      Bin sz _ _ _ -> sz
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
 member x t
   = case t of
       Tip -> False
-      Bin sz y l r
+      Bin _ y l r
           -> case compare x y of
                LT -> member x l
                GT -> member x r
@@ -231,7 +230,7 @@ delete :: Ord a => a -> Set a -> Set a
 delete x t
   = case t of
       Tip -> Tip
-      Bin sz y l r 
+      Bin _ y l r
           -> case compare x y of
                LT -> balance y (delete x l) r
                GT -> balance y l (delete x r)
@@ -252,8 +251,9 @@ isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = (size t1 <= size t2) && (isSubsetOfX t1 t2)
 
-isSubsetOfX Tip t = True
-isSubsetOfX t Tip = False
+isSubsetOfX :: Ord a => Set a -> Set a -> Bool
+isSubsetOfX Tip _ = True
+isSubsetOfX _ Tip = False
 isSubsetOfX (Bin _ x l r) t
   = found && isSubsetOfX l lt && isSubsetOfX r gt
   where
@@ -265,25 +265,25 @@ isSubsetOfX (Bin _ x l r) t
 --------------------------------------------------------------------}
 -- | /O(log n)/. The minimal element of a set.
 findMin :: Set a -> a
-findMin (Bin _ x Tip r) = x
-findMin (Bin _ x l r)   = findMin l
+findMin (Bin _ x Tip _) = x
+findMin (Bin _ _ l _)   = findMin l
 findMin Tip             = error "Set.findMin: empty set has no minimal element"
 
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
-findMax (Bin _ x l Tip)  = x
-findMax (Bin _ x l r)    = findMax r
+findMax (Bin _ x _ Tip)  = x
+findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
 
 -- | /O(log n)/. Delete the minimal element.
 deleteMin :: Set a -> Set a
-deleteMin (Bin _ x Tip r) = r
+deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balance x (deleteMin l) r
 deleteMin Tip             = Tip
 
 -- | /O(log n)/. Delete the maximal element.
 deleteMax :: Set a -> Set a
-deleteMax (Bin _ x l Tip) = l
+deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balance x l (deleteMax r)
 deleteMax Tip             = Tip
 
@@ -306,7 +306,9 @@ union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion (const LT) (const GT) t1 t2
 
-hedgeUnion cmplo cmphi t1 Tip 
+hedgeUnion :: Ord a
+           => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
+hedgeUnion _     _     t1 Tip
   = t1
 hedgeUnion cmplo cmphi Tip (Bin _ x l r)
   = join x (filterGt cmplo l) (filterLt cmphi r)
@@ -322,11 +324,13 @@ hedgeUnion cmplo cmphi (Bin _ x l r) t2
 -- | /O(n+m)/. Difference of two sets. 
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 difference :: Ord a => Set a -> Set a -> Set a
-difference Tip t2  = Tip
+difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
 
-hedgeDiff cmplo cmphi Tip t     
+hedgeDiff :: Ord a
+          => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
+hedgeDiff _ _ Tip _
   = Tip
 hedgeDiff cmplo cmphi (Bin _ x l r) Tip 
   = join x (filterGt cmplo l) (filterLt cmphi r)
@@ -351,8 +355,8 @@ hedgeDiff cmplo cmphi t (Bin _ x l r)
 --
 -- prints @(fromList [A],fromList [B])@.
 intersection :: Ord a => Set a -> Set a -> Set a
-intersection Tip t = Tip
-intersection t Tip = Tip
+intersection Tip _ = Tip
+intersection _ Tip = Tip
 intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
    if s1 >= s2 then
       let (lt,found,gt) = splitLookup x2 t1
@@ -372,7 +376,7 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: Ord a => (a -> Bool) -> Set a -> Set a
-filter p Tip = Tip
+filter _ Tip = Tip
 filter p (Bin _ x l r)
   | p x       = join x (filter p l) (filter p r)
   | otherwise = merge (filter p l) (filter p r)
@@ -381,7 +385,7 @@ filter p (Bin _ x l r)
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
-partition p Tip = (Tip,Tip)
+partition _ Tip = (Tip,Tip)
 partition p (Bin _ x l r)
   | p x       = (join x l1 r1,merge l2 r2)
   | otherwise = (merge l1 r1,join x l2 r2)
@@ -413,7 +417,7 @@ map f = fromList . List.map f . toList
 -- >     where ls = toList s
 
 mapMonotonic :: (a->b) -> Set a -> Set b
-mapMonotonic f Tip = Tip
+mapMonotonic _ Tip = Tip
 mapMonotonic f (Bin sz x l r) =
     Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
 
@@ -428,7 +432,7 @@ fold f z s
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
-foldr f z Tip           = z
+foldr _ z Tip           = z
 foldr f z (Bin _ x l r) = foldr f (f x (foldr f z r)) l
 
 {--------------------------------------------------------------------
@@ -473,16 +477,16 @@ fromAscList xs
   = fromDistinctAscList (combineEq xs)
   where
   -- [combineEq xs] combines equal elements with [const] in an ordered list [xs]
-  combineEq xs
-    = case xs of
+  combineEq xs'
+    = case xs' of
         []     -> []
         [x]    -> [x]
         (x:xx) -> combineEq' x xx
 
   combineEq' z [] = [z]
-  combineEq' z (x:xs)
-    | z==x      = combineEq' z xs
-    | otherwise = z:combineEq' x xs
+  combineEq' z (x:xs')
+    | z==x      =   combineEq' z xs'
+    | otherwise = z:combineEq' x xs'
 
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
@@ -493,16 +497,18 @@ fromDistinctAscList xs
   where
     -- 1) use continutations so that we use heap space instead of stack space.
     -- 2) special case for n==5 to build bushier trees. 
-    build c 0 xs   = c Tip xs 
-    build c 5 xs   = case xs of
+    build c 0 xs'  = c Tip xs'
+    build c 5 xs'  = case xs' of
                        (x1:x2:x3:x4:x5:xx) 
                             -> c (bin x4 (bin x2 (singleton x1) (singleton x3)) (singleton x5)) xx
-    build c n xs   = seq nr $ build (buildR nr c) nl xs
+                       _ -> error "fromDistinctAscList build 5"
+    build c n xs'  = seq nr $ build (buildR nr c) nl xs'
                    where
                      nl = n `div` 2
                      nr = n - nl - 1
 
     buildR n c l (x:ys) = build (buildB l x c) n ys
+    buildR _ _ _ []     = error "fromDistinctAscList buildR []"
     buildB l x c r zs   = c (bin x l r) zs
 
 {--------------------------------------------------------------------
@@ -527,14 +533,18 @@ instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
+{-
+XXX unused code
+
 showSet :: (Show a) => [a] -> ShowS
 showSet []     
   = showString "{}" 
 showSet (x:xs) 
   = showChar '{' . shows x . showTail xs
   where
-    showTail []     = showChar '}'
-    showTail (x:xs) = showChar ',' . shows x . showTail xs
+    showTail []       = showChar '}'
+    showTail (x':xs') = showChar ',' . shows x' . showTail xs'
+-}
 
 {--------------------------------------------------------------------
   Read
@@ -584,40 +594,43 @@ INSTANCE_TYPEABLE1(Set,setTc,"Set")
   empty or the key of the root is between @lo@ and @hi@.
 --------------------------------------------------------------------}
 trim :: (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a
-trim cmplo cmphi Tip = Tip
-trim cmplo cmphi t@(Bin sx x l r)
+trim _     _     Tip = Tip
+trim cmplo cmphi t@(Bin _ x l r)
   = case cmplo x of
       LT -> case cmphi x of
               GT -> t
-              le -> trim cmplo cmphi l
-      ge -> trim cmplo cmphi r
-              
+              _  -> trim cmplo cmphi l
+      _  -> trim cmplo cmphi r
+
+{-
+XXX unused code
+
 trimMemberLo :: Ord a => a -> (a -> Ordering) -> Set a -> (Bool, Set a)
-trimMemberLo lo cmphi Tip = (False,Tip)
-trimMemberLo lo cmphi t@(Bin sx x l r)
+trimMemberLo _  _     Tip = (False,Tip)
+trimMemberLo lo cmphi t@(Bin _ x l r)
   = case compare lo x of
       LT -> case cmphi x of
               GT -> (member lo t, t)
-              le -> trimMemberLo lo cmphi l
+              _  -> trimMemberLo lo cmphi l
       GT -> trimMemberLo lo cmphi r
       EQ -> (True,trim (compare lo) cmphi r)
-
+-}
 
 {--------------------------------------------------------------------
   [filterGt x t] filter all values >[x] from tree [t]
   [filterLt x t] filter all values <[x] from tree [t]
 --------------------------------------------------------------------}
 filterGt :: (a -> Ordering) -> Set a -> Set a
-filterGt cmp Tip = Tip
-filterGt cmp (Bin sx x l r)
+filterGt _ Tip = Tip
+filterGt cmp (Bin _ x l r)
   = case cmp x of
       LT -> join x (filterGt cmp l) r
       GT -> filterGt cmp r
       EQ -> r
       
 filterLt :: (a -> Ordering) -> Set a -> Set a
-filterLt cmp Tip = Tip
-filterLt cmp (Bin sx x l r)
+filterLt _ Tip = Tip
+filterLt cmp (Bin _ x l r)
   = case cmp x of
       LT -> filterLt cmp l
       GT -> join x l (filterLt cmp r)
@@ -631,8 +644,8 @@ filterLt cmp (Bin sx x l r)
 -- where all elements in @set1@ are lower than @x@ and all elements in
 -- @set2@ larger than @x@. @x@ is not found in neither @set1@ nor @set2@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split x Tip = (Tip,Tip)
-split x (Bin sy y l r)
+split _ Tip = (Tip,Tip)
+split x (Bin _ y l r)
   = case compare x y of
       LT -> let (lt,gt) = split x l in (lt,join y gt r)
       GT -> let (lt,gt) = split x r in (join y l lt,gt)
@@ -647,8 +660,8 @@ splitMember x t = let (l,m,r) = splitLookup x t in
 -- | /O(log n)/. Performs a 'split' but also returns the pivot
 -- element that was found in the original set.
 splitLookup :: Ord a => a -> Set a -> (Set a,Maybe a,Set a)
-splitLookup x Tip = (Tip,Nothing,Tip)
-splitLookup x (Bin sy y l r)
+splitLookup _ Tip = (Tip,Nothing,Tip)
+splitLookup x (Bin _ y l r)
    = case compare x y of
        LT -> let (lt,found,gt) = splitLookup x l in (lt,found,join y gt r)
        GT -> let (lt,found,gt) = splitLookup x r in (join y l lt,found,gt)
@@ -700,13 +713,13 @@ insertMax,insertMin :: a -> Set a -> Set a
 insertMax x t
   = case t of
       Tip -> singleton x
-      Bin sz y l r
+      Bin _ y l r
           -> balance y l (insertMax x r)
              
 insertMin x t
   = case t of
       Tip -> singleton x
-      Bin sz y l r
+      Bin _ y l r
           -> balance y (insertMin x l) r
              
 {--------------------------------------------------------------------
@@ -827,20 +840,30 @@ balance x l r
     sizeX = sizeL + sizeR + 1
 
 -- rotate
+rotateL :: a -> Set a -> Set a -> Set a
 rotateL x l r@(Bin _ _ ly ry)
   | size ly < ratio*size ry = singleL x l r
   | otherwise               = doubleL x l r
+rotateL _ _ Tip = error "rotateL Tip"
 
+rotateR :: a -> Set a -> Set a -> Set a
 rotateR x l@(Bin _ _ ly ry) r
   | size ry < ratio*size ly = singleR x l r
   | otherwise               = doubleR x l r
+rotateR _ Tip _ = error "rotateL Tip"
 
 -- basic rotations
+singleL, singleR :: a -> Set a -> Set a -> Set a
 singleL x1 t1 (Bin _ x2 t2 t3)  = bin x2 (bin x1 t1 t2) t3
+singleL _  _  Tip               = error "singleL"
 singleR x1 (Bin _ x2 t1 t2) t3  = bin x2 t1 (bin x1 t2 t3)
+singleR _  Tip              _   = error "singleR"
 
+doubleL, doubleR :: a -> Set a -> Set a -> Set a
 doubleL x1 t1 (Bin _ x2 (Bin _ x3 t2 t3) t4) = bin x3 (bin x1 t1 t2) (bin x2 t3 t4)
+doubleL _ _ _ = error "doubleL"
 doubleR x1 (Bin _ x2 t1 (Bin _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
+doubleR _ _ _ = error "doubleR"
 
 
 {--------------------------------------------------------------------
@@ -854,6 +877,7 @@ bin x l r
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
+foldlStrict :: (a -> b -> a) -> a -> [b] -> a
 foldlStrict f z xs
   = case xs of
       []     -> z
@@ -914,9 +938,9 @@ showsTree :: Show a => Bool -> [String] -> [String] -> Set a -> ShowS
 showsTree wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      Bin sz x Tip Tip
+      Bin _ x Tip Tip
           -> showsBars lbars . shows x . showString "\n" 
-      Bin sz x l r
+      Bin _ x l r
           -> showsTree wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . shows x . showString "\n" .
@@ -927,16 +951,16 @@ showsTreeHang :: Show a => Bool -> [String] -> Set a -> ShowS
 showsTreeHang wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n" 
-      Bin sz x Tip Tip
+      Bin _ x Tip Tip
           -> showsBars bars . shows x . showString "\n" 
-      Bin sz x l r
+      Bin _ x l r
           -> showsBars bars . shows x . showString "\n" . 
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
              showWide wide bars .
              showsTreeHang wide (withEmpty bars) r
 
-
+showWide :: Bool -> [String] -> String -> String
 showWide wide bars 
   | wide      = showString (concat (reverse bars)) . showString "|\n" 
   | otherwise = id
@@ -947,7 +971,10 @@ showsBars bars
       [] -> id
       _  -> showString (concat (reverse (tail bars))) . showString node
 
+node :: String
 node           = "+--"
+
+withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
 withEmpty bars = "   ":bars
 
@@ -959,31 +986,32 @@ valid :: Ord a => Set a -> Bool
 valid t
   = balanced t && ordered t && validsize t
 
+ordered :: Ord a => Set a -> Bool
 ordered t
   = bounded (const True) (const True) t
   where
-    bounded lo hi t
-      = case t of
-          Tip           -> True
-          Bin sz x l r  -> (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
+    bounded lo hi t'
+      = case t' of
+          Tip         -> True
+          Bin _ x l r -> (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
 
 balanced :: Set a -> Bool
 balanced t
   = case t of
-      Tip           -> True
-      Bin sz x l r  -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
-                       balanced l && balanced r
+      Tip         -> True
+      Bin _ _ l r -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
+                     balanced l && balanced r
 
-
+validsize :: Set a -> Bool
 validsize t
   = (realsize t == Just (size t))
   where
-    realsize t
-      = case t of
+    realsize t'
+      = case t' of
           Tip          -> Just 0
-          Bin sz x l r -> case (realsize l,realsize r) of
+          Bin sz _ l r -> case (realsize l,realsize r) of
                             (Just n,Just m)  | n+m+1 == sz  -> Just sz
-                            other            -> Nothing
+                            _                -> Nothing
 
 {-
 {--------------------------------------------------------------------

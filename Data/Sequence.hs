@@ -75,13 +75,11 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Foldable
 import Data.Traversable
-import Data.Typeable
 
 #ifdef __GLASGOW_HASKELL__
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
 	readPrec, readListPrec, readListPrecDefault)
-import Data.Generics.Basics (Data(..), Fixity(..),
-			constrIndex, mkConstr, mkDataType)
+import Data.Generics.Basics
 #endif
 
 #if TESTING
@@ -183,8 +181,11 @@ instance Data a => Data (Seq a) where
 
 	dataCast1 f	= gcast1 f
 
+emptyConstr, consConstr :: Constr
 emptyConstr = mkConstr seqDataType "empty" [] Prefix
 consConstr  = mkConstr seqDataType "<|" [] Infix
+
+seqDataType :: DataType
 seqDataType = mkDataType "Data.Sequence.Seq" [emptyConstr, consConstr]
 #endif
 
@@ -267,12 +268,12 @@ instance Foldable Digit where
 	foldl f z (Three a b c) = ((z `f` a) `f` b) `f` c
 	foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
 
-	foldr1 f (One a) = a
+	foldr1 _ (One a) = a
 	foldr1 f (Two a b) = a `f` b
 	foldr1 f (Three a b c) = a `f` (b `f` c)
 	foldr1 f (Four a b c d) = a `f` (b `f` (c `f` d))
 
-	foldl1 f (One a) = a
+	foldl1 _ (One a) = a
 	foldl1 f (Two a b) = a `f` b
 	foldl1 f (Three a b c) = (a `f` b) `f` c
 	foldl1 f (Four a b c d) = ((a `f` b) `f` c) `f` d
@@ -691,13 +692,13 @@ instance Functor ViewL where
 	fmap = fmapDefault
 
 instance Foldable ViewL where
-	foldr f z EmptyL = z
+	foldr _ z EmptyL = z
 	foldr f z (x :< xs) = f x (foldr f z xs)
 
-	foldl f z EmptyL = z
+	foldl _ z EmptyL = z
 	foldl f z (x :< xs) = foldl f (f z x) xs
 
-	foldl1 f EmptyL = error "foldl1: empty view"
+	foldl1 _ EmptyL = error "foldl1: empty view"
 	foldl1 f (x :< xs) = foldl f x xs
 
 instance Traversable ViewL where
@@ -750,13 +751,13 @@ instance Functor ViewR where
 	fmap = fmapDefault
 
 instance Foldable ViewR where
-	foldr f z EmptyR = z
+	foldr _ z EmptyR = z
 	foldr f z (xs :> x) = foldr f (f x z) xs
 
-	foldl f z EmptyR = z
+	foldl _ z EmptyR = z
 	foldl f z (xs :> x) = f (foldl f z xs) x
 
-	foldr1 f EmptyR = error "foldr1: empty view"
+	foldr1 _ EmptyR = error "foldr1: empty view"
 	foldr1 f (xs :> x) = foldr f x xs
 
 instance Traversable ViewR where

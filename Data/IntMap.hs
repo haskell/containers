@@ -168,7 +168,6 @@ import Data.Monoid (Monoid(..))
 import Data.Typeable
 import Data.Foldable (Foldable(foldMap))
 import Control.Monad ( liftM )
-import Control.Arrow (ArrowZero)
 {-
 -- just for testing
 import qualified Prelude
@@ -249,7 +248,7 @@ instance Monoid (IntMap a) where
     mconcat = unions
 
 instance Foldable IntMap where
-    foldMap f Nil = mempty
+    foldMap _ Nil = mempty
     foldMap f (Tip _k v) = f v
     foldMap f (Bin _ _ l r) = foldMap f l `mappend` foldMap f r
 
@@ -280,8 +279,8 @@ instance Data a => Data (IntMap a) where
 -- > Data.IntMap.null (singleton 1 'a') == False
 
 null :: IntMap a -> Bool
-null Nil   = True
-null other = False
+null Nil = True
+null _   = False
 
 -- | /O(n)/. Number of elements in the map.
 --
@@ -291,8 +290,8 @@ null other = False
 size :: IntMap a -> Int
 size t
   = case t of
-      Bin p m l r -> size l + size r
-      Tip k x -> 1
+      Bin _ _ l r -> size l + size r
+      Tip _ _ -> 1
       Nil     -> 0
 
 -- | /O(min(n,W))/. Is the key a member of the map?
@@ -304,8 +303,8 @@ member :: Key -> IntMap a -> Bool
 member k m
   = case lookup k m of
       Nothing -> False
-      Just x  -> True
-    
+      Just _  -> True
+
 -- | /O(log n)/. Is the key not a member of the map?
 --
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
@@ -327,7 +326,7 @@ lookup' k t
 lookupN :: Nat -> IntMap a -> Maybe a
 lookupN k t
   = case t of
-      Bin p m l r 
+      Bin _ m l r 
         | zeroN k (natFromInt m) -> lookupN k l
         | otherwise              -> lookupN k r
       Tip kx x 
@@ -395,7 +394,7 @@ insert k x t
         | nomatch k p m -> join k (Tip k x) p t
         | zero k m      -> Bin p m (insert k x l) r
         | otherwise     -> Bin p m l (insert k x r)
-      Tip ky y 
+      Tip ky _
         | k==ky         -> Tip k x
         | otherwise     -> join k (Tip k x) ky t
       Nil -> Tip k x
@@ -413,7 +412,7 @@ insert k x t
 
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith f k x t
-  = insertWithKey (\k x y -> f x y) k x t
+  = insertWithKey (\_ x' y' -> f x' y') k x t
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWithKey' f key value mp@ 
@@ -485,7 +484,7 @@ delete k t
         | nomatch k p m -> t
         | zero k m      -> bin p m (delete k l) r
         | otherwise     -> bin p m l (delete k r)
-      Tip ky y 
+      Tip ky _
         | k==ky         -> Nil
         | otherwise     -> t
       Nil -> Nil
@@ -499,7 +498,7 @@ delete k t
 
 adjust ::  (a -> a) -> Key -> IntMap a -> IntMap a
 adjust f k m
-  = adjustWithKey (\k x -> f x) k m
+  = adjustWithKey (\_ x -> f x) k m
 
 -- | /O(min(n,W))/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -511,7 +510,7 @@ adjust f k m
 
 adjustWithKey ::  (Key -> a -> a) -> Key -> IntMap a -> IntMap a
 adjustWithKey f k m
-  = updateWithKey (\k x -> Just (f k x)) k m
+  = updateWithKey (\k' x -> Just (f k' x)) k m
 
 -- | /O(min(n,W))/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -524,7 +523,7 @@ adjustWithKey f k m
 
 update ::  (a -> Maybe a) -> Key -> IntMap a -> IntMap a
 update f k m
-  = updateWithKey (\k x -> f x) k m
+  = updateWithKey (\_ x -> f x) k m
 
 -- | /O(min(n,W))/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f k x@) is 'Nothing', the element is
@@ -644,7 +643,7 @@ union t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
             | otherwise         = Bin p2 m2 l2 (union t1 r2)
 
 union (Tip k x) t = insert k x t
-union t (Tip k x) = insertWith (\x y -> y) k x t  -- right bias
+union t (Tip k x) = insertWith (\_ y -> y) k x t  -- right bias
 union Nil t       = t
 union t Nil       = t
 
@@ -654,7 +653,7 @@ union t Nil       = t
 
 unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
 unionWith f m1 m2
-  = unionWithKey (\k x y -> f x y) m1 m2
+  = unionWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/. The union with a combining function.
 --
@@ -677,9 +676,9 @@ unionWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
             | otherwise         = Bin p2 m2 l2 (unionWithKey f t1 r2)
 
 unionWithKey f (Tip k x) t = insertWithKey f k x t
-unionWithKey f t (Tip k x) = insertWithKey (\k x y -> f k y x) k x t  -- right bias
-unionWithKey f Nil t  = t
-unionWithKey f t Nil  = t
+unionWithKey f t (Tip k x) = insertWithKey (\k' x' y' -> f k' y' x') k x t  -- right bias
+unionWithKey _ Nil t  = t
+unionWithKey _ t Nil  = t
 
 {--------------------------------------------------------------------
   Difference
@@ -703,12 +702,12 @@ difference t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                 | zero p1 m2        = difference t1 l2
                 | otherwise         = difference t1 r2
 
-difference t1@(Tip k x) t2 
+difference t1@(Tip k _) t2
   | member k t2  = Nil
   | otherwise    = t1
 
-difference Nil t       = Nil
-difference t (Tip k x) = delete k t
+difference Nil _       = Nil
+difference t (Tip k _) = delete k t
 difference t Nil       = t
 
 -- | /O(n+m)/. Difference with a combining function.
@@ -719,7 +718,7 @@ difference t Nil       = t
 
 differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWith f m1 m2
-  = differenceWithKey (\k x y -> f x y) m1 m2
+  = differenceWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -752,9 +751,9 @@ differenceWithKey f t1@(Tip k x) t2
                    Nothing -> Nil
       Nothing -> t1
 
-differenceWithKey f Nil t       = Nil
-differenceWithKey f t (Tip k y) = updateWithKey (\k x -> f k x y) k t
-differenceWithKey f t Nil       = t
+differenceWithKey _ Nil _       = Nil
+differenceWithKey f t (Tip k y) = updateWithKey (\k' x -> f k' x y) k t
+differenceWithKey _ t Nil       = t
 
 
 {--------------------------------------------------------------------
@@ -779,15 +778,15 @@ intersection t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                   | zero p1 m2        = intersection t1 l2
                   | otherwise         = intersection t1 r2
 
-intersection t1@(Tip k x) t2 
+intersection t1@(Tip k _) t2
   | member k t2  = t1
   | otherwise    = Nil
-intersection t (Tip k x) 
+intersection t (Tip k _)
   = case lookup k t of
       Just y  -> Tip k y
       Nothing -> Nil
-intersection Nil t = Nil
-intersection t Nil = Nil
+intersection Nil _ = Nil
+intersection _ Nil = Nil
 
 -- | /O(n+m)/. The intersection with a combining function.
 --
@@ -795,7 +794,7 @@ intersection t Nil = Nil
 
 intersectionWith :: (a -> b -> a) -> IntMap a -> IntMap b -> IntMap a
 intersectionWith f m1 m2
-  = intersectionWithKey (\k x y -> f x y) m1 m2
+  = intersectionWithKey (\_ x y -> f x y) m1 m2
 
 -- | /O(n+m)/. The intersection with a combining function.
 --
@@ -817,7 +816,7 @@ intersectionWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                   | zero p1 m2        = intersectionWithKey f t1 l2
                   | otherwise         = intersectionWithKey f t1 r2
 
-intersectionWithKey f t1@(Tip k x) t2 
+intersectionWithKey f (Tip k x) t2
   = case lookup k t2 of
       Just y  -> Tip k (f k x y)
       Nothing -> Nil
@@ -825,8 +824,8 @@ intersectionWithKey f t1 (Tip k y)
   = case lookup k t1 of
       Just x  -> Tip k (f k x y)
       Nothing -> Nil
-intersectionWithKey f Nil t = Nil
-intersectionWithKey f t Nil = Nil
+intersectionWithKey _ Nil _ = Nil
+intersectionWithKey _ _ Nil = Nil
 
 
 {--------------------------------------------------------------------
@@ -846,10 +845,12 @@ updateMinWithKey f t
         Tip k y -> Tip k (f k y)
         Nil -> error "maxView: empty map has no maximal element"
 
+updateMinWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMinWithKeyUnsigned f t
     = case t of
         Bin p m l r -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
         Tip k y -> Tip k (f k y)
+        Nil -> error "updateMinWithKeyUnsigned Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -859,15 +860,17 @@ updateMinWithKeyUnsigned f t
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMaxWithKey f t
     = case t of
-        Bin p m l r | m < 0 -> let t' = updateMaxWithKeyUnsigned f r in Bin p m r t'
-        Bin p m l r         -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' l
+        Bin p m _ r | m < 0 -> let t' = updateMaxWithKeyUnsigned f r in Bin p m r t'
+        Bin p m l _         -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' l
         Tip k y -> Tip k (f k y)
         Nil -> error "maxView: empty map has no maximal element"
 
+updateMaxWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMaxWithKeyUnsigned f t
     = case t of
         Bin p m l r -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
         Tip k y -> Tip k (f k y)
+        Nil -> error "updateMaxWithKeyUnsigned Nil"
 
 
 -- | /O(log n)/. Retrieves the maximal (key,value) couple of the map, and the map stripped from that element.
@@ -885,10 +888,12 @@ maxViewWithKey t
         Tip k y -> return ((k,y), Nil)
         Nil -> fail "maxViewWithKey: empty map has no maximal element"
 
+maxViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
 maxViewUnsigned t 
     = case t of
         Bin p m l r -> let (result,t') = maxViewUnsigned r in (result,bin p m l t')
         Tip k y -> ((k,y), Nil)
+        Nil -> error "maxViewUnsigned Nil"
 
 -- | /O(log n)/. Retrieves the minimal (key,value) couple of the map, and the map stripped from that element.
 -- @fail@s (in the monad) when passed an empty map.
@@ -905,10 +910,12 @@ minViewWithKey t
         Tip k y -> return ((k,y),Nil)
         Nil -> fail "minViewWithKey: empty map has no minimal element"
 
+minViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
 minViewUnsigned t 
     = case t of
         Bin p m l r -> let (result,t') = minViewUnsigned l in (result,bin p m t' r)
         Tip k y -> ((k,y),Nil)
+        Nil -> error "minViewUnsigned Nil"
 
 
 -- | /O(log n)/. Update the value at the maximal key.
@@ -934,6 +941,7 @@ instance Monad Identity where
 	return a = Identity a
 	m >>= k  = k (runIdentity m)
 -- Similar to the Arrow instance.
+first :: (a -> c) -> (a, b) -> (c, b)
 first f (x,y) = (f x,y)
 
 
@@ -998,36 +1006,37 @@ isProperSubmapOf m1 m2
   > isProperSubmapOfBy (<)  (fromList [(1,1)])       (fromList [(1,1),(2,2)])
 -}
 isProperSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
-isProperSubmapOfBy pred t1 t2
-  = case submapCmp pred t1 t2 of 
+isProperSubmapOfBy predicate t1 t2
+  = case submapCmp predicate t1 t2 of
       LT -> True
-      ge -> False
+      _  -> False
 
-submapCmp pred t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+submapCmp :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Ordering
+submapCmp predicate t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = GT
   | shorter m2 m1  = submapCmpLt
   | p1 == p2       = submapCmpEq
   | otherwise      = GT  -- disjoint
   where
     submapCmpLt | nomatch p1 p2 m2  = GT
-                | zero p1 m2        = submapCmp pred t1 l2
-                | otherwise         = submapCmp pred t1 r2
-    submapCmpEq = case (submapCmp pred l1 l2, submapCmp pred r1 r2) of
+                | zero p1 m2        = submapCmp predicate t1 l2
+                | otherwise         = submapCmp predicate t1 r2
+    submapCmpEq = case (submapCmp predicate l1 l2, submapCmp predicate r1 r2) of
                     (GT,_ ) -> GT
                     (_ ,GT) -> GT
                     (EQ,EQ) -> EQ
-                    other   -> LT
+                    _       -> LT
 
-submapCmp pred (Bin p m l r) t  = GT
-submapCmp pred (Tip kx x) (Tip ky y)  
-  | (kx == ky) && pred x y = EQ
-  | otherwise              = GT  -- disjoint
-submapCmp pred (Tip k x) t      
+submapCmp _         (Bin _ _ _ _) _  = GT
+submapCmp predicate (Tip kx x) (Tip ky y)
+  | (kx == ky) && predicate x y = EQ
+  | otherwise                   = GT  -- disjoint
+submapCmp predicate (Tip k x) t
   = case lookup k t of
-     Just y  | pred x y -> LT
-     other   -> GT -- disjoint
-submapCmp pred Nil Nil = EQ
-submapCmp pred Nil t   = LT
+     Just y | predicate x y -> LT
+     _                      -> GT -- disjoint
+submapCmp _    Nil Nil = EQ
+submapCmp _    Nil _   = LT
 
 -- | /O(n+m)/. Is this a submap?
 -- Defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
@@ -1052,16 +1061,16 @@ isSubmapOf m1 m2
   > isSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)])
 -}
 isSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
-isSubmapOfBy pred t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+isSubmapOfBy predicate t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = False
-  | shorter m2 m1  = match p1 p2 m2 && (if zero p1 m2 then isSubmapOfBy pred t1 l2
-                                                      else isSubmapOfBy pred t1 r2)                     
-  | otherwise      = (p1==p2) && isSubmapOfBy pred l1 l2 && isSubmapOfBy pred r1 r2
-isSubmapOfBy pred (Bin p m l r) t  = False
-isSubmapOfBy pred (Tip k x) t      = case lookup k t of
-                                   Just y  -> pred x y
-                                   Nothing -> False 
-isSubmapOfBy pred Nil t            = True
+  | shorter m2 m1  = match p1 p2 m2 && (if zero p1 m2 then isSubmapOfBy predicate t1 l2
+                                                      else isSubmapOfBy predicate t1 r2)                     
+  | otherwise      = (p1==p2) && isSubmapOfBy predicate l1 l2 && isSubmapOfBy predicate r1 r2
+isSubmapOfBy _         (Bin _ _ _ _) _ = False
+isSubmapOfBy predicate (Tip k x) t     = case lookup k t of
+                                         Just y  -> predicate x y
+                                         Nothing -> False
+isSubmapOfBy _         Nil _           = True
 
 {--------------------------------------------------------------------
   Mapping
@@ -1072,7 +1081,7 @@ isSubmapOfBy pred Nil t            = True
 
 map :: (a -> b) -> IntMap a -> IntMap b
 map f m
-  = mapWithKey (\k x -> f x) m
+  = mapWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1094,7 +1103,7 @@ mapWithKey f t
 
 mapAccum :: (a -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccum f a m
-  = mapAccumWithKey (\a k x -> f a x) a m
+  = mapAccumWithKey (\a' _ x -> f a' x) a m
 
 -- | /O(n)/. The function @'mapAccumWithKey'@ threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1117,6 +1126,8 @@ mapAccumL f a t
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
+{-
+XXX unused code
 
 -- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
 -- argument throught the map in descending order of keys.
@@ -1128,6 +1139,7 @@ mapAccumR f a t
                      in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
+-}
 
 {--------------------------------------------------------------------
   Filter
@@ -1140,20 +1152,20 @@ mapAccumR f a t
 
 filter :: (a -> Bool) -> IntMap a -> IntMap a
 filter p m
-  = filterWithKey (\k x -> p x) m
+  = filterWithKey (\_ x -> p x) m
 
 -- | /O(n)/. Filter all keys\/values that satisfy some predicate.
 --
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
-filterWithKey pred t
+filterWithKey predicate t
   = case t of
       Bin p m l r 
-        -> bin p m (filterWithKey pred l) (filterWithKey pred r)
+        -> bin p m (filterWithKey predicate l) (filterWithKey predicate r)
       Tip k x 
-        | pred k x  -> t
-        | otherwise -> Nil
+        | predicate k x -> t
+        | otherwise     -> Nil
       Nil -> Nil
 
 -- | /O(n)/. Partition the map according to some predicate. The first
@@ -1166,7 +1178,7 @@ filterWithKey pred t
 
 partition :: (a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
 partition p m
-  = partitionWithKey (\k x -> p x) m
+  = partitionWithKey (\_ x -> p x) m
 
 -- | /O(n)/. Partition the map according to some predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1177,15 +1189,15 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: (Key -> a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
-partitionWithKey pred t
+partitionWithKey predicate t
   = case t of
       Bin p m l r 
-        -> let (l1,l2) = partitionWithKey pred l
-               (r1,r2) = partitionWithKey pred r
+        -> let (l1,l2) = partitionWithKey predicate l
+               (r1,r2) = partitionWithKey predicate r
            in (bin p m l1 r1, bin p m l2 r2)
       Tip k x 
-        | pred k x  -> (t,Nil)
-        | otherwise -> (Nil,t)
+        | predicate k x -> (t,Nil)
+        | otherwise     -> (Nil,t)
       Nil -> (Nil,Nil)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
@@ -1195,7 +1207,7 @@ partitionWithKey pred t
 
 mapMaybe :: (a -> Maybe b) -> IntMap a -> IntMap b
 mapMaybe f m
-  = mapMaybeWithKey (\k x -> f x) m
+  = mapMaybeWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map keys\/values and collect the 'Just' results.
 --
@@ -1208,7 +1220,7 @@ mapMaybeWithKey f (Bin p m l r)
 mapMaybeWithKey f (Tip k x) = case f k x of
   Just y  -> Tip k y
   Nothing -> Nil
-mapMaybeWithKey f Nil = Nil
+mapMaybeWithKey _ Nil = Nil
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -1221,7 +1233,7 @@ mapMaybeWithKey f Nil = Nil
 
 mapEither :: (a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
 mapEither f m
-  = mapEitherWithKey (\k x -> f x) m
+  = mapEitherWithKey (\_ x -> f x) m
 
 -- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results.
 --
@@ -1241,7 +1253,7 @@ mapEitherWithKey f (Bin p m l r)
 mapEitherWithKey f (Tip k x) = case f k x of
   Left y  -> (Tip k y, Nil)
   Right z -> (Nil, Tip k z)
-mapEitherWithKey f Nil = (Nil, Nil)
+mapEitherWithKey _ Nil = (Nil, Nil)
 
 -- | /O(log n)/. The expression (@'split' k map@) is a pair @(map1,map2)@
 -- where all keys in @map1@ are lower than @k@ and all keys in
@@ -1256,12 +1268,12 @@ mapEitherWithKey f Nil = (Nil, Nil)
 split :: Key -> IntMap a -> (IntMap a,IntMap a)
 split k t
   = case t of
-      Bin p m l r 
+      Bin _ m l r
           | m < 0 -> (if k >= 0 -- handle negative numbers.
                       then let (lt,gt) = split' k l in (union r lt, gt)
                       else let (lt,gt) = split' k r in (lt, union gt l))
           | otherwise   -> split' k t
-      Tip ky y 
+      Tip ky _
         | k>ky      -> (t,Nil)
         | k<ky      -> (Nil,t)
         | otherwise -> (Nil,Nil)
@@ -1274,7 +1286,7 @@ split' k t
         | nomatch k p m -> if k>p then (t,Nil) else (Nil,t)
         | zero k m  -> let (lt,gt) = split k l in (lt,union gt r)
         | otherwise -> let (lt,gt) = split k r in (union l lt,gt)
-      Tip ky y 
+      Tip ky _
         | k>ky      -> (t,Nil)
         | k<ky      -> (Nil,t)
         | otherwise -> (Nil,Nil)
@@ -1292,7 +1304,7 @@ split' k t
 splitLookup :: Key -> IntMap a -> (IntMap a,Maybe a,IntMap a)
 splitLookup k t
   = case t of
-      Bin p m l r
+      Bin _ m l r
           | m < 0 -> (if k >= 0 -- handle negative numbers.
                       then let (lt,found,gt) = splitLookup' k l in (union r lt,found, gt)
                       else let (lt,found,gt) = splitLookup' k r in (lt,found, union gt l))
@@ -1330,7 +1342,7 @@ splitLookup' k t
 
 fold :: (a -> b -> b) -> b -> IntMap a -> b
 fold f z t
-  = foldWithKey (\k x y -> f x y) z t
+  = foldWithKey (\_ x y -> f x y) z t
 
 -- | /O(n)/. Fold the keys and values in the map, such that
 -- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -1356,7 +1368,7 @@ foldr f z t
 foldr' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldr' f z t
   = case t of
-      Bin p m l r -> foldr' f (foldr' f z r) l
+      Bin _ _ l r -> foldr' f (foldr' f z r) l
       Tip k x     -> f k x z
       Nil         -> z
 
@@ -1373,7 +1385,7 @@ foldr' f z t
 
 elems :: IntMap a -> [a]
 elems m
-  = foldWithKey (\k x xs -> x:xs) [] m  
+  = foldWithKey (\_ x xs -> x:xs) [] m
 
 -- | /O(n)/. Return all keys of the map in ascending order.
 --
@@ -1382,7 +1394,7 @@ elems m
 
 keys  :: IntMap a -> [Key]
 keys m
-  = foldWithKey (\k x ks -> k:ks) [] m
+  = foldWithKey (\k _ ks -> k:ks) [] m
 
 -- | /O(n*min(n,W))/. The set of all keys of the map.
 --
@@ -1423,7 +1435,7 @@ toList t
 toAscList :: IntMap a -> [(Key,a)]
 toAscList t   
   = -- NOTE: the following algorithm only works for big-endian trees
-    let (pos,neg) = span (\(k,x) -> k >=0) (foldr (\k x xs -> (k,x):xs) [] t) in neg ++ pos
+    let (pos,neg) = span (\(k,_) -> k >=0) (foldr (\k x xs -> (k,x):xs) [] t) in neg ++ pos
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs.
 --
@@ -1444,7 +1456,7 @@ fromList xs
 
 fromListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a 
 fromListWith f xs
-  = fromListWithKey (\k x y -> f x y) xs
+  = fromListWithKey (\_ x y -> f x y) xs
 
 -- | /O(n*min(n,W))/. Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
 --
@@ -1508,7 +1520,7 @@ equal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
 equal (Tip kx x) (Tip ky y)
   = (kx == ky) && (x==y)
 equal Nil Nil = True
-equal t1 t2   = False
+equal _   _   = False
 
 nequal :: Eq a => IntMap a -> IntMap a -> Bool
 nequal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
@@ -1516,7 +1528,7 @@ nequal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
 nequal (Tip kx x) (Tip ky y)
   = (kx /= ky) || (x/=y)
 nequal Nil Nil = False
-nequal t1 t2   = True
+nequal _   _   = True
 
 {--------------------------------------------------------------------
   Ord 
@@ -1540,6 +1552,9 @@ instance Show a => Show (IntMap a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
+{-
+XXX unused code
+
 showMap :: (Show a) => [(Key,a)] -> ShowS
 showMap []     
   = showString "{}" 
@@ -1547,9 +1562,10 @@ showMap (x:xs)
   = showChar '{' . showElem x . showTail xs
   where
     showTail []     = showChar '}'
-    showTail (x:xs) = showChar ',' . showElem x . showTail xs
+    showTail (x':xs') = showChar ',' . showElem x' . showTail xs'
     
-    showElem (k,x)  = shows k . showString ":=" . shows x
+    showElem (k,v)  = shows k . showString ":=" . shows v
+-}
 
 {--------------------------------------------------------------------
   Read
@@ -1621,10 +1637,12 @@ showsTreeHang wide bars t
       Tip k x
           -> showsBars bars . showString " " . shows k . showString ":=" . shows x . showString "\n" 
       Nil -> showsBars bars . showString "|\n" 
-      
-showBin p m
+
+showBin :: Prefix -> Mask -> String
+showBin _ _
   = "*" -- ++ show (p,m)
 
+showWide :: Bool -> [String] -> String -> String
 showWide wide bars 
   | wide      = showString (concat (reverse bars)) . showString "|\n" 
   | otherwise = id
@@ -1635,7 +1653,10 @@ showsBars bars
       [] -> id
       _  -> showString (concat (reverse (tail bars))) . showString node
 
+node :: String
 node           = "+--"
+
+withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
 withEmpty bars = "   ":bars
 
@@ -1658,8 +1679,8 @@ join p1 t1 p2 t2
   @bin@ assures that we never have empty trees within a tree.
 --------------------------------------------------------------------}
 bin :: Prefix -> Mask -> IntMap a -> IntMap a -> IntMap a
-bin p m l Nil = l
-bin p m Nil r = r
+bin _ _ l Nil = l
+bin _ _ Nil r = r
 bin p m l r   = Bin p m l r
 
   
@@ -1743,19 +1764,20 @@ branchMask p1 p2
   machine code. The algorithm is derived from Jorg Arndt's FXT library.
 ----------------------------------------------------------------------}
 highestBitMask :: Nat -> Nat
-highestBitMask x
-  = case (x .|. shiftRL x 1) of 
-     x -> case (x .|. shiftRL x 2) of 
-      x -> case (x .|. shiftRL x 4) of 
-       x -> case (x .|. shiftRL x 8) of 
-        x -> case (x .|. shiftRL x 16) of 
-         x -> case (x .|. shiftRL x 32) of   -- for 64 bit platforms
-          x -> (x `xor` (shiftRL x 1))
+highestBitMask x0
+  = case (x0 .|. shiftRL x0 1) of
+     x1 -> case (x1 .|. shiftRL x1 2) of
+      x2 -> case (x2 .|. shiftRL x2 4) of
+       x3 -> case (x3 .|. shiftRL x3 8) of
+        x4 -> case (x3 .|. shiftRL x4 16) of
+         x5 -> case (x4 .|. shiftRL x5 32) of   -- for 64 bit platforms
+          x6 -> (x6 `xor` (shiftRL x6 1))
 
 
 {--------------------------------------------------------------------
   Utilities 
 --------------------------------------------------------------------}
+foldlStrict :: (a -> b -> a) -> a -> [b] -> a
 foldlStrict f z xs
   = case xs of
       []     -> z

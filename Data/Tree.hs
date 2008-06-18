@@ -39,7 +39,7 @@ import Data.Typeable
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Generics.Basics (Data)
-import Data.Generics.Instances
+import Data.Generics.Instances ()
 #endif
 
 -- | Multi-way trees, also known as /rose trees/.
@@ -155,9 +155,9 @@ unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
 unfoldForestQ :: Monad m => (b -> m (a, [b])) -> Seq b -> m (Seq (Tree a))
 unfoldForestQ f aQ = case viewl aQ of
 	EmptyL -> return empty
-	a :< aQ -> do
+	a :< aQ' -> do
 		(b, as) <- f a
-		tQ <- unfoldForestQ f (Prelude.foldl (|>) aQ as)
+		tQ <- unfoldForestQ f (Prelude.foldl (|>) aQ' as)
 		let (tQ', ts) = splitOnto [] as tQ
 		return (Node b ts <| tQ')
   where splitOnto :: [a'] -> [b'] -> Seq a' -> (Seq a', [a'])

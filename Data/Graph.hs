@@ -374,9 +374,13 @@ scc g = dfs g (reverse (postOrd (transposeG g)))
 -- Algorithm 5: Classifying edges
 ------------------------------------------------------------
 
+{-
+XXX unused code
+
 tree              :: Bounds -> Forest Vertex -> Graph
 tree bnds ts       = buildG bnds (concat (map flat ts))
- where flat (Node v ts) = [ (v, w) | Node w _us <- ts ] ++ concat (map flat ts)
+ where flat (Node v ts') = [ (v, w) | Node w _us <- ts' ]
+                        ++ concat (map flat ts')
 
 back              :: Graph -> Table Int -> Graph
 back g post        = mapT select g
@@ -387,8 +391,9 @@ cross g pre post   = mapT select g
  where select v ws = [ w | w <- ws, post!v > post!w, pre!v > pre!w ]
 
 forward           :: Graph -> Graph -> Table Int -> Graph
-forward g tree pre = mapT select g
- where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree!v
+forward g tree' pre = mapT select g
+ where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree' ! v
+-}
 
 ------------------------------------------------------------
 -- Algorithm 6: Finding reachable vertices
@@ -418,15 +423,15 @@ do_label :: Graph -> Table Int -> Tree Vertex -> Tree (Vertex,Int,Int)
 do_label g dnum (Node v ts) = Node (v,dnum!v,lv) us
  where us = map (do_label g dnum) ts
        lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
-                     ++ [lu | Node (u,du,lu) xs <- us])
+                     ++ [lu | Node (_,_,lu) _ <- us])
 
 bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]
 bicomps (Node (v,_,_) ts)
-      = [ Node (v:vs) us | (l,Node vs us) <- map collect ts]
+      = [ Node (v:vs) us | (_,Node vs us) <- map collect ts]
 
 collect :: Tree (Vertex,Int,Int) -> (Int, Tree [Vertex])
 collect (Node (v,dv,lv) ts) = (lv, Node (v:vs) cs)
  where collected = map collect ts
-       vs = concat [ ws | (lw, Node ws us) <- collected, lw<dv]
+       vs = concat [ ws | (lw, Node ws _) <- collected, lw<dv]
        cs = concat [ if lw<dv then us else [Node (v:ws) us]
                         | (lw, Node ws us) <- collected ]
