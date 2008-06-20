@@ -104,7 +104,7 @@ import Prelude hiding (filter,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Foldable (Foldable(foldMap))
-import Data.Typeable
+import Data.Typeable (Typeable1(..), TyCon, mkTyCon, mkTyConApp)
 
 {-
 -- just for testing
@@ -115,7 +115,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Generics.Basics
+import Data.Generics.Basics (Data(..), mkNorepType, gcast1)
 import Data.Generics.Instances ()
 #endif
 

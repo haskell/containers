@@ -177,7 +177,7 @@ import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
-import Data.Typeable
+import Data.Typeable (Typeable2(..), TyCon, mkTyCon, mkTyConApp)
 
 {-
 -- for quick check
@@ -189,7 +189,7 @@ import List(nub,sort)
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Generics.Basics
+import Data.Generics.Basics (Data(..), mkNorepType, gcast2)
 import Data.Generics.Instances ()
 #endif
 

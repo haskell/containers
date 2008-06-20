@@ -75,12 +75,13 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Foldable
 import Data.Traversable
-import Data.Typeable
+import Data.Typeable (TyCon, Typeable1(..), mkTyCon, mkTyConApp)
 
 #ifdef __GLASGOW_HASKELL__
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
 	readPrec, readListPrec, readListPrecDefault)
-import Data.Generics.Basics
+import Data.Generics.Basics (Data(..), DataType, Constr, Fixity(..),
+                             mkConstr, mkDataType, constrIndex, gcast1)
 #endif
 
 #if TESTING
