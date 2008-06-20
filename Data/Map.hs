@@ -177,6 +177,7 @@ import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
+import Data.Typeable
 
 {-
 -- for quick check

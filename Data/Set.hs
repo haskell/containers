@@ -104,6 +104,7 @@ import Prelude hiding (filter,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Foldable (Foldable(foldMap))
+import Data.Typeable
 
 {-
 -- just for testing
