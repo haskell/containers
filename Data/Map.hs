@@ -177,7 +177,9 @@ import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
-import Data.Typeable (Typeable2(..), TyCon, mkTyCon, mkTyConApp)
+import Data.Typeable ( Typeable, typeOf, typeOfDefault
+                     , Typeable1, typeOf1, typeOf1Default
+                     , Typeable2(..), TyCon, mkTyCon, mkTyConApp )
 
 {-
 -- for quick check

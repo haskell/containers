@@ -104,7 +104,8 @@ import Prelude hiding (filter,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Foldable (Foldable(foldMap))
-import Data.Typeable (Typeable1(..), TyCon, mkTyCon, mkTyConApp)
+import Data.Typeable ( Typeable, typeOf, typeOfDefault
+                     , Typeable1(..), TyCon, mkTyCon, mkTyConApp)
 
 {-
 -- just for testing
