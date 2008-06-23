@@ -75,8 +75,10 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Foldable
 import Data.Traversable
-import Data.Typeable ( Typeable, typeOf, typeOfDefault
-                     , TyCon, Typeable1(..), mkTyCon, mkTyConApp )
+#ifndef __GLASGOW_HASKELL__
+import Data.Typeable (Typeable, typeOf, typeOfDefault)
+#endif
+import Data.Typeable (TyCon, Typeable1(..), mkTyCon, mkTyConApp )
 
 #ifdef __GLASGOW_HASKELL__
 import Text.Read (Lexeme(Ident), lexP, parens, prec,

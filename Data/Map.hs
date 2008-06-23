@@ -177,9 +177,11 @@ import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
+#ifndef __GLASGOW_HASKELL__
 import Data.Typeable ( Typeable, typeOf, typeOfDefault
-                     , Typeable1, typeOf1, typeOf1Default
-                     , Typeable2(..), TyCon, mkTyCon, mkTyConApp )
+                     , Typeable1, typeOf1, typeOf1Default)
+#endif
+import Data.Typeable (Typeable2(..), TyCon, mkTyCon, mkTyConApp)
 
 {-
 -- for quick check
