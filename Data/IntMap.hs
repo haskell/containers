@@ -836,15 +836,15 @@ intersectionWithKey _ _ Nil = Nil
 updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMinWithKey f t
     = case t of
-        Bin p m l r | m < 0 -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-        Bin p m l r         -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
+        Bin p m l r | m < 0 -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
+        Bin p m l r         -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
         Tip k y -> Tip k (f k y)
         Nil -> error "maxView: empty map has no maximal element"
 
 updateMinWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMinWithKeyUnsigned f t
     = case t of
-        Bin p m l r -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
+        Bin p m l r -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
         Tip k y -> Tip k (f k y)
         Nil -> error "updateMinWithKeyUnsigned Nil"
 
@@ -856,8 +856,8 @@ updateMinWithKeyUnsigned f t
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMaxWithKey f t
     = case t of
-        Bin p m _ r | m < 0 -> let t' = updateMaxWithKeyUnsigned f r in Bin p m r t'
-        Bin p m l _         -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' l
+        Bin p m l r | m < 0 -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' r
+        Bin p m l r         -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
         Tip k y -> Tip k (f k y)
         Nil -> error "maxView: empty map has no maximal element"
 
@@ -1857,4 +1857,16 @@ prop_Ordered
 prop_List :: [Key] -> Bool
 prop_List xs
   = (sort (nub xs) == [x | (x,()) <- toAscList (fromList [(x,()) | x <- xs])])
+
+
+{--------------------------------------------------------------------
+  updateMin / updateMax 
+--------------------------------------------------------------------}
+prop_UpdateMinMax :: [Key] -> Bool
+prop_UpdateMinMax xs =
+  let m = fromList [(x,0)|x<-xs]
+      minKey = fst . head . Prelude.filter ((==1).snd) . assocs . updateMin succ $ m
+      maxKey = fst . head . Prelude.filter ((==1).snd) . assocs . updateMax succ $ m
+  in  all (>=minKey) xs && all (<=maxKey) xs
+
 -}
