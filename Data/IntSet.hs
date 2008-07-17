@@ -479,8 +479,8 @@ partition predicate t
 
 
 -- | /O(min(n,W))/. The expression (@'split' x set@) is a pair @(set1,set2)@
--- where all elements in @set1@ are lower than @x@ and all elements in
--- @set2@ larger than @x@.
+-- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
+-- comprises the elements of @set@ greater than @x@.
 --
 -- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [3,4])
 split :: Int -> IntSet -> (IntSet,IntSet)

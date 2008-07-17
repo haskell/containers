@@ -645,8 +645,8 @@ filterLt cmp (Bin _ x l r)
   Split
 --------------------------------------------------------------------}
 -- | /O(log n)/. The expression (@'split' x set@) is a pair @(set1,set2)@
--- where all elements in @set1@ are lower than @x@ and all elements in
--- @set2@ larger than @x@. @x@ is not found in neither @set1@ nor @set2@.
+-- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
+-- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
 split _ Tip = (Tip,Tip)
 split x (Bin _ y l r)
