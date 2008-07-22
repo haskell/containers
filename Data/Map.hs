@@ -276,19 +276,10 @@ size t
 
 -- | /O(log n)/. Lookup the value at a key in the map.
 --
--- The function will 
--- @return@ the result in the monad or @fail@ in it the key isn't in the 
--- map. Often, the monad to use is 'Maybe', so you get either 
--- @('Just' result)@ or @'Nothing'@.
+-- The function will return the corresponding value as @('Just' value)@,
+-- or 'Nothing' if the key isn't in the map.
 --
--- > let m = fromList [(5,'a'), (3,'b'), (7,'c')]
--- > value1 <- Data.Map.lookup 5 m
--- > value1
--- >   'a'
--- > value2 <- Data.Map.lookup 1 m
--- >   Error: Key not found
---
--- An example of using @lookup@ with @Maybe@ monad:
+-- An example of using @lookup@:
 --
 -- > import Prelude hiding (lookup)
 -- > import Data.Map
@@ -312,18 +303,14 @@ size t
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 
-lookup :: (Monad m,Ord k) => k -> Map k a -> m a
-lookup k t = case lookup' k t of
-    Just x -> return x
-    Nothing -> fail "Data.Map.lookup: Key not found"
-lookup' :: Ord k => k -> Map k a -> Maybe a
-lookup' k t
+lookup :: Ord k => k -> Map k a -> Maybe a
+lookup k t
   = case t of
       Tip -> Nothing
       Bin _ kx x l r
           -> case compare k kx of
-               LT -> lookup' k l
-               GT -> lookup' k r
+               LT -> lookup k l
+               GT -> lookup k r
                EQ -> Just x       
 
 lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
@@ -654,10 +641,8 @@ findIndex k t
 -- > fromJust (lookupIndex 5 (fromList [(5,"a"), (3,"b")])) == 1
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
-lookupIndex :: (Monad m,Ord k) => k -> Map k a -> m Int
-lookupIndex k t = case f 0 t of
-    Nothing -> fail "Data.Map.lookupIndex: Key not found."
-    Just x -> return x
+lookupIndex :: Ord k => k -> Map k a -> Maybe Int
+lookupIndex k t = f 0 t
   where
     f _   Tip  = Nothing
     f idx (Bin _ kx _ l r)
@@ -810,49 +795,46 @@ updateMaxWithKey f t
       Bin _ kx x l r     -> balance kx x l (updateMaxWithKey f r)
       Tip                -> Tip
 
--- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and the map stripped from that element
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and
+-- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
--- > v <- minViewWithKey (fromList [(5,"a"), (3,"b")])
--- > v ==  ((3,"b"), singleton 5 "a")
--- > minViewWithKey empty              Error: empty map
+-- > minViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((3,"b"), singleton 5 "a")
+-- > minViewWithKey empty == Nothing
 
-minViewWithKey :: Monad m => Map k a -> m ((k,a), Map k a)
-minViewWithKey Tip = fail "Map.minViewWithKey: empty map"
-minViewWithKey x = return (deleteFindMin x)
+minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
+minViewWithKey Tip = Nothing
+minViewWithKey x = Just (deleteFindMin x)
 
--- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and the map stripped from that element
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
+-- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
--- > v <- maxViewWithKey (fromList [(5,"a"), (3,"b")])
--- > v == ((5,"a"), singleton 3 "b")
--- > maxViewWithKey empty              Error: empty map
+-- > maxViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((5,"a"), singleton 3 "b")
+-- > maxViewWithKey empty == Nothing
 
-maxViewWithKey :: Monad m => Map k a -> m ((k,a), Map k a)
-maxViewWithKey Tip = fail "Map.maxViewWithKey: empty map"
-maxViewWithKey x = return (deleteFindMax x)
+maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
+maxViewWithKey Tip = Nothing
+maxViewWithKey x = Just (deleteFindMax x)
 
--- | /O(log n)/. Retrieves the minimal key\'s value of the map, and the map stripped from that element
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the value associated with minimal key of the
+-- map, and the map stripped of that element, or 'Nothing' if passed an
+-- empty map.
 --
--- > v <- minView (fromList [(5,"a"), (3,"b")])
--- > v == ("b", singleton 5 "a")
--- > minView empty                     Error: empty map
+-- > minView (fromList [(5,"a"), (3,"b")]) == Just ("b", singleton 5 "a")
+-- > minView empty == Nothing
 
-minView :: Monad m => Map k a -> m (a, Map k a)
-minView Tip = fail "Map.minView: empty map"
-minView x = return (first snd $ deleteFindMin x)
+minView :: Map k a -> Maybe (a, Map k a)
+minView Tip = Nothing
+minView x = Just (first snd $ deleteFindMin x)
 
--- | /O(log n)/. Retrieves the maximal key\'s value of the map, and the map stripped from that element
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the value associated with maximal key of the
+-- map, and the map stripped of that element, or 'Nothing' if passed an
 --
--- > v <- maxView (fromList [(5,"a"), (3,"b")]) 
--- > v == ("a", singleton 3 "b")
--- > maxView empty                     Error: empty map
+-- > maxView (fromList [(5,"a"), (3,"b")]) == Just ("a", singleton 3 "b")
+-- > maxView empty == Nothing
 
-maxView :: Monad m => Map k a -> m (a, Map k a)
-maxView Tip = fail "Map.maxView: empty map"
-maxView x = return (first snd $ deleteFindMax x)
+maxView :: Map k a -> Maybe (a, Map k a)
+maxView Tip = Nothing
+maxView x = Just (first snd $ deleteFindMax x)
 
 -- Update the 1st component of a tuple (special case of Control.Arrow.first)
 first :: (a -> b) -> (a,c) -> (b,c)

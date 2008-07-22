@@ -165,6 +165,7 @@ import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import Data.Bits 
 import qualified Data.IntSet as IntSet
 import Data.Monoid (Monoid(..))
+import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Data.Foldable (Foldable(foldMap))
 import Control.Monad ( liftM )
@@ -314,13 +315,8 @@ notMember :: Key -> IntMap a -> Bool
 notMember k m = not $ member k m
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
-lookup :: (Monad m) => Key -> IntMap a -> m a
-lookup k t = case lookup' k t of
-    Just x -> return x
-    Nothing -> fail "Data.IntMap.lookup: Key not found"
-
-lookup' :: Key -> IntMap a -> Maybe a
-lookup' k t
+lookup :: Key -> IntMap a -> Maybe a
+lookup k t
   = let nk = natFromInt k  in seq nk (lookupN nk t)
 
 lookupN :: Nat -> IntMap a -> Maybe a
@@ -873,20 +869,19 @@ updateMaxWithKeyUnsigned f t
         Nil -> error "updateMaxWithKeyUnsigned Nil"
 
 
--- | /O(log n)/. Retrieves the maximal (key,value) couple of the map, and the map stripped from that element.
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
+-- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
--- > v <- maxViewWithKey (fromList [(5,"a"), (3,"b")])
--- > v == ((5,"a"), singleton 3 "b")
--- > maxViewWithKey empty              Error: empty map
+-- > maxViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((5,"a"), singleton 3 "b")
+-- > maxViewWithKey empty == Nothing
 
-maxViewWithKey :: (Monad m) => IntMap a -> m ((Key, a), IntMap a)
+maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey t
     = case t of
-        Bin p m l r | m < 0 -> let (result, t') = maxViewUnsigned l in return (result, bin p m t' r)
-        Bin p m l r         -> let (result, t') = maxViewUnsigned r in return (result, bin p m l t')
-        Tip k y -> return ((k,y), Nil)
-        Nil -> fail "maxViewWithKey: empty map has no maximal element"
+        Bin p m l r | m < 0 -> let (result, t') = maxViewUnsigned l in Just (result, bin p m t' r)
+        Bin p m l r         -> let (result, t') = maxViewUnsigned r in Just (result, bin p m l t')
+        Tip k y -> Just ((k,y), Nil)
+        Nil -> Nothing
 
 maxViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
 maxViewUnsigned t 
@@ -895,20 +890,19 @@ maxViewUnsigned t
         Tip k y -> ((k,y), Nil)
         Nil -> error "maxViewUnsigned Nil"
 
--- | /O(log n)/. Retrieves the minimal (key,value) couple of the map, and the map stripped from that element.
--- @fail@s (in the monad) when passed an empty map.
+-- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and
+-- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
--- > v <- minViewWithKey (fromList [(5,"a"), (3,"b")])
--- > v ==  ((3,"b"), singleton 5 "a")
--- > minViewWithKey empty              Error: empty map
+-- > minViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((3,"b"), singleton 5 "a")
+-- > minViewWithKey empty == Nothing
 
-minViewWithKey :: (Monad m) => IntMap a -> m ((Key, a), IntMap a)
+minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey t
     = case t of
-        Bin p m l r | m < 0 -> let (result, t') = minViewUnsigned r in return (result, bin p m l t')
-        Bin p m l r         -> let (result, t') = minViewUnsigned l in return (result, bin p m t' r)
-        Tip k y -> return ((k,y),Nil)
-        Nil -> fail "minViewWithKey: empty map has no minimal element"
+        Bin p m l r | m < 0 -> let (result, t') = minViewUnsigned r in Just (result, bin p m l t')
+        Bin p m l r         -> let (result, t') = minViewUnsigned l in Just (result, bin p m t' r)
+        Tip k y -> Just ((k,y),Nil)
+        Nil -> Nothing
 
 minViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
 minViewUnsigned t 
@@ -934,50 +928,43 @@ updateMax f = updateMaxWithKey (const f)
 updateMin :: (a -> a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
 
-
--- Duplicate the Identity monad here because base < mtl.
-newtype Identity a = Identity { runIdentity :: a }
-instance Monad Identity where
-	return a = Identity a
-	m >>= k  = k (runIdentity m)
 -- Similar to the Arrow instance.
 first :: (a -> c) -> (a, b) -> (c, b)
 first f (x,y) = (f x,y)
 
-
--- | /O(log n)/. Retrieves the maximal key of the map, and the map stripped from that element.
--- @fail@s (in the monad) when passed an empty map.
-maxView :: (Monad m) => IntMap a -> m (a, IntMap a)
+-- | /O(log n)/. Retrieves the maximal key of the map, and the map
+-- stripped of that element, or 'Nothing' if passed an empty map.
+maxView :: IntMap a -> Maybe (a, IntMap a)
 maxView t = liftM (first snd) (maxViewWithKey t)
 
--- | /O(log n)/. Retrieves the minimal key of the map, and the map stripped from that element.
--- @fail@s (in the monad) when passed an empty map.
-minView :: (Monad m) => IntMap a -> m (a, IntMap a)
+-- | /O(log n)/. Retrieves the minimal key of the map, and the map
+-- stripped of that element, or 'Nothing' if passed an empty map.
+minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
 -- | /O(log n)/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> (a, IntMap a)
-deleteFindMax = runIdentity . maxView
+deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxView
 
 -- | /O(log n)/. Delete and find the minimal element.
 deleteFindMin :: IntMap a -> (a, IntMap a)
-deleteFindMin = runIdentity . minView
+deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minView
 
 -- | /O(log n)/. The minimal key of the map.
 findMin :: IntMap a -> a
-findMin = fst . runIdentity . minView
+findMin = maybe (error "findMin: empty map has no minimal element") fst . minView
 
 -- | /O(log n)/. The maximal key of the map.
 findMax :: IntMap a -> a
-findMax = fst . runIdentity . maxView
+findMax = maybe (error "findMax: empty map has no maximal element") fst . maxView
 
 -- | /O(log n)/. Delete the minimal key.
 deleteMin :: IntMap a -> IntMap a
-deleteMin = snd . runIdentity . minView
+deleteMin = maybe (error "deleteMin: empty map has no minimal element") snd . minView
 
 -- | /O(log n)/. Delete the maximal key.
 deleteMax :: IntMap a -> IntMap a
-deleteMax = snd . runIdentity . maxView
+deleteMax = maybe (error "deleteMax: empty map has no maximal element") snd . maxView
 
 
 {--------------------------------------------------------------------

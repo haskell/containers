@@ -106,6 +106,7 @@ import Data.Bits
 
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
+import Data.Maybe (fromMaybe)
 import Data.Typeable
 
 {-
@@ -545,15 +546,15 @@ splitMember' x t
   Min/Max
 ----------------------------------------------------------------------}
 
--- | /O(min(n,W))/. Retrieves the maximal key of the set, and the set stripped from that element
--- @fail@s (in the monad) when passed an empty set.
-maxView :: (Monad m) => IntSet -> m (Int, IntSet)
+-- | /O(min(n,W))/. Retrieves the maximal key of the set, and the set
+-- stripped of that element, or 'Nothing' if passed an empty set.
+maxView :: IntSet -> Maybe (Int, IntSet)
 maxView t
     = case t of
-        Bin p m l r | m < 0 -> let (result,t') = maxViewUnsigned l in return (result, bin p m t' r)
-        Bin p m l r         -> let (result,t') = maxViewUnsigned r in return (result, bin p m l t')            
-        Tip y -> return (y,Nil)
-        Nil -> fail "maxView: empty set has no maximal element"
+        Bin p m l r | m < 0 -> let (result,t') = maxViewUnsigned l in Just (result, bin p m t' r)
+        Bin p m l r         -> let (result,t') = maxViewUnsigned r in Just (result, bin p m l t')            
+        Tip y -> Just (y,Nil)
+        Nil -> Nothing
 
 maxViewUnsigned :: IntSet -> (Int, IntSet)
 maxViewUnsigned t 
@@ -562,15 +563,15 @@ maxViewUnsigned t
         Tip y -> (y, Nil)
         Nil -> error "maxViewUnsigned Nil"
 
--- | /O(min(n,W))/. Retrieves the minimal key of the set, and the set stripped from that element
--- @fail@s (in the monad) when passed an empty set.
-minView :: (Monad m) => IntSet -> m (Int, IntSet)
+-- | /O(min(n,W))/. Retrieves the minimal key of the set, and the set
+-- stripped of that element, or 'Nothing' if passed an empty set.
+minView :: IntSet -> Maybe (Int, IntSet)
 minView t
     = case t of
-        Bin p m l r | m < 0 -> let (result,t') = minViewUnsigned r in return (result, bin p m l t')            
-        Bin p m l r         -> let (result,t') = minViewUnsigned l in return (result, bin p m t' r)
-        Tip y -> return (y, Nil)
-        Nil -> fail "minView: empty set has no minimal element"
+        Bin p m l r | m < 0 -> let (result,t') = minViewUnsigned r in Just (result, bin p m l t')            
+        Bin p m l r         -> let (result,t') = minViewUnsigned l in Just (result, bin p m t' r)
+        Tip y -> Just (y, Nil)
+        Nil -> Nothing
 
 minViewUnsigned :: IntSet -> (Int, IntSet)
 minViewUnsigned t 
@@ -579,43 +580,33 @@ minViewUnsigned t
         Tip y -> (y, Nil)
         Nil -> error "minViewUnsigned Nil"
 
-
--- Duplicate the Identity monad here because base < mtl.
-newtype Identity a = Identity { runIdentity :: a }
-instance Monad Identity where
-	return a = Identity a
-	m >>= k  = k (runIdentity m)
-
-
 -- | /O(min(n,W))/. Delete and find the minimal element.
 -- 
 -- > deleteFindMin set = (findMin set, deleteMin set)
 deleteFindMin :: IntSet -> (Int, IntSet)
-deleteFindMin = runIdentity . minView
+deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 -- 
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: IntSet -> (Int, IntSet)
-deleteFindMax = runIdentity . maxView
+deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
 -- | /O(min(n,W))/. The minimal element of a set.
 findMin :: IntSet -> Int
-findMin = fst . runIdentity . minView
+findMin = maybe (error "findMin: empty set has no minimal element") fst . minView
 
 -- | /O(min(n,W))/. The maximal element of a set.
 findMax :: IntSet -> Int
-findMax = fst . runIdentity . maxView
+findMax = maybe (error "findMax: empty set has no maximal element") fst . maxView
 
 -- | /O(min(n,W))/. Delete the minimal element.
 deleteMin :: IntSet -> IntSet
-deleteMin = snd . runIdentity . minView
+deleteMin = maybe (error "deleteMin: empty set has no minimal element") snd . minView
 
 -- | /O(min(n,W))/. Delete the maximal element.
 deleteMax :: IntSet -> IntSet
-deleteMax = snd . runIdentity . maxView
-
-
+deleteMax = maybe (error "deleteMax: empty set has no maximal element") snd . maxView
 
 {----------------------------------------------------------------------
   Map

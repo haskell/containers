@@ -770,18 +770,17 @@ deleteFindMax t
       Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balance x l r')
       Tip           -> (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
 
--- | /O(log n)/. Retrieves the minimal key of the set, and the set stripped from that element
--- @fail@s (in the monad) when passed an empty set.
-minView :: Monad m => Set a -> m (a, Set a)
-minView Tip = fail "Set.minView: empty set"
-minView x = return (deleteFindMin x)
+-- | /O(log n)/. Retrieves the minimal key of the set, and the set
+-- stripped of that element, or 'Nothing' if passed an empty set.
+minView :: Set a -> Maybe (a, Set a)
+minView Tip = Nothing
+minView x = Just (deleteFindMin x)
 
--- | /O(log n)/. Retrieves the maximal key of the set, and the set stripped from that element
--- @fail@s (in the monad) when passed an empty set.
-maxView :: Monad m => Set a -> m (a, Set a)
-maxView Tip = fail "Set.maxView: empty set"
-maxView x = return (deleteFindMax x)
-
+-- | /O(log n)/. Retrieves the maximal key of the set, and the set
+-- stripped of that element, or 'Nothing' if passed an empty set.
+maxView :: Set a -> Maybe (a, Set a)
+maxView Tip = Nothing
+maxView x = Just (deleteFindMax x)
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.
