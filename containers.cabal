@@ -13,7 +13,7 @@ build-type: Simple
 cabal-version:  >=1.2
 
 Library {
-    build-depends: base, array
+    build-depends: base, array, st
     exposed-modules:
         Data.Graph
         Data.IntMap
