@@ -4,6 +4,7 @@ license:    BSD3
 license-file:    LICENSE
 maintainer:    libraries@haskell.org
 synopsis:   Assorted concrete container types
+category:   Data Structures
 description:
         This package contains efficient general-purpose implementations
         of various basic immutable container types.  The declared cost of
