@@ -14,7 +14,9 @@ build-type: Simple
 cabal-version:  >=1.2
 
 Library {
-    build-depends: base, array, st, syb
+    build-depends: base, array
+    if !impl(nhc98)
+      build-depends: st, syb
     exposed-modules:
         Data.Graph
         Data.IntMap
