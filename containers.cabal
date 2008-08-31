@@ -12,6 +12,7 @@ description:
         valid even if structures are shared.
 build-type: Simple
 cabal-version:  >=1.2
+extra-source-files: include/Typeable.h
 
 Library {
     build-depends: base, array
