@@ -17,7 +17,7 @@ extra-source-files: include/Typeable.h
 Library {
     build-depends: base, array
     if !impl(nhc98)
-      build-depends: st, syb
+      build-depends: syb
     exposed-modules:
         Data.Graph
         Data.IntMap
