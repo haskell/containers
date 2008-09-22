@@ -103,6 +103,8 @@ module Data.Map  (
             -- ** Fold
             , fold
             , foldWithKey
+            , foldrWithKey
+            , foldlWithKey
 
             -- * Conversion
             , elems
@@ -118,6 +120,7 @@ module Data.Map  (
 
             -- ** Ordered lists
             , toAscList
+            , toDescList
             , fromAscList
             , fromAscListWith
             , fromAscListWithKey
@@ -170,7 +173,7 @@ module Data.Map  (
             , valid
             ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Prelude hiding (lookup,map,filter,null)
 import qualified Data.Set as Set
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
@@ -1425,10 +1428,13 @@ fold f z m
 --
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
+--
+-- This is identical to 'foldrWithKey', and you should use that one instead of
+-- this one.  This name is kept for backward compatibility.
 
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey f z t
-  = foldr f z t
+  = foldrWithKey f z t
 
 {-
 XXX unused code
@@ -1439,19 +1445,20 @@ foldi _ z Tip               = z
 foldi f z (Bin _ kx x l r)  = f kx x (foldi f z l) (foldi f z r)
 -}
 
--- | /O(n)/. Post-order fold.
-foldr :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldr _ z Tip              = z
-foldr f z (Bin _ kx x l r) = foldr f (f kx x (foldr f z r)) l
+-- | /O(n)/. Post-order fold.  The function will be applied from the lowest
+-- value to the highest.
+foldrWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
+foldrWithKey _ z Tip              = z
+foldrWithKey f z (Bin _ kx x l r) =
+    foldrWithKey f (f kx x (foldrWithKey f z r)) l
 
-{-
-XXX unused code
 
--- | /O(n)/. Pre-order fold.
-foldl :: (b -> k -> a -> b) -> b -> Map k a -> b
-foldl _ z Tip              = z
-foldl f z (Bin _ kx x l r) = foldl f (f (foldl f z l) kx x) r
--}
+-- | /O(n)/. Pre-order fold.  The function will be applied from the highest
+-- value to the lowest.
+foldlWithKey :: (b -> k -> a -> b) -> b -> Map k a -> b
+foldlWithKey _ z Tip              = z
+foldlWithKey f z (Bin _ kx x l r) =
+    foldlWithKey f (f (foldlWithKey f z l) kx x) r
 
 {--------------------------------------------------------------------
   List variations 
@@ -1544,15 +1551,11 @@ toList t      = toAscList t
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
 toAscList :: Map k a -> [(k,a)]
-toAscList t   = foldr (\k x xs -> (k,x):xs) [] t
+toAscList t   = foldrWithKey (\k x xs -> (k,x):xs) [] t
 
-{-
-XXX unused code
-
--- | /O(n)/.
+-- | /O(n)/. Convert to a descending list.
 toDescList :: Map k a -> [(k,a)]
-toDescList t  = foldl (\xs k x -> (k,x):xs) [] t
--}
+toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
