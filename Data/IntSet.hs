@@ -591,13 +591,27 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 deleteFindMax :: IntSet -> (Int, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
--- | /O(min(n,W))/. The minimal element of a set.
-findMin :: IntSet -> Int
-findMin = maybe (error "findMin: empty set has no minimal element") fst . minView
+
+-- | /O(min(n,W))/. The minimal element of the set.
+findMin Nil = error "findMin: empty set has no minimal element"
+findMin (Tip x) = x
+findMin (Bin _ m l r) 
+  |   m < 0   = find r
+  | otherwise = find l
+    where find (Tip x)       = x
+          find (Bin _ _ l _) = find l
+          find Nil           = error "findMin Nil"
 
 -- | /O(min(n,W))/. The maximal element of a set.
-findMax :: IntSet -> Int
-findMax = maybe (error "findMax: empty set has no maximal element") fst . maxView
+findMax Nil = error "findMax: empty set has no maximal element"
+findMax (Tip x) = x
+findMax (Bin _ m l r) 
+  |   m < 0   = find l
+  | otherwise = find r
+    where find (Tip x)       = x
+          find (Bin _ _ _ r) = find r
+          find Nil           = error "findMax Nil"
+
 
 -- | /O(min(n,W))/. Delete the minimal element.
 deleteMin :: IntSet -> IntSet

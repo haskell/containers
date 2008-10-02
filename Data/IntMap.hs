@@ -951,12 +951,26 @@ deleteFindMin :: IntMap a -> (a, IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minView
 
 -- | /O(log n)/. The minimal key of the map.
-findMin :: IntMap a -> a
-findMin = maybe (error "findMin: empty map has no minimal element") fst . minView
+findMin :: IntMap a -> (Int,a)
+findMin Nil = error $ "findMin: empty map has no minimal element"
+findMin (Tip k v) = (k,v)
+findMin (Bin _ m l r) 
+  |   m < 0   = find r
+  | otherwise = find l
+    where find (Tip k v)     = (k,v)
+          find (Bin _ _ l _) = find l
+          find Nil           = error "findMax Nil"
 
 -- | /O(log n)/. The maximal key of the map.
-findMax :: IntMap a -> a
-findMax = maybe (error "findMax: empty map has no maximal element") fst . maxView
+findMax :: IntMap a -> (Int,a)
+findMax Nil = error $ "findMax: empty map has no maximal element"
+findMax (Tip k v) = (k,v)
+findMax (Bin _ m l r) 
+  |   m < 0   = find l
+  | otherwise = find r
+    where find (Tip k v)     = (k,v)
+          find (Bin _ _ _ r) = find r
+          find Nil           = error "findMax Nil"
 
 -- | /O(log n)/. Delete the minimal key.
 deleteMin :: IntMap a -> IntMap a
