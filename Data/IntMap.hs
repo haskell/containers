@@ -1756,8 +1756,8 @@ highestBitMask x0
      x1 -> case (x1 .|. shiftRL x1 2) of
       x2 -> case (x2 .|. shiftRL x2 4) of
        x3 -> case (x3 .|. shiftRL x3 8) of
-        x4 -> case (x3 .|. shiftRL x4 16) of
-         x5 -> case (x4 .|. shiftRL x5 32) of   -- for 64 bit platforms
+        x4 -> case (x4 .|. shiftRL x4 16) of
+         x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
           x6 -> (x6 `xor` (shiftRL x6 1))
 
 
