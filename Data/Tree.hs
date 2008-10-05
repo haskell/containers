@@ -38,8 +38,7 @@ import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 
 #ifdef __GLASGOW_HASKELL__
-import Data.Generics.Basics (Data)
-import Data.Generics.Instances ()
+import Data.Data (Data)
 #endif
 
 -- | Multi-way trees, also known as /rose trees/.

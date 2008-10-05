@@ -179,8 +179,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Generics.Basics (Data(..), mkNorepType)
-import Data.Generics.Instances ()
+import Data.Data (Data(..), mkNorepType)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 503

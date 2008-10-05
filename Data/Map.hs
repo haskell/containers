@@ -196,8 +196,7 @@ import List(nub,sort)
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Generics.Basics (Data(..), mkNorepType, gcast2)
-import Data.Generics.Instances ()
+import Data.Data (Data(..), mkNorepType, gcast2)
 #endif
 
 {--------------------------------------------------------------------

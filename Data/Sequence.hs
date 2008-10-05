@@ -83,7 +83,7 @@ import Data.Typeable (TyCon, Typeable1(..), mkTyCon, mkTyConApp )
 #ifdef __GLASGOW_HASKELL__
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
 	readPrec, readListPrec, readListPrecDefault)
-import Data.Generics.Basics (Data(..), DataType, Constr, Fixity(..),
+import Data.Data (Data(..), DataType, Constr, Fixity(..),
                              mkConstr, mkDataType, constrIndex, gcast1)
 #endif
 

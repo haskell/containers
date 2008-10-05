@@ -118,8 +118,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Generics.Basics (Data(..), mkNorepType, gcast1)
-import Data.Generics.Instances ()
+import Data.Data (Data(..), mkNorepType, gcast1)
 #endif
 
 {--------------------------------------------------------------------
