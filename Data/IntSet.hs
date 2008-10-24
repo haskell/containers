@@ -482,7 +482,7 @@ partition predicate t
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 --
--- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [3,4])
+-- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [4,5])
 split :: Int -> IntSet -> (IntSet,IntSet)
 split x t
   = case t of
