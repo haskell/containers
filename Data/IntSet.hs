@@ -119,7 +119,7 @@ import qualified Data.Set as Set
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNorepType)
+import Data.Data (Data(..), mkNoRepType)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 503
@@ -197,7 +197,7 @@ instance Data IntSet where
   gfoldl f z is = z fromList `f` (toList is)
   toConstr _    = error "toConstr"
   gunfold _ _   = error "gunfold"
-  dataTypeOf _  = mkNorepType "Data.IntSet.IntSet"
+  dataTypeOf _  = mkNoRepType "Data.IntSet.IntSet"
 
 #endif
 

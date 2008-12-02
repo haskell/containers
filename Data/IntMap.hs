@@ -179,7 +179,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNorepType)
+import Data.Data (Data(..), mkNoRepType)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 503
@@ -265,7 +265,7 @@ instance Data a => Data (IntMap a) where
   gfoldl f z im = z fromList `f` (toList im)
   toConstr _    = error "toConstr"
   gunfold _ _   = error "gunfold"
-  dataTypeOf _  = mkNorepType "Data.IntMap.IntMap"
+  dataTypeOf _  = mkNoRepType "Data.IntMap.IntMap"
   dataCast1 f   = gcast1 f
 
 #endif

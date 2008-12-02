@@ -196,7 +196,7 @@ import List(nub,sort)
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNorepType, gcast2)
+import Data.Data (Data(..), mkNoRepType, gcast2)
 #endif
 
 {--------------------------------------------------------------------
@@ -244,7 +244,7 @@ instance (Data k, Data a, Ord k) => Data (Map k a) where
   gfoldl f z m   = z fromList `f` toList m
   toConstr _     = error "toConstr"
   gunfold _ _    = error "gunfold"
-  dataTypeOf _   = mkNorepType "Data.Map.Map"
+  dataTypeOf _   = mkNoRepType "Data.Map.Map"
   dataCast2 f    = gcast2 f
 
 #endif

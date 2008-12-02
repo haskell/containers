@@ -118,7 +118,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNorepType, gcast1)
+import Data.Data (Data(..), mkNoRepType, gcast1)
 #endif
 
 {--------------------------------------------------------------------
@@ -161,7 +161,7 @@ instance (Data a, Ord a) => Data (Set a) where
   gfoldl f z set = z fromList `f` (toList set)
   toConstr _     = error "toConstr"
   gunfold _ _    = error "gunfold"
-  dataTypeOf _   = mkNorepType "Data.Set.Set"
+  dataTypeOf _   = mkNoRepType "Data.Set.Set"
   dataCast1 f    = gcast1 f
 
 #endif
