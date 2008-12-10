@@ -96,6 +96,7 @@ module Data.Map  (
             , mapWithKey
             , mapAccum
             , mapAccumWithKey
+            , mapAccumRWithKey
             , mapKeys
             , mapKeysWith
             , mapKeysMonotonic
@@ -1334,21 +1335,17 @@ mapAccumL f a t
                  (a3,r') = mapAccumL f a2 r
              in (a3,Bin sx kx x' l' r')
 
-{-
-XXX unused code
-
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
--- argument throught the map in descending order of keys.
-mapAccumR :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
-mapAccumR f a t
+-- argument through the map in descending order of keys.
+mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccumRWithKey f a t
   = case t of
       Tip -> (a,Tip)
       Bin sx kx x l r 
-          -> let (a1,r') = mapAccumR f a r
+          -> let (a1,r') = mapAccumRWithKey f a r
                  (a2,x') = f a1 kx x
-                 (a3,l') = mapAccumR f a2 l
+                 (a3,l') = mapAccumRWithKey f a2 l
              in (a3,Bin sx kx x' l' r')
--}
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.

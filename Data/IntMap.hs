@@ -96,6 +96,7 @@ module Data.IntMap  (
             , mapWithKey
             , mapAccum
             , mapAccumWithKey
+            , mapAccumRWithKey
             
             -- ** Fold
             , fold
@@ -1112,20 +1113,16 @@ mapAccumL f a t
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
-{-
-XXX unused code
-
 -- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
--- argument throught the map in descending order of keys.
-mapAccumR :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
-mapAccumR f a t
+-- argument through the map in descending order of keys.
+mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
+mapAccumRWithKey f a t
   = case t of
-      Bin p m l r -> let (a1,r') = mapAccumR f a r
-                         (a2,l') = mapAccumR f a1 l
+      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
+                         (a2,l') = mapAccumRWithKey f a1 l
                      in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
--}
 
 {--------------------------------------------------------------------
   Filter
