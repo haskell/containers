@@ -954,12 +954,12 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal elemen
 findMin :: IntMap a -> (Int,a)
 findMin Nil = error $ "findMin: empty map has no minimal element"
 findMin (Tip k v) = (k,v)
-findMin (Bin _ m l r) 
+findMin (Bin _ m l r)
   |   m < 0   = find r
   | otherwise = find l
-    where find (Tip k v)     = (k,v)
-          find (Bin _ _ l _) = find l
-          find Nil           = error "findMax Nil"
+    where find (Tip k v)      = (k,v)
+          find (Bin _ _ l' _) = find l'
+          find Nil            = error "findMax Nil"
 
 -- | /O(log n)/. The maximal key of the map.
 findMax :: IntMap a -> (Int,a)
@@ -968,9 +968,9 @@ findMax (Tip k v) = (k,v)
 findMax (Bin _ m l r) 
   |   m < 0   = find l
   | otherwise = find r
-    where find (Tip k v)     = (k,v)
-          find (Bin _ _ _ r) = find r
-          find Nil           = error "findMax Nil"
+    where find (Tip k v)      = (k,v)
+          find (Bin _ _ _ r') = find r'
+          find Nil            = error "findMax Nil"
 
 -- | /O(log n)/. Delete the minimal key.
 deleteMin :: IntMap a -> IntMap a
@@ -1474,7 +1474,7 @@ fromListWithKey f xs
 
 fromAscList :: [(Key,a)] -> IntMap a
 fromAscList xs
-  = fromAscListWithKey (\k x y -> x) xs
+  = fromAscListWithKey (\_ x _ -> x) xs
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -1484,7 +1484,7 @@ fromAscList xs
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
 fromAscListWith f xs
-  = fromAscListWithKey (\k x y -> f x y) xs
+  = fromAscListWithKey (\_ x y -> f x y) xs
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -1493,8 +1493,8 @@ fromAscListWith f xs
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey _ []     = Nil
-fromAscListWithKey f (x:xs) = fromDistinctAscList (combineEq x xs)
+fromAscListWithKey _ []         = Nil
+fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
   where
     -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
     combineEq z [] = [z]
@@ -1509,11 +1509,11 @@ fromAscListWithKey f (x:xs) = fromDistinctAscList (combineEq x xs)
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
 fromDistinctAscList :: [(Key,a)] -> IntMap a
-fromDistinctAscList []     = Nil
-fromDistinctAscList (z:zs) = work z zs Nada
+fromDistinctAscList []         = Nil
+fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
-    work x@(kx,vx) []            stk = finish kx (Tip kx vx) stk
-    work x@(kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
+    work (kx,vx) []            stk = finish kx (Tip kx vx) stk
+    work (kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
 
     reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
     reduce z zs _ px tx Nada = work z zs (Push px tx Nada)

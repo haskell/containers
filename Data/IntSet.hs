@@ -593,24 +593,26 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal elemen
 
 
 -- | /O(min(n,W))/. The minimal element of the set.
+findMin :: IntSet -> Int
 findMin Nil = error "findMin: empty set has no minimal element"
 findMin (Tip x) = x
-findMin (Bin _ m l r) 
+findMin (Bin _ m l r)
   |   m < 0   = find r
   | otherwise = find l
-    where find (Tip x)       = x
-          find (Bin _ _ l _) = find l
-          find Nil           = error "findMin Nil"
+    where find (Tip x)        = x
+          find (Bin _ _ l' _) = find l'
+          find Nil            = error "findMin Nil"
 
 -- | /O(min(n,W))/. The maximal element of a set.
+findMax :: IntSet -> Int
 findMax Nil = error "findMax: empty set has no maximal element"
 findMax (Tip x) = x
-findMax (Bin _ m l r) 
+findMax (Bin _ m l r)
   |   m < 0   = find l
   | otherwise = find r
-    where find (Tip x)       = x
-          find (Bin _ _ _ r) = find r
-          find Nil           = error "findMax Nil"
+    where find (Tip x)        = x
+          find (Bin _ _ _ r') = find r'
+          find Nil            = error "findMax Nil"
 
 
 -- | /O(min(n,W))/. Delete the minimal element.
@@ -688,7 +690,7 @@ fromList xs
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: [Int] -> IntSet 
 fromAscList [] = Nil
-fromAscList (x:xs) = fromDistinctAscList (combineEq x xs)
+fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
   where 
     combineEq x' [] = [x']
     combineEq x' (x:xs) 
@@ -698,8 +700,8 @@ fromAscList (x:xs) = fromDistinctAscList (combineEq x xs)
 -- | /O(n)/. Build a set from an ascending list of distinct elements.
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Int] -> IntSet
-fromDistinctAscList []     = Nil
-fromDistinctAscList (z:zs) = work z zs Nada
+fromDistinctAscList []         = Nil
+fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
     work x []     stk = finish x (Tip x) stk
     work x (z:zs) stk = reduce z zs (branchMask z x) x (Tip x) stk
