@@ -169,6 +169,8 @@ import Data.Monoid (Monoid(..))
 import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Data.Foldable (Foldable(foldMap))
+import Data.Traversable (Traversable(traverse))
+import Control.Applicative ((<*>),(<$>),pure)
 import Control.Monad ( liftM )
 {-
 -- just for testing
@@ -252,6 +254,11 @@ instance Foldable IntMap where
     foldMap _ Nil = mempty
     foldMap f (Tip _k v) = f v
     foldMap f (Bin _ _ l r) = foldMap f l `mappend` foldMap f r
+
+instance Traversable IntMap where
+    traverse _ Nil = pure Nil
+    traverse f (Tip k v) = Tip k <$> f v
+    traverse f (Bin p m l r) = Bin p m <$> traverse f l <*> traverse f r
 
 #if __GLASGOW_HASKELL__
 
