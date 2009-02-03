@@ -170,7 +170,7 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Data.Foldable (Foldable(foldMap))
 import Data.Traversable (Traversable(traverse))
-import Control.Applicative ((<*>),(<$>),pure)
+import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
 {-
 -- just for testing
