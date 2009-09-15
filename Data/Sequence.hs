@@ -3,6 +3,7 @@
 -- |
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
+--                (c) Louis Wasserman 2009
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
@@ -40,6 +41,14 @@ module Data.Sequence (
 	(|>),		-- :: Seq a -> a -> Seq a
 	(><),		-- :: Seq a -> Seq a -> Seq a
 	fromList,	-- :: [a] -> Seq a
+	-- ** Repetition
+	replicate,	-- :: Int -> a -> Seq a
+	replicateA,	-- :: Applicative f => Int -> f a -> f (Seq a)
+	replicateM,	-- :: Monad m => Int -> m a -> m (Seq a)
+	-- ** Iterative construction
+	iterateN,	-- :: Int -> (a -> a) -> a -> Seq a
+	unfoldr,	-- :: (b -> Maybe (a, b)) -> b -> Seq a
+	unfoldl,	-- :: (b -> Maybe (b, a)) -> b -> Seq a
 	-- * Deconstruction
 	-- | Additional functions for deconstructing sequences are available
 	-- via the 'Foldable' instance of 'Seq'.
@@ -52,15 +61,63 @@ module Data.Sequence (
 	viewl,		-- :: Seq a -> ViewL a
 	ViewR(..),
 	viewr,		-- :: Seq a -> ViewR a
-	-- ** Indexing
+	-- * Scans
+	scanl,		-- :: (a -> b -> a) -> a -> Seq b -> Seq a
+	scanl1,		-- :: (a -> a -> a) -> Seq a -> Seq a
+	scanr,		-- :: (a -> b -> b) -> b -> Seq a -> Seq b
+	scanr1,		-- :: (a -> a -> a) -> Seq a -> Seq a
+	-- * Sublists
+	tails,		-- :: Seq a -> Seq (Seq a)
+	inits,		-- :: Seq a -> Seq (Seq a)
+	-- ** Sequential searches
+	takeWhileL,	-- :: (a -> Bool) -> Seq a -> Seq a
+	takeWhileR,	-- :: (a -> Bool) -> Seq a -> Seq a
+	dropWhileL,	-- :: (a -> Bool) -> Seq a -> Seq a
+	dropWhileR,	-- :: (a -> Bool) -> Seq a -> Seq a
+	spanl,		-- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+	spanr,		-- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+	breakl,		-- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+	breakr,		-- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+	partition,	-- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+	filter,		-- :: (a -> Bool) -> Seq a -> Seq a
+	-- * Sorting
+	sort,		-- :: Ord a => Seq a -> Seq a
+	sortBy,		-- :: (a -> a -> Ordering) -> Seq a -> Seq a
+	unstableSort,	-- :: Ord a => Seq a -> Seq a
+	unstableSortBy,	-- :: (a -> a -> Ordering) -> Seq a -> Seq a
+	-- * Indexing
 	index,		-- :: Seq a -> Int -> a
 	adjust,		-- :: (a -> a) -> Int -> Seq a -> Seq a
 	update,		-- :: Int -> a -> Seq a -> Seq a
 	take,		-- :: Int -> Seq a -> Seq a
 	drop,		-- :: Int -> Seq a -> Seq a
 	splitAt,	-- :: Int -> Seq a -> (Seq a, Seq a)
+	-- ** Indexing with predicates
+	-- | These functions perform sequential searches from the left
+	-- or right ends of the sequence, returning indices of matching
+	-- elements.
+	elemIndexL,	-- :: Eq a => a -> Seq a -> Maybe Int
+	elemIndicesL,	-- :: Eq a => a -> Seq a -> [Int]
+	elemIndexR,	-- :: Eq a => a -> Seq a -> Maybe Int
+	elemIndicesR,	-- :: Eq a => a -> Seq a -> [Int]
+	findIndexL,	-- :: (a -> Bool) -> Seq a -> Maybe Int
+	findIndicesL,	-- :: (a -> Bool) -> Seq a -> [Int]
+	findIndexR,	-- :: (a -> Bool) -> Seq a -> Maybe Int
+	findIndicesR,	-- :: (a -> Bool) -> Seq a -> [Int]
+	-- * Folds
+	-- | General folds are available via the 'Foldable' instance of 'Seq'.
+	foldlWithIndex,	-- :: (b -> Int -> a -> b) -> b -> Seq a -> b
+	foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
 	-- * Transformations
+	mapWithIndex,	-- :: (Int -> a -> b) -> Seq a -> Seq b
 	reverse,	-- :: Seq a -> Seq a
+	-- ** Zips
+	zip,		-- :: Seq a -> Seq b -> Seq (a, b)
+	zipWith, 	-- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+	zip3,		-- :: Seq a -> Seq b -> Seq c -> Seq (a, b, c)
+	zipWith3,	-- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
+	zip4,		-- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
+	zipWith4,	-- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
 #if TESTING
 	valid,
 #endif
@@ -68,10 +125,11 @@ module Data.Sequence (
 
 import Prelude hiding (
 	null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
-	reverse)
-import qualified Data.List (foldl')
-import Control.Applicative (Applicative(..), (<$>))
-import Control.Monad (MonadPlus(..))
+	scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
+	takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
+import qualified Data.List (foldl', sortBy)
+import Control.Applicative (Applicative(..), (<$>), WrappedMonad(..), liftA, liftA2, liftA3)
+import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Foldable
 import Data.Traversable
@@ -81,6 +139,7 @@ import Data.Typeable (Typeable, typeOf, typeOfDefault)
 import Data.Typeable (TyCon, Typeable1(..), mkTyCon, mkTyConApp )
 
 #ifdef __GLASGOW_HASKELL__
+import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
 	readPrec, readListPrec, readListPrecDefault)
 import Data.Data (Data(..), DataType, Constr, Fixity(..),
@@ -88,8 +147,9 @@ import Data.Data (Data(..), DataType, Constr, Fixity(..),
 #endif
 
 #if TESTING
-import Control.Monad (liftM, liftM3, liftM4)
-import Test.QuickCheck
+import Control.Monad (liftM, liftM2, liftM3, liftM4)
+import qualified Data.List (zipWith)
+import Test.QuickCheck hiding ((><))
 #endif
 
 infixr 5 `consTree`
@@ -246,10 +306,34 @@ instance Traversable FingerTree where
 			traverse f sf
 
 {-# INLINE deep #-}
-{-# SPECIALIZE deep :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE deep :: Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
+{-# SPECIALIZE INLINE deep :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE INLINE deep :: Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
 deep		:: Sized a => Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
 deep pr m sf	=  Deep (size pr + size m + size sf) pr m sf
+
+{-# INLINE pullL #-}
+pullL :: Sized a => Int -> FingerTree (Node a) -> Digit a -> FingerTree a
+pullL s m sf = case viewLTree m of
+	Nothing2	-> digitToTree' s sf
+	Just2 pr m'	-> Deep s (nodeToDigit pr) m' sf
+
+{-# INLINE pullR #-}
+pullR :: Sized a => Int -> Digit a -> FingerTree (Node a) -> FingerTree a
+pullR s pr m = case viewRTree m of
+	Nothing2	-> digitToTree' s pr
+	Just2 m' sf	-> Deep s pr m' (nodeToDigit sf)
+
+{-# SPECIALIZE deepL :: Maybe (Digit (Elem a)) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE deepL :: Maybe (Digit (Node a)) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
+deepL :: Sized a => Maybe (Digit a) -> FingerTree (Node a) -> Digit a -> FingerTree a
+deepL Nothing m sf	= pullL (size m + size sf) m sf
+deepL (Just pr) m sf	= deep pr m sf
+
+{-# SPECIALIZE deepR :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Maybe (Digit (Elem a)) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE deepR :: Digit (Node a) -> FingerTree (Node (Node a)) -> Maybe (Digit (Node a)) -> FingerTree (Node a) #-}
+deepR :: Sized a => Digit a -> FingerTree (Node a) -> Maybe (Digit a) -> FingerTree a
+deepR pr m Nothing	= pullR (size m + size pr) pr m
+deepR pr m (Just sf)	= deep pr m sf
 
 -- Digits
 
@@ -287,15 +371,15 @@ instance Functor Digit where
 	fmap = fmapDefault
 
 instance Traversable Digit where
+	{-# INLINE traverse #-}
 	traverse f (One a) = One <$> f a
 	traverse f (Two a b) = Two <$> f a <*> f b
 	traverse f (Three a b c) = Three <$> f a <*> f b <*> f c
 	traverse f (Four a b c d) = Four <$> f a <*> f b <*> f c <*> f d
 
 instance Sized a => Sized (Digit a) where
-	{-# SPECIALIZE instance Sized (Digit (Elem a)) #-}
-	{-# SPECIALIZE instance Sized (Digit (Node a)) #-}
-	size xs = foldl (\ i x -> i + size x) 0 xs
+	{-# INLINE size #-}
+	size = foldl1 (+) . fmap size
 
 {-# SPECIALIZE digitToTree :: Digit (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE digitToTree :: Digit (Node a) -> FingerTree (Node a) #-}
@@ -304,6 +388,14 @@ digitToTree (One a) = Single a
 digitToTree (Two a b) = deep (One a) Empty (One b)
 digitToTree (Three a b c) = deep (Two a b) Empty (One c)
 digitToTree (Four a b c d) = deep (Two a b) Empty (Two c d)
+
+-- | Given the size of a digit and the digit itself, efficiently converts
+-- it to a FingerTree.
+digitToTree' :: Int -> Digit a -> FingerTree a
+digitToTree' n (Four a b c d) = Deep n (Two a b) Empty (Two c d)
+digitToTree' n (Three a b c) = Deep n (Two a b) Empty (One c)
+digitToTree' n (Two a b) = Deep n (One a) Empty (One b)
+digitToTree' n (One a) = n `seq` Single a
 
 -- Nodes
 
@@ -322,9 +414,11 @@ instance Foldable Node where
 	foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
 
 instance Functor Node where
+	{-# INLINE fmap #-}
 	fmap = fmapDefault
 
 instance Traversable Node where
+	{-# INLINE traverse #-}
 	traverse f (Node2 v a b) = Node2 v <$> f a <*> f b
 	traverse f (Node3 v a b c) = Node3 v <$> f a <*> f b <*> f c
 
@@ -370,6 +464,81 @@ instance (Show a) => Show (Elem a) where
 	showsPrec p (Elem x) = showsPrec p x
 #endif
 
+-------------------------------------------------------
+-- Applicative construction
+-------------------------------------------------------
+
+newtype Id a = Id {runId :: a}
+
+instance Functor Id where
+	fmap f (Id x) = Id (f x)
+
+instance Monad Id where
+	return = Id
+	m >>= k = k (runId m)
+
+instance Applicative Id where
+	pure = return
+	(<*>) = ap
+
+-- | This is essentially a clone of Control.Monad.State.Strict.
+newtype State s a = State {runState :: s -> (s, a)}
+
+instance Functor (State s) where
+	fmap = liftA
+
+instance Monad (State s) where
+	{-# INLINE return #-}
+	{-# INLINE (>>=) #-}
+	return x = State $ \ s -> (s, x)
+	m >>= k = State $ \ s -> case runState m s of
+		(s', x)	-> runState (k x) s'
+
+instance Applicative (State s) where
+	pure = return
+	(<*>) = ap
+
+execState :: State s a -> s -> a
+execState m x = snd (runState m x)
+
+-- | A helper method: a strict version of mapAccumL.
+mapAccumL' :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
+mapAccumL' f s t = runState (traverse (State . flip f) t) s
+
+-- | 'applicativeTree' takes an Applicative-wrapped construction of a
+-- piece of a FingerTree, assumed to always have the same size (which
+-- is put in the second argument), and replicates it as many times as
+-- specified.  This is a generalization of 'replicateA', which itself
+-- is a generalization of many Data.Sequence methods.
+{-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
+{-# SPECIALIZE applicativeTree :: Int -> Int -> Id a -> Id (FingerTree a) #-}
+-- Special note: the Id specialization automatically does node sharing,
+-- reducing memory usage of the resulting tree to /O(log n)/.
+applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
+applicativeTree n mSize m = mSize `seq` case n of
+	0 -> emptyTree
+	1 -> liftA Single m
+	2 -> deepA one emptyTree one
+	3 -> deepA two emptyTree one
+	4 -> deepA two emptyTree two
+	5 -> deepA three emptyTree two
+	6 -> deepA three emptyTree three
+	7 -> deepA four emptyTree three
+	8 -> deepA four emptyTree four
+	_ -> let (q, r) = n `quotRem` 3 in q `seq` case r of
+		0 -> deepA three (applicativeTree (q - 2) mSize' n3) three
+		1 -> deepA four (applicativeTree (q - 2) mSize' n3) three
+		_ -> deepA four (applicativeTree (q - 2) mSize' n3) four
+  where
+	one = liftA One m
+	two = liftA2 Two m m
+	three = liftA3 Three m m m
+	four = liftA3 Four m m m <*> m
+	deepA = liftA3 (Deep (n * mSize))
+	mSize' = 3 * mSize
+	n3 = liftA3 (Node3 mSize') m m m
+	emptyTree = pure Empty
+
 ------------------------------------------------------------------------
 -- Construction
 ------------------------------------------------------------------------
@@ -381,6 +550,29 @@ empty		=  Seq Empty
 -- | /O(1)/. A singleton sequence.
 singleton	:: a -> Seq a
 singleton x	=  Seq (Single (Elem x))
+
+-- | /O(log n)/. @replicate n x@ is a sequence consisting of @n@ copies of @x@.
+replicate	:: Int -> a -> Seq a
+replicate n x
+  | n >= 0	= runId (replicateA n (Id x))
+  | otherwise	= error "replicate takes a nonnegative integer argument"
+
+-- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
+-- /O(log n)/ calls to '<*>' and 'pure'.
+--
+-- > replicateA n x = sequenceA (replicate n x)
+replicateA :: Applicative f => Int -> f a -> f (Seq a)
+replicateA n x
+  | n >= 0	= Seq <$> applicativeTree n 1 (Elem <$> x)
+  | otherwise	= error "replicateA takes a nonnegative integer argument"
+
+-- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
+--
+-- > replicateM n x = sequence (replicate n x)
+replicateM :: Monad m => Int -> m a -> m (Seq a)
+replicateM n x
+  | n >= 0	= unwrapMonad (replicateA n (WrapMonad x))
+  | otherwise	= error "replicateM takes a nonnegative integer argument"
 
 -- | /O(1)/. Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
@@ -656,6 +848,28 @@ addDigits4 m1 (Four a b c d) e f g h (Three i j k) m2 =
 addDigits4 m1 (Four a b c d) e f g h (Four i j k l) m2 =
 	appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node3 j k l) m2
 
+-- | Builds a sequence from a seed value.  Takes time linear in the
+-- number of generated elements.  /WARNING:/ If the number of generated
+-- elements is infinite, this method will not terminate.
+unfoldr :: (b -> Maybe (a, b)) -> b -> Seq a
+unfoldr f = unfoldr' empty
+  -- uses tail recursion rather than, for instance, the List implementation.
+  where unfoldr' as b = maybe as (\ (a, b') -> unfoldr' (as |> a) b') (f b)
+
+-- | @'unfoldl' f x@ is equivalent to @'reverse' ('unfoldr' (swap . f) x)@.
+unfoldl :: (b -> Maybe (b, a)) -> b -> Seq a
+unfoldl f = unfoldl' empty
+  where unfoldl' as b = maybe as (\ (b', a) -> unfoldl' (a <| as) b') (f b)
+
+-- | /O(n)/.  Constructs a sequence by repeated application of a function
+-- to a seed value.
+--
+-- > iterateN n f x = fromList (Prelude.take n (Prelude.iterate f x))
+iterateN :: Int -> (a -> a) -> a -> Seq a
+iterateN n f x
+  | n >= 0	= replicateA n (State (\ y -> (f y, y))) `execState` x
+  | otherwise	= error "iterateN takes a nonnegative integer argument"
+
 ------------------------------------------------------------------------
 -- Deconstruction
 ------------------------------------------------------------------------
@@ -721,9 +935,7 @@ viewl (Seq xs)	=  case viewLTree xs of
 viewLTree	:: Sized a => FingerTree a -> Maybe2 a (FingerTree a)
 viewLTree Empty			= Nothing2
 viewLTree (Single a)		= Just2 a Empty
-viewLTree (Deep s (One a) m sf) = Just2 a (case viewLTree m of
-	Nothing2	-> digitToTree sf
-	Just2 b m'	-> Deep (s - size a) (nodeToDigit b) m' sf)
+viewLTree (Deep s (One a) m sf) = Just2 a (pullL (s - size a) m sf)
 viewLTree (Deep s (Two a b) m sf) =
 	Just2 a (Deep (s - size a) (One b) m sf)
 viewLTree (Deep s (Three a b c) m sf) =
@@ -760,7 +972,7 @@ instance Foldable ViewR where
 	foldr f z (xs :> x) = foldr f (f x z) xs
 
 	foldl _ z EmptyR = z
-	foldl f z (xs :> x) = f (foldl f z xs) x
+	foldl f z (xs :> x) = foldl f z xs `f` x
 
 	foldr1 _ EmptyR = error "foldr1: empty view"
 	foldr1 f (xs :> x) = foldr f x xs
@@ -780,15 +992,51 @@ viewr (Seq xs)	=  case viewRTree xs of
 viewRTree	:: Sized a => FingerTree a -> Maybe2 (FingerTree a) a
 viewRTree Empty			= Nothing2
 viewRTree (Single z)		= Just2 Empty z
-viewRTree (Deep s pr m (One z)) = Just2 (case viewRTree m of
-	Nothing2	->  digitToTree pr
-	Just2 m' y	->  Deep (s - size z) pr m' (nodeToDigit y)) z
+viewRTree (Deep s pr m (One z)) = Just2 (pullR (s - size z) pr m) z
 viewRTree (Deep s pr m (Two y z)) =
 	Just2 (Deep (s - size z) pr m (One y)) z
 viewRTree (Deep s pr m (Three x y z)) =
 	Just2 (Deep (s - size z) pr m (Two x y)) z
 viewRTree (Deep s pr m (Four w x y z)) =
 	Just2 (Deep (s - size z) pr m (Three w x y)) z
+
+------------------------------------------------------------------------
+-- Scans
+--
+-- These are not particularly complex applications of the Traversable
+-- functor, though making the correspondence with Data.List exact
+-- requires the use of (<|) and (|>).
+--
+-- Note that save for the single (<|) or (|>), we maintain the original
+-- structure of the Seq, not having to do any restructuring of our own.
+--
+-- wasserman.louis@gmail.com, 5/23/09
+------------------------------------------------------------------------
+
+-- | 'scanl' is similar to 'foldl', but returns a sequence of reduced
+-- values from the left:
+--
+-- > scanl f z (fromList [x1, x2, ...]) = fromList [z, z `f` x1, (z `f` x1) `f` x2, ...]
+scanl :: (a -> b -> a) -> a -> Seq b -> Seq a
+scanl f z0 xs = z0 <| snd (mapAccumL (\ x z -> let x' = f x z in (x', x')) z0 xs)
+
+-- | 'scanl1' is a variant of 'scanl' that has no starting value argument:
+--
+-- > scanl1 f (fromList [x1, x2, ...]) = fromList [x1, x1 `f` x2, ...]
+scanl1 :: (a -> a -> a) -> Seq a -> Seq a
+scanl1 f xs = case viewl xs of
+	EmptyL		-> error "scanl1 takes a nonempty sequence as an argument"
+	x :< xs'	-> scanl f x xs'
+
+-- | 'scanr' is the right-to-left dual of 'scanl'.
+scanr :: (a -> b -> b) -> b -> Seq a -> Seq b
+scanr f z0 xs = snd (mapAccumR (\ z x -> let z' = f x z in (z', z')) z0 xs) |> z0
+
+-- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+scanr1 :: (a -> a -> a) -> Seq a -> Seq a
+scanr1 f xs = case viewr xs of
+	EmptyR		-> error "scanr1 takes a nonempty sequence as an argument"
+	xs' :> x	-> scanr f x xs'
 
 -- Indexing
 
@@ -918,6 +1166,12 @@ adjustDigit f i (Four a b c d)
 	sab	= sa + size b
 	sabc	= sab + size c
 
+-- | A generalization of 'fmap', 'mapWithIndex' takes a mapping function
+-- that also depends on the element's index, and applies it to every
+-- element in the sequence.
+mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
+mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
+
 -- Splitting
 
 -- | /O(log(min(i,n-i)))/. The first @i@ elements of a sequence.
@@ -928,7 +1182,7 @@ take		:: Int -> Seq a -> Seq a
 take i		=  fst . splitAt i
 
 -- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
--- If @i@ is negative, @'take' i s@ yields the whole sequence.
+-- If @i@ is negative, @'drop' i s@ yields the whole sequence.
 -- If the sequence contains fewer than @i@ elements, the empty sequence
 -- is returned.
 drop		:: Int -> Seq a -> Seq a
@@ -963,28 +1217,12 @@ splitTree i (Deep _ pr m sf)
 			Split l x r -> Split (maybe Empty digitToTree l) x (deepL r m sf)
   | i < spm	= case splitTree im m of
 			Split ml xs mr -> case splitNode (im - size ml) xs of
-			    Split l x r -> Split (deepR pr  ml l) x (deepL r mr sf)
+			    Split l x r -> Split (deepR pr ml l) x (deepL r mr sf)
   | otherwise	= case splitDigit (i - spm) sf of
-			Split l x r -> Split (deepR pr  m  l) x (maybe Empty digitToTree r)
+			Split l x r -> Split (deepR pr m l) x (maybe Empty digitToTree r)
   where	spr	= size pr
 	spm	= spr + size m
 	im	= i - spr
-
-{-# SPECIALIZE deepL :: Maybe (Digit (Elem a)) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE deepL :: Maybe (Digit (Node a)) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
-deepL :: Sized a => Maybe (Digit a) -> FingerTree (Node a) -> Digit a -> FingerTree a
-deepL Nothing m sf	= case viewLTree m of
-	Nothing2	-> digitToTree sf
-	Just2 a m'	-> Deep (size m + size sf) (nodeToDigit a) m' sf
-deepL (Just pr) m sf	= deep pr m sf
-
-{-# SPECIALIZE deepR :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Maybe (Digit (Elem a)) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE deepR :: Digit (Node a) -> FingerTree (Node (Node a)) -> Maybe (Digit (Node a)) -> FingerTree (Node a) #-}
-deepR :: Sized a => Digit a -> FingerTree (Node a) -> Maybe (Digit a) -> FingerTree a
-deepR pr m Nothing	= case viewRTree m of
-	Nothing2	-> digitToTree pr
-	Just2 m' a	-> Deep (size pr + size m) pr m' (nodeToDigit a)
-deepR pr m (Just sf)	= deep pr m sf
 
 {-# SPECIALIZE splitNode :: Int -> Node (Elem a) -> Split (Maybe (Digit (Elem a))) (Elem a) #-}
 {-# SPECIALIZE splitNode :: Int -> Node (Node a) -> Split (Maybe (Digit (Node a))) (Node a) #-}
@@ -1023,6 +1261,257 @@ splitDigit i (Four a b c d)
 	sab	= sa + size b
 	sabc	= sab + size c
 
+-- | /O(n)/.  Returns a sequence of all suffixes of this sequence,
+-- longest first.  For example,
+--
+-- > tails (fromList "abc") = fromList [fromList "abc", fromList "bc", fromList "c", fromList ""]
+--
+-- Evaluating the /i/th suffix takes /O(log(min(i, n-i)))/, but evaluating
+-- every suffix in the sequence takes /O(n)/ due to sharing.
+tails			:: Seq a -> Seq (Seq a)
+tails (Seq xs)		= Seq (tailsTree (Elem . Seq) xs) |> empty
+
+-- | /O(n)/.  Returns a sequence of all prefixes of this sequence,
+-- shortest first.  For example,
+--
+-- > inits (fromList "abc") = fromList [fromList "", fromList "a", fromList "ab", fromList "abc"]
+--
+-- Evaluating the /i/th prefix takes /O(log(min(i, n-i)))/, but evaluating
+-- every prefix in the sequence takes /O(n)/ due to sharing.
+inits			:: Seq a -> Seq (Seq a)
+inits (Seq xs) 		= empty <| Seq (initsTree (Elem . Seq) xs)
+
+-- This implementation of tails (and, analogously, inits) has the
+-- following algorithmic advantages:
+--	Evaluating each tail in the sequence takes linear total time,
+--	which is better than we could say for
+-- 		@fromList [drop n xs | n <- [0..length xs]]@.
+--	Evaluating any individual tail takes logarithmic time, which is
+--	better than we can say for either
+-- 		@scanr (<|) empty xs@ or @iterateN (length xs + 1) (\ xs -> let _ :< xs' = viewl xs in xs') xs@.
+--
+-- Moreover, if we actually look at every tail in the sequence, the
+-- following benchmarks demonstrate that this implementation is modestly
+-- faster than any of the above:
+--
+-- Times (ms)
+--               min      mean    +/-sd    median    max
+-- Seq.tails:   21.986   24.961   10.169   22.417   86.485
+-- scanr:       85.392   87.942    2.488   87.425  100.217
+-- iterateN:       29.952   31.245    1.574   30.412   37.268
+--
+-- The algorithm for tails (and, analogously, inits) is as follows:
+--
+-- A Node in the FingerTree of tails is constructed by evaluating the
+-- corresponding tail of the FingerTree of Nodes, considering the first
+-- Node in this tail, and constructing a Node in which each tail of this
+-- Node is made to be the prefix of the remaining tree.  This ends up
+-- working quite elegantly, as the remainder of the tail of the FingerTree
+-- of Nodes becomes the middle of a new tail, the suffix of the Node is
+-- the prefix, and the suffix of the original tree is retained.
+--
+-- In particular, evaluating the /i/th tail involves making as
+-- many partial evaluations as the Node depth of the /i/th element.
+-- In addition, when we evaluate the /i/th tail, and we also evaluate
+-- the /j/th tail, and /m/ Nodes are on the path to both /i/ and /j/,
+-- each of those /m/ evaluations are shared between the computation of
+-- the /i/th and /j/th tails.
+--
+-- wasserman.louis@gmail.com, 7/16/09
+
+tailsDigit :: Digit a -> Digit (Digit a)
+tailsDigit (One a) = One (One a)
+tailsDigit (Two a b) = Two (Two a b) (One b)
+tailsDigit (Three a b c) = Three (Three a b c) (Two b c) (One c)
+tailsDigit (Four a b c d) = Four (Four a b c d) (Three b c d) (Two c d) (One d)
+
+initsDigit :: Digit a -> Digit (Digit a)
+initsDigit (One a) = One (One a)
+initsDigit (Two a b) = Two (One a) (Two a b)
+initsDigit (Three a b c) = Three (One a) (Two a b) (Three a b c)
+initsDigit (Four a b c d) = Four (One a) (Two a b) (Three a b c) (Four a b c d)
+
+tailsNode :: Node a -> Node (Digit a)
+tailsNode (Node2 s a b) = Node2 s (Two a b) (One b)
+tailsNode (Node3 s a b c) = Node3 s (Three a b c) (Two b c) (One c)
+
+initsNode :: Node a -> Node (Digit a)
+initsNode (Node2 s a b) = Node2 s (One a) (Two a b)
+initsNode (Node3 s a b c) = Node3 s (One a) (Two a b) (Three a b c)
+
+{-# SPECIALIZE tailsTree :: (FingerTree (Elem a) -> Elem b) -> FingerTree (Elem a) -> FingerTree (Elem b) #-}
+{-# SPECIALIZE tailsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
+-- | Given a function to apply to tails of a tree, applies that function
+-- to every tail of the specified tree.
+tailsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+tailsTree _ Empty = Empty
+tailsTree f (Single x) = Single (f (Single x))
+tailsTree f (Deep n pr m sf) =
+	Deep n (fmap (\ pr' -> f (deep pr' m sf)) (tailsDigit pr))
+		(tailsTree f' m)
+		(fmap (f . digitToTree) (tailsDigit sf))
+  where	f' ms = let Just2 node m' = viewLTree ms in
+		fmap (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
+
+{-# SPECIALIZE initsTree :: (FingerTree (Elem a) -> Elem b) -> FingerTree (Elem a) -> FingerTree (Elem b) #-}
+{-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
+-- | Given a function to apply to inits of a tree, applies that function
+-- to every init of the specified tree.
+initsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+initsTree _ Empty = Empty
+initsTree f (Single x) = Single (f (Single x))
+initsTree f (Deep n pr m sf) =
+	Deep n (fmap (f . digitToTree) (initsDigit pr))
+		(initsTree f' m)
+		(fmap (f . deep pr m) (initsDigit sf))
+  where	f' ms =  let Just2 m' node = viewRTree ms in
+		 fmap (\ sf' -> f (deep pr m' sf')) (initsNode node)
+
+{-# INLINE foldlWithIndex #-}
+-- | 'foldlWithIndex' is a version of 'foldl' that also provides access
+-- to the index of each element.
+foldlWithIndex :: (b -> Int -> a -> b) -> b -> Seq a -> b
+foldlWithIndex f z xs = foldl (\ g x i -> i `seq` f (g (i - 1)) i x) (const z) xs (length xs - 1)
+
+{-# INLINE foldrWithIndex #-}
+-- | 'foldrWithIndex' is a version of 'foldr' that also provides access
+-- to the index of each element.
+foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
+foldrWithIndex f z xs = foldr (\ x g i -> i `seq` f i x (g (i+1))) (const z) xs 0
+
+{-# INLINE listToMaybe' #-}
+-- 'listToMaybe\'' is a good consumer version of 'listToMaybe'.
+listToMaybe' :: [a] -> Maybe a
+listToMaybe' = foldr (\ x _ -> Just x) Nothing
+
+-- | /O(i)/ where /i/ is the prefix length.  'takeWhileL', applied
+-- to a predicate @p@ and a sequence @xs@, returns the longest prefix
+-- (possibly empty) of @xs@ of elements that satisfy @p@.
+takeWhileL :: (a -> Bool) -> Seq a -> Seq a
+takeWhileL p = fst . spanl p
+
+-- | /O(i)/ where /i/ is the suffix length.  'takeWhileR', applied
+-- to a predicate @p@ and a sequence @xs@, returns the longest suffix
+-- (possibly empty) of @xs@ of elements that satisfy @p@.
+--
+-- @'takeWhileR' p xs@ is equivalent to @'reverse' ('takeWhileL' p ('reverse' xs))@.
+takeWhileR :: (a -> Bool) -> Seq a -> Seq a
+takeWhileR p = fst . spanr p
+
+-- | /O(i)/ where /i/ is the prefix length.  @'dropWhileL' p xs@ returns
+-- the suffix remaining after @'takeWhileL' p xs@.
+dropWhileL :: (a -> Bool) -> Seq a -> Seq a
+dropWhileL p = snd . spanl p
+
+-- | /O(i)/ where /i/ is the suffix length.  @'dropWhileR' p xs@ returns
+-- the prefix remaining after @'takeWhileR' p xs@.
+--
+-- @'dropWhileR' p xs@ is equivalent to @'reverse' ('dropWhileL' p ('reverse' xs))@.
+dropWhileR :: (a -> Bool) -> Seq a -> Seq a
+dropWhileR p = snd . spanr p
+
+-- | /O(i)/ where /i/ is the prefix length.  'spanl', applied to
+-- a predicate @p@ and a sequence @xs@, returns a pair whose first
+-- element is the longest prefix (possibly empty) of @xs@ of elements that
+-- satisfy @p@ and the second element is the remainder of the sequence.
+spanl :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+spanl p = breakl (not . p)
+
+-- | /O(i)/ where /i/ is the suffix length.  'spanr', applied to a
+-- predicate @p@ and a sequence @xs@, returns a pair whose /first/ element
+-- is the longest /suffix/ (possibly empty) of @xs@ of elements that
+-- satisfy @p@ and the second element is the remainder of the sequence.
+spanr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+spanr p = breakr (not . p)
+
+{-# INLINE breakl #-}
+-- | /O(i)/ where /i/ is the breakpoint index.  'breakl', applied to a
+-- predicate @p@ and a sequence @xs@, returns a pair whose first element
+-- is the longest prefix (possibly empty) of @xs@ of elements that
+-- /do not satisfy/ @p@ and the second element is the remainder of
+-- the sequence.
+--
+-- @'breakl' p@ is equivalent to @'spanl' (not . p)@.
+breakl :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+breakl p xs = foldr (\ i _ -> splitAt i xs) (xs, empty) (findIndicesL p xs)
+
+{-# INLINE breakr #-}
+-- | @'breakr' p@ is equivalent to @'spanr' (not . p)@.
+breakr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+breakr p xs = foldr (\ i _ -> flipPair (splitAt i xs)) (xs, empty) (findIndicesR p xs)
+  where flipPair (x, y) = (y, x)
+
+-- | /O(n)/.  The 'partition' function takes a predicate @p@ and a
+-- sequence @xs@ and returns sequences of those elements which do and
+-- do not satisfy the predicate.
+partition :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
+partition p = foldl part (empty, empty)
+  where part (xs, ys) x
+	  | p x		= (xs |> x, ys)
+	  | otherwise 	= (xs, ys |> x)
+
+-- | /O(n)/.  The 'filter' function takes a predicate @p@ and a sequence
+-- @xs@ and returns a sequence of those elements which satisfy the
+-- predicate.
+filter :: (a -> Bool) -> Seq a -> Seq a
+filter p = foldl (\ xs x -> if p x then xs |> x else xs) empty
+
+-- Indexing sequences
+
+-- | 'elemIndexL' finds the leftmost index of the specified element,
+-- if it is present, and otherwise 'Nothing'.
+elemIndexL :: Eq a => a -> Seq a -> Maybe Int
+elemIndexL x = findIndexL (x ==)
+
+-- | 'elemIndexR' finds the rightmost index of the specified element,
+-- if it is present, and otherwise 'Nothing'.
+elemIndexR :: Eq a => a -> Seq a -> Maybe Int
+elemIndexR x = findIndexR (x ==)
+
+-- | 'elemIndicesL' finds the indices of the specified element, from
+-- left to right (i.e. in ascending order).
+elemIndicesL :: Eq a => a -> Seq a -> [Int]
+elemIndicesL x = findIndicesL (x ==)
+
+-- | 'elemIndicesR' finds the indices of the specified element, from
+-- right to left (i.e. in descending order).
+elemIndicesR :: Eq a => a -> Seq a -> [Int]
+elemIndicesR x = findIndicesR (x ==)
+
+-- | @'findIndexL' p xs@ finds the index of the leftmost element that
+-- satisfies @p@, if any exist.
+findIndexL :: (a -> Bool) -> Seq a -> Maybe Int
+findIndexL p = listToMaybe' . findIndicesL p
+
+-- | @'findIndexR' p xs@ finds the index of the rightmost element that
+-- satisfies @p@, if any exist.
+findIndexR :: (a -> Bool) -> Seq a -> Maybe Int
+findIndexR p = listToMaybe' . findIndicesR p
+
+{-# INLINE findIndicesL #-}
+-- | @'findIndicesL' p@ finds all indices of elements that satisfy @p@,
+-- in ascending order.
+findIndicesL :: (a -> Bool) -> Seq a -> [Int]
+#if __GLASGOW_HASKELL__
+findIndicesL p xs = build (\ c n -> let g i x z = if p x then c i z else z in
+				foldrWithIndex g n xs)
+#else
+findIndicesL p xs = foldrWithIndex g [] xs where
+g i x is = if p x then i:is else is
+#endif
+
+{-# INLINE findIndicesR #-}
+-- | @'findIndicesR' p@ finds all indices of elements that satisfy @p@,
+-- in descending order.
+findIndicesR :: (a -> Bool) -> Seq a -> [Int]
+#if __GLASGOW_HASKELL__
+findIndicesR p xs = build (\ c n -> let g z i x = if p x then c i z else z in
+				foldlWithIndex g n xs)
+#else
+findIndicesR p xs = foldlWithIndex g [] xs where
+g is i x = if p x then i:is else is
+#endif
+
 ------------------------------------------------------------------------
 -- Lists
 ------------------------------------------------------------------------
@@ -1049,6 +1538,7 @@ reverseTree f (Deep s pr m sf) =
 		(reverseTree (reverseNode f) m)
 		(reverseDigit f pr)
 
+{-# INLINE reverseDigit #-}
 reverseDigit :: (a -> a) -> Digit a -> Digit a
 reverseDigit f (One a) = One (f a)
 reverseDigit f (Two a b) = Two (f b) (f a)
@@ -1059,6 +1549,204 @@ reverseNode :: (a -> a) -> Node a -> Node a
 reverseNode f (Node2 s a b) = Node2 s (f b) (f a)
 reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 
+------------------------------------------------------------------------
+-- Zipping
+------------------------------------------------------------------------
+
+-- | /O(min(n1,n2))/.  'zip' takes two sequences and returns a sequence
+-- of corresponding pairs.  If one input is short, excess elements are
+-- discarded from the right end of the longer sequence.
+zip :: Seq a -> Seq b -> Seq (a, b)
+zip = zipWith (,)
+
+-- | /O(min(n1,n2))/.  'zipWith' generalizes 'zip' by zipping with the
+-- function given as the first argument, instead of a tupling function.
+-- For example, @zipWith (+)@ is applied to two sequences to take the
+-- sequence of corresponding sums.
+zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith f xs ys
+  | length xs <= length ys	= zipWith' f xs ys
+  | otherwise			= zipWith' (flip f) ys xs
+
+-- like 'zipWith', but assumes length xs <= length ys
+zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith' f xs ys = snd (mapAccumL ((\ (z :< zs) x -> (zs, f x z)) . viewl) ys xs)
+
+-- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
+-- sequence of triples, analogous to 'zip'.
+zip3 :: Seq a -> Seq b -> Seq c -> Seq (a,b,c)
+zip3 = zipWith3 (,,)
+
+-- | /O(min(n1,n2,n3))/.  'zipWith3' takes a function which combines
+-- three elements, as well as three sequences and returns a sequence of
+-- their point-wise combinations, analogous to 'zipWith'.
+zipWith3 :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
+zipWith3 f s1 s2 s3 = zipWith ($) (zipWith f s1 s2) s3
+
+-- | /O(min(n1,n2,n3,n4))/.  'zip4' takes four sequences and returns a
+-- sequence of quadruples, analogous to 'zip'.
+zip4 :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a,b,c,d)
+zip4 = zipWith4 (,,,)
+
+-- | /O(min(n1,n2,n3,n4))/.  'zipWith4' takes a function which combines
+-- four elements, as well as four sequences and returns a sequence of
+-- their point-wise combinations, analogous to 'zipWith'.
+zipWith4 :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
+zipWith4 f s1 s2 s3 s4 = zipWith ($) (zipWith ($) (zipWith f s1 s2) s3) s4
+
+------------------------------------------------------------------------
+-- Sorting
+--
+-- sort and sortBy are implemented by simple deforestations of
+-- 	\ xs -> fromList2 (length xs) . Data.List.sortBy cmp . toList
+-- which does not get deforested automatically, it would appear.
+--
+-- Unstable sorting is performed by a heap sort implementation based on
+-- pairing heaps.  Because the internal structure of sequences is quite
+-- varied, it is difficult to get blocks of elements of roughly the same
+-- length, which would improve merge sort performance.  Pairing heaps,
+-- on the other hand, are relatively resistant to the effects of merging
+-- heaps of wildly different sizes, as guaranteed by its amortized
+-- constant-time merge operation.  Moreover, extensive use of SpecConstr
+-- transformations can be done on pairing heaps, especially when we're
+-- only constructing them to immediately be unrolled.
+--
+-- On purely random sequences of length 50000, with no RTS options,
+-- I get the following statistics, in which heapsort is about 42.5%
+-- faster:  (all comparisons done with -O2)
+--
+-- Times (ms)            min      mean    +/-sd    median    max
+-- to/from list:       103.802  108.572    7.487  106.436  143.339
+-- unstable heapsort:   60.686   62.968    4.275   61.187   79.151
+--
+-- Heapsort, it would seem, is less of a memory hog than Data.List.sortBy.
+-- The gap is narrowed when more memory is available, but heapsort still
+-- wins, 15% faster, with +RTS -H128m:
+--
+-- Times (ms)            min    mean    +/-sd  median    max
+-- to/from list:       42.692  45.074   2.596  44.600  56.601
+-- unstable heapsort:  37.100  38.344   3.043  37.715  55.526
+--
+-- In addition, on strictly increasing sequences the gap is even wider
+-- than normal; heapsort is 68.5% faster with no RTS options:
+-- Times (ms)            min    mean    +/-sd  median    max
+-- to/from list:       52.236  53.574   1.987  53.034  62.098
+-- unstable heapsort:  16.433  16.919   0.931  16.681  21.622
+--
+-- This may be attributed to the elegant nature of the pairing heap.
+--
+-- wasserman.louis@gmail.com, 7/20/09
+------------------------------------------------------------------------
+
+-- | /O(n log n)/.  'sort' sorts the specified 'Seq' by the natural
+-- ordering of its elements.  The sort is stable.
+-- If stability is not required, 'unstableSort' can be considerably
+-- faster, and in particular uses less memory.
+sort :: Ord a => Seq a -> Seq a
+sort = sortBy compare
+
+-- | /O(n log n)/.  'sortBy' sorts the specified 'Seq' according to the
+-- specified comparator.  The sort is stable.
+-- If stability is not required, 'unstableSortBy' can be considerably
+-- faster, and in particular uses less memory.
+sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
+sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
+
+-- | /O(n log n)/.  'unstableSort' sorts the specified 'Seq' by
+-- the natural ordering of its elements, but the sort is not stable.
+-- This algorithm is frequently faster and uses less memory than 'sort',
+-- and performs extremely well -- frequently twice as fast as 'sort' --
+-- when the sequence is already nearly sorted.
+unstableSort :: Ord a => Seq a -> Seq a
+unstableSort = unstableSortBy compare
+
+-- | /O(n log n)/.  A generalization of 'unstableSort', 'unstableSortBy'
+-- takes an arbitrary comparator and sorts the specified sequence.
+-- The sort is not stable.  This algorithm is frequently faster and
+-- uses less memory than 'sortBy', and performs extremely well --
+-- frequently twice as fast as 'sortBy' -- when the sequence is already
+-- nearly sorted.
+unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
+unstableSortBy cmp (Seq xs) =
+	fromList2 (size xs) $ maybe [] (unrollPQ cmp) $
+		toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
+
+-- | fromList2, given a list and its length, constructs a completely
+-- balanced Seq whose elements are that list using the applicativeTree
+-- generalization.
+fromList2 :: Int -> [a] -> Seq a
+fromList2 n = execState (replicateA n (State (\ (x:xs) -> (xs, x))))
+
+-- | A 'PQueue' is a simple pairing heap.
+data PQueue e = PQueue e (PQL e)
+data PQL e = Nil | {-# UNPACK #-} !(PQueue e) :& PQL e
+
+infixr 8 :&
+
+#if TESTING
+
+instance Functor PQueue where
+	fmap f (PQueue x ts) = PQueue (f x) (fmap f ts)
+
+instance Functor PQL where
+	fmap f (q :& qs) = fmap f q :& fmap f qs
+	fmap _ Nil = Nil
+
+instance Show e => Show (PQueue e) where
+	show = unlines . draw . fmap show
+
+-- borrowed wholesale from Data.Tree, as Data.Tree actually depends
+-- on Data.Sequence
+draw :: PQueue String -> [String]
+draw (PQueue x ts0) = x : drawSubTrees ts0
+  where drawSubTrees Nil = []
+	drawSubTrees (t :& Nil) =
+		"|" : shift "`- " "   " (draw t)
+	drawSubTrees (t :& ts) =
+		"|" : shift "+- " "|  " (draw t) ++ drawSubTrees ts
+
+	shift first other = Data.List.zipWith (++) (first : repeat other)
+#endif
+
+-- | 'unrollPQ', given a comparator function, unrolls a 'PQueue' into
+-- a sorted list.
+unrollPQ :: (e -> e -> Ordering) -> PQueue e -> [e]
+unrollPQ cmp = unrollPQ'
+  where
+	{-# INLINE unrollPQ' #-}
+	unrollPQ' (PQueue x ts) = x:mergePQs0 ts
+	(<>) = mergePQ cmp
+	mergePQs0 Nil = []
+	mergePQs0 (t :& Nil) = unrollPQ' t
+	mergePQs0 (t1 :& t2 :& ts) = mergePQs (t1 <> t2) ts
+	mergePQs t ts = t `seq` case ts of
+		Nil		-> unrollPQ' t
+		t1 :& Nil	-> unrollPQ' (t <> t1)
+		t1 :& t2 :& ts'	-> mergePQs (t <> (t1 <> t2)) ts'
+
+-- | 'toPQ', given an ordering function and a mechanism for queueifying
+-- elements, converts a 'FingerTree' to a 'PQueue'.
+toPQ :: (e -> e -> Ordering) -> (a -> PQueue e) -> FingerTree a -> Maybe (PQueue e)
+toPQ _ _ Empty = Nothing
+toPQ _ f (Single x) = Just (f x)
+toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <> sf') ((pr' <> sf') <>) (toPQ cmp fNode m))
+  where
+	fDigit digit = case fmap f digit of
+		One a		-> a
+		Two a b		-> a <> b
+		Three a b c	-> a <> b <> c
+		Four a b c d	-> (a <> b) <> (c <> d)
+	(<>) = mergePQ cmp
+	fNode = fDigit . nodeToDigit
+	pr' = fDigit pr
+	sf' = fDigit sf
+
+-- | 'mergePQ' merges two 'PQueue's.
+mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
+mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
+  | cmp x1 x2 == GT	= PQueue x2 (q1 :& ts2)
+  | otherwise		= PQueue x1 (q2 :& ts1)
+
 #if TESTING
 
 ------------------------------------------------------------------------
@@ -1067,11 +1755,10 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 
 instance Arbitrary a => Arbitrary (Seq a) where
 	arbitrary = liftM Seq arbitrary
-	coarbitrary (Seq x) = coarbitrary x
+	shrink (Seq x) = map Seq (shrink x)
 
 instance Arbitrary a => Arbitrary (Elem a) where
 	arbitrary = liftM Elem arbitrary
-	coarbitrary (Elem x) = coarbitrary x
 
 instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
 	arbitrary = sized arb
@@ -1080,33 +1767,39 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
 		arb 1 = liftM Single arbitrary
 		arb n = liftM3 deep arbitrary (arb (n `div` 2)) arbitrary
 
-	coarbitrary Empty = variant 0
-	coarbitrary (Single x) = variant 1 . coarbitrary x
-	coarbitrary (Deep _ pr m sf) =
-		variant 2 . coarbitrary pr . coarbitrary m . coarbitrary sf
+	shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
+	shrink (Deep _ pr m sf) =
+		[deep pr' m sf | pr' <- shrink pr] ++
+		[deep pr m' sf | m' <- shrink m] ++
+		[deep pr m sf' | sf' <- shrink sf]
+	shrink (Single x) = map Single (shrink x)
+	shrink Empty = []
 
 instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
 	arbitrary = oneof [
-			liftM2 node2 arbitrary arbitrary,
-			liftM3 node3 arbitrary arbitrary arbitrary]
+		liftM2 node2 arbitrary arbitrary,
+		liftM3 node3 arbitrary arbitrary arbitrary]
 
-	coarbitrary (Node2 _ a b) = variant 0 . coarbitrary a . coarbitrary b
-	coarbitrary (Node3 _ a b c) =
-		variant 1 . coarbitrary a . coarbitrary b . coarbitrary c
+	shrink (Node2 _ a b) =
+		[node2 a' b | a' <- shrink a] ++
+		[node2 a b' | b' <- shrink b]
+	shrink (Node3 _ a b c) =
+		[node2 a b, node2 a c, node2 b c] ++
+		[node3 a' b c | a' <- shrink a] ++
+		[node3 a b' c | b' <- shrink b] ++
+		[node3 a b c' | c' <- shrink c]
 
 instance Arbitrary a => Arbitrary (Digit a) where
 	arbitrary = oneof [
-			liftM One arbitrary,
-			liftM2 Two arbitrary arbitrary,
-			liftM3 Three arbitrary arbitrary arbitrary,
-			liftM4 Four arbitrary arbitrary arbitrary arbitrary]
+		liftM One arbitrary,
+		liftM2 Two arbitrary arbitrary,
+		liftM3 Three arbitrary arbitrary arbitrary,
+		liftM4 Four arbitrary arbitrary arbitrary arbitrary]
 
-	coarbitrary (One a) = variant 0 . coarbitrary a
-	coarbitrary (Two a b) = variant 1 . coarbitrary a . coarbitrary b
-	coarbitrary (Three a b c) =
-		variant 2 . coarbitrary a . coarbitrary b . coarbitrary c
-	coarbitrary (Four a b c d) =
-		variant 3 . coarbitrary a . coarbitrary b . coarbitrary c . coarbitrary d
+	shrink (One a) = map One (shrink a)
+	shrink (Two a b) = [One a, One b]
+	shrink (Three a b c) = [Two a b, Two a c, Two b c]
+	shrink (Four a b c d) = [Three a b c, Three a b d, Three a c d, Three b c d]
 
 ------------------------------------------------------------------------
 -- Valid trees
@@ -1128,14 +1821,9 @@ instance (Sized a, Valid a) => Valid (FingerTree a) where
 		s == size pr + size m + size sf && valid pr && valid m && valid sf
 
 instance (Sized a, Valid a) => Valid (Node a) where
-	valid (Node2 s a b) = s == size a + size b && valid a && valid b
-	valid (Node3 s a b c) =
-		s == size a + size b + size c && valid a && valid b && valid c
+	valid node = size node == sum (fmap size node) && all valid node
 
 instance Valid a => Valid (Digit a) where
-	valid (One a) = valid a
-	valid (Two a b) = valid a && valid b
-	valid (Three a b c) = valid a && valid b && valid c
-	valid (Four a b c d) = valid a && valid b && valid c && valid d
+	valid = all valid
 
 #endif
