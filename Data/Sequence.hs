@@ -124,6 +124,7 @@ module Data.Sequence (
 	) where
 
 import Prelude hiding (
+	Functor(..),
 	null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
 	scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
 	takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
@@ -131,6 +132,7 @@ import qualified Data.List (foldl', sortBy)
 import Control.Applicative (Applicative(..), (<$>), WrappedMonad(..), liftA, liftA2, liftA3)
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
+import Data.Functor (Functor(..))
 import Data.Foldable
 import Data.Traversable
 #ifndef __GLASGOW_HASKELL__
@@ -167,6 +169,7 @@ newtype Seq a = Seq (FingerTree (Elem a))
 
 instance Functor Seq where
 	fmap f (Seq xs) = Seq (fmap (fmap f) xs)
+	x <$ s = replicate (length s) x
 
 instance Foldable Seq where
 	foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
