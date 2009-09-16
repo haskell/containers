@@ -20,7 +20,7 @@ source-repository head
     location: http://darcs.haskell.org/packages/containers/
 
 Library {
-    build-depends: base >= 3 && < 5, array
+    build-depends: base >= 4.2 && < 6, array
     exposed-modules:
         Data.Graph
         Data.IntMap
