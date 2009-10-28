@@ -1044,7 +1044,8 @@ scanr1 f xs = case viewr xs of
 -- Indexing
 
 -- | /O(log(min(i,n-i)))/. The element at the specified position,
--- which should be a positive integer less than the size of the sequence.
+-- counting from 0.  The argument should thus be a non-negative
+-- integer less than the size of the sequence.
 -- If the position is out of range, 'index' fails with an error.
 index		:: Seq a -> Int -> a
 index (Seq xs) i
