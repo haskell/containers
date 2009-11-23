@@ -169,7 +169,9 @@ newtype Seq a = Seq (FingerTree (Elem a))
 
 instance Functor Seq where
 	fmap f (Seq xs) = Seq (fmap (fmap f) xs)
+#ifdef __GLASGOW_HASKELL__
 	x <$ s = replicate (length s) x
+#endif
 
 instance Foldable Seq where
 	foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
