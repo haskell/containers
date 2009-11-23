@@ -1502,8 +1502,8 @@ findIndicesL :: (a -> Bool) -> Seq a -> [Int]
 findIndicesL p xs = build (\ c n -> let g i x z = if p x then c i z else z in
 				foldrWithIndex g n xs)
 #else
-findIndicesL p xs = foldrWithIndex g [] xs where
-g i x is = if p x then i:is else is
+findIndicesL p xs = foldrWithIndex g [] xs
+    where g i x is = if p x then i:is else is
 #endif
 
 {-# INLINE findIndicesR #-}
