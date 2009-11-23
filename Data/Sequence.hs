@@ -1512,8 +1512,8 @@ findIndicesR :: (a -> Bool) -> Seq a -> [Int]
 findIndicesR p xs = build (\ c n -> let g z i x = if p x then c i z else z in
 				foldlWithIndex g n xs)
 #else
-findIndicesR p xs = foldlWithIndex g [] xs where
-g is i x = if p x then i:is else is
+findIndicesR p xs = foldlWithIndex g [] xs
+    where g is i x = if p x then i:is else is
 #endif
 
 ------------------------------------------------------------------------
