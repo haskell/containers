@@ -22,15 +22,18 @@ source-repository head
 Library {
     build-depends: base >= 4.2 && < 6, array
     exposed-modules:
-        Data.Graph
         Data.IntMap
         Data.IntSet
         Data.Map
-        Data.Sequence
         Data.Set
-        Data.Tree
     include-dirs: include
     extensions: CPP
+    if !impl(nhc98) {
+        exposed-modules:
+            Data.Graph
+            Data.Sequence
+            Data.Tree
+    }
     if impl(ghc) {
         extensions: DeriveDataTypeable, MagicHash, Rank2Types
     }
