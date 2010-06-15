@@ -457,7 +457,7 @@ insertWithKey f kx x t
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey' f kx x t
   = case t of
-      Tip -> singleton kx x
+      Tip -> singleton kx $! x
       Bin sy ky y l r
           -> case compare kx ky of
                LT -> balance ky y (insertWithKey' f kx x l) r
