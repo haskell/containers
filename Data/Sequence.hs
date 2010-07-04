@@ -1444,7 +1444,7 @@ breakl p xs = foldr (\ i _ -> splitAt i xs) (xs, empty) (findIndicesL p xs)
 {-# INLINE breakr #-}
 -- | @'breakr' p@ is equivalent to @'spanr' (not . p)@.
 breakr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
-breakr p xs = foldr (\ i _ -> flipPair (splitAt i xs)) (xs, empty) (findIndicesR p xs)
+breakr p xs = foldr (\ i _ -> flipPair (splitAt (i + 1) xs)) (xs, empty) (findIndicesR p xs)
   where flipPair (x, y) = (y, x)
 
 -- | /O(n)/.  The 'partition' function takes a predicate @p@ and a
