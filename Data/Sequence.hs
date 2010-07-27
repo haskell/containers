@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 {-# OPTIONS -cpp #-}
 -----------------------------------------------------------------------------
 -- |
@@ -519,7 +520,7 @@ mapAccumL' f s t = runState (traverse (State . flip f) t) s
 {-# SPECIALIZE applicativeTree :: Int -> Int -> Id a -> Id (FingerTree a) #-}
 -- Special note: the Id specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
-applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
+applicativeTree :: forall f a. Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
 	0 -> emptyTree
 	1 -> liftA Single m
@@ -542,6 +543,8 @@ applicativeTree n mSize m = mSize `seq` case n of
 	deepA = liftA3 (Deep (n * mSize))
 	mSize' = 3 * mSize
 	n3 = liftA3 (Node3 mSize') m m m
+
+        emptyTree :: forall b. f (FingerTree b)
 	emptyTree = pure Empty
 
 ------------------------------------------------------------------------
