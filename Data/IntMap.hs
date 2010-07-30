@@ -1,4 +1,4 @@
-{-# OPTIONS_GHC -cpp -XNoBangPatterns #-}
+{-# OPTIONS_GHC -cpp -XNoBangPatterns -XScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap
@@ -1515,7 +1515,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-fromDistinctAscList :: [(Key,a)] -> IntMap a
+fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
