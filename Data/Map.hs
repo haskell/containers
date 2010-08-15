@@ -1891,7 +1891,7 @@ deleteFindMax t
   invariants, his implementation uses an invalid ratio of [1].
 --------------------------------------------------------------------}
 delta,ratio :: Int
-delta = 5
+delta = 4
 ratio = 2
 
 balance :: k -> a -> Map k a -> Map k a -> Map k a
