@@ -68,6 +68,7 @@ module Data.Map  (
             , insertWithKey
             , insertWithKey'
             , insertLookupWithKey
+            , insertLookupWithKey'
             
             -- ** Delete\/Update
             , delete
@@ -113,6 +114,7 @@ module Data.Map  (
             , foldWithKey
             , foldrWithKey
             , foldlWithKey
+            , foldlWithKey'
 
             -- * Conversion
             , elems
@@ -512,7 +514,6 @@ insertLookupWithKey f kx x = kx `seq` go
             EQ -> (Just y, Bin sy kx (f kx x y) l r)
 {-# INLINE insertLookupWithKey #-}
 
-{-
 -- | /O(log n)/. A strict version of 'insertLookupWithKey'.
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
@@ -527,7 +528,6 @@ insertLookupWithKey' f kx x = kx `seq` go
                   in (found, balance ky y l r')
             EQ -> let x' = f kx x y in x' `seq` (Just y, Bin sy kx x' l r)
 {-# INLINE insertLookupWithKey' #-}
--}
 
 {--------------------------------------------------------------------
   Deletion
@@ -1508,7 +1508,6 @@ foldlWithKey f = go
     go z (Bin _ kx x l r) = go (f (go z l) kx x) r
 {-# INLINE foldlWithKey #-}
 
-{-
 -- | /O(n)/. A strict version of 'foldlWithKey'.
 foldlWithKey' :: (b -> k -> a -> b) -> b -> Map k a -> b
 foldlWithKey' f = go
@@ -1516,7 +1515,6 @@ foldlWithKey' f = go
     go z Tip              = z
     go z (Bin _ kx x l r) = z `seq` go (f (go z l) kx x) r
 {-# INLINE foldlWithKey' #-}
--}
 
 {--------------------------------------------------------------------
   List variations 

@@ -71,7 +71,7 @@ main = do
 --    q $ label   "prop_mapkeys"          prop_mapkeys
     q $ label   "prop_foldr"            prop_foldr
     q $ label   "prop_foldl"            prop_foldl
---    q $ label   "prop_foldl'"           prop_foldl'
+    q $ label   "prop_foldl'"           prop_foldl'
     q $ label   "prop_fold"           prop_fold
     q $ label   "prop_folWithKeyd"           prop_foldWithKey
 
@@ -364,13 +364,11 @@ prop_foldl (n :: Int) (ys :: [(Int, Int)]) =
         Data.Map.foldlWithKey (\a _ b -> a + b) n m == List.foldl (+) n (List.map snd xs)
 
 
-{-
 prop_foldl' (n :: Int) (ys :: [(Int, Int)]) =
     let m = fromList ys
         xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
     in 
         Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldl' (+) n (List.map snd xs)
--}
 
 
 prop_fold (n :: Int) (ys :: [(Int, Int)]) =
@@ -412,7 +410,7 @@ tests = [ testGroup "Test Case" [
              , testCase "insertWithKey" test_insertWithKey
              , testCase "insertWithKey'" test_insertWithKey'
              , testCase "insertLookupWithKey" test_insertLookupWithKey
---             , testCase "insertLookupWithKey'" test_insertLookupWithKey'
+             , testCase "insertLookupWithKey'" test_insertLookupWithKey'
              , testCase "delete" test_delete
              , testCase "adjust" test_adjust
              , testCase "adjustWithKey" test_adjustWithKey
@@ -642,7 +640,6 @@ test_insertLookupWithKey = do
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 
-{-
 test_insertLookupWithKey' :: Assertion
 test_insertLookupWithKey' = do
     insertLookupWithKey' f 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Just "a", fromList [(3, "b"), (5, "5:xxx|a")])
@@ -651,7 +648,6 @@ test_insertLookupWithKey' = do
     insertLookupWithKey' f 5 "xxx" empty                         @?= (Nothing,  singleton 5 "xxx")
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
--}
 
 ----------------------------------------------------------------
 -- Delete/Update

@@ -34,14 +34,14 @@ main = do
           nf (insLookupWithKey elems) M.empty
         , bench "insertLookupWithKey update" $
           nf (insLookupWithKey elems) m
---        , bench "insertLookupWithKey' empty" $
---          nf (insLookupWithKey' elems) M.empty
---        , bench "insertLookupWithKey' update" $
---          nf (insLookupWithKey' elems) m
+        , bench "insertLookupWithKey' empty" $
+          nf (insLookupWithKey' elems) M.empty
+        , bench "insertLookupWithKey' update" $
+          nf (insLookupWithKey' elems) m
         , bench "map" $ nf (M.map (+ 1)) m
         , bench "mapWithKey" $ nf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ nf (ins elems) m
---        , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
+        , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
         , bench "foldrWithKey" $ nf (M.foldrWithKey consPair []) m
         , bench "delete" $ nf (del keys) m
         , bench "update" $ nf (upd keys) m
@@ -91,13 +91,11 @@ insLookupWithKey xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
     f (PS n m) (k, v) = let !(n', m') = M.insertLookupWithKey add3 k v m
                         in PS (fromMaybe 0 n' + n) m'
 
-{-
 insLookupWithKey' :: [(Int, Int)] -> M.Map Int Int -> (Int, M.Map Int Int)
 insLookupWithKey' xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
   where
     f (PS n m) (k, v) = let !(n', m') = M.insertLookupWithKey' add3 k v m
                         in PS (fromMaybe 0 n' + n) m'
--}
 
 del :: [Int] -> M.Map Int Int -> M.Map Int Int
 del xs m = foldl' (\m k -> M.delete k m) m xs
