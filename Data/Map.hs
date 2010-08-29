@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -XNoBangPatterns #-}
 
 -----------------------------------------------------------------------------
@@ -39,7 +40,11 @@
 
 module Data.Map  ( 
             -- * Map type
+#if !defined(TESTING)
               Map          -- instance Eq,Show,Read
+#else
+              Map(..)          -- instance Eq,Show,Read
+#endif
 
             -- * Operators
             , (!), (\\)
@@ -172,6 +177,14 @@ module Data.Map  (
             , showTree
             , showTreeWith
             , valid
+
+#if defined(TESTING)
+            -- * Internals
+            , bin
+            , balanced
+            , join
+            , merge
+#endif
             ) where
 
 import Prelude hiding (lookup,map,filter,null)
