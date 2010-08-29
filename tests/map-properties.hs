@@ -1048,6 +1048,7 @@ test_updateAt = do
     updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "x")]
     updateAt (\_ _  -> Nothing)  0    (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
     updateAt (\_ _  -> Nothing)  1    (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
+--    updateAt (\_ _  -> Nothing)  7    (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
 
 test_deleteAt :: Assertion
 test_deleteAt = do

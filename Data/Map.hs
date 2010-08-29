@@ -728,9 +728,9 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-updateAt _ _ Tip  = error "Map.updateAt: index out of range"
 updateAt f i t = i `seq` go i t
  where
+    go _ Tip  = error "Map.updateAt: index out of range"
     go i (Bin sx kx x l r) = case compare i sizeL of
       LT -> balance kx x (go i l) r
       GT -> balance kx x l (go (i-sizeL-1) r)
