@@ -1228,7 +1228,7 @@ filter p m
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
 filterWithKey p = go
   where
-    go (Bin p m l r) = bin p m (go l) (go r)
+    go (Bin pr m l r) = bin pr m (go l) (go r)
     go t@(Tip k x)
         | p k x      = t
         | otherwise  = Nil
