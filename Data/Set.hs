@@ -36,7 +36,11 @@
 
 module Data.Set  ( 
             -- * Set type
+#if !defined(TESTING)    
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
+#else
+              Set(..)
+#endif
 
             -- * Operators
             , (\\)
@@ -99,6 +103,14 @@ module Data.Set  (
             , showTree
             , showTreeWith
             , valid
+
+#if defined(TESTING)
+            -- Internals (for testing)
+            , bin
+            , balanced
+            , join
+            , merge
+#endif    
             ) where
 
 import Prelude hiding (filter,foldr,null,map)
@@ -537,19 +549,6 @@ instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
-{-
-XXX unused code
-
-showSet :: (Show a) => [a] -> ShowS
-showSet []     
-  = showString "{}" 
-showSet (x:xs) 
-  = showChar '{' . shows x . showTail xs
-  where
-    showTail []       = showChar '}'
-    showTail (x':xs') = showChar ',' . shows x' . showTail xs'
--}
-
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}
@@ -605,20 +604,6 @@ trim cmplo cmphi t@(Bin _ x l r)
               GT -> t
               _  -> trim cmplo cmphi l
       _  -> trim cmplo cmphi r
-
-{-
-XXX unused code
-
-trimMemberLo :: Ord a => a -> (a -> Ordering) -> Set a -> (Bool, Set a)
-trimMemberLo _  _     Tip = (False,Tip)
-trimMemberLo lo cmphi t@(Bin _ x l r)
-  = case compare lo x of
-      LT -> case cmphi x of
-              GT -> (member lo t, t)
-              _  -> trimMemberLo lo cmphi l
-      GT -> trimMemberLo lo cmphi r
-      EQ -> (True,trim (compare lo) cmphi r)
--}
 
 {--------------------------------------------------------------------
   [filterGt x t] filter all values >[x] from tree [t]
@@ -1015,166 +1000,3 @@ validsize t
           Bin sz _ l r -> case (realsize l,realsize r) of
                             (Just n,Just m)  | n+m+1 == sz  -> Just sz
                             _                -> Nothing
-
-{-
-{--------------------------------------------------------------------
-  Testing
---------------------------------------------------------------------}
-testTree :: [Int] -> Set Int
-testTree xs   = fromList xs
-test1 = testTree [1..20]
-test2 = testTree [30,29..10]
-test3 = testTree [1,4,6,89,2323,53,43,234,5,79,12,9,24,9,8,423,8,42,4,8,9,3]
-
-{--------------------------------------------------------------------
-  QuickCheck
---------------------------------------------------------------------}
-qcheck prop
-  = check config prop
-  where
-    config = Config
-      { configMaxTest = 500
-      , configMaxFail = 5000
-      , configSize    = \n -> (div n 2 + 3)
-      , configEvery   = \n args -> let s = show n in s ++ [ '\b' | _ <- s ]
-      }
-
-
-{--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
---------------------------------------------------------------------}
-instance (Enum a) => Arbitrary (Set a) where
-  arbitrary = sized (arbtree 0 maxkey)
-            where maxkey  = 10000
-
-arbtree :: (Enum a) => Int -> Int -> Int -> Gen (Set a)
-arbtree lo hi n
-  | n <= 0        = return Tip
-  | lo >= hi      = return Tip
-  | otherwise     = do{ i  <- choose (lo,hi)
-                      ; m  <- choose (1,30)
-                      ; let (ml,mr)  | m==(1::Int)= (1,2)
-                                     | m==2       = (2,1)
-                                     | m==3       = (1,1)
-                                     | otherwise  = (2,2)
-                      ; l  <- arbtree lo (i-1) (n `div` ml)
-                      ; r  <- arbtree (i+1) hi (n `div` mr)
-                      ; return (bin (toEnum i) l r)
-                      }  
-
-
-{--------------------------------------------------------------------
-  Valid tree's
---------------------------------------------------------------------}
-forValid :: (Enum a,Show a,Testable b) => (Set a -> b) -> Property
-forValid f
-  = forAll arbitrary $ \t -> 
---    classify (balanced t) "balanced" $
-    classify (size t == 0) "empty" $
-    classify (size t > 0  && size t <= 10) "small" $
-    classify (size t > 10 && size t <= 64) "medium" $
-    classify (size t > 64) "large" $
-    balanced t ==> f t
-
-forValidIntTree :: Testable a => (Set Int -> a) -> Property
-forValidIntTree f
-  = forValid f
-
-forValidUnitTree :: Testable a => (Set Int -> a) -> Property
-forValidUnitTree f
-  = forValid f
-
-
-prop_Valid 
-  = forValidUnitTree $ \t -> valid t
-
-{--------------------------------------------------------------------
-  Single, Insert, Delete
---------------------------------------------------------------------}
-prop_Single :: Int -> Bool
-prop_Single x
-  = (insert x empty == singleton x)
-
-prop_InsertValid :: Int -> Property
-prop_InsertValid k
-  = forValidUnitTree $ \t -> valid (insert k t)
-
-prop_InsertDelete :: Int -> Set Int -> Property
-prop_InsertDelete k t
-  = not (member k t) ==> delete k (insert k t) == t
-
-prop_DeleteValid :: Int -> Property
-prop_DeleteValid k
-  = forValidUnitTree $ \t -> 
-    valid (delete k (insert k t))
-
-{--------------------------------------------------------------------
-  Balance
---------------------------------------------------------------------}
-prop_Join :: Int -> Property 
-prop_Join x
-  = forValidUnitTree $ \t ->
-    let (l,r) = split x t
-    in valid (join x l r)
-
-prop_Merge :: Int -> Property 
-prop_Merge x
-  = forValidUnitTree $ \t ->
-    let (l,r) = split x t
-    in valid (merge l r)
-
-
-{--------------------------------------------------------------------
-  Union
---------------------------------------------------------------------}
-prop_UnionValid :: Property
-prop_UnionValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (union t1 t2)
-
-prop_UnionInsert :: Int -> Set Int -> Bool
-prop_UnionInsert x t
-  = union t (singleton x) == insert x t
-
-prop_UnionAssoc :: Set Int -> Set Int -> Set Int -> Bool
-prop_UnionAssoc t1 t2 t3
-  = union t1 (union t2 t3) == union (union t1 t2) t3
-
-prop_UnionComm :: Set Int -> Set Int -> Bool
-prop_UnionComm t1 t2
-  = (union t1 t2 == union t2 t1)
-
-
-prop_DiffValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (difference t1 t2)
-
-prop_Diff :: [Int] -> [Int] -> Bool
-prop_Diff xs ys
-  =  toAscList (difference (fromList xs) (fromList ys))
-    == List.sort ((List.\\) (nub xs)  (nub ys))
-
-prop_IntValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (intersection t1 t2)
-
-prop_Int :: [Int] -> [Int] -> Bool
-prop_Int xs ys
-  =  toAscList (intersection (fromList xs) (fromList ys))
-    == List.sort (nub ((List.intersect) (xs)  (ys)))
-
-{--------------------------------------------------------------------
-  Lists
---------------------------------------------------------------------}
-prop_Ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [0..n::Int]
-    in fromAscList xs == fromList xs
-
-prop_List :: [Int] -> Bool
-prop_List xs
-  = (sort (nub xs) == toList (fromList xs))
--}
