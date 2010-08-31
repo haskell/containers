@@ -1,4 +1,5 @@
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE MagicHash #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntSet
