@@ -20,12 +20,12 @@
 -- trees of /bounded balance/) as described by:
 --
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
---	Journal of Functional Programming 3(4):553-562, October 1993,
---	<http://www.swiss.ai.mit.edu/~adams/BB/>.
+--      Journal of Functional Programming 3(4):553-562, October 1993,
+--      <http://www.swiss.ai.mit.edu/~adams/BB/>.
 --
 --    * J. Nievergelt and E.M. Reingold,
---	\"/Binary search trees of bounded balance/\",
---	SIAM journal of computing 2(1), March 1973.
+--      \"/Binary search trees of bounded balance/\",
+--      SIAM journal of computing 2(1), March 1973.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
@@ -60,7 +60,8 @@ module Data.Set  (
             , delete
             
             -- * Combine
-            , union, unions
+            , union
+            , unions
             , difference
             , intersection
             
@@ -71,8 +72,8 @@ module Data.Set  (
             , splitMember
 
             -- * Map
-	    , map
-	    , mapMonotonic
+            , map
+            , mapMonotonic
 
             -- * Fold
             , fold
@@ -142,6 +143,7 @@ infixl 9 \\ --
 -- | /O(n+m)/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
+{-# INLINE (\\) #-}
 
 {--------------------------------------------------------------------
   Sets are size balanced trees
@@ -184,45 +186,46 @@ instance (Data a, Ord a) => Data (Set a) where
 --------------------------------------------------------------------}
 -- | /O(1)/. Is this the empty set?
 null :: Set a -> Bool
-null t
-  = case t of
-      Tip    -> True
-      Bin {} -> False
+null Tip      = True
+null (Bin {}) = False
+{-# INLINE null #-}
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
-size t
-  = case t of
-      Tip          -> 0
-      Bin sz _ _ _ -> sz
+size = go
+  where
+    go Tip            = 0
+    go (Bin sz _ _ _) = sz
+{-# INLINE size #-}
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
-member x t
-  = case t of
-      Tip -> False
-      Bin _ y l r
-          -> case compare x y of
-               LT -> member x l
-               GT -> member x r
-               EQ -> True       
-
+member x = x `seq` go
+  where
+    go Tip = False
+    go (Bin _ y l r) = case compare x y of
+        LT -> go l
+        GT -> go r
+        EQ -> True       
+{-# INLINE member #-}
+        
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
-notMember x t = not $ member x t
+notMember a t = not $ member a t
+{-# INLINE notMember #-}
 
 {--------------------------------------------------------------------
   Construction
 --------------------------------------------------------------------}
 -- | /O(1)/. The empty set.
 empty  :: Set a
-empty
-  = Tip
+empty = Tip
+{-# INLINE empty #-}
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
-singleton x 
-  = Bin 1 x Tip Tip
+singleton x = Bin 1 x Tip Tip
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -231,26 +234,25 @@ singleton x
 -- If the set already contains an element equal to the given value,
 -- it is replaced with the new value.
 insert :: Ord a => a -> Set a -> Set a
-insert x t
-  = case t of
-      Tip -> singleton x
-      Bin sz y l r
-          -> case compare x y of
-               LT -> balance y (insert x l) r
-               GT -> balance y l (insert x r)
-               EQ -> Bin sz x l r
-
+insert x = x `seq` go
+  where
+    go Tip = singleton x
+    go (Bin sz y l r) = case compare x y of
+        LT -> balance y (go l) r
+        GT -> balance y l (go r)
+        EQ -> Bin sz x l r
+{-# INLINE insert #-}
 
 -- | /O(log n)/. Delete an element from a set.
 delete :: Ord a => a -> Set a -> Set a
-delete x t
-  = case t of
-      Tip -> Tip
-      Bin _ y l r
-          -> case compare x y of
-               LT -> balance y (delete x l) r
-               GT -> balance y l (delete x r)
-               EQ -> glue l r
+delete x = x `seq` go
+  where
+    go Tip = Tip
+    go (Bin _ y l r) = case compare x y of
+        LT -> balance y (go l) r
+        GT -> balance y l (go r)
+        EQ -> glue l r
+{-# INLINE delete #-}
 
 {--------------------------------------------------------------------
   Subset
@@ -303,15 +305,13 @@ deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balance x l (deleteMax r)
 deleteMax Tip             = Tip
 
-
 {--------------------------------------------------------------------
   Union. 
 --------------------------------------------------------------------}
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: Ord a => [Set a] -> Set a
-unions ts
-  = foldlStrict union empty ts
-
+unions = foldlStrict union empty
+{-# INLINE unions #-}
 
 -- | /O(n+m)/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
@@ -321,6 +321,7 @@ union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion (const LT) (const GT) t1 t2
+{-# INLINE union #-}
 
 hedgeUnion :: Ord a
            => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
@@ -343,6 +344,7 @@ difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
+{-# INLINE difference #-}
 
 hedgeDiff :: Ord a
           => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
@@ -392,22 +394,26 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: Ord a => (a -> Bool) -> Set a -> Set a
-filter _ Tip = Tip
-filter p (Bin _ x l r)
-  | p x       = join x (filter p l) (filter p r)
-  | otherwise = merge (filter p l) (filter p r)
+filter p = go
+  where 
+    go Tip = Tip
+    go (Bin _ x l r)
+        | p x       = join x (go l) (go r)
+        | otherwise = merge (go l) (go r)
+{-# INLINE filter #-}
 
 -- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
-partition _ Tip = (Tip,Tip)
-partition p (Bin _ x l r)
-  | p x       = (join x l1 r1,merge l2 r2)
-  | otherwise = (merge l1 r1,join x l2 r2)
+partition p = go
   where
-    (l1,l2) = partition p l
-    (r1,r2) = partition p r
+    go Tip = (Tip, Tip)
+    go (Bin _ x l r) = case (go l, go r) of
+        ((l1, l2), (r1, r2))
+            | p x       -> (join x l1 r1, merge l2 r2)
+            | otherwise -> (merge l1 r1, join x l2 r2)
+{-# INLINE partition #-}
 
 {----------------------------------------------------------------------
   Map
@@ -421,6 +427,7 @@ partition p (Bin _ x l r)
 
 map :: (Ord a, Ord b) => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
+{-# INLINE map #-}
 
 -- | /O(n)/. The 
 --
@@ -433,52 +440,55 @@ map f = fromList . List.map f . toList
 -- >     where ls = toList s
 
 mapMonotonic :: (a->b) -> Set a -> Set b
-mapMonotonic _ Tip = Tip
-mapMonotonic f (Bin sz x l r) =
-    Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
-
+mapMonotonic f = go
+  where
+    go Tip = Tip
+    go (Bin sz x l r) = Bin sz (f x) (go l) (go r)
+{-# INLINE mapMonotonic #-}
 
 {--------------------------------------------------------------------
   Fold
 --------------------------------------------------------------------}
 -- | /O(n)/. Fold over the elements of a set in an unspecified order.
 fold :: (a -> b -> b) -> b -> Set a -> b
-fold f z s
-  = foldr f z s
+fold = foldr
+{-# INLINE fold #-}
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
-foldr _ z Tip           = z
-foldr f z (Bin _ x l r) = foldr f (f x (foldr f z r)) l
+foldr f = go
+  where
+    go z Tip           = z
+    go z (Bin _ x l r) = go (f x (go z r)) l
+{-# INLINE foldr #-}
 
 {--------------------------------------------------------------------
   List variations 
 --------------------------------------------------------------------}
 -- | /O(n)/. The elements of a set.
 elems :: Set a -> [a]
-elems s
-  = toList s
+elems = toList
+{-# INLINE elems #-}
 
 {--------------------------------------------------------------------
   Lists 
 --------------------------------------------------------------------}
 -- | /O(n)/. Convert the set to a list of elements.
 toList :: Set a -> [a]
-toList s
-  = toAscList s
+toList = toAscList
+{-# INLINE toList #-}
 
 -- | /O(n)/. Convert the set to an ascending list of elements.
 toAscList :: Set a -> [a]
-toAscList t   
-  = foldr (:) [] t
-
+toAscList = foldr (:) []
+{-# INLINE toAscList #-}
 
 -- | /O(n*log n)/. Create a set from a list of elements.
 fromList :: Ord a => [a] -> Set a 
-fromList xs 
-  = foldlStrict ins empty xs
+fromList = foldlStrict ins empty
   where
     ins t x = insert x t
+{-# INLINE fromList #-}
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -616,6 +626,7 @@ filterGt cmp (Bin _ x l r)
       LT -> join x (filterGt cmp l) r
       GT -> filterGt cmp r
       EQ -> r
+{-# INLINE filterGt #-}
       
 filterLt :: (a -> Ordering) -> Set a -> Set a
 filterLt _ Tip = Tip
@@ -624,7 +635,7 @@ filterLt cmp (Bin _ x l r)
       LT -> filterLt cmp l
       GT -> join x l (filterLt cmp r)
       EQ -> l
-
+{-# INLINE filterLt #-}
 
 {--------------------------------------------------------------------
   Split
@@ -866,11 +877,11 @@ bin x l r
   Utilities
 --------------------------------------------------------------------}
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f z xs
-  = case xs of
-      []     -> z
-      (x:xx) -> let z' = f z x in seq z' (foldlStrict f z' xx)
-
+foldlStrict f = go
+  where
+    go z []     = z
+    go z (x:xs) = z `seq` go (f z x) xs
+{-# INLINE foldlStrict #-}
 
 {--------------------------------------------------------------------
   Debugging
