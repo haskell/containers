@@ -1516,7 +1516,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-#ifdef GLASGOW_HASKELL
+#ifdef __GLASGOW_HASKELL__
 fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
 #else
 fromDistinctAscList ::           [(Key,a)] -> IntMap a
@@ -1527,7 +1527,7 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
     work (kx,vx) []            stk = finish kx (Tip kx vx) stk
     work (kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
 
-#ifdef GLASGOW_HASKELL
+#ifdef __GLASGOW_HASKELL__
     reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
 #endif
     reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
