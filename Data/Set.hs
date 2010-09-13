@@ -150,7 +150,7 @@ m1 \\ m2 = difference m1 m2
 --------------------------------------------------------------------}
 -- | A set of values @a@.
 data Set a    = Tip 
-              | Bin {-# UNPACK #-} !Size a !(Set a) !(Set a) 
+              | Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a) 
 
 type Size     = Int
 
