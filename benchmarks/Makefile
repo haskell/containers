@@ -2,14 +2,15 @@ package := containers
 version := $(shell awk '/^version:/{print $$2}' ../$(package).cabal)
 lib := ../dist/build/libHS$(package)-$(version).a
 
-programs := bench
+programs := bench-Map bench-Set bench-IntMap
+all: $(programs)
+run: $(patsubst %, %.csv, $(programs))
 
-bench: Benchmarks.hs ../Data/Map.hs
-	ghc -DTESTING -cpp -O2 --make -fforce-recomp -i.. -o bench Benchmarks.hs
+bench-%: %.hs ../Data/%.hs
+	ghc -DTESTING -cpp -O2 -fregs-graph --make -fforce-recomp -i.. -o $@ $^
 
-.PHONY: run-bench
-run-bench: bench
-	./bench +RTS -K10M
+bench-%.csv: bench-%
+	./bench-$* -u bench-$*.csv +RTS -K10M
 
 .PHONY: clean
 clean:

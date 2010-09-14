@@ -17,9 +17,11 @@ instance (NFData k, NFData a) => NFData (M.Map k a) where
 
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
+        m_even = M.fromAscList elems_even :: M.Map Int Int
+        m_odd = M.fromAscList elems_odd :: M.Map Int Int
     defaultMainWith
         defaultConfig
-        (liftIO . evaluate $ rnf [m])
+        (liftIO . evaluate $ rnf [m, m_even, m_odd])
         [ bench "lookup" $ nf (lookup keys) m
         , bench "insert" $ nf (ins elems) M.empty
         , bench "insertWith empty" $ nf (insWith elems) M.empty
@@ -50,11 +52,17 @@ main = do
         , bench "mapMaybe" $ nf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ nf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ nf (lookupIndex keys) m
+        , bench "union" $ nf (M.union m_even) m_odd
+        , bench "difference" $ nf (M.difference m) m_even
+        , bench "intersection" $ nf (M.intersection m) m_even
         ]
   where
+    bound = 2^10
     elems = zip keys values
-    keys = [1..2^10]
-    values = [1..2^10]
+    elems_even = zip [2,4..bound] [2,4..bound]
+    elems_odd = zip [1,3..bound] [1,3..bound]
+    keys = [1..bound]
+    values = [1..bound]
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
 
