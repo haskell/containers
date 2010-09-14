@@ -802,85 +802,100 @@ maxView x = Just (deleteFindMax x)
   size of one of them. (a rotation).
 
   [delta] is the maximal relative difference between the sizes of
-          two trees, it corresponds with the [w] in Adams' paper,
-          or equivalently, [1/delta] corresponds with the $\alpha$
-          in Nievergelt's paper. Adams shows that [delta] should
-          be larger than 3.745 in order to garantee that the
-          rotations can always restore balance.         
-
+          two trees, it corresponds with the [w] in Adams' paper.
   [ratio] is the ratio between an outer and inner sibling of the
           heavier subtree in an unbalanced setting. It determines
           whether a double or single rotation should be performed
           to restore balance. It is correspondes with the inverse
           of $\alpha$ in Adam's article.
 
-  Note that:
+  Note that according to the Adam's paper:
   - [delta] should be larger than 4.646 with a [ratio] of 2.
   - [delta] should be larger than 3.745 with a [ratio] of 1.534.
-  
+
+  But the Adam's paper is errorneous:
+  - it can be proved that for delta=2 and delta>=5 there does
+    not exist any ratio that would work
+  - delta=4.5 and ratio=2 does not work
+
+  That leaves two reasonable variants, delta=3 and delta=4,
+  both with ratio=2.
+
   - A lower [delta] leads to a more 'perfectly' balanced tree.
   - A higher [delta] performs less rebalancing.
 
-  - Balancing is automatic for random data and a balancing
-    scheme is only necessary to avoid pathological worst cases.
-    Almost any choice will do in practice
-    
-  - Allthough it seems that a rather large [delta] may perform better 
-    than smaller one, measurements have shown that the smallest [delta]
-    of 4 is actually the fastest on a wide range of operations. It
-    especially improves performance on worst-case scenarios like
-    a sequence of ordered insertions.
+  In the benchmarks, delta=3 is faster on insert operations,
+  but delta=4 has better overall performance, so we use delta=4.
 
-  Note: in contrast to Adams' paper, we use a ratio of (at least) 2
-  to decide whether a single or double rotation is needed. Allthough
-  he actually proves that this ratio is needed to maintain the
-  invariants, his implementation uses a (invalid) ratio of 1. 
-  He is aware of the problem though since he has put a comment in his 
-  original source code that he doesn't care about generating a 
-  slightly inbalanced tree since it doesn't seem to matter in practice. 
-  However (since we use quickcheck :-) we will stick to strictly balanced 
-  trees.
+  Note: in contrast to Adam's paper, we perform the rebalance
+  even in the case when (size left == delta * size right), instead
+  when (size left > delta * size) as in the paper. Both are correct,
+  but the former is slightly faster overall.
+
 --------------------------------------------------------------------}
 delta,ratio :: Int
 delta = 4
 ratio = 2
 
+-- The balance function is equivalent to the following:
+--
+--   balance :: a -> Set a -> Set a -> Set a
+--   balance x l r
+--     | sizeL + sizeR <= 1    = Bin sizeX x l r
+--     | sizeR >= delta*sizeL  = rotateL x l r
+--     | sizeL >= delta*sizeR  = rotateR x l r
+--     | otherwise             = Bin sizeX x l r
+--     where
+--       sizeL = size l
+--       sizeR = size r
+--       sizeX = sizeL + sizeR + 1
+--
+--   rotateL :: a -> Set a -> Set a -> Set a
+--   rotateL x l r@(Bin _ _ ly ry) | size ly < ratio*size ry = singleL x l r
+--                                 | otherwise               = doubleL x l r
+--   rotateR :: a -> Set a -> Set a -> Set a
+--   rotateR x l@(Bin _ _ ly ry) r | size ry < ratio*size ly = singleR x l r
+--                                 | otherwise               = doubleR x l r
+--
+--   singleL, singleR :: a -> Set a -> Set a -> Set a
+--   singleL x1 t1 (Bin _ x2 t2 t3)  = bin x2 (bin x1 t1 t2) t3
+--   singleR x1 (Bin _ x2 t1 t2) t3  = bin x2 t1 (bin x1 t2 t3)
+--
+--   doubleL, doubleR :: a -> Set a -> Set a -> Set a
+--   doubleL x1 t1 (Bin _ x2 (Bin _ x3 t2 t3) t4) = bin x3 (bin x1 t1 t2) (bin x2 t3 t4)
+--   doubleR x1 (Bin _ x2 t1 (Bin _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
+--
+-- It is only written in such a way that every node is pattern-matched only once.
+
 balance :: a -> Set a -> Set a -> Set a
-balance x l r
-  | sizeL + sizeR <= 1    = Bin sizeX x l r
-  | sizeR >= delta*sizeL  = rotateL x l r
-  | sizeL >= delta*sizeR  = rotateR x l r
-  | otherwise             = Bin sizeX x l r
-  where
-    sizeL = size l
-    sizeR = size r
-    sizeX = sizeL + sizeR + 1
+balance x l r = case l of
+  Tip -> case r of
+           Tip -> Bin 1 x Tip Tip
+           r@(Bin rs rx Tip Tip) -> Bin 2 x Tip r
+           r@(Bin rs rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
+           r@(Bin rs rx rl@(Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
+           r@(Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs rrx rrl rrr))
+             | rls < ratio*rrs -> Bin (1+rs) rx (Bin (1+rls) x Tip rl) rr
+             | otherwise -> Bin (1+rs) rlx (Bin (1+size rll) x Tip rll) (Bin (1+rrs+size rlr) rx rlr rr)
 
--- rotate
-rotateL :: a -> Set a -> Set a -> Set a
-rotateL x l r@(Bin _ _ ly ry)
-  | size ly < ratio*size ry = singleL x l r
-  | otherwise               = doubleL x l r
-rotateL _ _ Tip = error "rotateL Tip"
-
-rotateR :: a -> Set a -> Set a -> Set a
-rotateR x l@(Bin _ _ ly ry) r
-  | size ry < ratio*size ly = singleR x l r
-  | otherwise               = doubleR x l r
-rotateR _ Tip _ = error "rotateL Tip"
-
--- basic rotations
-singleL, singleR :: a -> Set a -> Set a -> Set a
-singleL x1 t1 (Bin _ x2 t2 t3)  = bin x2 (bin x1 t1 t2) t3
-singleL _  _  Tip               = error "singleL"
-singleR x1 (Bin _ x2 t1 t2) t3  = bin x2 t1 (bin x1 t2 t3)
-singleR _  Tip              _   = error "singleR"
-
-doubleL, doubleR :: a -> Set a -> Set a -> Set a
-doubleL x1 t1 (Bin _ x2 (Bin _ x3 t2 t3) t4) = bin x3 (bin x1 t1 t2) (bin x2 t3 t4)
-doubleL _ _ _ = error "doubleL"
-doubleR x1 (Bin _ x2 t1 (Bin _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
-doubleR _ _ _ = error "doubleR"
+  l@(Bin ls lx ll lr) -> case r of
+           Tip -> case (ll, lr) of
+                    (Tip, Tip) -> Bin 2 x l Tip
+                    (Tip, lr@(Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
+                    (ll@(Bin _ _ _ _), Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
+                    (ll@(Bin lls llx lll llr), lr@(Bin lrs lrx lrl lrr))
+                      | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
+                      | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
+           r@(Bin rs rx rl rr)
+              | rs >= delta*ls  -> case (rl, rr) of
+                   (Bin rls rlx rll rlr, Bin rrs rrx rrl rrr)
+                     | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
+                     | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
+              | ls >= delta*rs  -> case (ll, lr) of
+                   (Bin lls llx lll llr, Bin lrs lrx lrl lrr)
+                     | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
+                     | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
+              | otherwise -> Bin (1+ls+rs) x l r
 
 
 {--------------------------------------------------------------------
