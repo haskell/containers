@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP, ScopedTypeVariables #-}
 
 -- QuickCheck properties for Data.Set
--- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i..  Set.hs
+-- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i..  set-properties.hs
 
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -62,18 +62,20 @@ instance (Enum a) => Arbitrary (Set a) where
       where maxkey = 10000
 
 arbtree :: (Enum a) => Int -> Int -> Int -> Gen (Set a)
-arbtree lo hi n
-    | n <= 0    = return Tip
-    | lo >= hi  = return Tip
-    | otherwise = do  i  <- choose (lo,hi)
-                      m  <- choose (1,30)
-                      let (ml,mr) | m==(1::Int) = (1,2)
-                                  | m==2        = (2,1)
-                                  | m==3        = (1,1)
-                                  | otherwise   = (2,2)
-                      l  <- arbtree lo (i-1) (n `div` ml)
-                      r  <- arbtree (i+1) hi (n `div` mr)
-                      return (bin (toEnum i) l r)
+arbtree lo hi n = do t <- gentree lo hi n
+                     if balanced t then return t else arbtree lo hi n
+  where gentree lo hi n
+          | n <= 0    = return Tip
+          | lo >= hi  = return Tip
+          | otherwise = do  i  <- choose (lo,hi)
+                            m  <- choose (1,70)
+                            let (ml,mr) | m==(1::Int) = (1,2)
+                                        | m==2        = (2,1)
+                                        | m==3        = (1,1)
+                                        | otherwise   = (2,2)
+                            l  <- gentree lo (i-1) (n `div` ml)
+                            r  <- gentree (i+1) hi (n `div` mr)
+                            return (bin (toEnum i) l r)
 
 {--------------------------------------------------------------------
   Valid tree's
