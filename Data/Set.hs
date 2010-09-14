@@ -243,6 +243,18 @@ insert x = x `seq` go
         EQ -> Bin sz x l r
 {-# INLINE insert #-}
 
+-- Insert an element to the set only if it is not in the set. Used by
+-- `union`.
+insertR :: Ord a => a -> Set a -> Set a
+insertR x = x `seq` go
+  where
+    go Tip = singleton x
+    go t@(Bin sz y l r) = case compare x y of
+        LT -> balance y (go l) r
+        GT -> balance y l (go r)
+        EQ -> t
+{-# INLINE insertR #-}
+
 -- | /O(log n)/. Delete an element from a set.
 delete :: Ord a => a -> Set a -> Set a
 delete x = x `seq` go
@@ -320,20 +332,22 @@ unions = foldlStrict union empty
 union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnion (const LT) (const GT) t1 t2
+union (Bin _ x Tip Tip) t = insert x t
+union t (Bin _ x Tip Tip) = insertR x t
+union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 {-# INLINE union #-}
 
 hedgeUnion :: Ord a
-           => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
+           => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeUnion _     _     t1 Tip
   = t1
-hedgeUnion cmplo cmphi Tip (Bin _ x l r)
-  = join x (filterGt cmplo l) (filterLt cmphi r)
-hedgeUnion cmplo cmphi (Bin _ x l r) t2
-  = join x (hedgeUnion cmplo cmpx l (trim cmplo cmpx t2)) 
-           (hedgeUnion cmpx cmphi r (trim cmpx cmphi t2))
+hedgeUnion blo bhi Tip (Bin _ x l r)
+  = join x (filterGt blo l) (filterLt bhi r)
+hedgeUnion blo bhi (Bin _ x l r) t2
+  = join x (hedgeUnion blo bmi l (trim blo bmi t2))
+           (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where
-    cmpx y  = compare x y
+    bmi = JustS x
 
 {--------------------------------------------------------------------
   Difference
@@ -343,20 +357,20 @@ hedgeUnion cmplo cmphi (Bin _ x l r) t2
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
+difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 {-# INLINE difference #-}
 
 hedgeDiff :: Ord a
-          => (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a -> Set a
+          => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeDiff _ _ Tip _
   = Tip
-hedgeDiff cmplo cmphi (Bin _ x l r) Tip 
-  = join x (filterGt cmplo l) (filterLt cmphi r)
-hedgeDiff cmplo cmphi t (Bin _ x l r) 
-  = merge (hedgeDiff cmplo cmpx (trim cmplo cmpx t) l) 
-          (hedgeDiff cmpx cmphi (trim cmpx cmphi t) r)
+hedgeDiff blo bhi (Bin _ x l r) Tip
+  = join x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ x l r)
+  = merge (hedgeDiff blo bmi (trim blo bmi t) l)
+          (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where
-    cmpx y = compare x y
+    bmi = JustS x
 
 {--------------------------------------------------------------------
   Intersection
@@ -586,14 +600,15 @@ INSTANCE_TYPEABLE1(Set,setTc,"Set")
 
 {--------------------------------------------------------------------
   Utility functions that return sub-ranges of the original
-  tree. Some functions take a comparison function as argument to
-  allow comparisons against infinite values. A function [cmplo x]
-  should be read as [compare lo x].
+  tree. Some functions take a `Maybe value` as an argument to
+  allow comparisons against infinite values. These are called `blow`
+  (Nothing is -\infty) and `bhigh` (here Nothing is +\infty).
+  We use MaybeS value, which is a Maybe strict in the Just case.
 
-  [trim cmplo cmphi t]  A tree that is either empty or where [cmplo x == LT]
-                        and [cmphi x == GT] for the value [x] of the root.
-  [filterGt cmp t]      A tree where for all values [k]. [cmp k == LT]
-  [filterLt cmp t]      A tree where for all values [k]. [cmp k == GT]
+  [trim blow bhigh t]   A tree that is either empty or where [x > blow]
+                        and [x < bhigh] for the value [x] of the root.
+  [filterGt blow t]     A tree where for all values [k]. [k > blow]
+  [filterLt bhigh t]    A tree where for all values [k]. [k < bhigh]
 
   [split k t]           Returns two trees [l] and [r] where all values
                         in [l] are <[k] and all keys in [r] are >[k].
@@ -601,40 +616,43 @@ INSTANCE_TYPEABLE1(Set,setTc,"Set")
                         was found in the tree.
 --------------------------------------------------------------------}
 
-{--------------------------------------------------------------------
-  [trim lo hi t] trims away all subtrees that surely contain no
-  values between the range [lo] to [hi]. The returned tree is either
-  empty or the key of the root is between @lo@ and @hi@.
---------------------------------------------------------------------}
-trim :: (a -> Ordering) -> (a -> Ordering) -> Set a -> Set a
-trim _     _     Tip = Tip
-trim cmplo cmphi t@(Bin _ x l r)
-  = case cmplo x of
-      LT -> case cmphi x of
-              GT -> t
-              _  -> trim cmplo cmphi l
-      _  -> trim cmplo cmphi r
+data MaybeS a = NothingS | JustS !a
 
 {--------------------------------------------------------------------
-  [filterGt x t] filter all values >[x] from tree [t]
-  [filterLt x t] filter all values <[x] from tree [t]
+  [trim blo bhi t] trims away all subtrees that surely contain no
+  values between the range [blo] to [bhi]. The returned tree is either
+  empty or the key of the root is between @blo@ and @bhi@.
 --------------------------------------------------------------------}
-filterGt :: (a -> Ordering) -> Set a -> Set a
-filterGt _ Tip = Tip
-filterGt cmp (Bin _ x l r)
-  = case cmp x of
-      LT -> join x (filterGt cmp l) r
-      GT -> filterGt cmp r
-      EQ -> r
+trim :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a
+trim NothingS   NothingS   t = t
+trim (JustS lx) NothingS   t = greater t where greater (Bin _ x _ r) | x <= lx = greater r
+                                               greater t = t
+trim NothingS   (JustS hx) t = lesser t  where lesser  (Bin _ x l _) | x >= hx = lesser  l
+                                               lesser  t = t
+trim (JustS lx) (JustS hx) t = middle t  where middle  (Bin _ x _ r) | x <= lx = middle  r
+                                               middle  (Bin _ x l _) | x >= hx = middle  l
+                                               middle  t = t
+
+{--------------------------------------------------------------------
+  [filterGt b t] filter all values >[b] from tree [t]
+  [filterLt b t] filter all values <[b] from tree [t]
+--------------------------------------------------------------------}
+filterGt :: Ord a => MaybeS a -> Set a -> Set a
+filterGt NothingS t = t
+filterGt (JustS b) t = filter' t
+  where filter' Tip = Tip
+        filter' (Bin _ x l r) = case compare b x of LT -> join x (filter' l) r
+                                                    EQ -> r
+                                                    GT -> filter' r
 {-# INLINE filterGt #-}
       
-filterLt :: (a -> Ordering) -> Set a -> Set a
-filterLt _ Tip = Tip
-filterLt cmp (Bin _ x l r)
-  = case cmp x of
-      LT -> filterLt cmp l
-      GT -> join x l (filterLt cmp r)
-      EQ -> l
+filterLt :: Ord a => MaybeS a -> Set a -> Set a
+filterLt NothingS t = t
+filterLt (JustS b) t = filter' t
+  where filter' Tip = Tip
+        filter' (Bin _ x l r) = case compare x b of LT -> join x l (filter' r)
+                                                    EQ -> l
+                                                    GT -> filter' l
 {-# INLINE filterLt #-}
 
 {--------------------------------------------------------------------
