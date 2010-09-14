@@ -17,10 +17,11 @@ instance NFData a => NFData (S.Set a) where
 
 main = do
     let s = S.fromAscList elems :: S.Set Int
-        s2 = S.fromAscList [-1, -2 .. -(2^10)] :: S.Set Int
+        s_even = S.fromAscList elems_even :: S.Set Int
+        s_odd = S.fromAscList elems_odd :: S.Set Int
     defaultMainWith
         defaultConfig
-        (liftIO . evaluate $ rnf [s, s2])
+        (liftIO . evaluate $ rnf [s, s_even, s_odd])
         [ bench "member" $ nf (member elems) s
         , bench "insert" $ nf (ins elems) S.empty
         , bench "map" $ nf (S.map (+ 1)) s
@@ -32,11 +33,15 @@ main = do
         , bench "findMax" $ nf S.findMax s
         , bench "deleteMin" $ nf S.deleteMin s
         , bench "deleteMax" $ nf S.deleteMax s
-        , bench "unions" $ nf S.unions [s, s2]
-        , bench "union" $ nf (S.union s) s2
+        , bench "unions" $ nf S.unions [s_even, s_odd]
+        , bench "union" $ nf (S.union s_even) s_odd
+        , bench "difference" $ nf (S.difference s) s_even
+        , bench "intersection" $ nf (S.intersection s) s_even
         ]
   where
     elems = [1..2^10]
+    elems_even = [2,4..2^10]
+    elems_odd = [1,3..2^10]
 
 member :: [Int] -> S.Set Int -> Int
 member xs s = foldl' (\n x -> if S.member x s then n + 1 else n) 0 xs
