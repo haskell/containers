@@ -934,22 +934,24 @@ unionsWith f ts
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnionL (const LT) (const GT) t1 t2
+union (Bin _ k x Tip Tip) t = insert k x t
+union t (Bin _ k x Tip Tip) = insertWith (\x y->y) k x t
+union t1 t2 = hedgeUnionL NothingS NothingS t1 t2
 {-# INLINE union #-}
 
 -- left-biased hedge union
 hedgeUnionL :: Ord a
-            => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a b
+            => MaybeS a -> MaybeS a -> Map a b -> Map a b
             -> Map a b
 hedgeUnionL _     _     t1 Tip
   = t1
-hedgeUnionL cmplo cmphi Tip (Bin _ kx x l r)
-  = join kx x (filterGt cmplo l) (filterLt cmphi r)
-hedgeUnionL cmplo cmphi (Bin _ kx x l r) t2
-  = join kx x (hedgeUnionL cmplo cmpkx l (trim cmplo cmpkx t2)) 
-              (hedgeUnionL cmpkx cmphi r (trim cmpkx cmphi t2))
+hedgeUnionL blo bhi Tip (Bin _ kx x l r)
+  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnionL blo bhi (Bin _ kx x l r) t2
+  = join kx x (hedgeUnionL blo bmi l (trim blo bmi t2))
+              (hedgeUnionL bmi bhi r (trim bmi bhi t2))
   where
-    cmpkx k  = compare kx k
+    bmi = JustS kx
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -973,28 +975,28 @@ unionWith f m1 m2
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey _ Tip t2  = t2
 unionWithKey _ t1 Tip  = t1
-unionWithKey f t1 t2 = hedgeUnionWithKey f (const LT) (const GT) t1 t2
+unionWithKey f t1 t2 = hedgeUnionWithKey f NothingS NothingS t1 t2
 {-# INLINE unionWithKey #-}
 
 hedgeUnionWithKey :: Ord a
                   => (a -> b -> b -> b)
-                  -> (a -> Ordering) -> (a -> Ordering)
+                  -> MaybeS a -> MaybeS a
                   -> Map a b -> Map a b
                   -> Map a b
 hedgeUnionWithKey _ _     _     t1 Tip
   = t1
-hedgeUnionWithKey _ cmplo cmphi Tip (Bin _ kx x l r)
-  = join kx x (filterGt cmplo l) (filterLt cmphi r)
-hedgeUnionWithKey f cmplo cmphi (Bin _ kx x l r) t2
-  = join kx newx (hedgeUnionWithKey f cmplo cmpkx l lt) 
-                 (hedgeUnionWithKey f cmpkx cmphi r gt)
+hedgeUnionWithKey _ blo bhi Tip (Bin _ kx x l r)
+  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnionWithKey f blo bhi (Bin _ kx x l r) t2
+  = join kx newx (hedgeUnionWithKey f blo bmi l lt)
+                 (hedgeUnionWithKey f bmi bhi r gt)
   where
-    cmpkx k     = compare kx k
-    lt          = trim cmplo cmpkx t2
-    (found,gt)  = trimLookupLo kx cmphi t2
-    newx        = case found of
-                    Nothing -> x
-                    Just (_,y) -> f kx x y
+    bmi        = JustS kx
+    lt         = trim blo bmi t2
+    (found,gt) = trimLookupLo kx bhi t2
+    newx       = case found of
+                   Nothing -> x
+                   Just (_,y) -> f kx x y
 
 {--------------------------------------------------------------------
   Difference
@@ -1008,21 +1010,21 @@ hedgeUnionWithKey f cmplo cmphi (Bin _ kx x l r) t2
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 t2   = hedgeDiff (const LT) (const GT) t1 t2
+difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 {-# INLINE difference #-}
 
 hedgeDiff :: Ord a
-          => (a -> Ordering) -> (a -> Ordering) -> Map a b -> Map a c
+          => MaybeS a -> MaybeS a -> Map a b -> Map a c
           -> Map a b
 hedgeDiff _     _     Tip _
   = Tip
-hedgeDiff cmplo cmphi (Bin _ kx x l r) Tip 
-  = join kx x (filterGt cmplo l) (filterLt cmphi r)
-hedgeDiff cmplo cmphi t (Bin _ kx _ l r) 
-  = merge (hedgeDiff cmplo cmpkx (trim cmplo cmpkx t) l) 
-          (hedgeDiff cmpkx cmphi (trim cmpkx cmphi t) r)
+hedgeDiff blo bhi (Bin _ kx x l r) Tip
+  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ kx _ l r)
+  = merge (hedgeDiff blo bmi (trim blo bmi t) l)
+          (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where
-    cmpkx k = compare kx k   
+    bmi = JustS kx
 
 -- | /O(n+m)/. Difference with a combining function. 
 -- When two equal keys are
@@ -1053,19 +1055,19 @@ differenceWith f m1 m2
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey _ Tip _   = Tip
 differenceWithKey _ t1 Tip  = t1
-differenceWithKey f t1 t2   = hedgeDiffWithKey f (const LT) (const GT) t1 t2
+differenceWithKey f t1 t2   = hedgeDiffWithKey f NothingS NothingS t1 t2
 {-# INLINE differenceWithKey #-}
 
 hedgeDiffWithKey :: Ord a
                  => (a -> b -> c -> Maybe b)
-                 -> (a -> Ordering) -> (a -> Ordering)
+                 -> MaybeS a -> MaybeS a
                  -> Map a b -> Map a c
                  -> Map a b
 hedgeDiffWithKey _ _     _     Tip _
   = Tip
-hedgeDiffWithKey _ cmplo cmphi (Bin _ kx x l r) Tip
-  = join kx x (filterGt cmplo l) (filterLt cmphi r)
-hedgeDiffWithKey f cmplo cmphi t (Bin _ kx x l r) 
+hedgeDiffWithKey _ blo bhi (Bin _ kx x l r) Tip
+  = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiffWithKey f blo bhi t (Bin _ kx x l r) 
   = case found of
       Nothing -> merge tl tr
       Just (ky,y) -> 
@@ -1073,11 +1075,11 @@ hedgeDiffWithKey f cmplo cmphi t (Bin _ kx x l r)
             Nothing -> merge tl tr
             Just z  -> join ky z tl tr
   where
-    cmpkx k     = compare kx k   
-    lt          = trim cmplo cmpkx t
-    (found,gt)  = trimLookupLo kx cmphi t
-    tl          = hedgeDiffWithKey f cmplo cmpkx lt l
-    tr          = hedgeDiffWithKey f cmpkx cmphi gt r
+    bmi        = JustS kx
+    lt         = trim blo bmi t
+    (found,gt) = trimLookupLo kx bhi t
+    tl         = hedgeDiffWithKey f blo bmi lt l
+    tr         = hedgeDiffWithKey f bmi bhi gt r
 
 
 
@@ -1711,14 +1713,15 @@ fromDistinctAscList xs
 
 {--------------------------------------------------------------------
   Utility functions that return sub-ranges of the original
-  tree. Some functions take a comparison function as argument to
-  allow comparisons against infinite values. A function [cmplo k]
-  should be read as [compare lo k].
+  tree. Some functions take a `Maybe value` as an argument to
+  allow comparisons against infinite values. These are called `blow`
+  (Nothing is -\infty) and `bhigh` (here Nothing is +\infty).
+  We use MaybeS value, which is a Maybe strict in the Just case.
 
-  [trim cmplo cmphi t]  A tree that is either empty or where [cmplo k == LT]
-                        and [cmphi k == GT] for the key [k] of the root.
-  [filterGt cmp t]      A tree where for all keys [k]. [cmp k == LT]
-  [filterLt cmp t]      A tree where for all keys [k]. [cmp k == GT]
+  [trim blow bhigh t]   A tree that is either empty or where [x > blow]
+                        and [x < bhigh] for the value [x] of the root.
+  [filterGt blow t]     A tree where for all values [k]. [k > blow]
+  [filterLt bhigh t]    A tree where for all values [k]. [k < bhigh]
 
   [split k t]           Returns two trees [l] and [r] where all keys
                         in [l] are <[k] and all keys in [r] are >[k].
@@ -1726,53 +1729,56 @@ fromDistinctAscList xs
                         was found in the tree.
 --------------------------------------------------------------------}
 
+data MaybeS a = NothingS | JustS !a
+
 {--------------------------------------------------------------------
-  [trim lo hi t] trims away all subtrees that surely contain no
-  values between the range [lo] to [hi]. The returned tree is either
-  empty or the key of the root is between @lo@ and @hi@.
+  [trim blo bhi t] trims away all subtrees that surely contain no
+  values between the range [blo] to [bhi]. The returned tree is either
+  empty or the key of the root is between @blo@ and @bhi@.
 --------------------------------------------------------------------}
-trim :: (k -> Ordering) -> (k -> Ordering) -> Map k a -> Map k a
-trim _     _     Tip = Tip
-trim cmplo cmphi t@(Bin _ kx _ l r)
-  = case cmplo kx of
-      LT -> case cmphi kx of
-              GT -> t
-              _  -> trim cmplo cmphi l
-      _  -> trim cmplo cmphi r
-              
-trimLookupLo :: Ord k => k -> (k -> Ordering) -> Map k a -> (Maybe (k,a), Map k a)
-trimLookupLo _  _     Tip = (Nothing,Tip)
-trimLookupLo lo cmphi t@(Bin _ kx x l r)
+trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
+trim NothingS   NothingS   t = t
+trim (JustS lo) NothingS   t = greater t where greater (Bin _ k _ _ r) | k <= lo = greater r
+                                               greater t = t
+trim NothingS   (JustS hi) t = lesser t  where lesser  (Bin _ k _ l _) | k >= hi = lesser  l
+                                               lesser  t = t
+trim (JustS lo) (JustS hi) t = middle t  where middle  (Bin _ k _ _ r) | k <= lo = middle  r
+                                               middle  (Bin _ k _ l _) | k >= hi = middle  l
+                                               middle  t = t
+
+trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe (k,a), Map k a)
+trimLookupLo _  _  Tip = (Nothing, Tip)
+trimLookupLo lo hi t@(Bin _ kx x l r)
   = case compare lo kx of
-      LT -> case cmphi kx of
-              GT -> (lookupAssoc lo t, t)
-              _  -> trimLookupLo lo cmphi l
-      GT -> trimLookupLo lo cmphi r
-      EQ -> (Just (kx,x),trim (compare lo) cmphi r)
+      LT -> case compare' kx hi of
+              LT -> (lookupAssoc lo t, t)
+              _  -> trimLookupLo lo hi l
+      GT -> trimLookupLo lo hi r
+      EQ -> (Just (kx,x),trim (JustS lo) hi r)
+  where compare' _  NothingS   = LT
+        compare' kx (JustS hi) = compare kx hi
 
 
 {--------------------------------------------------------------------
-  [filterGt k t] filter all keys >[k] from tree [t]
-  [filterLt k t] filter all keys <[k] from tree [t]
+  [filterGt b t] filter all keys >[b] from tree [t]
+  [filterLt b t] filter all keys <[b] from tree [t]
 --------------------------------------------------------------------}
-filterGt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
-filterGt cmp = go
-  where
-    go Tip              = Tip
-    go (Bin _ kx x l r) = case cmp kx of
-              LT -> join kx x (go l) r
-              GT -> go r
-              EQ -> r
+filterGt :: Ord k => MaybeS k -> Map k v -> Map k v
+filterGt NothingS t = t
+filterGt (JustS b) t = filter' t
+  where filter' Tip = Tip
+        filter' (Bin _ kx x l r) = case compare b kx of LT -> join kx x (filter' l) r
+                                                        EQ -> r
+                                                        GT -> filter' r
 {-# INLINE filterGt #-}
 
-filterLt :: Ord k => (k -> Ordering) -> Map k a -> Map k a
-filterLt cmp = go
-  where
-    go Tip              = Tip
-    go (Bin _ kx x l r) = case cmp kx of
-          LT -> go l
-          GT -> join kx x l (go r)
-          EQ -> l
+filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
+filterLt NothingS t = t
+filterLt (JustS b) t = filter' t
+  where filter' Tip = Tip
+        filter' (Bin _ kx x l r) = case compare kx b of LT -> join kx x l (filter' r)
+                                                        EQ -> l
+                                                        GT -> filter' l
 {-# INLINE filterLt #-}
 
 {--------------------------------------------------------------------
@@ -1866,7 +1872,7 @@ join kx x l Tip  = insertMax kx x l
 join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | delta*sizeL <= sizeR  = balance kz z (join kx x l lz) rz
   | delta*sizeR <= sizeL  = balance ky y ly (join kx x ry r)
-  | otherwise             = bin kx x l r
+  | otherwise            = bin kx x l r
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -1892,7 +1898,7 @@ merge l Tip   = l
 merge l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
   | delta*sizeL <= sizeR = balance ky y (merge l ly) ry
   | delta*sizeR <= sizeL = balance kx x lx (merge rx r)
-  | otherwise            = glue l r
+  | otherwise           = glue l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
