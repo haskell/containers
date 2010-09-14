@@ -1950,63 +1950,94 @@ deleteFindMax t
           to restore balance. It is correspondes with the inverse
           of $\alpha$ in Adam's article.
 
-  Note that:
+  Note that according to the Adam's paper:
   - [delta] should be larger than 4.646 with a [ratio] of 2.
   - [delta] should be larger than 3.745 with a [ratio] of 1.534.
-  
+
+  But the Adam's paper is errorneous:
+  - It can be proved that for delta=2 and delta>=5 there does
+    not exist any ratio that would work.
+  - Delta=4.5 and ratio=2 does not work.
+
+  That leaves two reasonable variants, delta=3 and delta=4,
+  both with ratio=2.
+
   - A lower [delta] leads to a more 'perfectly' balanced tree.
   - A higher [delta] performs less rebalancing.
 
-  - Balancing is automatic for random data and a balancing
-    scheme is only necessary to avoid pathological worst cases.
-    Almost any choice will do, and in practice, a rather large
-    [delta] may perform better than smaller one.
+  In the benchmarks, delta=3 is faster on insert operations,
+  but delta=4 has better overall performance, so we use delta=4.
 
-  Note: in contrast to Adam's paper, we use a ratio of (at least) [2]
-  to decide whether a single or double rotation is needed. Allthough
-  he actually proves that this ratio is needed to maintain the
-  invariants, his implementation uses an invalid ratio of [1].
+  Note: in contrast to Adam's paper, we perform the rebalance
+  even in the case when (size left == delta * size right), instead
+  when (size left > delta * size) as in the paper. Both are correct,
+  but the former is slightly faster overall.
+
 --------------------------------------------------------------------}
 delta,ratio :: Int
 delta = 4
 ratio = 2
 
+-- The balance function is equivalent to the following:
+--
+--   balance :: k -> a -> Map k a -> Map k a -> Map k a
+--   balance k x l r
+--     | sizeL + sizeR <= 1     = Bin sizeX k x l r
+--     | sizeR >= delta*sizeL   = rotateL k x l r
+--     | sizeL >= delta*sizeR   = rotateR k x l r
+--     | otherwise              = Bin sizeX k x l r
+--     where
+--       sizeL = size l
+--       sizeR = size r
+--       sizeX = sizeL + sizeR + 1
+--
+--   rotateL :: a -> b -> Map a b -> Map a b -> Map a b
+--   rotateL k x l r@(Bin _ _ _ ly ry) | size ly < ratio*size ry = singleL k x l r
+--                                     | otherwise               = doubleL k x l r
+--
+--   rotateR :: a -> b -> Map a b -> Map a b -> Map a b
+--   rotateR k x l@(Bin _ _ _ ly ry) r | size ry < ratio*size ly = singleR k x l r
+--                                     | otherwise               = doubleR k x l r
+--
+--   singleL, singleR :: a -> b -> Map a b -> Map a b -> Map a b
+--   singleL k1 x1 t1 (Bin _ k2 x2 t2 t3)  = bin k2 x2 (bin k1 x1 t1 t2) t3
+--   singleR k1 x1 (Bin _ k2 x2 t1 t2) t3  = bin k2 x2 t1 (bin k1 x1 t2 t3)
+--
+--   doubleL, doubleR :: a -> b -> Map a b -> Map a b -> Map a b
+--   doubleL k1 x1 t1 (Bin _ k2 x2 (Bin _ k3 x3 t2 t3) t4) = bin k3 x3 (bin k1 x1 t1 t2) (bin k2 x2 t3 t4)
+--   doubleR k1 x1 (Bin _ k2 x2 t1 (Bin _ k3 x3 t2 t3)) t4 = bin k3 x3 (bin k2 x2 t1 t2) (bin k1 x1 t3 t4)
+--
+-- It is only written in such a way that every node is pattern-matched only once.
+
 balance :: k -> a -> Map k a -> Map k a -> Map k a
-balance k x l r
-  | sizeL + sizeR <= 1    = Bin sizeX k x l r
-  | sizeR >= delta*sizeL  = rotateL k x l r
-  | sizeL >= delta*sizeR  = rotateR k x l r
-  | otherwise             = Bin sizeX k x l r
-  where
-    sizeL = size l
-    sizeR = size r
-    sizeX = sizeL + sizeR + 1
+balance k x l r = case l of
+  Tip -> case r of
+           Tip -> Bin 1 k x Tip Tip
+           r@(Bin rs rk rx Tip Tip) -> Bin 2 k x Tip r
+           r@(Bin rs rk rx Tip rr@(Bin _ _ _ _ _)) -> Bin 3 rk rx (Bin 1 k x Tip Tip) rr
+           r@(Bin rs rk rx rl@(Bin _ rlk rlx _ _) Tip) -> Bin 3 rlk rlx (Bin 1 k x Tip Tip) (Bin 1 rk rx Tip Tip)
+           r@(Bin rs rk rx rl@(Bin rls rlk rlx rll rlr) rr@(Bin rrs rrk rrx rrl rrr))
+             | rls < ratio*rrs -> Bin (1+rs) rk rx (Bin (1+rls) k x Tip rl) rr
+             | otherwise -> Bin (1+rs) rlk rlx (Bin (1+size rll) k x Tip rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
 
--- rotate
-rotateL :: a -> b -> Map a b -> Map a b -> Map a b
-rotateL k x l r@(Bin _ _ _ ly ry)
-  | size ly < ratio*size ry = singleL k x l r
-  | otherwise               = doubleL k x l r
-rotateL _ _ _ Tip = error "rotateL Tip"
-
-rotateR :: a -> b -> Map a b -> Map a b -> Map a b
-rotateR k x l@(Bin _ _ _ ly ry) r
-  | size ry < ratio*size ly = singleR k x l r
-  | otherwise               = doubleR k x l r
-rotateR _ _ Tip _ = error "rotateR Tip"
-
--- basic rotations
-singleL, singleR :: a -> b -> Map a b -> Map a b -> Map a b
-singleL k1 x1 t1 (Bin _ k2 x2 t2 t3)  = bin k2 x2 (bin k1 x1 t1 t2) t3
-singleL _ _ _ Tip = error "singleL Tip"
-singleR k1 x1 (Bin _ k2 x2 t1 t2) t3  = bin k2 x2 t1 (bin k1 x1 t2 t3)
-singleR _ _ Tip _ = error "singleR Tip"
-
-doubleL, doubleR :: a -> b -> Map a b -> Map a b -> Map a b
-doubleL k1 x1 t1 (Bin _ k2 x2 (Bin _ k3 x3 t2 t3) t4) = bin k3 x3 (bin k1 x1 t1 t2) (bin k2 x2 t3 t4)
-doubleL _ _ _ _ = error "doubleL"
-doubleR k1 x1 (Bin _ k2 x2 t1 (Bin _ k3 x3 t2 t3)) t4 = bin k3 x3 (bin k2 x2 t1 t2) (bin k1 x1 t3 t4)
-doubleR _ _ _ _ = error "doubleR"
+  l@(Bin ls lk lx ll lr) -> case r of
+           Tip -> case (ll, lr) of
+                    (Tip, Tip) -> Bin 2 k x l Tip
+                    (Tip, lr@(Bin _ lrk lrx _ _)) -> Bin 3 lrk lrx (Bin 1 lk lx Tip Tip) (Bin 1 k x Tip Tip)
+                    (ll@(Bin _ _ _ _ _), Tip) -> Bin 3 lk lx ll (Bin 1 k x Tip Tip)
+                    (ll@(Bin lls llk llx lll llr), lr@(Bin lrs lrk lrx lrl lrr))
+                      | lrs < ratio*lls -> Bin (1+ls) lk lx ll (Bin (1+lrs) k x lr Tip)
+                      | otherwise -> Bin (1+ls) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+size lrr) k x lrr Tip)
+           r@(Bin rs rk rx rl rr)
+              | rs >= delta*ls  -> case (rl, rr) of
+                   (Bin rls rlk rlx rll rlr, Bin rrs rrk rrx rrl rrr)
+                     | rls < ratio*rrs -> Bin (1+ls+rs) rk rx (Bin (1+ls+rls) k x l rl) rr
+                     | otherwise -> Bin (1+ls+rs) rlk rlx (Bin (1+ls+size rll) k x l rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
+              | ls >= delta*rs  -> case (ll, lr) of
+                   (Bin lls llk llx lll llr, Bin lrs lrk lrx lrl lrr)
+                     | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
+                     | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
+              | otherwise -> Bin (1+ls+rs) k x l r
 
 
 {--------------------------------------------------------------------
