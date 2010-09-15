@@ -114,7 +114,7 @@ module Data.Map  (
             , foldWithKey
             , foldrWithKey
             , foldlWithKey
-            , foldlWithKey'
+            -- , foldlWithKey'
 
             -- * Conversion
             , elems
@@ -1471,7 +1471,6 @@ mapKeysMonotonic f (Bin sz k x l r) =
 -- > fold f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold f = foldWithKey (\_ x' z' -> f x' z')
-{-# DEPRECATED fold "Use foldrWithKey instead" #-}
 {-# INLINE fold #-}
 
 -- | /O(n)/. Fold the keys and values in the map, such that
@@ -1508,6 +1507,7 @@ foldlWithKey f = go
     go z (Bin _ kx x l r) = go (f (go z l) kx x) r
 {-# INLINE foldlWithKey #-}
 
+{-
 -- | /O(n)/. A strict version of 'foldlWithKey'.
 foldlWithKey' :: (b -> k -> a -> b) -> b -> Map k a -> b
 foldlWithKey' f = go
@@ -1515,6 +1515,7 @@ foldlWithKey' f = go
     go z Tip              = z
     go z (Bin _ kx x l r) = z `seq` go (f (go z l) kx x) r
 {-# INLINE foldlWithKey' #-}
+-}
 
 {--------------------------------------------------------------------
   List variations 
