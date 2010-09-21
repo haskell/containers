@@ -419,8 +419,8 @@ insert kx x = kx `seq` go
     go Tip = singleton kx x
     go (Bin sz ky y l r) =
         case compare kx ky of
-            LT -> balance ky y (go l) r
-            GT -> balance ky y l (go r)
+            LT -> balanceL ky y (go l) r
+            GT -> balanceR ky y l (go r)
             EQ -> Bin sz kx x l r
 {-# INLINE insert #-}
 
@@ -467,8 +467,8 @@ insertWithKey f kx x = kx `seq` go
     go Tip = singleton kx x
     go (Bin sy ky y l r) =
         case compare kx ky of
-            LT -> balance ky y (go l) r
-            GT -> balance ky y l (go r)
+            LT -> balanceL ky y (go l) r
+            GT -> balanceR ky y l (go r)
             EQ -> Bin sy kx (f kx x y) l r
 {-# INLINE insertWithKey #-}
 
@@ -479,8 +479,8 @@ insertWithKey' f kx x = kx `seq` go
     go Tip = singleton kx $! x
     go (Bin sy ky y l r) =
         case compare kx ky of
-            LT -> balance ky y (go l) r
-            GT -> balance ky y l (go r)
+            LT -> balanceL ky y (go l) r
+            GT -> balanceR ky y l (go r)
             EQ -> let x' = f kx x y in seq x' (Bin sy kx x' l r)
 {-# INLINE insertWithKey' #-}
 
@@ -508,9 +508,9 @@ insertLookupWithKey f kx x = kx `seq` go
     go (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found, l') = go l
-                  in (found, balance ky y l' r)
+                  in (found, balanceL ky y l' r)
             GT -> let (found, r') = go r
-                  in (found, balance ky y l r')
+                  in (found, balanceR ky y l r')
             EQ -> (Just y, Bin sy kx (f kx x y) l r)
 {-# INLINE insertLookupWithKey #-}
 
@@ -523,9 +523,9 @@ insertLookupWithKey' f kx x = kx `seq` go
     go (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found, l') = go l
-                  in (found, balance ky y l' r)
+                  in (found, balanceL ky y l' r)
             GT -> let (found, r') = go r
-                  in (found, balance ky y l r')
+                  in (found, balanceR ky y l r')
             EQ -> let x' = f kx x y in x' `seq` (Just y, Bin sy kx x' l r)
 {-# INLINE insertLookupWithKey' #-}
 
@@ -546,8 +546,8 @@ delete k = k `seq` go
     go Tip = Tip
     go (Bin _ kx x l r) =
         case compare k kx of
-            LT -> balance kx x (go l) r
-            GT -> balance kx x l (go r)
+            LT -> balanceR kx x (go l) r
+            GT -> balanceL kx x l (go r)
             EQ -> glue l r
 {-# INLINE delete #-}
 
@@ -604,8 +604,8 @@ updateWithKey f k = k `seq` go
     go Tip = Tip
     go (Bin sx kx x l r) =
         case compare k kx of
-           LT -> balance kx x (go l) r
-           GT -> balance kx x l (go r)
+           LT -> balanceR kx x (go l) r
+           GT -> balanceL kx x l (go r)
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
                    Nothing -> glue l r
@@ -626,8 +626,8 @@ updateLookupWithKey f k = k `seq` go
    go Tip = (Nothing,Tip)
    go (Bin sx kx x l r) =
           case compare k kx of
-               LT -> let (found,l') = go l in (found,balance kx x l' r)
-               GT -> let (found,r') = go r in (found,balance kx x l r') 
+               LT -> let (found,l') = go l in (found,balanceR kx x l' r)
+               GT -> let (found,r') = go r in (found,balanceL kx x l r') 
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
@@ -732,8 +732,8 @@ updateAt f i0 t = i0 `seq` go i0 t
  where
     go _ Tip  = error "Map.updateAt: index out of range"
     go i (Bin sx kx x l r) = case compare i sizeL of
-      LT -> balance kx x (go i l) r
-      GT -> balance kx x l (go (i-sizeL-1) r)
+      LT -> balanceR kx x (go i l) r
+      GT -> balanceL kx x l (go (i-sizeL-1) r)
       EQ -> case f kx x of
               Just x' -> Bin sx kx x' l r
               Nothing -> glue l r
@@ -785,7 +785,7 @@ findMax Tip                 = error "Map.findMax: empty map has no maximal eleme
 
 deleteMin :: Map k a -> Map k a
 deleteMin (Bin _ _  _ Tip r)  = r
-deleteMin (Bin _ kx x l r)    = balance kx x (deleteMin l) r
+deleteMin (Bin _ kx x l r)    = balanceR kx x (deleteMin l) r
 deleteMin Tip                 = Tip
 
 -- | /O(log n)/. Delete the maximal key. Returns an empty map if the map is empty.
@@ -795,7 +795,7 @@ deleteMin Tip                 = Tip
 
 deleteMax :: Map k a -> Map k a
 deleteMax (Bin _ _  _ l Tip)  = l
-deleteMax (Bin _ kx x l r)    = balance kx x l (deleteMax r)
+deleteMax (Bin _ kx x l r)    = balanceL kx x l (deleteMax r)
 deleteMax Tip                 = Tip
 
 -- | /O(log n)/. Update the value at the minimal key.
@@ -830,7 +830,7 @@ updateMinWithKey f = go
     go (Bin sx kx x Tip r) = case f kx x of
                                   Nothing -> r
                                   Just x' -> Bin sx kx x' Tip r
-    go (Bin _ kx x l r)    = balance kx x (go l) r
+    go (Bin _ kx x l r)    = balanceR kx x (go l) r
     go Tip                 = Tip
 {-# INLINE updateMinWithKey #-}
 
@@ -845,7 +845,7 @@ updateMaxWithKey f = go
     go (Bin sx kx x l Tip) = case f kx x of
                               Nothing -> l
                               Just x' -> Bin sx kx x' l Tip
-    go (Bin _ kx x l r)    = balance kx x l (go r)
+    go (Bin _ kx x l r)    = balanceL kx x l (go r)
     go Tip                 = Tip
 {-# INLINE updateMaxWithKey #-}
 
@@ -1881,13 +1881,13 @@ insertMax kx x t
   = case t of
       Tip -> singleton kx x
       Bin _ ky y l r
-          -> balance ky y l (insertMax kx x r)
+          -> balanceR ky y l (insertMax kx x r)
              
 insertMin kx x t
   = case t of
       Tip -> singleton kx x
       Bin _ ky y l r
-          -> balance ky y (insertMin kx x l) r
+          -> balanceL ky y (insertMin kx x l) r
              
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
@@ -1908,8 +1908,8 @@ glue :: Map k a -> Map k a -> Map k a
 glue Tip r = r
 glue l Tip = l
 glue l r   
-  | size l > size r = let ((km,m),l') = deleteFindMax l in balance km m l' r
-  | otherwise       = let ((km,m),r') = deleteFindMin r in balance km m l r'
+  | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
+  | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
 
 
 -- | /O(log n)/. Delete and find the minimal element.
@@ -1921,7 +1921,7 @@ deleteFindMin :: Map k a -> ((k,a),Map k a)
 deleteFindMin t 
   = case t of
       Bin _ k x Tip r -> ((k,x),r)
-      Bin _ k x l r   -> let (km,l') = deleteFindMin l in (km,balance k x l' r)
+      Bin _ k x l r   -> let (km,l') = deleteFindMin l in (km,balanceR k x l' r)
       Tip             -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
 
 -- | /O(log n)/. Delete and find the maximal element.
@@ -1933,7 +1933,7 @@ deleteFindMax :: Map k a -> ((k,a),Map k a)
 deleteFindMax t
   = case t of
       Bin _ k x l Tip -> ((k,x),l)
-      Bin _ k x l r   -> let (km,r') = deleteFindMax r in (km,balance k x l r')
+      Bin _ k x l r   -> let (km,r') = deleteFindMax r in (km,balanceL k x l r')
       Tip             -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
 
 
@@ -2033,6 +2033,56 @@ balance k x l r = case l of
                    (Bin lls llk llx lll llr, Bin lrs lrk lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
                      | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
+              | otherwise -> Bin (1+ls+rs) k x l r
+
+-- Functions balanceL and balanceR are specialised versions of balance.
+-- balanceL only checks whether the left subtree is too big,
+-- balanceR only checks whether the right subtree is too big.
+
+-- balanceL is called when left subtree might have been inserted to or when
+-- right subtree might have been deleted from.
+balanceL :: k -> a -> Map k a -> Map k a -> Map k a
+balanceL k x l r = case r of
+  Tip -> case l of
+           Tip -> Bin 1 k x Tip Tip
+           l@(Bin ls lk lx Tip Tip) -> Bin 2 k x l Tip
+           l@(Bin ls lk lx Tip lr@(Bin _ lrk lrx _ _)) -> Bin 3 lrk lrx (Bin 1 lk lx Tip Tip) (Bin 1 k x Tip Tip)
+           l@(Bin ls lk lx ll@(Bin _ _ _ _ _) Tip) -> Bin 3 lk lx ll (Bin 1 k x Tip Tip)
+           l@(Bin ls lk lx ll@(Bin lls llk llx lll llr) lr@(Bin lrs lrk lrx lrl lrr))
+             | lrs < ratio*lls -> Bin (1+ls) lk lx ll (Bin (1+lrs) k x lr Tip)
+             | otherwise -> Bin (1+ls) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+size lrr) k x lrr Tip)
+
+  r@(Bin rs rk rx rl rr) -> case l of
+           Tip -> Bin (1+rs) k x Tip r
+
+           l@(Bin ls lk lx ll lr)
+              | ls > delta*rs  -> case (ll, lr) of
+                   (Bin lls llk llx lll llr, Bin lrs lrk lrx lrl lrr)
+                     | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
+                     | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
+              | otherwise -> Bin (1+ls+rs) k x l r
+
+-- balanceR is called when right subtree might have been inserted to or when
+-- left subtree might have been deleted from.
+balanceR :: k -> a -> Map k a -> Map k a -> Map k a
+balanceR k x l r = case l of
+  Tip -> case r of
+           Tip -> Bin 1 k x Tip Tip
+           r@(Bin rs rk rx Tip Tip) -> Bin 2 k x Tip r
+           r@(Bin rs rk rx Tip rr@(Bin _ _ _ _ _)) -> Bin 3 rk rx (Bin 1 k x Tip Tip) rr
+           r@(Bin rs rk rx rl@(Bin _ rlk rlx _ _) Tip) -> Bin 3 rlk rlx (Bin 1 k x Tip Tip) (Bin 1 rk rx Tip Tip)
+           r@(Bin rs rk rx rl@(Bin rls rlk rlx rll rlr) rr@(Bin rrs rrk rrx rrl rrr))
+             | rls < ratio*rrs -> Bin (1+rs) rk rx (Bin (1+rls) k x Tip rl) rr
+             | otherwise -> Bin (1+rs) rlk rlx (Bin (1+size rll) k x Tip rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
+
+  l@(Bin ls lk lx ll lr) -> case r of
+           Tip -> Bin (1+ls) k x l Tip
+
+           r@(Bin rs rk rx rl rr)
+              | rs > delta*ls  -> case (rl, rr) of
+                   (Bin rls rlk rlx rll rlr, Bin rrs rrk rrx rrl rrr)
+                     | rls < ratio*rrs -> Bin (1+ls+rs) rk rx (Bin (1+ls+rls) k x l rl) rr
+                     | otherwise -> Bin (1+ls+rs) rlk rlx (Bin (1+ls+size rll) k x l rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
               | otherwise -> Bin (1+ls+rs) k x l r
 
 
