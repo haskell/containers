@@ -39,7 +39,11 @@
 
 module Data.IntSet  ( 
             -- * Set type
+#if !defined(TESTING)
               IntSet          -- instance Eq,Show
+#else
+              IntSet(..)      -- instance Eq,Show
+#endif
 
             -- * Operators
             , (\\)
@@ -99,6 +103,11 @@ module Data.IntSet  (
             -- * Debugging
             , showTree
             , showTreeWith
+
+#if defined(TESTING)
+            -- * Internals
+            , match
+#endif
             ) where
 
 
@@ -109,14 +118,6 @@ import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Maybe (fromMaybe)
 import Data.Typeable
-
-{-
--- just for testing
-import Test.QuickCheck 
-import List (nub,sort)
-import qualified List
-import qualified Data.Set as Set
--}
 
 #if __GLASGOW_HASKELL__
 import Text.Read
@@ -989,126 +990,3 @@ foldlStrict f z xs
   = case xs of
       []     -> z
       (x:xx) -> let z' = f z x in seq z' (foldlStrict f z' xx)
-
-
-{-
-{--------------------------------------------------------------------
-  Testing
---------------------------------------------------------------------}
-testTree :: [Int] -> IntSet
-testTree xs   = fromList xs
-test1 = testTree [1..20]
-test2 = testTree [30,29..10]
-test3 = testTree [1,4,6,89,2323,53,43,234,5,79,12,9,24,9,8,423,8,42,4,8,9,3]
-
-{--------------------------------------------------------------------
-  QuickCheck
---------------------------------------------------------------------}
-qcheck prop
-  = check config prop
-  where
-    config = Config
-      { configMaxTest = 500
-      , configMaxFail = 5000
-      , configSize    = \n -> (div n 2 + 3)
-      , configEvery   = \n args -> let s = show n in s ++ [ '\b' | _ <- s ]
-      }
-
-
-{--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
---------------------------------------------------------------------}
-instance Arbitrary IntSet where
-  arbitrary = do{ xs <- arbitrary
-                ; return (fromList xs)
-                }
-
-
-{--------------------------------------------------------------------
-  Single, Insert, Delete
---------------------------------------------------------------------}
-prop_Single :: Int -> Bool
-prop_Single x
-  = (insert x empty == singleton x)
-
-prop_InsertDelete :: Int -> IntSet -> Property
-prop_InsertDelete k t
-  = not (member k t) ==> delete k (insert k t) == t
-
-
-{--------------------------------------------------------------------
-  Union
---------------------------------------------------------------------}
-prop_UnionInsert :: Int -> IntSet -> Bool
-prop_UnionInsert x t
-  = union t (singleton x) == insert x t
-
-prop_UnionAssoc :: IntSet -> IntSet -> IntSet -> Bool
-prop_UnionAssoc t1 t2 t3
-  = union t1 (union t2 t3) == union (union t1 t2) t3
-
-prop_UnionComm :: IntSet -> IntSet -> Bool
-prop_UnionComm t1 t2
-  = (union t1 t2 == union t2 t1)
-
-prop_Diff :: [Int] -> [Int] -> Bool
-prop_Diff xs ys
-  =  toAscList (difference (fromList xs) (fromList ys))
-    == List.sort ((List.\\) (nub xs)  (nub ys))
-
-prop_Int :: [Int] -> [Int] -> Bool
-prop_Int xs ys
-  =  toAscList (intersection (fromList xs) (fromList ys))
-    == List.sort (nub ((List.intersect) (xs)  (ys)))
-
-{--------------------------------------------------------------------
-  Lists
---------------------------------------------------------------------}
-prop_Ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = concat [[i-n,i-n]|i<-[0..2*n :: Int]]
-    in fromAscList xs == fromList xs
-
-prop_List :: [Int] -> Bool
-prop_List xs
-  = (sort (nub xs) == toAscList (fromList xs))
-
-{--------------------------------------------------------------------
-  Bin invariants
---------------------------------------------------------------------}
-powersOf2 :: IntSet
-powersOf2 = fromList [2^i | i <- [0..63]]
-
--- Check the invariant that the mask is a power of 2.
-prop_MaskPow2 :: IntSet -> Bool
-prop_MaskPow2 (Bin _ msk left right) = member msk powersOf2 && prop_MaskPow2 left && prop_MaskPow2 right
-prop_MaskPow2 _ = True
-
--- Check that the prefix satisfies its invariant.
-prop_Prefix :: IntSet -> Bool
-prop_Prefix s@(Bin prefix msk left right) = all (\elem -> match elem prefix msk) (toList s) && prop_Prefix left && prop_Prefix right
-prop_Prefix _ = True
-
--- Check that the left elements don't have the mask bit set, and the right
--- ones do.
-prop_LeftRight :: IntSet -> Bool
-prop_LeftRight (Bin _ msk left right) = and [x .&. msk == 0 | x <- toList left] && and [x .&. msk == msk | x <- toList right]
-prop_LeftRight _ = True
-
-{--------------------------------------------------------------------
-  IntSet operations are like Set operations
---------------------------------------------------------------------}
-toSet :: IntSet -> Set.Set Int
-toSet = Set.fromList . toList
-
--- Check that IntSet.isProperSubsetOf is the same as Set.isProperSubsetOf.
-prop_isProperSubsetOf :: IntSet -> IntSet -> Bool
-prop_isProperSubsetOf a b = isProperSubsetOf a b == Set.isProperSubsetOf (toSet a) (toSet b)
-
--- In the above test, isProperSubsetOf almost always returns False (since a
--- random set is almost never a subset of another random set).  So this second
--- test checks the True case.
-prop_isProperSubsetOf2 :: IntSet -> IntSet -> Bool
-prop_isProperSubsetOf2 a b = isProperSubsetOf a c == (a /= c) where
-  c = union a b
--}
