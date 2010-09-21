@@ -238,8 +238,8 @@ insert x = x `seq` go
   where
     go Tip = singleton x
     go (Bin sz y l r) = case compare x y of
-        LT -> balance y (go l) r
-        GT -> balance y l (go r)
+        LT -> balanceL y (go l) r
+        GT -> balanceR y l (go r)
         EQ -> Bin sz x l r
 {-# INLINE insert #-}
 
@@ -250,8 +250,8 @@ insertR x = x `seq` go
   where
     go Tip = singleton x
     go t@(Bin sz y l r) = case compare x y of
-        LT -> balance y (go l) r
-        GT -> balance y l (go r)
+        LT -> balanceL y (go l) r
+        GT -> balanceR y l (go r)
         EQ -> t
 {-# INLINE insertR #-}
 
@@ -261,8 +261,8 @@ delete x = x `seq` go
   where
     go Tip = Tip
     go (Bin _ y l r) = case compare x y of
-        LT -> balance y (go l) r
-        GT -> balance y l (go r)
+        LT -> balanceR y (go l) r
+        GT -> balanceL y l (go r)
         EQ -> glue l r
 {-# INLINE delete #-}
 
@@ -308,13 +308,13 @@ findMax Tip              = error "Set.findMax: empty set has no maximal element"
 -- | /O(log n)/. Delete the minimal element.
 deleteMin :: Set a -> Set a
 deleteMin (Bin _ _ Tip r) = r
-deleteMin (Bin _ x l r)   = balance x (deleteMin l) r
+deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
 deleteMin Tip             = Tip
 
 -- | /O(log n)/. Delete the maximal element.
 deleteMax :: Set a -> Set a
 deleteMax (Bin _ _ l Tip) = l
-deleteMax (Bin _ x l r)   = balance x l (deleteMax r)
+deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
 deleteMax Tip             = Tip
 
 {--------------------------------------------------------------------
@@ -732,13 +732,13 @@ insertMax x t
   = case t of
       Tip -> singleton x
       Bin _ y l r
-          -> balance y l (insertMax x r)
+          -> balanceR y l (insertMax x r)
              
 insertMin x t
   = case t of
       Tip -> singleton x
       Bin _ y l r
-          -> balance y (insertMin x l) r
+          -> balanceL y (insertMin x l) r
              
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
@@ -759,8 +759,8 @@ glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
 glue l r   
-  | size l > size r = let (m,l') = deleteFindMax l in balance m l' r
-  | otherwise       = let (m,r') = deleteFindMin r in balance m l r'
+  | size l > size r = let (m,l') = deleteFindMax l in balanceR m l' r
+  | otherwise       = let (m,r') = deleteFindMin r in balanceL m l r'
 
 
 -- | /O(log n)/. Delete and find the minimal element.
@@ -771,7 +771,7 @@ deleteFindMin :: Set a -> (a,Set a)
 deleteFindMin t 
   = case t of
       Bin _ x Tip r -> (x,r)
-      Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balance x l' r)
+      Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balanceR x l' r)
       Tip           -> (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
 
 -- | /O(log n)/. Delete and find the maximal element.
@@ -781,7 +781,7 @@ deleteFindMax :: Set a -> (a,Set a)
 deleteFindMax t
   = case t of
       Bin _ x l Tip -> (x,l)
-      Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balance x l r')
+      Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balanceL x l r')
       Tip           -> (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
 
 -- | /O(log n)/. Retrieves the minimal key of the set, and the set
@@ -893,6 +893,55 @@ balance x l r = case l of
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
               | otherwise -> Bin (1+ls+rs) x l r
 
+-- Functions balanceL and balanceR are specialised versions of balance.
+-- balanceL only checks whether the left subtree is too big,
+-- balanceR only checks whether the right subtree is too big.
+
+-- balanceL is called when left subtree might have been inserted to or when
+-- right subtree might have been deleted from.
+balanceL :: a -> Set a -> Set a -> Set a
+balanceL x l r = case r of
+  Tip -> case l of
+           Tip -> Bin 1 x Tip Tip
+           l@(Bin ls lx Tip Tip) -> Bin 2 x l Tip
+           l@(Bin ls lx Tip lr@(Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
+           l@(Bin ls lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
+           l@(Bin ls lx ll@(Bin lls llx lll llr) lr@(Bin lrs lrx lrl lrr))
+             | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
+             | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
+
+  r@(Bin rs rx rl rr) -> case l of
+           Tip -> Bin (1+rs) x Tip r
+
+           l@(Bin ls lx ll lr)
+              | ls > delta*rs  -> case (ll, lr) of
+                   (Bin lls llx lll llr, Bin lrs lrx lrl lrr)
+                     | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
+                     | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
+              | otherwise -> Bin (1+ls+rs) x l r
+
+-- balanceR is called when right subtree might have been inserted to or when
+-- left subtree might have been deleted from.
+balanceR :: a -> Set a -> Set a -> Set a
+balanceR x l r = case l of
+  Tip -> case r of
+           Tip -> Bin 1 x Tip Tip
+           r@(Bin rs rx Tip Tip) -> Bin 2 x Tip r
+           r@(Bin rs rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
+           r@(Bin rs rx rl@(Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
+           r@(Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs rrx rrl rrr))
+             | rls < ratio*rrs -> Bin (1+rs) rx (Bin (1+rls) x Tip rl) rr
+             | otherwise -> Bin (1+rs) rlx (Bin (1+size rll) x Tip rll) (Bin (1+rrs+size rlr) rx rlr rr)
+
+  l@(Bin ls lx ll lr) -> case r of
+           Tip -> Bin (1+ls) x l Tip
+
+           r@(Bin rs rx rl rr)
+              | rs > delta*ls  -> case (rl, rr) of
+                   (Bin rls rlx rll rlr, Bin rrs rrx rrl rrr)
+                     | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
+                     | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
+              | otherwise -> Bin (1+ls+rs) x l r
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
