@@ -7,7 +7,7 @@ all: $(programs)
 run: $(patsubst %, %.csv, $(programs))
 
 bench-%: %.hs ../Data/%.hs
-	ghc -DTESTING -cpp -O2 -fregs-graph --make -fforce-recomp -i.. -o $@ $^
+	ghc -DTESTING -cpp -O2 -fregs-graph --make -fforce-recomp -i.. -o $@ $<
 
 bench-%.csv: bench-%
 	./bench-$* -u bench-$*.csv +RTS -K10M
