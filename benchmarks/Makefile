@@ -2,7 +2,7 @@ package := containers
 version := $(shell awk '/^version:/{print $$2}' ../$(package).cabal)
 lib := ../dist/build/libHS$(package)-$(version).a
 
-programs := bench-Map bench-Set bench-IntMap
+programs := bench-Map bench-Set bench-IntMap bench-IntSet
 all: $(programs)
 run: $(patsubst %, %.csv, $(programs))
 
