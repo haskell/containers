@@ -721,9 +721,9 @@ join :: a -> Set a -> Set a -> Set a
 join x Tip r  = insertMin x r
 join x l Tip  = insertMax x l
 join x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
-  | delta*sizeL <= sizeR  = balance z (join x l lz) rz
-  | delta*sizeR <= sizeL  = balance y ly (join x ry r)
-  | otherwise             = bin x l r
+  | delta*sizeL < sizeR  = balanceL z (join x l lz) rz
+  | delta*sizeR < sizeL  = balanceR y ly (join x ry r)
+  | otherwise            = bin x l r
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -747,9 +747,9 @@ merge :: Set a -> Set a -> Set a
 merge Tip r   = r
 merge l Tip   = l
 merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
-  | delta*sizeL <= sizeR = balance y (merge l ly) ry
-  | delta*sizeR <= sizeL = balance x lx (merge rx r)
-  | otherwise            = glue l r
+  | delta*sizeL < sizeR = balanceL y (merge l ly) ry
+  | delta*sizeR < sizeL = balanceR x lx (merge rx r)
+  | otherwise           = glue l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -825,26 +825,22 @@ maxView x = Just (deleteFindMax x)
   - A higher [delta] performs less rebalancing.
 
   In the benchmarks, delta=3 is faster on insert operations,
-  but delta=4 has better overall performance, so we use delta=4.
-
-  Note: in contrast to Adam's paper, we perform the rebalance
-  even in the case when (size left == delta * size right), instead
-  when (size left > delta * size) as in the paper. Both are correct,
-  but the former is slightly faster overall.
+  and delta=4 has slightly better deletes. As the insert speedup
+  is larger, we currently use delta=3.
 
 --------------------------------------------------------------------}
 delta,ratio :: Int
-delta = 4
+delta = 3
 ratio = 2
 
 -- The balance function is equivalent to the following:
 --
 --   balance :: a -> Set a -> Set a -> Set a
 --   balance x l r
---     | sizeL + sizeR <= 1    = Bin sizeX x l r
---     | sizeR >= delta*sizeL  = rotateL x l r
---     | sizeL >= delta*sizeR  = rotateR x l r
---     | otherwise             = Bin sizeX x l r
+--     | sizeL + sizeR <= 1   = Bin sizeX x l r
+--     | sizeR > delta*sizeL  = rotateL x l r
+--     | sizeL > delta*sizeR  = rotateR x l r
+--     | otherwise            = Bin sizeX x l r
 --     where
 --       sizeL = size l
 --       sizeR = size r
@@ -887,11 +883,11 @@ balance x l r = case l of
                       | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
                       | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
            r@(Bin rs rx rl rr)
-              | rs >= delta*ls  -> case (rl, rr) of
+              | rs > delta*ls  -> case (rl, rr) of
                    (Bin rls rlx rll rlr, Bin rrs rrx rrl rrr)
                      | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
-              | ls >= delta*rs  -> case (ll, lr) of
+              | ls > delta*rs  -> case (ll, lr) of
                    (Bin lls llx lll llr, Bin lrs lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
