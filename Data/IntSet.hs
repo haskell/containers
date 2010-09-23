@@ -221,34 +221,27 @@ size t
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 member :: Int -> IntSet -> Bool
-member x t
-  = case t of
-      Bin p m l r 
-        | nomatch x p m -> False
-        | zero x m      -> member x l
-        | otherwise     -> member x r
-      Tip y -> (x==y)
-      Nil   -> False
-    
+member x Nil = x `seq` False
+member x t = x `seq` go t
+  where go (Bin p m l r)
+          | nomatch x p m = False
+          | zero x m      = go l
+          | otherwise     = go r
+        go (Tip y) = x == y
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Int -> IntSet -> Bool
 notMember k = not . member k
 
 -- 'lookup' is used by 'intersection' for left-biasing
 lookup :: Int -> IntSet -> Maybe Int
-lookup k t
-  = let nk = natFromInt k  in seq nk (lookupN nk t)
-
-lookupN :: Nat -> IntSet -> Maybe Int
-lookupN k t
-  = case t of
-      Bin _ m l r
-        | zeroN k (natFromInt m) -> lookupN k l
-        | otherwise              -> lookupN k r
-      Tip kx
-        | (k == natFromInt kx)  -> Just kx
-        | otherwise             -> Nothing
-      Nil -> Nothing
+lookup k Nil = k `seq` Nothing
+lookup k t = k `seq` go t
+  where go (Bin _ m l r)
+          | zero k m  = go l
+          | otherwise = go r
+        go (Tip kx)
+          | k == kx   = Just kx
+          | otherwise = Nothing
 
 {--------------------------------------------------------------------
   Construction
@@ -270,44 +263,40 @@ singleton x
 -- an element of the set, it is replaced by the new one, ie. 'insert'
 -- is left-biased.
 insert :: Int -> IntSet -> IntSet
-insert x t
-  = case t of
-      Bin p m l r 
-        | nomatch x p m -> join x (Tip x) p t
-        | zero x m      -> Bin p m (insert x l) r
-        | otherwise     -> Bin p m l (insert x r)
-      Tip y 
-        | x==y          -> Tip x
-        | otherwise     -> join x (Tip x) y t
-      Nil -> Tip x
+insert x = x `seq` go
+  where go t@(Bin p m l r )
+          | nomatch x p m = join x (Tip x) p t
+          | zero x m      = Bin p m (go l) r
+          | otherwise     = Bin p m l (go r)
+        go t@(Tip y)
+          | x==y          = Tip x
+          | otherwise     = join x (Tip x) y t
+        go Nil            = Tip x
 
 -- right-biased insertion, used by 'union'
 insertR :: Int -> IntSet -> IntSet
-insertR x t
-  = case t of
-      Bin p m l r 
-        | nomatch x p m -> join x (Tip x) p t
-        | zero x m      -> Bin p m (insert x l) r
-        | otherwise     -> Bin p m l (insert x r)
-      Tip y 
-        | x==y          -> t
-        | otherwise     -> join x (Tip x) y t
-      Nil -> Tip x
+insertR x = x `seq` go
+  where go t@(Bin p m l r )
+          | nomatch x p m = join x (Tip x) p t
+          | zero x m      = Bin p m (go l) r
+          | otherwise     = Bin p m l (go r)
+        go t@(Tip y)
+          | x==y          = t
+          | otherwise     = join x (Tip x) y t
+        go Nil            = Tip x
 
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete x t
-  = case t of
-      Bin p m l r 
-        | nomatch x p m -> t
-        | zero x m      -> bin p m (delete x l) r
-        | otherwise     -> bin p m l (delete x r)
-      Tip y 
-        | x==y          -> Nil
-        | otherwise     -> t
-      Nil -> Nil
-
+delete x = x `seq` go
+  where go t@(Bin p m l r)
+          | nomatch x p m = t
+          | zero x m      = bin p m (go l) r
+          | otherwise     = bin p m l (go r)
+        go t@(Tip y)
+          | x==y          = Nil
+          | otherwise     = t
+        go t@Nil          = t
 
 {--------------------------------------------------------------------
   Union
@@ -910,9 +899,6 @@ match i p m
 mask :: Int -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
-
-zeroN :: Nat -> Nat -> Bool
-zeroN i m = (i .&. m) == 0
 
 {--------------------------------------------------------------------
   Big endian operations  
