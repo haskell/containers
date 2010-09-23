@@ -1579,7 +1579,11 @@ zipWith f xs ys
 
 -- like 'zipWith', but assumes length xs <= length ys
 zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith' f xs ys = snd (mapAccumL ((\ (z :< zs) x -> (zs, f x z)) . viewl) ys xs)
+zipWith' f xs ys = snd (mapAccumL k ys xs)
+  where
+    k kys x = case viewl kys of
+               (z :< zs) -> (zs, f x z)
+               EmptyL    -> error "zipWith': unexpected EmptyL"
 
 -- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
@@ -1684,7 +1688,10 @@ unstableSortBy cmp (Seq xs) =
 -- balanced Seq whose elements are that list using the applicativeTree
 -- generalization.
 fromList2 :: Int -> [a] -> Seq a
-fromList2 n = execState (replicateA n (State (\ (x:xs) -> (xs, x))))
+fromList2 n = execState (replicateA n (State ht))
+  where
+    ht (x:xs) = (xs, x)
+    ht []     = error "fromList2: short list"
 
 -- | A 'PQueue' is a simple pairing heap.
 data PQueue e = PQueue e (PQL e)
