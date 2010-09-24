@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP #-}
-{-# OPTIONS_GHC -XNoBangPatterns #-}
-
+{-# LANGUAGE CPP, NoBangPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map

@@ -1,7 +1,4 @@
-{-# LANGUAGE CPP #-}
-{-# LANGUAGE MagicHash #-}
-{-# OPTIONS_GHC -cpp -XNoBangPatterns -XScopedTypeVariables #-}
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, NoBangPatterns, MagicHash, ScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap
