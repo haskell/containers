@@ -43,7 +43,7 @@ main = do
         , bench "map" $ nf (M.map (+ 1)) m
         , bench "mapWithKey" $ nf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ nf (ins elems) m
-        , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
+--         , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
         , bench "foldrWithKey" $ nf (M.foldrWithKey consPair []) m
         , bench "delete" $ nf (del keys) m
         , bench "update" $ nf (upd keys) m

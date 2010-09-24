@@ -71,7 +71,7 @@ main = do
 --    q $ label   "prop_mapkeys"          prop_mapkeys
     q $ label   "prop_foldr"            prop_foldr
     q $ label   "prop_foldl"            prop_foldl
-    q $ label   "prop_foldl'"           prop_foldl'
+--     q $ label   "prop_foldl'"           prop_foldl'
     q $ label   "prop_fold"           prop_fold
     q $ label   "prop_folWithKeyd"           prop_foldWithKey
 
@@ -366,11 +366,11 @@ prop_foldl (n :: Int) (ys :: [(Int, Int)]) =
         Data.Map.foldlWithKey (\a _ b -> a + b) n m == List.foldl (+) n (List.map snd xs)
 
 
-prop_foldl' (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldl' (+) n (List.map snd xs)
+-- prop_foldl' (n :: Int) (ys :: [(Int, Int)]) =
+--     let m = fromList ys
+--         xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
+--     in 
+--         Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldl' (+) n (List.map snd xs)
 
 
 prop_fold (n :: Int) (ys :: [(Int, Int)]) =
