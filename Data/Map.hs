@@ -223,12 +223,16 @@ infixl 9 !,\\ --
 
 (!) :: Ord k => Map k a -> k -> a
 m ! k    = find k m
-{-# INLINE (!) #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE (!) #-}
+#endif
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
-{-# INLINE (\\) #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE (\\) #-}
+#endif
 
 {--------------------------------------------------------------------
   Size balanced trees.
@@ -273,7 +277,9 @@ instance (Data k, Data a, Ord k) => Data (Map k a) where
 null :: Map k a -> Bool
 null Tip      = True
 null (Bin {}) = False
-{-# INLINE null #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE null #-}
+#endif
 
 -- | /O(1)/. The number of elements in the map.
 --
@@ -284,7 +290,9 @@ null (Bin {}) = False
 size :: Map k a -> Int
 size Tip              = 0
 size (Bin sz _ _ _ _) = sz
-{-# INLINE size #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE size #-}
+#endif
 
 
 -- | /O(log n)/. Lookup the value at a key in the map.
@@ -365,7 +373,9 @@ find :: Ord k => k -> Map k a -> a
 find k m = case lookup k m of
     Nothing -> error "Map.find: element not in the map"
     Just x  -> x
-{-# INLINE find #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE find #-}
+#endif
 
 -- | /O(log n)/. The expression @('findWithDefault' def k map)@ returns
 -- the value at key @k@ or returns default value @def@
@@ -378,7 +388,9 @@ findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault def k m = case lookup k m of
     Nothing -> def
     Just x  -> x
-{-# INLINE findWithDefault #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findWithDefault #-}
+#endif
 
 {--------------------------------------------------------------------
   Construction
@@ -390,7 +402,9 @@ findWithDefault def k m = case lookup k m of
 
 empty :: Map k a
 empty = Tip
-{-# INLINE empty #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE empty #-}
+#endif
 
 -- | /O(1)/. A map with a single element.
 --
@@ -399,7 +413,9 @@ empty = Tip
 
 singleton :: k -> a -> Map k a
 singleton k x = Bin 1 k x Tip Tip
-{-# INLINE singleton #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE singleton #-}
+#endif
 
 {--------------------------------------------------------------------
   Insertion
@@ -677,7 +693,9 @@ findIndex k t
   = case lookupIndex k t of
       Nothing  -> error "Map.findIndex: element is not in the map"
       Just idx -> idx
-{-# INLINE findIndex #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findIndex #-}
+#endif
 
 -- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
 -- /0/ up to, but not including, the 'size' of the map.
@@ -696,7 +714,9 @@ lookupIndex k = k `seq` go 0
           LT -> go idx l
           GT -> go (idx + size l + 1) r 
           EQ -> Just (idx + size l)
-{-# INLINE lookupIndex #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE lookupIndex #-}
+#endif
 
 -- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
 -- invalid index is used.
@@ -714,6 +734,9 @@ elemAt i (Bin _ kx x l r)
       EQ -> (kx,x)
   where
     sizeL = size l
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE elemAt #-}
+#endif
 
 -- | /O(log n)/. Update the element at /index/. Calls 'error' when an
 -- invalid index is used.
@@ -739,7 +762,9 @@ updateAt f i0 t = i0 `seq` go i0 t
               Nothing -> glue l r
       where 
         sizeL = size l
-{-# INLINE updateAt #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE updateAt #-}
+#endif
 
 -- | /O(log n)/. Delete the element at /index/.
 -- Defined as (@'deleteAt' i map = 'updateAt' (\k x -> 'Nothing') i map@).
@@ -752,7 +777,9 @@ updateAt f i0 t = i0 `seq` go i0 t
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt i m
   = updateAt (\_ _ -> Nothing) i m
-{-# INLINE deleteAt #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteAt #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -767,6 +794,9 @@ findMin :: Map k a -> (k,a)
 findMin (Bin _ kx x Tip _)  = (kx,x)
 findMin (Bin _ _  _ l _)    = findMin l
 findMin Tip                 = error "Map.findMin: empty map has no minimal element"
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findMin #-}
+#endif
 
 -- | /O(log n)/. The maximal key of the map. Calls 'error' is the map is empty.
 --
@@ -777,6 +807,9 @@ findMax :: Map k a -> (k,a)
 findMax (Bin _ kx x _ Tip)  = (kx,x)
 findMax (Bin _ _  _ _ r)    = findMax r
 findMax Tip                 = error "Map.findMax: empty map has no maximal element"
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findMax #-}
+#endif
 
 -- | /O(log n)/. Delete the minimal key. Returns an empty map if the map is empty.
 --
@@ -787,6 +820,9 @@ deleteMin :: Map k a -> Map k a
 deleteMin (Bin _ _  _ Tip r)  = r
 deleteMin (Bin _ kx x l r)    = balanceR kx x (deleteMin l) r
 deleteMin Tip                 = Tip
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteMin #-}
+#endif
 
 -- | /O(log n)/. Delete the maximal key. Returns an empty map if the map is empty.
 --
@@ -797,6 +833,9 @@ deleteMax :: Map k a -> Map k a
 deleteMax (Bin _ _  _ l Tip)  = l
 deleteMax (Bin _ kx x l r)    = balanceL kx x l (deleteMax r)
 deleteMax Tip                 = Tip
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteMax #-}
+#endif
 
 -- | /O(log n)/. Update the value at the minimal key.
 --
@@ -806,7 +845,9 @@ deleteMax Tip                 = Tip
 updateMin :: (a -> Maybe a) -> Map k a -> Map k a
 updateMin f m
   = updateMinWithKey (\_ x -> f x) m
-{-# INLINE updateMin #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE updateMin #-}
+#endif
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -816,7 +857,9 @@ updateMin f m
 updateMax :: (a -> Maybe a) -> Map k a -> Map k a
 updateMax f m
   = updateMaxWithKey (\_ x -> f x) m
-{-# INLINE updateMax #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE updateMax #-}
+#endif
 
 
 -- | /O(log n)/. Update the value at the minimal key.
@@ -832,7 +875,9 @@ updateMinWithKey f = go
                                   Just x' -> Bin sx kx x' Tip r
     go (Bin _ kx x l r)    = balanceR kx x (go l) r
     go Tip                 = Tip
-{-# INLINE updateMinWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE updateMinWithKey #-}
+#endif
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -847,7 +892,9 @@ updateMaxWithKey f = go
                               Just x' -> Bin sx kx x' l Tip
     go (Bin _ kx x l r)    = balanceL kx x l (go r)
     go Tip                 = Tip
-{-# INLINE updateMaxWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE updateMaxWithKey #-}
+#endif
 
 -- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -858,6 +905,9 @@ updateMaxWithKey f = go
 minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 minViewWithKey Tip = Nothing
 minViewWithKey x   = Just (deleteFindMin x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE minViewWithKey #-}
+#endif
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -868,6 +918,9 @@ minViewWithKey x   = Just (deleteFindMin x)
 maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 maxViewWithKey Tip = Nothing
 maxViewWithKey x   = Just (deleteFindMax x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE maxViewWithKey #-}
+#endif
 
 -- | /O(log n)/. Retrieves the value associated with minimal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -879,6 +932,9 @@ maxViewWithKey x   = Just (deleteFindMax x)
 minView :: Map k a -> Maybe (a, Map k a)
 minView Tip = Nothing
 minView x   = Just (first snd $ deleteFindMin x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE minView #-}
+#endif
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -889,11 +945,16 @@ minView x   = Just (first snd $ deleteFindMin x)
 maxView :: Map k a -> Maybe (a, Map k a)
 maxView Tip = Nothing
 maxView x   = Just (first snd $ deleteFindMax x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE maxView #-}
+#endif
 
 -- Update the 1st component of a tuple (special case of Control.Arrow.first)
 first :: (a -> b) -> (a,c) -> (b,c)
 first f (x,y) = (f x, y)
-{-# INLINE first #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE first #-}
+#endif
 
 {--------------------------------------------------------------------
   Union. 
@@ -909,7 +970,9 @@ first f (x,y) = (f x, y)
 unions :: Ord k => [Map k a] -> Map k a
 unions ts
   = foldlStrict union empty ts
-{-# INLINE unions #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE unions #-}
+#endif
 
 -- | The union of a list of maps, with a combining operation:
 --   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
@@ -920,7 +983,9 @@ unions ts
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-{-# INLINE unionsWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE unionsWith #-}
+#endif
 
 -- | /O(n+m)/.
 -- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@. 
@@ -937,7 +1002,9 @@ union t1 Tip  = t1
 union (Bin _ k x Tip Tip) t = insert k x t
 union t (Bin _ k x Tip Tip) = insertWith (\x y->y) k x t
 union t1 t2 = hedgeUnionL NothingS NothingS t1 t2
-{-# INLINE union #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE union #-}
+#endif
 
 -- left-biased hedge union
 hedgeUnionL :: Ord a
@@ -952,6 +1019,9 @@ hedgeUnionL blo bhi (Bin _ kx x l r) t2
               (hedgeUnionL bmi bhi r (trim bmi bhi t2))
   where
     bmi = JustS kx
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeUnionL #-}
+#endif
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -963,7 +1033,9 @@ hedgeUnionL blo bhi (Bin _ kx x l r) t2
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE unionWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE unionWith #-}
+#endif
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -976,7 +1048,9 @@ unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey _ Tip t2  = t2
 unionWithKey _ t1 Tip  = t1
 unionWithKey f t1 t2 = hedgeUnionWithKey f NothingS NothingS t1 t2
-{-# INLINE unionWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE unionWithKey #-}
+#endif
 
 hedgeUnionWithKey :: Ord a
                   => (a -> b -> b -> b)
@@ -997,6 +1071,9 @@ hedgeUnionWithKey f blo bhi (Bin _ kx x l r) t2
     newx       = case found of
                    Nothing -> x
                    Just (_,y) -> f kx x y
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeUnionWithKey #-}
+#endif
 
 {--------------------------------------------------------------------
   Difference
@@ -1011,7 +1088,9 @@ difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-{-# INLINE difference #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE difference #-}
+#endif
 
 hedgeDiff :: Ord a
           => MaybeS a -> MaybeS a -> Map a b -> Map a c
@@ -1025,6 +1104,9 @@ hedgeDiff blo bhi t (Bin _ kx _ l r)
           (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where
     bmi = JustS kx
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeDiff #-}
+#endif
 
 -- | /O(n+m)/. Difference with a combining function. 
 -- When two equal keys are
@@ -1040,7 +1122,9 @@ hedgeDiff blo bhi t (Bin _ kx _ l r)
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE differenceWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE differenceWith #-}
+#endif
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -1056,7 +1140,9 @@ differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> 
 differenceWithKey _ Tip _   = Tip
 differenceWithKey _ t1 Tip  = t1
 differenceWithKey f t1 t2   = hedgeDiffWithKey f NothingS NothingS t1 t2
-{-# INLINE differenceWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE differenceWithKey #-}
+#endif
 
 hedgeDiffWithKey :: Ord a
                  => (a -> b -> c -> Maybe b)
@@ -1080,6 +1166,9 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
     (found,gt) = trimLookupLo kx bhi t
     tl         = hedgeDiffWithKey f blo bmi lt l
     tr         = hedgeDiffWithKey f bmi bhi gt r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeDiffWithKey #-}
+#endif
 
 
 
@@ -1095,7 +1184,9 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection m1 m2
   = intersectionWithKey (\_ x _ -> x) m1 m2
-{-# INLINE intersection #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE intersection #-}
+#endif
 
 -- | /O(n+m)/. Intersection with a combining function.
 --
@@ -1104,7 +1195,9 @@ intersection m1 m2
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE intersectionWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE intersectionWith #-}
+#endif
 
 -- | /O(n+m)/. Intersection with a combining function.
 -- Intersection is more efficient on (bigset \``intersection`\` smallset).
@@ -1112,21 +1205,6 @@ intersectionWith f m1 m2
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
---intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
---intersectionWithKey f Tip t = Tip
---intersectionWithKey f t Tip = Tip
---intersectionWithKey f t1 t2 = intersectWithKey f t1 t2
---
---intersectWithKey f Tip t = Tip
---intersectWithKey f t Tip = Tip
---intersectWithKey f t (Bin _ kx x l r)
---  = case found of
---      Nothing -> merge tl tr
---      Just y  -> join kx (f kx y x) tl tr
---  where
---    (lt,found,gt) = splitLookup kx t
---    tl            = intersectWithKey f lt l
---    tr            = intersectWithKey f gt r
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey _ Tip _ = Tip
@@ -1145,6 +1223,9 @@ intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
       in case found of
       Just x -> join k1 (f k1 x1 x) tl tr
       Nothing -> merge tl tr
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE intersectionWithKey #-}
+#endif
 
 
 
@@ -1156,7 +1237,9 @@ intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
-{-# INLINE isSubmapOf #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isSubmapOf #-}
+#endif
 
 {- | /O(n+m)/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
@@ -1179,7 +1262,9 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
   = (size t1 <= size t2) && (submap' f t1 t2)
-{-# INLINE isSubmapOfBy #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isSubmapOfBy #-}
+#endif
 
 submap' :: Ord a => (b -> c -> Bool) -> Map a b -> Map a c -> Bool
 submap' _ Tip _ = True
@@ -1190,13 +1275,18 @@ submap' f (Bin _ kx x l r) t
       Just y  -> f x y && submap' f l lt && submap' f r gt
   where
     (lt,found,gt) = splitLookup kx t
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE submap' #-}
+#endif
 
 -- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal). 
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
-{-# INLINE isProperSubmapOf #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isProperSubmapOf #-}
+#endif
 
 {- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
@@ -1219,7 +1309,9 @@ isProperSubmapOf m1 m2
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
   = (size t1 < size t2) && (submap' f t1 t2)
-{-# INLINE isProperSubmapOfBy #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isProperSubmapOfBy #-}
+#endif
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -1233,7 +1325,9 @@ isProperSubmapOfBy f t1 t2
 filter :: Ord k => (a -> Bool) -> Map k a -> Map k a
 filter p m
   = filterWithKey (\_ x -> p x) m
-{-# INLINE filter #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filter #-}
+#endif
 
 -- | /O(n)/. Filter all keys\/values that satisfy the predicate.
 --
@@ -1246,7 +1340,9 @@ filterWithKey p = go
     go (Bin _ kx x l r)
           | p kx x    = join kx x (go l) (go r)
           | otherwise = merge (go l) (go r)
-{-# INLINE filterWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filterWithKey #-}
+#endif
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1259,7 +1355,9 @@ filterWithKey p = go
 partition :: Ord k => (a -> Bool) -> Map k a -> (Map k a,Map k a)
 partition p m
   = partitionWithKey (\_ x -> p x) m
-{-# INLINE partition #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE partition #-}
+#endif
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1277,6 +1375,9 @@ partitionWithKey p (Bin _ kx x l r)
   where
     (l1,l2) = partitionWithKey p l
     (r1,r2) = partitionWithKey p r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE partitionWithKey #-}
+#endif
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1285,7 +1386,9 @@ partitionWithKey p (Bin _ kx x l r)
 
 mapMaybe :: Ord k => (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
-{-# INLINE mapMaybe #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapMaybe #-}
+#endif
 
 -- | /O(n)/. Map keys\/values and collect the 'Just' results.
 --
@@ -1299,7 +1402,9 @@ mapMaybeWithKey f = go
     go (Bin _ kx x l r) = case f kx x of
         Just y  -> join kx y (go l) (go r)
         Nothing -> merge (go l) (go r)
-{-# INLINE mapMaybeWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapMaybeWithKey #-}
+#endif
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -1313,7 +1418,9 @@ mapMaybeWithKey f = go
 mapEither :: Ord k => (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m
   = mapEitherWithKey (\_ x -> f x) m
-{-# INLINE mapEither #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapEither #-}
+#endif
 
 -- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results.
 --
@@ -1333,6 +1440,9 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapEitherWithKey #-}
+#endif
 
 {--------------------------------------------------------------------
   Mapping
@@ -1343,7 +1453,9 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
 
 map :: (a -> b) -> Map k a -> Map k b
 map f = mapWithKey (\_ x -> f x)
-{-# INLINE map #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE map #-}
+#endif
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1355,7 +1467,9 @@ mapWithKey f = go
   where
     go Tip = Tip
     go (Bin sx kx x l r) = Bin sx kx (f kx x) (go l) (go r)
-{-# INLINE mapWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapWithKey #-}
+#endif
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1366,7 +1480,9 @@ mapWithKey f = go
 mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccum f a m
   = mapAccumWithKey (\a' _ x' -> f a' x') a m
-{-# INLINE mapAccum #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapAccum #-}
+#endif
 
 -- | /O(n)/. The function 'mapAccumWithKey' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1377,7 +1493,9 @@ mapAccum f a m
 mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumWithKey f a t
   = mapAccumL f a t
-{-# INLINE mapAccumWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapAccumWithKey #-}
+#endif
 
 -- | /O(n)/. The function 'mapAccumL' threads an accumulating
 -- argument throught the map in ascending order of keys.
@@ -1390,7 +1508,9 @@ mapAccumL f = go
                      (a2,x') = f a1 kx x
                      (a3,r') = go a2 r
                  in (a3,Bin sx kx x' l' r')
-{-# INLINE mapAccumL #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapAccumL #-}
+#endif
 
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
@@ -1403,7 +1523,9 @@ mapAccumRWithKey f = go
                      (a2,x') = f a1 kx x
                      (a3,l') = go a2 l
                  in (a3,Bin sx kx x' l' r')
-{-# INLINE mapAccumRWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapAccumRWithKey #-}
+#endif
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1418,7 +1540,9 @@ mapAccumRWithKey f = go
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
 mapKeys = mapKeysWith (\x _ -> x)
-{-# INLINE mapKeys #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapKeys #-}
+#endif
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1433,6 +1557,9 @@ mapKeys = mapKeysWith (\x _ -> x)
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . List.map fFirst . toList
     where fFirst (x,y) = (f x, y)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapKeysWith #-}
+#endif
 
 
 -- | /O(n)/.
@@ -1457,7 +1584,9 @@ mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
     Bin sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
-{-# INLINE mapKeysMonotonic #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapKeysMonotonic #-}
+#endif
 
 {--------------------------------------------------------------------
   Folds  
@@ -1473,7 +1602,9 @@ mapKeysMonotonic f (Bin sz k x l r) =
 -- > fold f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold f = foldWithKey (\_ x' z' -> f x' z')
-{-# INLINE fold #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fold #-}
+#endif
 
 -- | /O(n)/. Fold the keys and values in the map, such that
 -- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -1489,7 +1620,9 @@ fold f = foldWithKey (\_ x' z' -> f x' z')
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey = foldrWithKey
 {-# DEPRECATED foldWithKey "Use foldrWithKey instead" #-}
-{-# INLINE foldWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldWithKey #-}
+#endif
 
 -- | /O(n)/. Post-order fold.  The function will be applied from the lowest
 -- value to the highest.
@@ -1498,7 +1631,9 @@ foldrWithKey f = go
   where
     go z Tip              = z
     go z (Bin _ kx x l r) = go (f kx x (go z r)) l
-{-# INLINE foldrWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldrWithKey #-}
+#endif
 
 -- | /O(n)/. Pre-order fold.  The function will be applied from the highest
 -- value to the lowest.
@@ -1507,7 +1642,9 @@ foldlWithKey f = go
   where
     go z Tip              = z
     go z (Bin _ kx x l r) = go (f (go z l) kx x) r
-{-# INLINE foldlWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldlWithKey #-}
+#endif
 
 {-
 -- | /O(n)/. A strict version of 'foldlWithKey'.
@@ -1516,7 +1653,9 @@ foldlWithKey' f = go
   where
     go z Tip              = z
     go z (Bin _ kx x l r) = z `seq` go (f (go z l) kx x) r
-{-# INLINE foldlWithKey' #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldlWithKey' #-}
+#endif
 -}
 
 {--------------------------------------------------------------------
@@ -1531,6 +1670,9 @@ foldlWithKey' f = go
 elems :: Map k a -> [a]
 elems m
   = [x | (_,x) <- assocs m]
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE elems #-}
+#endif
 
 -- | /O(n)/. Return all keys of the map in ascending order.
 --
@@ -1540,6 +1682,9 @@ elems m
 keys  :: Map k a -> [k]
 keys m
   = [k | (k,_) <- assocs m]
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE keys  #-}
+#endif
 
 -- | /O(n)/. The set of all keys of the map.
 --
@@ -1548,6 +1693,9 @@ keys m
 
 keysSet :: Map k a -> Set.Set k
 keysSet m = Set.fromDistinctAscList (keys m)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE keysSet #-}
+#endif
 
 -- | /O(n)/. Return all key\/value pairs in the map in ascending key order.
 --
@@ -1557,7 +1705,9 @@ keysSet m = Set.fromDistinctAscList (keys m)
 assocs :: Map k a -> [(k,a)]
 assocs m
   = toList m
-{-# INLINE assocs #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE assocs #-}
+#endif
 
 {--------------------------------------------------------------------
   Lists 
@@ -1576,7 +1726,9 @@ fromList xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insert k x t
-{-# INLINE fromList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromList #-}
+#endif
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -1586,7 +1738,9 @@ fromList xs
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-{-# INLINE fromListWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromListWith #-}
+#endif
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
@@ -1599,7 +1753,9 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-{-# INLINE fromListWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromListWithKey #-}
+#endif
 
 -- | /O(n)/. Convert to a list of key\/value pairs.
 --
@@ -1608,7 +1764,9 @@ fromListWithKey f xs
 
 toList :: Map k a -> [(k,a)]
 toList t      = toAscList t
-{-# INLINE toList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE toList #-}
+#endif
 
 -- | /O(n)/. Convert to an ascending list.
 --
@@ -1616,12 +1774,16 @@ toList t      = toAscList t
 
 toAscList :: Map k a -> [(k,a)]
 toAscList t   = foldrWithKey (\k x xs -> (k,x):xs) [] t
-{-# INLINE toAscList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE toAscList #-}
+#endif
 
 -- | /O(n)/. Convert to a descending list.
 toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
-{-# INLINE toDescList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE toDescList #-}
+#endif
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1641,7 +1803,9 @@ toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 fromAscList :: Eq k => [(k,a)] -> Map k a 
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-{-# INLINE fromAscList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromAscList #-}
+#endif
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
@@ -1653,7 +1817,9 @@ fromAscList xs
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a 
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-{-# INLINE fromAscListWith #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromAscListWith #-}
+#endif
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
@@ -1679,7 +1845,9 @@ fromAscListWithKey f xs
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
     | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
-{-# INLINE fromAscListWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromAscListWithKey #-}
+#endif
 
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
@@ -1708,7 +1876,9 @@ fromDistinctAscList xs
     buildR n c l ((k,x):ys) = build (buildB l k x c) n ys
     buildR _ _ _ []         = error "fromDistinctAscList buildR []"
     buildB l k x c r zs     = c (bin k x l r) zs
-                      
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromDistinctAscList #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -1745,6 +1915,9 @@ trim NothingS   (JustS hi) t = lesser t  where lesser  (Bin _ k _ l _) | k >= hi
 trim (JustS lo) (JustS hi) t = middle t  where middle  (Bin _ k _ _ r) | k <= lo = middle  r
                                                middle  (Bin _ k _ l _) | k >= hi = middle  l
                                                middle  t = t
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE trim #-}
+#endif
 
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe (k,a), Map k a)
 trimLookupLo _  _  Tip = (Nothing, Tip)
@@ -1757,6 +1930,9 @@ trimLookupLo lo hi t@(Bin _ kx x l r)
       EQ -> (Just (kx,x),trim (JustS lo) hi r)
   where compare' _  NothingS   = LT
         compare' kx (JustS hi) = compare kx hi
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE trimLookupLo #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -1770,7 +1946,9 @@ filterGt (JustS b) t = filter' t
         filter' (Bin _ kx x l r) = case compare b kx of LT -> join kx x (filter' l) r
                                                         EQ -> r
                                                         GT -> filter' r
-{-# INLINE filterGt #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filterGt #-}
+#endif
 
 filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
 filterLt NothingS t = t
@@ -1779,7 +1957,9 @@ filterLt (JustS b) t = filter' t
         filter' (Bin _ kx x l r) = case compare kx b of LT -> join kx x l (filter' r)
                                                         EQ -> l
                                                         GT -> filter' l
-{-# INLINE filterLt #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filterLt #-}
+#endif
 
 {--------------------------------------------------------------------
   Split
@@ -1802,7 +1982,9 @@ split k = go
           LT -> let (lt,gt) = go l in (lt,join kx x gt r)
           GT -> let (lt,gt) = go r in (join kx x l lt,gt)
           EQ -> (l,r)
-{-# INLINE split #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE split #-}
+#endif
 
 -- | /O(log n)/. The expression (@'splitLookup' k map@) splits a map just
 -- like 'split' but also returns @'lookup' k map@.
@@ -1821,7 +2003,9 @@ splitLookup k = go
       LT -> let (lt,z,gt) = go l in (lt,z,join kx x gt r)
       GT -> let (lt,z,gt) = go r in (join kx x l lt,z,gt)
       EQ -> (l,Just x,r)
-{-# INLINE splitLookup #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE splitLookup #-}
+#endif
 
 -- | /O(log n)/.
 splitLookupWithKey :: Ord k => k -> Map k a -> (Map k a,Maybe (k,a),Map k a)
@@ -1832,7 +2016,9 @@ splitLookupWithKey k = go
       LT -> let (lt,z,gt) = go l in (lt,z,join kx x gt r)
       GT -> let (lt,z,gt) = go r in (join kx x l lt,z,gt)
       EQ -> (l,Just (kx, x),r)
-{-# INLINE splitLookupWithKey #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE splitLookupWithKey #-}
+#endif
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.
@@ -1873,6 +2059,9 @@ join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
   | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
   | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
   | otherwise            = bin kx x l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE join #-}
+#endif
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -1882,13 +2071,19 @@ insertMax kx x t
       Tip -> singleton kx x
       Bin _ ky y l r
           -> balanceR ky y l (insertMax kx x r)
-             
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertMax #-}
+#endif
+
 insertMin kx x t
   = case t of
       Tip -> singleton kx x
       Bin _ ky y l r
           -> balanceL ky y (insertMin kx x l) r
-             
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertMin #-}
+#endif
+
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
@@ -1899,6 +2094,9 @@ merge l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
   | delta*sizeL < sizeR = balanceL ky y (merge l ly) ry
   | delta*sizeR < sizeL = balanceR kx x lx (merge rx r)
   | otherwise           = glue l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE merge #-}
+#endif
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -1910,6 +2108,9 @@ glue l Tip = l
 glue l r   
   | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
   | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE glue #-}
+#endif
 
 
 -- | /O(log n)/. Delete and find the minimal element.
@@ -1923,6 +2124,9 @@ deleteFindMin t
       Bin _ k x Tip r -> ((k,x),r)
       Bin _ k x l r   -> let (km,l') = deleteFindMin l in (km,balanceR k x l' r)
       Tip             -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteFindMin #-}
+#endif
 
 -- | /O(log n)/. Delete and find the maximal element.
 --
@@ -1935,6 +2139,9 @@ deleteFindMax t
       Bin _ k x l Tip -> ((k,x),l)
       Bin _ k x l r   -> let (km,r') = deleteFindMax r in (km,balanceL k x l r')
       Tip             -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteFindMax #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -2034,6 +2241,7 @@ balance k x l r = case l of
                      | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
                      | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
               | otherwise -> Bin (1+ls+rs) k x l r
+{-# NOINLINE balance #-}
 
 -- Functions balanceL and balanceR are specialised versions of balance.
 -- balanceL only checks whether the left subtree is too big,
@@ -2061,6 +2269,7 @@ balanceL k x l r = case r of
                      | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
                      | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
               | otherwise -> Bin (1+ls+rs) k x l r
+{-# NOINLINE balanceL #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
@@ -2084,6 +2293,7 @@ balanceR k x l r = case l of
                      | rls < ratio*rrs -> Bin (1+ls+rs) rk rx (Bin (1+ls+rls) k x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlk rlx (Bin (1+ls+size rll) k x l rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
               | otherwise -> Bin (1+ls+rs) k x l r
+{-# NOINLINE balanceR #-}
 
 
 {--------------------------------------------------------------------
@@ -2092,6 +2302,9 @@ balanceR k x l r = case l of
 bin :: k -> a -> Map k a -> Map k a -> Map k a
 bin k x l r
   = Bin (size l + size r + 1) k x l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE bin #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -2299,6 +2512,6 @@ foldlStrict f = go
   where
     go z []     = z
     go z (x:xs) = z `seq` go (f z x) xs
-{-# INLINE foldlStrict #-}
-
-
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldlStrict #-}
+#endif

@@ -143,7 +143,9 @@ infixl 9 \\ --
 -- | /O(n+m)/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
-{-# INLINE (\\) #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE (\\) #-}
+#endif
 
 {--------------------------------------------------------------------
   Sets are size balanced trees
@@ -188,7 +190,9 @@ instance (Data a, Ord a) => Data (Set a) where
 null :: Set a -> Bool
 null Tip      = True
 null (Bin {}) = False
-{-# INLINE null #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE null #-}
+#endif
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
@@ -196,7 +200,9 @@ size = go
   where
     go Tip            = 0
     go (Bin sz _ _ _) = sz
-{-# INLINE size #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE size #-}
+#endif
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
@@ -220,12 +226,16 @@ notMember a t = not $ member a t
 -- | /O(1)/. The empty set.
 empty  :: Set a
 empty = Tip
-{-# INLINE empty #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE empty  #-}
+#endif
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
 singleton x = Bin 1 x Tip Tip
-{-# INLINE singleton #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE singleton #-}
+#endif
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -273,6 +283,9 @@ delete x = x `seq` go
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
     = (size s1 < size s2) && (isSubsetOf s1 s2)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isProperSubsetOf #-}
+#endif
 
 
 -- | /O(n+m)/. Is this a subset?
@@ -280,6 +293,9 @@ isProperSubsetOf s1 s2
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = (size t1 <= size t2) && (isSubsetOfX t1 t2)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isSubsetOf #-}
+#endif
 
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
 isSubsetOfX Tip _ = True
@@ -288,6 +304,9 @@ isSubsetOfX (Bin _ x l r) t
   = found && isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE isSubsetOfX #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -298,24 +317,36 @@ findMin :: Set a -> a
 findMin (Bin _ x Tip _) = x
 findMin (Bin _ _ l _)   = findMin l
 findMin Tip             = error "Set.findMin: empty set has no minimal element"
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findMin #-}
+#endif
 
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
 findMax (Bin _ x _ Tip)  = x
 findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE findMax #-}
+#endif
 
 -- | /O(log n)/. Delete the minimal element.
 deleteMin :: Set a -> Set a
 deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
 deleteMin Tip             = Tip
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteMin #-}
+#endif
 
 -- | /O(log n)/. Delete the maximal element.
 deleteMax :: Set a -> Set a
 deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
 deleteMax Tip             = Tip
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteMax #-}
+#endif
 
 {--------------------------------------------------------------------
   Union. 
@@ -323,7 +354,9 @@ deleteMax Tip             = Tip
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: Ord a => [Set a] -> Set a
 unions = foldlStrict union empty
-{-# INLINE unions #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE unions #-}
+#endif
 
 -- | /O(n+m)/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
@@ -335,7 +368,9 @@ union t1 Tip  = t1
 union (Bin _ x Tip Tip) t = insert x t
 union t (Bin _ x Tip Tip) = insertR x t
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
-{-# INLINE union #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE union #-}
+#endif
 
 hedgeUnion :: Ord a
            => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
@@ -348,6 +383,9 @@ hedgeUnion blo bhi (Bin _ x l r) t2
            (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where
     bmi = JustS x
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeUnion #-}
+#endif
 
 {--------------------------------------------------------------------
   Difference
@@ -358,7 +396,9 @@ difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-{-# INLINE difference #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE difference #-}
+#endif
 
 hedgeDiff :: Ord a
           => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
@@ -371,6 +411,9 @@ hedgeDiff blo bhi t (Bin _ x l r)
           (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where
     bmi = JustS x
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE hedgeDiff #-}
+#endif
 
 {--------------------------------------------------------------------
   Intersection
@@ -402,6 +445,9 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
             tr            = intersection r1 gt
         in if found then join x1 tl tr
            else merge tl tr
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE intersection #-}
+#endif
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -414,7 +460,9 @@ filter p = go
     go (Bin _ x l r)
         | p x       = join x (go l) (go r)
         | otherwise = merge (go l) (go r)
-{-# INLINE filter #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filter #-}
+#endif
 
 -- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
@@ -427,7 +475,9 @@ partition p = go
         ((l1, l2), (r1, r2))
             | p x       -> (join x l1 r1, merge l2 r2)
             | otherwise -> (merge l1 r1, join x l2 r2)
-{-# INLINE partition #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE partition #-}
+#endif
 
 {----------------------------------------------------------------------
   Map
@@ -441,7 +491,9 @@ partition p = go
 
 map :: (Ord a, Ord b) => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
-{-# INLINE map #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE map #-}
+#endif
 
 -- | /O(n)/. The 
 --
@@ -458,7 +510,9 @@ mapMonotonic f = go
   where
     go Tip = Tip
     go (Bin sz x l r) = Bin sz (f x) (go l) (go r)
-{-# INLINE mapMonotonic #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE mapMonotonic #-}
+#endif
 
 {--------------------------------------------------------------------
   Fold
@@ -466,7 +520,9 @@ mapMonotonic f = go
 -- | /O(n)/. Fold over the elements of a set in an unspecified order.
 fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
-{-# INLINE fold #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fold #-}
+#endif
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
@@ -474,7 +530,9 @@ foldr f = go
   where
     go z Tip           = z
     go z (Bin _ x l r) = go (f x (go z r)) l
-{-# INLINE foldr #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldr #-}
+#endif
 
 {--------------------------------------------------------------------
   List variations 
@@ -482,7 +540,9 @@ foldr f = go
 -- | /O(n)/. The elements of a set.
 elems :: Set a -> [a]
 elems = toList
-{-# INLINE elems #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE elems #-}
+#endif
 
 {--------------------------------------------------------------------
   Lists 
@@ -490,19 +550,25 @@ elems = toList
 -- | /O(n)/. Convert the set to a list of elements.
 toList :: Set a -> [a]
 toList = toAscList
-{-# INLINE toList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE toList #-}
+#endif
 
 -- | /O(n)/. Convert the set to an ascending list of elements.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
-{-# INLINE toAscList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE toAscList #-}
+#endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
 fromList :: Ord a => [a] -> Set a 
 fromList = foldlStrict ins empty
   where
     ins t x = insert x t
-{-# INLINE fromList #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromList #-}
+#endif
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -527,6 +593,9 @@ fromAscList xs
   combineEq' z (x:xs')
     | z==x      =   combineEq' z xs'
     | otherwise = z:combineEq' x xs'
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromAscList #-}
+#endif
 
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
@@ -550,6 +619,9 @@ fromDistinctAscList xs
     buildR n c l (x:ys) = build (buildB l x c) n ys
     buildR _ _ _ []     = error "fromDistinctAscList buildR []"
     buildB l x c r zs   = c (bin x l r) zs
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE fromDistinctAscList #-}
+#endif
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this 
@@ -632,6 +704,9 @@ trim NothingS   (JustS hx) t = lesser t  where lesser  (Bin _ x l _) | x >= hx =
 trim (JustS lx) (JustS hx) t = middle t  where middle  (Bin _ x _ r) | x <= lx = middle  r
                                                middle  (Bin _ x l _) | x >= hx = middle  l
                                                middle  t = t
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE trim #-}
+#endif
 
 {--------------------------------------------------------------------
   [filterGt b t] filter all values >[b] from tree [t]
@@ -644,8 +719,10 @@ filterGt (JustS b) t = filter' t
         filter' (Bin _ x l r) = case compare b x of LT -> join x (filter' l) r
                                                     EQ -> r
                                                     GT -> filter' r
-{-# INLINE filterGt #-}
-      
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filterGt #-}
+#endif
+
 filterLt :: Ord a => MaybeS a -> Set a -> Set a
 filterLt NothingS t = t
 filterLt (JustS b) t = filter' t
@@ -653,7 +730,9 @@ filterLt (JustS b) t = filter' t
         filter' (Bin _ x l r) = case compare x b of LT -> join x l (filter' r)
                                                     EQ -> l
                                                     GT -> filter' l
-{-# INLINE filterLt #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE filterLt #-}
+#endif
 
 {--------------------------------------------------------------------
   Split
@@ -668,12 +747,18 @@ split x (Bin _ y l r)
       LT -> let (lt,gt) = split x l in (lt,join y gt r)
       GT -> let (lt,gt) = split x r in (join y l lt,gt)
       EQ -> (l,r)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE split #-}
+#endif
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember x t = let (l,m,r) = splitLookup x t in
      (l,maybe False (const True) m,r)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE splitMember #-}
+#endif
 
 -- | /O(log n)/. Performs a 'split' but also returns the pivot
 -- element that was found in the original set.
@@ -684,6 +769,9 @@ splitLookup x (Bin _ y l r)
        LT -> let (lt,found,gt) = splitLookup x l in (lt,found,join y gt r)
        GT -> let (lt,found,gt) = splitLookup x r in (join y l lt,found,gt)
        EQ -> (l,Just y,r)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE splitLookup #-}
+#endif
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.
@@ -724,6 +812,9 @@ join x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
   | delta*sizeL < sizeR  = balanceL z (join x l lz) rz
   | delta*sizeR < sizeL  = balanceR y ly (join x ry r)
   | otherwise            = bin x l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE join #-}
+#endif
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -733,13 +824,19 @@ insertMax x t
       Tip -> singleton x
       Bin _ y l r
           -> balanceR y l (insertMax x r)
-             
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertMax #-}
+#endif
+
 insertMin x t
   = case t of
       Tip -> singleton x
       Bin _ y l r
           -> balanceL y (insertMin x l) r
-             
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertMin #-}
+#endif
+
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
 --------------------------------------------------------------------}
@@ -750,6 +847,9 @@ merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
   | delta*sizeL < sizeR = balanceL y (merge l ly) ry
   | delta*sizeR < sizeL = balanceR x lx (merge rx r)
   | otherwise           = glue l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE merge #-}
+#endif
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -761,6 +861,9 @@ glue l Tip = l
 glue l r   
   | size l > size r = let (m,l') = deleteFindMax l in balanceR m l' r
   | otherwise       = let (m,r') = deleteFindMin r in balanceL m l r'
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE glue #-}
+#endif
 
 
 -- | /O(log n)/. Delete and find the minimal element.
@@ -773,6 +876,9 @@ deleteFindMin t
       Bin _ x Tip r -> (x,r)
       Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balanceR x l' r)
       Tip           -> (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteFindMin #-}
+#endif
 
 -- | /O(log n)/. Delete and find the maximal element.
 -- 
@@ -783,18 +889,27 @@ deleteFindMax t
       Bin _ x l Tip -> (x,l)
       Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balanceL x l r')
       Tip           -> (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE deleteFindMax #-}
+#endif
 
 -- | /O(log n)/. Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
 minView x = Just (deleteFindMin x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE minView #-}
+#endif
 
 -- | /O(log n)/. Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
 maxView x = Just (deleteFindMax x)
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE maxView #-}
+#endif
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.
@@ -892,6 +1007,7 @@ balance x l r = case l of
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
               | otherwise -> Bin (1+ls+rs) x l r
+{-# NOINLINE balance #-}
 
 -- Functions balanceL and balanceR are specialised versions of balance.
 -- balanceL only checks whether the left subtree is too big,
@@ -919,6 +1035,7 @@ balanceL x l r = case r of
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
               | otherwise -> Bin (1+ls+rs) x l r
+{-# NOINLINE balanceL #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
@@ -942,6 +1059,7 @@ balanceR x l r = case l of
                      | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
               | otherwise -> Bin (1+ls+rs) x l r
+{-# NOINLINE balanceR #-}
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
@@ -949,6 +1067,9 @@ balanceR x l r = case l of
 bin :: a -> Set a -> Set a -> Set a
 bin x l r
   = Bin (size l + size r + 1) x l r
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE bin #-}
+#endif
 
 
 {--------------------------------------------------------------------
@@ -959,7 +1080,9 @@ foldlStrict f = go
   where
     go z []     = z
     go z (x:xs) = z `seq` go (f z x) xs
-{-# INLINE foldlStrict #-}
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldlStrict #-}
+#endif
 
 {--------------------------------------------------------------------
   Debugging
