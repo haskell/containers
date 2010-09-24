@@ -259,7 +259,7 @@ insertR :: Ord a => a -> Set a -> Set a
 insertR x = x `seq` go
   where
     go Tip = singleton x
-    go t@(Bin sz y l r) = case compare x y of
+    go t@(Bin _ y l r) = case compare x y of
         LT -> balanceL y (go l) r
         GT -> balanceR y l (go r)
         EQ -> t
@@ -698,12 +698,12 @@ data MaybeS a = NothingS | JustS !a
 trim :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a
 trim NothingS   NothingS   t = t
 trim (JustS lx) NothingS   t = greater t where greater (Bin _ x _ r) | x <= lx = greater r
-                                               greater t = t
+                                               greater t' = t'
 trim NothingS   (JustS hx) t = lesser t  where lesser  (Bin _ x l _) | x >= hx = lesser  l
-                                               lesser  t = t
+                                               lesser  t' = t'
 trim (JustS lx) (JustS hx) t = middle t  where middle  (Bin _ x _ r) | x <= lx = middle  r
                                                middle  (Bin _ x l _) | x >= hx = middle  l
-                                               middle  t = t
+                                               middle  t' = t'
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE trim #-}
 #endif
@@ -977,37 +977,9 @@ ratio = 2
 --   doubleR x1 (Bin _ x2 t1 (Bin _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
 --
 -- It is only written in such a way that every node is pattern-matched only once.
-
-balance :: a -> Set a -> Set a -> Set a
-balance x l r = case l of
-  Tip -> case r of
-           Tip -> Bin 1 x Tip Tip
-           r@(Bin rs rx Tip Tip) -> Bin 2 x Tip r
-           r@(Bin rs rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
-           r@(Bin rs rx rl@(Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
-           r@(Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs rrx rrl rrr))
-             | rls < ratio*rrs -> Bin (1+rs) rx (Bin (1+rls) x Tip rl) rr
-             | otherwise -> Bin (1+rs) rlx (Bin (1+size rll) x Tip rll) (Bin (1+rrs+size rlr) rx rlr rr)
-
-  l@(Bin ls lx ll lr) -> case r of
-           Tip -> case (ll, lr) of
-                    (Tip, Tip) -> Bin 2 x l Tip
-                    (Tip, lr@(Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
-                    (ll@(Bin _ _ _ _), Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
-                    (ll@(Bin lls llx lll llr), lr@(Bin lrs lrx lrl lrr))
-                      | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
-                      | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
-           r@(Bin rs rx rl rr)
-              | rs > delta*ls  -> case (rl, rr) of
-                   (Bin rls rlx rll rlr, Bin rrs rrx rrl rrr)
-                     | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
-                     | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
-              | ls > delta*rs  -> case (ll, lr) of
-                   (Bin lls llx lll llr, Bin lrs lrx lrl lrr)
-                     | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
-                     | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
-              | otherwise -> Bin (1+ls+rs) x l r
-{-# NOINLINE balance #-}
+--
+-- Only balanceL and balanceR are needed at the moment, so balance is not here anymore.
+-- In case it is needed, it can be found in Data.Map.
 
 -- Functions balanceL and balanceR are specialised versions of balance.
 -- balanceL only checks whether the left subtree is too big,
@@ -1019,21 +991,22 @@ balanceL :: a -> Set a -> Set a -> Set a
 balanceL x l r = case r of
   Tip -> case l of
            Tip -> Bin 1 x Tip Tip
-           l@(Bin ls lx Tip Tip) -> Bin 2 x l Tip
-           l@(Bin ls lx Tip lr@(Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
-           l@(Bin ls lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
-           l@(Bin ls lx ll@(Bin lls llx lll llr) lr@(Bin lrs lrx lrl lrr))
+           (Bin _ _ Tip Tip) -> Bin 2 x l Tip
+           (Bin _ lx Tip (Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
+           (Bin _ lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
+           (Bin ls lx ll@(Bin lls _ _ _) lr@(Bin lrs lrx lrl lrr))
              | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
              | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
 
-  r@(Bin rs rx rl rr) -> case l of
+  (Bin rs _ _ _) -> case l of
            Tip -> Bin (1+rs) x Tip r
 
-           l@(Bin ls lx ll lr)
+           (Bin ls lx ll lr)
               | ls > delta*rs  -> case (ll, lr) of
-                   (Bin lls llx lll llr, Bin lrs lrx lrl lrr)
+                   (Bin lls _ _ _, Bin lrs lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
+                   (_, _) -> error "Failure in Data.Map.balanceL"
               | otherwise -> Bin (1+ls+rs) x l r
 {-# NOINLINE balanceL #-}
 
@@ -1043,21 +1016,22 @@ balanceR :: a -> Set a -> Set a -> Set a
 balanceR x l r = case l of
   Tip -> case r of
            Tip -> Bin 1 x Tip Tip
-           r@(Bin rs rx Tip Tip) -> Bin 2 x Tip r
-           r@(Bin rs rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
-           r@(Bin rs rx rl@(Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
-           r@(Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs rrx rrl rrr))
+           (Bin _ _ Tip Tip) -> Bin 2 x Tip r
+           (Bin _ rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
+           (Bin _ rx (Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
+           (Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs _ _ _))
              | rls < ratio*rrs -> Bin (1+rs) rx (Bin (1+rls) x Tip rl) rr
              | otherwise -> Bin (1+rs) rlx (Bin (1+size rll) x Tip rll) (Bin (1+rrs+size rlr) rx rlr rr)
 
-  l@(Bin ls lx ll lr) -> case r of
+  (Bin ls _ _ _) -> case r of
            Tip -> Bin (1+ls) x l Tip
 
-           r@(Bin rs rx rl rr)
+           (Bin rs rx rl rr)
               | rs > delta*ls  -> case (rl, rr) of
-                   (Bin rls rlx rll rlr, Bin rrs rrx rrl rrr)
+                   (Bin rls rlx rll rlr, Bin rrs _ _ _)
                      | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
+                   (_, _) -> error "Failure in Data.Map.balanceR"
               | otherwise -> Bin (1+ls+rs) x l r
 {-# NOINLINE balanceR #-}
 
