@@ -240,7 +240,7 @@ shiftRL x i   = shiftR x i
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
 (!) :: IntMap a -> Key -> a
-m ! k    = find' k m
+m ! k    = find k m
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE (!) #-}
 #endif
@@ -354,34 +354,25 @@ notMember k m = not $ member k m
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 lookup :: Key -> IntMap a -> Maybe a
-lookup k t
-  = let nk = natFromInt k  in seq nk (lookupN nk t)
+lookup k = k `seq` go
+  where go (Bin _ m l r)
+          | zero k m  = go l
+          | otherwise = go r
+        go (Tip kx x)
+          | k == kx   = Just x
+          | otherwise = Nothing
+        go Nil        = Nothing
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE lookup #-}
 #endif
 
-lookupN :: Nat -> IntMap a -> Maybe a
-lookupN k t
-  = case t of
-      Bin _ m l r 
-        | zeroN k (natFromInt m) -> lookupN k l
-        | otherwise              -> lookupN k r
-      Tip kx x 
-        | (k == natFromInt kx)  -> Just x
-        | otherwise             -> Nothing
-      Nil -> Nothing
--- ^ inlining lookup doesn't seem to help.
-#if __GLASGOW_HASKELL__>= 700
-{-# INLINABLE lookupN #-}
-#endif
-
-find' :: Key -> IntMap a -> a
-find' k m
+find :: Key -> IntMap a -> a
+find k m
   = case lookup k m of
       Nothing -> error ("IntMap.find: key " ++ show k ++ " is not an element of the map")
       Just x  -> x
 #if __GLASGOW_HASKELL__>= 700
-{-# INLINABLE find' #-}
+{-# INLINABLE find #-}
 #endif
 
 -- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
@@ -440,16 +431,15 @@ singleton k x
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 insert :: Key -> a -> IntMap a -> IntMap a
-insert k x t
-  = case t of
-      Bin p m l r 
-        | nomatch k p m -> join k (Tip k x) p t
-        | zero k m      -> Bin p m (insert k x l) r
-        | otherwise     -> Bin p m l (insert k x r)
-      Tip ky _
-        | k==ky         -> Tip k x
-        | otherwise     -> join k (Tip k x) ky t
-      Nil -> Tip k x
+insert k x = k `seq` go
+  where go t@(Bin p m l r)
+          | nomatch k p m = join k (Tip k x) p t
+          | zero k m      = Bin p m (insert k x l) r
+          | otherwise     = Bin p m l (insert k x r)
+        go t@(Tip ky _)
+          | k==ky         = Tip k x
+          | otherwise     = join k (Tip k x) ky t
+        go Nil            = Tip k x
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insert #-}
 #endif
@@ -546,7 +536,7 @@ insertLookupWithKey f k x = k `seq` go
 -- > delete 5 empty                         == empty
 
 delete :: Key -> IntMap a -> IntMap a
-delete k = go
+delete k = k `seq` go
   where
       go t@(Bin p m l r)
         | nomatch k p m = t
@@ -617,7 +607,7 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f k = go
+updateWithKey f k = k `seq` go
   where
       go t@(Bin p m l r)
         | nomatch k p m = t
@@ -646,7 +636,7 @@ updateWithKey f k = go
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f k = go
+updateLookupWithKey f k = k `seq` go
   where
       go t@(Bin p m l r)
         | nomatch k p m = (Nothing,t)
@@ -1133,11 +1123,11 @@ findMin :: IntMap a -> (Int,a)
 findMin Nil = error $ "findMin: empty map has no minimal element"
 findMin (Tip k v) = (k,v)
 findMin (Bin _ m l r)
-  |   m < 0   = find r
-  | otherwise = find l
-    where find (Tip k v)      = (k,v)
-          find (Bin _ _ l' _) = find l'
-          find Nil            = error "findMax Nil"
+  |   m < 0   = go r
+  | otherwise = go l
+    where go (Tip k v)      = (k,v)
+          go (Bin _ _ l' _) = go l'
+          go Nil            = error "findMax Nil"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE findMin #-}
 #endif
@@ -1147,11 +1137,11 @@ findMax :: IntMap a -> (Int,a)
 findMax Nil = error $ "findMax: empty map has no maximal element"
 findMax (Tip k v) = (k,v)
 findMax (Bin _ m l r) 
-  |   m < 0   = find l
-  | otherwise = find r
-    where find (Tip k v)      = (k,v)
-          find (Bin _ _ _ r') = find r'
-          find Nil            = error "findMax Nil"
+  |   m < 0   = go l
+  | otherwise = go r
+    where go (Tip k v)      = (k,v)
+          go (Bin _ _ _ r') = go r'
+          go Nil            = error "findMax Nil"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE findMax #-}
 #endif
@@ -2063,12 +2053,6 @@ mask i m
 {-# INLINABLE mask #-}
 #endif
 
-
-zeroN :: Nat -> Nat -> Bool
-zeroN i m = (i .&. m) == 0
-#if __GLASGOW_HASKELL__>= 700
-{-# INLINABLE zeroN #-}
-#endif
 
 {--------------------------------------------------------------------
   Big endian operations  
