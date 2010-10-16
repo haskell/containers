@@ -1657,9 +1657,7 @@ mapKeysMonotonic f (Bin sz k x l r) =
 -- > fold f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold f = foldWithKey (\_ x' z' -> f x' z')
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fold #-}
-#endif
+{-# INLINE fold #-}
 
 -- | /O(n)/. Fold the keys and values in the map, such that
 -- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -1675,9 +1673,7 @@ fold f = foldWithKey (\_ x' z' -> f x' z')
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey = foldrWithKey
 {-# DEPRECATED foldWithKey "Use foldrWithKey instead" #-}
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldWithKey #-}
-#endif
+{-# INLINE foldWithKey #-}
 
 -- | /O(n)/. Post-order fold.  The function will be applied from the lowest
 -- value to the highest.
@@ -1686,9 +1682,7 @@ foldrWithKey = go
   where
     go f z Tip              = z
     go f z (Bin _ kx x l r) = go f (f kx x (go f z r)) l
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldrWithKey #-}
-#endif
+{-# INLINE foldrWithKey #-}
 
 -- | /O(n)/. Pre-order fold.  The function will be applied from the highest
 -- value to the lowest.
@@ -1697,9 +1691,7 @@ foldlWithKey = go
   where
     go f z Tip              = z
     go f z (Bin _ kx x l r) = go f (f (go f z l) kx x) r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldlWithKey #-}
-#endif
+{-# INLINE foldlWithKey #-}
 
 {-
 -- | /O(n)/. A strict version of 'foldlWithKey'.

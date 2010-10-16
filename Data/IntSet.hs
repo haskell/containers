@@ -751,24 +751,15 @@ map f = fromList . List.map f . toList
 fold :: (Int -> b -> b) -> b -> IntSet -> b
 fold f z t
   = case t of
-      Bin 0 m l r | m < 0 -> foldr f (foldr f z l) r  
-      -- put negative numbers before.
-      Bin _ _ _ _ -> foldr f z t
+      Bin 0 m l r | m < 0 -> go f (go f z l) r  -- put negative numbers before.
+      Bin _ _ _ _ -> go f z t
       Tip x       -> f x z
       Nil         -> z
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fold #-}
-#endif
-
-foldr :: (Int -> b -> b) -> b -> IntSet -> b
-foldr f z t
-  = case t of
-      Bin _ _ l r -> foldr f (foldr f z r) l
-      Tip x       -> f x z
-      Nil         -> z
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldr #-}
-#endif
+  where
+    go f z (Bin _ _ l r) = go f (go f z r) l
+    go f z (Tip x)       = f x z
+    go f z Nil           = z
+{-# INLINE fold #-}
 
 {--------------------------------------------------------------------
   List variations 

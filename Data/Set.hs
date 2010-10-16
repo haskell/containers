@@ -537,9 +537,7 @@ mapMonotonic f = go
 -- | /O(n)/. Fold over the elements of a set in an unspecified order.
 fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fold #-}
-#endif
+{-# INLINE fold #-}
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
@@ -547,9 +545,7 @@ foldr = go
   where
     go f z Tip           = z
     go f z (Bin _ x l r) = go f (f x (go f z r)) l
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldr #-}
-#endif
+{-# INLINE foldr #-}
 
 {--------------------------------------------------------------------
   List variations 

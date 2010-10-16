@@ -1592,9 +1592,7 @@ splitLookup' k t
 
 fold :: (a -> b -> b) -> b -> IntMap a -> b
 fold f = foldWithKey (\_ x y -> f x y)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fold #-}
-#endif
+{-# INLINE fold #-}
 
 -- | /O(n)/. Fold the keys and values in the map, such that
 -- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -1608,30 +1606,21 @@ fold f = foldWithKey (\_ x y -> f x y)
 foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey
   = foldr
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldWithKey #-}
-#endif
+{-# INLINE foldWithKey #-}
 
 foldr :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldr f z t
   = case t of
-      Bin 0 m l r | m < 0 -> foldr' f (foldr' f z l) r  -- put negative numbers before.
-      Bin _ _ _ _ -> foldr' f z t
+      Bin 0 m l r | m < 0 -> go f (go f z l) r  -- put negative numbers before.
+      Bin _ _ _ _ -> go f z t
       Tip k x     -> f k x z
       Nil         -> z
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldr #-}
-#endif
-
-foldr' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldr' = go
   where
     go f z (Bin _ _ l r) = go f (go f z r) l
     go f z (Tip k x)     = f k x z
     go f z Nil           = z
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldr' #-}
-#endif
+{-# INLINE foldr #-}
+
 
 {--------------------------------------------------------------------
   List variations 
