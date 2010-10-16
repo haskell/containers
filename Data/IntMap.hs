@@ -315,7 +315,7 @@ instance Data a => Data (IntMap a) where
 null :: IntMap a -> Bool
 null Nil = True
 null _   = False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE null #-}
 #endif
 
@@ -330,7 +330,7 @@ size t
       Bin _ _ l r -> size l + size r
       Tip _ _ -> 1
       Nil     -> 0
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE size #-}
 #endif
 
@@ -344,7 +344,7 @@ member k m
   = case lookup k m of
       Nothing -> False
       Just _  -> True
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
 #endif
 
@@ -355,7 +355,7 @@ member k m
 
 notMember :: Key -> IntMap a -> Bool
 notMember k m = not $ member k m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE notMember #-}
 #endif
 
@@ -370,7 +370,7 @@ lookup = go
           | k == kx   = Just x
           | otherwise = Nothing
         go k Nil      = Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookup #-}
 #endif
 
@@ -379,7 +379,7 @@ find k m
   = case lookup k m of
       Nothing -> error ("IntMap.find: key " ++ show k ++ " is not an element of the map")
       Just x  -> x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE find #-}
 #endif
 
@@ -395,7 +395,7 @@ findWithDefault def k m
   = case lookup k m of
       Nothing -> def
       Just x  -> x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findWithDefault #-}
 #endif
 
@@ -410,7 +410,7 @@ findWithDefault def k m
 empty :: IntMap a
 empty
   = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE empty #-}
 #endif
 
@@ -422,7 +422,7 @@ empty
 singleton :: Key -> a -> IntMap a
 singleton k x
   = Tip k x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE singleton #-}
 #endif
 
@@ -449,7 +449,7 @@ insert = go
           | k==ky         = Tip k x
           | otherwise     = join k (Tip k x) ky t
         go k x Nil            = Tip k x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insert #-}
 #endif
 
@@ -467,7 +467,7 @@ insert = go
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith f k x t
   = insertWithKey (\_ x' y' -> f x' y') k x t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWith #-}
 #endif
 
@@ -496,7 +496,7 @@ insertWithKey = go
         | otherwise     = join k (Tip k x) ky t
 
     go _ k x Nil = Tip k x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWithKey #-}
 #endif
 
@@ -530,7 +530,7 @@ insertLookupWithKey = go
         | otherwise     = (Nothing,join k (Tip k x) ky t)
 
       go _ k x Nil = (Nothing,Tip k x)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertLookupWithKey #-}
 #endif
 
@@ -560,7 +560,7 @@ delete = go
         | otherwise     = t
 
       go _ Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE delete #-}
 #endif
 
@@ -574,7 +574,7 @@ delete = go
 adjust ::  (a -> a) -> Key -> IntMap a -> IntMap a
 adjust f k m
   = adjustWithKey (\_ x -> f x) k m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE adjust #-}
 #endif
 
@@ -589,7 +589,7 @@ adjust f k m
 adjustWithKey ::  (Key -> a -> a) -> Key -> IntMap a -> IntMap a
 adjustWithKey f
   = updateWithKey (\k' x -> Just (f k' x))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE adjustWithKey #-}
 #endif
 
@@ -605,7 +605,7 @@ adjustWithKey f
 update ::  (a -> Maybe a) -> Key -> IntMap a -> IntMap a
 update f
   = updateWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE update #-}
 #endif
 
@@ -634,7 +634,7 @@ updateWithKey = go
         | otherwise     = t
 
       go _ _ Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateWithKey #-}
 #endif
 
@@ -664,7 +664,7 @@ updateLookupWithKey = go
         | otherwise     = (Nothing,t)
 
       go _ _ Nil = (Nothing,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #endif
 
@@ -694,7 +694,7 @@ alter = go
     go f k Nil              = case f Nothing of
                              Just x -> Tip k x
                              Nothing -> Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE alter #-}
 #endif
 
@@ -712,7 +712,7 @@ alter = go
 unions :: [IntMap a] -> IntMap a
 unions xs
   = foldlStrict union empty xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unions #-}
 #endif
 
@@ -724,7 +724,7 @@ unions xs
 unionsWith :: (a->a->a) -> [IntMap a] -> IntMap a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unionsWith #-}
 #endif
 
@@ -753,7 +753,7 @@ union (Tip k x) t = insert k x t
 union t (Tip k x) = insertWith (\_ y -> y) k x t  -- right bias
 union Nil t       = t
 union t Nil       = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
 #endif
 
@@ -764,7 +764,7 @@ union t Nil       = t
 unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unionWith #-}
 #endif
 
@@ -792,7 +792,7 @@ unionWithKey f (Tip k x) t = insertWithKey f k x t
 unionWithKey f t (Tip k x) = insertWithKey (\k' x' y' -> f k' y' x') k x t  -- right bias
 unionWithKey _ Nil t  = t
 unionWithKey _ t Nil  = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unionWithKey #-}
 #endif
 
@@ -825,7 +825,7 @@ difference t1@(Tip k _) t2
 difference Nil _       = Nil
 difference t (Tip k _) = delete k t
 difference t Nil       = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE difference #-}
 #endif
 
@@ -838,7 +838,7 @@ difference t Nil       = t
 differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE differenceWith #-}
 #endif
 
@@ -876,7 +876,7 @@ differenceWithKey f t1@(Tip k x) t2
 differenceWithKey _ Nil _       = Nil
 differenceWithKey f t (Tip k y) = updateWithKey (\k' x -> f k' x y) k t
 differenceWithKey _ t Nil       = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE differenceWithKey #-}
 #endif
 
@@ -912,7 +912,7 @@ intersection t (Tip k _)
       Nothing -> Nil
 intersection Nil _ = Nil
 intersection _ Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
 #endif
 
@@ -923,7 +923,7 @@ intersection _ Nil = Nil
 intersectionWith :: (a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersectionWith #-}
 #endif
 
@@ -957,7 +957,7 @@ intersectionWithKey f t1 (Tip k y)
       Nothing -> Nil
 intersectionWithKey _ Nil _ = Nil
 intersectionWithKey _ _ Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersectionWithKey #-}
 #endif
 
@@ -978,7 +978,7 @@ updateMinWithKey = go
      go f (Bin p m l r)         = let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
      go f (Tip k y) = Tip k (f k y)
      go f Nil       = error "maxView: empty map has no maximal element"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMinWithKey #-}
 #endif
 
@@ -988,7 +988,7 @@ updateMinWithKeyUnsigned = go
      go f (Bin p m l r) = let t' = go f l in Bin p m t' r
      go f (Tip k y)     = Tip k (f k y)
      go f Nil           = error "updateMinWithKeyUnsigned Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMinWithKeyUnsigned #-}
 #endif
 
@@ -1004,7 +1004,7 @@ updateMaxWithKey = go
     go f (Bin p m l r)         = let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
     go f (Tip k y)        = Tip k (f k y)
     go f Nil              = error "maxView: empty map has no maximal element"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMaxWithKey #-}
 #endif
 
@@ -1014,7 +1014,7 @@ updateMaxWithKeyUnsigned = go
     go f (Bin p m l r) = let t' = go f r in Bin p m l t'
     go f (Tip k y)     = Tip k (f k y)
     go f Nil           = error "updateMaxWithKeyUnsigned Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMaxWithKeyUnsigned #-}
 #endif
 
@@ -1032,7 +1032,7 @@ maxViewWithKey t
         Bin p m l r         -> let (result, t') = maxViewUnsigned r in Just (result, bin p m l t')
         Tip k y -> Just ((k,y), Nil)
         Nil -> Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maxViewWithKey #-}
 #endif
 
@@ -1059,7 +1059,7 @@ minViewWithKey t
         Bin p m l r         -> let (result, t') = minViewUnsigned l in Just (result, bin p m t' r)
         Tip k y -> Just ((k,y),Nil)
         Nil -> Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE minViewWithKey #-}
 #endif
 
@@ -1069,7 +1069,7 @@ minViewUnsigned t
         Bin p m l r -> let (result,t') = minViewUnsigned l in (result,bin p m t' r)
         Tip k y -> ((k,y),Nil)
         Nil -> error "minViewUnsigned Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE minViewUnsigned #-}
 #endif
 
@@ -1081,7 +1081,7 @@ minViewUnsigned t
 
 updateMax :: (a -> a) -> IntMap a -> IntMap a
 updateMax f = updateMaxWithKey (const f)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMax #-}
 #endif
 
@@ -1092,14 +1092,14 @@ updateMax f = updateMaxWithKey (const f)
 
 updateMin :: (a -> a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMin #-}
 #endif
 
 -- Similar to the Arrow instance.
 first :: (a -> c) -> (a, b) -> (c, b)
 first f (x,y) = (f x,y)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE first #-}
 #endif
 
@@ -1107,7 +1107,7 @@ first f (x,y) = (f x,y)
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
 maxView t = liftM (first snd) (maxViewWithKey t)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maxView #-}
 #endif
 
@@ -1115,21 +1115,21 @@ maxView t = liftM (first snd) (maxViewWithKey t)
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE minView #-}
 #endif
 
 -- | /O(log n)/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> (a, IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteFindMax #-}
 #endif
 
 -- | /O(log n)/. Delete and find the minimal element.
 deleteFindMin :: IntMap a -> (a, IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteFindMin #-}
 #endif
 
@@ -1143,7 +1143,7 @@ findMin (Bin _ m l r)
     where go (Tip k v)      = (k,v)
           go (Bin _ _ l' _) = go l'
           go Nil            = error "findMax Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findMin #-}
 #endif
 
@@ -1157,7 +1157,7 @@ findMax (Bin _ m l r)
     where go (Tip k v)      = (k,v)
           go (Bin _ _ _ r') = go r'
           go Nil            = error "findMax Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findMax #-}
 #endif
 
@@ -1165,7 +1165,7 @@ findMax (Bin _ m l r)
 -- Note, this is not the same behavior Map.
 deleteMin :: IntMap a -> IntMap a
 deleteMin = maybe (error "deleteMin: empty map has no minimal element") snd . minView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteMin #-}
 #endif
 
@@ -1173,7 +1173,7 @@ deleteMin = maybe (error "deleteMin: empty map has no minimal element") snd . mi
 -- Note, this is not the same behavior Map.
 deleteMax :: IntMap a -> IntMap a
 deleteMax = maybe (error "deleteMax: empty map has no maximal element") snd . maxView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteMax #-}
 #endif
 
@@ -1186,7 +1186,7 @@ deleteMax = maybe (error "deleteMax: empty map has no maximal element") snd . ma
 isProperSubmapOf :: Eq a => IntMap a -> IntMap a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isProperSubmapOf #-}
 #endif
 
@@ -1211,7 +1211,7 @@ isProperSubmapOfBy predicate t1 t2
   = case submapCmp predicate t1 t2 of
       LT -> True
       _  -> False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isProperSubmapOfBy #-}
 #endif
 
@@ -1241,7 +1241,7 @@ submapCmp predicate (Tip k x) t
      _                      -> GT -- disjoint
 submapCmp _    Nil Nil = EQ
 submapCmp _    Nil _   = LT
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE submapCmp #-}
 #endif
 
@@ -1250,7 +1250,7 @@ submapCmp _    Nil _   = LT
 isSubmapOf :: Eq a => IntMap a -> IntMap a -> Bool
 isSubmapOf m1 m2
   = isSubmapOfBy (==) m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isSubmapOf #-}
 #endif
 
@@ -1281,7 +1281,7 @@ isSubmapOfBy predicate (Tip k x) t     = case lookup k t of
                                          Just y  -> predicate x y
                                          Nothing -> False
 isSubmapOfBy _         Nil _           = True
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isSubmapOfBy #-}
 #endif
 
@@ -1294,7 +1294,7 @@ isSubmapOfBy _         Nil _           = True
 
 map :: (a -> b) -> IntMap a -> IntMap b
 map f = mapWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE map #-}
 #endif
 
@@ -1309,7 +1309,7 @@ mapWithKey = go
    go f (Bin p m l r) = Bin p m (go f l) (go f r)
    go f (Tip k x)     = Tip k (f k x)
    go f Nil           = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapWithKey #-}
 #endif
 
@@ -1321,7 +1321,7 @@ mapWithKey = go
 
 mapAccum :: (a -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccum f = mapAccumWithKey (\a' _ x -> f a' x)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccum #-}
 #endif
 
@@ -1334,7 +1334,7 @@ mapAccum f = mapAccumWithKey (\a' _ x -> f a' x)
 mapAccumWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumWithKey f a t
   = mapAccumL f a t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumWithKey #-}
 #endif
 
@@ -1348,7 +1348,7 @@ mapAccumL f a t
                      in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumL #-}
 #endif
 
@@ -1362,7 +1362,7 @@ mapAccumRWithKey f a t
                      in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumRWithKey #-}
 #endif
 
@@ -1378,7 +1378,7 @@ mapAccumRWithKey f a t
 filter :: (a -> Bool) -> IntMap a -> IntMap a
 filter p m
   = filterWithKey (\_ x -> p x) m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filter #-}
 #endif
 
@@ -1394,7 +1394,7 @@ filterWithKey = go
         | p k x      = t
         | otherwise  = Nil
     go p Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filterWithKey #-}
 #endif
 
@@ -1409,7 +1409,7 @@ filterWithKey = go
 partition :: (a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
 partition p m
   = partitionWithKey (\_ x -> p x) m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE partition #-}
 #endif
 
@@ -1432,7 +1432,7 @@ partitionWithKey predicate t
         | predicate k x -> (t,Nil)
         | otherwise     -> (Nil,t)
       Nil -> (Nil,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE partitionWithKey #-}
 #endif
 
@@ -1443,7 +1443,7 @@ partitionWithKey predicate t
 
 mapMaybe :: (a -> Maybe b) -> IntMap a -> IntMap b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMaybe #-}
 #endif
 
@@ -1460,7 +1460,7 @@ mapMaybeWithKey = go
                           Just y  -> Tip k y
                           Nothing -> Nil
     go f Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMaybeWithKey #-}
 #endif
 
@@ -1476,7 +1476,7 @@ mapMaybeWithKey = go
 mapEither :: (a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
 mapEither f m
   = mapEitherWithKey (\_ x -> f x) m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapEither #-}
 #endif
 
@@ -1499,7 +1499,7 @@ mapEitherWithKey f (Tip k x) = case f k x of
   Left y  -> (Tip k y, Nil)
   Right z -> (Nil, Tip k z)
 mapEitherWithKey _ Nil = (Nil, Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapEitherWithKey #-}
 #endif
 
@@ -1526,7 +1526,7 @@ split k t
         | k<ky      -> (Nil,t)
         | otherwise -> (Nil,Nil)
       Nil -> (Nil,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
 
@@ -1542,7 +1542,7 @@ split' k t
         | k<ky      -> (Nil,t)
         | otherwise -> (Nil,Nil)
       Nil -> (Nil,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split' #-}
 #endif
 
@@ -1568,7 +1568,7 @@ splitLookup k t
         | k<ky      -> (Nil,Nothing,t)
         | otherwise -> (Nil,Just y,Nil)
       Nil -> (Nil,Nothing,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup #-}
 #endif
 
@@ -1584,7 +1584,7 @@ splitLookup' k t
         | k<ky      -> (Nil,Nothing,t)
         | otherwise -> (Nil,Just y,Nil)
       Nil -> (Nil,Nothing,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup' #-}
 #endif
 
@@ -1602,7 +1602,7 @@ splitLookup' k t
 
 fold :: (a -> b -> b) -> b -> IntMap a -> b
 fold f = foldWithKey (\_ x y -> f x y)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fold #-}
 #endif
 
@@ -1618,7 +1618,7 @@ fold f = foldWithKey (\_ x y -> f x y)
 foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey
   = foldr
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldWithKey #-}
 #endif
 
@@ -1629,7 +1629,7 @@ foldr f z t
       Bin _ _ _ _ -> foldr' f z t
       Tip k x     -> f k x z
       Nil         -> z
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldr #-}
 #endif
 
@@ -1639,7 +1639,7 @@ foldr' = go
     go f z (Bin _ _ l r) = go f (go f z r) l
     go f z (Tip k x)     = f k x z
     go f z Nil           = z
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldr' #-}
 #endif
 
@@ -1655,7 +1655,7 @@ foldr' = go
 elems :: IntMap a -> [a]
 elems
   = foldWithKey (\_ x xs -> x:xs) []
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE elems #-}
 #endif
 
@@ -1667,7 +1667,7 @@ elems
 keys  :: IntMap a -> [Key]
 keys
   = foldWithKey (\k _ ks -> k:ks) []
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE keys  #-}
 #endif
 
@@ -1678,7 +1678,7 @@ keys
 
 keysSet :: IntMap a -> IntSet.IntSet
 keysSet m = IntSet.fromDistinctAscList (keys m)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE keysSet #-}
 #endif
 
@@ -1691,7 +1691,7 @@ keysSet m = IntSet.fromDistinctAscList (keys m)
 assocs :: IntMap a -> [(Key,a)]
 assocs m
   = toList m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE assocs #-}
 #endif
 
@@ -1707,7 +1707,7 @@ assocs m
 toList :: IntMap a -> [(Key,a)]
 toList
   = foldWithKey (\k x xs -> (k,x):xs) []
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toList #-}
 #endif
 
@@ -1720,7 +1720,7 @@ toAscList :: IntMap a -> [(Key,a)]
 toAscList t   
   = -- NOTE: the following algorithm only works for big-endian trees
     let (pos,neg) = span (\(k,_) -> k >=0) (foldr (\k x xs -> (k,x):xs) [] t) in neg ++ pos
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toAscList #-}
 #endif
 
@@ -1735,7 +1735,7 @@ fromList xs
   = foldlStrict ins empty xs
   where
     ins t (k,x)  = insert k x t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
 
@@ -1747,7 +1747,7 @@ fromList xs
 fromListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a 
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromListWith #-}
 #endif
 
@@ -1761,7 +1761,7 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromListWithKey #-}
 #endif
 
@@ -1774,7 +1774,7 @@ fromListWithKey f xs
 fromAscList :: [(Key,a)] -> IntMap a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromAscList #-}
 #endif
 
@@ -1787,7 +1787,7 @@ fromAscList xs
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromAscListWith #-}
 #endif
 
@@ -1806,7 +1806,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
     combineEq z@(kz,zz) (x@(kx,xx):xs)
       | kx==kz    = let yy = f kx xx zz in combineEq (kx,yy) xs
       | otherwise = z:combineEq x xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromAscListWithKey #-}
 #endif
 
@@ -1842,7 +1842,7 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
     finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
         where m = branchMask px py
               p = mask px m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromDistinctAscList #-}
 #endif
 
@@ -1863,7 +1863,7 @@ equal (Tip kx x) (Tip ky y)
   = (kx == ky) && (x==y)
 equal Nil Nil = True
 equal _   _   = False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE equal #-}
 #endif
 
@@ -1874,7 +1874,7 @@ nequal (Tip kx x) (Tip ky y)
   = (kx /= ky) || (x/=y)
 nequal Nil Nil = False
 nequal _   _   = True
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE nequal #-}
 #endif
 
@@ -2022,7 +2022,7 @@ join p1 t1 p2 t2
   where
     m = branchMask p1 p2
     p = mask p1 m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE join #-}
 #endif
 
@@ -2033,7 +2033,7 @@ bin :: Prefix -> Mask -> IntMap a -> IntMap a -> IntMap a
 bin _ _ l Nil = l
 bin _ _ Nil r = r
 bin p m l r   = Bin p m l r
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE bin #-}
 #endif
 
@@ -2044,27 +2044,27 @@ bin p m l r   = Bin p m l r
 zero :: Key -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE zero #-}
 #endif
 
 nomatch,match :: Key -> Prefix -> Mask -> Bool
 nomatch i p m
   = (mask i m) /= p
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE nomatch #-}
 #endif
 
 match i p m
   = (mask i m) == p
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE match #-}
 #endif
 
 mask :: Key -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mask #-}
 #endif
 
@@ -2075,21 +2075,21 @@ mask i m
 maskW :: Nat -> Nat -> Prefix
 maskW i m
   = intFromNat (i .&. (complement (m-1) `xor` m))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maskW #-}
 #endif
 
 shorter :: Mask -> Mask -> Bool
 shorter m1 m2
   = (natFromInt m1) > (natFromInt m2)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE shorter #-}
 #endif
 
 branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE branchMask #-}
 #endif
 
@@ -2144,7 +2144,7 @@ highestBitMask x0
         x4 -> case (x4 .|. shiftRL x4 16) of
          x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
           x6 -> (x6 `xor` (shiftRL x6 1))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE highestBitMask #-}
 #endif
 
@@ -2159,6 +2159,6 @@ foldlStrict = go
     STRICT23(go)
     go f z []     = z
     go f z (x:xs) = go f (f z x) xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldlStrict #-}
 #endif

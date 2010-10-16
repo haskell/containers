@@ -144,13 +144,13 @@ type Nat = Word
 
 natFromInt :: Int -> Nat
 natFromInt i = fromIntegral i
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE natFromInt #-}
 #endif
 
 intFromNat :: Nat -> Int
 intFromNat w = fromIntegral w
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intFromNat #-}
 #endif
 
@@ -164,7 +164,7 @@ shiftRL (W# x) (I# i)
 #else
 shiftRL x i   = shiftR x i
 #endif
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE shiftRL #-}
 #endif
 
@@ -174,7 +174,7 @@ shiftRL x i   = shiftR x i
 -- | /O(n+m)/. See 'difference'.
 (\\) :: IntSet -> IntSet -> IntSet
 m1 \\ m2 = difference m1 m2
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE (\\) #-}
 #endif
 
@@ -226,7 +226,7 @@ instance Data IntSet where
 null :: IntSet -> Bool
 null Nil = True
 null _   = False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE null #-}
 #endif
 
@@ -237,7 +237,7 @@ size t
       Bin _ _ l r -> size l + size r
       Tip _ -> 1
       Nil   -> 0
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE size #-}
 #endif
 
@@ -251,14 +251,14 @@ member = go
           | otherwise     = go x r
         go x (Tip y) = x == y
         go _ Nil = False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
 #endif
 
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Int -> IntSet -> Bool
 notMember k = not . member k
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE notMember #-}
 #endif
 
@@ -273,7 +273,7 @@ lookup = go
           | k == kx   = Just kx
           | otherwise = Nothing
         go _ Nil = Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookup #-}
 #endif
 
@@ -284,7 +284,7 @@ lookup = go
 empty :: IntSet
 empty
   = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE empty #-}
 #endif
 
@@ -292,7 +292,7 @@ empty
 singleton :: Int -> IntSet
 singleton x
   = Tip x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE singleton #-}
 #endif
 
@@ -313,7 +313,7 @@ insert = go
           | x==y          = Tip x
           | otherwise     = join x (Tip x) y t
         go x Nil            = Tip x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insert #-}
 #endif
 
@@ -329,7 +329,7 @@ insertR = go
           | x==y          = t
           | otherwise     = join x (Tip x) y t
         go x Nil            = Tip x
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertR #-}
 #endif
 
@@ -346,7 +346,7 @@ delete = go
           | x==y          = Nil
           | otherwise     = t
         go _ t@Nil          = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE delete #-}
 #endif
 
@@ -357,7 +357,7 @@ delete = go
 unions :: [IntSet] -> IntSet
 unions xs
   = foldlStrict union empty xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE unions #-}
 #endif
 
@@ -382,7 +382,7 @@ union (Tip x) t = insert x t
 union t (Tip x) = insertR x t  -- right bias
 union Nil t     = t
 union t Nil     = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
 #endif
 
@@ -413,7 +413,7 @@ difference t1@(Tip x) t2
 difference Nil _     = Nil
 difference t (Tip x) = delete x t
 difference t Nil     = t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE difference #-}
 #endif
 
@@ -447,7 +447,7 @@ intersection t (Tip x)
       Nothing -> Nil
 intersection Nil _ = Nil
 intersection _ Nil = Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
 #endif
 
@@ -462,7 +462,7 @@ isProperSubsetOf t1 t2
   = case subsetCmp t1 t2 of 
       LT -> True
       _  -> False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isProperSubsetOf #-}
 #endif
 
@@ -493,7 +493,7 @@ subsetCmp (Tip x) t
   | otherwise  = GT  -- disjoint
 subsetCmp Nil Nil = EQ
 subsetCmp Nil _   = LT
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE subsetCmp #-}
 #endif
 
@@ -509,7 +509,7 @@ isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
 isSubsetOf (Bin _ _ _ _) _  = False
 isSubsetOf (Tip x) t        = member x t
 isSubsetOf Nil _            = True
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE isSubsetOf #-}
 #endif
 
@@ -527,7 +527,7 @@ filter predicate t
         | predicate x -> t
         | otherwise   -> Nil
       Nil -> Nil
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filter #-}
 #endif
 
@@ -543,7 +543,7 @@ partition predicate t
         | predicate x -> (t,Nil)
         | otherwise   -> (Nil,t)
       Nil -> (Nil,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE partition #-}
 #endif
 
@@ -566,7 +566,7 @@ split x t
         | x<y         -> (Nil,t)
         | otherwise   -> (Nil,Nil)
       Nil             -> (Nil, Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
 
@@ -583,7 +583,7 @@ split' x t
         | x<y       -> (Nil,t)
         | otherwise -> (Nil,Nil)
       Nil -> (Nil,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split' #-}
 #endif
 
@@ -602,7 +602,7 @@ splitMember x t
         | x<y       -> (Nil,False,t)
         | otherwise -> (Nil,True,Nil)
       Nil -> (Nil,False,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember #-}
 #endif
 
@@ -619,7 +619,7 @@ splitMember' x t
         | x<y       -> (Nil,False,t)
         | otherwise -> (Nil,True,Nil)
       Nil -> (Nil,False,Nil)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember' #-}
 #endif
 
@@ -636,7 +636,7 @@ maxView t
         Bin p m l r         -> let (result,t') = maxViewUnsigned r in Just (result, bin p m l t')            
         Tip y -> Just (y,Nil)
         Nil -> Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maxView #-}
 #endif
 
@@ -646,7 +646,7 @@ maxViewUnsigned t
         Bin p m l r -> let (result,t') = maxViewUnsigned r in (result, bin p m l t')
         Tip y -> (y, Nil)
         Nil -> error "maxViewUnsigned Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maxViewUnsigned #-}
 #endif
 
@@ -659,7 +659,7 @@ minView t
         Bin p m l r         -> let (result,t') = minViewUnsigned l in Just (result, bin p m t' r)
         Tip y -> Just (y, Nil)
         Nil -> Nothing
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE minView #-}
 #endif
 
@@ -669,7 +669,7 @@ minViewUnsigned t
         Bin p m l r -> let (result,t') = minViewUnsigned l in (result, bin p m t' r)
         Tip y -> (y, Nil)
         Nil -> error "minViewUnsigned Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE minViewUnsigned #-}
 #endif
 
@@ -678,7 +678,7 @@ minViewUnsigned t
 -- > deleteFindMin set = (findMin set, deleteMin set)
 deleteFindMin :: IntSet -> (Int, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteFindMin #-}
 #endif
 
@@ -687,7 +687,7 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: IntSet -> (Int, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteFindMax #-}
 #endif
 
@@ -702,7 +702,7 @@ findMin (Bin _ m l r)
     where find (Tip x)        = x
           find (Bin _ _ l' _) = find l'
           find Nil            = error "findMin Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findMin #-}
 #endif
 
@@ -716,7 +716,7 @@ findMax (Bin _ m l r)
     where find (Tip x)        = x
           find (Bin _ _ _ r') = find r'
           find Nil            = error "findMax Nil"
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findMax #-}
 #endif
 
@@ -724,14 +724,14 @@ findMax (Bin _ m l r)
 -- | /O(min(n,W))/. Delete the minimal element.
 deleteMin :: IntSet -> IntSet
 deleteMin = maybe (error "deleteMin: empty set has no minimal element") snd . minView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteMin #-}
 #endif
 
 -- | /O(min(n,W))/. Delete the maximal element.
 deleteMax :: IntSet -> IntSet
 deleteMax = maybe (error "deleteMax: empty set has no maximal element") snd . maxView
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE deleteMax #-}
 #endif
 
@@ -747,7 +747,7 @@ deleteMax = maybe (error "deleteMax: empty set has no maximal element") snd . ma
 
 map :: (Int->Int) -> IntSet -> IntSet
 map f = fromList . List.map f . toList
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE map #-}
 #endif
 
@@ -766,7 +766,7 @@ fold f z t
       Bin _ _ _ _ -> foldr f z t
       Tip x       -> f x z
       Nil         -> z
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fold #-}
 #endif
 
@@ -776,7 +776,7 @@ foldr f z t
       Bin _ _ l r -> foldr f (foldr f z r) l
       Tip x       -> f x z
       Nil         -> z
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldr #-}
 #endif
 
@@ -787,7 +787,7 @@ foldr f z t
 elems :: IntSet -> [Int]
 elems s
   = toList s
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE elems #-}
 #endif
 
@@ -798,14 +798,14 @@ elems s
 toList :: IntSet -> [Int]
 toList t
   = fold (:) [] t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toList #-}
 #endif
 
 -- | /O(n)/. Convert the set to an ascending list of elements.
 toAscList :: IntSet -> [Int]
 toAscList t = toList t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toAscList #-}
 #endif
 
@@ -815,7 +815,7 @@ fromList xs
   = foldlStrict ins empty xs
   where
     ins t x  = insert x t
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
 
@@ -829,7 +829,7 @@ fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
     combineEq x' (x:xs) 
       | x==x'     = combineEq x' xs
       | otherwise = x' : combineEq x xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromAscList #-}
 #endif
 
@@ -854,7 +854,7 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
     finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
         where m = branchMask px py
               p = mask px m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromDistinctAscList #-}
 #endif
 
@@ -875,7 +875,7 @@ equal (Tip x) (Tip y)
   = (x==y)
 equal Nil Nil = True
 equal _   _   = False
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE equal #-}
 #endif
 
@@ -886,7 +886,7 @@ nequal (Tip x) (Tip y)
   = (x/=y)
 nequal Nil Nil = False
 nequal _   _   = True
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE nequal #-}
 #endif
 
@@ -1024,7 +1024,7 @@ join p1 t1 p2 t2
   where
     m = branchMask p1 p2
     p = mask p1 m
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE join #-}
 #endif
 
@@ -1035,7 +1035,7 @@ bin :: Prefix -> Mask -> IntSet -> IntSet -> IntSet
 bin _ _ l Nil = l
 bin _ _ Nil r = r
 bin p m l r   = Bin p m l r
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE bin #-}
 #endif
 
@@ -1046,20 +1046,20 @@ bin p m l r   = Bin p m l r
 zero :: Int -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE zero #-}
 #endif
 
 nomatch,match :: Int -> Prefix -> Mask -> Bool
 nomatch i p m
   = (mask i m) /= p
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE nomatch #-}
 #endif
 
 match i p m
   = (mask i m) == p
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE match #-}
 #endif
 
@@ -1068,7 +1068,7 @@ match i p m
 mask :: Int -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mask #-}
 #endif
 
@@ -1078,21 +1078,21 @@ mask i m
 maskW :: Nat -> Nat -> Prefix
 maskW i m
   = intFromNat (i .&. (complement (m-1) `xor` m))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maskW #-}
 #endif
 
 shorter :: Mask -> Mask -> Bool
 shorter m1 m2
   = (natFromInt m1) > (natFromInt m2)
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE shorter #-}
 #endif
 
 branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE branchMask #-}
 #endif
 
@@ -1147,7 +1147,7 @@ highestBitMask x0
         x4 -> case (x4 .|. shiftRL x4 16) of
          x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
           x6 -> (x6 `xor` (shiftRL x6 1))
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE highestBitMask #-}
 #endif
 
@@ -1161,6 +1161,6 @@ foldlStrict = go
     STRICT23(go)
     go f z []     = z
     go f z (x:xs) = go f (f z x) xs
-#if __GLASGOW_HASKELL__>= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldlStrict #-}
 #endif
