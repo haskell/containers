@@ -198,6 +198,13 @@ import GlaExts ( Word(..), Int(..), shiftRL# )
 import Data.Word
 #endif
 
+-- Use macros to define strictness of functions.
+-- STRICTxy denotes an y-ary function strict in the x-th parameter.
+#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT13(fn) fn arg _ _ | arg `seq` False = undefined
+#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
+#define STRICT24(fn) fn _ arg _ _ | arg `seq` False = undefined
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -354,14 +361,15 @@ notMember k m = not $ member k m
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 lookup :: Key -> IntMap a -> Maybe a
-lookup k = k `seq` go
-  where go (Bin _ m l r)
-          | zero k m  = go l
-          | otherwise = go r
-        go (Tip kx x)
+lookup = go
+  where STRICT12(go)
+        go k (Bin _ m l r)
+          | zero k m  = go k l
+          | otherwise = go k r
+        go k (Tip kx x)
           | k == kx   = Just x
           | otherwise = Nothing
-        go Nil        = Nothing
+        go k Nil      = Nothing
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE lookup #-}
 #endif
@@ -431,15 +439,16 @@ singleton k x
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 insert :: Key -> a -> IntMap a -> IntMap a
-insert k x = k `seq` go
-  where go t@(Bin p m l r)
+insert = go
+  where STRICT13(go)
+        go k x t@(Bin p m l r)
           | nomatch k p m = join k (Tip k x) p t
-          | zero k m      = Bin p m (insert k x l) r
-          | otherwise     = Bin p m l (insert k x r)
-        go t@(Tip ky _)
+          | zero k m      = Bin p m (go k x l) r
+          | otherwise     = Bin p m l (go k x r)
+        go k x t@(Tip ky _)
           | k==ky         = Tip k x
           | otherwise     = join k (Tip k x) ky t
-        go Nil            = Tip k x
+        go k x Nil            = Tip k x
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insert #-}
 #endif
@@ -474,18 +483,19 @@ insertWith f k x t
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f k x = k `seq` go
+insertWithKey = go
   where
-    go t@(Bin p m l r)
+    STRICT24(go)
+    go f k x t@(Bin p m l r)
         | nomatch k p m = join k (Tip k x) p t
-        | zero k m      = Bin p m (go l) r
-        | otherwise     = Bin p m l (go r)
+        | zero k m      = Bin p m (go f k x l) r
+        | otherwise     = Bin p m l (go f k x r)
 
-    go t@(Tip ky y)
+    go f k x t@(Tip ky y)
         | k==ky         = Tip k (f k x y)
         | otherwise     = join k (Tip k x) ky t
 
-    go Nil = Tip k x
+    go _ k x Nil = Tip k x
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insertWithKey #-}
 #endif
@@ -507,18 +517,19 @@ insertWithKey f k x = k `seq` go
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f k x = k `seq` go
+insertLookupWithKey = go
   where
-      go t@(Bin p m l r)
+      STRICT24(go)
+      go f k x t@(Bin p m l r)
         | nomatch k p m = (Nothing,join k (Tip k x) p t)
-        | zero k m      = case go l of (found, l') -> (found,Bin p m l' r)
-        | otherwise     = case go r of (found, r') -> (found,Bin p m l r')
+        | zero k m      = case go f k x l of (found, l') -> (found,Bin p m l' r)
+        | otherwise     = case go f k x r of (found, r') -> (found,Bin p m l r')
 
-      go t@(Tip ky y)
+      go f k x t@(Tip ky y)
         | k==ky         = (Just y,Tip k (f k x y))
         | otherwise     = (Nothing,join k (Tip k x) ky t)
 
-      go Nil = (Nothing,Tip k x)
+      go _ k x Nil = (Nothing,Tip k x)
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insertLookupWithKey #-}
 #endif
@@ -536,18 +547,19 @@ insertLookupWithKey f k x = k `seq` go
 -- > delete 5 empty                         == empty
 
 delete :: Key -> IntMap a -> IntMap a
-delete k = k `seq` go
+delete = go
   where
-      go t@(Bin p m l r)
+      STRICT12(go)
+      go k t@(Bin p m l r)
         | nomatch k p m = t
-        | zero k m      = bin p m (go l) r
-        | otherwise     = bin p m l (go r)
+        | zero k m      = bin p m (go k l) r
+        | otherwise     = bin p m l (go k r)
 
-      go t@(Tip ky _)
+      go k t@(Tip ky _)
         | k==ky         = Nil
         | otherwise     = t
 
-      go Nil = Nil
+      go _ Nil = Nil
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE delete #-}
 #endif
@@ -607,20 +619,21 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f k = k `seq` go
+updateWithKey = go
   where
-      go t@(Bin p m l r)
+      STRICT23(go)
+      go f k t@(Bin p m l r)
         | nomatch k p m = t
-        | zero k m      = bin p m (go l) r
-        | otherwise     = bin p m l (go r)
+        | zero k m      = bin p m (go f k l) r
+        | otherwise     = bin p m l (go f k r)
 
-      go t@(Tip ky y)
+      go f k t@(Tip ky y)
         | k==ky         = case f k y of
                              Just y' -> Tip ky y'
                              Nothing -> Nil
         | otherwise     = t
 
-      go Nil = Nil
+      go _ _ Nil = Nil
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateWithKey #-}
 #endif
@@ -636,20 +649,21 @@ updateWithKey f k = k `seq` go
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f k = k `seq` go
+updateLookupWithKey = go
   where
-      go t@(Bin p m l r)
+      STRICT23(go)
+      go f k t@(Bin p m l r)
         | nomatch k p m = (Nothing,t)
-        | zero k m      = case updateLookupWithKey f k l of (found, l') -> (found,bin p m l' r)
-        | otherwise     = case updateLookupWithKey f k r of (found, r') -> (found,bin p m l r')
+        | zero k m      = case go f k l of (found, l') -> (found,bin p m l' r)
+        | otherwise     = case go f k r of (found, r') -> (found,bin p m l r')
 
-      go t@(Tip ky y)
+      go f k t@(Tip ky y)
         | k==ky         = case f k y of
                              Just y' -> (Just y,Tip ky y')
                              Nothing -> (Just y,Nil)
         | otherwise     = (Nothing,t)
 
-      go Nil = (Nothing,Nil)
+      go _ _ Nil = (Nothing,Nil)
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateLookupWithKey #-}
 #endif
@@ -658,16 +672,17 @@ updateLookupWithKey f k = k `seq` go
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Int -> IntMap a -> IntMap a
-alter f k = k `seq` go
+alter = go
   where 
-    go t@(Bin p m l r)
+    STRICT23(go)
+    go f k t@(Bin p m l r)
         | nomatch k p m = case f Nothing of 
                              Nothing -> t
                              Just x  -> join k (Tip k x) p t
-        | zero k m      = bin p m (go l) r
-        | otherwise     = bin p m l (go r)
+        | zero k m      = bin p m (go f k l) r
+        | otherwise     = bin p m l (go f k r)
 
-    go t@(Tip ky y)         
+    go f k t@(Tip ky y)         
         | k==ky         = case f (Just y) of
                              Just x -> Tip ky x
                              Nothing -> Nil
@@ -676,7 +691,7 @@ alter f k = k `seq` go
                              Just x -> join k (Tip k x) ky t
                              Nothing -> Tip ky y
 
-    go Nil              = case f Nothing of
+    go f k Nil              = case f Nothing of
                              Just x -> Tip k x
                              Nothing -> Nil
 #if __GLASGOW_HASKELL__>= 700
@@ -957,22 +972,22 @@ intersectionWithKey _ _ Nil = Nil
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKey f = go
+updateMinWithKey = go
   where
-     go (Bin p m l r) | m < 0 = let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
-     go (Bin p m l r)         = let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-     go (Tip k y) = Tip k (f k y)
-     go Nil       = error "maxView: empty map has no maximal element"
+     go f (Bin p m l r) | m < 0 = let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
+     go f (Bin p m l r)         = let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
+     go f (Tip k y) = Tip k (f k y)
+     go f Nil       = error "maxView: empty map has no maximal element"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateMinWithKey #-}
 #endif
 
 updateMinWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKeyUnsigned f = go
+updateMinWithKeyUnsigned = go
   where
-     go (Bin p m l r) = let t' = go l in Bin p m t' r
-     go (Tip k y)     = Tip k (f k y)
-     go Nil           = error "updateMinWithKeyUnsigned Nil"
+     go f (Bin p m l r) = let t' = go f l in Bin p m t' r
+     go f (Tip k y)     = Tip k (f k y)
+     go f Nil           = error "updateMinWithKeyUnsigned Nil"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateMinWithKeyUnsigned #-}
 #endif
@@ -983,22 +998,22 @@ updateMinWithKeyUnsigned f = go
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKey f = go
+updateMaxWithKey = go
   where
-    go (Bin p m l r) | m < 0 = let t' = updateMaxWithKeyUnsigned f l in Bin p m t' r
-    go (Bin p m l r)         = let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
-    go (Tip k y)        = Tip k (f k y)
-    go Nil              = error "maxView: empty map has no maximal element"
+    go f (Bin p m l r) | m < 0 = let t' = updateMaxWithKeyUnsigned f l in Bin p m t' r
+    go f (Bin p m l r)         = let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
+    go f (Tip k y)        = Tip k (f k y)
+    go f Nil              = error "maxView: empty map has no maximal element"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateMaxWithKey #-}
 #endif
 
 updateMaxWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKeyUnsigned f = go
+updateMaxWithKeyUnsigned = go
   where
-    go (Bin p m l r) = let t' = go r in Bin p m l t'
-    go (Tip k y)     = Tip k (f k y)
-    go Nil           = error "updateMaxWithKeyUnsigned Nil"
+    go f (Bin p m l r) = let t' = go f r in Bin p m l t'
+    go f (Tip k y)     = Tip k (f k y)
+    go f Nil           = error "updateMaxWithKeyUnsigned Nil"
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE updateMaxWithKeyUnsigned #-}
 #endif
@@ -1289,11 +1304,11 @@ map f = mapWithKey (\_ x -> f x)
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
 mapWithKey :: (Key -> a -> b) -> IntMap a -> IntMap b
-mapWithKey f = go
+mapWithKey = go
   where
-   go (Bin p m l r) = Bin p m (go l) (go r)
-   go (Tip k x)     = Tip k (f k x)
-   go Nil           = Nil
+   go f (Bin p m l r) = Bin p m (go f l) (go f r)
+   go f (Tip k x)     = Tip k (f k x)
+   go f Nil           = Nil
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE mapWithKey #-}
 #endif
@@ -1372,13 +1387,13 @@ filter p m
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
-filterWithKey p = go
+filterWithKey = go
   where
-    go (Bin pr m l r) = bin pr m (go l) (go r)
-    go t@(Tip k x)
+    go p (Bin pr m l r) = bin pr m (go p l) (go p r)
+    go p t@(Tip k x)
         | p k x      = t
         | otherwise  = Nil
-    go Nil = Nil
+    go p Nil = Nil
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE filterWithKey #-}
 #endif
@@ -1438,13 +1453,13 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
 mapMaybeWithKey :: (Key -> a -> Maybe b) -> IntMap a -> IntMap b
-mapMaybeWithKey f = go
+mapMaybeWithKey = go
   where
-    go (Bin p m l r) = bin p m (go l) (go r)
-    go (Tip k x)     = case f k x of
+    go f (Bin p m l r) = bin p m (go f l) (go f r)
+    go f (Tip k x)     = case f k x of
                           Just y  -> Tip k y
                           Nothing -> Nil
-    go Nil = Nil
+    go f Nil = Nil
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE mapMaybeWithKey #-}
 #endif
@@ -1619,11 +1634,11 @@ foldr f z t
 #endif
 
 foldr' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldr' f = go
+foldr' = go
   where
-    go z (Bin _ _ l r) = go (go z r) l
-    go z (Tip k x)     = f k x z
-    go z Nil           = z
+    go f z (Bin _ _ l r) = go f (go f z r) l
+    go f z (Tip k x)     = f k x z
+    go f z Nil           = z
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE foldr' #-}
 #endif
@@ -2139,10 +2154,11 @@ highestBitMask x0
 --------------------------------------------------------------------}
 
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
+foldlStrict = go
   where
-    go z []     = z
-    go z (x:xs) = z `seq` go (f z x) xs
+    STRICT23(go)
+    go f z []     = z
+    go f z (x:xs) = go f (f z x) xs
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE foldlStrict #-}
 #endif

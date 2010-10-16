@@ -135,6 +135,11 @@ import Text.Read
 import Data.Data (Data(..), mkNoRepType, gcast1)
 #endif
 
+-- Use macros to define strictness of functions.
+-- STRICTxy denotes an y-ary function strict in the x-th parameter.
+#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
+
 {--------------------------------------------------------------------
   Operators
 --------------------------------------------------------------------}
@@ -206,15 +211,16 @@ size = go
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
-member x = x `seq` go
+member = go
   where
-    go Tip = False
-    go (Bin _ y l r) = case compare x y of
-        LT -> go l
-        GT -> go r
-        EQ -> True       
+    STRICT12(go)
+    go x Tip = False
+    go x (Bin _ y l r) = case compare x y of
+          LT -> go x l
+          GT -> go x r
+          EQ -> True
 {-# INLINE member #-}
-        
+
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
@@ -244,35 +250,38 @@ singleton x = Bin 1 x Tip Tip
 -- If the set already contains an element equal to the given value,
 -- it is replaced with the new value.
 insert :: Ord a => a -> Set a -> Set a
-insert x = x `seq` go
+insert = go
   where
-    go Tip = singleton x
-    go (Bin sz y l r) = case compare x y of
-        LT -> balanceL y (go l) r
-        GT -> balanceR y l (go r)
+    STRICT12(go)
+    go x Tip = singleton x
+    go x (Bin sz y l r) = case compare x y of
+        LT -> balanceL y (go x l) r
+        GT -> balanceR y l (go x r)
         EQ -> Bin sz x l r
 {-# INLINE insert #-}
 
 -- Insert an element to the set only if it is not in the set. Used by
 -- `union`.
 insertR :: Ord a => a -> Set a -> Set a
-insertR x = x `seq` go
+insertR = go
   where
-    go Tip = singleton x
-    go t@(Bin _ y l r) = case compare x y of
-        LT -> balanceL y (go l) r
-        GT -> balanceR y l (go r)
+    STRICT12(go)
+    go x Tip = singleton x
+    go x t@(Bin _ y l r) = case compare x y of
+        LT -> balanceL y (go x l) r
+        GT -> balanceR y l (go x r)
         EQ -> t
 {-# INLINE insertR #-}
 
 -- | /O(log n)/. Delete an element from a set.
 delete :: Ord a => a -> Set a -> Set a
-delete x = x `seq` go
+delete = go
   where
-    go Tip = Tip
-    go (Bin _ y l r) = case compare x y of
-        LT -> balanceR y (go l) r
-        GT -> balanceL y l (go r)
+    STRICT12(go)
+    go x Tip = Tip
+    go x (Bin _ y l r) = case compare x y of
+        LT -> balanceR y (go x l) r
+        GT -> balanceL y l (go x r)
         EQ -> glue l r
 {-# INLINE delete #-}
 
@@ -526,10 +535,10 @@ fold = foldr
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
-foldr f = go
+foldr = go
   where
-    go z Tip           = z
-    go z (Bin _ x l r) = go (f x (go z r)) l
+    go f z Tip           = z
+    go f z (Bin _ x l r) = go f (f x (go f z r)) l
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE foldr #-}
 #endif
@@ -697,13 +706,13 @@ data MaybeS a = NothingS | JustS !a
 --------------------------------------------------------------------}
 trim :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a
 trim NothingS   NothingS   t = t
-trim (JustS lx) NothingS   t = greater t where greater (Bin _ x _ r) | x <= lx = greater r
-                                               greater t' = t'
-trim NothingS   (JustS hx) t = lesser t  where lesser  (Bin _ x l _) | x >= hx = lesser  l
-                                               lesser  t' = t'
-trim (JustS lx) (JustS hx) t = middle t  where middle  (Bin _ x _ r) | x <= lx = middle  r
-                                               middle  (Bin _ x l _) | x >= hx = middle  l
-                                               middle  t' = t'
+trim (JustS lx) NothingS   t = greater lx t where greater lx (Bin _ x _ r) | x <= lx = greater lx r
+                                                  greater _  t' = t'
+trim NothingS   (JustS hx) t = lesser hx t  where lesser  hx (Bin _ x l _) | x >= hx = lesser  hx l
+                                                  lesser  _  t' = t'
+trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lx hx (Bin _ x _ r) | x <= lx = middle lx hx r
+                                                     middle lx hx (Bin _ x l _) | x >= hx = middle lx hx l
+                                                     middle _  _  t' = t'
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE trim #-}
 #endif
@@ -714,22 +723,22 @@ trim (JustS lx) (JustS hx) t = middle t  where middle  (Bin _ x _ r) | x <= lx =
 --------------------------------------------------------------------}
 filterGt :: Ord a => MaybeS a -> Set a -> Set a
 filterGt NothingS t = t
-filterGt (JustS b) t = filter' t
-  where filter' Tip = Tip
-        filter' (Bin _ x l r) = case compare b x of LT -> join x (filter' l) r
-                                                    EQ -> r
-                                                    GT -> filter' r
+filterGt (JustS b) t = filter' b t
+  where filter' b Tip = Tip
+        filter' b (Bin _ x l r) = case compare b x of LT -> join x (filter' b l) r
+                                                      EQ -> r
+                                                      GT -> filter' b r
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE filterGt #-}
 #endif
 
 filterLt :: Ord a => MaybeS a -> Set a -> Set a
 filterLt NothingS t = t
-filterLt (JustS b) t = filter' t
-  where filter' Tip = Tip
-        filter' (Bin _ x l r) = case compare x b of LT -> join x l (filter' r)
-                                                    EQ -> l
-                                                    GT -> filter' l
+filterLt (JustS b) t = filter' b t
+  where filter' b Tip = Tip
+        filter' b (Bin _ x l r) = case compare x b of LT -> join x l (filter' b r)
+                                                      EQ -> l
+                                                      GT -> filter' b l
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE filterLt #-}
 #endif
@@ -1050,10 +1059,11 @@ bin x l r
   Utilities
 --------------------------------------------------------------------}
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
+foldlStrict = go
   where
-    go z []     = z
-    go z (x:xs) = z `seq` go (f z x) xs
+    STRICT23(go)
+    go f z []     = z
+    go f z (x:xs) = go f (f z x) xs
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE foldlStrict #-}
 #endif

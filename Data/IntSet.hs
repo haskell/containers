@@ -132,6 +132,11 @@ import GlaExts ( Word(..), Int(..), shiftRL# )
 import Data.Word
 #endif
 
+-- Use macros to define strictness of functions.
+-- STRICTxy denotes an y-ary function strict in the x-th parameter.
+#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -238,13 +243,14 @@ size t
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 member :: Int -> IntSet -> Bool
-member x Nil = x `seq` False
-member x t = x `seq` go t
-  where go (Bin p m l r)
+member = go
+  where STRICT12(go)
+        go x (Bin p m l r)
           | nomatch x p m = False
-          | zero x m      = go l
-          | otherwise     = go r
-        go (Tip y) = x == y
+          | zero x m      = go x l
+          | otherwise     = go x r
+        go x (Tip y) = x == y
+        go _ Nil = False
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE member #-}
 #endif
@@ -258,14 +264,15 @@ notMember k = not . member k
 
 -- 'lookup' is used by 'intersection' for left-biasing
 lookup :: Int -> IntSet -> Maybe Int
-lookup k Nil = k `seq` Nothing
-lookup k t = k `seq` go t
-  where go (Bin _ m l r)
-          | zero k m  = go l
-          | otherwise = go r
-        go (Tip kx)
+lookup = go
+  where STRICT12(go)
+        go k (Bin _ m l r)
+          | zero k m  = go k l
+          | otherwise = go k r
+        go k (Tip kx)
           | k == kx   = Just kx
           | otherwise = Nothing
+        go _ Nil = Nothing
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE lookup #-}
 #endif
@@ -296,30 +303,32 @@ singleton x
 -- an element of the set, it is replaced by the new one, ie. 'insert'
 -- is left-biased.
 insert :: Int -> IntSet -> IntSet
-insert x = x `seq` go
-  where go t@(Bin p m l r )
+insert = go
+  where STRICT12(go)
+        go x t@(Bin p m l r )
           | nomatch x p m = join x (Tip x) p t
-          | zero x m      = Bin p m (go l) r
-          | otherwise     = Bin p m l (go r)
-        go t@(Tip y)
+          | zero x m      = Bin p m (go x l) r
+          | otherwise     = Bin p m l (go x r)
+        go x t@(Tip y)
           | x==y          = Tip x
           | otherwise     = join x (Tip x) y t
-        go Nil            = Tip x
+        go x Nil            = Tip x
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insert #-}
 #endif
 
 -- right-biased insertion, used by 'union'
 insertR :: Int -> IntSet -> IntSet
-insertR x = x `seq` go
-  where go t@(Bin p m l r )
+insertR = go
+  where STRICT12(go)
+        go x t@(Bin p m l r )
           | nomatch x p m = join x (Tip x) p t
-          | zero x m      = Bin p m (go l) r
-          | otherwise     = Bin p m l (go r)
-        go t@(Tip y)
+          | zero x m      = Bin p m (go x l) r
+          | otherwise     = Bin p m l (go x r)
+        go x t@(Tip y)
           | x==y          = t
           | otherwise     = join x (Tip x) y t
-        go Nil            = Tip x
+        go x Nil            = Tip x
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE insertR #-}
 #endif
@@ -327,15 +336,16 @@ insertR x = x `seq` go
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete x = x `seq` go
-  where go t@(Bin p m l r)
+delete = go
+  where STRICT12(go)
+        go x t@(Bin p m l r)
           | nomatch x p m = t
-          | zero x m      = bin p m (go l) r
-          | otherwise     = bin p m l (go r)
-        go t@(Tip y)
+          | zero x m      = bin p m (go x l) r
+          | otherwise     = bin p m l (go x r)
+        go x t@(Tip y)
           | x==y          = Nil
           | otherwise     = t
-        go t@Nil          = t
+        go _ t@Nil          = t
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE delete #-}
 #endif
@@ -1146,10 +1156,11 @@ highestBitMask x0
   Utilities 
 --------------------------------------------------------------------}
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f z xs
-  = case xs of
-      []     -> z
-      (x:xx) -> let z' = f z x in seq z' (foldlStrict f z' xx)
+foldlStrict = go
+  where
+    STRICT23(go)
+    go f z []     = z
+    go f z (x:xs) = go f (f z x) xs
 #if __GLASGOW_HASKELL__>= 700
 {-# INLINABLE foldlStrict #-}
 #endif
