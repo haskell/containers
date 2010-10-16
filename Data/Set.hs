@@ -232,16 +232,12 @@ notMember a t = not $ member a t
 -- | /O(1)/. The empty set.
 empty  :: Set a
 empty = Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE empty  #-}
-#endif
+{-# INLINE empty #-}
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
 singleton x = Bin 1 x Tip Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE singleton #-}
-#endif
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -258,7 +254,11 @@ insert = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> Bin sz x l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insert #-}
+#else
 {-# INLINE insert #-}
+#endif
 
 -- Insert an element to the set only if it is not in the set. Used by
 -- `union`.
@@ -271,7 +271,11 @@ insertR = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> t
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insertR #-}
+#else
 {-# INLINE insertR #-}
+#endif
 
 -- | /O(log n)/. Delete an element from a set.
 delete :: Ord a => a -> Set a -> Set a
@@ -283,7 +287,11 @@ delete = go
         LT -> balanceR y (go x l) r
         GT -> balanceL y l (go x r)
         EQ -> glue l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE delete #-}
+#else
 {-# INLINE delete #-}
+#endif
 
 {--------------------------------------------------------------------
   Subset
@@ -1050,9 +1058,7 @@ balanceR x l r = case l of
 bin :: a -> Set a -> Set a -> Set a
 bin x l r
   = Bin (size l + size r + 1) x l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE bin #-}
-#endif
+{-# INLINE bin #-}
 
 
 {--------------------------------------------------------------------
@@ -1064,9 +1070,7 @@ foldlStrict = go
     STRICT23(go)
     go f z []     = z
     go f z (x:xs) = go f (f z x) xs
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldlStrict #-}
-#endif
+{-# INLINE foldlStrict #-}
 
 {--------------------------------------------------------------------
   Debugging

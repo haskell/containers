@@ -212,15 +212,11 @@ type Nat = Word
 
 natFromInt :: Key -> Nat
 natFromInt = fromIntegral
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE natFromInt #-}
-#endif
+{-# INLINE natFromInt #-}
 
 intFromNat :: Nat -> Key
 intFromNat = fromIntegral
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE intFromNat #-}
-#endif
+{-# INLINE intFromNat #-}
 
 shiftRL :: Nat -> Key -> Nat
 #if __GLASGOW_HASKELL__
@@ -231,9 +227,7 @@ shiftRL (W# x) (I# i)
   = W# (shiftRL# x i)
 #else
 shiftRL x i   = shiftR x i
-#endif
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE shiftRL #-}
+{-# INLINE shiftRL #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -410,9 +404,7 @@ findWithDefault def k m
 empty :: IntMap a
 empty
   = Nil
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE empty #-}
-#endif
+{-# INLINE empty #-}
 
 -- | /O(1)/. A map of one element.
 --
@@ -422,9 +414,7 @@ empty
 singleton :: Key -> a -> IntMap a
 singleton k x
   = Tip k x
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE singleton #-}
-#endif
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insert
@@ -2022,9 +2012,7 @@ join p1 t1 p2 t2
   where
     m = branchMask p1 p2
     p = mask p1 m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE join #-}
-#endif
+{-# INLINE join #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.
@@ -2033,9 +2021,7 @@ bin :: Prefix -> Mask -> IntMap a -> IntMap a -> IntMap a
 bin _ _ l Nil = l
 bin _ _ Nil r = r
 bin p m l r   = Bin p m l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE bin #-}
-#endif
+{-# INLINE bin #-}
 
   
 {--------------------------------------------------------------------
@@ -2044,29 +2030,21 @@ bin p m l r   = Bin p m l r
 zero :: Key -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE zero #-}
-#endif
+{-# INLINE zero #-}
 
 nomatch,match :: Key -> Prefix -> Mask -> Bool
 nomatch i p m
   = (mask i m) /= p
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE nomatch #-}
-#endif
+{-# INLINE nomatch #-}
 
 match i p m
   = (mask i m) == p
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE match #-}
-#endif
+{-# INLINE match #-}
 
 mask :: Key -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mask #-}
-#endif
+{-# INLINE mask #-}
 
 
 {--------------------------------------------------------------------
@@ -2075,23 +2053,17 @@ mask i m
 maskW :: Nat -> Nat -> Prefix
 maskW i m
   = intFromNat (i .&. (complement (m-1) `xor` m))
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE maskW #-}
-#endif
+{-# INLINE maskW #-}
 
 shorter :: Mask -> Mask -> Bool
 shorter m1 m2
   = (natFromInt m1) > (natFromInt m2)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE shorter #-}
-#endif
+{-# INLINE shorter #-}
 
 branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE branchMask #-}
-#endif
+{-# INLINE branchMask #-}
 
 {----------------------------------------------------------------------
   Finding the highest bit (mask) in a word [x] can be done efficiently in
@@ -2144,9 +2116,7 @@ highestBitMask x0
         x4 -> case (x4 .|. shiftRL x4 16) of
          x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
           x6 -> (x6 `xor` (shiftRL x6 1))
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE highestBitMask #-}
-#endif
+{-# INLINE highestBitMask #-}
 
 
 {--------------------------------------------------------------------
@@ -2159,6 +2129,4 @@ foldlStrict = go
     STRICT23(go)
     go f z []     = z
     go f z (x:xs) = go f (f z x) xs
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldlStrict #-}
-#endif
+{-# INLINE foldlStrict #-}

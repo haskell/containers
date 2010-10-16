@@ -228,9 +228,7 @@ infixl 9 !,\\ --
 
 (!) :: Ord k => Map k a -> k -> a
 m ! k    = find k m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE (!) #-}
-#endif
+{-# INLINE (!) #-}
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
@@ -339,7 +337,11 @@ lookup = go
             LT -> go k l
             GT -> go k r
             EQ -> Just x
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookup #-}
+#else
 {-# INLINE lookup #-}
+#endif
 
 lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupAssoc = go
@@ -351,7 +353,11 @@ lookupAssoc = go
             LT -> go k l
             GT -> go k r
             EQ -> Just (kx,x)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE lookupAssoc #-}
+#else
 {-# INLINE lookupAssoc #-}
+#endif
 
 -- | /O(log n)/. Is the key a member of the map? See also 'notMember'.
 --
@@ -362,7 +368,11 @@ member :: Ord k => k -> Map k a -> Bool
 member k m = case lookup k m of
     Nothing -> False
     Just _  -> True
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE member #-}
+#else
 {-# INLINE member #-}
+#endif
 
 -- | /O(log n)/. Is the key not a member of the map? See also 'member'.
 --
@@ -382,6 +392,8 @@ find k m = case lookup k m of
     Just x  -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE find #-}
+#else
+{-# INLINE find #-}
 #endif
 
 -- | /O(log n)/. The expression @('findWithDefault' def k map)@ returns
@@ -397,6 +409,8 @@ findWithDefault def k m = case lookup k m of
     Just x  -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findWithDefault #-}
+#else
+{-# INLINE findWithDefault #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -409,9 +423,7 @@ findWithDefault def k m = case lookup k m of
 
 empty :: Map k a
 empty = Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE empty #-}
-#endif
+{-# INLINE empty #-}
 
 -- | /O(1)/. A map with a single element.
 --
@@ -420,9 +432,7 @@ empty = Tip
 
 singleton :: k -> a -> Map k a
 singleton k x = Bin 1 k x Tip Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE singleton #-}
-#endif
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion
@@ -446,7 +456,11 @@ insert = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insert #-}
+#else
 {-# INLINE insert #-}
+#endif
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@ 
@@ -495,7 +509,11 @@ insertWithKey = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> Bin sy kx (f kx x y) l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insertWithKey #-}
+#else
 {-# INLINE insertWithKey #-}
+#endif
 
 -- | Same as 'insertWithKey', but the combining function is applied strictly.
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
@@ -508,7 +526,11 @@ insertWithKey' = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let x' = f kx x y in x' `seq` (Bin sy kx x' l r)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insertWithKey' #-}
+#else
 {-# INLINE insertWithKey' #-}
+#endif
 
 -- | /O(log n)/. Combines insert operation with old value retrieval.
 -- The expression (@'insertLookupWithKey' f k x map@)
@@ -539,7 +561,11 @@ insertLookupWithKey = go
             GT -> let (found, r') = go f kx x r
                   in (found, balanceR ky y l r')
             EQ -> (Just y, Bin sy kx (f kx x y) l r)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insertLookupWithKey #-}
+#else
 {-# INLINE insertLookupWithKey #-}
+#endif
 
 -- | /O(log n)/. A strict version of 'insertLookupWithKey'.
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
@@ -555,7 +581,11 @@ insertLookupWithKey' = go
             GT -> let (found, r') = go f kx x r
                   in (found, balanceR ky y l r')
             EQ -> let x' = f kx x y in x' `seq` (Just y, Bin sy kx x' l r)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE insertLookupWithKey' #-}
+#else
 {-# INLINE insertLookupWithKey' #-}
+#endif
 
 {--------------------------------------------------------------------
   Deletion
@@ -578,7 +608,11 @@ delete = go
             LT -> balanceR kx x (go k l) r
             GT -> balanceL kx x l (go k r)
             EQ -> glue l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE delete #-}
+#else
 {-# INLINE delete #-}
+#endif
 
 -- | /O(log n)/. Update a value at a specific key with the result of the provided function.
 -- When the key is not
@@ -639,7 +673,11 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
                    Nothing -> glue l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE updateWithKey #-}
+#else
 {-# INLINE updateWithKey #-}
+#endif
 
 -- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
@@ -662,7 +700,11 @@ updateLookupWithKey = go
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE updateLookupWithKey #-}
+#else
 {-# INLINE updateLookupWithKey #-}
+#endif
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
@@ -690,7 +732,11 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> Bin sx kx x' l r
                        Nothing -> glue l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINEABLE alter #-}
+#else
 {-# INLINE alter #-}
+#endif
 
 {--------------------------------------------------------------------
   Indexing
@@ -972,9 +1018,6 @@ maxView x   = Just (first snd $ deleteFindMax x)
 -- Update the 1st component of a tuple (special case of Control.Arrow.first)
 first :: (a -> b) -> (a,c) -> (b,c)
 first f (x,y) = (f x, y)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE first #-}
-#endif
 
 {--------------------------------------------------------------------
   Union. 
@@ -1053,9 +1096,7 @@ hedgeUnionL blo bhi (Bin _ kx x l r) t2
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE unionWith #-}
-#endif
+{-# INLINE unionWith #-}
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -1142,9 +1183,7 @@ hedgeDiff blo bhi t (Bin _ kx _ l r)
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE differenceWith #-}
-#endif
+{-# INLINE differenceWith #-}
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -1204,9 +1243,7 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection m1 m2
   = intersectionWithKey (\_ x _ -> x) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE intersection #-}
-#endif
+{-# INLINE intersection #-}
 
 -- | /O(n+m)/. Intersection with a combining function.
 --
@@ -1215,9 +1252,7 @@ intersection m1 m2
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE intersectionWith #-}
-#endif
+{-# INLINE intersectionWith #-}
 
 -- | /O(n+m)/. Intersection with a combining function.
 -- Intersection is more efficient on (bigset \``intersection`\` smallset).
@@ -2329,9 +2364,7 @@ balanceR k x l r = case l of
 bin :: k -> a -> Map k a -> Map k a -> Map k a
 bin k x l r
   = Bin (size l + size r + 1) k x l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE bin #-}
-#endif
+{-# INLINE bin #-}
 
 
 {--------------------------------------------------------------------
@@ -2540,6 +2573,4 @@ foldlStrict = go
     STRICT23(go)
     go f z []     = z
     go f z (x:xs) = go f (f z x) xs
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldlStrict #-}
-#endif
+{-# INLINE foldlStrict #-}
