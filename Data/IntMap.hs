@@ -1042,7 +1042,7 @@ maxViewUnsigned t
         Bin p m l r -> let (result,t') = maxViewUnsigned r in (result,bin p m l t')
         Tip k y -> ((k,y), Nil)
         Nil -> error "maxViewUnsigned Nil"
-#if __GLASGOW_HASKELL >= 700
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE maxViewUnsigned #-}
 #endif
 
