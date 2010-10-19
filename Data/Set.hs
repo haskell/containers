@@ -541,10 +541,10 @@ fold = foldr
 
 -- | /O(n)/. Post-order fold.
 foldr :: (a -> b -> b) -> b -> Set a -> b
-foldr = go
+foldr f = go
   where
-    go f z Tip           = z
-    go f z (Bin _ x l r) = go f (f x (go f z r)) l
+    go z Tip           = z
+    go z (Bin _ x l r) = go (f x (go z r)) l
 {-# INLINE foldr #-}
 
 {--------------------------------------------------------------------

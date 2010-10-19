@@ -751,14 +751,14 @@ map f = fromList . List.map f . toList
 fold :: (Int -> b -> b) -> b -> IntSet -> b
 fold f z t
   = case t of
-      Bin 0 m l r | m < 0 -> go f (go f z l) r  -- put negative numbers before.
-      Bin _ _ _ _ -> go f z t
+      Bin 0 m l r | m < 0 -> go (go z l) r  -- put negative numbers before.
+      Bin _ _ _ _ -> go z t
       Tip x       -> f x z
       Nil         -> z
   where
-    go f z (Bin _ _ l r) = go f (go f z r) l
-    go f z (Tip x)       = f x z
-    go f z Nil           = z
+    go z (Bin _ _ l r) = go (go z r) l
+    go z (Tip x)       = f x z
+    go z Nil           = z
 {-# INLINE fold #-}
 
 {--------------------------------------------------------------------

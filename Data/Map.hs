@@ -1678,19 +1678,19 @@ foldWithKey = foldrWithKey
 -- | /O(n)/. Post-order fold.  The function will be applied from the lowest
 -- value to the highest.
 foldrWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldrWithKey = go
+foldrWithKey f = go
   where
-    go f z Tip              = z
-    go f z (Bin _ kx x l r) = go f (f kx x (go f z r)) l
+    go z Tip              = z
+    go z (Bin _ kx x l r) = go (f kx x (go z r)) l
 {-# INLINE foldrWithKey #-}
 
 -- | /O(n)/. Pre-order fold.  The function will be applied from the highest
 -- value to the lowest.
 foldlWithKey :: (b -> k -> a -> b) -> b -> Map k a -> b
-foldlWithKey = go
+foldlWithKey f = go
   where
-    go f z Tip              = z
-    go f z (Bin _ kx x l r) = go f (f (go f z l) kx x) r
+    go z Tip              = z
+    go z (Bin _ kx x l r) = go (f (go z l) kx x) r
 {-# INLINE foldlWithKey #-}
 
 {-
