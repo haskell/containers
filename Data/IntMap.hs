@@ -1855,9 +1855,8 @@ highestBitMask x0
 --------------------------------------------------------------------}
 
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict = go
+foldlStrict f = go
   where
-    STRICT23(go)
-    go f z []     = z
-    go f z (x:xs) = go f (f z x) xs
+    go z []     = z
+    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
