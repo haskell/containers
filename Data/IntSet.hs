@@ -132,11 +132,6 @@ import GlaExts ( Word(..), Int(..), shiftRL# )
 import Data.Word
 #endif
 
--- Use macros to define strictness of functions.
--- STRICTxy denotes an y-ary function strict in the x-th parameter.
-#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
-
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -226,16 +221,20 @@ size t
       Tip _ -> 1
       Nil   -> 0
 
+-- The 'go' function in the member and lookup causes 10% speedup, but also an
+-- increased memory allocation. It does not cause speedup with other methods
+-- like insert and delete, so it is present only in member and lookup.
+
 -- | /O(min(n,W))/. Is the value a member of the set?
 member :: Int -> IntSet -> Bool
-member = go
-  where STRICT12(go)
-        go x (Bin p m l r)
-          | nomatch x p m = False
-          | zero x m      = go x l
-          | otherwise     = go x r
-        go x (Tip y) = x == y
-        go _ Nil = False
+member x = x `seq` go
+  where
+    go (Bin p m l r)
+      | nomatch x p m = False
+      | zero x m      = go l
+      | otherwise     = go r
+    go (Tip y) = x == y
+    go Nil = False
 
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Int -> IntSet -> Bool
@@ -243,15 +242,15 @@ notMember k = not . member k
 
 -- 'lookup' is used by 'intersection' for left-biasing
 lookup :: Int -> IntSet -> Maybe Int
-lookup = go
-  where STRICT12(go)
-        go k (Bin _ m l r)
-          | zero k m  = go k l
-          | otherwise = go k r
-        go k (Tip kx)
-          | k == kx   = Just kx
-          | otherwise = Nothing
-        go _ Nil = Nothing
+lookup k = k `seq` go
+  where
+    go (Bin _ m l r)
+      | zero k m  = go l
+      | otherwise = go r
+    go (Tip kx)
+      | k == kx   = Just kx
+      | otherwise = Nothing
+    go Nil = Nothing
 
 {--------------------------------------------------------------------
   Construction
@@ -260,13 +259,11 @@ lookup = go
 empty :: IntSet
 empty
   = Nil
-{-# INLINE empty #-}
 
 -- | /O(1)/. A set of one element.
 singleton :: Int -> IntSet
 singleton x
   = Tip x
-{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insert
@@ -275,43 +272,44 @@ singleton x
 -- an element of the set, it is replaced by the new one, ie. 'insert'
 -- is left-biased.
 insert :: Int -> IntSet -> IntSet
-insert = go
-  where STRICT12(go)
-        go x t@(Bin p m l r )
-          | nomatch x p m = join x (Tip x) p t
-          | zero x m      = Bin p m (go x l) r
-          | otherwise     = Bin p m l (go x r)
-        go x t@(Tip y)
-          | x==y          = Tip x
-          | otherwise     = join x (Tip x) y t
-        go x Nil            = Tip x
+insert x t = x `seq`
+  case t of
+    Bin p m l r
+      | nomatch x p m -> join x (Tip x) p t
+      | zero x m      -> Bin p m (insert x l) r
+      | otherwise     -> Bin p m l (insert x r)
+    Tip y
+      | x==y          -> Tip x
+      | otherwise     -> join x (Tip x) y t
+    Nil -> Tip x
 
 -- right-biased insertion, used by 'union'
 insertR :: Int -> IntSet -> IntSet
-insertR = go
-  where STRICT12(go)
-        go x t@(Bin p m l r )
-          | nomatch x p m = join x (Tip x) p t
-          | zero x m      = Bin p m (go x l) r
-          | otherwise     = Bin p m l (go x r)
-        go x t@(Tip y)
-          | x==y          = t
-          | otherwise     = join x (Tip x) y t
-        go x Nil            = Tip x
+insertR x t = x `seq`
+  case t of
+    Bin p m l r
+      | nomatch x p m -> join x (Tip x) p t
+      | zero x m      -> Bin p m (insert x l) r
+      | otherwise     -> Bin p m l (insert x r)
+    Tip y
+      | x==y          -> t
+      | otherwise     -> join x (Tip x) y t
+    Nil -> Tip x
 
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete = go
-  where STRICT12(go)
-        go x t@(Bin p m l r)
-          | nomatch x p m = t
-          | zero x m      = bin p m (go x l) r
-          | otherwise     = bin p m l (go x r)
-        go x t@(Tip y)
-          | x==y          = Nil
-          | otherwise     = t
-        go _ t@Nil          = t
+delete x t = x `seq`
+  case t of
+    Bin p m l r
+      | nomatch x p m -> t
+      | zero x m      -> bin p m (delete x l) r
+      | otherwise     -> bin p m l (delete x r)
+    Tip y
+      | x==y          -> Nil
+      | otherwise     -> t
+    Nil -> Nil
+
 
 {--------------------------------------------------------------------
   Union
