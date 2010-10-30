@@ -429,6 +429,14 @@ insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith f k x t
   = insertWithKey (\_ x' y' -> f x' y') k x t
 
+-- | Same as 'insertWith', but the combining function is applied strictly.
+insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWith' f k x t
+  = insertWithKey' (\_ x' y' -> f x' y') k x t
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertWith' #-}
+#endif
+
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWithKey' f key value mp@ 
 -- will insert the pair (key, value) into @mp@ if key does
@@ -452,6 +460,21 @@ insertWithKey f k x t = k `seq`
       | otherwise     -> join k (Tip k x) ky t
     Nil -> Tip k x
 
+-- | Same as 'insertWithKey', but the combining function is applied strictly.
+insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWithKey' f k x t
+  = case t of
+      Bin p m l r
+        | nomatch k p m -> join k (Tip k x) p t
+        | zero k m      -> Bin p m (insertWithKey' f k x l) r
+        | otherwise     -> Bin p m l (insertWithKey' f k x r)
+      Tip ky y
+        | k==ky         -> let x' = f k x y in seq x' (Tip k x')
+        | otherwise     -> join k (Tip k x) ky t
+      Nil -> Tip k x
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE insertWithKey' #-}
+#endif
 
 -- | /O(min(n,W))/. The expression (@'insertLookupWithKey' f k x map@)
 -- is a pair where the first element is equal to (@'lookup' k map@)
