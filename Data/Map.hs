@@ -36,6 +36,21 @@
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 -----------------------------------------------------------------------------
 
+-- It is crucial to the performance that the functions specialize on the Ord
+-- type when possible. GHC 7.0 and higher does this by itself when it sees th
+-- unfolding of a function -- that is why all public functions are marked
+-- INLINABLE (that exposes the unfolding).
+--
+-- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
+-- We mark the functions that just navigate down the tree (lookup, insert,
+-- delete and similar). That navigation code gets inlined and thus specialized
+-- when possible. There is a price to pay -- code growth. The code INLINED is
+-- therefore only the tree navigation, all the real work (rebalancing) is not
+-- INLINED by using a NOINLINE.
+--
+-- All methods that can be INLINE are not recursive -- a 'go' function doing
+-- the real work is provided.
+
 module Data.Map  ( 
             -- * Map type
 #if !defined(TESTING)
@@ -423,7 +438,6 @@ findWithDefault def k m = case lookup k m of
 
 empty :: Map k a
 empty = Tip
-{-# INLINE empty #-}
 
 -- | /O(1)/. A map with a single element.
 --
@@ -432,7 +446,6 @@ empty = Tip
 
 singleton :: k -> a -> Map k a
 singleton k x = Bin 1 k x Tip Tip
-{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion
@@ -768,15 +781,15 @@ findIndex k t
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
-lookupIndex k = go k 0
+lookupIndex k = lkp k 0
   where
-    STRICT13(go)
-    STRICT23(go)
-    go k idx Tip  = Nothing
-    go k idx (Bin _ kx _ l r)
+    STRICT13(lkp)
+    STRICT23(lkp)
+    lkp k idx Tip  = Nothing
+    lkp k idx (Bin _ kx _ l r)
       = case compare k kx of
-          LT -> go k idx l
-          GT -> go k (idx + size l + 1) r 
+          LT -> lkp k idx l
+          GT -> lkp k (idx + size l + 1) r
           EQ -> Just (idx + size l)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
@@ -816,17 +829,16 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-updateAt = go
- where
-    STRICT23(go)
-    go f _ Tip  = error "Map.updateAt: index out of range"
-    go f i (Bin sx kx x l r) = case compare i sizeL of
-      LT -> balanceR kx x (go f i l) r
-      GT -> balanceL kx x l (go f (i-sizeL-1) r)
+updateAt f i t = i `seq`
+  case t of
+    Tip -> error "Map.updateAt: index out of range"
+    Bin sx kx x l r -> case compare i sizeL of
+      LT -> balanceR kx x (updateAt f i l) r
+      GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
       EQ -> case f kx x of
               Just x' -> Bin sx kx x' l r
               Nothing -> glue l r
-      where 
+      where
         sizeL = size l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateAt #-}
@@ -934,13 +946,11 @@ updateMax f m
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateMinWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
-updateMinWithKey = go
- where
-    go f (Bin sx kx x Tip r) = case f kx x of
-                                  Nothing -> r
-                                  Just x' -> Bin sx kx x' Tip r
-    go f (Bin _ kx x l r)    = balanceR kx x (go f l) r
-    go f Tip                 = Tip
+updateMinWithKey f (Bin sx kx x Tip r) = case f kx x of
+                                           Nothing -> r
+                                           Just x' -> Bin sx kx x' Tip r
+updateMinWithKey f (Bin _ kx x l r)    = balanceR kx x (updateMinWithKey f l) r
+updateMinWithKey f Tip                 = Tip
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMinWithKey #-}
 #endif
@@ -951,13 +961,11 @@ updateMinWithKey = go
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
 updateMaxWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
-updateMaxWithKey = go
- where
-    go f (Bin sx kx x l Tip) = case f kx x of
-                              Nothing -> l
-                              Just x' -> Bin sx kx x' l Tip
-    go f (Bin _ kx x l r)    = balanceL kx x l (go f r)
-    go f Tip                 = Tip
+updateMaxWithKey f (Bin sx kx x l Tip) = case f kx x of
+                                           Nothing -> l
+                                           Just x' -> Bin sx kx x' l Tip
+updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
+updateMaxWithKey f Tip                 = Tip
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMaxWithKey #-}
 #endif
@@ -1389,12 +1397,10 @@ filter p m
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: Ord k => (k -> a -> Bool) -> Map k a -> Map k a
-filterWithKey = go
-  where
-    go p Tip = Tip
-    go p (Bin _ kx x l r)
-          | p kx x    = join kx x (go p l) (go p r)
-          | otherwise = merge (go p l) (go p r)
+filterWithKey p Tip = Tip
+filterWithKey p (Bin _ kx x l r)
+  | p kx x    = join kx x (filterWithKey p l) (filterWithKey p r)
+  | otherwise = merge (filterWithKey p l) (filterWithKey p r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filterWithKey #-}
 #endif
@@ -1451,12 +1457,10 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
 mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
-mapMaybeWithKey = go
-  where
-    go f Tip = Tip
-    go f (Bin _ kx x l r) = case f kx x of
-        Just y  -> join kx y (go f l) (go f r)
-        Nothing -> merge (go f l) (go f r)
+mapMaybeWithKey f Tip = Tip
+mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
+  Just y  -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMaybeWithKey #-}
 #endif
@@ -1518,10 +1522,8 @@ map f = mapWithKey (\_ x -> f x)
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
-mapWithKey = go
-  where
-    go f Tip = Tip
-    go f (Bin sx kx x l r) = Bin sx kx (f kx x) (go f l) (go f r)
+mapWithKey f Tip = Tip
+mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapWithKey #-}
 #endif
@@ -1555,14 +1557,12 @@ mapAccumWithKey f a t
 -- | /O(n)/. The function 'mapAccumL' threads an accumulating
 -- argument throught the map in ascending order of keys.
 mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
-mapAccumL = go
-  where
-    go f a Tip               = (a,Tip)
-    go f a (Bin sx kx x l r) =
-                 let (a1,l') = go f a l
-                     (a2,x') = f a1 kx x
-                     (a3,r') = go f a2 r
-                 in (a3,Bin sx kx x' l' r')
+mapAccumL f a Tip               = (a,Tip)
+mapAccumL f a (Bin sx kx x l r) =
+  let (a1,l') = mapAccumL f a l
+      (a2,x') = f a1 kx x
+      (a3,r') = mapAccumL f a2 r
+  in (a3,Bin sx kx x' l' r')
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumL #-}
 #endif
@@ -1570,14 +1570,12 @@ mapAccumL = go
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
-mapAccumRWithKey = go
-  where
-    go f a Tip = (a,Tip)
-    go f a (Bin sx kx x l r) =
-                 let (a1,r') = go f a r
-                     (a2,x') = f a1 kx x
-                     (a3,l') = go f a2 l
-                 in (a3,Bin sx kx x' l' r')
+mapAccumRWithKey f a Tip = (a,Tip)
+mapAccumRWithKey f a (Bin sx kx x l r) =
+  let (a1,r') = mapAccumRWithKey f a r
+      (a2,x') = f a1 kx x
+      (a3,l') = mapAccumRWithKey f a2 l
+  in (a3,Bin sx kx x' l' r')
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumRWithKey #-}
 #endif
@@ -2022,14 +2020,13 @@ filterLt (JustS b) t = filter' b t
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split = go
-  where
-    STRICT12(go)
-    go k Tip              = (Tip, Tip)
-    go k (Bin _ kx x l r) = case compare k kx of
-          LT -> let (lt,gt) = go k l in (lt,join kx x gt r)
-          GT -> let (lt,gt) = go k r in (join kx x l lt,gt)
-          EQ -> (l,r)
+split k t = k `seq`
+  case t of
+    Tip            -> (Tip, Tip)
+    Bin _ kx x l r -> case compare k kx of
+      LT -> let (lt,gt) = split k l in (lt,join kx x gt r)
+      GT -> let (lt,gt) = split k r in (join kx x l lt,gt)
+      EQ -> (l,r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
@@ -2044,13 +2041,12 @@ split = go
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup = go
-  where
-    STRICT12(go)
-    go k Tip              = (Tip,Nothing,Tip)
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> let (lt,z,gt) = go k l in (lt,z,join kx x gt r)
-      GT -> let (lt,z,gt) = go k r in (join kx x l lt,z,gt)
+splitLookup k t = k `seq`
+  case t of
+    Tip            -> (Tip,Nothing,Tip)
+    Bin _ kx x l r -> case compare k kx of
+      LT -> let (lt,z,gt) = splitLookup k l in (lt,z,join kx x gt r)
+      GT -> let (lt,z,gt) = splitLookup k r in (join kx x l lt,z,gt)
       EQ -> (l,Just x,r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup #-}
@@ -2058,13 +2054,12 @@ splitLookup = go
 
 -- | /O(log n)/.
 splitLookupWithKey :: Ord k => k -> Map k a -> (Map k a,Maybe (k,a),Map k a)
-splitLookupWithKey = go
-  where
-    STRICT12(go)
-    go k Tip              = (Tip,Nothing,Tip)
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> let (lt,z,gt) = go k l in (lt,z,join kx x gt r)
-      GT -> let (lt,z,gt) = go k r in (join kx x l lt,z,gt)
+splitLookupWithKey k t = k `seq`
+  case t of
+    Tip            -> (Tip,Nothing,Tip)
+    Bin _ kx x l r -> case compare k kx of
+      LT -> let (lt,z,gt) = splitLookupWithKey k l in (lt,z,join kx x gt r)
+      GT -> let (lt,z,gt) = splitLookupWithKey k r in (join kx x l lt,z,gt)
       EQ -> (l,Just (kx, x),r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookupWithKey #-}

@@ -34,6 +34,21 @@
 -- equality.
 -----------------------------------------------------------------------------
 
+-- It is crucial to the performance that the functions specialize on the Ord
+-- type when possible. GHC 7.0 and higher does this by itself when it sees th
+-- unfolding of a function -- that is why all public functions are marked
+-- INLINABLE (that exposes the unfolding).
+--
+-- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
+-- We mark the functions that just navigate down the tree (lookup, insert,
+-- delete and similar). That navigation code gets inlined and thus specialized
+-- when possible. There is a price to pay -- code growth. The code INLINED is
+-- therefore only the tree navigation, all the real work (rebalancing) is not
+-- INLINED by using a NOINLINE.
+--
+-- All methods that can be INLINE are not recursive -- a 'go' function doing
+-- the real work is provided.
+
 module Data.Set  ( 
             -- * Set type
 #if !defined(TESTING)    
@@ -138,7 +153,6 @@ import Data.Data (Data(..), mkNoRepType, gcast1)
 -- Use macros to define strictness of functions.
 -- STRICTxy denotes an y-ary function strict in the x-th parameter.
 #define STRICT12(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -201,10 +215,8 @@ null (Bin {}) = False
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
-size = go
-  where
-    go Tip            = 0
-    go (Bin sz _ _ _) = sz
+size Tip = 0
+size (Bin sz _ _ _) = sz
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE size #-}
 #endif
@@ -219,7 +231,11 @@ member = go
           LT -> go x l
           GT -> go x r
           EQ -> True
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE member #-}
+#else
 {-# INLINE member #-}
+#endif
 
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
@@ -232,12 +248,10 @@ notMember a t = not $ member a t
 -- | /O(1)/. The empty set.
 empty  :: Set a
 empty = Tip
-{-# INLINE empty #-}
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
 singleton x = Bin 1 x Tip Tip
-{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -471,12 +485,10 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: Ord a => (a -> Bool) -> Set a -> Set a
-filter p = go
-  where 
-    go Tip = Tip
-    go (Bin _ x l r)
-        | p x       = join x (go l) (go r)
-        | otherwise = merge (go l) (go r)
+filter p Tip = Tip
+filter p (Bin _ x l r)
+    | p x       = join x (filter p l) (filter p r)
+    | otherwise = merge (filter p l) (filter p r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filter #-}
 #endif
@@ -485,13 +497,11 @@ filter p = go
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
-partition p = go
-  where
-    go Tip = (Tip, Tip)
-    go (Bin _ x l r) = case (go l, go r) of
-        ((l1, l2), (r1, r2))
-            | p x       -> (join x l1 r1, merge l2 r2)
-            | otherwise -> (merge l1 r1, join x l2 r2)
+partition p Tip = (Tip, Tip)
+partition p (Bin _ x l r) = case (partition p l, partition p r) of
+  ((l1, l2), (r1, r2))
+    | p x       -> (join x l1 r1, merge l2 r2)
+    | otherwise -> (merge l1 r1, join x l2 r2)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE partition #-}
 #endif
@@ -523,10 +533,8 @@ map f = fromList . List.map f . toList
 -- >     where ls = toList s
 
 mapMonotonic :: (a->b) -> Set a -> Set b
-mapMonotonic f = go
-  where
-    go Tip = Tip
-    go (Bin sz x l r) = Bin sz (f x) (go l) (go r)
+mapMonotonic f Tip = Tip
+mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMonotonic #-}
 #endif
