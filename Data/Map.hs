@@ -126,8 +126,9 @@ module Data.Map  (
             , fold
             , foldWithKey
             , foldrWithKey
+            , foldrWithKey'
             , foldlWithKey
-            -- , foldlWithKey'
+            , foldlWithKey'
 
             -- * Conversion
             , elems
@@ -1684,6 +1685,17 @@ foldrWithKey f = go
     go z (Bin _ kx x l r) = go (f kx x (go z r)) l
 {-# INLINE foldrWithKey #-}
 
+-- | /O(n)/. A strict version of 'foldrWithKey'.
+foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
+foldrWithKey' f = go
+  where
+    go z Tip              = z
+    go z (Bin _ kx x l r) = let z' = go z r
+                            in z `seq` z' `seq` go (f kx x z') l
+#if __GLASGOW_HASKELL__>= 700
+{-# INLINABLE foldrWithKey' #-}
+#endif
+
 -- | /O(n)/. Pre-order fold.  The function will be applied from the highest
 -- value to the lowest.
 foldlWithKey :: (b -> k -> a -> b) -> b -> Map k a -> b
@@ -1693,17 +1705,16 @@ foldlWithKey f = go
     go z (Bin _ kx x l r) = go (f (go z l) kx x) r
 {-# INLINE foldlWithKey #-}
 
-{-
 -- | /O(n)/. A strict version of 'foldlWithKey'.
 foldlWithKey' :: (b -> k -> a -> b) -> b -> Map k a -> b
 foldlWithKey' f = go
   where
     go z Tip              = z
-    go z (Bin _ kx x l r) = z `seq` go (f (go z l) kx x) r
+    go z (Bin _ kx x l r) = let z' = go z l
+                            in z `seq` z' `seq` go (f z' kx x) r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE foldlWithKey' #-}
 #endif
--}
 
 {--------------------------------------------------------------------
   List variations 
