@@ -1376,9 +1376,9 @@ foldr f z t
       Tip k x     -> f k x z
       Nil         -> z
   where
-    go z (Bin _ _ l r) = go (go z r) l
-    go z (Tip k x)     = f k x z
-    go z Nil           = z
+    go z' (Bin _ _ l r) = go (go z' r) l
+    go z' (Tip k x)     = f k x z'
+    go z' Nil           = z'
 {-# INLINE foldr #-}
 
 

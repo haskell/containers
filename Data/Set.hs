@@ -228,7 +228,7 @@ member :: Ord a => a -> Set a -> Bool
 member = go
   where
     STRICT_1_OF_2(go)
-    go x Tip = False
+    go _ Tip = False
     go x (Bin _ y l r) = case compare x y of
           LT -> go x l
           GT -> go x r
@@ -298,7 +298,7 @@ delete :: Ord a => a -> Set a -> Set a
 delete = go
   where
     STRICT_1_OF_2(go)
-    go x Tip = Tip
+    go _ Tip = Tip
     go x (Bin _ y l r) = case compare x y of
         LT -> balanceR y (go x l) r
         GT -> balanceL y l (go x r)
@@ -487,7 +487,7 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: Ord a => (a -> Bool) -> Set a -> Set a
-filter p Tip = Tip
+filter _ Tip = Tip
 filter p (Bin _ x l r)
     | p x       = join x (filter p l) (filter p r)
     | otherwise = merge (filter p l) (filter p r)
@@ -499,7 +499,7 @@ filter p (Bin _ x l r)
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
-partition p Tip = (Tip, Tip)
+partition _ Tip = (Tip, Tip)
 partition p (Bin _ x l r) = case (partition p l, partition p r) of
   ((l1, l2), (r1, r2))
     | p x       -> (join x l1 r1, merge l2 r2)
@@ -535,7 +535,7 @@ map f = fromList . List.map f . toList
 -- >     where ls = toList s
 
 mapMonotonic :: (a->b) -> Set a -> Set b
-mapMonotonic f Tip = Tip
+mapMonotonic _ Tip = Tip
 mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMonotonic #-}
@@ -720,12 +720,12 @@ data MaybeS a = NothingS | JustS !a
 --------------------------------------------------------------------}
 trim :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a
 trim NothingS   NothingS   t = t
-trim (JustS lx) NothingS   t = greater lx t where greater lx (Bin _ x _ r) | x <= lx = greater lx r
+trim (JustS lx) NothingS   t = greater lx t where greater lo (Bin _ x _ r) | x <= lo = greater lo r
                                                   greater _  t' = t'
-trim NothingS   (JustS hx) t = lesser hx t  where lesser  hx (Bin _ x l _) | x >= hx = lesser  hx l
+trim NothingS   (JustS hx) t = lesser hx t  where lesser  hi (Bin _ x l _) | x >= hi = lesser  hi l
                                                   lesser  _  t' = t'
-trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lx hx (Bin _ x _ r) | x <= lx = middle lx hx r
-                                                     middle lx hx (Bin _ x l _) | x >= hx = middle lx hx l
+trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lo hi (Bin _ x _ r) | x <= lo = middle lo hi r
+                                                     middle lo hi (Bin _ x l _) | x >= hi = middle lo hi l
                                                      middle _  _  t' = t'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE trim #-}
@@ -738,10 +738,11 @@ trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lx hx (Bin _ x _ r) 
 filterGt :: Ord a => MaybeS a -> Set a -> Set a
 filterGt NothingS t = t
 filterGt (JustS b) t = filter' b t
-  where filter' b Tip = Tip
-        filter' b (Bin _ x l r) = case compare b x of LT -> join x (filter' b l) r
-                                                      EQ -> r
-                                                      GT -> filter' b r
+  where filter' _   Tip = Tip
+        filter' b' (Bin _ x l r) =
+          case compare b' x of LT -> join x (filter' b' l) r
+                               EQ -> r
+                               GT -> filter' b' r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filterGt #-}
 #endif
@@ -749,10 +750,11 @@ filterGt (JustS b) t = filter' b t
 filterLt :: Ord a => MaybeS a -> Set a -> Set a
 filterLt NothingS t = t
 filterLt (JustS b) t = filter' b t
-  where filter' b Tip = Tip
-        filter' b (Bin _ x l r) = case compare x b of LT -> join x l (filter' b r)
-                                                      EQ -> l
-                                                      GT -> filter' b l
+  where filter' _   Tip = Tip
+        filter' b' (Bin _ x l r) =
+          case compare x b' of LT -> join x l (filter' b' r)
+                               EQ -> l
+                               GT -> filter' b' l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE filterLt #-}
 #endif

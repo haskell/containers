@@ -664,9 +664,9 @@ fold f z t
       Tip x       -> f x z
       Nil         -> z
   where
-    go z (Bin _ _ l r) = go (go z r) l
-    go z (Tip x)       = f x z
-    go z Nil           = z
+    go z' (Bin _ _ l r) = go (go z' r) l
+    go z' (Tip x)       = f x z'
+    go z' Nil           = z'
 {-# INLINE fold #-}
 
 {--------------------------------------------------------------------
