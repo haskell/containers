@@ -39,6 +39,11 @@
 -- (32 or 64).
 -----------------------------------------------------------------------------
 
+-- It is essential that the bit fiddling functions like mask, zero, branchMask
+-- etc are inlined. If they do not, the memory allocation skyrockets. The GHC
+-- usually gets it right, but it is disastrous if it does not. Therefore we
+-- explicitly mark these functions INLINE.
+
 module Data.IntMap  ( 
             -- * Map type
 #if !defined(TESTING)
