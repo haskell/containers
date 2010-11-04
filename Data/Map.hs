@@ -224,11 +224,13 @@ import Data.Data (Data(..), mkNoRepType, gcast2)
 #endif
 
 -- Use macros to define strictness of functions.
--- STRICTxy denotes an y-ary function strict in the x-th parameter.
-#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT13(fn) fn arg _ _ | arg `seq` False = undefined
-#define STRICT23(fn) fn _ arg _ | arg `seq` False = undefined
-#define STRICT24(fn) fn _ arg _ _ | arg `seq` False = undefined
+-- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
+-- We do not use BangPatterns, because they are not in any standard and we
+-- want the compilers to be compiled by as many compilers as possible.
+#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
+#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
+#define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -345,7 +347,7 @@ size (Bin sz _ _ _ _) = sz
 lookup :: Ord k => k -> Map k a -> Maybe a
 lookup = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go k Tip = Nothing
     go k (Bin _ kx x l r) =
         case compare k kx of
@@ -361,7 +363,7 @@ lookup = go
 lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupAssoc = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go k Tip = Nothing
     go k (Bin _ kx x l r) =
         case compare k kx of
@@ -462,7 +464,7 @@ singleton k x = Bin 1 k x Tip Tip
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
-    STRICT13(go)
+    STRICT_1_OF_3(go)
     go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
@@ -515,7 +517,7 @@ insertWith' f = insertWithKey' (\_ x' y' -> f x' y')
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
-    STRICT24(go)
+    STRICT_2_OF_4(go)
     go f kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
@@ -532,7 +534,7 @@ insertWithKey = go
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey' = go
   where
-    STRICT24(go)
+    STRICT_2_OF_4(go)
     go f kx x Tip = x `seq` singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
@@ -565,7 +567,7 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
 insertLookupWithKey = go
   where
-    STRICT24(go)
+    STRICT_2_OF_4(go)
     go f kx x Tip = (Nothing, singleton kx x)
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
@@ -585,7 +587,7 @@ insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
 insertLookupWithKey' = go
   where
-    STRICT24(go)
+    STRICT_2_OF_4(go)
     go f kx x Tip = x `seq` (Nothing, singleton kx x)
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
@@ -614,7 +616,7 @@ insertLookupWithKey' = go
 delete :: Ord k => k -> Map k a -> Map k a
 delete = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go k Tip = Tip
     go k (Bin _ kx x l r) =
         case compare k kx of
@@ -677,7 +679,7 @@ update f = updateWithKey (\_ x -> f x)
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
-    STRICT23(go)
+    STRICT_2_OF_3(go)
     go f k Tip = Tip
     go f k(Bin sx kx x l r) =
         case compare k kx of
@@ -704,7 +706,7 @@ updateWithKey = go
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey = go
  where
-   STRICT23(go)
+   STRICT_2_OF_3(go)
    go f k Tip = (Nothing,Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
@@ -734,7 +736,7 @@ updateLookupWithKey = go
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
-    STRICT23(go)
+    STRICT_2_OF_3(go)
     go f k Tip = case f Nothing of
                Nothing -> Tip
                Just x  -> singleton k x
@@ -783,8 +785,8 @@ findIndex k t
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex k = lkp k 0
   where
-    STRICT13(lkp)
-    STRICT23(lkp)
+    STRICT_1_OF_3(lkp)
+    STRICT_2_OF_3(lkp)
     lkp k idx Tip  = Nothing
     lkp k idx (Bin _ kx _ l r)
       = case compare k kx of
@@ -803,7 +805,7 @@ lookupIndex k = lkp k 0
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 elemAt :: Int -> Map k a -> (k,a)
-STRICT12(elemAt)
+STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of

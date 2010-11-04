@@ -151,8 +151,10 @@ import Data.Data (Data(..), mkNoRepType, gcast1)
 #endif
 
 -- Use macros to define strictness of functions.
--- STRICTxy denotes an y-ary function strict in the x-th parameter.
-#define STRICT12(fn) fn arg _ | arg `seq` False = undefined
+-- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
+-- We do not use BangPatterns, because they are not in any standard and we
+-- want the compilers to be compiled by as many compilers as possible.
+#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -225,7 +227,7 @@ size (Bin sz _ _ _) = sz
 member :: Ord a => a -> Set a -> Bool
 member = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go x Tip = False
     go x (Bin _ y l r) = case compare x y of
           LT -> go x l
@@ -262,7 +264,7 @@ singleton x = Bin 1 x Tip Tip
 insert :: Ord a => a -> Set a -> Set a
 insert = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go x Tip = singleton x
     go x (Bin sz y l r) = case compare x y of
         LT -> balanceL y (go x l) r
@@ -279,7 +281,7 @@ insert = go
 insertR :: Ord a => a -> Set a -> Set a
 insertR = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go x Tip = singleton x
     go x t@(Bin _ y l r) = case compare x y of
         LT -> balanceL y (go x l) r
@@ -295,7 +297,7 @@ insertR = go
 delete :: Ord a => a -> Set a -> Set a
 delete = go
   where
-    STRICT12(go)
+    STRICT_1_OF_2(go)
     go x Tip = Tip
     go x (Bin _ y l r) = case compare x y of
         LT -> balanceR y (go x l) r
