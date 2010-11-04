@@ -225,6 +225,15 @@ size t
 -- increased memory allocation. It does not cause speedup with other methods
 -- like insert and delete, so it is present only in member and lookup.
 
+-- Also mind the 'nomatch' line in member definition, which is not present in
+-- lookup and not present in IntMap.hs. That condition stops the search if the
+-- prefix of current vertex is different that the element looked for. The
+-- member is correct both with and without this condition. With this condition,
+-- elements not present are rejected sooner, but a little bit more work is done
+-- for the elements in the set (we are talking about 3-5% slowdown). Any of
+-- the solutions is better than the other, because we do not know the
+-- distribution of input data. Current state is historic.
+
 -- | /O(min(n,W))/. Is the value a member of the set?
 member :: Int -> IntSet -> Bool
 member x = x `seq` go
