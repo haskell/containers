@@ -1692,9 +1692,7 @@ foldrWithKey' f = go
     go z Tip              = z
     go z (Bin _ kx x l r) = let z' = go z r
                             in z `seq` z' `seq` go (f kx x z') l
-#if __GLASGOW_HASKELL__>= 700
-{-# INLINABLE foldrWithKey' #-}
-#endif
+{-# INLINE foldrWithKey' #-}
 
 -- | /O(n)/. Pre-order fold.  The function will be applied from the highest
 -- value to the lowest.
@@ -1712,9 +1710,7 @@ foldlWithKey' f = go
     go z Tip              = z
     go z (Bin _ kx x l r) = let z' = go z l
                             in z `seq` z' `seq` go (f z' kx x) r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE foldlWithKey' #-}
-#endif
+{-# INLINE foldlWithKey' #-}
 
 {--------------------------------------------------------------------
   List variations 
