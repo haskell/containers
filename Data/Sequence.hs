@@ -861,7 +861,7 @@ unfoldr f = unfoldr' empty
   -- uses tail recursion rather than, for instance, the List implementation.
   where unfoldr' as b = maybe as (\ (a, b') -> unfoldr' (as |> a) b') (f b)
 
--- | @'unfoldl' f x@ is equivalent to @'reverse' ('unfoldr' (swap . f) x)@.
+-- | @'unfoldl' f x@ is equivalent to @'reverse' ('unfoldr' ('fmap' swap . f) x)@.
 unfoldl :: (b -> Maybe (b, a)) -> b -> Seq a
 unfoldl f = unfoldl' empty
   where unfoldl' as b = maybe as (\ (b', a) -> unfoldl' (a <| as) b') (f b)
