@@ -149,7 +149,6 @@ import Data.Data (Data(..), DataType, Constr, Fixity(..),
 #endif
 
 #if TESTING
-import Control.Monad (liftM, liftM2, liftM3, liftM4)
 import qualified Data.List (zipWith)
 import Test.QuickCheck hiding ((><))
 #endif
@@ -1767,18 +1766,18 @@ mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
 ------------------------------------------------------------------------
 
 instance Arbitrary a => Arbitrary (Seq a) where
-	arbitrary = liftM Seq arbitrary
+	arbitrary = Seq <$> arbitrary
 	shrink (Seq x) = map Seq (shrink x)
 
 instance Arbitrary a => Arbitrary (Elem a) where
-	arbitrary = liftM Elem arbitrary
+	arbitrary = Elem <$> arbitrary
 
 instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
 	arbitrary = sized arb
 	  where arb :: (Arbitrary a, Sized a) => Int -> Gen (FingerTree a)
 		arb 0 = return Empty
-		arb 1 = liftM Single arbitrary
-		arb n = liftM3 deep arbitrary (arb (n `div` 2)) arbitrary
+		arb 1 = Single <$> arbitrary
+		arb n = deep <$> arbitrary <*> arb (n `div` 2) <*> arbitrary
 
 	shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
 	shrink (Deep _ pr m sf) =
@@ -1790,8 +1789,8 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
 
 instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
 	arbitrary = oneof [
-		liftM2 node2 arbitrary arbitrary,
-		liftM3 node3 arbitrary arbitrary arbitrary]
+		node2 <$> arbitrary <*> arbitrary,
+		node3 <$> arbitrary <*> arbitrary <*> arbitrary]
 
 	shrink (Node2 _ a b) =
 		[node2 a' b | a' <- shrink a] ++
@@ -1804,10 +1803,10 @@ instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
 
 instance Arbitrary a => Arbitrary (Digit a) where
 	arbitrary = oneof [
-		liftM One arbitrary,
-		liftM2 Two arbitrary arbitrary,
-		liftM3 Three arbitrary arbitrary arbitrary,
-		liftM4 Four arbitrary arbitrary arbitrary arbitrary]
+		One <$> arbitrary,
+		Two <$> arbitrary <*> arbitrary,
+		Three <$> arbitrary <*> arbitrary <*> arbitrary,
+		Four <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary]
 
 	shrink (One a) = map One (shrink a)
 	shrink (Two a b) = [One a, One b]
