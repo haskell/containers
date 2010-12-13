@@ -1,5 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# OPTIONS -cpp #-}
+{-# LANGUAGE CPP, DeriveDataTypeable #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
@@ -520,9 +519,9 @@ mapAccumL' f s t = runState (traverse (State . flip f) t) s
 {-# SPECIALIZE applicativeTree :: Int -> Int -> Id a -> Id (FingerTree a) #-}
 -- Special note: the Id specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
-applicativeTree :: forall f a. Applicative f => Int -> Int -> f a -> f (FingerTree a)
+applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
-	0 -> emptyTree
+	0 -> pure Empty
 	1 -> liftA Single m
 	2 -> deepA one emptyTree one
 	3 -> deepA two emptyTree one
@@ -543,8 +542,6 @@ applicativeTree n mSize m = mSize `seq` case n of
 	deepA = liftA3 (Deep (n * mSize))
 	mSize' = 3 * mSize
 	n3 = liftA3 (Node3 mSize') m m m
-
-        emptyTree :: forall b. f (FingerTree b)
 	emptyTree = pure Empty
 
 ------------------------------------------------------------------------
