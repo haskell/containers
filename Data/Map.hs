@@ -866,7 +866,7 @@ deleteAt i m
 {--------------------------------------------------------------------
   Minimal, Maximal
 --------------------------------------------------------------------}
--- | /O(log n)/. The minimal key of the map. Calls 'error' is the map is empty.
+-- | /O(log n)/. The minimal key of the map. Calls 'error' if the map is empty.
 --
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
@@ -879,7 +879,7 @@ findMin Tip                 = error "Map.findMin: empty map has no minimal eleme
 {-# INLINABLE findMin #-}
 #endif
 
--- | /O(log n)/. The maximal key of the map. Calls 'error' is the map is empty.
+-- | /O(log n)/. The maximal key of the map. Calls 'error' if the map is empty.
 --
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
@@ -1558,7 +1558,7 @@ mapAccumWithKey f a t
 #endif
 
 -- | /O(n)/. The function 'mapAccumL' threads an accumulating
--- argument throught the map in ascending order of keys.
+-- argument through the map in ascending order of keys.
 mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumL _ a Tip               = (a,Tip)
 mapAccumL f a (Bin sx kx x l r) =
@@ -1915,7 +1915,7 @@ fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs
   = build const (length xs) xs
   where
-    -- 1) use continutations so that we use heap space instead of stack space.
+    -- 1) use continuations so that we use heap space instead of stack space.
     -- 2) special case for n==5 to build bushier trees. 
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
@@ -2210,14 +2210,14 @@ deleteFindMax t
   [ratio] is the ratio between an outer and inner sibling of the
           heavier subtree in an unbalanced setting. It determines
           whether a double or single rotation should be performed
-          to restore balance. It is correspondes with the inverse
+          to restore balance. It is corresponds with the inverse
           of $\alpha$ in Adam's article.
 
   Note that according to the Adam's paper:
   - [delta] should be larger than 4.646 with a [ratio] of 2.
   - [delta] should be larger than 3.745 with a [ratio] of 1.534.
 
-  But the Adam's paper is errorneous:
+  But the Adam's paper is erroneous:
   - It can be proved that for delta=2 and delta>=5 there does
     not exist any ratio that would work.
   - Delta=4.5 and ratio=2 does not work.
