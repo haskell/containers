@@ -49,9 +49,9 @@
 -- All methods that can be INLINE are not recursive -- a 'go' function doing
 -- the real work is provided.
 
-module Data.Set  ( 
+module Data.Set (
             -- * Set type
-#if !defined(TESTING)    
+#if !defined(TESTING)
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
 #else
               Set(..)
@@ -67,19 +67,19 @@ module Data.Set  (
             , notMember
             , isSubsetOf
             , isProperSubsetOf
-            
+
             -- * Construction
             , empty
             , singleton
             , insert
             , delete
-            
+
             -- * Combine
             , union
             , unions
             , difference
             , intersection
-            
+
             -- * Filter
             , filter
             , partition
@@ -109,12 +109,12 @@ module Data.Set  (
             , elems
             , toList
             , fromList
-            
+
             -- ** Ordered list
             , toAscList
             , fromAscList
             , fromDistinctAscList
-                        
+
             -- * Debugging
             , showTree
             , showTreeWith
@@ -126,7 +126,7 @@ module Data.Set  (
             , balanced
             , join
             , merge
-#endif    
+#endif
             ) where
 
 import Prelude hiding (filter,foldr,null,map)

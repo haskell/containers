@@ -41,7 +41,7 @@
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
 
-module Data.IntSet  ( 
+module Data.IntSet (
             -- * Set type
 #if !defined(TESTING)
               IntSet          -- instance Eq,Show
@@ -59,26 +59,33 @@ module Data.IntSet  (
             , notMember
             , isSubsetOf
             , isProperSubsetOf
-            
+
             -- * Construction
             , empty
             , singleton
             , insert
             , delete
-            
+
             -- * Combine
-            , union, unions
+            , union
+            , unions
             , difference
             , intersection
-            
+
             -- * Filter
             , filter
             , partition
             , split
             , splitMember
 
+            -- * Map
+            , map
+
+            -- * Fold
+            , fold
+
             -- * Min\/Max
-            , findMin   
+            , findMin
             , findMax
             , deleteMin
             , deleteMax
@@ -87,23 +94,18 @@ module Data.IntSet  (
             , maxView
             , minView
 
-            -- * Map
-	    , map
-
-            -- * Fold
-            , fold
-
             -- * Conversion
+
             -- ** List
             , elems
             , toList
             , fromList
-            
+
             -- ** Ordered list
             , toAscList
             , fromAscList
             , fromDistinctAscList
-                        
+
             -- * Debugging
             , showTree
             , showTreeWith
