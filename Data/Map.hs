@@ -51,7 +51,7 @@
 -- All methods that can be INLINE are not recursive -- a 'go' function doing
 -- the real work is provided.
 
-module Data.Map  ( 
+module Data.Map (
             -- * Map type
 #if !defined(TESTING)
               Map              -- instance Eq,Show,Read
@@ -69,7 +69,7 @@ module Data.Map  (
             , notMember
             , lookup
             , findWithDefault
-            
+
             -- * Construction
             , empty
             , singleton
@@ -82,7 +82,7 @@ module Data.Map  (
             , insertWithKey'
             , insertLookupWithKey
             , insertLookupWithKey'
-            
+
             -- ** Delete\/Update
             , delete
             , adjust
@@ -95,8 +95,8 @@ module Data.Map  (
             -- * Combine
 
             -- ** Union
-            , union         
-            , unionWith          
+            , union
+            , unionWith
             , unionWithKey
             , unions
             , unionsWith
@@ -105,9 +105,9 @@ module Data.Map  (
             , difference
             , differenceWith
             , differenceWithKey
-            
+
             -- ** Intersection
-            , intersection           
+            , intersection
             , intersectionWith
             , intersectionWithKey
 
@@ -135,7 +135,7 @@ module Data.Map  (
             , keys
             , keysSet
             , assocs
-            
+
             -- ** Lists
             , toList
             , fromList
@@ -150,7 +150,7 @@ module Data.Map  (
             , fromAscListWithKey
             , fromDistinctAscList
 
-            -- * Filter 
+            -- * Filter
             , filter
             , filterWithKey
             , partition
@@ -161,14 +161,14 @@ module Data.Map  (
             , mapEither
             , mapEitherWithKey
 
-            , split         
-            , splitLookup   
+            , split
+            , splitLookup
 
             -- * Submap
             , isSubmapOf, isSubmapOfBy
             , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Indexed 
+            -- * Indexed
             , lookupIndex
             , findIndex
             , elemAt
@@ -190,7 +190,7 @@ module Data.Map  (
             , maxView
             , minViewWithKey
             , maxViewWithKey
-            
+
             -- * Debugging
             , showTree
             , showTreeWith

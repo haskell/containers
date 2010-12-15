@@ -44,7 +44,7 @@
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
 
-module Data.IntMap  ( 
+module Data.IntMap (
             -- * Map type
 #if !defined(TESTING)
               IntMap, Key          -- instance Eq,Show
@@ -62,16 +62,19 @@ module Data.IntMap  (
             , notMember
             , lookup
             , findWithDefault
-            
+
             -- * Construction
             , empty
             , singleton
 
             -- ** Insertion
             , insert
-            , insertWith,  insertWithKey,  insertLookupWithKey
-            , insertWith', insertWithKey'
-            
+            , insertWith
+            , insertWith'
+            , insertWithKey
+            , insertWithKey'
+            , insertLookupWithKey
+
             -- ** Delete\/Update
             , delete
             , adjust
@@ -80,12 +83,12 @@ module Data.IntMap  (
             , updateWithKey
             , updateLookupWithKey
             , alter
-  
+
             -- * Combine
 
             -- ** Union
-            , union         
-            , unionWith          
+            , union
+            , unionWith
             , unionWithKey
             , unions
             , unionsWith
@@ -94,9 +97,9 @@ module Data.IntMap  (
             , difference
             , differenceWith
             , differenceWithKey
-            
+
             -- ** Intersection
-            , intersection           
+            , intersection
             , intersectionWith
             , intersectionWithKey
 
@@ -107,7 +110,7 @@ module Data.IntMap  (
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
-            
+
             -- ** Fold
             , fold
             , foldWithKey
@@ -117,7 +120,7 @@ module Data.IntMap  (
             , keys
             , keysSet
             , assocs
-            
+
             -- ** Lists
             , toList
             , fromList
@@ -131,7 +134,7 @@ module Data.IntMap  (
             , fromAscListWithKey
             , fromDistinctAscList
 
-            -- * Filter 
+            -- * Filter
             , filter
             , filterWithKey
             , partition
@@ -142,18 +145,15 @@ module Data.IntMap  (
             , mapEither
             , mapEitherWithKey
 
-            , split         
-            , splitLookup   
+            , split
+            , splitLookup
 
             -- * Submap
             , isSubmapOf, isSubmapOfBy
             , isProperSubmapOf, isProperSubmapOfBy
-            
-            -- * Min\/Max
 
-            , maxView
-            , minView
-            , findMin   
+            -- * Min\/Max
+            , findMin
             , findMax
             , deleteMin
             , deleteMax
@@ -162,7 +162,9 @@ module Data.IntMap  (
             , updateMin
             , updateMax
             , updateMinWithKey
-            , updateMaxWithKey 
+            , updateMaxWithKey
+            , minView
+            , maxView
             , minViewWithKey
             , maxViewWithKey
 
@@ -170,7 +172,6 @@ module Data.IntMap  (
             , showTree
             , showTreeWith
             ) where
-
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import Data.Bits 
