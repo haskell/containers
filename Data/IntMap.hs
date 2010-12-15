@@ -610,7 +610,7 @@ updateLookupWithKey f k t = k `seq`
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
-alter :: (Maybe a -> Maybe a) -> Int -> IntMap a -> IntMap a
+alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
 alter f k t = k `seq`
   case t of
     Bin p m l r
@@ -988,7 +988,7 @@ deleteFindMin :: IntMap a -> (a, IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minView
 
 -- | /O(log n)/. The minimal key of the map.
-findMin :: IntMap a -> (Int,a)
+findMin :: IntMap a -> (Key, a)
 findMin Nil = error $ "findMin: empty map has no minimal element"
 findMin (Tip k v) = (k,v)
 findMin (Bin _ m l r)
@@ -999,7 +999,7 @@ findMin (Bin _ m l r)
           go Nil            = error "findMax Nil"
 
 -- | /O(log n)/. The maximal key of the map.
-findMax :: IntMap a -> (Int,a)
+findMax :: IntMap a -> (Key, a)
 findMax Nil = error $ "findMax: empty map has no maximal element"
 findMax (Tip k v) = (k,v)
 findMax (Bin _ m l r)
