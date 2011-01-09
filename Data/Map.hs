@@ -784,14 +784,15 @@ findIndex k t
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
-lookupIndex k = lkp 0
+lookupIndex k = lkp k 0
   where
-    STRICT_1_OF_2(lkp)
-    lkp _    Tip  = Nothing
-    lkp idx (Bin _ kx _ l r)
-      = case compare k kx of
-          LT -> lkp idx l
-          GT -> lkp (idx + size l + 1) r
+    STRICT_1_OF_3(lkp)
+    STRICT_2_OF_3(lkp)
+    lkp _   _    Tip  = Nothing
+    lkp key idx (Bin _ kx _ l r)
+      = case compare key kx of
+          LT -> lkp key idx l
+          GT -> lkp key (idx + size l + 1) r
           EQ -> Just (idx + size l)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
