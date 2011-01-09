@@ -793,7 +793,7 @@ lookupIndex k = lkp k 0
       = case compare key kx of
           LT -> lkp key idx l
           GT -> lkp key (idx + size l + 1) r
-          EQ -> Just (idx + size l)
+          EQ -> let idx' = idx + size l in idx' `seq` Just idx'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
 #endif
