@@ -22,33 +22,43 @@ main = do
     defaultMainWith
         defaultConfig
         (liftIO . evaluate $ rnf [m, m_even, m_odd])
-        [ bench "lookup" $ nf (lookup keys) m
-        , bench "insert" $ nf (ins elems) M.empty
-        , bench "insertWith empty" $ nf (insWith elems) M.empty
-        , bench "insertWith update" $ nf (insWith elems) m
-        , bench "insertWith' empty" $ nf (insWith' elems) M.empty
-        , bench "insertWith' update" $ nf (insWith' elems) m
-        , bench "insertWithKey empty" $ nf (insWithKey elems) M.empty
-        , bench "insertWithKey update" $ nf (insWithKey elems) m
-        , bench "insertWithKey' empty" $ nf (insWithKey' elems) M.empty
-        , bench "insertWithKey' update" $ nf (insWithKey' elems) m
-        , bench "insertLookupWithKey empty" $
-          nf (insLookupWithKey elems) M.empty
-        , bench "insertLookupWithKey update" $
-          nf (insLookupWithKey elems) m
-        , bench "insertLookupWithKey' empty" $
-          nf (insLookupWithKey' elems) M.empty
-        , bench "insertLookupWithKey' update" $
-          nf (insLookupWithKey' elems) m
+        [ bench "lookup absent" $ nf (lookup evens) m_odd
+        , bench "lookup present" $ nf (lookup evens) m_even
+        , bench "insert absent" $ nf (ins elems_even) m_odd
+        , bench "insert present" $ nf (ins elems_even) m_even
+        , bench "insertWith absent" $ nf (insWith elems_even) m_odd
+        , bench "insertWith present" $ nf (insWith elems_even) m_even
+        , bench "insertWith' absent" $ nf (insWith' elems_even) m_odd
+        , bench "insertWith' present" $ nf (insWith' elems_even) m_even
+        , bench "insertWithKey absent" $ nf (insWithKey elems_even) m_odd
+        , bench "insertWithKey present" $ nf (insWithKey elems_even) m_even
+        , bench "insertWithKey' absent" $ nf (insWithKey' elems_even) m_odd
+        , bench "insertWithKey' present" $ nf (insWithKey' elems_even) m_even
+        , bench "insertLookupWithKey absent" $
+          nf (insLookupWithKey elems_even) m_odd
+        , bench "insertLookupWithKey present" $
+          nf (insLookupWithKey elems_even) m_even
+        , bench "insertLookupWithKey' absent" $
+          nf (insLookupWithKey' elems_even) m_odd
+        , bench "insertLookupWithKey' present" $
+          nf (insLookupWithKey' elems_even) m_even
         , bench "map" $ nf (M.map (+ 1)) m
         , bench "mapWithKey" $ nf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ nf (ins elems) m
 --         , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
         , bench "foldrWithKey" $ nf (M.foldrWithKey consPair []) m
-        , bench "delete" $ nf (del keys) m
-        , bench "update" $ nf (upd keys) m
-        , bench "updateLookupWithKey" $ nf (upd' keys) m
-        , bench "alter"  $ nf (alt keys) m
+        , bench "delete absent" $ nf (del evens) m_odd
+        , bench "delete present" $ nf (del evens) m
+        , bench "update absent" $ nf (upd Just evens) m_odd
+        , bench "update present" $ nf (upd Just evens) m_even
+        , bench "update delete" $ nf (upd (const Nothing) evens) m
+        , bench "updateLookupWithKey absent" $ nf (upd' Just evens) m_odd
+        , bench "updateLookupWithKey present" $ nf (upd' Just evens) m_even
+        , bench "updateLookupWithKey delete" $ nf (upd' (const Nothing) evens) m
+        , bench "alter absent"  $ nf (alt id evens) m_odd
+        , bench "alter insert"  $ nf (alt (const (Just 1)) evens) m_odd
+        , bench "alter update"  $ nf (alt id evens) m_even
+        , bench "alter delete"  $ nf (alt (const Nothing) evens) m
         , bench "mapMaybe" $ nf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ nf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ nf (lookupIndex keys) m
@@ -59,9 +69,11 @@ main = do
   where
     bound = 2^10
     elems = zip keys values
-    elems_even = zip [2,4..bound] [2,4..bound]
-    elems_odd = zip [1,3..bound] [1,3..bound]
+    elems_even = zip evens evens
+    elems_odd = zip odds odds
     keys = [1..bound]
+    evens = [2,4..bound]
+    odds = [1,3..bound]
     values = [1..bound]
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
@@ -108,14 +120,14 @@ insLookupWithKey' xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
 del :: [Int] -> M.Map Int Int -> M.Map Int Int
 del xs m = foldl' (\m k -> M.delete k m) m xs
 
-upd :: [Int] -> M.Map Int Int -> M.Map Int Int
-upd xs m = foldl' (\m k -> M.update Just k m) m xs
+upd :: (Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+upd f xs m = foldl' (\m k -> M.update f k m) m xs
 
-upd' :: [Int] -> M.Map Int Int -> M.Map Int Int
-upd' xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> Just a) k m) m xs
+upd' :: (Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+upd' f xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> f a) k m) m xs
 
-alt :: [Int] -> M.Map Int Int -> M.Map Int Int
-alt xs m = foldl' (\m k -> M.alter id k m) m xs
+alt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+alt f xs m = foldl' (\m k -> M.alter f k m) m xs
 
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
