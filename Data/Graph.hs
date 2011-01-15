@@ -69,10 +69,6 @@ import Data.Maybe
 import Data.Array
 import Data.List
 
-#ifdef __HADDOCK__
-import Prelude
-#endif
-
 -------------------------------------------------------------------------
 --									-
 --	External interface

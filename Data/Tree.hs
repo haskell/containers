@@ -24,10 +24,6 @@ module Data.Tree(
     unfoldTreeM_BF, unfoldForestM_BF,
     ) where
 
-#ifdef __HADDOCK__
-import Prelude
-#endif
-
 import Control.Applicative (Applicative(..), (<$>))
 import Control.Monad
 import Data.Monoid (Monoid(..))
@@ -46,17 +42,10 @@ data Tree a = Node {
         rootLabel :: a,         -- ^ label value
         subForest :: Forest a   -- ^ zero or more child trees
     }
-#ifndef __HADDOCK__
-# ifdef __GLASGOW_HASKELL__
+#ifdef __GLASGOW_HASKELL__
   deriving (Eq, Read, Show, Data)
-# else
+#else
   deriving (Eq, Read, Show)
-# endif
-#else /* __HADDOCK__ (which can't figure these out by itself) */
-instance Eq a => Eq (Tree a)
-instance Read a => Read (Tree a)
-instance Show a => Show (Tree a)
-instance Data a => Data (Tree a)
 #endif
 type Forest a = [Tree a]
 

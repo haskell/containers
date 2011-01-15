@@ -895,18 +895,10 @@ data Maybe2 a b = Nothing2 | Just2 a b
 data ViewL a
     = EmptyL        -- ^ empty sequence
     | a :< Seq a    -- ^ leftmost element and the rest of the sequence
-#ifndef __HADDOCK__
-# if __GLASGOW_HASKELL__
+#if __GLASGOW_HASKELL__
     deriving (Eq, Ord, Show, Read, Data)
-# else
-    deriving (Eq, Ord, Show, Read)
-# endif
 #else
-instance Eq a => Eq (ViewL a)
-instance Ord a => Ord (ViewL a)
-instance Show a => Show (ViewL a)
-instance Read a => Read (ViewL a)
-instance Data a => Data (ViewL a)
+    deriving (Eq, Ord, Show, Read)
 #endif
 
 INSTANCE_TYPEABLE1(ViewL,viewLTc,"ViewL")
@@ -952,18 +944,10 @@ data ViewR a
     = EmptyR        -- ^ empty sequence
     | Seq a :> a    -- ^ the sequence minus the rightmost element,
             -- and the rightmost element
-#ifndef __HADDOCK__
-# if __GLASGOW_HASKELL__
+#if __GLASGOW_HASKELL__
     deriving (Eq, Ord, Show, Read, Data)
-# else
-    deriving (Eq, Ord, Show, Read)
-# endif
 #else
-instance Eq a => Eq (ViewR a)
-instance Ord a => Ord (ViewR a)
-instance Show a => Show (ViewR a)
-instance Read a => Read (ViewR a)
-instance Data a => Data (ViewR a)
+    deriving (Eq, Ord, Show, Read)
 #endif
 
 INSTANCE_TYPEABLE1(ViewR,viewRTc,"ViewR")
