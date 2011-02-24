@@ -372,7 +372,11 @@ instance Foldable Digit where
     foldl1 f (Four a b c d) = ((a `f` b) `f` c) `f` d
 
 instance Functor Digit where
-    fmap = fmapDefault
+    {-# INLINE fmap #-}
+    fmap f (One a) = One (f a)
+    fmap f (Two a b) = Two (f a) (f b)
+    fmap f (Three a b c) = Three (f a) (f b) (f c)
+    fmap f (Four a b c d) = Four (f a) (f b) (f c) (f d)
 
 instance Traversable Digit where
     {-# INLINE traverse #-}
@@ -419,7 +423,8 @@ instance Foldable Node where
 
 instance Functor Node where
     {-# INLINE fmap #-}
-    fmap = fmapDefault
+    fmap f (Node2 v a b) = Node2 v (f a) (f b)
+    fmap f (Node3 v a b c) = Node3 v (f a) (f b) (f c)
 
 instance Traversable Node where
     {-# INLINE traverse #-}
@@ -904,7 +909,9 @@ data ViewL a
 INSTANCE_TYPEABLE1(ViewL,viewLTc,"ViewL")
 
 instance Functor ViewL where
-    fmap = fmapDefault
+    {-# INLINE fmap #-}
+    fmap _ EmptyL       = EmptyL
+    fmap f (x :< xs)    = f x :< fmap f xs
 
 instance Foldable ViewL where
     foldr _ z EmptyL = z
@@ -953,7 +960,9 @@ data ViewR a
 INSTANCE_TYPEABLE1(ViewR,viewRTc,"ViewR")
 
 instance Functor ViewR where
-    fmap = fmapDefault
+    {-# INLINE fmap #-}
+    fmap _ EmptyR       = EmptyR
+    fmap f (xs :> x)    = fmap f xs :> f x
 
 instance Foldable ViewR where
     foldr _ z EmptyR = z
