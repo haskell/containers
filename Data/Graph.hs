@@ -316,11 +316,14 @@ include v     = SetM $ \ m -> ((), Set.insert v m)
 -- Algorithm 1: depth first search numbering
 ------------------------------------------------------------
 
-preorder            :: Tree a -> [a]
-preorder (Node a ts) = a : preorderF ts
+preorder' :: Tree a -> [a] -> [a]
+preorder' (Node a ts) = (a :) . preorderF' ts
 
-preorderF           :: Forest a -> [a]
-preorderF ts         = concat (map preorder ts)
+preorderF' :: Forest a -> [a] -> [a]
+preorderF' ts = foldr (.) id $ map preorder' ts
+
+preorderF :: Forest a -> [a]
+preorderF ts = preorderF' ts []
 
 tabulate        :: Bounds -> [Vertex] -> Table Int
 tabulate bnds vs = array bnds (zipWith (,) vs [1..])
@@ -332,14 +335,14 @@ preArr bnds      = tabulate bnds . preorderF
 -- Algorithm 2: topological sorting
 ------------------------------------------------------------
 
-postorder :: Tree a -> [a]
-postorder (Node a ts) = postorderF ts ++ [a]
+postorder :: Tree a -> [a] -> [a]
+postorder (Node a ts) = postorderF ts . (a :)
 
-postorderF   :: Forest a -> [a]
-postorderF ts = concat (map postorder ts)
+postorderF   :: Forest a -> [a] -> [a]
+postorderF ts = foldr (.) id $ map postorder ts
 
-postOrd      :: Graph -> [Vertex]
-postOrd       = postorderF . dff
+postOrd :: Graph -> [Vertex]
+postOrd g = postorderF (dff g) []
 
 -- | A topological sort of the graph.
 -- The order is partially specified by the condition that a vertex /i/
