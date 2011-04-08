@@ -16,8 +16,8 @@ cabal-version:  >=1.6
 extra-source-files: include/Typeable.h
 
 source-repository head
-    type:     darcs
-    location: http://darcs.haskell.org/packages/containers/
+    type:     git
+    location: http://darcs.haskell.org/packages/containers.git/
 
 Library {
     build-depends: base >= 4.2 && < 6, array
