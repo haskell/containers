@@ -135,17 +135,13 @@ import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Data.Foldable
 import Data.Traversable
-#ifndef __GLASGOW_HASKELL__
-import Data.Typeable (Typeable, typeOf, typeOfDefault)
-#endif
-import Data.Typeable (TyCon, Typeable1(..), mkTyCon, mkTyConApp )
+import Data.Typeable
 
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
-import Data.Data (Data(..), DataType, Constr, Fixity(..),
-                 mkConstr, mkDataType, constrIndex, gcast1)
+import Data.Data
 #endif
 
 #if TESTING

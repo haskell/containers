@@ -133,10 +133,7 @@ import Prelude hiding (filter,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Foldable (Foldable(foldMap))
-#ifndef __GLASGOW_HASKELL__
-import Data.Typeable (Typeable, typeOf, typeOfDefault)
-#endif
-import Data.Typeable (Typeable1(..), TyCon, mkTyCon, mkTyConApp)
+import Data.Typeable
 
 {-
 -- just for testing
@@ -147,7 +144,7 @@ import qualified List
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNoRepType, gcast1)
+import Data.Data
 #endif
 
 -- Use macros to define strictness of functions.

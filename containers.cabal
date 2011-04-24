@@ -38,7 +38,8 @@ Library {
             Data.Tree
     }
     if impl(ghc) {
-        extensions: DeriveDataTypeable, MagicHash, Rank2Types
+        extensions: DeriveDataTypeable, StandaloneDeriving,
+                    MagicHash, Rank2Types
     }
 }
 

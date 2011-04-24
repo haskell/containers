@@ -213,15 +213,11 @@ import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import Data.Foldable (Foldable(foldMap))
-#ifndef __GLASGOW_HASKELL__
-import Data.Typeable ( Typeable, typeOf, typeOfDefault
-                     , Typeable1, typeOf1, typeOf1Default)
-#endif
-import Data.Typeable (Typeable2(..), TyCon, mkTyCon, mkTyConApp)
+import Data.Typeable
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNoRepType, gcast2)
+import Data.Data
 #endif
 
 -- Use macros to define strictness of functions.
