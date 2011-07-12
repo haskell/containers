@@ -174,10 +174,18 @@ m1 \\ m2 = difference m1 m2
 {--------------------------------------------------------------------
   Types  
 --------------------------------------------------------------------}
+
+-- The order of constructors of IntSet matters when considering performance.
+-- Currently in GHC 7.0, when type has 3 constructors, they are matched from
+-- the first to the last -- the best performance is achieved when the
+-- constructors are ordered by frequency.
+-- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
+-- improves the containers_benchmark by 11% on x86 and by 9% on x86_64.
+
 -- | A set of integers.
-data IntSet = Nil
+data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
             | Tip {-# UNPACK #-} !Int
-            | Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
+            | Nil
 -- Invariant: Nil is never found as a child of Bin.
 -- Invariant: The Mask is a power of 2.  It is the largest bit position at which
 --            two elements of the set differ.

@@ -250,10 +250,18 @@ m1 \\ m2 = difference m1 m2
 {--------------------------------------------------------------------
   Types  
 --------------------------------------------------------------------}
+
+-- The order of constructors of IntMap matters when considering performance.
+-- Currently in GHC 7.0, when type has 3 constructors, they are matched from
+-- the first to the last -- the best performance is achieved when the
+-- constructors are ordered by frequency.
+-- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
+-- improves the containers_benchmark by 9.5% on x86 and by 8% on x86_64.
+
 -- | A map of integers to values @a@.
-data IntMap a = Nil
+data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(IntMap a)
               | Tip {-# UNPACK #-} !Key a
-              | Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(IntMap a) 
+              | Nil
 
 type Prefix = Int
 type Mask   = Int
