@@ -1,23 +1,23 @@
-name:       containers
-version:    0.4.1.0
-license:    BSD3
-license-file:    LICENSE
-maintainer:    libraries@haskell.org
+name: containers
+version: 0.4.1.0
+license: BSD3
+license-file: LICENSE
+maintainer: libraries@haskell.org
 bug-reports: http://hackage.haskell.org/trac/ghc/newticket?component=libraries%20%28other%29
-synopsis:   Assorted concrete container types
-category:   Data Structures
+synopsis: Assorted concrete container types
+category: Data Structures
 description:
-        This package contains efficient general-purpose implementations
-        of various basic immutable container types.  The declared cost of
-        each operation is either worst-case or amortized, but remains
-        valid even if structures are shared.
+    This package contains efficient general-purpose implementations
+    of various basic immutable container types.  The declared cost of
+    each operation is either worst-case or amortized, but remains
+    valid even if structures are shared.
 build-type: Simple
 cabal-version:  >=1.6
 extra-source-files: include/Typeable.h
 
 source-repository head
     type:     git
-    location: http://darcs.haskell.org/packages/containers.git/
+    location: http://github.com/haskell/containers.git
 
 Library {
     build-depends: base >= 4.2 && < 6, array
