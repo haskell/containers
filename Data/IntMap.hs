@@ -111,7 +111,17 @@ module Data.IntMap (
             , mapAccumWithKey
             , mapAccumRWithKey
 
-            -- ** Fold
+            -- * Folds
+            , foldr
+            , foldl
+            , foldrWithKey
+            , foldlWithKey
+            -- ** Strict folds
+            , foldr'
+            , foldl'
+            , foldrWithKey'
+            , foldlWithKey'
+            -- ** Legacy folds
             , fold
             , foldWithKey
 
@@ -204,6 +214,12 @@ import GlaExts ( Word(..), Int(..), shiftRL# )
 #else
 import Data.Word
 #endif
+
+-- Use macros to define strictness of functions.
+-- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
+-- We do not use BangPatterns, because they are not in any standard and we
+-- want the compilers to be compiled by as many compilers as possible.
+#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
@@ -1373,46 +1389,157 @@ splitLookup' k t
 {--------------------------------------------------------------------
   Fold
 --------------------------------------------------------------------}
--- | /O(n)/. Fold the values in the map, such that
--- @'fold' f z == 'Prelude.foldr' f z . 'elems'@.
--- For example,
+-- | /O(n)/. Fold the values in the map using the given right-associative
+-- binary operator. This function is an equivalent of 'foldr' and is present
+-- for compatibility only.
 --
--- > elems map = fold (:) [] map
---
--- > let f a len = len + (length a)
--- > fold f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
-
+-- /Please note that fold will be deprecated in the future and removed./
 fold :: (a -> b -> b) -> b -> IntMap a -> b
-fold f = foldWithKey (\_ x y -> f x y)
+fold = foldr
 {-# INLINE fold #-}
 
--- | /O(n)/. Fold the keys and values in the map, such that
--- @'foldWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
+-- | /O(n)/. Fold the values in the map using the given right-associative
+-- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
+--
 -- For example,
 --
--- > keys map = foldWithKey (\k x ks -> k:ks) [] map
+-- > elems map = foldr (:) [] map
 --
--- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
--- > foldWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
-
-foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldWithKey
-  = foldr
-{-# INLINE foldWithKey #-}
-
-foldr :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldr f z t
-  = case t of
-      Bin 0 m l r | m < 0 -> go (go z l) r  -- put negative numbers before.
-      Bin _ _ _ _ -> go z t
-      Tip k x     -> f k x z
-      Nil         -> z
+-- > let f a len = len + (length a)
+-- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+foldr :: (a -> b -> b) -> b -> IntMap a -> b
+foldr f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+            _                   -> go z t
   where
-    go z' (Bin _ _ l r) = go (go z' r) l
-    go z' (Tip k x)     = f k x z'
     go z' Nil           = z'
+    go z' (Tip _ x)     = f x z'
+    go z' (Bin _ _ l r) = go (go z' r) l
 {-# INLINE foldr #-}
 
+-- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldr' :: (a -> b -> b) -> b -> IntMap a -> b
+foldr' f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+            _                   -> go z t
+  where
+    STRICT_1_OF_2(go)
+    go z' Nil           = z'
+    go z' (Tip _ x)     = f x z'
+    go z' (Bin _ _ l r) = go (go z' r) l
+{-# INLINE foldr' #-}
+
+-- | /O(n)/. Fold the values in the map using the given left-associative
+-- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'elems'@.
+--
+-- For example,
+--
+-- > elems = reverse . foldl (flip (:)) []
+--
+-- > let f len a = len + (length a)
+-- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+foldl :: (a -> b -> a) -> a -> IntMap b -> a
+foldl f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+            _                   -> go z t
+  where
+    go z' Nil           = z'
+    go z' (Tip _ x)     = f z' x
+    go z' (Bin _ _ l r) = go (go z' l) r
+{-# INLINE foldl #-}
+
+-- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldl' :: (a -> b -> a) -> a -> IntMap b -> a
+foldl' f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+            _                   -> go z t
+  where
+    STRICT_1_OF_2(go)
+    go z' Nil           = z'
+    go z' (Tip _ x)     = f z' x
+    go z' (Bin _ _ l r) = go (go z' l) r
+{-# INLINE foldl' #-}
+
+-- | /O(n)/. Fold the keys and values in the map using the given right-associative
+-- binary operator. This function is an equivalent of 'foldrWithKey' and is present
+-- for compatibility only.
+--
+-- /Please note that foldWithKey will be deprecated in the future and removed./
+foldWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey = foldrWithKey
+{-# INLINE foldWithKey #-}
+
+-- | /O(n)/. Fold the keys and values in the map using the given right-associative
+-- binary operator, such that
+-- @'foldrWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
+--
+-- For example,
+--
+-- > keys map = foldrWithKey (\k x ks -> k:ks) [] map
+--
+-- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
+-- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
+foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+            _                   -> go z t
+  where
+    go z' Nil           = z'
+    go z' (Tip kx x)    = f kx x z'
+    go z' (Bin _ _ l r) = go (go z' r) l
+{-# INLINE foldrWithKey #-}
+
+-- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey' f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+            _                   -> go z t
+  where
+    STRICT_1_OF_2(go)
+    go z' Nil           = z'
+    go z' (Tip kx x)    = f kx x z'
+    go z' (Bin _ _ l r) = go (go z' r) l
+{-# INLINE foldrWithKey' #-}
+
+-- | /O(n)/. Fold the keys and values in the map using the given left-associative
+-- binary operator, such that
+-- @'foldlWithKey' f z == 'Prelude.foldl' (\\z' (kx, x) -> f z' kx x) z . 'toAscList'@.
+--
+-- For example,
+--
+-- > keys = reverse . foldlWithKey (\ks k x -> k:ks) []
+--
+-- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
+-- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
+foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+            _                   -> go z t
+  where
+    go z' Nil           = z'
+    go z' (Tip kx x)    = f z' kx x
+    go z' (Bin _ _ l r) = go (go z' l) r
+{-# INLINE foldlWithKey #-}
+
+-- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey' f z t =
+  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+            _                   -> go z t
+  where
+    STRICT_1_OF_2(go)
+    go z' Nil           = z'
+    go z' (Tip kx x)    = f z' kx x
+    go z' (Bin _ _ l r) = go (go z' l) r
+{-# INLINE foldlWithKey' #-}
 
 {--------------------------------------------------------------------
   List variations 
@@ -1425,7 +1552,7 @@ foldr f z t
 
 elems :: IntMap a -> [a]
 elems
-  = foldWithKey (\_ x xs -> x:xs) []
+  = foldr (:) []
 
 -- | /O(n)/. Return all keys of the map in ascending order.
 --
@@ -1434,7 +1561,7 @@ elems
 
 keys  :: IntMap a -> [Key]
 keys
-  = foldWithKey (\k _ ks -> k:ks) []
+  = foldrWithKey (\k _ ks -> k:ks) []
 
 -- | /O(n*min(n,W))/. The set of all keys of the map.
 --
@@ -1465,7 +1592,7 @@ assocs m
 
 toList :: IntMap a -> [(Key,a)]
 toList
-  = foldWithKey (\k x xs -> (k,x):xs) []
+  = foldrWithKey (\k x xs -> (k,x):xs) []
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs where the
 -- keys are in ascending order.
@@ -1475,7 +1602,7 @@ toList
 toAscList :: IntMap a -> [(Key,a)]
 toAscList t   
   = -- NOTE: the following algorithm only works for big-endian trees
-    let (pos,neg) = span (\(k,_) -> k >=0) (foldr (\k x xs -> (k,x):xs) [] t) in neg ++ pos
+    let (pos,neg) = span (\(k,_) -> k >=0) (foldrWithKey (\k x xs -> (k,x):xs) [] t) in neg ++ pos
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs.
 --

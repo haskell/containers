@@ -90,7 +90,13 @@ module Data.Set (
             , map
             , mapMonotonic
 
-            -- * Fold
+            -- * Folds
+            , foldr
+            , foldl
+            -- ** Strict folds
+            , foldr'
+            , foldl'
+            -- ** Legacy folds
             , fold
 
             -- * Min\/Max
@@ -129,7 +135,7 @@ module Data.Set (
 #endif
             ) where
 
-import Prelude hiding (filter,foldr,null,map)
+import Prelude hiding (filter,foldl,foldr,null,map)
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Foldable (Foldable(foldMap))
@@ -541,18 +547,62 @@ mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f 
 {--------------------------------------------------------------------
   Fold
 --------------------------------------------------------------------}
--- | /O(n)/. Fold over the elements of a set in an unspecified order.
+-- | /O(n)/. Fold the elements in the set using the given right-associative
+-- binary operator. This function is an equivalent of 'foldr' and is present
+-- for compatibility only.
+--
+-- /Please note that fold will be deprecated in the future and removed./
 fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
 {-# INLINE fold #-}
 
--- | /O(n)/. Post-order fold.
+-- | /O(n)/. Fold the elements in the set using the given right-associative
+-- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'toAscList'@.
+--
+-- For example,
+--
+-- > toAscList set = foldr (:) [] set
 foldr :: (a -> b -> b) -> b -> Set a -> b
 foldr f = go
   where
     go z Tip           = z
     go z (Bin _ x l r) = go (f x (go z r)) l
 {-# INLINE foldr #-}
+
+-- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldr' :: (a -> b -> b) -> b -> Set a -> b
+foldr' f = go
+  where
+    STRICT_1_OF_2(go)
+    go z Tip           = z
+    go z (Bin _ x l r) = go (f x (go z r)) l
+{-# INLINE foldr' #-}
+
+-- | /O(n)/. Fold the elements in the set using the given left-associative
+-- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'toAscList'@.
+--
+-- For example,
+--
+-- > toDescList set = foldl (flip (:)) [] set
+foldl :: (a -> b -> a) -> a -> Set b -> a
+foldl f = go
+  where
+    go z Tip           = z
+    go z (Bin _ x l r) = go (f (go z l) x) r
+{-# INLINE foldl #-}
+
+-- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
+-- evaluated before using the result in the next application. This
+-- function is strict in the starting value.
+foldl' :: (a -> b -> a) -> a -> Set b -> a
+foldl' f = go
+  where
+    STRICT_1_OF_2(go)
+    go z Tip           = z
+    go z (Bin _ x l r) = go (f (go z l) x) r
+{-# INLINE foldl' #-}
 
 {--------------------------------------------------------------------
   List variations 
