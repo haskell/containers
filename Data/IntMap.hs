@@ -189,7 +189,7 @@ import qualified Data.IntSet as IntSet
 import Data.Monoid (Monoid(..))
 import Data.Maybe (fromMaybe)
 import Data.Typeable
-import Data.Foldable (Foldable(foldMap))
+import qualified Data.Foldable as Foldable
 import Data.Traversable (Traversable(traverse))
 import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
@@ -288,10 +288,15 @@ instance Monoid (IntMap a) where
     mappend = union
     mconcat = unions
 
-instance Foldable IntMap where
-    foldMap _ Nil = mempty
-    foldMap f (Tip _k v) = f v
-    foldMap f (Bin _ _ l r) = foldMap f l `mappend` foldMap f r
+instance Foldable.Foldable IntMap where
+  fold Nil = mempty
+  fold (Tip _ v) = v
+  fold (Bin _ _ l r) = Foldable.fold l `mappend` Foldable.fold r
+  foldr = foldr
+  foldl = foldl
+  foldMap _ Nil = mempty
+  foldMap f (Tip _k v) = f v
+  foldMap f (Bin _ _ l r) = Foldable.foldMap f l `mappend` Foldable.foldMap f r
 
 instance Traversable IntMap where
     traverse _ Nil = pure Nil

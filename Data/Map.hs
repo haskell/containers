@@ -218,7 +218,7 @@ import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
-import Data.Foldable (Foldable(foldMap))
+import qualified Data.Foldable as Foldable
 import Data.Typeable
 
 #if __GLASGOW_HASKELL__
@@ -2457,10 +2457,13 @@ instance Traversable (Map k) where
   traverse f (Bin s k v l r)
     = flip (Bin s k) <$> traverse f l <*> f v <*> traverse f r
 
-instance Foldable (Map k) where
-  foldMap _f Tip = mempty
-  foldMap f (Bin _s _k v l r)
-    = foldMap f l `mappend` f v `mappend` foldMap f r
+instance Foldable.Foldable (Map k) where
+  fold Tip = mempty
+  fold (Bin _ _ v l r) = Foldable.fold l `mappend` v `mappend` Foldable.fold r
+  foldr = foldr
+  foldl = foldl
+  foldMap _ Tip = mempty
+  foldMap f (Bin _ _ v l r) = Foldable.foldMap f l `mappend` f v `mappend` Foldable.foldMap f r
 
 {--------------------------------------------------------------------
   Read
