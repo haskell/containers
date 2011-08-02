@@ -1,4 +1,7 @@
-{-# LANGUAGE CPP, NoBangPatterns, MagicHash, ScopedTypeVariables #-}
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 701
+{-# LANGUAGE Trustworthy #-}
+#endif
+{-# LANGUAGE NoBangPatterns, ScopedTypeVariables #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap
