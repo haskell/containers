@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP, MagicHash #-}
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 701
+{-# LANGUAGE Trustworthy #-}
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntSet

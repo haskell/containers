@@ -1,4 +1,6 @@
-{-# LANGUAGE CPP #-}
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 701
+{-# LANGUAGE Safe #-}
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Set
