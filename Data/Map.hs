@@ -1,7 +1,7 @@
+{-# LANGUAGE NoBangPatterns #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 701
 {-# LANGUAGE Safe #-}
 #endif
-{-# LANGUAGE NoBangPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map
