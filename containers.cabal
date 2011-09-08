@@ -2,7 +2,7 @@ name: containers
 version: 0.4.1.0
 license: BSD3
 license-file: LICENSE
-maintainer: libraries@haskell.org
+maintainer: fox@ucw.cz
 bug-reports: http://hackage.haskell.org/trac/ghc/newticket?component=libraries%20%28other%29
 synopsis: Assorted concrete container types
 category: Data Structures
