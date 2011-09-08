@@ -196,6 +196,7 @@ import qualified Data.Foldable as Foldable
 import Data.Traversable (Traversable(traverse))
 import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
+import Control.DeepSeq (NFData(rnf))
 {-
 -- just for testing
 import qualified Prelude
@@ -305,6 +306,11 @@ instance Traversable IntMap where
     traverse _ Nil = pure Nil
     traverse f (Tip k v) = Tip k <$> f v
     traverse f (Bin p m l r) = Bin p m <$> traverse f l <*> traverse f r
+
+instance NFData a => NFData (IntMap a) where
+    rnf Nil = ()
+    rnf (Tip _ v) = rnf v
+    rnf (Bin _ _ l r) = rnf l `seq` rnf r
 
 #if __GLASGOW_HASKELL__
 

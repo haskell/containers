@@ -142,6 +142,7 @@ import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import qualified Data.Foldable as Foldable
 import Data.Typeable
+import Control.DeepSeq (NFData(rnf))
 
 {-
 -- just for testing
@@ -745,6 +746,14 @@ instance (Read a, Ord a) => Read (Set a) where
 
 #include "Typeable.h"
 INSTANCE_TYPEABLE1(Set,setTc,"Set")
+
+{--------------------------------------------------------------------
+  NFData
+--------------------------------------------------------------------}
+
+instance NFData a => NFData (Set a) where
+    rnf Tip           = ()
+    rnf (Bin _ y l r) = rnf y `seq` rnf l `seq` rnf r
 
 {--------------------------------------------------------------------
   Utility functions that return sub-ranges of the original

@@ -132,6 +132,7 @@ import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Data.Maybe (fromMaybe)
 import Data.Typeable
+import Control.DeepSeq (NFData)
 
 #if __GLASGOW_HASKELL__
 import Text.Read
@@ -888,6 +889,15 @@ instance Read IntSet where
 
 #include "Typeable.h"
 INSTANCE_TYPEABLE0(IntSet,intSetTc,"IntSet")
+
+{--------------------------------------------------------------------
+  NFData
+--------------------------------------------------------------------}
+
+-- The IntSet constructors consist only of strict fields of Ints and
+-- IntSets, thus the default NFData instance which evaluates to whnf
+-- should suffice
+instance NFData IntSet
 
 {--------------------------------------------------------------------
   Debugging

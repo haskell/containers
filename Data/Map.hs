@@ -223,6 +223,7 @@ import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
 import qualified Data.Foldable as Foldable
 import Data.Typeable
+import Control.DeepSeq (NFData(rnf))
 
 #if __GLASGOW_HASKELL__
 import Text.Read
@@ -2467,6 +2468,10 @@ instance Foldable.Foldable (Map k) where
   foldl = foldl
   foldMap _ Tip = mempty
   foldMap f (Bin _ _ v l r) = Foldable.foldMap f l `mappend` f v `mappend` Foldable.foldMap f r
+
+instance (NFData k, NFData a) => NFData (Map k a) where
+    rnf Tip = ()
+    rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
 
 {--------------------------------------------------------------------
   Read
