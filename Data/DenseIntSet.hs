@@ -522,12 +522,11 @@ partition predicate t
                (r1,r2) = partition predicate r
            in (bin p m l1 r1, bin p m l2 r2)
       Tip kx bm 
-        -> let (bm1,bm2) = foldlStrict (bitPart kx) (bm,0) lowBitsList
+        -> let (bm1,bm2) = foldr'Bits 0 (bitPart kx) (0,0) bm
            in (tip kx bm1, tip kx bm2)
       Nil -> (Nil,Nil)
-  where bitPart kx (m1,m2) i | not (m1 `testBit` i) = (m1, m2)
-                             | predicate (kx + i)   = (m1, m2)
-                             | otherwise            = (m1 `clearBit` i, m2 `setBit` i)
+  where bitPart kx i (m1,m2) | predicate (kx + i)   = (m1 `setBit` i, m2)
+                             | otherwise            = (m1, m2 `setBit` i)
         {-# INLINE bitPart #-}
 
 
