@@ -1178,8 +1178,9 @@ lowestBitSet n0 =
         (n3,b3) = if n2 .&. 0xFF /= 0       then (n2,b2) else (n2 `shiftRL` 8,  8+b2)
         (n4,b4) = if n3 .&. 0xF /= 0        then (n3,b3) else (n3 `shiftRL` 4,  4+b3)
         (n5,b5) = if n4 .&. 0x3 /= 0        then (n4,b4) else (n4 `shiftRL` 2,  2+b4)
-        (n6,b6) = if n5 .&. 0x1 /= 0        then (n5,b5) else (n5 `shiftRL` 2,  1+b5)
+        b6      = if n5 .&. 0x1 /= 0        then     b5  else                   1+b5
     in b6 
+{-# INLINE lowestBitSet #-}
 
 highestBitSet :: Word -> Int
 highestBitSet n0 =
@@ -1188,8 +1189,9 @@ highestBitSet n0 =
         (n3,b3) = if n2 .&. 0xFF00 /= 0             then (n2 `shiftRL` 8,  8+b2)  else (n2,b2)
         (n4,b4) = if n3 .&. 0xF0 /= 0               then (n3 `shiftRL` 4,  4+b3)  else (n3,b3)
         (n5,b5) = if n4 .&. 0xC /= 0                then (n4 `shiftRL` 2,  2+b4)  else (n4,b4)
-        (n6,b6) = if n5 .&. 0x2 /= 0                then (n5 `shiftRL` 2,  1+b5)  else (n5,b5)
+        b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
     in b6 
+{-# INLINE highestBitSet #-}
 
 {----------------------------------------------------------------------
    [wordMask] sets the last n bits to zero, where n is the word size of the
