@@ -296,7 +296,7 @@ empty
 -- | /O(1)/. A set of one element.
 singleton :: Int -> IntSet
 singleton x
-  = Tip (x .&. highBits) (0 `setBit` (x .&. lowBits))
+  = Tip (x .&. highBits) (bit (x .&. lowBits))
 
 {--------------------------------------------------------------------
   Insert
@@ -304,7 +304,7 @@ singleton x
 -- | /O(min(n,W))/. Add a value to the set. There is no left- or right bias for
 -- IntSets.
 insert :: Int -> IntSet -> IntSet
-insert x = x `seq` insertBM (x .&. highBits) (0 `setBit` (x .&. lowBits))
+insert x = x `seq` insertBM (x .&. highBits) (bit (x .&. lowBits))
 
 
 insertBM :: Prefix -> BitMap -> IntSet -> IntSet
@@ -322,7 +322,7 @@ insertBM kx bm t = kx `seq` bm `seq`
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete x = x `seq` deleteBM (x .&. highBits) (0 `setBit` (x .&. lowBits))
+delete x = x `seq` deleteBM (x .&. highBits) (bit (x .&. lowBits))
 
 deleteBM :: Prefix -> BitMap -> IntSet -> IntSet
 deleteBM kx bm t = kx `seq` bm `seq`
@@ -828,19 +828,19 @@ fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Int] -> IntSet
 fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work (z0 .&. highBits) (0 `setBit` (z0 .&. lowBits)) zs0 Nada
+fromDistinctAscList (z0 : zs0) = work (z0 .&. highBits) (bit (z0 .&. lowBits)) zs0 Nada
   where
     work kx bm []     stk = finish kx (Tip kx bm) stk
     work kx bm (z:zs) stk | kx == z .&. highBits = work kx (bm `setBit` (z .&. lowBits)) zs stk
     work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
 
-    reduce z zs _ px tx Nada = work (z .&. highBits) (0 `setBit` (z .&. lowBits)) zs (Push px tx Nada)
+    reduce z zs _ px tx Nada = work (z .&. highBits) (bit (z .&. lowBits)) zs (Push px tx Nada)
     reduce z zs m px tx stk@(Push py ty stk') =
         let mxy = branchMask px py
             pxy = mask px mxy
         in  if shorter m mxy
                  then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work (z .&. highBits) (0 `setBit` (z .&. lowBits)) zs (Push px tx stk)
+                 else work (z .&. highBits) (bit (z .&. lowBits)) zs (Push px tx stk)
 
     finish _  t  Nada = t
     finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
