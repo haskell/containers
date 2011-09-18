@@ -50,6 +50,7 @@ module Data.DenseIntSet (
               IntSet          -- instance Eq,Show
 #else
               IntSet(..)      -- instance Eq,Show
+            , foldrBits
 #endif
 
             -- * Operators
@@ -153,6 +154,7 @@ import Data.Word
 -- We do not use BangPatterns, because they are not in any standard and we
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
@@ -1149,27 +1151,30 @@ foldlBits :: Int -> (a -> Int -> a) -> a -> Word -> a
 foldlBits shift f = go shift
   where STRICT_2_OF_3(go)
         go bi acc 0 = acc
-        go bi acc n | n `testBit` 0 = go (succ bi) (f acc bi) (n `shiftRL` 1)
-                    | otherwise     = go (succ bi)    acc     (n `shiftRL` 1)
+        go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
+                    | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldl'Bits :: Int -> (a -> Int -> a) -> a -> Word -> a
 foldl'Bits shift f = go shift
-  where STRICT_2_OF_3(go)
+  where STRICT_1_OF_3(go)
+        STRICT_2_OF_3(go)
         go bi acc 0 = acc
-        go bi acc n | n `testBit` 0 = go (succ bi) (f acc bi) (n `shiftRL` 1)
-                    | otherwise     = go (succ bi)    acc     (n `shiftRL` 1)
+        go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
+                    | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldrBits :: Int -> (Int -> a -> a) -> a -> Word -> a
-foldrBits shift f x = go shift
-  where go bi 0 = x
-        go bi n | n `testBit` 0 = f bi (go (succ bi) (n `shiftRL` 1))
-                | otherwise     =       go (succ bi) (n `shiftRL` 1)
+foldrBits shift f x bm = let lb = lowestBitSet bm 
+                         in  go (shift+lb) (bm `shiftRL` lb)
+  where STRICT_1_OF_2(go)
+        go bi 0 = x
+        go bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
+                | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
 foldr'Bits :: Int -> (Int -> a -> a) -> a -> Word -> a
 foldr'Bits shift f x = go shift
   where go bi 0 = x
-        go bi n | n `testBit` 0 = f bi $! go (succ bi) (n `shiftRL` 1)
-                | otherwise     =         go (succ bi) (n `shiftRL` 1)
+        go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
+                | otherwise     =         go (bi + 1) (n `shiftRL` 1)
 
 lowestBitSet :: Word -> Int
 lowestBitSet n0 =
