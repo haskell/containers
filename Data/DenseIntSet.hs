@@ -420,23 +420,24 @@ intersection t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                   | zero p1 m2        = intersection t1 l2
                   | otherwise         = intersection t1 r2
 
-intersection t1@(Bin p1 m1 l1 r1) t2@(Tip kx _)
-  | nomatch kx p1 m1 = Nil
-  | zero kx m1       = intersection l1 t2
-  | otherwise        = intersection r1 t2
-
-intersection t1@(Tip kx _) t2@(Bin p2 m2 l2 r2) 
-  | nomatch kx p2 m2 = Nil
-  | zero kx m2       = intersection t1 l2
-  | otherwise        = intersection t1 r2
-
-intersection (Tip kx1 bm1) (Tip kx2 bm2)
-  | kx1 == kx2 = tip kx1 (bm1 .&. bm2)
-  | otherwise  = Nil
+intersection t1 (Tip kx bm) = intersectBM kx bm t1
+intersection (Tip kx bm) t2 = intersectBM kx bm t2
 
 intersection Nil _ = Nil
 intersection _ Nil = Nil
 
+-- The intersection of one tip with a map
+intersectBM :: Prefix -> BitMap -> IntSet -> IntSet
+STRICT_1_OF_3(intersectBM)
+STRICT_2_OF_3(intersectBM)
+intersectBM kx bm (Bin p2 m2 l2 r2) 
+  | nomatch kx p2 m2 = Nil
+  | zero kx m2       = intersectBM kx bm l2
+  | otherwise        = intersectBM kx bm r2
+intersectBM kx bm (Tip kx' bm') 
+  | kx == kx' = tip kx (bm .&. bm')
+  | otherwise  = Nil
+intersectBM kx bm Nil = Nil 
 
 
 {--------------------------------------------------------------------
