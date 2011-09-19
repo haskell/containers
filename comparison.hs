@@ -42,7 +42,7 @@ benchPair (s,ds) =
     , bench "memberDS" $ nf (memberD [0..1000]) ds )
 
 benches = [
-    {-( "member"
+    ( "member"
     , \step size -> do
         let s = DS.fromAscList [0,step..2^size*step]
         let probe = 2^(pred size)
@@ -65,7 +65,7 @@ benches = [
         let probe = 2^(pred size)
         liftIO . evaluate $ rnf (s,probe)
         return $ nf (S.insert probe) s
-    ),-}
+    ),
     ( "toList"
     , \step size -> do
         let s = DS.fromAscList [0,step..2^size*step]
@@ -75,7 +75,7 @@ benches = [
         let s = S.fromAscList [0,step..2^size*step]
         liftIO . evaluate $ rnf s
         return $ nf (S.toList) s
-    ){-,
+    ),
     ( "intersection"
     , \step size -> do
         let s1 = DS.fromAscList [0,step..2^size*step]
@@ -99,49 +99,82 @@ benches = [
             s2 = S.fromAscList [2^(pred size)*step,2^(pred size)*step + step..2^(pred size)*step+2^size*step]
         liftIO . evaluate $ rnf (s1,s2)
         return $ nf (uncurry S.union) (s1,s2)
-    )-}
+    ),
+    ( "size"
+    , \step size -> do
+        let s = DS.fromAscList [0,step..2^size*step]
+        liftIO . evaluate $ rnf s
+        return $ nf (DS.size) s
+    , \step size -> do
+        let s = S.fromAscList [0,step..2^size*step]
+        liftIO . evaluate $ rnf s
+        return $ nf (S.size) s
+    )
     ]
 
 configurations = [
-        (name,
-        [
-        (step, dense, [ (size, (if dense then denseBench else regularBench) step size) |
-            size <- [10,13,16,19,22::Int]
-        ]) |
-        dense <- [False, True],
-        step <- steps
-        ])
+        (name, [ (step, denseBench step, regularBench step) | step <- steps ])
     | (name,denseBench,regularBench) <- benches ]
 
 colors = [ aliceblue, bisque, black, chocolate, darkgoldenrod, darkmagenta ]
 steps = [1,4,16,64,100]
+sizes = [1,4,7,10,13,16{-,19,22-}::Int]
 
-main = withConfig (defaultConfig { cfgSamples = Last (Just 100) } )$ do
+main = withConfig (defaultConfig { cfgSamples = Last (Just 20) } )$ do
     env <- measureEnvironment
     layouts <- forM configurations $ \(name, serieses) -> do 
-        plots <- forM serieses $ \(step,dense,benches) -> do
-            let series = printf "%s, %d" (if dense then "Dense" else "Regular") step
-            values <- forM benches $ \(size,runBench) -> do 
-                liftIO $ printf "Running %s, set size %d, step %d, variant %s: "
-                    name size step (if dense then "Dense" else "Regular")
-                bench <- runBench
-                sample <- runBenchmark env bench
-                let m = mean sample
-                liftIO $ putStrLn (secs m)
-                return (size,m)
-            return $
-                plot_lines_style ^= (
-                    (if dense then dashedLine 1 [4,2] else solidLine 1) $
-                    (defaultColorSeq !! fromJust (step `elemIndex` steps))
-                ) $
-                plot_lines_values ^= [values] $
-                plot_lines_title ^= series $
-                defaultPlotLines
+        plots <- forM serieses $ \(step, runBenchD, runBenchR) -> do
+            let series = printf "step %d"  step
+
+            values <- forM sizes $ \size -> do 
+                liftIO $ printf "Running %s, set size %d, step %d, variant Regular: "
+                    name size step 
+                benchR <- runBenchR size
+                sampleR <- runBenchmark env benchR
+                let mR = mean sampleR
+                liftIO $ putStrLn (secs mR)
+
+                liftIO $ printf "Dunning %s, set size %d, step %d, variant Degular: "
+                    name size step 
+                benchD <- runBenchD size
+                sampleD <- runBenchmark env benchD
+
+                let mD = mean sampleD
+                liftIO $ putStrLn (secs mD)
+                return ((size,mR),(size,mD),(size,mD/mR))
+            let (valuesR, valuesD, valuesS) = unzip3 values
+
+            let color = defaultColorSeq !! fromJust (step `elemIndex` steps)
+
+            return
+                [ Right . toPlot $
+                  plot_lines_style ^= solidLine 1 color $
+                  plot_lines_values ^= [valuesR] $
+                  plot_lines_title ^= series $
+                  defaultPlotLines
+                , Right $
+                  plot_legend ^= [] $
+                  toPlot $
+                  plot_lines_style ^= dashedLine 1 [3,3] color $
+                  plot_lines_values ^= [valuesD] $
+                  -- plot_lines_title ^= seriesD $
+                  defaultPlotLines
+                , Left $
+                  plot_legend ^= [] $
+                  toPlot $
+                  plot_lines_style ^= dashedLine 1 [1,1] color $
+                  plot_lines_values ^= [valuesS] $
+                  -- plot_lines_title ^= seriesS $
+                  defaultPlotLines
+                ]
+
+        let hiddenPlot = Left $ toPlot $ PlotHidden [head sizes] [0]
 
         let layout = layout1_title ^= name $
-                     layout1_plots ^= map (Right . toPlot) plots $
+                     layout1_plots ^= hiddenPlot : concat plots $
                      layout1_right_axis ^= relabelAxis secs defaultLayoutAxis $
                      layout1_bottom_axis ^= relabelAxis (("2^" ++ ) . show) defaultLayoutAxis $
+                     layout1_left_axis ^= relabelAxis (\x -> show (round ((1-x)*100)) ++ "%") defaultLayoutAxis $
                      defaultLayout1
         return layout
 
