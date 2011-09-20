@@ -8,7 +8,7 @@ import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
 import qualified Data.Set as Set
-import Prelude hiding (lookup, null, map ,filter)
+import Prelude hiding (lookup, null, map ,filter,foldr,foldl)
 import Test.QuickCheck hiding ((.&.))
 
 main :: IO ()
@@ -27,6 +27,24 @@ main = do
     q $ label "prop_LeftRight" prop_LeftRight
     q $ label "prop_isProperSubsetOf" prop_isProperSubsetOf
     q $ label "prop_isProperSubsetOf2" prop_isProperSubsetOf2
+    q $ label "prop_isSubsetOf" prop_isSubsetOf
+    q $ label "prop_isSubsetOf2" prop_isSubsetOf2
+    q $ label "prop_size" prop_size
+    q $ label "prop_findMax" prop_findMax
+    q $ label "prop_findMin" prop_findMin
+    q $ label "prop_ord" prop_ord
+    q $ label "prop_readShow" prop_readShow
+    q $ label "prop_foldR" prop_foldR
+    q $ label "prop_foldR'" prop_foldR'
+    q $ label "prop_foldL" prop_foldL
+    q $ label "prop_foldL'" prop_foldL'
+    q $ label "prop_map'" prop_map
+    q $ label "prop_maxView'" prop_maxView
+    q $ label "prop_minView'" prop_minView
+    q $ label "prop_split'" prop_split
+    q $ label "prop_splitMember'" prop_splitMember
+    q $ label "prop_partition'" prop_partition
+    q $ label "prop_filter'" prop_filter
   where
     q :: Testable prop => prop -> IO ()
     q = quickCheckWith args
@@ -135,3 +153,64 @@ prop_isProperSubsetOf a b = isProperSubsetOf a b == Set.isProperSubsetOf (toSet 
 prop_isProperSubsetOf2 :: IntSet -> IntSet -> Bool
 prop_isProperSubsetOf2 a b = isProperSubsetOf a c == (a /= c) where
   c = union a b
+
+prop_isSubsetOf :: IntSet -> IntSet -> Bool
+prop_isSubsetOf a b = isSubsetOf a b == Set.isSubsetOf (toSet a) (toSet b)
+
+prop_isSubsetOf2 :: IntSet -> IntSet -> Bool
+prop_isSubsetOf2 a b = isSubsetOf a (union a b)
+
+prop_size :: IntSet -> Bool
+prop_size s = size s == List.length (toList s)
+
+prop_findMax :: IntSet -> Property
+prop_findMax s = not (null s) ==> findMax s == maximum (toList s)
+
+prop_findMin :: IntSet -> Property
+prop_findMin s = not (null s) ==> findMin s == minimum (toList s)
+
+prop_ord :: IntSet -> IntSet -> Bool
+prop_ord s1 s2 = s1 `compare` s2 == toList s1 `compare` toList s2
+
+prop_readShow :: IntSet -> Bool
+prop_readShow s = s == read (show s)
+
+prop_foldR :: IntSet -> Bool
+prop_foldR s = foldr (:) [] s == toList s
+
+prop_foldR' :: IntSet -> Bool
+prop_foldR' s = foldr' (:) [] s == toList s
+
+prop_foldL :: IntSet -> Bool
+prop_foldL s = foldl (flip (:)) [] s == List.foldl (flip (:)) [] (toList s)
+
+prop_foldL' :: IntSet -> Bool
+prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
+
+prop_map :: IntSet -> Bool
+prop_map s = map id s == s
+
+prop_maxView :: IntSet -> Bool
+prop_maxView s = case maxView s of
+    Nothing -> null s
+    Just (m,s') -> m == maximum (toList s) && s == insert m s' && m `notMember` s'
+
+prop_minView :: IntSet -> Bool
+prop_minView s = case minView s of
+    Nothing -> null s
+    Just (m,s') -> m == minimum (toList s) && s == insert m s' && m `notMember` s'
+
+prop_split :: IntSet -> Int -> Bool
+prop_split s i = case split i s of
+    (s1,s2) -> all (<i) (toList s1) && all (>i) (toList s2)
+
+prop_splitMember :: IntSet -> Int -> Bool
+prop_splitMember s i = case splitMember i s of
+    (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s
+
+prop_partition :: IntSet -> Int -> Bool
+prop_partition s i = case partition odd s of
+    (s1,s2) -> all odd (toList s1) && all even (toList s2) && s == s1 `union` s2
+
+prop_filter :: IntSet -> Int -> Bool
+prop_filter s i = partition odd s == (filter odd s, filter even s)
