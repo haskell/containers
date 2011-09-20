@@ -293,7 +293,7 @@ notMember :: Int -> IntSet -> Bool
 notMember k = not . member k
 
 checkTip :: Int -> Prefix -> BitMap -> Bool
-checkTip k kx bm = k .&. highBits == kx && bm `testBit` (k .&. lowBits)
+checkTip k kx bm = k .&. highTipBits == kx && bm `testBit` (k .&. lowTipBits)
 {-# INLINE checkTip #-}
 
 {--------------------------------------------------------------------
@@ -307,7 +307,7 @@ empty
 -- | /O(1)/. A set of one element.
 singleton :: Int -> IntSet
 singleton x
-  = Tip (x .&. highBits) (bit (x .&. lowBits))
+  = Tip (x .&. highTipBits) (bit (x .&. lowTipBits))
 
 {--------------------------------------------------------------------
   Insert
@@ -315,7 +315,7 @@ singleton x
 -- | /O(min(n,W))/. Add a value to the set. There is no left- or right bias for
 -- IntSets.
 insert :: Int -> IntSet -> IntSet
-insert x = x `seq` insertBM (x .&. highBits) (bit (x .&. lowBits))
+insert x = x `seq` insertBM (x .&. highTipBits) (bit (x .&. lowTipBits))
 
 
 insertBM :: Prefix -> BitMap -> IntSet -> IntSet
@@ -333,7 +333,7 @@ insertBM kx bm t = kx `seq` bm `seq`
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete x = x `seq` deleteBM (x .&. highBits) (bit (x .&. lowBits))
+delete x = x `seq` deleteBM (x .&. highTipBits) (bit (x .&. lowTipBits))
 
 -- Deletes all values mentioned in the BitMap from the set.
 deleteBM :: Prefix -> BitMap -> IntSet -> IntSet
@@ -502,11 +502,12 @@ isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
                                                       else isSubsetOf t1 r2)                     
   | otherwise      = (p1==p2) && isSubsetOf l1 l2 && isSubsetOf r1 r2
 isSubsetOf (Bin _ _ _ _) _  = False
-isSubsetOf (Tip kx1 bm1) (Tip kx2 bm2) = bm1 .&. complement bm2 == 0
+isSubsetOf (Tip kx1 bm1) (Tip kx2 bm2) = kx1 == kx2 && bm1 .&. complement bm2 == 0
 isSubsetOf t1@(Tip kx bm) (Bin p m l r)
   | nomatch kx p m = False
   | zero kx m      = isSubsetOf t1 l
   | otherwise      = isSubsetOf t1 r
+isSubsetOf (Tip _ _) Nil = False
 isSubsetOf Nil _            = True
 
 
@@ -559,11 +560,11 @@ split x t
       Tip kx' bm
         | kx>kx'      -> (t,Nil)
         | kx<kx'      -> (Nil,t)
-        | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
-                         ,tip kx' (bm .&. complement (2^bi-1)))
+        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
+                         ,tip kx' (bm .&. highBits (bi+1)))
       Nil             -> (Nil, Nil)
-  where kx = x .&. highBits
-        bi = x .&. lowBits
+  where kx = x .&. highTipBits
+        bi = x .&. lowTipBits
 
 split' :: Int -> IntSet -> (IntSet,IntSet)
 split' x t
@@ -576,11 +577,11 @@ split' x t
       Tip kx' bm
         | kx>kx'      -> (t,Nil)
         | kx<kx'      -> (Nil,t)
-        | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
-                         ,tip kx' (bm .&. complement (2^bi-1)))
+        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
+                         ,tip kx' (bm .&. highBits (bi+1)))
       Nil -> (Nil,Nil)
-  where kx = x .&. highBits
-        bi = x .&. lowBits
+  where kx = x .&. highTipBits
+        bi = x .&. lowTipBits
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
@@ -595,12 +596,12 @@ splitMember x t
       Tip kx' bm
         | kx>kx'      -> (t,False,Nil)
         | kx<kx'      -> (Nil,False,t)
-        | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
+        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
                          ,bm `testBit` bi
-                         ,tip kx' (bm .&. complement (2^bi-1)))
+                         ,tip kx' (bm .&. highBits (bi+1)))
       Nil -> (Nil,False,Nil)
-  where kx = x .&. highBits
-        bi = x .&. lowBits
+  where kx = x .&. highTipBits
+        bi = x .&. lowTipBits
 
 splitMember' :: Int -> IntSet -> (IntSet,Bool,IntSet)
 splitMember' x t
@@ -613,12 +614,12 @@ splitMember' x t
       Tip kx' bm
         | kx>kx'      -> (t,False,Nil)
         | kx<kx'      -> (Nil,False,t)
-        | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
+        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
                          ,bm `testBit` bi
-                         ,tip kx' (bm .&. complement (2^bi-1)))
+                         ,tip kx' (bm .&. highBits (bi+1)))
       Nil -> (Nil,False,Nil)
-  where kx = x .&. highBits
-        bi = x .&. lowBits
+  where kx = x .&. highTipBits
+        bi = x .&. lowTipBits
 
 {----------------------------------------------------------------------
   Min/Max
@@ -840,21 +841,21 @@ fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Int] -> IntSet
 fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work (z0 .&. highBits) (bit (z0 .&. lowBits)) zs0 Nada
+fromDistinctAscList (z0 : zs0) = work (z0 .&. highTipBits) (bit (z0 .&. lowTipBits)) zs0 Nada
   where
     -- 'work' accumulates all values that go into one tip, before passing this Tip
     -- to 'reduce'
     work kx bm []     stk = finish kx (Tip kx bm) stk
-    work kx bm (z:zs) stk | kx == z .&. highBits = work kx (bm `setBit` (z .&. lowBits)) zs stk
+    work kx bm (z:zs) stk | kx == z .&. highTipBits = work kx (bm `setBit` (z .&. lowTipBits)) zs stk
     work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
 
-    reduce z zs _ px tx Nada = work (z .&. highBits) (bit (z .&. lowBits)) zs (Push px tx Nada)
+    reduce z zs _ px tx Nada = work (z .&. highTipBits) (bit (z .&. lowTipBits)) zs (Push px tx Nada)
     reduce z zs m px tx stk@(Push py ty stk') =
         let mxy = branchMask px py
             pxy = mask px mxy
         in  if shorter m mxy
                  then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work (z .&. highBits) (bit (z .&. lowBits)) zs (Push px tx stk)
+                 else work (z .&. highTipBits) (bit (z .&. lowTipBits)) zs (Push px tx stk)
 
     finish _  t  Nada = t
     finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
@@ -1146,16 +1147,32 @@ highestBitMask x0
 
 
 {----------------------------------------------------------------------
-  [highBits] and [lowBits] are two bit masks. Low bits has just the last n bits
+  [highTipBits] and [lowTipBits] are two bit masks. Low bits has just the last n bits
   set to 1, while high bits is the complement, and n is the word size of the
   architecture. TODO: Does this work on s390?
 ----------------------------------------------------------------------}
 
-lowBits :: Int
-lowBits = (bitSize (undefined::Word))-1
+lowTipBits :: Int
+lowTipBits = (bitSize (undefined::Word))-1
+{-# INLINE lowTipBits #-}
 
-highBits :: Int
-highBits = complement lowBits
+highTipBits :: Int
+highTipBits = complement lowTipBits
+{-# INLINE highTipBits #-}
+
+{----------------------------------------------------------------------
+ [lowBits] and [highBits] are bitmaps where the lowest n bits are set to one
+ resp. zero
+----------------------------------------------------------------------}
+
+lowBits :: Int -> BitMap
+lowBits 0 = 0
+lowBits n = (1 `shiftL` n)-1
+{-# INLINE lowBits #-}
+
+highBits :: Int -> BitMap
+highBits n = complement (lowBits n)
+{-# INLINE highBits #-}
 
 {----------------------------------------------------------------------
   Folds over bitmaps. These are crucial for good speed in toList, filter,
