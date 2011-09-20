@@ -32,6 +32,12 @@
 --    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
 --      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
 --      October 1968, pages 514-534.
+--  
+-- Additionally, this implementation places bitmaps in the leaves of the tree.
+-- Their size is the natural size of a machine word (32 or 64 bits) and greatly
+-- reduce memory footprint and execution times for dense sets, e.g. sets where
+-- it is likely that many values lie close to each other. The asymptotics are
+-- not affected by this optimization.
 --
 -- Many operations have a worst-case complexity of /O(min(n,W))/.
 -- This means that the operation can become linear in the number of
@@ -210,6 +216,9 @@ data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 -- Invariant: In Bin prefix mask left right, left consists of the elements that
 --            don't have the mask bit set; right is all the elements that do.
             | Tip {-# UNPACK #-} !Prefix {-# UNPACK #-} !BitMap
+-- Invariant: The Prefix is zero for all but the last 5 (on 32 bit arches) or 6
+--            bits (on 31 bit arches). The values of the map represented by a tip
+--            are the prefix plus the indices of the set bits in the bit map.
             | Nil
 
 
@@ -326,6 +335,7 @@ insertBM kx bm t = kx `seq` bm `seq`
 delete :: Int -> IntSet -> IntSet
 delete x = x `seq` deleteBM (x .&. highBits) (bit (x .&. lowBits))
 
+-- Deletes all values mentioned in the BitMap from the set.
 deleteBM :: Prefix -> BitMap -> IntSet -> IntSet
 deleteBM kx bm t = kx `seq` bm `seq`
   case t of
@@ -586,7 +596,7 @@ splitMember x t
         | kx>kx'      -> (t,False,Nil)
         | kx<kx'      -> (Nil,False,t)
         | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
-                         , bm `testBit` bi
+                         ,bm `testBit` bi
                          ,tip kx' (bm .&. complement (2^bi-1)))
       Nil -> (Nil,False,Nil)
   where kx = x .&. highBits
@@ -604,7 +614,7 @@ splitMember' x t
         | kx>kx'      -> (t,False,Nil)
         | kx<kx'      -> (Nil,False,t)
         | otherwise   -> (tip kx' (bm .&.             2^(bi-1)-1)
-                         , bm `testBit` bi
+                         ,bm `testBit` bi
                          ,tip kx' (bm .&. complement (2^bi-1)))
       Nil -> (Nil,False,Nil)
   where kx = x .&. highBits
@@ -832,6 +842,8 @@ fromDistinctAscList :: [Int] -> IntSet
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work (z0 .&. highBits) (bit (z0 .&. lowBits)) zs0 Nada
   where
+    -- 'work' accumulates all values that go into one tip, before passing this Tip
+    -- to 'reduce'
     work kx bm []     stk = finish kx (Tip kx bm) stk
     work kx bm (z:zs) stk | kx == z .&. highBits = work kx (bm `setBit` (z .&. lowBits)) zs stk
     work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
@@ -957,7 +969,7 @@ showsTree wide lbars rbars t
              showWide wide lbars .
              showsTree wide (withEmpty lbars) (withBar lbars) l
       Tip kx bm
-          -> showsBars lbars . showString " " . shows kx . showString " " .
+          -> showsBars lbars . showString " " . shows kx . showString " + " .
                                                 showsBitMap bm . showString "\n" 
       Nil -> showsBars lbars . showString "|\n"
 
@@ -971,7 +983,7 @@ showsTreeHang wide bars t
              showWide wide bars .
              showsTreeHang wide (withEmpty bars) r
       Tip kx bm
-          -> showsBars bars . showString " " . shows kx . showString " " .
+          -> showsBars bars . showString " " . shows kx . showString " + " .
                                                showsBitMap bm . showString "\n" 
       Nil -> showsBars bars . showString "|\n" 
 
@@ -994,7 +1006,7 @@ showsBitMap :: Word -> ShowS
 showsBitMap = showString . showBitMap
 
 showBitMap :: Word -> String
-showBitMap w = concat [ if w `testBit` i then "1" else "0" | i <- reverse lowBitsList ]
+showBitMap w = show $ foldrBits 0 (:) [] w
 
 node :: String
 node           = "+--"
@@ -1136,7 +1148,7 @@ highestBitMask x0
 {----------------------------------------------------------------------
   [highBits] and [lowBits] are two bit masks. Low bits has just the last n bits
   set to 1, while high bits is the complement, and n is the word size of the
-  architecture.
+  architecture. TODO: Does this work on s390?
 ----------------------------------------------------------------------}
 
 lowBits :: Int
@@ -1145,18 +1157,22 @@ lowBits = (bitSize (undefined::Word))-1
 highBits :: Int
 highBits = complement lowBits
 
-lowBitsList :: [Int]
-lowBitsList = [0 .. bitSize (undefined::Word)-1]
+{----------------------------------------------------------------------
+  Folds over bitmaps. These are crucial for good speed in toList, filter,
+  partition. Futher optimization is welcome.
+----------------------------------------------------------------------}
 
 foldlBits :: Int -> (a -> Int -> a) -> a -> Word -> a
-foldlBits shift f = go shift
+foldlBits shift f x bm = let lb = lowestBitSet bm 
+                         in  go (shift+lb) x (bm `shiftRL` lb)
   where STRICT_2_OF_3(go)
         go bi acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldl'Bits :: Int -> (a -> Int -> a) -> a -> Word -> a
-foldl'Bits shift f = go shift
+foldl'Bits shift f x bm = let lb = lowestBitSet bm 
+                          in  go (shift+lb) x (bm `shiftRL` lb)
   where STRICT_1_OF_3(go)
         STRICT_2_OF_3(go)
         go bi acc 0 = acc
@@ -1172,10 +1188,21 @@ foldrBits shift f x bm = let lb = lowestBitSet bm
                 | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
 foldr'Bits :: Int -> (Int -> a -> a) -> a -> Word -> a
-foldr'Bits shift f x = go shift
+foldr'Bits shift f x bm = let lb = lowestBitSet bm 
+                          in  go (shift+lb) (bm `shiftRL` lb)
   where go bi 0 = x
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
+
+{----------------------------------------------------------------------
+Finds the index of the lowest resp. highest bit set in a word. The following
+code works fine for bit sizes up to 64. A possibly faster but
+wordsize-dependant implementation based on multiplication and DeBrujn indeces
+is proposed by Edward Kmett
+<http://haskell.org/pipermail/libraries/2011-September/016749.html>
+Some architectures, notably x86, also offer machine instructions for this
+operation (bsr and bsl).
+----------------------------------------------------------------------}
 
 lowestBitSet :: Word -> Int
 lowestBitSet n0 =
@@ -1198,11 +1225,6 @@ highestBitSet n0 =
         b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
     in b6 
 {-# INLINE highestBitSet #-}
-
-{----------------------------------------------------------------------
-   [wordMask] sets the last n bits to zero, where n is the word size of the
-   architecture
-----------------------------------------------------------------------}
 
 {----------------------------------------------------------------------
   [bitcount] as posted by David F. Place to haskell-cafe on April 11, 2006,
