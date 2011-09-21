@@ -148,7 +148,7 @@ import Data.Data (Data(..), mkNoRepType)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 503
-import GHC.Exts ( Word(..), Int(..), shiftRL# )
+import GHC.Exts ( Word(..), Int(..), shiftRL#, build )
 #elif __GLASGOW_HASKELL__
 import Word
 import GlaExts ( Word(..), Int(..), shiftRL# )
@@ -803,7 +803,8 @@ foldl' f z t =
 {--------------------------------------------------------------------
   List variations 
 --------------------------------------------------------------------}
--- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList)
+-- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList.)
+-- Subject to list fusion
 elems :: IntSet -> [Int]
 elems s
   = toList s
@@ -811,14 +812,23 @@ elems s
 {--------------------------------------------------------------------
   Lists 
 --------------------------------------------------------------------}
--- | /O(n)/. Convert the set to a list of elements.
+-- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: IntSet -> [Int]
 toList t
   = fold (:) [] t
 
--- | /O(n)/. Convert the set to an ascending list of elements.
+-- | /O(n)/. Convert the set to an ascending list of elements. Subject to list
+-- fusion.
 toAscList :: IntSet -> [Int]
 toAscList t = toList t
+
+#if __GLASGOW_HASKELL__ >= 503
+-- List fusion for the above three functions
+{-# RULES "IntSet/toList" forall is . toList is = build (\c n -> foldr c n is) #-}
+{-# RULES "IntSet/toAscList" forall is . toAscList is = build (\c n -> foldr c n is) #-}
+{-# RULES "IntSet/elems" forall is . elems is = build (\c n -> foldr c n is) #-}
+#endif
+
 
 -- | /O(n*min(n,W))/. Create a set from a list of integers.
 fromList :: [Int] -> IntSet
