@@ -192,7 +192,7 @@ import Data.Data (Data(..), mkNoRepType)
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts ( Word(..), Int(..), shiftRL# )
+import GHC.Exts ( Word(..), Int(..), shiftRL#, build )
 #else
 import Data.Word
 #endif
@@ -1481,6 +1481,7 @@ keysSet m = IntSet.fromDistinctAscList (keys m)
 
 
 -- | /O(n)/. Return all key\/value pairs in the map in ascending key order.
+-- Subject to list Fusion.
 --
 -- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > assocs empty == []
@@ -1493,7 +1494,8 @@ assocs m
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
--- | /O(n)/. Convert the map to a list of key\/value pairs.
+-- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list
+-- fusion.
 --
 -- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > toList empty == []
@@ -1501,6 +1503,13 @@ assocs m
 toList :: IntMap a -> [(Key,a)]
 toList
   = foldrWithKey (\k x xs -> (k,x):xs) []
+
+#if __GLASGOW_HASKELL__ >= 503
+-- List fusion for the above two functions
+{-# RULES "IntMap/toList" forall im . toList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+{-# RULES "IntMap/assocs" forall im . assocs im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+#endif
+
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs where the
 -- keys are in ascending order.
