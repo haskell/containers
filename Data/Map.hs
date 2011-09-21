@@ -225,6 +225,9 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 
 #if __GLASGOW_HASKELL__
+#if __GLASGOW_HASKELL__ >= 503
+import GHC.Exts ( build )
+#endif
 import Text.Read
 import Data.Data
 #endif
@@ -1880,7 +1883,7 @@ fromListWithKey f xs
 {-# INLINABLE fromListWithKey #-}
 #endif
 
--- | /O(n)/. Convert to a list of key\/value pairs.
+-- | /O(n)/. Convert to a list of key\/value pairs. Subject to list fusion.
 --
 -- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > toList empty == []
@@ -1891,7 +1894,7 @@ toList t      = toAscList t
 {-# INLINABLE toList #-}
 #endif
 
--- | /O(n)/. Convert to an ascending list.
+-- | /O(n)/. Convert to an ascending list. Subject to list fusion.
 --
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
@@ -1901,11 +1904,19 @@ toAscList t   = foldrWithKey (\k x xs -> (k,x):xs) [] t
 {-# INLINABLE toAscList #-}
 #endif
 
--- | /O(n)/. Convert to a descending list.
+-- | /O(n)/. Convert to a descending list. Subject to list fusion.
 toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toDescList #-}
+#endif
+
+#if __GLASGOW_HASKELL__ >= 503
+-- List fusion for the above four functions
+{-# RULES "Map/assocs" forall m . assocs m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
+{-# RULES "Map/toList" forall m . toList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
+{-# RULES "Map/toAscList" forall m . toAscList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
+{-# RULES "Map/toDescList" forall m . toDescList m = build (\c n -> foldlWithKey (\xs k x -> c (k,x) xs) n m) #-}
 #endif
 
 {--------------------------------------------------------------------

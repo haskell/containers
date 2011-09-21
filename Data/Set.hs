@@ -153,6 +153,9 @@ import qualified List
 #if __GLASGOW_HASKELL__
 import Text.Read
 import Data.Data
+#if __GLASGOW_HASKELL__ >= 503
+import GHC.Exts ( build )
+#endif
 #endif
 
 -- Use macros to define strictness of functions.
@@ -613,7 +616,7 @@ foldl' f = go
 {--------------------------------------------------------------------
   List variations 
 --------------------------------------------------------------------}
--- | /O(n)/. The elements of a set.
+-- | /O(n)/. The elements of a set. Subject to list fusion.
 elems :: Set a -> [a]
 elems = toList
 #if __GLASGOW_HASKELL__ >= 700
@@ -623,18 +626,25 @@ elems = toList
 {--------------------------------------------------------------------
   Lists 
 --------------------------------------------------------------------}
--- | /O(n)/. Convert the set to a list of elements.
+-- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]
 toList = toAscList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toList #-}
 #endif
 
--- | /O(n)/. Convert the set to an ascending list of elements.
+-- | /O(n)/. Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toAscList #-}
+#endif
+
+#if __GLASGOW_HASKELL__ >= 503
+-- List fusion for the above three functions
+{-# RULES "Set/toList" forall s . toList s = build (\c n -> foldr c n s) #-}
+{-# RULES "Set/toAscList" forall s . toAscList s = build (\c n -> foldr c n s) #-}
+{-# RULES "Set/elems" forall s . elems s = build (\c n -> foldr c n s) #-}
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
