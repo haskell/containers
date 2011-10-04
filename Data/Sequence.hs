@@ -1,4 +1,4 @@
-#if __GLASGOW_HASKELL__ >= 701
+#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 -----------------------------------------------------------------------------
