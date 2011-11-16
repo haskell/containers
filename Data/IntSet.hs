@@ -32,7 +32,7 @@
 --    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
 --      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
 --      October 1968, pages 514-534.
---  
+--
 -- Additionally, this implementation places bitmaps in the leaves of the tree.
 -- Their size is the natural size of a machine word (32 or 64 bits) and greatly
 -- reduce memory footprint and execution times for dense sets, e.g. sets where
@@ -56,7 +56,6 @@ module Data.IntSet (
               IntSet          -- instance Eq,Show
 #else
               IntSet(..)      -- instance Eq,Show
-            , foldrBits
 #endif
 
             -- * Operators
