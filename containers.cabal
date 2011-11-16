@@ -21,22 +21,30 @@ source-repository head
 
 Library
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3
+    if impl(ghc)
+        build-depends: ghc-prim
+
     ghc-options: -O2
     if impl(ghc>6.10)
-        Ghc-Options: -fregs-graph
+        ghc-options: -fregs-graph
+
     exposed-modules:
         Data.IntMap
         Data.IntSet
         Data.Map
         Data.Set
-    include-dirs: include
-    extensions: CPP
     if !impl(nhc98)
         exposed-modules:
             Data.Graph
             Data.Sequence
             Data.Tree
-    if impl(ghc)
-        extensions: DeriveDataTypeable, StandaloneDeriving,
-                    MagicHash, Rank2Types
 
+    include-dirs: include
+
+    extensions: CPP
+    if impl(ghc)
+        extensions:
+            DeriveDataTypeable
+            StandaloneDeriving
+            MagicHash
+            Rank2Types
