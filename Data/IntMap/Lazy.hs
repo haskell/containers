@@ -178,7 +178,7 @@ module Data.IntMap.Lazy (
             , showTreeWith
             ) where
 
-import Data.IntMap.Common
+import Data.IntMap.Base
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import qualified Data.IntSet as IntSet

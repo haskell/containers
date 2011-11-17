@@ -4,7 +4,7 @@
 #endif
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.IntMap.Common
+-- Module      :  Data.IntMap.Base
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
@@ -21,7 +21,7 @@
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
 
-module Data.IntMap.Common (
+module Data.IntMap.Base (
             -- * Map type
               IntMap(..), Key          -- instance Eq,Show
 
