@@ -15,6 +15,7 @@ main :: IO ()
 main = do
     q $ label "prop_Single" prop_Single
     q $ label "prop_InsertDelete" prop_InsertDelete
+    q $ label "prop_MemberFromList" prop_MemberFromList
     q $ label "prop_UnionInsert" prop_UnionInsert
     q $ label "prop_UnionAssoc" prop_UnionAssoc
     q $ label "prop_UnionComm" prop_UnionComm
@@ -22,6 +23,7 @@ main = do
     q $ label "prop_Int" prop_Int
     q $ label "prop_Ordered" prop_Ordered
     q $ label "prop_List" prop_List
+    q $ label "prop_fromList" prop_fromList
     q $ label "prop_MaskPow2" prop_MaskPow2
     q $ label "prop_Prefix" prop_Prefix
     q $ label "prop_LeftRight" prop_LeftRight
@@ -38,13 +40,13 @@ main = do
     q $ label "prop_foldR'" prop_foldR'
     q $ label "prop_foldL" prop_foldL
     q $ label "prop_foldL'" prop_foldL'
-    q $ label "prop_map'" prop_map
-    q $ label "prop_maxView'" prop_maxView
-    q $ label "prop_minView'" prop_minView
-    q $ label "prop_split'" prop_split
-    q $ label "prop_splitMember'" prop_splitMember
-    q $ label "prop_partition'" prop_partition
-    q $ label "prop_filter'" prop_filter
+    q $ label "prop_map" prop_map
+    q $ label "prop_maxView" prop_maxView
+    q $ label "prop_minView" prop_minView
+    q $ label "prop_split" prop_split
+    q $ label "prop_splitMember" prop_splitMember
+    q $ label "prop_partition" prop_partition
+    q $ label "prop_filter" prop_filter
   where
     q :: Testable prop => prop -> IO ()
     q = quickCheckWith args
@@ -67,7 +69,7 @@ instance Arbitrary IntSet where
 
 
 {--------------------------------------------------------------------
-  Single, Insert, Delete
+  Single, Insert, Delete, Member, FromList
 --------------------------------------------------------------------}
 prop_Single :: Int -> Bool
 prop_Single x
@@ -77,6 +79,11 @@ prop_InsertDelete :: Int -> IntSet -> Property
 prop_InsertDelete k t
   = not (member k t) ==> delete k (insert k t) == t
 
+prop_MemberFromList :: [Int] -> Bool
+prop_MemberFromList xs
+  = all (`member` t) abs_xs && all ((`notMember` t) . negate) abs_xs
+  where abs_xs = [abs x | x <- xs, x /= 0]
+        t = fromList abs_xs
 
 {--------------------------------------------------------------------
   Union
@@ -114,6 +121,15 @@ prop_Ordered
 prop_List :: [Int] -> Bool
 prop_List xs
   = (sort (nub xs) == toAscList (fromList xs))
+
+prop_fromList :: [Int] -> Bool
+prop_fromList xs
+  = case fromList xs of
+      t -> t == fromAscList sort_xs &&
+           t == fromDistinctAscList nub_sort_xs &&
+           t == List.foldr insert empty xs
+  where sort_xs = sort xs
+        nub_sort_xs = List.map List.head $ List.group sort_xs
 
 {--------------------------------------------------------------------
   Bin invariants
@@ -202,11 +218,11 @@ prop_minView s = case minView s of
 
 prop_split :: IntSet -> Int -> Bool
 prop_split s i = case split i s of
-    (s1,s2) -> all (<i) (toList s1) && all (>i) (toList s2)
+    (s1,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && i `delete` s == union s1 s2
 
 prop_splitMember :: IntSet -> Int -> Bool
 prop_splitMember s i = case splitMember i s of
-    (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s
+    (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s && i `delete` s == union s1 s2
 
 prop_partition :: IntSet -> Int -> Bool
 prop_partition s i = case partition odd s of

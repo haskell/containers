@@ -146,11 +146,9 @@ import Text.Read
 import Data.Data (Data(..), mkNoRepType)
 #endif
 
-#if __GLASGOW_HASKELL__ >= 503
-import GHC.Exts ( Word(..), Int(..), shiftRL# )
-#elif __GLASGOW_HASKELL__
-import Word
-import GlaExts ( Word(..), Int(..), shiftRL# )
+#if __GLASGOW_HASKELL__
+import GHC.Exts ( Word(..), Int(..) )
+import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL# )
 #else
 import Data.Word
 #endif
@@ -176,17 +174,20 @@ intFromNat :: Nat -> Int
 intFromNat w = fromIntegral w
 {-# INLINE intFromNat #-}
 
-shiftRL :: Nat -> Int -> Nat
+-- Right and left logical shifts.
+shiftRL, shiftLL :: Nat -> Int -> Nat
 #if __GLASGOW_HASKELL__
 {--------------------------------------------------------------------
-  GHC: use unboxing to get @shiftRL@ inlined.
+  GHC: use unboxing to get @shiftRL@ and @shiftLL@ inlined.
 --------------------------------------------------------------------}
-shiftRL (W# x) (I# i)
-  = W# (shiftRL# x i)
+shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
+shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
 #else
 shiftRL x i   = shiftR x i
-{-# INLINE shiftRL #-}
+shiftLL x i   = shiftL x i
 #endif
+{-# INLINE shiftRL #-}
+{-# INLINE shiftLL #-}
 
 {--------------------------------------------------------------------
   Operators
@@ -217,10 +218,14 @@ data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 --            don't have the mask bit set; right is all the elements that do.
             | Tip {-# UNPACK #-} !Prefix {-# UNPACK #-} !BitMap
 -- Invariant: The Prefix is zero for all but the last 5 (on 32 bit arches) or 6
---            bits (on 31 bit arches). The values of the map represented by a tip
+--            bits (on 64 bit arches). The values of the map represented by a tip
 --            are the prefix plus the indices of the set bits in the bit map.
             | Nil
 
+-- A number stored in a set is stored as
+-- * Prefix (all but last 5-6 bits) and
+-- * BitMap (last 5-6 bits stored as a bitmask)
+--   Last 5-6 bits are called a Suffix.
 
 type Prefix = Int
 type Mask   = Int
@@ -285,16 +290,12 @@ member x = x `seq` go
       | nomatch x p m = False
       | zero x m      = go l
       | otherwise     = go r
-    go (Tip y bm) = checkTip x y bm
+    go (Tip y bm) = prefixOf x == y && bitmapOf x .&. bm /= 0
     go Nil = False
 
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Int -> IntSet -> Bool
 notMember k = not . member k
-
-checkTip :: Int -> Prefix -> BitMap -> Bool
-checkTip k kx bm = k .&. highTipBits == kx && bm `testBit` (k .&. lowTipBits)
-{-# INLINE checkTip #-}
 
 {--------------------------------------------------------------------
   Construction
@@ -307,7 +308,7 @@ empty
 -- | /O(1)/. A set of one element.
 singleton :: Int -> IntSet
 singleton x
-  = Tip (x .&. highTipBits) (bit (x .&. lowTipBits))
+  = Tip (prefixOf x) (bitmapOf x)
 
 {--------------------------------------------------------------------
   Insert
@@ -315,9 +316,9 @@ singleton x
 -- | /O(min(n,W))/. Add a value to the set. There is no left- or right bias for
 -- IntSets.
 insert :: Int -> IntSet -> IntSet
-insert x = x `seq` insertBM (x .&. highTipBits) (bit (x .&. lowTipBits))
+insert x = x `seq` insertBM (prefixOf x) (bitmapOf x)
 
-
+-- Helper function for insert and union.
 insertBM :: Prefix -> BitMap -> IntSet -> IntSet
 insertBM kx bm t = kx `seq` bm `seq`
   case t of
@@ -333,19 +334,20 @@ insertBM kx bm t = kx `seq` bm `seq`
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Int -> IntSet -> IntSet
-delete x = x `seq` deleteBM (x .&. highTipBits) (bit (x .&. lowTipBits))
+delete x = x `seq` deleteBM (prefixOf x) (bitmapOf x)
 
 -- Deletes all values mentioned in the BitMap from the set.
+-- Helper function for delete and difference.
 deleteBM :: Prefix -> BitMap -> IntSet -> IntSet
 deleteBM kx bm t = kx `seq` bm `seq`
   case t of
     Bin p m l r
       | nomatch kx p m -> t
       | zero kx m      -> bin p m (deleteBM kx bm l) r
-      | otherwise     -> bin p m l (deleteBM kx bm r)
+      | otherwise      -> bin p m l (deleteBM kx bm r)
     Tip kx' bm'
       | kx' == kx -> tip kx (bm' .&. complement bm)
-      | otherwise     -> t
+      | otherwise -> t
     Nil -> Nil
 
 
@@ -446,7 +448,7 @@ intersectBM kx bm (Bin p2 m2 l2 r2)
   | otherwise        = intersectBM kx bm r2
 intersectBM kx bm (Tip kx' bm') 
   | kx == kx' = tip kx (bm .&. bm')
-  | otherwise  = Nil
+  | otherwise = Nil
 intersectBM kx bm Nil = Nil 
 
 
@@ -465,7 +467,7 @@ subsetCmp t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = GT
   | shorter m2 m1  = case subsetCmpLt of
                        GT -> GT
-                       _ -> LT
+                       _  -> LT
   | p1 == p2       = subsetCmpEq
   | otherwise      = GT  -- disjoint
   where
@@ -508,7 +510,7 @@ isSubsetOf t1@(Tip kx bm) (Bin p m l r)
   | zero kx m      = isSubsetOf t1 l
   | otherwise      = isSubsetOf t1 r
 isSubsetOf (Tip _ _) Nil = False
-isSubsetOf Nil _            = True
+isSubsetOf Nil _         = True
 
 
 {--------------------------------------------------------------------
@@ -523,8 +525,8 @@ filter predicate t
       Tip kx bm 
         -> tip kx (foldr'Bits 0 (bitPred kx) 0 bm)
       Nil -> Nil
-  where bitPred kx i m | predicate (kx + i)  = m `setBit` i
-                       | otherwise           = m
+  where bitPred kx i bm | predicate (kx + i)  = bm .|. bitmapOfSuffix i
+                        | otherwise           = bm
         {-# INLINE bitPred #-}
 
 -- | /O(n)/. partition the set according to some predicate.
@@ -539,8 +541,8 @@ partition predicate t
         -> let (bm1,bm2) = foldr'Bits 0 (bitPart kx) (0,0) bm
            in (tip kx bm1, tip kx bm2)
       Nil -> (Nil,Nil)
-  where bitPart kx i (m1,m2) | predicate (kx + i)   = (m1 `setBit` i, m2)
-                             | otherwise            = (m1, m2 `setBit` i)
+  where bitPart kx i (bm1,bm2) | predicate (kx + i)   = (bm1 .|. bitmapOfSuffix i, bm2)
+                               | otherwise            = (bm1, bm2 .|. bitmapOfSuffix i)
         {-# INLINE bitPart #-}
 
 
@@ -550,76 +552,44 @@ partition predicate t
 --
 -- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [4,5])
 split :: Int -> IntSet -> (IntSet,IntSet)
-split x t
-  = case t of
-      Bin _ m l r
-        | m < 0       -> if x >= 0 then let (lt,gt) = split' x l in (union r lt, gt)
-                                   else let (lt,gt) = split' x r in (lt, union gt l)
-                                   -- handle negative numbers.
-        | otherwise   -> split' x t
-      Tip kx' bm
-        | kx>kx'      -> (t,Nil)
-        | kx<kx'      -> (Nil,t)
-        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
-                         ,tip kx' (bm .&. highBits (bi+1)))
-      Nil             -> (Nil, Nil)
-  where kx = x .&. highTipBits
-        bi = x .&. lowTipBits
-
-split' :: Int -> IntSet -> (IntSet,IntSet)
-split' x t
-  = case t of
-      Bin p m l r
-        | match x p m -> if zero x m then let (lt,gt) = split' x l in (lt,union gt r)
-                                     else let (lt,gt) = split' x r in (union l lt,gt)
-        | otherwise   -> if x < p then (Nil, t)
-                                  else (t, Nil)
-      Tip kx' bm
-        | kx>kx'      -> (t,Nil)
-        | kx<kx'      -> (Nil,t)
-        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
-                         ,tip kx' (bm .&. highBits (bi+1)))
-      Nil -> (Nil,Nil)
-  where kx = x .&. highTipBits
-        bi = x .&. lowTipBits
+split x t =
+  case t of Bin _ m l r | m < 0 -> if x >= 0 then case go x l of (lt, gt) -> (union lt r, gt)
+                                             else case go x r of (lt, gt) -> (lt, union gt l)
+            _ -> go x t
+  where
+    go x t'@(Bin p m l r) | match x p m = if zero x m then case go x l of (lt, gt) -> (lt, union gt r)
+                                                      else case go x r of (lt, gt) -> (union lt l, gt)
+                          | otherwise   = if x < p then (Nil, t')
+                                                   else (t', Nil)
+    go x t'@(Tip kx' bm) | kx' > x          = (Nil, t')
+                          -- equivalent to kx' > prefixOf x
+                         | kx' < prefixOf x = (t', Nil)
+                         | otherwise = (tip kx' (bm .&. lowerBitmap), tip kx' (bm .&. higherBitmap))
+                             where lowerBitmap = bitmapOf x - 1
+                                   higherBitmap = complement (lowerBitmap + bitmapOf x)
+    go x Nil = (Nil, Nil)
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Int -> IntSet -> (IntSet,Bool,IntSet)
-splitMember x t
-  = case t of
-      Bin _ m l r
-        | m < 0       -> if x >= 0 then let (lt,found,gt) = splitMember' x l in (union r lt, found, gt)
-                                   else let (lt,found,gt) = splitMember' x r in (lt, found, union gt l)
-                                   -- handle negative numbers.
-        | otherwise   -> splitMember' x t
-      Tip kx' bm
-        | kx>kx'      -> (t,False,Nil)
-        | kx<kx'      -> (Nil,False,t)
-        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
-                         ,bm `testBit` bi
-                         ,tip kx' (bm .&. highBits (bi+1)))
-      Nil -> (Nil,False,Nil)
-  where kx = x .&. highTipBits
-        bi = x .&. lowTipBits
+splitMember x t =
+  case t of Bin _ m l r | m < 0 -> if x >= 0 then case go x l of (lt, fnd, gt) -> (union lt r, fnd, gt)
+                                             else case go x r of (lt, fnd, gt) -> (lt, fnd, union gt l)
+            _ -> go x t
+  where
+    go x t'@(Bin p m l r) | match x p m = if zero x m then case go x l of (lt, fnd, gt) -> (lt, fnd, union gt r)
+                                                      else case go x r of (lt, fnd, gt) -> (union lt l, fnd, gt)
+                          | otherwise   = if x < p then (Nil, False, t')
+                                                   else (t', False, Nil)
+    go x t'@(Tip kx' bm) | kx' > x          = (Nil, False, t')
+                          -- equivalent to kx' > prefixOf x
+                         | kx' < prefixOf x = (t', False, Nil)
+                         | otherwise = (tip kx' (bm .&. lowerBitmap), (bm .&. bitmapOfx) /= 0, tip kx' (bm .&. higherBitmap))
+                             where bitmapOfx = bitmapOf x
+                                   lowerBitmap = bitmapOfx - 1
+                                   higherBitmap = complement (lowerBitmap + bitmapOfx)
+    go x Nil = (Nil, False, Nil)
 
-splitMember' :: Int -> IntSet -> (IntSet,Bool,IntSet)
-splitMember' x t
-  = case t of
-      Bin p m l r
-         | match x p m ->  if zero x m then let (lt,found,gt) = splitMember x l in (lt,found,union gt r)
-                                       else let (lt,found,gt) = splitMember x r in (union l lt,found,gt)
-         | otherwise   -> if x < p then (Nil, False, t)
-                                   else (t, False, Nil)
-      Tip kx' bm
-        | kx>kx'      -> (t,False,Nil)
-        | kx<kx'      -> (Nil,False,t)
-        | otherwise   -> (tip kx' (bm .&. lowBits  bi)
-                         ,bm `testBit` bi
-                         ,tip kx' (bm .&. highBits (bi+1)))
-      Nil -> (Nil,False,Nil)
-  where kx = x .&. highTipBits
-        bi = x .&. lowTipBits
 
 {----------------------------------------------------------------------
   Min/Max
@@ -628,46 +598,26 @@ splitMember' x t
 -- | /O(min(n,W))/. Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: IntSet -> Maybe (Int, IntSet)
-maxView t
-    = case t of
-        Bin p m l r | m < 0 -> let (result,t') = maxViewUnsigned l in Just (result, bin p m t' r)
-        Bin p m l r         -> let (result,t') = maxViewUnsigned r in Just (result, bin p m l t')            
-        Tip kx bm ->
-            let bi = highestBitSet bm
-            in Just (kx + bi, tip kx (bm `clearBit` bi))
-        Nil -> Nothing
-
-maxViewUnsigned :: IntSet -> (Int, IntSet)
-maxViewUnsigned t 
-    = case t of
-        Bin p m l r -> let (result,t') = maxViewUnsigned r in (result, bin p m l t')
-        -- Probably wrong for negative numbers:
-        Tip kx bm ->
-            let bi = highestBitSet bm
-            in (kx + bi, tip kx (bm `clearBit` bi))
-        Nil -> error "maxViewUnsigned Nil"
+maxView t =
+  case t of Nil -> Nothing
+            Bin p m l r | m < 0 -> case go l of (result, l') -> Just (result, bin p m l' r)
+            _ -> Just (go t)
+  where
+    go (Bin p m l r) = case go r of (result, r') -> (result, bin p m l r')
+    go (Tip kx bm) = case highestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go Nil = error "maxView Nil"
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: IntSet -> Maybe (Int, IntSet)
-minView t
-    = case t of
-        Bin p m l r | m < 0 -> let (result,t') = minViewUnsigned r in Just (result, bin p m l t')            
-        Bin p m l r         -> let (result,t') = minViewUnsigned l in Just (result, bin p m t' r)
-        Tip kx bm ->
-            let bi = lowestBitSet bm
-            in Just (kx + bi, tip kx (bm `clearBit` bi))
-        Nil -> Nothing
-
-minViewUnsigned :: IntSet -> (Int, IntSet)
-minViewUnsigned t 
-    = case t of
-        Bin p m l r -> let (result,t') = minViewUnsigned l in (result, bin p m t' r)
-        -- Probably wrong for negative numbers:
-        Tip kx bm ->
-            let bi = lowestBitSet bm
-            in (kx + bi, tip kx (bm `clearBit` bi))
-        Nil -> error "minViewUnsigned Nil"
+minView t =
+  case t of Nil -> Nothing
+            Bin p m l r | m < 0 -> case go r of (result, r') -> Just (result, bin p m l r')
+            _ -> Just (go t)
+  where
+    go (Bin p m l r) = case go l of (result, l') -> (result, bin p m l' r)
+    go (Tip kx bm) = case lowestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go Nil = error "minView Nil"
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
 -- 
@@ -802,10 +752,10 @@ foldl' f z t =
 {--------------------------------------------------------------------
   List variations 
 --------------------------------------------------------------------}
--- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList)
+-- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList.)
 elems :: IntSet -> [Int]
-elems s
-  = toList s
+elems t
+  = toAscList t
 
 {--------------------------------------------------------------------
   Lists 
@@ -813,11 +763,11 @@ elems s
 -- | /O(n)/. Convert the set to a list of elements.
 toList :: IntSet -> [Int]
 toList t
-  = fold (:) [] t
+  = toAscList t
 
 -- | /O(n)/. Convert the set to an ascending list of elements.
 toAscList :: IntSet -> [Int]
-toAscList t = toList t
+toAscList t = foldr (:) [] t
 
 -- | /O(n*min(n,W))/. Create a set from a list of integers.
 fromList :: [Int] -> IntSet
@@ -841,21 +791,21 @@ fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Int] -> IntSet
 fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work (z0 .&. highTipBits) (bit (z0 .&. lowTipBits)) zs0 Nada
+fromDistinctAscList (z0 : zs0) = work (prefixOf z0) (bitmapOf z0) zs0 Nada
   where
     -- 'work' accumulates all values that go into one tip, before passing this Tip
     -- to 'reduce'
     work kx bm []     stk = finish kx (Tip kx bm) stk
-    work kx bm (z:zs) stk | kx == z .&. highTipBits = work kx (bm `setBit` (z .&. lowTipBits)) zs stk
+    work kx bm (z:zs) stk | kx == prefixOf z = work kx (bm .|. bitmapOf z) zs stk
     work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
 
-    reduce z zs _ px tx Nada = work (z .&. highTipBits) (bit (z .&. lowTipBits)) zs (Push px tx Nada)
+    reduce z zs _ px tx Nada = work (prefixOf z) (bitmapOf z) zs (Push px tx Nada)
     reduce z zs m px tx stk@(Push py ty stk') =
         let mxy = branchMask px py
             pxy = mask px mxy
         in  if shorter m mxy
                  then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work (z .&. highTipBits) (bit (z .&. lowTipBits)) zs (Push px tx stk)
+                 else work (prefixOf z) (bitmapOf z) zs (Push px tx stk)
 
     finish _  t  Nada = t
     finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
@@ -1058,7 +1008,36 @@ tip _ 0 = Nil
 tip kx bm = Tip kx bm
 {-# INLINE tip #-}
 
-  
+
+{----------------------------------------------------------------------
+  Functions that generate Prefix and BitMap of a Key or a Suffix.
+----------------------------------------------------------------------}
+
+suffixBitMask :: Int
+suffixBitMask = bitSize (undefined::Word) - 1
+{-# INLINE suffixBitMask #-}
+
+prefixBitMask :: Int
+prefixBitMask = complement suffixBitMask
+{-# INLINE prefixBitMask #-}
+
+prefixOf :: Int -> Prefix
+prefixOf x = x .&. prefixBitMask
+{-# INLINE prefixOf #-}
+
+suffixOf :: Int -> Int
+suffixOf x = x .&. suffixBitMask
+{-# INLINE suffixOf #-}
+
+bitmapOfSuffix :: Int -> BitMap
+bitmapOfSuffix s = 1 `shiftLL` s
+{-# INLINE bitmapOfSuffix #-}
+
+bitmapOf :: Int -> BitMap
+bitmapOf x = bitmapOfSuffix (suffixOf x)
+{-# INLINE bitmapOf #-}
+
+
 {--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
@@ -1154,34 +1133,38 @@ highestBitMask x0
           x6 -> (x6 `xor` (shiftRL x6 1))
 {-# INLINE highestBitMask #-}
 
-
 {----------------------------------------------------------------------
-  [highTipBits] and [lowTipBits] are two bit masks. Low bits has just the last n bits
-  set to 1, while high bits is the complement, and n is the word size of the
-  architecture. TODO: Does this work on s390?
+Finds the index of the lowest resp. highest bit set in a word. The following
+code works fine for bit sizes up to 64. A possibly faster but
+wordsize-dependant implementation based on multiplication and DeBrujn indeces
+is proposed by Edward Kmett
+<http://haskell.org/pipermail/libraries/2011-September/016749.html>
+Some architectures, notably x86, also offer machine instructions for this
+operation (bsr and bsl).
 ----------------------------------------------------------------------}
 
-lowTipBits :: Int
-lowTipBits = (bitSize (undefined::Word))-1
-{-# INLINE lowTipBits #-}
+lowestBitSet :: Word -> Int
+lowestBitSet n0 =
+    let (n1,b1) = if n0 .&. 0xFFFFFFFF /= 0 then (n0,0)  else (n0 `shiftRL` 32, 32)
+        (n2,b2) = if n1 .&. 0xFFFF /= 0     then (n1,b1) else (n1 `shiftRL` 16, 16+b1)
+        (n3,b3) = if n2 .&. 0xFF /= 0       then (n2,b2) else (n2 `shiftRL` 8,  8+b2)
+        (n4,b4) = if n3 .&. 0xF /= 0        then (n3,b3) else (n3 `shiftRL` 4,  4+b3)
+        (n5,b5) = if n4 .&. 0x3 /= 0        then (n4,b4) else (n4 `shiftRL` 2,  2+b4)
+        b6      = if n5 .&. 0x1 /= 0        then     b5  else                   1+b5
+    in b6 
+{-# INLINE lowestBitSet #-}
 
-highTipBits :: Int
-highTipBits = complement lowTipBits
-{-# INLINE highTipBits #-}
+highestBitSet :: Word -> Int
+highestBitSet n0 =
+    let (n1,b1) = if n0 .&. 0xFFFFFFFF00000000 /= 0 then (n0 `shiftRL` 32, 32)    else (n0,0)
+        (n2,b2) = if n1 .&. 0xFFFF0000 /= 0         then (n1 `shiftRL` 16, 16+b1) else (n1,b1)
+        (n3,b3) = if n2 .&. 0xFF00 /= 0             then (n2 `shiftRL` 8,  8+b2)  else (n2,b2)
+        (n4,b4) = if n3 .&. 0xF0 /= 0               then (n3 `shiftRL` 4,  4+b3)  else (n3,b3)
+        (n5,b5) = if n4 .&. 0xC /= 0                then (n4 `shiftRL` 2,  2+b4)  else (n4,b4)
+        b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
+    in b6 
+{-# INLINE highestBitSet #-}
 
-{----------------------------------------------------------------------
- [lowBits] and [highBits] are bitmaps where the lowest n bits are set to one
- resp. zero
-----------------------------------------------------------------------}
-
-lowBits :: Int -> BitMap
-lowBits 0 = 0
-lowBits n = (1 `shiftL` n)-1
-{-# INLINE lowBits #-}
-
-highBits :: Int -> BitMap
-highBits n = complement (lowBits n)
-{-# INLINE highBits #-}
 
 {----------------------------------------------------------------------
   Folds over bitmaps. These are crucial for good speed in toList, filter,
@@ -1221,38 +1204,6 @@ foldr'Bits shift f x bm = let lb = lowestBitSet bm
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
 
 {----------------------------------------------------------------------
-Finds the index of the lowest resp. highest bit set in a word. The following
-code works fine for bit sizes up to 64. A possibly faster but
-wordsize-dependant implementation based on multiplication and DeBrujn indeces
-is proposed by Edward Kmett
-<http://haskell.org/pipermail/libraries/2011-September/016749.html>
-Some architectures, notably x86, also offer machine instructions for this
-operation (bsr and bsl).
-----------------------------------------------------------------------}
-
-lowestBitSet :: Word -> Int
-lowestBitSet n0 =
-    let (n1,b1) = if n0 .&. 0xFFFFFFFF /= 0 then (n0,0)  else (n0 `shiftRL` 32, 32)
-        (n2,b2) = if n1 .&. 0xFFFF /= 0     then (n1,b1) else (n1 `shiftRL` 16, 16+b1)
-        (n3,b3) = if n2 .&. 0xFF /= 0       then (n2,b2) else (n2 `shiftRL` 8,  8+b2)
-        (n4,b4) = if n3 .&. 0xF /= 0        then (n3,b3) else (n3 `shiftRL` 4,  4+b3)
-        (n5,b5) = if n4 .&. 0x3 /= 0        then (n4,b4) else (n4 `shiftRL` 2,  2+b4)
-        b6      = if n5 .&. 0x1 /= 0        then     b5  else                   1+b5
-    in b6 
-{-# INLINE lowestBitSet #-}
-
-highestBitSet :: Word -> Int
-highestBitSet n0 =
-    let (n1,b1) = if n0 .&. 0xFFFFFFFF00000000 /= 0 then (n0 `shiftRL` 32, 32)    else (n0,0)
-        (n2,b2) = if n1 .&. 0xFFFF0000 /= 0         then (n1 `shiftRL` 16, 16+b1) else (n1,b1)
-        (n3,b3) = if n2 .&. 0xFF00 /= 0             then (n2 `shiftRL` 8,  8+b2)  else (n2,b2)
-        (n4,b4) = if n3 .&. 0xF0 /= 0               then (n3 `shiftRL` 4,  4+b3)  else (n3,b3)
-        (n5,b5) = if n4 .&. 0xC /= 0                then (n4 `shiftRL` 2,  2+b4)  else (n4,b4)
-        b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
-    in b6 
-{-# INLINE highestBitSet #-}
-
-{----------------------------------------------------------------------
   [bitcount] as posted by David F. Place to haskell-cafe on April 11, 2006,
   based on the code on
   http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetKernighan,
@@ -1267,7 +1218,6 @@ bitcount :: Int -> Word -> Int
 bitcount a 0 = a
 bitcount a x = bitcount (a + 1) (x .&. (x-1))
 {-# INLINE bitcount #-}
-
 
 
 {--------------------------------------------------------------------
