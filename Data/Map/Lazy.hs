@@ -12,7 +12,8 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- An efficient implementation of maps from keys to values (dictionaries).
+-- An efficient implementation of ordered maps from keys to values
+-- (dictionaries).
 --
 -- Since many function names (but not the type name) clash with
 -- "Prelude" names, this module is usually imported @qualified@, e.g.
