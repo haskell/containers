@@ -286,7 +286,7 @@ import Data.Map.Base hiding
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k m = case lookup k m of
+findWithDefault !def k m = case lookup k m of
     Nothing -> def
     Just x  -> x
 #if __GLASGOW_HASKELL__ >= 700
