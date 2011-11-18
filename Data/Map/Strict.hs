@@ -56,6 +56,8 @@
 
 module Data.Map.Strict
     (
+    -- * Strictness properties
+    -- $strictness
 
     -- * Map type
 #if !defined(TESTING)
@@ -258,6 +260,19 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
+
+-- $strictness
+--
+-- * All functions are strict in both key and value arguments.  Examples:
+--
+-- > insertWith (+) k undefined m  ==  undefined
+-- > delete undefined m  ==  undefined
+--
+-- * Keys and values are evaluated to WHNF before they are stored in
+-- the map.  Examples:
+--
+-- > map (\ v -> undefined)  ==  undefined
+-- > mapKeys (\ k -> undefined)  ==  undefined
 
 {--------------------------------------------------------------------
   Query
