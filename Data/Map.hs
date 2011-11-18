@@ -91,7 +91,7 @@ fold :: (a -> b -> b) -> b -> Map k a -> b
 fold = L.foldr
 {-# INLINE fold #-}
 
--- | /Deprecated./ As of version 0.5, replaced by 'L.foldrWithKey'.
+-- | /Deprecated./ As of version 0.4, replaced by 'L.foldrWithKey'.
 --
 -- /O(n)/. Fold the keys and values in the map using the given right-associative
 -- binary operator. This function is an equivalent of 'foldrWithKey' and is present
