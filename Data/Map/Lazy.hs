@@ -39,21 +39,6 @@
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 -----------------------------------------------------------------------------
 
--- It is crucial to the performance that the functions specialize on the Ord
--- type when possible. GHC 7.0 and higher does this by itself when it sees th
--- unfolding of a function -- that is why all public functions are marked
--- INLINABLE (that exposes the unfolding).
---
--- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
--- We mark the functions that just navigate down the tree (lookup, insert,
--- delete and similar). That navigation code gets inlined and thus specialized
--- when possible. There is a price to pay -- code growth. The code INLINED is
--- therefore only the tree navigation, all the real work (rebalancing) is not
--- INLINED by using a NOINLINE.
---
--- All methods that can be INLINE are not recursive -- a 'go' function doing
--- the real work is provided.
-
 module Data.Map.Lazy (
             -- * Map type
 #if !defined(TESTING)
