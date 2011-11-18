@@ -267,7 +267,7 @@ import Data.Map.Base hiding
 
 -- $strictness
 --
--- This module satisfies the following properties:
+-- This module satisfies the following strictness properties:
 --
 -- 1. Key and value arguments are evaluated to WHNF;
 --
