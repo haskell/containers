@@ -267,20 +267,22 @@ import Data.Map.Base hiding
 
 -- $strictness
 --
--- This module is strict in keys and values.  In particular,
+-- This module satisfies the following properties:
 --
--- * key and value arguments are evaluated to WHNF before the function
---   body is evaluated, and
+-- 1. Key and value arguments are evaluated to WHNF;
 --
--- * keys and values returned by higher-order function arguments are
---   evaluated to WHNF before they are inserted into the map.
+-- 2. Keys and values are evaluated to WHNF before they are stored in
+--    the map.
 --
--- Here are some examples:
+-- Here are some examples that illustrate the first property:
 --
--- > insertWith (+) k undefined m  ==  undefined
+-- > insertWith (\ old new -> old) k undefined m  ==  undefined
 -- > delete undefined m  ==  undefined
--- > map (\ v -> undefined)  ==  undefined
--- > mapKeys (\ k -> undefined)  ==  undefined
+--
+-- Here are some examples that illustrate the second property:
+--
+-- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
+-- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
 
 {--------------------------------------------------------------------
   Query
