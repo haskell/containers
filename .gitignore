@@ -3,5 +3,5 @@
 *.p_hi
 *.prof
 *.tix
-/.hpc/*
+.hpc/
 /dist/*
