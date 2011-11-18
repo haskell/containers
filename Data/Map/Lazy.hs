@@ -4,7 +4,7 @@
 #endif
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Map
+-- Module      :  Data.Map.Lazy
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
@@ -39,7 +39,22 @@
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 -----------------------------------------------------------------------------
 
-module Data.Map (
+-- It is crucial to the performance that the functions specialize on the Ord
+-- type when possible. GHC 7.0 and higher does this by itself when it sees th
+-- unfolding of a function -- that is why all public functions are marked
+-- INLINABLE (that exposes the unfolding).
+--
+-- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
+-- We mark the functions that just navigate down the tree (lookup, insert,
+-- delete and similar). That navigation code gets inlined and thus specialized
+-- when possible. There is a price to pay -- code growth. The code INLINED is
+-- therefore only the tree navigation, all the real work (rebalancing) is not
+-- INLINED by using a NOINLINE.
+--
+-- All methods that can be INLINE are not recursive -- a 'go' function doing
+-- the real work is provided.
+
+module Data.Map.Lazy (
             -- * Map type
 #if !defined(TESTING)
               Map              -- instance Eq,Show,Read
@@ -51,11 +66,11 @@ module Data.Map (
             , (!), (\\)
 
             -- * Query
-            , null
+            , M.null
             , size
             , member
             , notMember
-            , lookup
+            , M.lookup
             , findWithDefault
 
             -- * Construction
@@ -65,11 +80,8 @@ module Data.Map (
             -- ** Insertion
             , insert
             , insertWith
-            , insertWith'
             , insertWithKey
-            , insertWithKey'
             , insertLookupWithKey
-            , insertLookupWithKey'
 
             -- ** Delete\/Update
             , delete
@@ -101,7 +113,7 @@ module Data.Map (
 
             -- * Traversal
             -- ** Map
-            , map
+            , M.map
             , mapWithKey
             , mapAccum
             , mapAccumWithKey
@@ -111,8 +123,8 @@ module Data.Map (
             , mapKeysMonotonic
 
             -- * Folds
-            , foldr
-            , foldl
+            , M.foldr
+            , M.foldl
             , foldrWithKey
             , foldlWithKey
             -- ** Strict folds
@@ -120,9 +132,6 @@ module Data.Map (
             , foldl'
             , foldrWithKey'
             , foldlWithKey'
-            -- ** Legacy folds
-            , fold
-            , foldWithKey
 
             -- * Conversion
             , elems
@@ -145,7 +154,7 @@ module Data.Map (
             , fromDistinctAscList
 
             -- * Filter
-            , filter
+            , M.filter
             , filterWithKey
             , partition
             , partitionWithKey
@@ -200,46 +209,4 @@ module Data.Map (
 
             ) where
 
-import Data.Map.Lazy
-import qualified Data.Map.Strict as S
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-
--- | Same as 'insertWith', but the combining function is applied strictly.
--- This is often the most desirable behavior.
---
--- For example, to update a counter:
---
--- > insertWith' (+) k 1 m
---
-insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith' = S.insertWith
-{-# INLINE insertWith' #-}
-
--- | Same as 'insertWithKey', but the combining function is applied strictly.
-insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKey' = S.insertWithKey
-{-# INLINE insertWithKey' #-}
-
--- | /O(log n)/. A strict version of 'insertLookupWithKey'.
-insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
-                     -> (Maybe a, Map k a)
-insertLookupWithKey' = S.insertLookupWithKey
-{-# INLINE insertLookupWithKey' #-}
-
--- | /O(n)/. Fold the values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
---
--- /Please note that fold will be deprecated in the future and removed./
-fold :: (a -> b -> b) -> b -> Map k a -> b
-fold = foldr
-{-# INLINE fold #-}
-
--- | /O(n)/. Fold the keys and values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldrWithKey' and is present
--- for compatibility only.
---
--- /Please note that foldWithKey will be deprecated in the future and removed./
-foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldWithKey = foldrWithKey
-{-# INLINE foldWithKey #-}
+import Data.Map.Base as M

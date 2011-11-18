@@ -26,12 +26,15 @@ Library
         Ghc-Options: -fregs-graph
     other-modules:
         Data.IntMap.Base
+        Data.Map.Base
     exposed-modules:
         Data.IntMap
-        Data.IntMap.Strict
         Data.IntMap.Lazy
+        Data.IntMap.Strict
         Data.IntSet
         Data.Map
+        Data.Map.Lazy
+        Data.Map.Strict
         Data.Set
     include-dirs: include
     extensions: CPP
