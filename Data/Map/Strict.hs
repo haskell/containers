@@ -319,7 +319,7 @@ insert = go
 #endif
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
--- @'insertWith' f key value mp@ 
+-- @'insertWith' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key, f new_value old_value)@.
@@ -333,7 +333,7 @@ insertWith f = insertWithKey (\_ x' y' -> f x' y')
 {-# INLINE insertWith #-}
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
--- @'insertWithKey' f key value mp@ 
+-- @'insertWithKey' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key,f key new_value old_value)@.
@@ -469,7 +469,7 @@ updateWithKey = go
 
 -- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
--- Returns the original key value if the map entry is deleted. 
+-- Returns the original key value if the map entry is deleted.
 --
 -- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
 -- > updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) == (Just "5:new a", fromList [(3, "b"), (5, "5:new a")])
@@ -487,7 +487,7 @@ updateLookupWithKey = go
                      in (found,t)
                GT -> let (found,r') = go f k r
                          !t = balanceL kx x l r'
-                     in (found,t) 
+                     in (found,t)
                EQ -> case f kx x of
                        Just !x' -> let !t = Bin sx kx x' l r
                                    in (Just x',t)
@@ -621,7 +621,7 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 #endif
 
 {--------------------------------------------------------------------
-  Union. 
+  Union.
 --------------------------------------------------------------------}
 
 -- | The union of a list of maps, with a combining operation:
@@ -691,11 +691,11 @@ hedgeUnionWithKey f blo bhi (Bin _ kx x l r) t2
   Difference
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. Difference with a combining function. 
+-- | /O(n+m)/. Difference with a combining function.
 -- When two equal keys are
 -- encountered, the combining function is applied to the values of these keys.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
--- it returns (@'Just' y@), the element is updated with a new value @y@. 
+-- it returns (@'Just' y@), the element is updated with a new value @y@.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
@@ -710,7 +710,7 @@ differenceWith f m1 m2
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
--- it returns (@'Just' y@), the element is updated with a new value @y@. 
+-- it returns (@'Just' y@), the element is updated with a new value @y@.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
@@ -734,10 +734,10 @@ hedgeDiffWithKey _ _     _     Tip _
   = Tip
 hedgeDiffWithKey _ blo bhi (Bin _ kx x l r) Tip
   = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiffWithKey f blo bhi t (Bin _ kx x l r) 
+hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
   = case found of
       Nothing -> merge tl tr
-      Just (ky,y) -> 
+      Just (ky,y) ->
           case f ky y x of
             Nothing -> merge tl tr
             Just !z -> join ky z tl tr
@@ -943,7 +943,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
--- 
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the value at the smallest of
 -- these keys is retained.
@@ -960,7 +960,7 @@ mapKeys = mapKeysWith (\x _ -> x)
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
--- 
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
 -- combined using @c@.
@@ -982,8 +982,8 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 -- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
 -- /The precondition is not checked./
 -- Semi-formally, we have:
--- 
--- > and [x < y ==> f x < f y | x <- ls, y <- ls] 
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapKeysMonotonic f s == mapKeys f s
 -- >     where ls = keys s
 --
@@ -1004,7 +1004,7 @@ mapKeysMonotonic f (Bin sz k x l r) =
 #endif
 
 {--------------------------------------------------------------------
-  Lists 
+  Lists
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
@@ -1015,8 +1015,8 @@ mapKeysMonotonic f (Bin sz k x l r) =
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
-fromList :: Ord k => [(k,a)] -> Map k a 
-fromList xs       
+fromList :: Ord k => [(k,a)] -> Map k a
+fromList xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insert k x t
@@ -1029,7 +1029,7 @@ fromList xs
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "ab"), (5, "aba")]
 -- > fromListWith (++) [] == empty
 
-fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a 
+fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1042,8 +1042,8 @@ fromListWith f xs
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "3ab"), (5, "5a5ba")]
 -- > fromListWithKey f [] == empty
 
-fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
-fromListWithKey f xs 
+fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
+fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
@@ -1053,8 +1053,8 @@ fromListWithKey f xs
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
-  
-  Note that if [xs] is ascending that: 
+
+  Note that if [xs] is ascending that:
     fromAscList xs       == fromList xs
     fromAscListWith f xs == fromListWith f xs
 --------------------------------------------------------------------}
@@ -1066,7 +1066,7 @@ fromListWithKey f xs
 -- > valid (fromAscList [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
 
-fromAscList :: Eq k => [(k,a)] -> Map k a 
+fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1080,7 +1080,7 @@ fromAscList xs
 -- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
 
-fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a 
+fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1096,7 +1096,7 @@ fromAscListWith f xs
 -- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")]) == True
 -- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
 
-fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
+fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
   where
@@ -1122,15 +1122,15 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
-fromDistinctAscList :: [(k,a)] -> Map k a 
+fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs
   = build const (length xs) xs
   where
     -- 1) use continuations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to build bushier trees. 
+    -- 2) special case for n==5 to build bushier trees.
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
-                       ((k1,!x1):(k2,!x2):(k3,!x3):(k4,!x4):(k5,!x5):xx) 
+                       ((k1,!x1):(k2,!x2):(k3,!x3):(k4,!x4):(k5,!x5):xx)
                             -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
                        _ -> error "fromDistinctAscList build"
     build c n xs'  = seq nr $ build (buildR nr c) nl xs'
