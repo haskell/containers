@@ -15,10 +15,13 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- The 'Map' type is shared between the lazy and strict modules,
+-- meaning that the same 'Map' value can be passed to functions in
+-- both modules (although that is rarely needed).
 --
--- >  import Data.Map.Strict (Map)
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
+--
 -- >  import qualified Data.Map.Strict as Map
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
@@ -37,7 +40,7 @@
 -- 'union' or 'insert'.
 --
 -- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
+-- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 -----------------------------------------------------------------------------
 
 -- It is crucial to the performance that the functions specialize on the Ord
@@ -266,10 +269,10 @@ import Data.Map.Base hiding
 --
 -- This module is strict in keys and values.  In particular,
 --
--- * key and value function arguments passed to functions are
---   evaluated to WHNF before the function body is evaluated, and
+-- * key and value arguments are evaluated to WHNF before the function
+--   body is evaluated, and
 --
--- * keys and values returned by high-order function arguments are
+-- * keys and values returned by higher-order function arguments are
 --   evaluated to WHNF before they are inserted into the map.
 --
 -- Here are some examples:

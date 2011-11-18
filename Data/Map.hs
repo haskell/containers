@@ -12,31 +12,9 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- An efficient implementation of maps from keys to values (dictionaries).
---
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
---
--- >  import Data.Map (Map)
--- >  import qualified Data.Map as Map
---
--- The implementation of 'Map' is based on /size balanced/ binary trees (or
--- trees of /bounded balance/) as described by:
---
---    * Stephen Adams, \"/Efficient sets: a balancing act/\",
---     Journal of Functional Programming 3(4):553-562, October 1993,
---     <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
---    * J. Nievergelt and E.M. Reingold,
---      \"/Binary search trees of bounded balance/\",
---      SIAM journal of computing 2(1), March 1973.
---
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
---
--- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
+-- /Deprecated./ As of version 0.5, replaced by 'Data.Map.Lazy' and
+-- 'Data.Map.Strict'. These two modules implement value lazy and value
+-- strict maps, respectively.
 -----------------------------------------------------------------------------
 
 module Data.Map

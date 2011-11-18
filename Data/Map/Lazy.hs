@@ -15,10 +15,13 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- The 'Map' type is shared between the lazy and strict modules,
+-- meaning that the same 'Map' value can be passed to functions in
+-- both modules (although that is rarely needed).
 --
--- >  import Data.Map.Lazy (Map)
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
+--
 -- >  import qualified Data.Map.Lazy as Map
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
@@ -37,7 +40,7 @@
 -- 'union' or 'insert'.
 --
 -- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
+-- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 -----------------------------------------------------------------------------
 
 module Data.Map.Lazy (
