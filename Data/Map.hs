@@ -39,173 +39,23 @@
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 -----------------------------------------------------------------------------
 
-module Data.Map (
-            -- * Map type
-#if !defined(TESTING)
-              Map              -- instance Eq,Show,Read
-#else
-              Map(..)          -- instance Eq,Show,Read
-#endif
-
-            -- * Operators
-            , (!), (\\)
-
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-
-            -- * Construction
-            , empty
-            , singleton
-
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWith'
-            , insertWithKey
-            , insertWithKey'
-            , insertLookupWithKey
-            , insertLookupWithKey'
-
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
-
-            -- * Combine
-
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
-
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
-
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
-
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
-
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
-            -- ** Legacy folds
-            , fold
-            , foldWithKey
-
-            -- * Conversion
-            , elems
-            , keys
-            , keysSet
-            , assocs
-
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
-
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
-
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
-
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
-
-            , split
-            , splitLookup
-
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
-
-            -- * Indexed
-            , lookupIndex
-            , findIndex
-            , elemAt
-            , updateAt
-            , deleteAt
-
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
-
-            -- * Debugging
-            , showTree
-            , showTreeWith
-            , valid
-
-#if defined(TESTING)
-            -- * Internals
-            , bin
-            , balanced
-            , join
-            , merge
-#endif
-
-            ) where
+module Data.Map
+    ( module Data.Map.Lazy
+    , insertWith'
+    , insertWithKey'
+    , insertLookupWithKey'
+    , fold
+    , foldWithKey
+    ) where
 
 import Data.Map.Lazy
+import qualified Data.Map.Lazy as L
 import qualified Data.Map.Strict as S
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
--- | Same as 'insertWith', but the combining function is applied strictly.
--- This is often the most desirable behavior.
+-- | /Deprecated./ As of version 0.5, replaced by 'S.insertWith'.
+--
+-- /O(log n)/. Same as 'insertWith', but the combining function is
+-- applied strictly.  This is often the most desirable behavior.
 --
 -- For example, to update a counter:
 --
@@ -215,31 +65,37 @@ insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' = S.insertWith
 {-# INLINE insertWith' #-}
 
--- | Same as 'insertWithKey', but the combining function is applied strictly.
+-- | /Deprecated./ As of version 0.5, replaced by 'S.insertWithKey'.
+--
+-- /O(log n)/. Same as 'insertWithKey', but the combining function is
+-- applied strictly.
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey' = S.insertWithKey
 {-# INLINE insertWithKey' #-}
 
--- | /O(log n)/. A strict version of 'insertLookupWithKey'.
+-- | /Deprecated./ As of version 0.5, replaced by
+-- 'S.insertLookupWithKey'.
+--
+-- /O(log n)/. A strict version of 'insertLookupWithKey'.
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
 insertLookupWithKey' = S.insertLookupWithKey
 {-# INLINE insertLookupWithKey' #-}
 
--- | /O(n)/. Fold the values in the map using the given right-associative
+-- | /Deprecated./ As of version 0.5, replaced by 'L.foldr'.
+--
+-- /O(n)/. Fold the values in the map using the given right-associative
 -- binary operator. This function is an equivalent of 'foldr' and is present
 -- for compatibility only.
---
--- /Please note that fold will be deprecated in the future and removed./
 fold :: (a -> b -> b) -> b -> Map k a -> b
-fold = foldr
+fold = L.foldr
 {-# INLINE fold #-}
 
--- | /O(n)/. Fold the keys and values in the map using the given right-associative
+-- | /Deprecated./ As of version 0.5, replaced by 'L.foldrWithKey'.
+--
+-- /O(n)/. Fold the keys and values in the map using the given right-associative
 -- binary operator. This function is an equivalent of 'foldrWithKey' and is present
 -- for compatibility only.
---
--- /Please note that foldWithKey will be deprecated in the future and removed./
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}
