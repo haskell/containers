@@ -45,181 +45,50 @@
 -- (32 or 64).
 -----------------------------------------------------------------------------
 
-module Data.IntMap (
-            -- * Map type
-#if !defined(TESTING)
-              IntMap, Key          -- instance Eq,Show
-#else
-              IntMap(..), Key          -- instance Eq,Show
-#endif
-
-            -- * Operators
-            , (!), (\\)
-
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-
-            -- * Construction
-            , empty
-            , singleton
-
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWith'
-            , insertWithKey
-            , insertWithKey'
-            , insertLookupWithKey
-
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
-
-            -- * Combine
-
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
-
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
-
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
-
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
-            -- ** Legacy folds
-            , fold
-            , foldWithKey
-
-            -- * Conversion
-            , elems
-            , keys
-            , keysSet
-            , assocs
-
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
-
-            -- ** Ordered lists
-            , toAscList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
-
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
-
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
-
-            , split
-            , splitLookup
-
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
-
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
-
-            -- * Debugging
-            , showTree
-            , showTreeWith
-            ) where
+module Data.IntMap
+    ( module Data.IntMap.Lazy
+    , insertWith'
+    , insertWithKey'
+    , fold
+    , foldWithKey
+    ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import Data.IntMap.Lazy
 import qualified Data.IntMap.Strict as S
 
--- | Same as 'insertWith', but the combining function is applied strictly.
--- This function is deprecated, use 'insertWith' in "Data.IntMap.Strict"
--- instead.
+-- | /Deprecated./ As of version 0.5, replaced by 'S.insertWith'.
+--
+-- /O(log n)/. Same as 'insertWith', but the combining function is
+-- applied strictly.  This function is deprecated, use 'insertWith' in
+-- "Data.IntMap.Strict" instead.
 insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith' = S.insertWith
 {-# INLINE insertWith' #-}
--- {-# DEPRECATED insertWith' "Use insertWith in Data.IntMap.Strict instead" #-}
 
--- | Same as 'insertWithKey', but the combining function is applied strictly.
--- This function is deprecated, use 'insertWithKey' in "Data.IntMap.Strict"
--- instead.
+-- | /Deprecated./ As of version 0.5, replaced by 'S.insertWithKey'.
+--
+-- /O(log n)/. Same as 'insertWithKey', but the combining function is
+-- applied strictly.  This function is deprecated, use 'insertWithKey'
+-- in "Data.IntMap.Strict" instead.
 insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWithKey' = S.insertWithKey
 {-# INLINE insertWithKey' #-}
--- {-# DEPRECATED insertWithKey' "Use insertWithKey in Data.IntMap.Strict instead" #-}
 
--- | /O(n)/. Fold the values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
+-- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
 --
--- /Please note that fold will be deprecated in the future and removed./
+-- /O(n)/. Fold the values in the map using the given
+-- right-associative binary operator. This function is an equivalent
+-- of 'foldr' and is present for compatibility only.
 fold :: (a -> b -> b) -> b -> IntMap a -> b
 fold = foldr
 {-# INLINE fold #-}
--- {-# DEPRECATED fold "Use foldr instead." #-}
 
--- | /O(n)/. Fold the keys and values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldrWithKey' and is present
--- for compatibility only.
+-- | /Deprecated./ As of version 0.5, replaced by 'foldrWithKey'.
 --
--- /Please note that foldWithKey will be deprecated in the future and removed./
+-- /O(n)/. Fold the keys and values in the map using the given
+-- right-associative binary operator. This function is an equivalent
+-- of 'foldrWithKey' and is present for compatibility only.
 foldWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}
--- {-# DEPRECATED foldWithKey "Use foldrWithKey instead." #-}
