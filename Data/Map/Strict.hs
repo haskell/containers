@@ -1130,7 +1130,7 @@ fromDistinctAscList xs
     -- 2) special case for n==5 to build bushier trees. 
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
-                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx) 
+                       ((k1,!x1):(k2,!x2):(k3,!x3):(k4,!x4):(k5,!x5):xx) 
                             -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
                        _ -> error "fromDistinctAscList build"
     build c n xs'  = seq nr $ build (buildR nr c) nl xs'
@@ -1138,9 +1138,9 @@ fromDistinctAscList xs
                      nl = n `div` 2
                      nr = n - nl - 1
 
-    buildR n c l ((k,x):ys) = build (buildB l k x c) n ys
-    buildR _ _ _ []         = error "fromDistinctAscList buildR []"
-    buildB l k x c r zs     = c (bin k x l r) zs
+    buildR n c l ((k,!x):ys) = build (buildB l k x c) n ys
+    buildR _ _ _ []          = error "fromDistinctAscList buildR []"
+    buildB l k !x c r zs     = c (bin k x l r) zs
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromDistinctAscList #-}
 #endif
