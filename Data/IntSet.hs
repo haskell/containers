@@ -148,7 +148,7 @@ import Data.Data (Data(..), mkNoRepType)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( Word(..), Int(..) )
-import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL# )
+import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL#, indexInt8OffAddr# )
 #else
 import Data.Word
 #endif
@@ -158,6 +158,7 @@ import Data.Word
 -- We do not use BangPatterns, because they are not in any standard and we
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_2_OF_2(fn) fn _ arg | arg `seq` False = undefined
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 
@@ -523,10 +524,10 @@ filter predicate t
       Bin p m l r 
         -> bin p m (filter predicate l) (filter predicate r)
       Tip kx bm 
-        -> tip kx (foldr'Bits 0 (bitPred kx) 0 bm)
+        -> tip kx (foldl'Bits 0 (bitPred kx) 0 bm)
       Nil -> Nil
-  where bitPred kx i bm | predicate (kx + i)  = bm .|. bitmapOfSuffix i
-                        | otherwise           = bm
+  where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
+                         | otherwise           = bm
         {-# INLINE bitPred #-}
 
 -- | /O(n)/. partition the set according to some predicate.
@@ -538,12 +539,12 @@ partition predicate t
                (r1,r2) = partition predicate r
            in (bin p m l1 r1, bin p m l2 r2)
       Tip kx bm 
-        -> let (bm1,bm2) = foldr'Bits 0 (bitPart kx) (0,0) bm
-           in (tip kx bm1, tip kx bm2)
+        -> let bm1 = foldl'Bits 0 (bitPred kx) 0 bm
+           in  (tip kx bm1, tip kx (bm `xor` bm1))
       Nil -> (Nil,Nil)
-  where bitPart kx i (bm1,bm2) | predicate (kx + i)   = (bm1 .|. bitmapOfSuffix i, bm2)
-                               | otherwise            = (bm1, bm2 .|. bitmapOfSuffix i)
-        {-# INLINE bitPart #-}
+  where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
+                         | otherwise           = bm
+        {-# INLINE bitPred #-}
 
 
 -- | /O(min(n,W))/. The expression (@'split' x set@) is a pair @(set1,set2)@
@@ -696,7 +697,7 @@ fold = foldr
 -- > toAscList set = foldr (:) [] set
 foldr :: (Int -> b -> b) -> b -> IntSet -> b
 foldr f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     go z' Nil           = z'
@@ -709,7 +710,7 @@ foldr f z t =
 -- function is strict in the starting value.
 foldr' :: (Int -> b -> b) -> b -> IntSet -> b
 foldr' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -726,7 +727,7 @@ foldr' f z t =
 -- > toDescList set = foldl (flip (:)) [] set
 foldl :: (a -> Int -> a) -> a -> IntSet -> a
 foldl f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -740,7 +741,7 @@ foldl f z t =
 -- function is strict in the starting value.
 foldl' :: (a -> Int -> a) -> a -> IntSet -> a
 foldl' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -1134,16 +1135,128 @@ highestBitMask x0
 {-# INLINE highestBitMask #-}
 
 {----------------------------------------------------------------------
-Finds the index of the lowest resp. highest bit set in a word. The following
-code works fine for bit sizes up to 64. A possibly faster but
-wordsize-dependant implementation based on multiplication and DeBrujn indeces
-is proposed by Edward Kmett
-<http://haskell.org/pipermail/libraries/2011-September/016749.html>
-Some architectures, notably x86, also offer machine instructions for this
-operation (bsr and bsl).
+  To get best performance, we provide fast implementations of
+  lowestBitSet, highestBitSet and fold[lr][l]Bits for GHC.
+  If the intel bsf and bsr instructions ever become GHC primops,
+  this code should be reimplemented using these.
+
+  Performance of this code is crucial for folds, toList, filter, partition.
+
+  The signatures of methods in question are placed after this comment.
 ----------------------------------------------------------------------}
 
-lowestBitSet :: Word -> Int
+lowestBitSet :: Nat -> Int
+highestBitSet :: Nat -> Int
+foldlBits :: Int -> (a -> Int -> a) -> a -> Nat -> a
+foldl'Bits :: Int -> (a -> Int -> a) -> a -> Nat -> a
+foldrBits :: Int -> (Int -> a -> a) -> a -> Nat -> a
+foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
+
+{-# INLINE lowestBitSet #-}
+{-# INLINE highestBitSet #-}
+{-# INLINE foldlBits #-}
+{-# INLINE foldl'Bits #-}
+{-# INLINE foldrBits #-}
+{-# INLINE foldr'Bits #-}
+
+#if defined(__GLASGOW_HASKELL__)
+#include "MachDeps.h"
+#endif
+
+#if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
+{----------------------------------------------------------------------
+  For lowestBitSet we use wordsize-dependant implementation based on
+  multiplication and DeBrujn indeces, which was proposed by Edward Kmett
+  <http://haskell.org/pipermail/libraries/2011-September/016749.html>
+
+  The core of this implementation is fast indexOfTheOnlyBit,
+  which is given a Nat with exactly one bit set, and returns
+  its index.
+
+  Lot of effort was put in these implementations, please benchmark carefully
+  before changing this code.
+----------------------------------------------------------------------}
+
+indexOfTheOnlyBit :: Nat -> Int
+{-# INLINE indexOfTheOnlyBit #-}
+indexOfTheOnlyBit bit =
+  I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bit * magic) `shiftRL` offset)))
+  where unboxInt (I# i) = i
+#if WORD_SIZE_IN_BITS==32
+        magic = 0x077CB531
+        offset = 27
+        !lsbArray = "\0\1\28\2\29\14\24\3\30\22\20\15\25\17\4\8\31\27\13\23\21\19\16\7\26\12\18\6\11\5\10\9"#
+#else
+        magic = 0x07EDD5E59A4E28C2
+        offset = 58
+        !lsbArray = "\63\0\58\1\59\47\53\2\60\39\48\27\54\33\42\3\61\51\37\40\49\18\28\20\55\30\34\11\43\14\22\4\62\57\46\52\38\26\32\41\50\36\17\19\29\10\13\21\56\45\25\31\35\16\9\12\44\24\15\8\23\7\6\5"#
+#endif
+-- The lsbArray gets inlined to every call site of indexOfTheOnlyBit.
+-- That cannot be easily avoided, as GHC forbids top-level Addr# literal.
+-- One could go around that by supplying getLsbArray :: () -> Addr# marked
+-- as NOINLINE. But the code size of calling it and processing the result
+-- is 48B on 32-bit and 56B on 64-bit architectures -- so the 32B and 64B array
+-- is actually improvement on 32-bit and only a 8B size increase on 64-bit.
+
+lowestBitMask :: Nat -> Nat
+lowestBitMask x = x .&. negate x
+{-# INLINE lowestBitMask #-}
+
+-- Reverse the order of bits in the Nat.
+revNat :: Nat -> Nat
+#if WORD_SIZE_IN_BITS==32
+revNat x1 = case ((x1 `shiftRL` 1) .&. 0x55555555) .|. ((x1 .&. 0x55555555) `shiftLL` 1) of
+              x2 -> case ((x2 `shiftRL` 2) .&. 0x33333333) .|. ((x2 .&. 0x33333333) `shiftLL` 2) of
+                 x3 -> case ((x3 `shiftRL` 4) .&. 0x0F0F0F0F) .|. ((x3 .&. 0x0F0F0F0F) `shiftLL` 4) of
+                   x4 -> case ((x4 `shiftRL` 8) .&. 0x00FF00FF) .|. ((x4 .&. 0x00FF00FF) `shiftLL` 8) of
+                     x5 -> ( x5 `shiftRL` 16             ) .|. ( x5               `shiftLL` 16);
+#else
+revNat x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x5555555555555555) `shiftLL` 1) of
+              x2 -> case ((x2 `shiftRL` 2) .&. 0x3333333333333333) .|. ((x2 .&. 0x3333333333333333) `shiftLL` 2) of
+                 x3 -> case ((x3 `shiftRL` 4) .&. 0x0F0F0F0F0F0F0F0F) .|. ((x3 .&. 0x0F0F0F0F0F0F0F0F) `shiftLL` 4) of
+                   x4 -> case ((x4 `shiftRL` 8) .&. 0x00FF00FF00FF00FF) .|. ((x4 .&. 0x00FF00FF00FF00FF) `shiftLL` 8) of
+                     x5 -> case ((x5 `shiftRL` 16) .&. 0x0000FFFF0000FFFF) .|. ((x5 .&. 0x0000FFFF0000FFFF) `shiftLL` 16) of
+                       x6 -> ( x6 `shiftRL` 32             ) .|. ( x6               `shiftLL` 32);
+#endif
+
+lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
+
+highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
+
+foldlBits shift f z bm = go bm z
+  where go bm z | bm == 0 = z
+                | otherwise = case lowestBitMask bm of
+                                bit -> bit `seq` case indexOfTheOnlyBit bit of
+                                  bi -> bi `seq` go (bm `xor` bit) ((f z) $! (shift+bi))
+
+foldl'Bits shift f z bm = go bm z
+  where STRICT_2_OF_2(go)
+        go bm z | bm == 0 = z
+                | otherwise = case lowestBitMask bm of
+                                bit -> bit `seq` case indexOfTheOnlyBit bit of
+                                  bi -> bi `seq` go (bm `xor` bit) ((f z) $! (shift+bi))
+
+foldrBits shift f z bm = go (revNat bm) z
+  where go bm z | bm == 0 = z
+                | otherwise = case lowestBitMask bm of
+                                bit -> bit `seq` case indexOfTheOnlyBit bit of
+                                  bi -> bi `seq` go (bm `xor` bit) ((f $! (shift+(WORD_SIZE_IN_BITS-1)-bi)) z)
+
+foldr'Bits shift f z bm = go (revNat bm) z
+  where STRICT_2_OF_2(go)
+        go bm z | bm == 0 = z
+                | otherwise = case lowestBitMask bm of
+                                bit -> bit `seq` case indexOfTheOnlyBit bit of
+                                  bi -> bi `seq` go (bm `xor` bit) ((f $! (shift+(WORD_SIZE_IN_BITS-1)-bi)) z)
+
+#else
+{----------------------------------------------------------------------
+  In general case we use logarithmic implementation of
+  lowestBitSet and highestBitSet, which works up to bit sizes of 64.
+
+  Folds are linear scans.
+----------------------------------------------------------------------}
+
 lowestBitSet n0 =
     let (n1,b1) = if n0 .&. 0xFFFFFFFF /= 0 then (n0,0)  else (n0 `shiftRL` 32, 32)
         (n2,b2) = if n1 .&. 0xFFFF /= 0     then (n1,b1) else (n1 `shiftRL` 16, 16+b1)
@@ -1151,10 +1264,8 @@ lowestBitSet n0 =
         (n4,b4) = if n3 .&. 0xF /= 0        then (n3,b3) else (n3 `shiftRL` 4,  4+b3)
         (n5,b5) = if n4 .&. 0x3 /= 0        then (n4,b4) else (n4 `shiftRL` 2,  2+b4)
         b6      = if n5 .&. 0x1 /= 0        then     b5  else                   1+b5
-    in b6 
-{-# INLINE lowestBitSet #-}
+    in b6
 
-highestBitSet :: Word -> Int
 highestBitSet n0 =
     let (n1,b1) = if n0 .&. 0xFFFFFFFF00000000 /= 0 then (n0 `shiftRL` 32, 32)    else (n0,0)
         (n2,b2) = if n1 .&. 0xFFFF0000 /= 0         then (n1 `shiftRL` 16, 16+b1) else (n1,b1)
@@ -1162,46 +1273,38 @@ highestBitSet n0 =
         (n4,b4) = if n3 .&. 0xF0 /= 0               then (n3 `shiftRL` 4,  4+b3)  else (n3,b3)
         (n5,b5) = if n4 .&. 0xC /= 0                then (n4 `shiftRL` 2,  2+b4)  else (n4,b4)
         b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
-    in b6 
-{-# INLINE highestBitSet #-}
+    in b6
 
-
-{----------------------------------------------------------------------
-  Folds over bitmaps. These are crucial for good speed in toList, filter,
-  partition. Futher optimization is welcome.
-----------------------------------------------------------------------}
-
-foldlBits :: Int -> (a -> Int -> a) -> a -> Word -> a
-foldlBits shift f x bm = let lb = lowestBitSet bm 
-                         in  go (shift+lb) x (bm `shiftRL` lb)
-  where STRICT_2_OF_3(go)
+foldlBits shift f z bm = let lb = lowestBitSet bm
+                         in  go (shift+lb) z (bm `shiftRL` lb)
+  where STRICT_1_OF_3(go)
         go bi acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
-foldl'Bits :: Int -> (a -> Int -> a) -> a -> Word -> a
-foldl'Bits shift f x bm = let lb = lowestBitSet bm 
-                          in  go (shift+lb) x (bm `shiftRL` lb)
+foldl'Bits shift f z bm = let lb = lowestBitSet bm
+                          in  go (shift+lb) z (bm `shiftRL` lb)
   where STRICT_1_OF_3(go)
         STRICT_2_OF_3(go)
         go bi acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
-foldrBits :: Int -> (Int -> a -> a) -> a -> Word -> a
-foldrBits shift f x bm = let lb = lowestBitSet bm 
+foldrBits shift f z bm = let lb = lowestBitSet bm
                          in  go (shift+lb) (bm `shiftRL` lb)
   where STRICT_1_OF_2(go)
-        go bi 0 = x
+        go bi 0 = z
         go bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
                 | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
-foldr'Bits :: Int -> (Int -> a -> a) -> a -> Word -> a
-foldr'Bits shift f x bm = let lb = lowestBitSet bm 
+foldr'Bits shift f z bm = let lb = lowestBitSet bm
                           in  go (shift+lb) (bm `shiftRL` lb)
-  where go bi 0 = x
+  where STRICT_1_OF_2(go)
+        go bi 0 = z
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
+
+#endif
 
 {----------------------------------------------------------------------
   [bitcount] as posted by David F. Place to haskell-cafe on April 11, 2006,
