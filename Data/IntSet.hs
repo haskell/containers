@@ -404,7 +404,7 @@ difference t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 
 difference Nil _     = Nil
 
-difference t1@(Tip kx _) t2@(Bin p2 m2 l2 r2) 
+difference t1@(Tip kx _) (Bin p2 m2 l2 r2)
   | nomatch kx p2 m2 = t1
   | zero kx m2       = difference t1 l2
   | otherwise        = difference t1 r2
@@ -450,7 +450,7 @@ intersectBM kx bm (Bin p2 m2 l2 r2)
 intersectBM kx bm (Tip kx' bm') 
   | kx == kx' = tip kx (bm .&. bm')
   | otherwise = Nil
-intersectBM kx bm Nil = Nil 
+intersectBM _ _ Nil = Nil
 
 
 {--------------------------------------------------------------------
@@ -487,7 +487,7 @@ subsetCmp (Tip kx1 bm1) (Tip kx2 bm2)
   | bm1 == bm2                  = EQ
   | bm1 .&. complement bm2 == 0 = LT
   | otherwise                   = GT
-subsetCmp t1@(Tip kx bm) (Bin p m l r)
+subsetCmp t1@(Tip kx _) (Bin p m l r)
   | nomatch kx p m = GT
   | zero kx m      = case subsetCmp t1 l of GT -> GT ; _ -> LT
   | otherwise      = case subsetCmp t1 r of GT -> GT ; _ -> LT
@@ -506,7 +506,7 @@ isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | otherwise      = (p1==p2) && isSubsetOf l1 l2 && isSubsetOf r1 r2
 isSubsetOf (Bin _ _ _ _) _  = False
 isSubsetOf (Tip kx1 bm1) (Tip kx2 bm2) = kx1 == kx2 && bm1 .&. complement bm2 == 0
-isSubsetOf t1@(Tip kx bm) (Bin p m l r)
+isSubsetOf t1@(Tip kx _) (Bin p m l r)
   | nomatch kx p m = False
   | zero kx m      = isSubsetOf t1 l
   | otherwise      = isSubsetOf t1 r
@@ -558,17 +558,17 @@ split x t =
                                              else case go x r of (lt, gt) -> (lt, union gt l)
             _ -> go x t
   where
-    go x t'@(Bin p m l r) | match x p m = if zero x m then case go x l of (lt, gt) -> (lt, union gt r)
-                                                      else case go x r of (lt, gt) -> (union lt l, gt)
-                          | otherwise   = if x < p then (Nil, t')
-                                                   else (t', Nil)
-    go x t'@(Tip kx' bm) | kx' > x          = (Nil, t')
-                          -- equivalent to kx' > prefixOf x
-                         | kx' < prefixOf x = (t', Nil)
-                         | otherwise = (tip kx' (bm .&. lowerBitmap), tip kx' (bm .&. higherBitmap))
-                             where lowerBitmap = bitmapOf x - 1
-                                   higherBitmap = complement (lowerBitmap + bitmapOf x)
-    go x Nil = (Nil, Nil)
+    go x' t'@(Bin p m l r) | match x' p m = if zero x' m then case go x' l of (lt, gt) -> (lt, union gt r)
+                                                         else case go x' r of (lt, gt) -> (union lt l, gt)
+                           | otherwise   = if x' < p then (Nil, t')
+                                                     else (t', Nil)
+    go x' t'@(Tip kx' bm) | kx' > x'          = (Nil, t')
+                            -- equivalent to kx' > prefixOf x'
+                          | kx' < prefixOf x' = (t', Nil)
+                          | otherwise = (tip kx' (bm .&. lowerBitmap), tip kx' (bm .&. higherBitmap))
+                              where lowerBitmap = bitmapOf x' - 1
+                                    higherBitmap = complement (lowerBitmap + bitmapOf x')
+    go _ Nil = (Nil, Nil)
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
@@ -578,18 +578,18 @@ splitMember x t =
                                              else case go x r of (lt, fnd, gt) -> (lt, fnd, union gt l)
             _ -> go x t
   where
-    go x t'@(Bin p m l r) | match x p m = if zero x m then case go x l of (lt, fnd, gt) -> (lt, fnd, union gt r)
-                                                      else case go x r of (lt, fnd, gt) -> (union lt l, fnd, gt)
-                          | otherwise   = if x < p then (Nil, False, t')
-                                                   else (t', False, Nil)
-    go x t'@(Tip kx' bm) | kx' > x          = (Nil, False, t')
-                          -- equivalent to kx' > prefixOf x
-                         | kx' < prefixOf x = (t', False, Nil)
-                         | otherwise = (tip kx' (bm .&. lowerBitmap), (bm .&. bitmapOfx) /= 0, tip kx' (bm .&. higherBitmap))
-                             where bitmapOfx = bitmapOf x
-                                   lowerBitmap = bitmapOfx - 1
-                                   higherBitmap = complement (lowerBitmap + bitmapOfx)
-    go x Nil = (Nil, False, Nil)
+    go x' t'@(Bin p m l r) | match x' p m = if zero x' m then case go x' l of (lt, fnd, gt) -> (lt, fnd, union gt r)
+                                                         else case go x' r of (lt, fnd, gt) -> (union lt l, fnd, gt)
+                           | otherwise   = if x' < p then (Nil, False, t')
+                                                     else (t', False, Nil)
+    go x' t'@(Tip kx' bm) | kx' > x'          = (Nil, False, t')
+                            -- equivalent to kx' > prefixOf x'
+                          | kx' < prefixOf x' = (t', False, Nil)
+                          | otherwise = (tip kx' (bm .&. lowerBitmap), (bm .&. bitmapOfx') /= 0, tip kx' (bm .&. higherBitmap))
+                              where bitmapOfx' = bitmapOf x'
+                                    lowerBitmap = bitmapOfx' - 1
+                                    higherBitmap = complement (lowerBitmap + bitmapOfx')
+    go _ Nil = (Nil, False, Nil)
 
 
 {----------------------------------------------------------------------
@@ -1179,8 +1179,8 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 
 indexOfTheOnlyBit :: Nat -> Int
 {-# INLINE indexOfTheOnlyBit #-}
-indexOfTheOnlyBit bit =
-  I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bit * magic) `shiftRL` offset)))
+indexOfTheOnlyBit bitmask =
+  I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
   where unboxInt (I# i) = i
 #if WORD_SIZE_IN_BITS==32
         magic = 0x077CB531
@@ -1223,31 +1223,31 @@ lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
 
 highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
 
-foldlBits shift f z bm = go bm z
-  where go bm z | bm == 0 = z
-                | otherwise = case lowestBitMask bm of
-                                bit -> bit `seq` case indexOfTheOnlyBit bit of
-                                  bi -> bi `seq` go (bm `xor` bit) ((f z) $! (shift+bi))
+foldlBits prefix f z bitmap = go bitmap z
+  where go bm acc | bm == 0 = acc
+                  | otherwise = case lowestBitMask bm of
+                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
+                                    bi -> bi `seq` go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
 
-foldl'Bits shift f z bm = go bm z
+foldl'Bits prefix f z bitmap = go bitmap z
   where STRICT_2_OF_2(go)
-        go bm z | bm == 0 = z
-                | otherwise = case lowestBitMask bm of
-                                bit -> bit `seq` case indexOfTheOnlyBit bit of
-                                  bi -> bi `seq` go (bm `xor` bit) ((f z) $! (shift+bi))
+        go bm acc | bm == 0 = acc
+                  | otherwise = case lowestBitMask bm of
+                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
+                                    bi -> bi `seq` go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
 
-foldrBits shift f z bm = go (revNat bm) z
-  where go bm z | bm == 0 = z
-                | otherwise = case lowestBitMask bm of
-                                bit -> bit `seq` case indexOfTheOnlyBit bit of
-                                  bi -> bi `seq` go (bm `xor` bit) ((f $! (shift+(WORD_SIZE_IN_BITS-1)-bi)) z)
+foldrBits prefix f z bitmap = go (revNat bitmap) z
+  where go bm acc | bm == 0 = acc
+                  | otherwise = case lowestBitMask bm of
+                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
+                                    bi -> bi `seq` go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
 
-foldr'Bits shift f z bm = go (revNat bm) z
+foldr'Bits prefix f z bitmap = go (revNat bitmap) z
   where STRICT_2_OF_2(go)
-        go bm z | bm == 0 = z
-                | otherwise = case lowestBitMask bm of
-                                bit -> bit `seq` case indexOfTheOnlyBit bit of
-                                  bi -> bi `seq` go (bm `xor` bit) ((f $! (shift+(WORD_SIZE_IN_BITS-1)-bi)) z)
+        go bm acc | bm == 0 = acc
+                  | otherwise = case lowestBitMask bm of
+                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
+                                    bi -> bi `seq` go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
 
 #else
 {----------------------------------------------------------------------
@@ -1275,32 +1275,32 @@ highestBitSet n0 =
         b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
     in b6
 
-foldlBits shift f z bm = let lb = lowestBitSet bm
-                         in  go (shift+lb) z (bm `shiftRL` lb)
+foldlBits prefix f z bm = let lb = lowestBitSet bm
+                          in  go (prefix+lb) z (bm `shiftRL` lb)
   where STRICT_1_OF_3(go)
-        go bi acc 0 = acc
+        go _  acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
-foldl'Bits shift f z bm = let lb = lowestBitSet bm
-                          in  go (shift+lb) z (bm `shiftRL` lb)
+foldl'Bits prefix f z bm = let lb = lowestBitSet bm
+                           in  go (prefix+lb) z (bm `shiftRL` lb)
   where STRICT_1_OF_3(go)
         STRICT_2_OF_3(go)
-        go bi acc 0 = acc
+        go _  acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
-foldrBits shift f z bm = let lb = lowestBitSet bm
-                         in  go (shift+lb) (bm `shiftRL` lb)
+foldrBits prefix f z bm = let lb = lowestBitSet bm
+                          in  go (prefix+lb) (bm `shiftRL` lb)
   where STRICT_1_OF_2(go)
-        go bi 0 = z
+        go _  0 = z
         go bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
                 | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
-foldr'Bits shift f z bm = let lb = lowestBitSet bm
-                          in  go (shift+lb) (bm `shiftRL` lb)
+foldr'Bits prefix f z bm = let lb = lowestBitSet bm
+                           in  go (prefix+lb) (bm `shiftRL` lb)
   where STRICT_1_OF_2(go)
-        go bi 0 = z
+        go _  0 = z
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
 
