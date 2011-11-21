@@ -22,6 +22,9 @@ source-repository head
 flag testing
     description: Expose internals for testing (required for cabal test)
 
+flag testing-strict
+    description: Test the strict API (instead of the lazy API)
+
 Library
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3
     ghc-options: -O2
@@ -66,3 +69,5 @@ Test-suite map-properties
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2
+    if flag(testing-strict)
+        cpp-options: -DSTRICT

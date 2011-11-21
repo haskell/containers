@@ -6,7 +6,11 @@
 
 --
 
-import Data.Map
+#ifdef STRICT
+import Data.Map.Strict as Data.Map
+#else
+import Data.Map.Lazy as Data.Map
+#endif
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import Data.Ord
@@ -72,8 +76,6 @@ main = do
     q $ label   "prop_foldr"            prop_foldr
     q $ label   "prop_foldl"            prop_foldl
 --     q $ label   "prop_foldl'"           prop_foldl'
-    q $ label   "prop_fold"           prop_fold
-    q $ label   "prop_folWithKeyd"           prop_foldWithKey
 
     defaultMain tests
 
@@ -373,18 +375,6 @@ prop_foldl (n :: Int) (ys :: [(Int, Int)]) =
 --         Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldl' (+) n (List.map snd xs)
 
 
-prop_fold (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.Map.fold (+) n m == List.foldr (+) n (List.map snd xs)
-
-prop_foldWithKey (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.Map.foldWithKey (const (+)) n m == List.foldr (+) n (List.map snd xs)
-
 ------------------------------------------------------------------------
 
 type UMap = Map Int ()
@@ -408,11 +398,8 @@ tests = [ testGroup "Test Case" [
              , testCase "singleton" test_singleton
              , testCase "insert" test_insert
              , testCase "insertWith" test_insertWith
-             , testCase "insertWith'" test_insertWith'
              , testCase "insertWithKey" test_insertWithKey
-             , testCase "insertWithKey'" test_insertWithKey'
              , testCase "insertLookupWithKey" test_insertLookupWithKey
-             , testCase "insertLookupWithKey'" test_insertLookupWithKey'
              , testCase "delete" test_delete
              , testCase "adjust" test_adjust
              , testCase "adjustWithKey" test_adjustWithKey
@@ -441,8 +428,6 @@ tests = [ testGroup "Test Case" [
              , testCase "mapKeys" test_mapKeys
              , testCase "mapKeysWith" test_mapKeysWith
              , testCase "mapKeysMonotonic" test_mapKeysMonotonic
-             , testCase "fold" test_fold
-             , testCase "foldWithKey" test_foldWithKey
              , testCase "elems" test_elems
              , testCase "keys" test_keys
              , testCase "keysSet" test_keysSet
@@ -611,25 +596,11 @@ test_insertWith = do
     insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
     insertWith (++) 5 "xxx" empty                         @?= singleton 5 "xxx"
 
-test_insertWith' :: Assertion
-test_insertWith' = do
-    insertWith' (++) 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "xxxa")]
-    insertWith' (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
-    insertWith' (++) 5 "xxx" empty                         @?= singleton 5 "xxx"
-
 test_insertWithKey :: Assertion
 test_insertWithKey = do
     insertWithKey f 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:xxx|a")]
     insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
     insertWithKey f 5 "xxx" empty                         @?= singleton 5 "xxx"
-  where
-    f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
-
-test_insertWithKey' :: Assertion
-test_insertWithKey' = do
-    insertWithKey' f 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:xxx|a")]
-    insertWithKey' f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
-    insertWithKey' f 5 "xxx" empty                         @?= singleton 5 "xxx"
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 
@@ -639,15 +610,6 @@ test_insertLookupWithKey = do
     insertLookupWithKey f 2 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,fromList [(2,"xxx"),(3,"b"),(5,"a")])
     insertLookupWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,  fromList [(3, "b"), (5, "a"), (7, "xxx")])
     insertLookupWithKey f 5 "xxx" empty                         @?= (Nothing,  singleton 5 "xxx")
-  where
-    f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
-
-test_insertLookupWithKey' :: Assertion
-test_insertLookupWithKey' = do
-    insertLookupWithKey' f 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Just "a", fromList [(3, "b"), (5, "5:xxx|a")])
-    insertLookupWithKey' f 2 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,fromList [(2,"xxx"),(3,"b"),(5,"a")])
-    insertLookupWithKey' f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,  fromList [(3, "b"), (5, "a"), (7, "xxx")])
-    insertLookupWithKey' f 5 "xxx" empty                         @?= (Nothing,  singleton 5 "xxx")
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 
@@ -812,16 +774,6 @@ test_mapKeysMonotonic = do
     mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
     valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) @?= True
     valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) @?= False
-
-test_fold :: Assertion
-test_fold = fold f 0 (fromList [(5,"a"), (3,"bbb")]) @?= 4
-  where
-    f a len = len + (length a)
-
-test_foldWithKey :: Assertion
-test_foldWithKey = foldWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) @?= "Map: (5:a)(3:b)"
-  where
-    f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 
 ----------------------------------------------------------------
 -- Conversion
