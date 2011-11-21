@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, CPP #-}
+{-# LANGUAGE CPP, NoBangPatterns #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
@@ -265,6 +265,16 @@ import Data.Map.Base hiding
     , updateMaxWithKey
     )
 
+-- Use macros to define strictness of functions.  STRICT_x_OF_y
+-- denotes an y-ary function strict in the x-th parameter. Similarly
+-- STRICT_x_y_OF_z denotes an z-ary function strict in the x-th and
+-- y-th parameter.  We do not use BangPatterns, because they are not
+-- in any standard and we want the compilers to be compiled by as many
+-- compilers as possible.
+#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
+#define STRICT_1_2_OF_3(fn) fn arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
+#define STRICT_2_3_OF_4(fn) fn _ arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
+
 -- $strictness
 --
 -- This module satisfies the following strictness properties:
@@ -296,7 +306,7 @@ import Data.Map.Base hiding
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault !def k m = case lookup k m of
+findWithDefault def k m = def `seq` case lookup k m of
     Nothing -> def
     Just x  -> x
 #if __GLASGOW_HASKELL__ >= 700
@@ -315,7 +325,7 @@ findWithDefault !def k m = case lookup k m of
 -- > size (singleton 1 'a') == 1
 
 singleton :: k -> a -> Map k a
-singleton k !x = Bin 1 k x Tip Tip
+singleton k x = x `seq` Bin 1 k x Tip Tip
 
 {--------------------------------------------------------------------
   Insertion
@@ -332,7 +342,8 @@ singleton k !x = Bin 1 k x Tip Tip
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
-    go !kx !x Tip = singleton kx x
+    STRICT_1_2_OF_3(go)
+    go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
@@ -373,7 +384,8 @@ insertWith f = insertWithKey (\_ x' y' -> f x' y')
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
-    go _ !kx !x Tip = singleton kx x
+    STRICT_2_3_OF_4(go)
+    go _ kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
@@ -406,18 +418,19 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
 insertLookupWithKey = go
   where
-    go _ !kx !x Tip = (Nothing, singleton kx x)
+    STRICT_2_3_OF_4(go)
+    go _ kx x Tip = (Nothing, singleton kx x)
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found, l') = go f kx x l
-                      !t = balanceL ky y l' r
-                  in (found, t)
+                      t = balanceL ky y l' r
+                  in t `seq` (found, t)
             GT -> let (found, r') = go f kx x r
-                      !t = balanceR ky y l r'
-                  in (found, t)
-            EQ -> let !x' = f kx x y
-                      !t  = Bin sy kx x' l r
-                  in (Just y, t)
+                      t = balanceR ky y l r'
+                  in t `seq` (found, t)
+            EQ -> let x' = f kx x y
+                      t  = Bin sy kx x' l r
+                  in x' `seq` t `seq` (Just y, t)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE insertLookupWithKey #-}
 #else
@@ -479,14 +492,15 @@ update f = updateWithKey (\_ x -> f x)
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
-    go _ !_ Tip = Tip
+    STRICT_2_OF_3(go)
+    go _ _ Tip = Tip
     go f k(Bin sx kx x l r) =
         case compare k kx of
            LT -> balanceR kx x (go f k l) r
            GT -> balanceL kx x l (go f k r)
            EQ -> case f kx x of
-                   Just !x' -> Bin sx kx x' l r
-                   Nothing  -> glue l r
+                   Just x' -> x' `seq` Bin sx kx x' l r
+                   Nothing -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE updateWithKey #-}
 #else
@@ -505,19 +519,20 @@ updateWithKey = go
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey = go
  where
-   go _ !_ Tip = (Nothing,Tip)
+   STRICT_2_OF_3(go)
+   go _ _ Tip = (Nothing,Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
                LT -> let (found,l') = go f k l
-                         !t = balanceR kx x l' r
-                     in (found,t)
+                         t = balanceR kx x l' r
+                     in t `seq` (found,t)
                GT -> let (found,r') = go f k r
-                         !t = balanceL kx x l r'
-                     in (found,t)
+                         t = balanceL kx x l r'
+                     in t `seq` (found,t)
                EQ -> case f kx x of
-                       Just !x' -> let !t = Bin sx kx x' l r
-                                   in (Just x',t)
-                       Nothing  -> (Just x,glue l r)
+                       Just x' -> let t = Bin sx kx x' l r
+                                  in x' `seq` t `seq` (Just x',t)
+                       Nothing -> (Just x,glue l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE updateLookupWithKey #-}
 #else
@@ -539,7 +554,8 @@ updateLookupWithKey = go
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
-    go f !k Tip = case f Nothing of
+    STRICT_2_OF_3(go)
+    go f k Tip = case f Nothing of
                Nothing -> Tip
                Just x  -> singleton k x
 
@@ -547,8 +563,8 @@ alter = go
                LT -> balance kx x (go f k l) r
                GT -> balance kx x l (go f k r)
                EQ -> case f (Just x) of
-                       Just !x' -> Bin sx kx x' l r
-                       Nothing  -> glue l r
+                       Just x' -> x' `seq` Bin sx kx x' l r
+                       Nothing -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE alter #-}
 #else
@@ -579,8 +595,8 @@ updateAt f i t = i `seq`
       LT -> balanceR kx x (updateAt f i l) r
       GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
       EQ -> case f kx x of
-              Just !x' -> Bin sx kx x' l r
-              Nothing  -> glue l r
+              Just x' -> x' `seq` Bin sx kx x' l r
+              Nothing -> glue l r
       where
         sizeL = size l
 #if __GLASGOW_HASKELL__ >= 700
@@ -624,8 +640,8 @@ updateMax f m
 updateMinWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMinWithKey _ Tip                 = Tip
 updateMinWithKey f (Bin sx kx x Tip r) = case f kx x of
-                                           Nothing  -> r
-                                           Just !x' -> Bin sx kx x' Tip r
+                                           Nothing -> r
+                                           Just x' -> x' `seq` Bin sx kx x' Tip r
 updateMinWithKey f (Bin _ kx x l r)    = balanceR kx x (updateMinWithKey f l) r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMinWithKey #-}
@@ -639,8 +655,8 @@ updateMinWithKey f (Bin _ kx x l r)    = balanceR kx x (updateMinWithKey f l) r
 updateMaxWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMaxWithKey _ Tip                 = Tip
 updateMaxWithKey f (Bin sx kx x l Tip) = case f kx x of
-                                           Nothing  -> l
-                                           Just !x' -> Bin sx kx x' l Tip
+                                           Nothing -> l
+                                           Just x' -> x' `seq` Bin sx kx x' l Tip
 updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateMaxWithKey #-}
@@ -766,7 +782,7 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
       Just (ky,y) ->
           case f ky y x of
             Nothing -> merge tl tr
-            Just !z -> join ky z tl tr
+            Just z  -> z `seq` join ky z tl tr
   where
     bmi        = JustS kx
     lt         = trim blo bmi t
@@ -841,7 +857,7 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
-  Just !y -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Just y  -> y `seq` join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapMaybeWithKey #-}
@@ -876,12 +892,12 @@ mapEitherWithKey :: Ord k =>
   (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left !y  -> let !l' = join kx y l1 r1
-                  !r' = merge l2 r2
-              in (l', r')
-  Right !z -> let !l' = merge l1 r1
-                  !r' = join kx z l2 r2
-              in (l', r')
+  Left y  -> let l' = join kx y l1 r1
+                 r' = merge l2 r2
+             in y `seq` l' `seq` r' `seq` (l', r')
+  Right z -> let l' = merge l1 r1
+                 r' = join kx z l2 r2
+             in z `seq` l' `seq` r' `seq` (l', r')
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
@@ -909,8 +925,8 @@ map f = mapWithKey (\_ x -> f x)
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
-mapWithKey f (Bin sx kx x l r) = let !x' = f kx x
-                                 in Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+mapWithKey f (Bin sx kx x l r) = let x' = f kx x
+                                 in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapWithKey #-}
 #endif
@@ -947,9 +963,9 @@ mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumL _ a Tip               = (a,Tip)
 mapAccumL f a (Bin sx kx x l r) =
   let (a1,l') = mapAccumL f a l
-      (a2,!x') = f a1 kx x
+      (a2,x') = f a1 kx x
       (a3,r') = mapAccumL f a2 r
-  in (a3,Bin sx kx x' l' r')
+  in x' `seq` (a3,Bin sx kx x' l' r')
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumL #-}
 #endif
@@ -960,9 +976,9 @@ mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
 mapAccumRWithKey f a (Bin sx kx x l r) =
   let (a1,r') = mapAccumRWithKey f a r
-      (a2,!x') = f a1 kx x
+      (a2,x') = f a1 kx x
       (a3,l') = mapAccumRWithKey f a2 l
-  in (a3,Bin sx kx x' l' r')
+  in x' `seq` (a3,Bin sx kx x' l' r')
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapAccumRWithKey #-}
 #endif
@@ -1023,8 +1039,8 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
-    let !k' = f k
-    in Bin sz k' x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
+    let k' = f k
+    in k' `seq` Bin sz k' x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapKeysMonotonic #-}
 #endif
@@ -1135,7 +1151,7 @@ fromAscListWithKey f xs
 
   combineEq' z [] = [z]
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
-    | kx==kz    = let !yy = f kx xx zz in combineEq' (kx,yy) xs'
+    | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromAscListWithKey #-}
@@ -1156,17 +1172,19 @@ fromDistinctAscList xs
     -- 2) special case for n==5 to build bushier trees.
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
-                       ((k1,!x1):(k2,!x2):(k3,!x3):(k4,!x4):(k5,!x5):xx)
-                            -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
+                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
+                            -> x1 `seq` x2 `seq` x3 `seq` x4 `seq` x5 `seq`
+                               c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3))
+                                  (singleton k5 x5)) xx
                        _ -> error "fromDistinctAscList build"
     build c n xs'  = seq nr $ build (buildR nr c) nl xs'
                    where
                      nl = n `div` 2
                      nr = n - nl - 1
 
-    buildR n c l ((k,!x):ys) = build (buildB l k x c) n ys
-    buildR _ _ _ []          = error "fromDistinctAscList buildR []"
-    buildB l k !x c r zs     = c (bin k x l r) zs
+    buildR n c l ((k,x):ys) = x `seq` build (buildB l k x c) n ys
+    buildR _ _ _ []         = error "fromDistinctAscList buildR []"
+    buildB l k x c r zs     = x `seq` c (bin k x l r) zs
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromDistinctAscList #-}
 #endif
