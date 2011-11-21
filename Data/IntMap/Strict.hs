@@ -760,7 +760,7 @@ mapEither f m
 
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
 mapEitherWithKey f (Bin p m l r)
-  = (bin p m l1 r1, bin p m l2 r2)
+  = bin p m l1 r1 `strictPair` bin p m l2 r2
   where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
