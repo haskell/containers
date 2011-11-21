@@ -12,9 +12,34 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- /Deprecated./ As of version 0.5, replaced by 'Data.Map.Lazy' and
--- 'Data.Map.Strict'. These two modules implement value lazy and value
--- strict maps, respectively.
+-- An efficient implementation of ordered maps from keys to values
+-- (dictionaries).
+--
+-- This module re-exports the value lazy 'Data.Map.Lazy' API, plus a
+-- value strict functions from 'Data.Map.Strict'.
+--
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
+--
+-- >  import qualified Data.Map as Map
+--
+-- The implementation of 'Map' is based on /size balanced/ binary trees (or
+-- trees of /bounded balance/) as described by:
+--
+--    * Stephen Adams, \"/Efficient sets: a balancing act/\",
+--     Journal of Functional Programming 3(4):553-562, October 1993,
+--     <http://www.swiss.ai.mit.edu/~adams/BB/>.
+--
+--    * J. Nievergelt and E.M. Reingold,
+--      \"/Binary search trees of bounded balance/\",
+--      SIAM journal of computing 2(1), March 1973.
+--
+-- Note that the implementation is /left-biased/ -- the elements of a
+-- first argument are always preferred to the second, for example in
+-- 'union' or 'insert'.
+--
+-- Operation comments contain the operation time complexity in
+-- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 -----------------------------------------------------------------------------
 
 module Data.Map
