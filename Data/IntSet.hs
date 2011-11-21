@@ -1318,8 +1318,9 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
     Derrick Lehmer and published in 1964 in a book edited by Beckenbach.)"
 ----------------------------------------------------------------------}
 bitcount :: Int -> Word -> Int
-bitcount a 0 = a
-bitcount a x = bitcount (a + 1) (x .&. (x-1))
+bitcount a x = go a x
+  where go a 0 = a
+        go a x = go (a + 1) (x .&. (x-1))
 {-# INLINE bitcount #-}
 
 
