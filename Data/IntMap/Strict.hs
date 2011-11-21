@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE NoBangPatterns, ScopedTypeVariables #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
@@ -294,7 +294,7 @@ insertWith f k x t
 -- in the result of @f@.
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f !k !x t =
+insertWithKey f k x t = k `seq` x `seq`
   case t of
     Bin p m l r
       | nomatch k p m -> join k (Tip k x) p t
@@ -321,7 +321,7 @@ insertWithKey f !k !x t =
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f !k !x t =
+insertLookupWithKey f k x t = k `seq` x `seq`
   case t of
     Bin p m l r
       | nomatch k p m -> Nothing `strictPair` join k (Tip k x) p t
@@ -383,7 +383,7 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f !k t =
+updateWithKey f k t = k `seq`
   case t of
     Bin p m l r
       | nomatch k p m -> t
@@ -391,8 +391,8 @@ updateWithKey f !k t =
       | otherwise     -> bin p m l (updateWithKey f k r)
     Tip ky y
       | k==ky         -> case f k y of
-                           Just !y' -> Tip ky y'
-                           Nothing  -> Nil
+                           Just y' -> y' `seq` Tip ky y'
+                           Nothing -> Nil
       | otherwise     -> t
     Nil -> Nil
 
@@ -407,7 +407,7 @@ updateWithKey f !k t =
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f !k t =
+updateLookupWithKey f k t = k `seq`
   case t of
     Bin p m l r
       | nomatch k p m -> (Nothing, t)
@@ -415,8 +415,8 @@ updateLookupWithKey f !k t =
       | otherwise     -> let (found,r') = updateLookupWithKey f k r in (found `strictPair` bin p m l r')
     Tip ky y
       | k==ky         -> case f k y of
-                           Just !y' -> (Just y `strictPair` Tip ky y')
-                           Nothing  -> (Just y, Nil)
+                           Just y' -> y' `seq` (Just y `strictPair` Tip ky y')
+                           Nothing -> (Just y, Nil)
       | otherwise     -> (Nothing,t)
     Nil -> (Nothing,Nil)
 
@@ -426,23 +426,23 @@ updateLookupWithKey f !k t =
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
-alter f !k t =
+alter f k t = k `seq`
   case t of
     Bin p m l r
       | nomatch k p m -> case f Nothing of
                            Nothing -> t
-                           Just !x -> join k (Tip k x) p t
+                           Just x  -> x `seq` join k (Tip k x) p t
       | zero k m      -> bin p m (alter f k l) r
       | otherwise     -> bin p m l (alter f k r)
     Tip ky y
       | k==ky         -> case f (Just y) of
-                           Just !x -> Tip ky x
+                           Just  x -> x `seq` Tip ky x
                            Nothing -> Nil
       | otherwise     -> case f Nothing of
-                           Just !x -> join k (Tip k x) ky t
+                           Just x  -> x `seq` join k (Tip k x) ky t
                            Nothing -> t
     Nil               -> case f Nothing of
-                           Just !x -> Tip k x
+                           Just x  -> x `seq` Tip k x
                            Nothing -> Nil
 
 
@@ -532,8 +532,8 @@ differenceWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 differenceWithKey f t1@(Tip k x) t2
   = case lookup k t2 of
       Just y  -> case f k x y of
-                   Just !y' -> Tip k y'
-                   Nothing  -> Nil
+                   Just y' -> y' `seq` Tip k y'
+                   Nothing -> Nil
       Nothing -> t1
 
 differenceWithKey _ Nil _       = Nil
