@@ -264,6 +264,7 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
+import Data.Pair
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y
 -- denotes an y-ary function strict in the x-th parameter. Similarly
@@ -419,18 +420,15 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 insertLookupWithKey = go
   where
     STRICT_2_3_OF_4(go)
-    go _ kx x Tip = (Nothing, singleton kx x)
+    go _ kx x Tip = Nothing `strictPair` singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found, l') = go f kx x l
-                      t = balanceL ky y l' r
-                  in t `seq` (found, t)
+                  in found `strictPair` balanceL ky y l' r
             GT -> let (found, r') = go f kx x r
-                      t = balanceR ky y l r'
-                  in t `seq` (found, t)
+                  in found `strictPair` balanceR ky y l r'
             EQ -> let x' = f kx x y
-                      t  = Bin sy kx x' l r
-                  in x' `seq` t `seq` (Just y, t)
+                  in x' `seq` (Just y `strictPair` Bin sy kx x' l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE insertLookupWithKey #-}
 #else
@@ -524,14 +522,11 @@ updateLookupWithKey = go
    go f k (Bin sx kx x l r) =
           case compare k kx of
                LT -> let (found,l') = go f k l
-                         t = balanceR kx x l' r
-                     in t `seq` (found,t)
+                     in found `strictPair` balanceR kx x l' r
                GT -> let (found,r') = go f k r
-                         t = balanceL kx x l r'
-                     in t `seq` (found,t)
+                     in found `strictPair` balanceL kx x l r'
                EQ -> case f kx x of
-                       Just x' -> let t = Bin sx kx x' l r
-                                  in x' `seq` t `seq` (Just x',t)
+                       Just x' -> x' `seq` (Just x' `strictPair` Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE updateLookupWithKey #-}
@@ -892,12 +887,8 @@ mapEitherWithKey :: Ord k =>
   (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> let l' = join kx y l1 r1
-                 r' = merge l2 r2
-             in y `seq` l' `seq` r' `seq` (l', r')
-  Right z -> let l' = merge l1 r1
-                 r' = join kx z l2 r2
-             in z `seq` l' `seq` r' `seq` (l', r')
+  Left y  -> y `seq` (join kx y l1 r1 `strictPair` merge l2 r2)
+  Right z -> z `seq` (merge l1 r1 `strictPair` join kx z l2 r2)
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r

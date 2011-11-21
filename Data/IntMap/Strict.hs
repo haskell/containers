@@ -226,7 +226,7 @@ import Data.IntMap.Lazy hiding
     , fromAscListWithKey
     , fromDistinctAscList
     )
-
+import Data.Pair
 
 {--------------------------------------------------------------------
   Construction
@@ -875,12 +875,3 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
               p = mask px m
 
 data Stack a = Push {-# UNPACK #-} !Prefix !(IntMap a) !(Stack a) | Nada
-
-
-{--------------------------------------------------------------------
-  Utility
---------------------------------------------------------------------}
-
-strictPair :: a -> b -> (a, b)
-strictPair x y = x `seq` y `seq` (x, y)
-{-# INLINE strictPair #-}

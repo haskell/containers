@@ -33,6 +33,7 @@ Library
     other-modules:
         Data.IntMap.Base
         Data.Map.Base
+        Data.Pair
     exposed-modules:
         Data.IntMap
         Data.IntMap.Lazy
