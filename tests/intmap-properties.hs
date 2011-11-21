@@ -4,7 +4,11 @@
 -- QuickCheck properties for Data.IntMap
 -- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i..  intmap-properties.hs
 
-import Data.IntMap
+#ifdef STRICT
+import Data.IntMap.Strict as Data.IntMap
+#else
+import Data.IntMap.Lazy as Data.IntMap
+#endif
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import Data.Ord
@@ -69,8 +73,6 @@ main = do
 --    q $ label   "prop_foldr"            prop_foldr
 --    q $ label   "prop_foldl"            prop_foldl
 --    q $ label   "prop_foldl'"           prop_foldl'
-    q $ label   "prop_fold"           prop_fold
-    q $ label   "prop_folWithKeyd"           prop_foldWithKey
 
     defaultMain tests
 
@@ -398,18 +400,6 @@ prop_foldl' (n :: Int) (ys :: [(Int, Int)]) =
 -}
 
 
-prop_fold (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.IntMap.fold (+) n m == List.foldr (+) n (List.map snd xs)
-
-prop_foldWithKey (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.IntMap.foldWithKey (const (+)) n m == List.foldr (+) n (List.map snd xs)
-
 ------------------------------------------------------------------------
 
 type UMap = Map ()
@@ -466,8 +456,6 @@ tests = [ testGroup "Test Case" [
 --             , testCase "mapKeys" test_mapKeys
 --             , testCase "mapKeysWith" test_mapKeysWith
 --             , testCase "mapKeysMonotonic" test_mapKeysMonotonic
-             , testCase "fold" test_fold
-             , testCase "foldWithKey" test_foldWithKey
              , testCase "elems" test_elems
              , testCase "keys" test_keys
              , testCase "keysSet" test_keysSet
@@ -843,16 +831,6 @@ test_mapKeysMonotonic = do
     valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) @?= True
     valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) @?= False
 -}
-
-test_fold :: Assertion
-test_fold = fold f 0 (fromList [(5,"a"), (3,"bbb")]) @?= 4
-  where
-    f a len = len + (length a)
-
-test_foldWithKey :: Assertion
-test_foldWithKey = foldWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) @?= "Map: (5:a)(3:b)"
-  where
-    f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 
 ----------------------------------------------------------------
 -- Conversion

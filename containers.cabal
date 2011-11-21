@@ -71,3 +71,19 @@ Test-suite map-properties
         test-framework-quickcheck2
     if flag(testing-strict)
         cpp-options: -DSTRICT
+
+Test-suite intmap-properties
+    hs-source-dirs: tests
+    main-is: intmap-properties.hs
+    type: exitcode-stdio-1.0
+
+    build-depends:
+        base,
+        containers,
+        HUnit,
+        QuickCheck,
+        test-framework,
+        test-framework-hunit,
+        test-framework-quickcheck2
+    if flag(testing-strict)
+        cpp-options: -DSTRICT
