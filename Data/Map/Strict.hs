@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, NoBangPatterns #-}
+{-# LANGUAGE CPP #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
@@ -391,8 +391,8 @@ insertWithKey = go
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
-            EQ -> let !x' = f kx x y
-                  in Bin sy kx x' l r
+            EQ -> let x' = f kx x y
+                  in x' `seq` Bin sy kx x' l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINEABLE insertWithKey #-}
 #else
@@ -823,7 +823,7 @@ intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
             tl            = intersectionWithKey f l1 lt
             tr            = intersectionWithKey f r1 gt
       in case found of
-      Just x -> let !x' = f k1 x1 x in join k1 x' tl tr
+      Just x -> let x' = f k1 x1 x in x' `seq` join k1 x' tl tr
       Nothing -> merge tl tr
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersectionWithKey #-}
