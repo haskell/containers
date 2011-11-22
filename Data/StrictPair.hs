@@ -1,4 +1,4 @@
-module Data.Pair (strictPair) where
+module Data.StrictPair (strictPair) where
 
 -- | Evaluate both argument to WHNF and create a pair of the result.
 strictPair :: a -> b -> (a, b)

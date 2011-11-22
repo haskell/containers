@@ -264,7 +264,7 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
-import Data.Pair
+import Data.StrictPair
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y
 -- denotes an y-ary function strict in the x-th parameter. Similarly

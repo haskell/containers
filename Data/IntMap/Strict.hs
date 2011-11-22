@@ -226,7 +226,7 @@ import Data.IntMap.Lazy hiding
     , fromAscListWithKey
     , fromDistinctAscList
     )
-import Data.Pair
+import Data.StrictPair
 
 {--------------------------------------------------------------------
   Construction
