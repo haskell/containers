@@ -25,13 +25,13 @@ flag testing
 
 Library
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3
+    if impl(ghc)
+        build-depends: ghc-prim
+
     ghc-options: -O2
     if impl(ghc>6.10)
-        Ghc-Options: -fregs-graph
-    other-modules:
-        Data.IntMap.Base
-        Data.Map.Base
-        Data.StrictPair
+        ghc-options: -fregs-graph
+
     exposed-modules:
         Data.IntMap
         Data.IntMap.Lazy
@@ -41,16 +41,25 @@ Library
         Data.Map.Lazy
         Data.Map.Strict
         Data.Set
-    include-dirs: include
-    extensions: CPP
     if !impl(nhc98)
         exposed-modules:
             Data.Graph
             Data.Sequence
             Data.Tree
+    other-modules:
+        Data.IntMap.Base
+        Data.Map.Base
+        Data.StrictPair
+
+    include-dirs: include
+
+    extensions: CPP
     if impl(ghc)
-        extensions: DeriveDataTypeable, StandaloneDeriving,
-                    MagicHash, Rank2Types
+        extensions:
+            DeriveDataTypeable
+            StandaloneDeriving
+            MagicHash
+            Rank2Types
     if flag(testing)
         cpp-options: -DTESTING
         build-depends: QuickCheck
