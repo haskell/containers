@@ -185,8 +185,7 @@ module Data.IntMap.Strict (
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
-import Data.IntMap.Base
-import Data.IntMap.Lazy hiding
+import Data.IntMap.Base hiding
     ( singleton
     , insert
     , insertWith
