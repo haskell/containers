@@ -590,8 +590,7 @@ intersectionWithKey _ _ Nil = Nil
 
 -- | /O(log n)/. Update the value at the minimal key.
 --
--- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
--- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > updateMinWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 
 updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMinWithKey f t
@@ -610,8 +609,7 @@ updateMinWithKeyUnsigned f t
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
--- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
--- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > updateMaxWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
 updateMaxWithKey f t
@@ -631,16 +629,14 @@ updateMaxWithKeyUnsigned f t
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
--- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
--- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > updateMax (\ a -> "X" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
 
 updateMax :: (a -> a) -> IntMap a -> IntMap a
 updateMax f = updateMaxWithKey (const f)
 
 -- | /O(log n)/. Update the value at the minimal key.
 --
--- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
--- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > updateMin (\ a -> "X" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
 
 updateMin :: (a -> a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
