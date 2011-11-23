@@ -91,6 +91,18 @@ Test-suite map-strict-properties
         test-framework-quickcheck2
     cpp-options: -DSTRICT
 
+Test-suite set-properties
+    hs-source-dirs: tests
+    main-is: set-properties.hs
+    type: exitcode-stdio-1.0
+
+    build-depends:
+        base,
+        containers,
+        QuickCheck,
+        test-framework,
+        test-framework-quickcheck2
+
 Test-suite intmap-lazy-properties
     hs-source-dirs: tests
     main-is: intmap-properties.hs
@@ -119,3 +131,15 @@ Test-suite intmap-strict-properties
         test-framework-hunit,
         test-framework-quickcheck2
     cpp-options: -DSTRICT
+
+Test-suite intset-properties
+    hs-source-dirs: tests
+    main-is: intset-properties.hs
+    type: exitcode-stdio-1.0
+
+    build-depends:
+        base,
+        containers,
+        QuickCheck,
+        test-framework,
+        test-framework-quickcheck2

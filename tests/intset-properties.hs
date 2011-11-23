@@ -1,63 +1,56 @@
-{-# LANGUAGE CPP, ScopedTypeVariables #-}
-
--- QuickCheck properties for Data.IntSet
--- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i..  intset-properties.hs
-
 import Data.Bits ((.&.))
 import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.Monoid (mempty)
 import qualified Data.Set as Set
-import Prelude hiding (lookup, null, map ,filter,foldr,foldl)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import Test.QuickCheck hiding ((.&.))
+import Test.Framework
+import Test.Framework.Providers.QuickCheck2
 
 main :: IO ()
-main = do
-    q $ label "prop_Single" prop_Single
-    q $ label "prop_InsertDelete" prop_InsertDelete
-    q $ label "prop_MemberFromList" prop_MemberFromList
-    q $ label "prop_UnionInsert" prop_UnionInsert
-    q $ label "prop_UnionAssoc" prop_UnionAssoc
-    q $ label "prop_UnionComm" prop_UnionComm
-    q $ label "prop_Diff" prop_Diff
-    q $ label "prop_Int" prop_Int
-    q $ label "prop_Ordered" prop_Ordered
-    q $ label "prop_List" prop_List
-    q $ label "prop_fromList" prop_fromList
-    q $ label "prop_MaskPow2" prop_MaskPow2
-    q $ label "prop_Prefix" prop_Prefix
-    q $ label "prop_LeftRight" prop_LeftRight
-    q $ label "prop_isProperSubsetOf" prop_isProperSubsetOf
-    q $ label "prop_isProperSubsetOf2" prop_isProperSubsetOf2
-    q $ label "prop_isSubsetOf" prop_isSubsetOf
-    q $ label "prop_isSubsetOf2" prop_isSubsetOf2
-    q $ label "prop_size" prop_size
-    q $ label "prop_findMax" prop_findMax
-    q $ label "prop_findMin" prop_findMin
-    q $ label "prop_ord" prop_ord
-    q $ label "prop_readShow" prop_readShow
-    q $ label "prop_foldR" prop_foldR
-    q $ label "prop_foldR'" prop_foldR'
-    q $ label "prop_foldL" prop_foldL
-    q $ label "prop_foldL'" prop_foldL'
-    q $ label "prop_map" prop_map
-    q $ label "prop_maxView" prop_maxView
-    q $ label "prop_minView" prop_minView
-    q $ label "prop_split" prop_split
-    q $ label "prop_splitMember" prop_splitMember
-    q $ label "prop_partition" prop_partition
-    q $ label "prop_filter" prop_filter
+main = defaultMainWithOpts [ testProperty "prop_Single" prop_Single
+                           , testProperty "prop_InsertDelete" prop_InsertDelete
+                           , testProperty "prop_MemberFromList" prop_MemberFromList
+                           , testProperty "prop_UnionInsert" prop_UnionInsert
+                           , testProperty "prop_UnionAssoc" prop_UnionAssoc
+                           , testProperty "prop_UnionComm" prop_UnionComm
+                           , testProperty "prop_Diff" prop_Diff
+                           , testProperty "prop_Int" prop_Int
+                           , testProperty "prop_Ordered" prop_Ordered
+                           , testProperty "prop_List" prop_List
+                           , testProperty "prop_fromList" prop_fromList
+                           , testProperty "prop_MaskPow2" prop_MaskPow2
+                           , testProperty "prop_Prefix" prop_Prefix
+                           , testProperty "prop_LeftRight" prop_LeftRight
+                           , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
+                           , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
+                           , testProperty "prop_isSubsetOf" prop_isSubsetOf
+                           , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
+                           , testProperty "prop_size" prop_size
+                           , testProperty "prop_findMax" prop_findMax
+                           , testProperty "prop_findMin" prop_findMin
+                           , testProperty "prop_ord" prop_ord
+                           , testProperty "prop_readShow" prop_readShow
+                           , testProperty "prop_foldR" prop_foldR
+                           , testProperty "prop_foldR'" prop_foldR'
+                           , testProperty "prop_foldL" prop_foldL
+                           , testProperty "prop_foldL'" prop_foldL'
+                           , testProperty "prop_map" prop_map
+                           , testProperty "prop_maxView" prop_maxView
+                           , testProperty "prop_minView" prop_minView
+                           , testProperty "prop_split" prop_split
+                           , testProperty "prop_splitMember" prop_splitMember
+                           , testProperty "prop_partition" prop_partition
+                           , testProperty "prop_filter" prop_filter
+                           ] opts
   where
-    q :: Testable prop => prop -> IO ()
-    q = quickCheckWith args
-{--------------------------------------------------------------------
-  QuickCheck
---------------------------------------------------------------------}
-
-args :: Args
-args = stdArgs { maxSuccess = 500
-               , maxDiscard = 500
-               }
+    opts = mempty { ropt_plain_output = Just True
+                  , ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
+                                                      , topt_maximum_unsuitable_generated_tests = Just 500
+                                                      }
+                  }
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
