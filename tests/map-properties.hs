@@ -1,514 +1,211 @@
-{-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE CPP #-}
---
--- QuickCheck properties for Data.Map
--- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i..  map-properties.hs
-
---
 
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
 #else
 import Data.Map.Lazy as Data.Map
 #endif
+
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import Data.Ord
 import Data.Function
-import Test.QuickCheck
-import Text.Show.Functions
-import Prelude hiding (lookup, null, map ,filter)
-import qualified Prelude (map, filter)
-import qualified Data.List as List
+import Prelude hiding (lookup, null, map, filter)
+import qualified Prelude (map)
 
-import Control.Applicative ((<$>),(<*>))
 import Data.List (nub,sort)
-import qualified Data.List as L ((\\),intersect)
+import qualified Data.List as List
 import qualified Data.Set
--- import Data.SMap.Types
--- import Data.SMap.Balance
--- import Data.SMap.Internal
-import Data.Maybe (isJust,fromJust)
-import Prelude hiding (lookup,map,filter,null)
-import qualified Prelude as P (map)
-import Test.Framework (defaultMain, testGroup, Test)
+import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
+import Text.Show.Functions ()
 
-main = do
-    q $ label   "prop_Valid"            prop_Valid
-    q $ label   "prop_Single"           prop_Single
-    q $ label   "prop_InsertValid"      prop_InsertValid
-    q $ label   "prop_InsertDelete"     prop_InsertDelete
-    q $ label   "prop_DeleteValid"      prop_DeleteValid
-    q $ label   "prop_Join"             prop_Join
-    q $ label   "prop_Merge"            prop_Merge
-    q $ label   "prop_UnionValid"       prop_UnionValid
-    q $ label   "prop_UnionInsert"      prop_UnionInsert
-    q $ label   "prop_UnionAssoc"       prop_UnionAssoc
-    q $ label   "prop_UnionComm"        prop_UnionComm
-    q $ label   "prop_UnionWithValid"   prop_UnionWithValid 
-    q $ label   "prop_UnionWith"        prop_UnionWith
-    q $ label   "prop_DiffValid"        prop_DiffValid
-    q $ label   "prop_Diff"             prop_Diff
-    q $ label   "prop_Diff2"            prop_Diff2
-    q $ label   "prop_IntValid"         prop_IntValid
-    q $ label   "prop_Int"              prop_Int
-    q $ label   "prop_Ordered"          prop_Ordered
-    q $ label   "prop_List"             prop_List
+default (Int)
 
-    -- new tests
-    q $ label   "prop_index"            prop_index
-    q $ label   "prop_null"             prop_null
-    q $ label   "prop_member"           prop_member
-    q $ label   "prop_notmember"        prop_notmember
-    q $ label   "prop_findWithDefault"  prop_findWithDefault
-    q $ label   "prop_findIndex"        prop_findIndex
-    q $ label   "prop_findMin"          prop_findMin
-    q $ label   "prop_findMax"          prop_findMax
-    q $ label   "prop_filter"           prop_filter
-    q $ label   "prop_partition"        prop_partition
-    q $ label   "prop_map"              prop_map
-    q $ label   "prop_fmap"              prop_fmap
---    q $ label   "prop_mapkeys"          prop_mapkeys
-    q $ label   "prop_foldr"            prop_foldr
-    q $ label   "prop_foldl"            prop_foldl
---     q $ label   "prop_foldl'"           prop_foldl'
-
-    defaultMain tests
+main :: IO ()
+main = defaultMainWithOpts
+         [ testCase "ticket4242" test_ticket4242
+         , testCase "index"      test_index
+         , testCase "size"       test_size
+         , testCase "size2"      test_size2
+         , testCase "member"     test_member
+         , testCase "notMember"  test_notMember
+         , testCase "lookup"     test_lookup
+         , testCase "findWithDefault"     test_findWithDefault
+         , testCase "empty" test_empty
+         , testCase "mempty" test_mempty
+         , testCase "singleton" test_singleton
+         , testCase "insert" test_insert
+         , testCase "insertWith" test_insertWith
+         , testCase "insertWithKey" test_insertWithKey
+         , testCase "insertLookupWithKey" test_insertLookupWithKey
+         , testCase "delete" test_delete
+         , testCase "adjust" test_adjust
+         , testCase "adjustWithKey" test_adjustWithKey
+         , testCase "update" test_update
+         , testCase "updateWithKey" test_updateWithKey
+         , testCase "updateLookupWithKey" test_updateLookupWithKey
+         , testCase "alter" test_alter
+         , testCase "union" test_union
+         , testCase "mappend" test_mappend
+         , testCase "unionWith" test_unionWith
+         , testCase "unionWithKey" test_unionWithKey
+         , testCase "unions" test_unions
+         , testCase "mconcat" test_mconcat
+         , testCase "unionsWith" test_unionsWith
+         , testCase "difference" test_difference
+         , testCase "differenceWith" test_differenceWith
+         , testCase "differenceWithKey" test_differenceWithKey
+         , testCase "intersection" test_intersection
+         , testCase "intersectionWith" test_intersectionWith
+         , testCase "intersectionWithKey" test_intersectionWithKey
+         , testCase "map" test_map
+         , testCase "mapWithKey" test_mapWithKey
+         , testCase "mapAccum" test_mapAccum
+         , testCase "mapAccumWithKey" test_mapAccumWithKey
+         , testCase "mapAccumRWithKey" test_mapAccumRWithKey
+         , testCase "mapKeys" test_mapKeys
+         , testCase "mapKeysWith" test_mapKeysWith
+         , testCase "mapKeysMonotonic" test_mapKeysMonotonic
+         , testCase "elems" test_elems
+         , testCase "keys" test_keys
+         , testCase "keysSet" test_keysSet
+         , testCase "associative" test_assocs
+         , testCase "toList" test_toList
+         , testCase "fromList" test_fromList
+         , testCase "fromListWith" test_fromListWith
+         , testCase "fromListWithKey" test_fromListWithKey
+         , testCase "toAscList" test_toAscList
+         , testCase "toDescList" test_toDescList
+         , testCase "showTree" test_showTree
+         , testCase "showTree'" test_showTree'
+         , testCase "fromAscList" test_fromAscList
+         , testCase "fromAscListWith" test_fromAscListWith
+         , testCase "fromAscListWithKey" test_fromAscListWithKey
+         , testCase "fromDistinctAscList" test_fromDistinctAscList
+         , testCase "filter" test_filter
+         , testCase "filterWithKey" test_filteWithKey
+         , testCase "partition" test_partition
+         , testCase "partitionWithKey" test_partitionWithKey
+         , testCase "mapMaybe" test_mapMaybe
+         , testCase "mapMaybeWithKey" test_mapMaybeWithKey
+         , testCase "mapEither" test_mapEither
+         , testCase "mapEitherWithKey" test_mapEitherWithKey
+         , testCase "split" test_split
+         , testCase "splitLookup" test_splitLookup
+         , testCase "isSubmapOfBy" test_isSubmapOfBy
+         , testCase "isSubmapOf" test_isSubmapOf
+         , testCase "isProperSubmapOfBy" test_isProperSubmapOfBy
+         , testCase "isProperSubmapOf" test_isProperSubmapOf
+         , testCase "lookupIndex" test_lookupIndex
+         , testCase "findIndex" test_findIndex
+         , testCase "elemAt" test_elemAt
+         , testCase "updateAt" test_updateAt
+         , testCase "deleteAt" test_deleteAt
+         , testCase "findMin" test_findMin
+         , testCase "findMax" test_findMax
+         , testCase "deleteMin" test_deleteMin
+         , testCase "deleteMax" test_deleteMax
+         , testCase "deleteFindMin" test_deleteFindMin
+         , testCase "deleteFindMax" test_deleteFindMax
+         , testCase "updateMin" test_updateMin
+         , testCase "updateMax" test_updateMax
+         , testCase "updateMinWithKey" test_updateMinWithKey
+         , testCase "updateMaxWithKey" test_updateMaxWithKey
+         , testCase "minView" test_minView
+         , testCase "maxView" test_maxView
+         , testCase "minViewWithKey" test_minViewWithKey
+         , testCase "maxViewWithKey" test_maxViewWithKey
+         , testCase "valid" test_valid
+         , testProperty "fromList"             prop_fromList
+         , testProperty "insert to singleton"  prop_singleton
+         , testProperty "insert"               prop_insert
+         , testProperty "insert then lookup"   prop_lookup
+         , testProperty "insert then delete"   prop_insertDelete
+         , testProperty "insert then delete2"  prop_insertDelete2
+         , testProperty "delete non member"    prop_deleteNonMember
+         , testProperty "deleteMin"            prop_deleteMin
+         , testProperty "deleteMax"            prop_deleteMax
+         , testProperty "split"                prop_split
+         , testProperty "split then join"      prop_join
+         , testProperty "split then merge"     prop_merge
+         , testProperty "union"                prop_union
+         , testProperty "union model"          prop_unionModel
+         , testProperty "union singleton"      prop_unionSingleton
+         , testProperty "union associative"    prop_unionAssoc
+         , testProperty "union+unionWith"      prop_unionWith
+         , testProperty "unionWith"            prop_unionWith2
+         , testProperty "union sum"            prop_unionSum
+         , testProperty "difference"           prop_difference
+         , testProperty "difference model"     prop_differenceModel
+         , testProperty "intersection"         prop_intersection
+         , testProperty "intersection model"   prop_intersectionModel
+         , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromList then toList" prop_list
+         , testProperty "alter"                prop_alter
+         , testProperty "index"                prop_index
+         , testProperty "null"                 prop_null
+         , testProperty "member"               prop_member
+         , testProperty "notmember"            prop_notmember
+         , testProperty "findWithDefault"      prop_findWithDefault
+         , testProperty "findIndex"            prop_findIndex
+         , testProperty "lookupIndex"          prop_lookupIndex
+         , testProperty "findMin"              prop_findMin
+         , testProperty "findMax"              prop_findMax
+         , testProperty "deleteMin"            prop_deleteMinModel
+         , testProperty "deleteMax"            prop_deleteMaxModel
+         , testProperty "filter"               prop_filter
+         , testProperty "partition"            prop_partition
+         , testProperty "map"                  prop_map
+         , testProperty "fmap"                 prop_fmap
+         , testProperty "mapkeys"              prop_mapkeys
+         , testProperty "split"                prop_splitModel
+         , testProperty "foldr"                prop_foldr
+         , testProperty "foldr'"               prop_foldr'
+         , testProperty "foldl"                prop_foldl
+         , testProperty "foldl'"               prop_foldl'
+         ] opts
 
   where
-    q :: Testable prop => prop -> IO ()
-    q = quickCheckWith args
-
-
-{--------------------------------------------------------------------
-  Testing
---------------------------------------------------------------------}
-testTree xs   = fromList [(x,"*") | x <- xs]
-test1 = testTree [1..20]
-test2 = testTree [30,29..10]
-test3 = testTree [1,4,6,89,2323,53,43,234,5,79,12,9,24,9,8,423,8,42,4,8,9,3]
-
-
-{--------------------------------------------------------------------
-  QuickCheck
---------------------------------------------------------------------}
-
-args = stdArgs {
-                 maxSuccess = 500
-               , maxDiscard = 500
-               }
-
-{-
-qcheck prop
-  = check config prop
-  where
-    config = Config
-      { configMaxTest = 500
-      , configMaxFail = 5000
-      , configSize    = \n -> (div n 2 + 3)
-      , configEvery   = \n args -> let s = show n in s ++ [ '\b' | _ <- s ]
-      }
--}
-
+    opts = mempty { ropt_plain_output = Just True
+                  , ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
+                                                      , topt_maximum_unsuitable_generated_tests = Just 500
+                                                      }
+                  }
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
   arbitrary = sized (arbtree 0 maxkey)
-            where maxkey  = 10^5
+    where maxkey = 10^5
 
---
--- requires access to internals
---
-arbtree :: (Enum k,Arbitrary a) => Int -> Int -> Int -> Gen (Map k a)
-arbtree lo hi n = do t <- gentree lo hi n
-                     if balanced t then return t else arbtree lo hi n
-  where gentree lo hi n
-          | n <= 0        = return Tip
-          | lo >= hi      = return Tip
-          | otherwise     = do{ x  <- arbitrary
-                              ; i  <- choose (lo,hi)
-                              ; m  <- choose (1,70)
-                              ; let (ml,mr)  | m==(1::Int)= (1,2)
-                                             | m==2       = (2,1)
-                                             | m==3       = (1,1)
-                                             | otherwise  = (2,2)
-                              ; l  <- gentree lo (i-1) (n `div` ml)
-                              ; r  <- gentree (i+1) hi (n `div` mr)
-                              ; return (bin (toEnum i) x l r)
-                              }
-
-
-{--------------------------------------------------------------------
-  Valid tree's
---------------------------------------------------------------------}
-forValid :: (Show k,Enum k,Show a,Arbitrary a,Testable b) => (Map k a -> b) -> Property
-forValid f
-  = forAll arbitrary $ \t -> 
---    classify (balanced t) "balanced" $
-    classify (size t == 0) "empty" $
-    classify (size t > 0  && size t <= 10) "small" $
-    classify (size t > 10 && size t <= 64) "medium" $
-    classify (size t > 64) "large" $
-    balanced t ==> f t
-
-forValidIntTree :: Testable a => (Map Int Int -> a) -> Property
-forValidIntTree f
-  = forValid f
-
-forValidUnitTree :: Testable a => (Map Int () -> a) -> Property
-forValidUnitTree f
-  = forValid f
-
-
-prop_Valid 
-  = forValidUnitTree $ \t -> valid t
-
-{--------------------------------------------------------------------
-  Single, Insert, Delete
---------------------------------------------------------------------}
-prop_Single :: Int -> Int -> Bool
-prop_Single k x
-  = (insert k x empty == singleton k x)
-
-prop_InsertValid :: Int -> Property
-prop_InsertValid k
-  = forValidUnitTree $ \t -> valid (insert k () t)
-
-prop_InsertDelete :: Int -> Map Int () -> Property
-prop_InsertDelete k t
-  = (lookup k t == Nothing) ==> delete k (insert k () t) == t
-
-prop_DeleteValid :: Int -> Property
-prop_DeleteValid k
-  = forValidUnitTree $ \t -> 
-    valid (delete k (insert k () t))
-
-{--------------------------------------------------------------------
-  Balance
---------------------------------------------------------------------}
-prop_Join :: Int -> Property 
-prop_Join k 
-  = forValidUnitTree $ \t ->
-    let (l,r) = split k t
-    in valid (join k () l r)
-
-prop_Merge :: Int -> Property 
-prop_Merge k
-  = forValidUnitTree $ \t ->
-    let (l,r) = split k t
-    in valid (merge l r)
-
-
-{--------------------------------------------------------------------
-  Union
---------------------------------------------------------------------}
-prop_UnionValid :: Property
-prop_UnionValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (union t1 t2)
-
-prop_UnionInsert :: Int -> Int -> Map Int Int -> Bool
-prop_UnionInsert k x t
-  = union (singleton k x) t == insert k x t
-
-prop_UnionAssoc :: Map Int Int -> Map Int Int -> Map Int Int -> Bool
-prop_UnionAssoc t1 t2 t3
-  = union t1 (union t2 t3) == union (union t1 t2) t3
-
-prop_UnionComm :: Map Int Int -> Map Int Int -> Bool
-prop_UnionComm t1 t2
-  = (union t1 t2 == unionWith (\x y -> y) t2 t1)
-
-prop_UnionWithValid 
-  = forValidIntTree $ \t1 ->
-    forValidIntTree $ \t2 ->
-    valid (unionWithKey (\k x y -> x+y) t1 t2)
-
-prop_UnionWith :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_UnionWith xs ys
-  = sum (elems (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys))) 
-    == (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
-
-prop_DiffValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (difference t1 t2)
-
-prop_Diff :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_Diff xs ys
-  =  List.sort (keys (difference (fromListWith (+) xs) (fromListWith (+) ys))) 
-    == List.sort ((List.\\) (List.nub (Prelude.map fst xs))  (List.nub (Prelude.map fst ys)))
-
-prop_Diff2 :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_Diff2 xs ys
-  =  List.sort (keys ((\\) (fromListWith (+) xs) (fromListWith (+) ys))) 
-    == List.sort ((List.\\) (List.nub (Prelude.map fst xs))  (List.nub (Prelude.map fst ys)))
-
-prop_IntValid
-  = forValidUnitTree $ \t1 ->
-    forValidUnitTree $ \t2 ->
-    valid (intersection t1 t2)
-
-prop_Int :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_Int xs ys
-  =  List.sort (keys (intersection (fromListWith (+) xs) (fromListWith (+) ys))) 
-    == List.sort (List.nub ((List.intersect) (Prelude.map fst xs)  (Prelude.map fst ys)))
-
-{--------------------------------------------------------------------
-  Lists
---------------------------------------------------------------------}
-prop_Ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]] 
-    in fromAscList xs == fromList xs
-
-prop_List :: [Int] -> Bool
-prop_List xs
-  = (List.sort (List.nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
-
-------------------------------------------------------------------------
--- New tests: compare against the list model (after nub on keys)
-
-prop_index = \(xs :: [Int]) ->  length xs > 0  ==>
-        let m  = fromList (zip xs xs)
-        in xs == [ m ! i | i <- xs ]
-
-prop_null (m :: Data.Map.Map Int Int) = Data.Map.null m == (size m == 0)
-
-prop_member (xs :: [Int]) n = 
-        let m  = fromList (zip xs xs)
-        in (n `elem` xs) == (n `member` m)
-
-prop_notmember (xs :: [Int]) n = 
-        let m  = fromList (zip xs xs)
-        in (n `notElem` xs) == (n `notMember` m)
-
-prop_findWithDefault = \(ys :: [(Int, Int)]) ->  length ys > 0  ==>
-        let m  = fromList xs
-            xs = List.nubBy ((==) `on` fst) ys
-        in 
-           and [ findWithDefault 0 i m == j | (i,j) <- xs ]
-
-prop_findIndex = \(ys :: [(Int, Int)]) ->  length ys > 0  ==>
-        let m  = fromList ys
-        in findIndex (fst (head ys)) m `seq` True
-
-prop_lookupIndex = \(ys :: [(Int, Int)]) ->  length ys > 0  ==>
-        let m  = fromList ys
-        in isJust (lookupIndex (fst (head ys)) m)
-
-prop_findMin = \(ys :: [(Int, Int)]) ->  length ys > 0  ==>
-        let m  = fromList ys
-            xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-        in findMin m == List.minimumBy (comparing fst) xs
-    
-prop_findMax = \(ys :: [(Int, Int)]) ->  length ys > 0  ==>
-        let m  = fromList ys
-            xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-        in findMax m == List.maximumBy (comparing fst) xs
-    
-prop_filter  = \p (ys :: [(Int, Int)]) ->  length ys > 0  ==>
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in
-        Data.Map.filter p m == fromList (List.filter (p . snd) xs)
-
-prop_partition = \p (ys :: [(Int, Int)]) ->  length ys > 0  ==>
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in
-        Data.Map.partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
-
-prop_map (f :: Int -> Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in
-        Data.Map.map f m == fromList [ (a, f b) | (a,b) <- xs ]
-
-prop_fmap (f :: Int -> Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in
-        fmap f m == fromList [ (a, f b) | (a,b) <- xs ]
-
-{-
-
--- mapkeys is hard, as we have to consider collisions of the index space.
-
-prop_mapkeys (f :: Int -> Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in
-        Data.Map.mapKeys f m ==
-        (fromList $
-            {-List.nubBy ((==) `on` fst) $ reverse-} [ (f a, b) | (a,b) <- xs ])
--}
-
-
-prop_foldr (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        fold (+) n m == List.foldr (+) n (List.map snd xs)
-  where
-    fold k = Data.Map.foldrWithKey (\_ x' z' -> k x' z')
-
-
-prop_foldl (n :: Int) (ys :: [(Int, Int)]) =
-    let m = fromList ys
-        xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
-    in 
-        Data.Map.foldlWithKey (\a _ b -> a + b) n m == List.foldl (+) n (List.map snd xs)
-
-
--- prop_foldl' (n :: Int) (ys :: [(Int, Int)]) =
---     let m = fromList ys
---         xs = List.nubBy ((==) `on` fst) (reverse ys) -- note.
---     in 
---         Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldl' (+) n (List.map snd xs)
-
+          arbtree :: (Enum k, Arbitrary a) => Int -> Int -> Int -> Gen (Map k a)
+          arbtree lo hi n = do t <- gentree lo hi n
+                               if balanced t then return t else arbtree lo hi n
+            where gentree lo hi n
+                    | n <= 0        = return Tip
+                    | lo >= hi      = return Tip
+                    | otherwise     = do{ x  <- arbitrary
+                                        ; i  <- choose (lo,hi)
+                                        ; m  <- choose (1,70)
+                                        ; let (ml,mr)  | m==(1::Int)= (1,2)
+                                                       | m==2       = (2,1)
+                                                       | m==3       = (1,1)
+                                                       | otherwise  = (2,2)
+                                        ; l  <- gentree lo (i-1) (n `div` ml)
+                                        ; r  <- gentree (i+1) hi (n `div` mr)
+                                        ; return (bin (toEnum i) x l r)
+                                        }
 
 ------------------------------------------------------------------------
 
 type UMap = Map Int ()
 type IMap = Map Int Int
 type SMap = Map Int String
-
-----------------------------------------------------------------
-
-tests :: [Test]
-tests = [ testGroup "Test Case" [
-               testCase "ticket4242" test_ticket4242
-             , testCase "index"      test_index
-             , testCase "size"       test_size
-             , testCase "size2"      test_size2
-             , testCase "member"     test_member
-             , testCase "notMember"  test_notMember
-             , testCase "lookup"     test_lookup
-             , testCase "findWithDefault"     test_findWithDefault
-             , testCase "empty" test_empty
-             , testCase "mempty" test_mempty
-             , testCase "singleton" test_singleton
-             , testCase "insert" test_insert
-             , testCase "insertWith" test_insertWith
-             , testCase "insertWithKey" test_insertWithKey
-             , testCase "insertLookupWithKey" test_insertLookupWithKey
-             , testCase "delete" test_delete
-             , testCase "adjust" test_adjust
-             , testCase "adjustWithKey" test_adjustWithKey
-             , testCase "update" test_update
-             , testCase "updateWithKey" test_updateWithKey
-             , testCase "updateLookupWithKey" test_updateLookupWithKey
-             , testCase "alter" test_alter
-             , testCase "union" test_union
-             , testCase "mappend" test_mappend
-             , testCase "unionWith" test_unionWith
-             , testCase "unionWithKey" test_unionWithKey
-             , testCase "unions" test_unions
-             , testCase "mconcat" test_mconcat
-             , testCase "unionsWith" test_unionsWith
-             , testCase "difference" test_difference
-             , testCase "differenceWith" test_differenceWith
-             , testCase "differenceWithKey" test_differenceWithKey
-             , testCase "intersection" test_intersection
-             , testCase "intersectionWith" test_intersectionWith
-             , testCase "intersectionWithKey" test_intersectionWithKey
-             , testCase "map" test_map
-             , testCase "mapWithKey" test_mapWithKey
-             , testCase "mapAccum" test_mapAccum
-             , testCase "mapAccumWithKey" test_mapAccumWithKey
-             , testCase "mapAccumRWithKey" test_mapAccumRWithKey
-             , testCase "mapKeys" test_mapKeys
-             , testCase "mapKeysWith" test_mapKeysWith
-             , testCase "mapKeysMonotonic" test_mapKeysMonotonic
-             , testCase "elems" test_elems
-             , testCase "keys" test_keys
-             , testCase "keysSet" test_keysSet
-             , testCase "associative" test_assocs
-             , testCase "toList" test_toList
-             , testCase "fromList" test_fromList
-             , testCase "fromListWith" test_fromListWith
-             , testCase "fromListWithKey" test_fromListWithKey
-             , testCase "toAscList" test_toAscList
-             , testCase "toDescList" test_toDescList
-             , testCase "showTree" test_showTree
-             , testCase "showTree'" test_showTree'
-             , testCase "fromAscList" test_fromAscList
-             , testCase "fromAscListWith" test_fromAscListWith
-             , testCase "fromAscListWithKey" test_fromAscListWithKey
-             , testCase "fromDistinctAscList" test_fromDistinctAscList
-             , testCase "filter" test_filter
-             , testCase "filterWithKey" test_filteWithKey
-             , testCase "partition" test_partition
-             , testCase "partitionWithKey" test_partitionWithKey
-             , testCase "mapMaybe" test_mapMaybe
-             , testCase "mapMaybeWithKey" test_mapMaybeWithKey
-             , testCase "mapEither" test_mapEither
-             , testCase "mapEitherWithKey" test_mapEitherWithKey
-             , testCase "split" test_split
-             , testCase "splitLookup" test_splitLookup
-             , testCase "isSubmapOfBy" test_isSubmapOfBy
-             , testCase "isSubmapOf" test_isSubmapOf
-             , testCase "isProperSubmapOfBy" test_isProperSubmapOfBy
-             , testCase "isProperSubmapOf" test_isProperSubmapOf
-             , testCase "lookupIndex" test_lookupIndex
-             , testCase "findIndex" test_findIndex
-             , testCase "elemAt" test_elemAt
-             , testCase "updateAt" test_updateAt
-             , testCase "deleteAt" test_deleteAt
-             , testCase "findMin" test_findMin
-             , testCase "findMax" test_findMax
-             , testCase "deleteMin" test_deleteMin
-             , testCase "deleteMax" test_deleteMax
-             , testCase "deleteFindMin" test_deleteFindMin
-             , testCase "deleteFindMax" test_deleteFindMax
-             , testCase "updateMin" test_updateMin
-             , testCase "updateMax" test_updateMax
-             , testCase "updateMinWithKey" test_updateMinWithKey
-             , testCase "updateMaxWithKey" test_updateMaxWithKey
-             , testCase "minView" test_minView
-             , testCase "maxView" test_maxView
-             , testCase "minViewWithKey" test_minViewWithKey
-             , testCase "maxViewWithKey" test_maxViewWithKey
-             , testCase "valid" test_valid
-             ]
-        , testGroup "Property Test" [
-    --           testProperty "fromList"             prop_fromList
-               testProperty "insert to singleton"  prop_singleton
-    --         , testProperty "insert"               prop_insert
-             , testProperty "insert then lookup"   prop_lookup
-    --         , testProperty "insert then delete"   prop_insertDelete
-    --         , testProperty "insert then delete2"  prop_insertDelete2
-             , testProperty "delete non member"    prop_deleteNonMember
-    --         , testProperty "deleteMin"            prop_deleteMin
-    --         , testProperty "deleteMax"            prop_deleteMax
-             , testProperty "split"                prop_split
-    --         , testProperty "split then join"      prop_join
-    --         , testProperty "split then merge"     prop_merge
-    --         , testProperty "union"                prop_union
-             , testProperty "union model"          prop_unionModel
-             , testProperty "union singleton"      prop_unionSingleton
-             , testProperty "union associative"    prop_unionAssoc
-             , testProperty "fromAscList"          prop_ordered
-             , testProperty "fromList then toList" prop_list
-             , testProperty "unionWith"            prop_unionWith
-    --         , testProperty "unionWith2"           prop_unionWith2
-             , testProperty "union sum"            prop_unionSum
-    --         , testProperty "difference"           prop_difference
-             , testProperty "difference model"     prop_differenceModel
-             , testProperty "intersection"         prop_intersection
-             , testProperty "intersection model"   prop_intersectionModel
-    --         , testProperty "alter"                prop_alter
-             ]
-        ]
-
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -1115,9 +812,9 @@ prop_deleteMax t = valid $ deleteMax $ deleteMax t
 
 ----------------------------------------------------------------
 
-prop_split :: Int -> UMap -> Property
-prop_split k t = (lookup k t /= Nothing) ==> let (r,l) = split k t
-                                             in (valid r, valid l) == (True, True)
+prop_split :: Int -> UMap -> Bool
+prop_split k t = let (r,l) = split k t
+                 in (valid r, valid l) == (True, True)
 
 prop_join :: Int -> UMap -> Bool
 prop_join k t = let (l,r) = split k t
@@ -1135,7 +832,7 @@ prop_union t1 t2 = valid (union t1 t2)
 prop_unionModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_unionModel xs ys
   = sort (keys (union (fromList xs) (fromList ys)))
-    == sort (nub (P.map fst xs ++ P.map fst ys))
+    == sort (nub (Prelude.map fst xs ++ Prelude.map fst ys))
 
 prop_unionSingleton :: IMap -> Int -> Int -> Bool
 prop_unionSingleton t k x = union (singleton k x) t == insert k x t
@@ -1152,7 +849,7 @@ prop_unionWith2 t1 t2 = valid (unionWithKey (\_ x y -> x+y) t1 t2)
 prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_unionSum xs ys
   = sum (elems (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys)))
-    == (sum (P.map snd xs) + sum (P.map snd ys))
+    == (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
 
 prop_difference :: IMap -> IMap -> Bool
 prop_difference t1 t2 = valid (difference t1 t2)
@@ -1160,7 +857,7 @@ prop_difference t1 t2 = valid (difference t1 t2)
 prop_differenceModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_differenceModel xs ys
   = sort (keys (difference (fromListWith (+) xs) (fromListWith (+) ys)))
-    == sort ((L.\\) (nub (P.map fst xs)) (nub (P.map fst ys)))
+    == sort ((List.\\) (nub (Prelude.map fst xs)) (nub (Prelude.map fst ys)))
 
 prop_intersection :: IMap -> IMap -> Bool
 prop_intersection t1 t2 = valid (intersection t1 t2)
@@ -1168,7 +865,7 @@ prop_intersection t1 t2 = valid (intersection t1 t2)
 prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_intersectionModel xs ys
   = sort (keys (intersection (fromListWith (+) xs) (fromListWith (+) ys)))
-    == sort (nub ((L.intersect) (P.map fst xs) (P.map fst ys)))
+    == sort (nub ((List.intersect) (Prelude.map fst xs) (Prelude.map fst ys)))
 
 ----------------------------------------------------------------
 
@@ -1191,3 +888,125 @@ prop_alter t k = balanced t' && case lookup k t of
     t' = alter f k t
     f Nothing   = Just ()
     f (Just ()) = Nothing
+
+------------------------------------------------------------------------
+-- Compare against the list model (after nub on keys)
+
+prop_index :: [Int] -> Property
+prop_index xs = length xs > 0 ==>
+  let m  = fromList (zip xs xs)
+  in  xs == [ m ! i | i <- xs ]
+
+prop_null :: IMap -> Bool
+prop_null m = Data.Map.null m == (size m == 0)
+
+prop_member :: [Int] -> Int -> Bool
+prop_member xs n =
+  let m  = fromList (zip xs xs)
+  in  (n `elem` xs) == (n `member` m)
+
+prop_notmember :: [Int] -> Int -> Bool
+prop_notmember xs n =
+  let m  = fromList (zip xs xs)
+  in  (n `notElem` xs) == (n `notMember` m)
+
+prop_findWithDefault :: [(Int, Int)] -> Property
+prop_findWithDefault ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  and [ findWithDefault 0 i m == j | (i,j) <- xs ]
+
+prop_findIndex :: [(Int, Int)] -> Property
+prop_findIndex ys = length ys > 0 ==>
+  let m = fromList ys
+  in  findIndex (fst (head ys)) m `seq` True
+
+prop_lookupIndex :: [(Int, Int)] -> Property
+prop_lookupIndex ys = length ys > 0 ==>
+  let m = fromList ys
+  in  isJust (lookupIndex (fst (head ys)) m)
+
+prop_findMin :: [(Int, Int)] -> Property
+prop_findMin ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  findMin m == List.minimumBy (comparing fst) xs
+
+prop_findMax :: [(Int, Int)] -> Property
+prop_findMax ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  findMax m == List.maximumBy (comparing fst) xs
+
+prop_deleteMinModel :: [(Int, Int)] -> Property
+prop_deleteMinModel ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  toAscList (deleteMin m) == tail (sort xs)
+
+prop_deleteMaxModel :: [(Int, Int)] -> Property
+prop_deleteMaxModel ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  toAscList (deleteMax m) == init (sort xs)
+
+prop_filter :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_filter p ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.filter p m == fromList (List.filter (p . snd) xs)
+
+prop_partition :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_partition p ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
+
+prop_map :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_map f ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.map f m == fromList [ (a, f b) | (a,b) <- xs ]
+
+prop_fmap :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_fmap f ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  fmap f m == fromList [ (a, f b) | (a,b) <- xs ]
+
+prop_mapkeys :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_mapkeys f ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
+
+prop_splitModel :: Int -> [(Int, Int)] -> Property
+prop_splitModel n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      (l, r) = split n $ fromList xs
+  in  toAscList l == sort [(k, v) | (k,v) <- xs, k < n] &&
+      toAscList r == sort [(k, v) | (k,v) <- xs, k > n]
+
+prop_foldr :: Int -> [(Int, Int)] -> Property
+prop_foldr n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+
+prop_foldr' :: Int -> [(Int, Int)] -> Property
+prop_foldr' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+
+prop_foldl :: Int -> [(Int, Int)] -> Property
+prop_foldl n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.foldlWithKey (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+
+prop_foldl' :: Int -> [(Int, Int)] -> Property
+prop_foldl' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
