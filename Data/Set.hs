@@ -156,11 +156,9 @@ import qualified List
 -}
 
 #if __GLASGOW_HASKELL__
+import GHC.Exts ( build )
 import Text.Read
 import Data.Data
-#if __GLASGOW_HASKELL__ >= 503
-import GHC.Exts ( build )
-#endif
 #endif
 
 -- Use macros to define strictness of functions.
@@ -621,9 +619,10 @@ foldl' f = go
 {--------------------------------------------------------------------
   List variations
 --------------------------------------------------------------------}
--- | /O(n)/. The elements of a set. Subject to list fusion.
+-- | /O(n)/. An alias of 'toAscList'. The elements of a set in ascending order.
+-- Subject to list fusion.
 elems :: Set a -> [a]
-elems = toList
+elems = toAscList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE elems #-}
 #endif
@@ -645,7 +644,7 @@ toAscList = foldr (:) []
 {-# INLINABLE toAscList #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 503
+#if __GLASGOW_HASKELL__
 -- List fusion for the above three functions
 {-# RULES "Set/toList" forall s . toList s = build (\c n -> foldr c n s) #-}
 {-# RULES "Set/toAscList" forall s . toAscList s = build (\c n -> foldr c n s) #-}

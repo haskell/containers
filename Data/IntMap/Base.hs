@@ -1480,15 +1480,15 @@ keysSet :: IntMap a -> IntSet.IntSet
 keysSet m = IntSet.fromDistinctAscList (keys m)
 
 
--- | /O(n)/. Return all key\/value pairs in the map in ascending key order.
--- Subject to list Fusion.
+-- | /O(n)/. An alias for 'toAscList'. Returns all key\/value pairs in the
+-- map in ascending key order. Subject to list fusion.
 --
 -- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > assocs empty == []
 
 assocs :: IntMap a -> [(Key,a)]
-assocs m
-  = toList m
+assocs
+  = toAscList
 
 
 {--------------------------------------------------------------------
@@ -1502,24 +1502,24 @@ assocs m
 
 toList :: IntMap a -> [(Key,a)]
 toList
-  = foldrWithKey (\k x xs -> (k,x):xs) []
-
-#if __GLASGOW_HASKELL__ >= 503
--- List fusion for the above two functions
-{-# RULES "IntMap/toList" forall im . toList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
-{-# RULES "IntMap/assocs" forall im . assocs im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
-#endif
-
+  = toAscList
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs where the
--- keys are in ascending order.
+-- keys are in ascending order. Subject to list fusion.
 --
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
 toAscList :: IntMap a -> [(Key,a)]
-toAscList t
-  = -- NOTE: the following algorithm only works for big-endian trees
-    let (pos,neg) = span (\(k,_) -> k >=0) (foldrWithKey (\k x xs -> (k,x):xs) [] t) in neg ++ pos
+toAscList
+  = foldrWithKey (\k x xs -> (k,x):xs) []
+
+#if __GLASGOW_HASKELL__
+-- List fusion for the above three functions
+{-# RULES "IntMap/assocs" forall im . assocs im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+{-# RULES "IntMap/toList" forall im . toList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+{-# RULES "IntMap/toAscList" forall im . toAscList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+#endif
+
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs.
 --

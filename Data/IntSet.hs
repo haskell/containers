@@ -757,26 +757,26 @@ foldl' f z t =
 {--------------------------------------------------------------------
   List variations
 --------------------------------------------------------------------}
--- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList.)
--- Subject to list fusion
+-- | /O(n)/. An alias of 'toAscList'. The elements of a set in ascending order.
+-- Subject to list fusion.
 elems :: IntSet -> [Int]
-elems t
-  = toAscList t
+elems
+  = toAscList
 
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: IntSet -> [Int]
-toList t
-  = toAscList t
+toList
+  = toAscList
 
 -- | /O(n)/. Convert the set to an ascending list of elements. Subject to list
 -- fusion.
 toAscList :: IntSet -> [Int]
-toAscList t = foldr (:) [] t
+toAscList = foldr (:) []
 
-#if __GLASGOW_HASKELL__ >= 503
+#if __GLASGOW_HASKELL__
 -- List fusion for the above three functions
 {-# RULES "IntSet/toList" forall is . toList is = build (\c n -> foldr c n is) #-}
 {-# RULES "IntSet/toAscList" forall is . toAscList is = build (\c n -> foldr c n is) #-}

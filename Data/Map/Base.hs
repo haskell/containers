@@ -228,9 +228,7 @@ import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
 #if __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 503
 import GHC.Exts ( build )
-#endif
 import Text.Read
 import Data.Data
 #endif
@@ -1760,14 +1758,15 @@ keysSet m = Set.fromDistinctAscList (keys m)
 {-# INLINABLE keysSet #-}
 #endif
 
--- | /O(n)/. Return all key\/value pairs in the map in ascending key order.
+-- | /O(n)/. An alias for 'toAscList'. Return all key\/value pairs in the map
+-- in ascending key order. Subject to list fusion.
 --
 -- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > assocs empty == []
 
 assocs :: Map k a -> [(k,a)]
 assocs m
-  = toList m
+  = toAscList m
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE assocs #-}
 #endif
@@ -1820,35 +1819,37 @@ fromListWithKey f xs
 {-# INLINABLE fromListWithKey #-}
 #endif
 
--- | /O(n)/. Convert to a list of key\/value pairs. Subject to list fusion.
+-- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list fusion.
 --
 -- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 -- > toList empty == []
 
 toList :: Map k a -> [(k,a)]
-toList t      = toAscList t
+toList = toAscList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toList #-}
 #endif
 
--- | /O(n)/. Convert to an ascending list. Subject to list fusion.
+-- | /O(n)/. Convert the map to a list of key\/value pairs where the keys are
+-- in ascending order. Subject to list fusion.
 --
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
 toAscList :: Map k a -> [(k,a)]
-toAscList t   = foldrWithKey (\k x xs -> (k,x):xs) [] t
+toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toAscList #-}
 #endif
 
--- | /O(n)/. Convert to a descending list. Subject to list fusion.
+-- | /O(n)/. Convert the map to a list of key\/value pairs where the keys
+-- are in descending order. Subject to list fusion.
 toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE toDescList #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 503
+#if __GLASGOW_HASKELL__
 -- List fusion for the above four functions
 {-# RULES "Map/assocs" forall m . assocs m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
 {-# RULES "Map/toList" forall m . toList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
