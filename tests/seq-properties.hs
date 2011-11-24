@@ -1,111 +1,180 @@
--- QuickCheck properties for Data.Sequence
--- > ghc -DTESTING -fforce-recomp -O2 --make -fhpc -i.. seq-properties.hs
-
-module Main where
-
 import Data.Sequence    -- needs to be compiled with -DTESTING for use here
-
-import Test.QuickCheck hiding ((><))
-import Test.QuickCheck.Poly
-
-import Prelude hiding (
-    null, length, take, drop, splitAt,
-    foldl, foldl1, foldr, foldr1, scanl, scanl1, scanr, scanr1,
-    filter, reverse, replicate, zip, zipWith, zip3, zipWith3)
-import qualified Prelude
-import qualified Data.List
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
-import Data.Foldable (Foldable(..), toList)
+import Data.Foldable (Foldable(..), toList, all, sum)
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse), sequenceA)
+import Prelude hiding (
+  null, length, take, drop, splitAt,
+  foldl, foldl1, foldr, foldr1, scanl, scanl1, scanr, scanr1,
+  filter, reverse, replicate, zip, zipWith, zip3, zipWith3,
+  all, sum)
+import qualified Prelude
+import qualified Data.List
+import Test.QuickCheck hiding ((><))
+import Test.QuickCheck.Poly
+import Test.Framework
+import Test.Framework.Providers.QuickCheck2
+
 
 main :: IO ()
-main = do
-    q $ label "fmap" prop_fmap
-    q $ label "(<$)" prop_constmap
-    q $ label "foldr" prop_foldr
-    q $ label "foldr1" prop_foldr1
-    q $ label "foldl" prop_foldl
-    q $ label "foldl1" prop_foldl1
-    q $ label "(==)" prop_equals
-    q $ label "compare" prop_compare
-    q $ label "mappend" prop_mappend
-    q $ label "singleton" prop_singleton
-    q $ label "(<|)" prop_cons
-    q $ label "(|>)" prop_snoc
-    q $ label "(><)" prop_append
-    q $ label "fromList" prop_fromList
-    q $ label "replicate" prop_replicate
-    q $ label "replicateA" prop_replicateA
-    q $ label "replicateM" prop_replicateM
-    q $ label "iterateN" prop_iterateN
-    q $ label "unfoldr" prop_unfoldr
-    q $ label "unfoldl" prop_unfoldl
-    q $ label "null" prop_null
-    q $ label "length" prop_length
-    q $ label "viewl" prop_viewl
-    q $ label "viewr" prop_viewr
-    q $ label "scanl" prop_scanl
-    q $ label "scanl1" prop_scanl1
-    q $ label "scanr" prop_scanr
-    q $ label "scanr1" prop_scanr1
-    q $ label "tails" prop_tails
-    q $ label "inits" prop_inits
-    q $ label "takeWhileL" prop_takeWhileL
-    q $ label "takeWhileR" prop_takeWhileR
-    q $ label "dropWhileL" prop_dropWhileL
-    q $ label "dropWhileR" prop_dropWhileR
-    q $ label "spanl" prop_spanl
-    q $ label "spanr" prop_spanr
-    q $ label "breakl" prop_breakl
-    q $ label "breakr" prop_breakr
-    q $ label "partition" prop_partition
-    q $ label "filter" prop_filter
-    q $ label "sort" prop_sort
-    q $ label "sortBy" prop_sortBy
-    q $ label "unstableSort" prop_unstableSort
-    q $ label "unstableSortBy" prop_unstableSortBy
-    q $ label "index" prop_index
-    q $ label "adjust" prop_adjust
-    q $ label "update" prop_update
-    q $ label "take" prop_take
-    q $ label "drop" prop_drop
-    q $ label "splitAt" prop_splitAt
-    q $ label "elemIndexL" prop_elemIndexL
-    q $ label "elemIndicesL" prop_elemIndicesL
-    q $ label "elemIndexR" prop_elemIndexR
-    q $ label "elemIndicesR" prop_elemIndicesR
-    q $ label "findIndexL" prop_findIndexL
-    q $ label "findIndicesL" prop_findIndicesL
-    q $ label "findIndexR" prop_findIndexR
-    q $ label "findIndicesR" prop_findIndicesR
-    q $ label "foldlWithIndex" prop_foldlWithIndex
-    q $ label "foldrWithIndex" prop_foldrWithIndex
-    q $ label "mapWithIndex" prop_mapWithIndex
-    q $ label "reverse" prop_reverse
-    q $ label "zip" prop_zip
-    q $ label "zipWith" prop_zipWith
-    q $ label "zip3" prop_zip3
-    q $ label "zipWith3" prop_zipWith3
-    q $ label "zip4" prop_zip4
-    q $ label "zipWith4" prop_zipWith4
-  where
-    q :: Testable prop => prop -> IO ()
-    q = quickCheckWith args
+main = defaultMainWithOpts
+       [ testProperty "fmap" prop_fmap
+       , testProperty "(<$)" prop_constmap
+       , testProperty "foldr" prop_foldr
+       , testProperty "foldr1" prop_foldr1
+       , testProperty "foldl" prop_foldl
+       , testProperty "foldl1" prop_foldl1
+       , testProperty "(==)" prop_equals
+       , testProperty "compare" prop_compare
+       , testProperty "mappend" prop_mappend
+       , testProperty "singleton" prop_singleton
+       , testProperty "(<|)" prop_cons
+       , testProperty "(|>)" prop_snoc
+       , testProperty "(><)" prop_append
+       , testProperty "fromList" prop_fromList
+       , testProperty "replicate" prop_replicate
+       , testProperty "replicateA" prop_replicateA
+       , testProperty "replicateM" prop_replicateM
+       , testProperty "iterateN" prop_iterateN
+       , testProperty "unfoldr" prop_unfoldr
+       , testProperty "unfoldl" prop_unfoldl
+       , testProperty "null" prop_null
+       , testProperty "length" prop_length
+       , testProperty "viewl" prop_viewl
+       , testProperty "viewr" prop_viewr
+       , testProperty "scanl" prop_scanl
+       , testProperty "scanl1" prop_scanl1
+       , testProperty "scanr" prop_scanr
+       , testProperty "scanr1" prop_scanr1
+       , testProperty "tails" prop_tails
+       , testProperty "inits" prop_inits
+       , testProperty "takeWhileL" prop_takeWhileL
+       , testProperty "takeWhileR" prop_takeWhileR
+       , testProperty "dropWhileL" prop_dropWhileL
+       , testProperty "dropWhileR" prop_dropWhileR
+       , testProperty "spanl" prop_spanl
+       , testProperty "spanr" prop_spanr
+       , testProperty "breakl" prop_breakl
+       , testProperty "breakr" prop_breakr
+       , testProperty "partition" prop_partition
+       , testProperty "filter" prop_filter
+       , testProperty "sort" prop_sort
+       , testProperty "sortBy" prop_sortBy
+       , testProperty "unstableSort" prop_unstableSort
+       , testProperty "unstableSortBy" prop_unstableSortBy
+       , testProperty "index" prop_index
+       , testProperty "adjust" prop_adjust
+       , testProperty "update" prop_update
+       , testProperty "take" prop_take
+       , testProperty "drop" prop_drop
+       , testProperty "splitAt" prop_splitAt
+       , testProperty "elemIndexL" prop_elemIndexL
+       , testProperty "elemIndicesL" prop_elemIndicesL
+       , testProperty "elemIndexR" prop_elemIndexR
+       , testProperty "elemIndicesR" prop_elemIndicesR
+       , testProperty "findIndexL" prop_findIndexL
+       , testProperty "findIndicesL" prop_findIndicesL
+       , testProperty "findIndexR" prop_findIndexR
+       , testProperty "findIndicesR" prop_findIndicesR
+       , testProperty "foldlWithIndex" prop_foldlWithIndex
+       , testProperty "foldrWithIndex" prop_foldrWithIndex
+       , testProperty "mapWithIndex" prop_mapWithIndex
+       , testProperty "reverse" prop_reverse
+       , testProperty "zip" prop_zip
+       , testProperty "zipWith" prop_zipWith
+       , testProperty "zip3" prop_zip3
+       , testProperty "zipWith3" prop_zipWith3
+       , testProperty "zip4" prop_zip4
+       , testProperty "zipWith4" prop_zipWith4
+       ] opts
 
-{--------------------------------------------------------------------
-  QuickCheck
---------------------------------------------------------------------}
- 
-args :: Args
-args = stdArgs
-    { maxSuccess = 500
-    , maxDiscard = 500
-    }
+  where
+    opts = mempty { ropt_plain_output = Just True
+                  , ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
+                                                      , topt_maximum_unsuitable_generated_tests = Just 500
+                                                      }
+                  }
+------------------------------------------------------------------------
+-- Arbitrary
+------------------------------------------------------------------------
+
+instance Arbitrary a => Arbitrary (Seq a) where
+    arbitrary = Seq <$> arbitrary
+    shrink (Seq x) = map Seq (shrink x)
+
+instance Arbitrary a => Arbitrary (Elem a) where
+    arbitrary = Elem <$> arbitrary
+
+instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
+    arbitrary = sized arb
+      where
+        arb :: (Arbitrary a, Sized a) => Int -> Gen (FingerTree a)
+        arb 0 = return Empty
+        arb 1 = Single <$> arbitrary
+        arb n = deep <$> arbitrary <*> arb (n `div` 2) <*> arbitrary
+
+    shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
+    shrink (Deep _ pr m sf) =
+        [deep pr' m sf | pr' <- shrink pr] ++
+        [deep pr m' sf | m' <- shrink m] ++
+        [deep pr m sf' | sf' <- shrink sf]
+    shrink (Single x) = map Single (shrink x)
+    shrink Empty = []
+
+instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
+    arbitrary = oneof [
+        node2 <$> arbitrary <*> arbitrary,
+        node3 <$> arbitrary <*> arbitrary <*> arbitrary]
+
+    shrink (Node2 _ a b) =
+        [node2 a' b | a' <- shrink a] ++
+        [node2 a b' | b' <- shrink b]
+    shrink (Node3 _ a b c) =
+        [node2 a b, node2 a c, node2 b c] ++
+        [node3 a' b c | a' <- shrink a] ++
+        [node3 a b' c | b' <- shrink b] ++
+        [node3 a b c' | c' <- shrink c]
+
+instance Arbitrary a => Arbitrary (Digit a) where
+    arbitrary = oneof [
+        One <$> arbitrary,
+        Two <$> arbitrary <*> arbitrary,
+        Three <$> arbitrary <*> arbitrary <*> arbitrary,
+        Four <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary]
+
+    shrink (One a) = map One (shrink a)
+    shrink (Two a b) = [One a, One b]
+    shrink (Three a b c) = [Two a b, Two a c, Two b c]
+    shrink (Four a b c d) = [Three a b c, Three a b d, Three a c d, Three b c d]
+
+------------------------------------------------------------------------
+-- Valid trees
+------------------------------------------------------------------------
+
+class Valid a where
+    valid :: a -> Bool
+
+instance Valid (Elem a) where
+    valid _ = True
+
+instance Valid (Seq a) where
+    valid (Seq xs) = valid xs
+
+instance (Sized a, Valid a) => Valid (FingerTree a) where
+    valid Empty = True
+    valid (Single x) = valid x
+    valid (Deep s pr m sf) =
+        s == size pr + size m + size sf && valid pr && valid m && valid sf
+
+instance (Sized a, Valid a) => Valid (Node a) where
+    valid node = size node == sum (fmap size node) && all valid node
+
+instance Valid a => Valid (Digit a) where
+    valid = all valid
 
 {--------------------------------------------------------------------
   The general plan is to compare each function with a list equivalent.

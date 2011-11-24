@@ -35,7 +35,11 @@
 -----------------------------------------------------------------------------
 
 module Data.Sequence (
+#if !defined(TESTING)
     Seq,
+#else
+    Seq(..), Elem(..), FingerTree(..), Node(..), Digit(..),
+#endif
     -- * Construction
     empty,          -- :: Seq a
     singleton,      -- :: a -> Seq a
@@ -121,7 +125,10 @@ module Data.Sequence (
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
 #if TESTING
-    valid,
+    Sized(..),
+    deep,
+    node2,
+    node3,
 #endif
     ) where
 
@@ -130,7 +137,7 @@ import Prelude hiding (
     null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
-import qualified Data.List (foldl', sortBy)
+import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), WrappedMonad(..), liftA, liftA2, liftA3)
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
@@ -144,11 +151,6 @@ import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
-#endif
-
-#if TESTING
-import qualified Data.List (zipWith)
-import Test.QuickCheck hiding ((><))
 #endif
 
 infixr 5 `consTree`
@@ -452,6 +454,9 @@ nodeToDigit (Node3 _ a b c) = Three a b c
 -- Elements
 
 newtype Elem a  =  Elem { getElem :: a }
+#if TESTING
+    deriving Show
+#endif
 
 instance Sized (Elem a) where
     size _ = 1
@@ -465,11 +470,6 @@ instance Foldable Elem where
 
 instance Traversable Elem where
     traverse f (Elem x) = Elem <$> f x
-
-#ifdef TESTING
-instance (Show a) => Show (Elem a) where
-    showsPrec p (Elem x) = showsPrec p x
-#endif
 
 -------------------------------------------------------
 -- Applicative construction
@@ -1771,85 +1771,3 @@ mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
 mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
   | cmp x1 x2 == GT     = PQueue x2 (q1 :& ts2)
   | otherwise           = PQueue x1 (q2 :& ts1)
-
-#if TESTING
-
-------------------------------------------------------------------------
--- QuickCheck
-------------------------------------------------------------------------
-
-instance Arbitrary a => Arbitrary (Seq a) where
-    arbitrary = Seq <$> arbitrary
-    shrink (Seq x) = map Seq (shrink x)
-
-instance Arbitrary a => Arbitrary (Elem a) where
-    arbitrary = Elem <$> arbitrary
-
-instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
-    arbitrary = sized arb
-      where
-        arb :: (Arbitrary a, Sized a) => Int -> Gen (FingerTree a)
-        arb 0 = return Empty
-        arb 1 = Single <$> arbitrary
-        arb n = deep <$> arbitrary <*> arb (n `div` 2) <*> arbitrary
-
-    shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
-    shrink (Deep _ pr m sf) =
-        [deep pr' m sf | pr' <- shrink pr] ++
-        [deep pr m' sf | m' <- shrink m] ++
-        [deep pr m sf' | sf' <- shrink sf]
-    shrink (Single x) = map Single (shrink x)
-    shrink Empty = []
-
-instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
-    arbitrary = oneof [
-        node2 <$> arbitrary <*> arbitrary,
-        node3 <$> arbitrary <*> arbitrary <*> arbitrary]
-
-    shrink (Node2 _ a b) =
-        [node2 a' b | a' <- shrink a] ++
-        [node2 a b' | b' <- shrink b]
-    shrink (Node3 _ a b c) =
-        [node2 a b, node2 a c, node2 b c] ++
-        [node3 a' b c | a' <- shrink a] ++
-        [node3 a b' c | b' <- shrink b] ++
-        [node3 a b c' | c' <- shrink c]
-
-instance Arbitrary a => Arbitrary (Digit a) where
-    arbitrary = oneof [
-        One <$> arbitrary,
-        Two <$> arbitrary <*> arbitrary,
-        Three <$> arbitrary <*> arbitrary <*> arbitrary,
-        Four <$> arbitrary <*> arbitrary <*> arbitrary <*> arbitrary]
-
-    shrink (One a) = map One (shrink a)
-    shrink (Two a b) = [One a, One b]
-    shrink (Three a b c) = [Two a b, Two a c, Two b c]
-    shrink (Four a b c d) = [Three a b c, Three a b d, Three a c d, Three b c d]
-
-------------------------------------------------------------------------
--- Valid trees
-------------------------------------------------------------------------
-
-class Valid a where
-    valid :: a -> Bool
-
-instance Valid (Elem a) where
-    valid _ = True
-
-instance Valid (Seq a) where
-    valid (Seq xs) = valid xs
-
-instance (Sized a, Valid a) => Valid (FingerTree a) where
-    valid Empty = True
-    valid (Single x) = valid x
-    valid (Deep s pr m sf) =
-        s == size pr + size m + size sf && valid pr && valid m && valid sf
-
-instance (Sized a, Valid a) => Valid (Node a) where
-    valid node = size node == sum (fmap size node) && all valid node
-
-instance Valid a => Valid (Digit a) where
-    valid = all valid
-
-#endif

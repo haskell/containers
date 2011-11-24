@@ -60,7 +60,6 @@ Library
             Rank2Types
     if flag(testing)
         cpp-options: -DTESTING
-        build-depends: QuickCheck
 
 Test-suite map-lazy-properties
     hs-source-dirs: tests
@@ -135,6 +134,18 @@ Test-suite intmap-strict-properties
 Test-suite intset-properties
     hs-source-dirs: tests
     main-is: intset-properties.hs
+    type: exitcode-stdio-1.0
+
+    build-depends:
+        base,
+        containers,
+        QuickCheck,
+        test-framework,
+        test-framework-quickcheck2
+
+Test-suite seq-properties
+    hs-source-dirs: tests
+    main-is: seq-properties.hs
     type: exitcode-stdio-1.0
 
     build-depends:
