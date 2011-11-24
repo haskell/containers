@@ -51,13 +51,6 @@ Library
 
     include-dirs: include
 
-    extensions: CPP
-    if impl(ghc)
-        extensions:
-            DeriveDataTypeable
-            StandaloneDeriving
-            MagicHash
-            Rank2Types
     if flag(testing)
         cpp-options: -DTESTING
 
