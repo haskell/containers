@@ -79,11 +79,8 @@ module Data.Map.Base (
             -- ** Insertion
             , insert
             , insertWith
-            , insertWith'
             , insertWithKey
-            , insertWithKey'
             , insertLookupWithKey
-            , insertLookupWithKey'
 
             -- ** Delete\/Update
             , delete
@@ -134,9 +131,6 @@ module Data.Map.Base (
             , foldl'
             , foldrWithKey'
             , foldlWithKey'
-            -- ** Legacy folds
-            , fold
-            , foldWithKey
 
             -- * Conversion
             , elems
@@ -506,17 +500,6 @@ insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
 {-# INLINE insertWith #-}
 
--- | Same as 'insertWith', but the combining function is applied strictly.
--- This is often the most desirable behavior.
---
--- For example, to update a counter:
---
--- > insertWith' (+) k 1 m
---
-insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith' f = insertWithKey' (\_ x' y' -> f x' y')
-{-# INLINE insertWith' #-}
-
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
@@ -543,23 +526,6 @@ insertWithKey = go
 {-# INLINEABLE insertWithKey #-}
 #else
 {-# INLINE insertWithKey #-}
-#endif
-
--- | Same as 'insertWithKey', but the combining function is applied strictly.
-insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKey' = go
-  where
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = x `seq` singleton kx x
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> let x' = f kx x y in x' `seq` (Bin sy kx x' l r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insertWithKey' #-}
-#else
-{-# INLINE insertWithKey' #-}
 #endif
 
 -- | /O(log n)/. Combines insert operation with old value retrieval.
@@ -595,26 +561,6 @@ insertLookupWithKey = go
 {-# INLINEABLE insertLookupWithKey #-}
 #else
 {-# INLINE insertLookupWithKey #-}
-#endif
-
--- | /O(log n)/. A strict version of 'insertLookupWithKey'.
-insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
-                     -> (Maybe a, Map k a)
-insertLookupWithKey' = go
-  where
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = x `seq` (Nothing, singleton kx x)
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> let (found, l') = go f kx x l
-                  in (found, balanceL ky y l' r)
-            GT -> let (found, r') = go f kx x r
-                  in (found, balanceR ky y l r')
-            EQ -> let x' = f kx x y in x' `seq` (Just y, Bin sy kx x' l r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insertLookupWithKey' #-}
-#else
-{-# INLINE insertLookupWithKey' #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1663,15 +1609,6 @@ mapKeysMonotonic f (Bin sz k x l r) =
 --------------------------------------------------------------------}
 
 -- | /O(n)/. Fold the values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
---
--- /Please note that fold will be deprecated in the future and removed./
-fold :: (a -> b -> b) -> b -> Map k a -> b
-fold = foldr
-{-# INLINE fold #-}
-
--- | /O(n)/. Fold the values in the map using the given right-associative
 -- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
 --
 -- For example,
@@ -1724,15 +1661,6 @@ foldl' f = go
     go z Tip             = z
     go z (Bin _ _ x l r) = go (f (go z l) x) r
 {-# INLINE foldl' #-}
-
--- | /O(n)/. Fold the keys and values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldrWithKey' and is present
--- for compatibility only.
---
--- /Please note that foldWithKey will be deprecated in the future and removed./
-foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldWithKey = foldrWithKey
-{-# INLINE foldWithKey #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given right-associative
 -- binary operator, such that
