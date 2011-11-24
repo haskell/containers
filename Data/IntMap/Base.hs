@@ -873,39 +873,26 @@ intersectionWithKey _ _ Nil = Nil
 -- > updateMinWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 
 updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKey f t
-    = case t of
-        Bin p m l r | m < 0 -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
-        Bin p m l r         -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-        Tip k y -> Tip k (f k y)
-        Nil -> error "maxView: empty map has no maximal element"
-
-updateMinWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKeyUnsigned f t
-    = case t of
-        Bin p m l r -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-        Tip k y -> Tip k (f k y)
-        Nil -> error "updateMinWithKeyUnsigned Nil"
+updateMinWithKey f t =
+  case t of Bin p m l r | m < 0 -> Bin p m l (go f r)
+            _ -> go f t
+  where
+    go f' (Bin p m l r) = Bin p m (go f' l) r
+    go f' (Tip k y) = Tip k (f' k y)
+    go _ Nil = error "updateMinWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
 -- > updateMaxWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKey f t
-    = case t of
-        Bin p m l r | m < 0 -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' r
-        Bin p m l r         -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
-        Tip k y -> Tip k (f k y)
-        Nil -> error "maxView: empty map has no maximal element"
-
-updateMaxWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKeyUnsigned f t
-    = case t of
-        Bin p m l r -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
-        Tip k y -> Tip k (f k y)
-        Nil -> error "updateMaxWithKeyUnsigned Nil"
-
+updateMaxWithKey f t =
+  case t of Bin p m l r | m < 0 -> Bin p m (go f l) r
+            _ -> go f t
+  where
+    go f' (Bin p m l r) = Bin p m l (go f' r)
+    go f' (Tip k y) = Tip k (f' k y)
+    go _ Nil = error "updateMaxWithKey Nil"
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -914,19 +901,14 @@ updateMaxWithKeyUnsigned f t
 -- > maxViewWithKey empty == Nothing
 
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
-maxViewWithKey t
-    = case t of
-        Bin p m l r | m < 0 -> let (result, t') = maxViewUnsigned l in Just (result, bin p m t' r)
-        Bin p m l r         -> let (result, t') = maxViewUnsigned r in Just (result, bin p m l t')
-        Tip k y -> Just ((k,y), Nil)
-        Nil -> Nothing
-
-maxViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
-maxViewUnsigned t
-    = case t of
-        Bin p m l r -> let (result,t') = maxViewUnsigned r in (result,bin p m l t')
-        Tip k y -> ((k,y), Nil)
-        Nil -> error "maxViewUnsigned Nil"
+maxViewWithKey t =
+  case t of Nil -> Nothing
+            Bin p m l r | m < 0 -> case go l of (result, l') -> Just (result, bin p m l' r)
+            _ -> Just (go t)
+  where
+    go (Bin p m l r) = case go r of (result, r') -> (result, bin p m l r')
+    go (Tip k y) = ((k, y), Nil)
+    go Nil = error "maxViewWithKey Nil"
 
 -- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -935,20 +917,14 @@ maxViewUnsigned t
 -- > minViewWithKey empty == Nothing
 
 minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
-minViewWithKey t
-    = case t of
-        Bin p m l r | m < 0 -> let (result, t') = minViewUnsigned r in Just (result, bin p m l t')
-        Bin p m l r         -> let (result, t') = minViewUnsigned l in Just (result, bin p m t' r)
-        Tip k y -> Just ((k,y),Nil)
-        Nil -> Nothing
-
-minViewUnsigned :: IntMap a -> ((Key, a), IntMap a)
-minViewUnsigned t
-    = case t of
-        Bin p m l r -> let (result,t') = minViewUnsigned l in (result,bin p m t' r)
-        Tip k y -> ((k,y),Nil)
-        Nil -> error "minViewUnsigned Nil"
-
+minViewWithKey t =
+  case t of Nil -> Nothing
+            Bin p m l r | m < 0 -> case go r of (result, r') -> Just (result, bin p m l r')
+            _ -> Just (go t)
+  where
+    go (Bin p m l r) = case go l of (result, l') -> (result, bin p m l' r)
+    go (Tip k y) = ((k, y), Nil)
+    go Nil = error "minViewWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -1297,32 +1273,20 @@ mapEitherWithKey _ Nil = (Nil, Nil)
 -- > split 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", empty)
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
-split :: Key -> IntMap a -> (IntMap a,IntMap a)
-split k t
-  = case t of
-      Bin _ m l r
-          | m < 0 -> (if k >= 0 -- handle negative numbers.
-                      then let (lt,gt) = split' k l in (union r lt, gt)
-                      else let (lt,gt) = split' k r in (lt, union gt l))
-          | otherwise   -> split' k t
-      Tip ky _
-        | k>ky      -> (t,Nil)
-        | k<ky      -> (Nil,t)
-        | otherwise -> (Nil,Nil)
-      Nil -> (Nil,Nil)
-
-split' :: Key -> IntMap a -> (IntMap a,IntMap a)
-split' k t
-  = case t of
-      Bin p m l r
-        | nomatch k p m -> if k>p then (t,Nil) else (Nil,t)
-        | zero k m  -> let (lt,gt) = split k l in (lt,union gt r)
-        | otherwise -> let (lt,gt) = split k r in (union l lt,gt)
-      Tip ky _
-        | k>ky      -> (t,Nil)
-        | k<ky      -> (Nil,t)
-        | otherwise -> (Nil,Nil)
-      Nil -> (Nil,Nil)
+split :: Key -> IntMap a -> (IntMap a, IntMap a)
+split k t =
+  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
+                                      then case go k l of (lt, gt) -> (union r lt, gt)
+                                      else case go k r of (lt, gt) -> (lt, union gt l)
+            _ -> go k t
+  where
+    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nil) else (Nil, t')
+                           | zero k' m = case go k' l of (lt, gt) -> (lt, union gt r)
+                           | otherwise = case go k' r of (lt, gt) -> (union l lt, gt)
+    go k' t'@(Tip ky _) | k' > ky   = (t', Nil)
+                        | k' < ky   = (Nil, t')
+                        | otherwise = (Nil, Nil)
+    go _ Nil = (Nil, Nil)
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
@@ -1333,32 +1297,20 @@ split' k t
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
-splitLookup :: Key -> IntMap a -> (IntMap a,Maybe a,IntMap a)
-splitLookup k t
-  = case t of
-      Bin _ m l r
-          | m < 0 -> (if k >= 0 -- handle negative numbers.
-                      then let (lt,found,gt) = splitLookup' k l in (union r lt,found, gt)
-                      else let (lt,found,gt) = splitLookup' k r in (lt,found, union gt l))
-          | otherwise   -> splitLookup' k t
-      Tip ky y
-        | k>ky      -> (t,Nothing,Nil)
-        | k<ky      -> (Nil,Nothing,t)
-        | otherwise -> (Nil,Just y,Nil)
-      Nil -> (Nil,Nothing,Nil)
-
-splitLookup' :: Key -> IntMap a -> (IntMap a,Maybe a,IntMap a)
-splitLookup' k t
-  = case t of
-      Bin p m l r
-        | nomatch k p m -> if k>p then (t,Nothing,Nil) else (Nil,Nothing,t)
-        | zero k m  -> let (lt,found,gt) = splitLookup k l in (lt,found,union gt r)
-        | otherwise -> let (lt,found,gt) = splitLookup k r in (union l lt,found,gt)
-      Tip ky y
-        | k>ky      -> (t,Nothing,Nil)
-        | k<ky      -> (Nil,Nothing,t)
-        | otherwise -> (Nil,Just y,Nil)
-      Nil -> (Nil,Nothing,Nil)
+splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
+splitLookup k t =
+  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
+                                      then case go k l of (lt, fnd, gt) -> (union r lt, fnd, gt)
+                                      else case go k r of (lt, fnd, gt) -> (lt, fnd, union gt l)
+            _ -> go k t
+  where
+    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
+                           | zero k' m = case go k' l of (lt, fnd, gt) -> (lt, fnd, union gt r)
+                           | otherwise = case go k' r of (lt, fnd, gt) -> (union l lt, fnd, gt)
+    go k' t'@(Tip ky y) | k' > ky   = (t', Nothing, Nil)
+                        | k' < ky   = (Nil, Nothing, t')
+                        | otherwise = (Nil, Just y, Nil)
+    go _ Nil = (Nil, Nothing, Nil)
 
 {--------------------------------------------------------------------
   Fold

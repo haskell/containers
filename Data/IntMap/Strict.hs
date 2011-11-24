@@ -593,39 +593,26 @@ intersectionWithKey _ _ Nil = Nil
 -- > updateMinWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 
 updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKey f t
-    = case t of
-        Bin p m l r | m < 0 -> let t' = updateMinWithKeyUnsigned f r in Bin p m l t'
-        Bin p m l r         -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-        Tip k y -> Tip k $! f k y
-        Nil -> error "maxView: empty map has no maximal element"
-
-updateMinWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMinWithKeyUnsigned f t
-    = case t of
-        Bin p m l r -> let t' = updateMinWithKeyUnsigned f l in Bin p m t' r
-        Tip k y -> Tip k $! f k y
-        Nil -> error "updateMinWithKeyUnsigned Nil"
+updateMinWithKey f t =
+  case t of Bin p m l r | m < 0 -> Bin p m l (go f r)
+            _ -> go f t
+  where
+    go f' (Bin p m l r) = Bin p m (go f' l) r
+    go f' (Tip k y) = Tip k $! f' k y
+    go _ Nil = error "updateMinWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
 -- > updateMaxWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 
 updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKey f t
-    = case t of
-        Bin p m l r | m < 0 -> let t' = updateMaxWithKeyUnsigned f l in Bin p m t' r
-        Bin p m l r         -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
-        Tip k y -> Tip k $! f k y
-        Nil -> error "maxView: empty map has no maximal element"
-
-updateMaxWithKeyUnsigned :: (Key -> a -> a) -> IntMap a -> IntMap a
-updateMaxWithKeyUnsigned f t
-    = case t of
-        Bin p m l r -> let t' = updateMaxWithKeyUnsigned f r in Bin p m l t'
-        Tip k y -> Tip k $! f k y
-        Nil -> error "updateMaxWithKeyUnsigned Nil"
-
+updateMaxWithKey f t =
+  case t of Bin p m l r | m < 0 -> Bin p m (go f l) r
+            _ -> go f t
+  where
+    go f' (Bin p m l r) = Bin p m l (go f' r)
+    go f' (Tip k y) = Tip k $! f' k y
+    go _ Nil = error "updateMaxWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
