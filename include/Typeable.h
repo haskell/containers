@@ -3,11 +3,11 @@
 //
 // INSTANCE_TYPEABLEn(tc,tcname,"tc") defines
 //
-//	instance Typeable/n/ tc
-//	instance Typeable a => Typeable/n-1/ (tc a)
-//	instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
-//	...
-//	instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
+//      instance Typeable/n/ tc
+//      instance Typeable a => Typeable/n-1/ (tc a)
+//      instance (Typeable a, Typeable b) => Typeable/n-2/ (tc a b)
+//      ...
+//      instance (Typeable a1, ..., Typeable an) => Typeable (tc a1 ... an)
 // --------------------------------------------------------------------------
 -}
 

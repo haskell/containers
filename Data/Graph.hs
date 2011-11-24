@@ -6,7 +6,7 @@
 -- Module      :  Data.Graph
 -- Copyright   :  (c) The University of Glasgow 2002
 -- License     :  BSD-style (see the file libraries/base/LICENSE)
--- 
+--
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
 -- Portability :  portable
@@ -20,36 +20,36 @@
 
 module Data.Graph(
 
-	-- * External interface
+        -- * External interface
 
-	-- At present the only one with a "nice" external interface
-	stronglyConnComp, stronglyConnCompR, SCC(..), flattenSCC, flattenSCCs,
+        -- At present the only one with a "nice" external interface
+        stronglyConnComp, stronglyConnCompR, SCC(..), flattenSCC, flattenSCCs,
 
-	-- * Graphs
+        -- * Graphs
 
-	Graph, Table, Bounds, Edge, Vertex,
+        Graph, Table, Bounds, Edge, Vertex,
 
-	-- ** Building graphs
+        -- ** Building graphs
 
-	graphFromEdges, graphFromEdges', buildG, transposeG,
-	-- reverseE,
+        graphFromEdges, graphFromEdges', buildG, transposeG,
+        -- reverseE,
 
-	-- ** Graph properties
+        -- ** Graph properties
 
-	vertices, edges,
-	outdegree, indegree,
+        vertices, edges,
+        outdegree, indegree,
 
-	-- * Algorithms
+        -- * Algorithms
 
-	dfs, dff,
-	topSort,
-	components,
-	scc,
-	bcc,
-	-- tree, back, cross, forward,
-	reachable, path,
+        dfs, dff,
+        topSort,
+        components,
+        scc,
+        bcc,
+        -- tree, back, cross, forward,
+        reachable, path,
 
-	module Data.Tree
+        module Data.Tree
 
     ) where
 
@@ -73,16 +73,16 @@ import Data.Array
 import Data.List
 
 -------------------------------------------------------------------------
---									-
---	External interface
---									-
+--                                                                      -
+--      External interface
+--                                                                      -
 -------------------------------------------------------------------------
 
 -- | Strongly connected component.
-data SCC vertex = AcyclicSCC vertex	-- ^ A single vertex that is not
-					-- in any cycle.
-	        | CyclicSCC  [vertex]	-- ^ A maximal set of mutually
-					-- reachable vertices.
+data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
+                                        -- in any cycle.
+                | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
+                                        -- reachable vertices.
 
 -- | The vertices of a list of strongly connected components.
 flattenSCCs :: [SCC a] -> [a]
@@ -96,13 +96,13 @@ flattenSCC (CyclicSCC vs) = vs
 -- | The strongly connected components of a directed graph, topologically
 -- sorted.
 stronglyConnComp
-	:: Ord key
-	=> [(node, key, [key])]
-		-- ^ The graph: a list of nodes uniquely identified by keys,
-		-- with a list of keys of nodes this node has edges to.
-		-- The out-list may contain keys that don't correspond to
-		-- nodes of the graph; such edges are ignored.
-	-> [SCC node]
+        :: Ord key
+        => [(node, key, [key])]
+                -- ^ The graph: a list of nodes uniquely identified by keys,
+                -- with a list of keys of nodes this node has edges to.
+                -- The out-list may contain keys that don't correspond to
+                -- nodes of the graph; such edges are ignored.
+        -> [SCC node]
 
 stronglyConnComp edges0
   = map get_node (stronglyConnCompR edges0)
@@ -117,31 +117,31 @@ stronglyConnComp edges0
 -- (some of) the result of 'SCC', so you don't want to lose the
 -- dependency information.
 stronglyConnCompR
-	:: Ord key
-	=> [(node, key, [key])]
-		-- ^ The graph: a list of nodes uniquely identified by keys,
-		-- with a list of keys of nodes this node has edges to.
-		-- The out-list may contain keys that don't correspond to
-		-- nodes of the graph; such edges are ignored.
-	-> [SCC (node, key, [key])]	-- ^ Topologically sorted
+        :: Ord key
+        => [(node, key, [key])]
+                -- ^ The graph: a list of nodes uniquely identified by keys,
+                -- with a list of keys of nodes this node has edges to.
+                -- The out-list may contain keys that don't correspond to
+                -- nodes of the graph; such edges are ignored.
+        -> [SCC (node, key, [key])]     -- ^ Topologically sorted
 
 stronglyConnCompR [] = []  -- added to avoid creating empty array in graphFromEdges -- SOF
 stronglyConnCompR edges0
   = map decode forest
   where
     (graph, vertex_fn,_) = graphFromEdges edges0
-    forest	       = scc graph
+    forest             = scc graph
     decode (Node v []) | mentions_itself v = CyclicSCC [vertex_fn v]
-		       | otherwise	   = AcyclicSCC (vertex_fn v)
+                       | otherwise         = AcyclicSCC (vertex_fn v)
     decode other = CyclicSCC (dec other [])
-		 where
-		   dec (Node v ts) vs = vertex_fn v : foldr dec vs ts
+                 where
+                   dec (Node v ts) vs = vertex_fn v : foldr dec vs ts
     mentions_itself v = v `elem` (graph ! v)
 
 -------------------------------------------------------------------------
---									-
---	Graphs
---									-
+--                                                                      -
+--      Graphs
+--                                                                      -
 -------------------------------------------------------------------------
 
 -- | Abstract representation of vertices.
@@ -191,9 +191,9 @@ indegree  = outdegree . transposeG
 -- does not include the function which maps keys to vertices.  This
 -- version of 'graphFromEdges' is for backwards compatibility.
 graphFromEdges'
-	:: Ord key
-	=> [(node, key, [key])]
-	-> (Graph, Vertex -> (node, key, [key]))
+        :: Ord key
+        => [(node, key, [key])]
+        -> (Graph, Vertex -> (node, key, [key]))
 graphFromEdges' x = (a,b) where
     (a,b,_) = graphFromEdges x
 
@@ -202,40 +202,40 @@ graphFromEdges' x = (a,b) where
 -- The out-list may contain keys that don't correspond to
 -- nodes of the graph; they are ignored.
 graphFromEdges
-	:: Ord key
-	=> [(node, key, [key])]
-	-> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
+        :: Ord key
+        => [(node, key, [key])]
+        -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
 graphFromEdges edges0
   = (graph, \v -> vertex_map ! v, key_vertex)
   where
-    max_v      	    = length edges0 - 1
+    max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
     sorted_edges    = sortBy lt edges0
-    edges1	    = zipWith (,) [0..] sorted_edges
+    edges1          = zipWith (,) [0..] sorted_edges
 
-    graph	    = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
-    key_map	    = array bounds0 [(,) v k			   | (,) v (_,    k, _ ) <- edges1]
-    vertex_map	    = array bounds0 edges1
+    graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
+    key_map         = array bounds0 [(,) v k                       | (,) v (_,    k, _ ) <- edges1]
+    vertex_map      = array bounds0 edges1
 
     (_,k1,_) `lt` (_,k2,_) = k1 `compare` k2
 
     -- key_vertex :: key -> Maybe Vertex
-    -- 	returns Nothing for non-interesting vertices
+    --  returns Nothing for non-interesting vertices
     key_vertex k   = findVertex 0 max_v
-		   where
-		     findVertex a b | a > b
-			      = Nothing
-		     findVertex a b = case compare k (key_map ! mid) of
-				   LT -> findVertex a (mid-1)
-				   EQ -> Just mid
-				   GT -> findVertex (mid+1) b
-			      where
-			 	mid = (a + b) `div` 2
+                   where
+                     findVertex a b | a > b
+                              = Nothing
+                     findVertex a b = case compare k (key_map ! mid) of
+                                   LT -> findVertex a (mid-1)
+                                   EQ -> Just mid
+                                   GT -> findVertex (mid+1) b
+                              where
+                                mid = (a + b) `div` 2
 
 -------------------------------------------------------------------------
---									-
---	Depth first search
---									-
+--                                                                      -
+--      Depth first search
+--                                                                      -
 -------------------------------------------------------------------------
 
 -- | A spanning forest of the graph, obtained from a depth-first search of
@@ -310,9 +310,9 @@ include v     = SetM $ \ m -> ((), Set.insert v m)
 #endif /* !USE_ST_MONAD */
 
 -------------------------------------------------------------------------
---									-
---	Algorithms
---									-
+--                                                                      -
+--      Algorithms
+--                                                                      -
 -------------------------------------------------------------------------
 
 ------------------------------------------------------------

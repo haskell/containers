@@ -133,7 +133,7 @@ module Data.IntSet (
 
 
 import Prelude hiding (filter,foldr,foldl,null,map)
-import Data.Bits 
+import Data.Bits
 
 import qualified Data.List as List
 import Data.Monoid (Monoid(..))
@@ -198,7 +198,7 @@ shiftLL x i   = shiftL x i
 m1 \\ m2 = difference m1 m2
 
 {--------------------------------------------------------------------
-  Types  
+  Types
 --------------------------------------------------------------------}
 
 -- The order of constructors of IntSet matters when considering performance.
@@ -240,7 +240,7 @@ instance Monoid IntSet where
 #if __GLASGOW_HASKELL__
 
 {--------------------------------------------------------------------
-  A Data instance  
+  A Data instance
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
@@ -361,7 +361,7 @@ unions xs
   = foldlStrict union empty xs
 
 
--- | /O(n+m)/. The union of two sets. 
+-- | /O(n+m)/. The union of two sets.
 union :: IntSet -> IntSet -> IntSet
 union t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2  = union1
@@ -386,7 +386,7 @@ union t Nil     = t
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(n+m)/. Difference between two sets. 
+-- | /O(n+m)/. Difference between two sets.
 difference :: IntSet -> IntSet -> IntSet
 difference t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2  = difference1
@@ -417,7 +417,7 @@ difference t Nil     = t
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. The intersection of two sets. 
+-- | /O(n+m)/. The intersection of two sets.
 intersection :: IntSet -> IntSet -> IntSet
 intersection t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2  = intersection1
@@ -443,11 +443,11 @@ intersection _ Nil = Nil
 intersectBM :: Prefix -> BitMap -> IntSet -> IntSet
 STRICT_1_OF_3(intersectBM)
 STRICT_2_OF_3(intersectBM)
-intersectBM kx bm (Bin p2 m2 l2 r2) 
+intersectBM kx bm (Bin p2 m2 l2 r2)
   | nomatch kx p2 m2 = Nil
   | zero kx m2       = intersectBM kx bm l2
   | otherwise        = intersectBM kx bm r2
-intersectBM kx bm (Tip kx' bm') 
+intersectBM kx bm (Tip kx' bm')
   | kx == kx' = tip kx (bm .&. bm')
   | otherwise = Nil
 intersectBM _ _ Nil = Nil
@@ -459,7 +459,7 @@ intersectBM _ _ Nil = Nil
 -- | /O(n+m)/. Is this a proper subset? (ie. a subset but not equal).
 isProperSubsetOf :: IntSet -> IntSet -> Bool
 isProperSubsetOf t1 t2
-  = case subsetCmp t1 t2 of 
+  = case subsetCmp t1 t2 of
       LT -> True
       _  -> False
 
@@ -482,7 +482,7 @@ subsetCmp t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
                     _       -> LT
 
 subsetCmp (Bin _ _ _ _) _  = GT
-subsetCmp (Tip kx1 bm1) (Tip kx2 bm2)  
+subsetCmp (Tip kx1 bm1) (Tip kx2 bm2)
   | kx1 /= kx2                  = GT -- disjoint
   | bm1 == bm2                  = EQ
   | bm1 .&. complement bm2 == 0 = LT
@@ -502,7 +502,7 @@ isSubsetOf :: IntSet -> IntSet -> Bool
 isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = False
   | shorter m2 m1  = match p1 p2 m2 && (if zero p1 m2 then isSubsetOf t1 l2
-                                                      else isSubsetOf t1 r2)                     
+                                                      else isSubsetOf t1 r2)
   | otherwise      = (p1==p2) && isSubsetOf l1 l2 && isSubsetOf r1 r2
 isSubsetOf (Bin _ _ _ _) _  = False
 isSubsetOf (Tip kx1 bm1) (Tip kx2 bm2) = kx1 == kx2 && bm1 .&. complement bm2 == 0
@@ -521,9 +521,9 @@ isSubsetOf Nil _         = True
 filter :: (Int -> Bool) -> IntSet -> IntSet
 filter predicate t
   = case t of
-      Bin p m l r 
+      Bin p m l r
         -> bin p m (filter predicate l) (filter predicate r)
-      Tip kx bm 
+      Tip kx bm
         -> tip kx (foldl'Bits 0 (bitPred kx) 0 bm)
       Nil -> Nil
   where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
@@ -534,11 +534,11 @@ filter predicate t
 partition :: (Int -> Bool) -> IntSet -> (IntSet,IntSet)
 partition predicate t
   = case t of
-      Bin p m l r 
+      Bin p m l r
         -> let (l1,l2) = partition predicate l
                (r1,r2) = partition predicate r
            in (bin p m l1 r1, bin p m l2 r2)
-      Tip kx bm 
+      Tip kx bm
         -> let bm1 = foldl'Bits 0 (bitPred kx) 0 bm
            in  (tip kx bm1, tip kx (bm `xor` bm1))
       Nil -> (Nil,Nil)
@@ -621,13 +621,13 @@ minView t =
     go Nil = error "minView Nil"
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
--- 
+--
 -- > deleteFindMin set = (findMin set, deleteMin set)
 deleteFindMin :: IntSet -> (Int, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
--- 
+--
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: IntSet -> (Int, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
@@ -668,9 +668,9 @@ deleteMax = maybe (error "deleteMax: empty set has no maximal element") snd . ma
   Map
 ----------------------------------------------------------------------}
 
--- | /O(n*min(n,W))/. 
+-- | /O(n*min(n,W))/.
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
--- 
+--
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
@@ -751,7 +751,7 @@ foldl' f z t =
 {-# INLINE foldl' #-}
 
 {--------------------------------------------------------------------
-  List variations 
+  List variations
 --------------------------------------------------------------------}
 -- | /O(n)/. The elements of a set. (For sets, this is equivalent to toList.)
 elems :: IntSet -> [Int]
@@ -759,7 +759,7 @@ elems t
   = toAscList t
 
 {--------------------------------------------------------------------
-  Lists 
+  Lists
 --------------------------------------------------------------------}
 -- | /O(n)/. Convert the set to a list of elements.
 toList :: IntSet -> [Int]
@@ -779,12 +779,12 @@ fromList xs
 
 -- | /O(n)/. Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./
-fromAscList :: [Int] -> IntSet 
+fromAscList :: [Int] -> IntSet
 fromAscList [] = Nil
 fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
-  where 
+  where
     combineEq x' [] = [x']
-    combineEq x' (x:xs) 
+    combineEq x' (x:xs)
       | x==x'     = combineEq x' xs
       | otherwise = x' : combineEq x xs
 
@@ -817,7 +817,7 @@ data Stack = Push {-# UNPACK #-} !Prefix !IntSet !Stack | Nada
 
 
 {--------------------------------------------------------------------
-  Eq 
+  Eq
 --------------------------------------------------------------------}
 instance Eq IntSet where
   t1 == t2  = equal t1 t2
@@ -825,7 +825,7 @@ instance Eq IntSet where
 
 equal :: IntSet -> IntSet -> Bool
 equal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
-  = (m1 == m2) && (p1 == p2) && (equal l1 l2) && (equal r1 r2) 
+  = (m1 == m2) && (p1 == p2) && (equal l1 l2) && (equal r1 r2)
 equal (Tip kx1 bm1) (Tip kx2 bm2)
   = kx1 == kx2 && bm1 == bm2
 equal Nil Nil = True
@@ -833,18 +833,18 @@ equal _   _   = False
 
 nequal :: IntSet -> IntSet -> Bool
 nequal (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
-  = (m1 /= m2) || (p1 /= p2) || (nequal l1 l2) || (nequal r1 r2) 
+  = (m1 /= m2) || (p1 /= p2) || (nequal l1 l2) || (nequal r1 r2)
 nequal (Tip kx1 bm1) (Tip kx2 bm2)
   = kx1 /= kx2 || bm1 /= bm2
 nequal Nil Nil = False
 nequal _   _   = True
 
 {--------------------------------------------------------------------
-  Ord 
+  Ord
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2) 
+    compare s1 s2 = compare (toAscList s1) (toAscList s2)
     -- tentative implementation. See if more efficient exists.
 
 {--------------------------------------------------------------------
@@ -857,9 +857,9 @@ instance Show IntSet where
 {-
 XXX unused code
 showSet :: [Int] -> ShowS
-showSet []     
-  = showString "{}" 
-showSet (x:xs) 
+showSet []
+  = showString "{}"
+showSet (x:xs)
   = showChar '{' . shows x . showTail xs
   where
     showTail []     = showChar '}'
@@ -931,30 +931,30 @@ showsTree wide lbars rbars t
              showsTree wide (withEmpty lbars) (withBar lbars) l
       Tip kx bm
           -> showsBars lbars . showString " " . shows kx . showString " + " .
-                                                showsBitMap bm . showString "\n" 
+                                                showsBitMap bm . showString "\n"
       Nil -> showsBars lbars . showString "|\n"
 
 showsTreeHang :: Bool -> [String] -> IntSet -> ShowS
 showsTreeHang wide bars t
   = case t of
       Bin p m l r
-          -> showsBars bars . showString (showBin p m) . showString "\n" . 
+          -> showsBars bars . showString (showBin p m) . showString "\n" .
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
              showWide wide bars .
              showsTreeHang wide (withEmpty bars) r
       Tip kx bm
           -> showsBars bars . showString " " . shows kx . showString " + " .
-                                               showsBitMap bm . showString "\n" 
-      Nil -> showsBars bars . showString "|\n" 
+                                               showsBitMap bm . showString "\n"
+      Nil -> showsBars bars . showString "|\n"
 
 showBin :: Prefix -> Mask -> String
 showBin _ _
   = "*" -- ++ show (p,m)
 
 showWide :: Bool -> [String] -> String -> String
-showWide wide bars 
-  | wide      = showString (concat (reverse bars)) . showString "|\n" 
+showWide wide bars
+  | wide      = showString (concat (reverse bars)) . showString "|\n"
   | otherwise = id
 
 showsBars :: [String] -> ShowS
@@ -1064,7 +1064,7 @@ mask i m
 {-# INLINE mask #-}
 
 {--------------------------------------------------------------------
-  Big endian operations  
+  Big endian operations
 --------------------------------------------------------------------}
 maskW :: Nat -> Nat -> Prefix
 maskW i m
@@ -1084,17 +1084,17 @@ branchMask p1 p2
 {----------------------------------------------------------------------
   Finding the highest bit (mask) in a word [x] can be done efficiently in
   three ways:
-  * convert to a floating point value and the mantissa tells us the 
-    [log2(x)] that corresponds with the highest bit position. The mantissa 
-    is retrieved either via the standard C function [frexp] or by some bit 
-    twiddling on IEEE compatible numbers (float). Note that one needs to 
-    use at least [double] precision for an accurate mantissa of 32 bit 
+  * convert to a floating point value and the mantissa tells us the
+    [log2(x)] that corresponds with the highest bit position. The mantissa
+    is retrieved either via the standard C function [frexp] or by some bit
+    twiddling on IEEE compatible numbers (float). Note that one needs to
+    use at least [double] precision for an accurate mantissa of 32 bit
     numbers.
   * use bit twiddling, a logarithmic sequence of bitwise or's and shifts (bit).
   * use processor specific assembler instruction (asm).
 
   The most portable way would be [bit], but is it efficient enough?
-  I have measured the cycle counts of the different methods on an AMD 
+  I have measured the cycle counts of the different methods on an AMD
   Athlon-XP 1800 (~ Pentium III 1.8Ghz) using the RDTSC instruction:
 
   highestBitMask: method  cycles
@@ -1117,7 +1117,7 @@ branchMask p1 p2
 
 {----------------------------------------------------------------------
   [highestBitMask] returns a word where only the highest bit is set.
-  It is found by first setting all bits in lower positions than the 
+  It is found by first setting all bits in lower positions than the
   highest bit and than taking an exclusive or with the original value.
   Allthough the function may look expensive, GHC compiles this into
   excellent C code that subsequently compiled into highly efficient
@@ -1272,7 +1272,7 @@ highestBitSet n0 =
         (n3,b3) = if n2 .&. 0xFF00 /= 0             then (n2 `shiftRL` 8,  8+b2)  else (n2,b2)
         (n4,b4) = if n3 .&. 0xF0 /= 0               then (n3 `shiftRL` 4,  4+b3)  else (n3,b3)
         (n5,b5) = if n4 .&. 0xC /= 0                then (n4 `shiftRL` 2,  2+b4)  else (n4,b4)
-        b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5 
+        b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5
     in b6
 
 foldlBits prefix f z bm = let lb = lowestBitSet bm
@@ -1325,7 +1325,7 @@ bitcount a0 x0 = go a0 x0
 
 
 {--------------------------------------------------------------------
-  Utilities 
+  Utilities
 --------------------------------------------------------------------}
 foldlStrict :: (a -> b -> a) -> a -> [b] -> a
 foldlStrict f = go

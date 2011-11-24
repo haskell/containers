@@ -147,7 +147,7 @@ import Control.DeepSeq (NFData(rnf))
 
 {-
 -- just for testing
-import QuickCheck 
+import QuickCheck
 import List (nub,sort)
 import qualified List
 -}
@@ -179,8 +179,8 @@ m1 \\ m2 = difference m1 m2
   Sets are size balanced trees
 --------------------------------------------------------------------}
 -- | A set of values @a@.
-data Set a    = Tip 
-              | Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a) 
+data Set a    = Tip
+              | Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
@@ -200,7 +200,7 @@ instance Foldable.Foldable Set where
 #if __GLASGOW_HASKELL__
 
 {--------------------------------------------------------------------
-  A Data instance  
+  A Data instance
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
@@ -393,7 +393,7 @@ deleteMax Tip             = Tip
 #endif
 
 {--------------------------------------------------------------------
-  Union. 
+  Union.
 --------------------------------------------------------------------}
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: Ord a => [Set a] -> Set a
@@ -434,7 +434,7 @@ hedgeUnion blo bhi (Bin _ x l r) t2
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(n+m)/. Difference of two sets. 
+-- | /O(n+m)/. Difference of two sets.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
@@ -523,9 +523,9 @@ partition p (Bin _ x l r) = case (partition p l, partition p r) of
   Map
 ----------------------------------------------------------------------}
 
--- | /O(n*log n)/. 
+-- | /O(n*log n)/.
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
--- 
+--
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
@@ -535,13 +535,13 @@ map f = fromList . List.map f . toList
 {-# INLINABLE map #-}
 #endif
 
--- | /O(n)/. The 
+-- | /O(n)/. The
 --
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is monotonic.
 -- /The precondition is not checked./
 -- Semi-formally, we have:
--- 
--- > and [x < y ==> f x < f y | x <- ls, y <- ls] 
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
 
@@ -613,7 +613,7 @@ foldl' f = go
 {-# INLINE foldl' #-}
 
 {--------------------------------------------------------------------
-  List variations 
+  List variations
 --------------------------------------------------------------------}
 -- | /O(n)/. The elements of a set.
 elems :: Set a -> [a]
@@ -623,7 +623,7 @@ elems = toList
 #endif
 
 {--------------------------------------------------------------------
-  Lists 
+  Lists
 --------------------------------------------------------------------}
 -- | /O(n)/. Convert the set to a list of elements.
 toList :: Set a -> [a]
@@ -640,7 +640,7 @@ toAscList = foldr (:) []
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
-fromList :: Ord a => [a] -> Set a 
+fromList :: Ord a => [a] -> Set a
 fromList = foldlStrict ins empty
   where
     ins t x = insert x t
@@ -650,13 +650,13 @@ fromList = foldlStrict ins empty
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
-  
-  Note that if [xs] is ascending that: 
+
+  Note that if [xs] is ascending that:
     fromAscList xs == fromList xs
 --------------------------------------------------------------------}
 -- | /O(n)/. Build a set from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
-fromAscList :: Eq a => [a] -> Set a 
+fromAscList :: Eq a => [a] -> Set a
 fromAscList xs
   = fromDistinctAscList (combineEq xs)
   where
@@ -678,15 +678,15 @@ fromAscList xs
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
-fromDistinctAscList :: [a] -> Set a 
+fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList xs
   = build const (length xs) xs
   where
     -- 1) use continutations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to build bushier trees. 
+    -- 2) special case for n==5 to build bushier trees.
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
-                       (x1:x2:x3:x4:x5:xx) 
+                       (x1:x2:x3:x4:x5:xx)
                             -> c (bin x4 (bin x2 (singleton x1) (singleton x3)) (singleton x5)) xx
                        _ -> error "fromDistinctAscList build 5"
     build c n xs'  = seq nr $ build (buildR nr c) nl xs'
@@ -702,19 +702,19 @@ fromDistinctAscList xs
 #endif
 
 {--------------------------------------------------------------------
-  Eq converts the set to a list. In a lazy setting, this 
-  actually seems one of the faster methods to compare two trees 
+  Eq converts the set to a list. In a lazy setting, this
+  actually seems one of the faster methods to compare two trees
   and it is certainly the simplest :-)
 --------------------------------------------------------------------}
 instance Eq a => Eq (Set a) where
   t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
 
 {--------------------------------------------------------------------
-  Ord 
+  Ord
 --------------------------------------------------------------------}
 
 instance Ord a => Ord (Set a) where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2) 
+    compare s1 s2 = compare (toAscList s1) (toAscList s2)
 
 {--------------------------------------------------------------------
   Show
@@ -865,7 +865,7 @@ splitLookup x (Bin _ y l r)
   Utility functions that maintain the balance properties of the tree.
   All constructors assume that all values in [l] < [x] and all values
   in [r] > [x], and that [l] and [r] are valid trees.
-  
+
   In order of sophistication:
     [Bin sz x l r]    The type constructor.
     [bin x l r]       Maintains the correct size, assumes that both [l]
@@ -873,7 +873,7 @@ splitLookup x (Bin _ y l r)
     [balance x l r]   Restores the balance and size.
                       Assumes that the original tree was balanced and
                       that [l] or [r] has changed by at most one element.
-    [join x l r]      Restores balance and size. 
+    [join x l r]      Restores balance and size.
 
   Furthermore, we can construct a new tree from two trees. Both operations
   assume that all values in [l] < all values in [r] and that [l] and [r]
@@ -883,15 +883,15 @@ splitLookup x (Bin _ y l r)
     [merge l r]       Merges two trees and restores balance.
 
   Note: in contrast to Adam's paper, we use (<=) comparisons instead
-  of (<) comparisons in [join], [merge] and [balance]. 
-  Quickcheck (on [difference]) showed that this was necessary in order 
-  to maintain the invariants. It is quite unsatisfactory that I haven't 
-  been able to find out why this is actually the case! Fortunately, it 
+  of (<) comparisons in [join], [merge] and [balance].
+  Quickcheck (on [difference]) showed that this was necessary in order
+  to maintain the invariants. It is quite unsatisfactory that I haven't
+  been able to find out why this is actually the case! Fortunately, it
   doesn't hurt to be a bit more conservative.
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
-  Join 
+  Join
 --------------------------------------------------------------------}
 join :: a -> Set a -> Set a -> Set a
 join x Tip r  = insertMin x r
@@ -906,7 +906,7 @@ join x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: a -> Set a -> Set a 
+insertMax,insertMin :: a -> Set a -> Set a
 insertMax x t
   = case t of
       Tip -> singleton x
@@ -946,7 +946,7 @@ merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
-glue l r   
+glue l r
   | size l > size r = let (m,l') = deleteFindMax l in balanceR m l' r
   | otherwise       = let (m,r') = deleteFindMin r in balanceL m l r'
 #if __GLASGOW_HASKELL__ >= 700
@@ -955,11 +955,11 @@ glue l r
 
 
 -- | /O(log n)/. Delete and find the minimal element.
--- 
+--
 -- > deleteFindMin set = (findMin set, deleteMin set)
 
 deleteFindMin :: Set a -> (a,Set a)
-deleteFindMin t 
+deleteFindMin t
   = case t of
       Bin _ x Tip r -> (x,r)
       Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balanceR x l' r)
@@ -969,7 +969,7 @@ deleteFindMin t
 #endif
 
 -- | /O(log n)/. Delete and find the maximal element.
--- 
+--
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: Set a -> (a,Set a)
 deleteFindMax t
@@ -1163,7 +1163,7 @@ showTree s
 > |  +--1
 > |  +--3
 > +--5
-> 
+>
 > Set> putStrLn $ showTreeWith True True $ fromDistinctAscList [1..5]
 > 4
 > |
@@ -1174,7 +1174,7 @@ showTree s
 > |  +--3
 > |
 > +--5
-> 
+>
 > Set> putStrLn $ showTreeWith False True $ fromDistinctAscList [1..5]
 > +--5
 > |
@@ -1197,7 +1197,7 @@ showsTree wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
       Bin _ x Tip Tip
-          -> showsBars lbars . shows x . showString "\n" 
+          -> showsBars lbars . shows x . showString "\n"
       Bin _ x l r
           -> showsTree wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
@@ -1208,19 +1208,19 @@ showsTree wide lbars rbars t
 showsTreeHang :: Show a => Bool -> [String] -> Set a -> ShowS
 showsTreeHang wide bars t
   = case t of
-      Tip -> showsBars bars . showString "|\n" 
+      Tip -> showsBars bars . showString "|\n"
       Bin _ x Tip Tip
-          -> showsBars bars . shows x . showString "\n" 
+          -> showsBars bars . shows x . showString "\n"
       Bin _ x l r
-          -> showsBars bars . shows x . showString "\n" . 
+          -> showsBars bars . shows x . showString "\n" .
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
              showWide wide bars .
              showsTreeHang wide (withEmpty bars) r
 
 showWide :: Bool -> [String] -> String -> String
-showWide wide bars 
-  | wide      = showString (concat (reverse bars)) . showString "|\n" 
+showWide wide bars
+  | wide      = showString (concat (reverse bars)) . showString "|\n"
   | otherwise = id
 
 showsBars :: [String] -> ShowS

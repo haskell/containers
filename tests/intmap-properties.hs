@@ -480,7 +480,7 @@ test_toAscList = toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
 test_showTree :: Assertion
 test_showTree =
        (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
-        in showTree t) @?= "*\n+--*\n|  +-- 1:=()\n|  +--*\n|     +-- 2:=()\n|     +-- 3:=()\n+--*\n   +-- 4:=()\n   +-- 5:=()\n" 
+        in showTree t) @?= "*\n+--*\n|  +-- 1:=()\n|  +--*\n|     +-- 2:=()\n|     +-- 3:=()\n+--*\n   +-- 4:=()\n   +-- 5:=()\n"
 
 test_fromAscList :: Assertion
 test_fromAscList = do

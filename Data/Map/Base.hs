@@ -269,9 +269,9 @@ m1 \\ m2 = difference m1 m2
 {--------------------------------------------------------------------
   Size balanced trees.
 --------------------------------------------------------------------}
--- | A Map from keys @k@ to values @a@. 
-data Map k a  = Tip 
-              | Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a) 
+-- | A Map from keys @k@ to values @a@.
+data Map k a  = Tip
+              | Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
@@ -283,7 +283,7 @@ instance (Ord k) => Monoid (Map k v) where
 #if __GLASGOW_HASKELL__
 
 {--------------------------------------------------------------------
-  A Data instance  
+  A Data instance
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
@@ -490,7 +490,7 @@ insert = go
 #endif
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
--- @'insertWith' f key value mp@ 
+-- @'insertWith' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key, f new_value old_value)@.
@@ -515,7 +515,7 @@ insertWith' f = insertWithKey' (\_ x' y' -> f x' y')
 {-# INLINE insertWith' #-}
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
--- @'insertWithKey' f key value mp@ 
+-- @'insertWithKey' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
 -- not exist in the map. If the key does exist, the function will
 -- insert the pair @(key,f key new_value old_value)@.
@@ -708,7 +708,7 @@ updateWithKey = go
 
 -- | /O(log n)/. Lookup and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
--- Returns the original key value if the map entry is deleted. 
+-- Returns the original key value if the map entry is deleted.
 --
 -- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
 -- > updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) == (Just "5:new a", fromList [(3, "b"), (5, "5:new a")])
@@ -723,7 +723,7 @@ updateLookupWithKey = go
    go f k (Bin sx kx x l r) =
           case compare k kx of
                LT -> let (found,l') = go f k l in (found,balanceR kx x l' r)
-               GT -> let (found,r') = go f k r in (found,balanceL kx x l r') 
+               GT -> let (found,r') = go f k r in (found,balanceL kx x l r')
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
@@ -1042,7 +1042,7 @@ first :: (a -> b) -> (a,c) -> (b,c)
 first f (x,y) = (f x, y)
 
 {--------------------------------------------------------------------
-  Union. 
+  Union.
 --------------------------------------------------------------------}
 -- | The union of a list of maps:
 --   (@'unions' == 'Prelude.foldl' 'union' 'empty'@).
@@ -1073,7 +1073,7 @@ unionsWith f ts
 #endif
 
 -- | /O(n+m)/.
--- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@. 
+-- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@.
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
 -- The implementation uses the efficient /hedge-union/ algorithm.
@@ -1161,7 +1161,7 @@ hedgeUnionWithKey f blo bhi (Bin _ kx x l r) t2
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(n+m)/. Difference of two maps. 
+-- | /O(n+m)/. Difference of two maps.
 -- Return elements of the first map not existing in the second map.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
@@ -1191,11 +1191,11 @@ hedgeDiff blo bhi t (Bin _ kx _ l r)
 {-# INLINABLE hedgeDiff #-}
 #endif
 
--- | /O(n+m)/. Difference with a combining function. 
+-- | /O(n+m)/. Difference with a combining function.
 -- When two equal keys are
 -- encountered, the combining function is applied to the values of these keys.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
--- it returns (@'Just' y@), the element is updated with a new value @y@. 
+-- it returns (@'Just' y@), the element is updated with a new value @y@.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
@@ -1210,7 +1210,7 @@ differenceWith f m1 m2
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
--- it returns (@'Just' y@), the element is updated with a new value @y@. 
+-- it returns (@'Just' y@), the element is updated with a new value @y@.
 -- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
@@ -1234,10 +1234,10 @@ hedgeDiffWithKey _ _     _     Tip _
   = Tip
 hedgeDiffWithKey _ blo bhi (Bin _ kx x l r) Tip
   = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiffWithKey f blo bhi t (Bin _ kx x l r) 
+hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
   = case found of
       Nothing -> merge tl tr
-      Just (ky,y) -> 
+      Just (ky,y) ->
           case f ky y x of
             Nothing -> merge tl tr
             Just z  -> join ky z tl tr
@@ -1321,19 +1321,19 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 {- | /O(n+m)/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
  all keys in @t1@ are in tree @t2@, and when @f@ returns 'True' when
- applied to their respective values. For example, the following 
+ applied to their respective values. For example, the following
  expressions are all 'True':
- 
+
  > isSubmapOfBy (==) (fromList [('a',1)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (<=) (fromList [('a',1)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (==) (fromList [('a',1),('b',2)]) (fromList [('a',1),('b',2)])
 
  But the following are all 'False':
- 
+
  > isSubmapOfBy (==) (fromList [('a',2)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (<)  (fromList [('a',1)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (==) (fromList [('a',1),('b',2)]) (fromList [('a',1)])
- 
+
 
 -}
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
@@ -1356,7 +1356,7 @@ submap' f (Bin _ kx x l r) t
 {-# INLINABLE submap' #-}
 #endif
 
--- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal). 
+-- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
@@ -1369,19 +1369,19 @@ isProperSubmapOf m1 m2
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
  @m1@ and @m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
- applied to their respective values. For example, the following 
+ applied to their respective values. For example, the following
  expressions are all 'True':
- 
+
   > isProperSubmapOfBy (==) (fromList [(1,1)]) (fromList [(1,1),(2,2)])
   > isProperSubmapOfBy (<=) (fromList [(1,1)]) (fromList [(1,1),(2,2)])
 
  But the following are all 'False':
- 
+
   > isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1),(2,2)])
   > isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)])
   > isProperSubmapOfBy (<)  (fromList [(1,1)])       (fromList [(1,1),(2,2)])
-  
- 
+
+
 -}
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
@@ -1596,7 +1596,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
--- 
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the value at the greatest of the
 -- original keys is retained.
@@ -1613,7 +1613,7 @@ mapKeys = mapKeysWith (\x _ -> x)
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
--- 
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
 -- combined using @c@.
@@ -1635,8 +1635,8 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 -- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
 -- /The precondition is not checked./
 -- Semi-formally, we have:
--- 
--- > and [x < y ==> f x < f y | x <- ls, y <- ls] 
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapKeysMonotonic f s == mapKeys f s
 -- >     where ls = keys s
 --
@@ -1656,7 +1656,7 @@ mapKeysMonotonic f (Bin sz k x l r) =
 #endif
 
 {--------------------------------------------------------------------
-  Folds  
+  Folds
 --------------------------------------------------------------------}
 
 -- | /O(n)/. Fold the values in the map using the given right-associative
@@ -1788,7 +1788,7 @@ foldlWithKey' f = go
 {-# INLINE foldlWithKey' #-}
 
 {--------------------------------------------------------------------
-  List variations 
+  List variations
 --------------------------------------------------------------------}
 -- | /O(n)/.
 -- Return all elements of the map in the ascending order of their keys.
@@ -1839,7 +1839,7 @@ assocs m
 #endif
 
 {--------------------------------------------------------------------
-  Lists 
+  Lists
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
@@ -1850,8 +1850,8 @@ assocs m
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
-fromList :: Ord k => [(k,a)] -> Map k a 
-fromList xs       
+fromList :: Ord k => [(k,a)] -> Map k a
+fromList xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insert k x t
@@ -1864,7 +1864,7 @@ fromList xs
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "ab"), (5, "aba")]
 -- > fromListWith (++) [] == empty
 
-fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a 
+fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1877,8 +1877,8 @@ fromListWith f xs
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "3ab"), (5, "5a5ba")]
 -- > fromListWithKey f [] == empty
 
-fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
-fromListWithKey f xs 
+fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
+fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
@@ -1916,8 +1916,8 @@ toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
-  
-  Note that if [xs] is ascending that: 
+
+  Note that if [xs] is ascending that:
     fromAscList xs       == fromList xs
     fromAscListWith f xs == fromListWith f xs
 --------------------------------------------------------------------}
@@ -1929,7 +1929,7 @@ toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 -- > valid (fromAscList [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
 
-fromAscList :: Eq k => [(k,a)] -> Map k a 
+fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1943,7 +1943,7 @@ fromAscList xs
 -- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
 
-fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a 
+fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__ >= 700
@@ -1959,7 +1959,7 @@ fromAscListWith f xs
 -- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")]) == True
 -- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
 
-fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a 
+fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWithKey f xs
   = fromDistinctAscList (combineEq f xs)
   where
@@ -1986,15 +1986,15 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
-fromDistinctAscList :: [(k,a)] -> Map k a 
+fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList xs
   = build const (length xs) xs
   where
     -- 1) use continuations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to build bushier trees. 
+    -- 2) special case for n==5 to build bushier trees.
     build c 0 xs'  = c Tip xs'
     build c 5 xs'  = case xs' of
-                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx) 
+                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
                             -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
                        _ -> error "fromDistinctAscList build"
     build c n xs'  = seq nr $ build (buildR nr c) nl xs'
@@ -2155,7 +2155,7 @@ splitLookupWithKey k t = k `seq`
   Utility functions that maintain the balance properties of the tree.
   All constructors assume that all values in [l] < [k] and all values
   in [r] > [k], and that [l] and [r] are valid trees.
-  
+
   In order of sophistication:
     [Bin sz k x l r]  The type constructor.
     [bin k x l r]     Maintains the correct size, assumes that both [l]
@@ -2163,7 +2163,7 @@ splitLookupWithKey k t = k `seq`
     [balance k x l r] Restores the balance and size.
                       Assumes that the original tree was balanced and
                       that [l] or [r] has changed by at most one element.
-    [join k x l r]    Restores balance and size. 
+    [join k x l r]    Restores balance and size.
 
   Furthermore, we can construct a new tree from two trees. Both operations
   assume that all values in [l] < all values in [r] and that [l] and [r]
@@ -2173,15 +2173,15 @@ splitLookupWithKey k t = k `seq`
     [merge l r]       Merges two trees and restores balance.
 
   Note: in contrast to Adam's paper, we use (<=) comparisons instead
-  of (<) comparisons in [join], [merge] and [balance]. 
-  Quickcheck (on [difference]) showed that this was necessary in order 
-  to maintain the invariants. It is quite unsatisfactory that I haven't 
-  been able to find out why this is actually the case! Fortunately, it 
+  of (<) comparisons in [join], [merge] and [balance].
+  Quickcheck (on [difference]) showed that this was necessary in order
+  to maintain the invariants. It is quite unsatisfactory that I haven't
+  been able to find out why this is actually the case! Fortunately, it
   doesn't hurt to be a bit more conservative.
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
-  Join 
+  Join
 --------------------------------------------------------------------}
 join :: Ord k => k -> a -> Map k a -> Map k a -> Map k a
 join kx x Tip r  = insertMin kx x r
@@ -2196,7 +2196,7 @@ join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: k -> a -> Map k a -> Map k a 
+insertMax,insertMin :: k -> a -> Map k a -> Map k a
 insertMax kx x t
   = case t of
       Tip -> singleton kx x
@@ -2236,7 +2236,7 @@ merge l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
 glue :: Map k a -> Map k a -> Map k a
 glue Tip r = r
 glue l Tip = l
-glue l r   
+glue l r
   | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
   | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
 #if __GLASGOW_HASKELL__ >= 700
@@ -2246,11 +2246,11 @@ glue l r
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
--- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")]) 
+-- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
 -- > deleteFindMin                                            Error: can not return the minimal element of an empty map
 
 deleteFindMin :: Map k a -> ((k,a),Map k a)
-deleteFindMin t 
+deleteFindMin t
   = case t of
       Bin _ k x Tip r -> ((k,x),r)
       Bin _ k x l r   -> let (km,l') = deleteFindMin l in (km,balanceR k x l' r)
@@ -2441,15 +2441,15 @@ bin k x l r
 
 
 {--------------------------------------------------------------------
-  Eq converts the tree to a list. In a lazy setting, this 
-  actually seems one of the faster methods to compare two trees 
+  Eq converts the tree to a list. In a lazy setting, this
+  actually seems one of the faster methods to compare two trees
   and it is certainly the simplest :-)
 --------------------------------------------------------------------}
 instance (Eq k,Eq a) => Eq (Map k a) where
   t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
 
 {--------------------------------------------------------------------
-  Ord 
+  Ord
 --------------------------------------------------------------------}
 
 instance (Ord k, Ord v) => Ord (Map k v) where
@@ -2558,7 +2558,7 @@ showsTree showelem wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
       Bin _ kx x Tip Tip
-          -> showsBars lbars . showString (showelem kx x) . showString "\n" 
+          -> showsBars lbars . showString (showelem kx x) . showString "\n"
       Bin _ kx x l r
           -> showsTree showelem wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
@@ -2569,19 +2569,19 @@ showsTree showelem wide lbars rbars t
 showsTreeHang :: (k -> a -> String) -> Bool -> [String] -> Map k a -> ShowS
 showsTreeHang showelem wide bars t
   = case t of
-      Tip -> showsBars bars . showString "|\n" 
+      Tip -> showsBars bars . showString "|\n"
       Bin _ kx x Tip Tip
-          -> showsBars bars . showString (showelem kx x) . showString "\n" 
+          -> showsBars bars . showString (showelem kx x) . showString "\n"
       Bin _ kx x l r
-          -> showsBars bars . showString (showelem kx x) . showString "\n" . 
+          -> showsBars bars . showString (showelem kx x) . showString "\n" .
              showWide wide bars .
              showsTreeHang showelem wide (withBar bars) l .
              showWide wide bars .
              showsTreeHang showelem wide (withEmpty bars) r
 
 showWide :: Bool -> [String] -> String -> String
-showWide wide bars 
-  | wide      = showString (concat (reverse bars)) . showString "|\n" 
+showWide wide bars
+  | wide      = showString (concat (reverse bars)) . showString "|\n"
   | otherwise = id
 
 showsBars :: [String] -> ShowS

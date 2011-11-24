@@ -13,7 +13,7 @@ import Prelude hiding (lookup)
 
 instance (NFData a) => NFData (M.IntMap a) where
     rnf M.Nil = ()
-    rnf (M.Tip x y) = rnf x `seq` rnf y 
+    rnf (M.Tip x y) = rnf x `seq` rnf y
     rnf (M.Bin p m l r) = rnf p `seq` rnf m `seq` rnf l `seq` rnf r
 
 main = do

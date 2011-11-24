@@ -538,7 +538,7 @@ test_showTree =
 test_showTree' :: Assertion
 test_showTree' =
        (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
-        in s t ) @?= "+--5:=()\n|\n4:=()\n|\n|  +--3:=()\n|  |\n+--2:=()\n   |\n   +--1:=()\n" 
+        in s t ) @?= "+--5:=()\n|\n4:=()\n|\n|  +--3:=()\n|  |\n+--2:=()\n   |\n   +--1:=()\n"
    where
     showElem k x  = show k ++ ":=" ++ show x
 
