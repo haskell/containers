@@ -692,23 +692,22 @@ fromAscList xs
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList xs
-  = build const (length xs) xs
+  = create const (length xs) xs
   where
     -- 1) use continutations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to build bushier trees.
-    build c 0 xs'  = c Tip xs'
-    build c 5 xs'  = case xs' of
+    -- 2) special case for n==5 to create bushier trees.
+    create c 0 xs' = c Tip xs'
+    create c 5 xs' = case xs' of
                        (x1:x2:x3:x4:x5:xx)
                             -> c (bin x4 (bin x2 (singleton x1) (singleton x3)) (singleton x5)) xx
-                       _ -> error "fromDistinctAscList build 5"
-    build c n xs'  = seq nr $ build (buildR nr c) nl xs'
-                   where
-                     nl = n `div` 2
-                     nr = n - nl - 1
+                       _ -> error "fromDistinctAscList create 5"
+    create c n xs' = seq nr $ create (createR nr c) nl xs'
+      where nl = n `div` 2
+            nr = n - nl - 1
 
-    buildR n c l (x:ys) = build (buildB l x c) n ys
-    buildR _ _ _ []     = error "fromDistinctAscList buildR []"
-    buildB l x c r zs   = c (bin x l r) zs
+    createR n c l (x:ys) = create (createB l x c) n ys
+    createR _ _ _ []     = error "fromDistinctAscList createR []"
+    createB l x c r zs   = c (bin x l r) zs
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromDistinctAscList #-}
 #endif
