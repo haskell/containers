@@ -232,17 +232,13 @@ instance (Data a, Ord a) => Data (Set a) where
 null :: Set a -> Bool
 null Tip      = True
 null (Bin {}) = False
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE null #-}
-#endif
+{-# INLINE null #-}
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
 size Tip = 0
 size (Bin sz _ _ _) = sz
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE size #-}
-#endif
+{-# INLINE size #-}
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
@@ -263,7 +259,11 @@ member = go
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE notMember #-}
+#else
 {-# INLINE notMember #-}
+#endif
 
 {--------------------------------------------------------------------
   Construction
@@ -271,10 +271,12 @@ notMember a t = not $ member a t
 -- | /O(1)/. The empty set.
 empty  :: Set a
 empty = Tip
+{-# INLINE empty #-}
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
 singleton x = Bin 1 x Tip Tip
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -292,7 +294,7 @@ insert = go
         GT -> balanceR y l (go x r)
         EQ -> Bin sz x l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insert #-}
+{-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
 #endif
@@ -309,7 +311,7 @@ insertR = go
         GT -> balanceR y l (go x r)
         EQ -> t
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insertR #-}
+{-# INLINABLE insertR #-}
 #else
 {-# INLINE insertR #-}
 #endif
@@ -325,7 +327,7 @@ delete = go
         GT -> balanceL y l (go x r)
         EQ -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE delete #-}
+{-# INLINABLE delete #-}
 #else
 {-# INLINE delete #-}
 #endif
@@ -371,36 +373,24 @@ findMin :: Set a -> a
 findMin (Bin _ x Tip _) = x
 findMin (Bin _ _ l _)   = findMin l
 findMin Tip             = error "Set.findMin: empty set has no minimal element"
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE findMin #-}
-#endif
 
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
 findMax (Bin _ x _ Tip)  = x
 findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE findMax #-}
-#endif
 
 -- | /O(log n)/. Delete the minimal element.
 deleteMin :: Set a -> Set a
 deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
 deleteMin Tip             = Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE deleteMin #-}
-#endif
 
 -- | /O(log n)/. Delete the maximal element.
 deleteMax :: Set a -> Set a
 deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
 deleteMax Tip             = Tip
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE deleteMax #-}
-#endif
 
 {--------------------------------------------------------------------
   Union.
@@ -507,27 +497,21 @@ intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
   Filter and partition
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
-filter :: Ord a => (a -> Bool) -> Set a -> Set a
+filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
 filter p (Bin _ x l r)
     | p x       = join x (filter p l) (filter p r)
     | otherwise = merge (filter p l) (filter p r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE filter #-}
-#endif
 
 -- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
-partition :: Ord a => (a -> Bool) -> Set a -> (Set a,Set a)
+partition :: (a -> Bool) -> Set a -> (Set a,Set a)
 partition _ Tip = (Tip, Tip)
 partition p (Bin _ x l r) = case (partition p l, partition p r) of
   ((l1, l2), (r1, r2))
     | p x       -> (join x l1 r1, merge l2 r2)
     | otherwise -> (merge l1 r1, join x l2 r2)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE partition #-}
-#endif
 
 {----------------------------------------------------------------------
   Map
@@ -558,9 +542,6 @@ map f = fromList . List.map f . toList
 mapMonotonic :: (a->b) -> Set a -> Set b
 mapMonotonic _ Tip = Tip
 mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapMonotonic #-}
-#endif
 
 {--------------------------------------------------------------------
   Fold
@@ -629,9 +610,6 @@ foldl' f = go
 -- Subject to list fusion.
 elems :: Set a -> [a]
 elems = toAscList
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE elems #-}
-#endif
 
 {--------------------------------------------------------------------
   Lists
@@ -639,16 +617,10 @@ elems = toAscList
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]
 toList = toAscList
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE toList #-}
-#endif
 
 -- | /O(n)/. Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE toAscList #-}
-#endif
 
 #if __GLASGOW_HASKELL__
 -- List fusion for the above three functions
@@ -714,9 +686,6 @@ fromDistinctAscList xs
     createR n c l (x:ys) = create (createB l x c) n ys
     createR _ _ _ []     = error "fromDistinctAscList createR []"
     createB l x c r zs   = c (bin x l r) zs
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fromDistinctAscList #-}
-#endif
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
@@ -917,9 +886,6 @@ join x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
   | delta*sizeL < sizeR  = balanceL z (join x l lz) rz
   | delta*sizeR < sizeL  = balanceR y ly (join x ry r)
   | otherwise            = bin x l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE join #-}
-#endif
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
@@ -929,18 +895,12 @@ insertMax x t
       Tip -> singleton x
       Bin _ y l r
           -> balanceR y l (insertMax x r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE insertMax #-}
-#endif
 
 insertMin x t
   = case t of
       Tip -> singleton x
       Bin _ y l r
           -> balanceL y (insertMin x l) r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE insertMin #-}
-#endif
 
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
@@ -952,9 +912,6 @@ merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
   | delta*sizeL < sizeR = balanceL y (merge l ly) ry
   | delta*sizeR < sizeL = balanceR x lx (merge rx r)
   | otherwise           = glue l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE merge #-}
-#endif
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -966,10 +923,6 @@ glue l Tip = l
 glue l r
   | size l > size r = let (m,l') = deleteFindMax l in balanceR m l' r
   | otherwise       = let (m,r') = deleteFindMin r in balanceL m l r'
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE glue #-}
-#endif
-
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
@@ -981,9 +934,6 @@ deleteFindMin t
       Bin _ x Tip r -> (x,r)
       Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balanceR x l' r)
       Tip           -> (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE deleteFindMin #-}
-#endif
 
 -- | /O(log n)/. Delete and find the maximal element.
 --
@@ -994,27 +944,18 @@ deleteFindMax t
       Bin _ x l Tip -> (x,l)
       Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balanceL x l r')
       Tip           -> (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE deleteFindMax #-}
-#endif
 
 -- | /O(log n)/. Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
 minView x = Just (deleteFindMin x)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE minView #-}
-#endif
 
 -- | /O(log n)/. Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
 maxView x = Just (deleteFindMax x)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE maxView #-}
-#endif
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.

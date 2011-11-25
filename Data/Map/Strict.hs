@@ -333,6 +333,7 @@ findWithDefault def k m = def `seq` case lookup k m of
 
 singleton :: k -> a -> Map k a
 singleton k x = x `seq` Bin 1 k x Tip Tip
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insertion
@@ -357,7 +358,7 @@ insert = go
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insert #-}
+{-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
 #endif
@@ -374,7 +375,11 @@ insert = go
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE insertWith #-}
+#else
 {-# INLINE insertWith #-}
+#endif
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
@@ -400,7 +405,7 @@ insertWithKey = go
             EQ -> let x' = f kx x y
                   in x' `seq` Bin sy kx x' l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insertWithKey #-}
+{-# INLINABLE insertWithKey #-}
 #else
 {-# INLINE insertWithKey #-}
 #endif
@@ -436,7 +441,7 @@ insertLookupWithKey = go
             EQ -> let x' = f kx x y
                   in x' `seq` (Just y `strictPair` Bin sy kx x' l r)
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE insertLookupWithKey #-}
+{-# INLINABLE insertLookupWithKey #-}
 #else
 {-# INLINE insertLookupWithKey #-}
 #endif
@@ -456,7 +461,11 @@ insertLookupWithKey = go
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE adjust #-}
+#else
 {-# INLINE adjust #-}
+#endif
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -468,7 +477,11 @@ adjust f = adjustWithKey (\_ x -> f x)
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE adjustWithKey #-}
+#else
 {-# INLINE adjustWithKey #-}
+#endif
 
 -- | /O(log n)/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -481,7 +494,11 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE update #-}
+#else
 {-# INLINE update #-}
+#endif
 
 -- | /O(log n)/. The expression (@'updateWithKey' f k map@) updates the
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
@@ -506,7 +523,7 @@ updateWithKey = go
                    Just x' -> x' `seq` Bin sx kx x' l r
                    Nothing -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE updateWithKey #-}
+{-# INLINABLE updateWithKey #-}
 #else
 {-# INLINE updateWithKey #-}
 #endif
@@ -535,7 +552,7 @@ updateLookupWithKey = go
                        Just x' -> x' `seq` (Just x' `strictPair` Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE updateLookupWithKey #-}
+{-# INLINABLE updateLookupWithKey #-}
 #else
 {-# INLINE updateLookupWithKey #-}
 #endif
@@ -567,7 +584,7 @@ alter = go
                        Just x' -> x' `seq` Bin sx kx x' l r
                        Nothing -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINEABLE alter #-}
+{-# INLINABLE alter #-}
 #else
 {-# INLINE alter #-}
 #endif
@@ -600,9 +617,6 @@ updateAt f i t = i `seq`
               Nothing -> glue l r
       where
         sizeL = size l
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE updateAt #-}
-#endif
 
 {--------------------------------------------------------------------
   Minimal, Maximal
@@ -616,9 +630,6 @@ updateAt f i t = i `seq`
 updateMin :: (a -> Maybe a) -> Map k a -> Map k a
 updateMin f m
   = updateMinWithKey (\_ x -> f x) m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE updateMin #-}
-#endif
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -628,9 +639,6 @@ updateMin f m
 updateMax :: (a -> Maybe a) -> Map k a -> Map k a
 updateMax f m
   = updateMaxWithKey (\_ x -> f x) m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE updateMax #-}
-#endif
 
 
 -- | /O(log n)/. Update the value at the minimal key.
@@ -644,9 +652,6 @@ updateMinWithKey f (Bin sx kx x Tip r) = case f kx x of
                                            Nothing -> r
                                            Just x' -> x' `seq` Bin sx kx x' Tip r
 updateMinWithKey f (Bin _ kx x l r)    = balanceR kx x (updateMinWithKey f l) r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE updateMinWithKey #-}
-#endif
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -659,9 +664,6 @@ updateMaxWithKey f (Bin sx kx x l Tip) = case f kx x of
                                            Nothing -> l
                                            Just x' -> x' `seq` Bin sx kx x' l Tip
 updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE updateMaxWithKey #-}
-#endif
 
 {--------------------------------------------------------------------
   Union.
@@ -690,7 +692,9 @@ unionsWith f ts
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE unionWith #-}
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE unionWith #-}
+#endif
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
@@ -748,7 +752,9 @@ hedgeUnionWithKey f blo bhi (Bin _ kx x l r) t2
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE differenceWith #-}
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE differenceWith #-}
+#endif
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -805,7 +811,9 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-{-# INLINE intersectionWith #-}
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE intersectionWith #-}
+#endif
 
 -- | /O(n+m)/. Intersection with a combining function.
 -- Intersection is more efficient on (bigset \``intersection`\` smallset).
@@ -844,25 +852,19 @@ intersectionWithKey f t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 x2 l2 r2) =
 -- > let f x = if x == "a" then Just "new a" else Nothing
 -- > mapMaybe f (fromList [(5,"a"), (3,"b")]) == singleton 5 "new a"
 
-mapMaybe :: Ord k => (a -> Maybe b) -> Map k a -> Map k b
+mapMaybe :: (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapMaybe #-}
-#endif
 
 -- | /O(n)/. Map keys\/values and collect the 'Just' results.
 --
 -- > let f k _ = if k < 5 then Just ("key : " ++ (show k)) else Nothing
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
-mapMaybeWithKey :: Ord k => (k -> a -> Maybe b) -> Map k a -> Map k b
+mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> y `seq` join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapMaybeWithKey #-}
-#endif
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -873,12 +875,9 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
 -- > mapEither (\ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 -- >     == (empty, fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 
-mapEither :: Ord k => (a -> Either b c) -> Map k a -> (Map k b, Map k c)
+mapEither :: (a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEither f m
   = mapEitherWithKey (\_ x -> f x) m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapEither #-}
-#endif
 
 -- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results.
 --
@@ -889,8 +888,7 @@ mapEither f m
 -- > mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
-mapEitherWithKey :: Ord k =>
-  (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
+mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey _ Tip = (Tip, Tip)
 mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
   Left y  -> y `seq` (join kx y l1 r1 `strictPair` merge l2 r2)
@@ -898,9 +896,6 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
  where
     (l1,l2) = mapEitherWithKey f l
     (r1,r2) = mapEitherWithKey f r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapEitherWithKey #-}
-#endif
 
 {--------------------------------------------------------------------
   Mapping
@@ -911,9 +906,6 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
 
 map :: (a -> b) -> Map k a -> Map k b
 map f = mapWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE map #-}
-#endif
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -924,9 +916,6 @@ mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
 mapWithKey f (Bin sx kx x l r) = let x' = f kx x
                                  in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapWithKey #-}
-#endif
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -937,9 +926,6 @@ mapWithKey f (Bin sx kx x l r) = let x' = f kx x
 mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccum f a m
   = mapAccumWithKey (\a' _ x' -> f a' x') a m
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapAccum #-}
-#endif
 
 -- | /O(n)/. The function 'mapAccumWithKey' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -950,9 +936,6 @@ mapAccum f a m
 mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumWithKey f a t
   = mapAccumL f a t
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapAccumWithKey #-}
-#endif
 
 -- | /O(n)/. The function 'mapAccumL' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -963,9 +946,6 @@ mapAccumL f a (Bin sx kx x l r) =
       (a2,x') = f a1 kx x
       (a3,r') = mapAccumL f a2 r
   in x' `seq` (a3,Bin sx kx x' l' r')
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapAccumL #-}
-#endif
 
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
@@ -976,9 +956,6 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
       (a2,x') = f a1 kx x
       (a3,l') = mapAccumRWithKey f a2 l
   in x' `seq` (a3,Bin sx kx x' l' r')
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapAccumRWithKey #-}
-#endif
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1038,9 +1015,6 @@ mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
     let k' = f k
     in k' `seq` Bin sz k' x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapKeysMonotonic #-}
-#endif
 
 {--------------------------------------------------------------------
   Lists
@@ -1181,6 +1155,3 @@ fromDistinctAscList xs
     createR n c l ((k,x):ys) = x `seq` create (createB l k x c) n ys
     createR _ _ _ []         = error "fromDistinctAscList createR []"
     createB l k x c r zs     = x `seq` c (bin k x l r) zs
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE fromDistinctAscList #-}
-#endif
