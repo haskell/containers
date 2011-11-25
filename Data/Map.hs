@@ -15,8 +15,8 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
--- This module re-exports the value lazy 'Data.Map.Lazy' API, plus a
--- value strict functions from 'Data.Map.Strict'.
+-- This module re-exports the value lazy 'Data.Map.Lazy' API, plus
+-- several value strict functions from 'Data.Map.Strict'.
 --
 -- These modules are intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.

@@ -12,11 +12,17 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- An efficient implementation of maps from integer keys to strict
--- values.
+-- An efficient implementation of maps from integer keys to values
+-- (dictionaries).
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- API of this module is strict in both the keys and the values.
+-- If you need value-lazy maps, use 'Data.IntMap.Lazy' instead.
+-- The 'IntMap' type itself is shared between the lazy and strict modules,
+-- meaning that the same 'IntMap' value can be passed to functions in
+-- both modules (although that is rarely needed).
+--
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
 --
 -- >  import Data.IntMap.Strict (IntMap)
 -- >  import qualified Data.IntMap.Strict as IntMap
@@ -42,14 +48,15 @@
 -- elements with a maximum of /W/ -- the number of bits in an 'Int'
 -- (32 or 64).
 --
--- Valid instances that work properly on strict maps are 'Foldable',
--- 'Monoid', 'Data', 'Eq', 'Ord', 'Show', 'Read' and 'Typeable'.
--- Notably, you cannot define strict versions of 'Functor' and
--- 'Traversable', so if they are used on strict maps, the resulting
--- maps will be lazy.
+-- Be aware that the 'Functor', 'Traversable' and 'Data' instances
+-- are the same as for the 'Data.IntMap.Lazy' module, so if they are used
+-- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 module Data.IntMap.Strict (
+            -- * Strictness properties
+            -- $strictness
+
             -- * Map type
 #if !defined(TESTING)
               IntMap, Key          -- instance Eq,Show
@@ -226,6 +233,26 @@ import Data.IntMap.Base hiding
     , fromDistinctAscList
     )
 import Data.StrictPair
+
+-- $strictness
+--
+-- This module satisfies the following strictness properties:
+--
+-- 1. Key and value arguments are evaluated to WHNF;
+--
+-- 2. Keys and values are evaluated to WHNF before they are stored in
+--    the map.
+--
+-- Here are some examples that illustrate the first property:
+--
+-- > insertWith (\ new old -> old) k undefined m  ==  undefined
+-- > delete undefined m  ==  undefined
+--
+-- Here are some examples that illustrate the second property:
+--
+-- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
+-- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
+
 
 {--------------------------------------------------------------------
   Construction

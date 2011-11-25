@@ -12,10 +12,17 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- An efficient implementation of maps from integer keys to lazy values.
+-- An efficient implementation of maps from integer keys to values
+-- (dictionaries).
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- API of this module is strict in the keys, but lazy in the values.
+-- If you need value-strict maps, use 'Data.IntMap.Strict' instead.
+-- The 'IntMap' type itself is shared between the lazy and strict modules,
+-- meaning that the same 'IntMap' value can be passed to functions in
+-- both modules (although that is rarely needed).
+--
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
 --
 -- >  import Data.IntMap.Lazy (IntMap)
 -- >  import qualified Data.IntMap.Lazy as IntMap
@@ -40,11 +47,12 @@
 -- This means that the operation can become linear in the number of
 -- elements with a maximum of /W/ -- the number of bits in an 'Int'
 -- (32 or 64).
---
--- If you need value-strict maps, try "Data.IntMap.Strict" instead.
 -----------------------------------------------------------------------------
 
 module Data.IntMap.Lazy (
+            -- * Strictness properties
+            -- $strictness
+
             -- * Map type
 #if !defined(TESTING)
               IntMap, Key          -- instance Eq,Show
@@ -179,3 +187,15 @@ module Data.IntMap.Lazy (
             ) where
 
 import Data.IntMap.Base as IM
+
+-- $strictness
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > insertWith (\ new old -> old) undefined v m  ==  undefined
+-- > insertWith (\ new old -> old) k undefined m  ==  OK
+-- > delete undefined m  ==  undefined

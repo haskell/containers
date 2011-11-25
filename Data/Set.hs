@@ -16,8 +16,8 @@
 --
 -- An efficient implementation of sets.
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
 --
 -- >  import Data.Set (Set)
 -- >  import qualified Data.Set as Set
@@ -56,6 +56,9 @@
 -- the real work is provided.
 
 module Data.Set (
+            -- * Strictness properties
+            -- $strictness
+
             -- * Set type
 #if !defined(TESTING)
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
@@ -166,6 +169,16 @@ import Data.Data
 -- We do not use BangPatterns, because they are not in any standard and we
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+
+-- $strictness
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > delete undefined s  ==  undefined
 
 {--------------------------------------------------------------------
   Operators

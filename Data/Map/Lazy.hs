@@ -15,7 +15,9 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
--- The 'Map' type is shared between the lazy and strict modules,
+-- API of this module is strict in the keys, but lazy in the values.
+-- If you need value-strict maps, use 'Data.Map.Strict' instead.
+-- The 'Map' type itself is shared between the lazy and strict modules,
 -- meaning that the same 'Map' value can be passed to functions in
 -- both modules (although that is rarely needed).
 --
@@ -44,6 +46,9 @@
 -----------------------------------------------------------------------------
 
 module Data.Map.Lazy (
+            -- * Strictness properties
+            -- $strictness
+
             -- * Map type
 #if !defined(TESTING)
               Map              -- instance Eq,Show,Read
@@ -199,3 +204,15 @@ module Data.Map.Lazy (
             ) where
 
 import Data.Map.Base as M
+
+-- $strictness
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > insertWith (\ new old -> old) undefined v m  ==  undefined
+-- > insertWith (\ new old -> old) k undefined m  ==  OK
+-- > delete undefined m  ==  undefined

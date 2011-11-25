@@ -17,8 +17,8 @@
 --
 -- An efficient implementation of integer sets.
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
 --
 -- >  import Data.IntSet (IntSet)
 -- >  import qualified Data.IntSet as IntSet
@@ -55,6 +55,9 @@
 -- explicitly mark these functions INLINE.
 
 module Data.IntSet (
+            -- * Strictness properties
+            -- $strictness
+
             -- * Set type
 #if !defined(TESTING)
               IntSet          -- instance Eq,Show
@@ -165,6 +168,16 @@ import Data.Word
 #define STRICT_2_OF_2(fn) fn _ arg | arg `seq` False = undefined
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
+
+-- $strictness
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > delete undefined s  ==  undefined
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 

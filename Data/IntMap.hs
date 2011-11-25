@@ -12,10 +12,14 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
--- An efficient implementation of maps from integer keys to values.
+-- An efficient implementation of maps from integer keys to values
+-- (dictionaries).
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- This module re-exports the value lazy 'Data.IntMap.Lazy' API, plus
+-- several value strict functions from 'Data.IntMap.Strict'.
+--
+-- These modules are intended to be imported qualified, to avoid name
+-- clashes with Prelude functions, e.g.
 --
 -- >  import Data.IntMap (IntMap)
 -- >  import qualified Data.IntMap as IntMap
@@ -39,9 +43,6 @@
 -- Many operations have a worst-case complexity of /O(min(n,W))/.
 -- This means that the operation can become linear in the number of
 -- elements with a maximum of /W/ -- the number of bits in an 'Int'
---
--- This module is spine strict, but value lazy.  If you require strict
--- operations on these maps, please use "Data.IntMap.Strict".
 -- (32 or 64).
 -----------------------------------------------------------------------------
 

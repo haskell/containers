@@ -15,6 +15,8 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
+-- API of this module is strict in both the keys and the values.
+-- If you need value-lazy maps, use 'Data.Map.Lazy' instead.
 -- The 'Map' type is shared between the lazy and strict modules,
 -- meaning that the same 'Map' value can be passed to functions in
 -- both modules (although that is rarely needed).
@@ -41,6 +43,10 @@
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
+--
+-- Be aware that the 'Functor', 'Traversable' and 'Data' instances
+-- are the same as for the 'Data.Map.Lazy' module, so if they are used
+-- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 -- It is crucial to the performance that the functions specialize on the Ord
@@ -287,7 +293,7 @@ import Data.StrictPair
 --
 -- Here are some examples that illustrate the first property:
 --
--- > insertWith (\ old new -> old) k undefined m  ==  undefined
+-- > insertWith (\ new old -> old) k undefined m  ==  undefined
 -- > delete undefined m  ==  undefined
 --
 -- Here are some examples that illustrate the second property:
