@@ -881,18 +881,6 @@ instance Show IntSet where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
-{-
-XXX unused code
-showSet :: [Int] -> ShowS
-showSet []
-  = showString "{}"
-showSet (x:xs)
-  = showChar '{' . shows x . showTail xs
-  where
-    showTail []     = showChar '}'
-    showTail (x':xs') = showChar ',' . shows x' . showTail xs'
--}
-
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}

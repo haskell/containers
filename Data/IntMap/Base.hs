@@ -1666,21 +1666,6 @@ instance Show a => Show (IntMap a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
-{-
-XXX unused code
-
-showMap :: (Show a) => [(Key,a)] -> ShowS
-showMap []
-  = showString "{}"
-showMap (x:xs)
-  = showChar '{' . showElem x . showTail xs
-  where
-    showTail []     = showChar '}'
-    showTail (x':xs') = showChar ',' . showElem x' . showTail xs'
-
-    showElem (k,v)  = shows k . showString ":=" . shows v
--}
-
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}

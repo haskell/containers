@@ -151,13 +151,6 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
-{-
--- just for testing
-import QuickCheck
-import List (nub,sort)
-import qualified List
--}
-
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
 import Text.Read
