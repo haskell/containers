@@ -3,7 +3,7 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
 #endif
 -----------------------------------------------------------------------------
 -- |
