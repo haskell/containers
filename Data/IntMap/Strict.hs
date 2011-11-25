@@ -193,7 +193,8 @@ module Data.IntMap.Strict (
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
 import Data.IntMap.Base hiding
-    ( singleton
+    ( findWithDefault
+    , singleton
     , insert
     , insertWith
     , insertWithKey
@@ -253,6 +254,22 @@ import Data.StrictPair
 -- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
 -- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
 
+{--------------------------------------------------------------------
+  Query
+--------------------------------------------------------------------}
+
+-- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
+-- returns the value at key @k@ or returns @def@ when the key is not an
+-- element of the map.
+--
+-- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
+-- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
+
+findWithDefault :: a -> Key -> IntMap a -> a
+findWithDefault def k m
+  = def `seq` case lookup k m of
+      Nothing -> def
+      Just x  -> x
 
 {--------------------------------------------------------------------
   Construction
