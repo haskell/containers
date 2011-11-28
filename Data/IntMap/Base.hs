@@ -1454,22 +1454,22 @@ foldlWithKey' f z t =
 --------------------------------------------------------------------}
 -- | /O(n)/.
 -- Return all elements of the map in the ascending order of their keys.
+-- Subject to list fusion.
 --
 -- > elems (fromList [(5,"a"), (3,"b")]) == ["b","a"]
 -- > elems empty == []
 
 elems :: IntMap a -> [a]
-elems
-  = foldr (:) []
+elems = foldr (:) []
 
--- | /O(n)/. Return all keys of the map in ascending order.
+-- | /O(n)/. Return all keys of the map in ascending order. Subject to list
+-- fusion.
 --
 -- > keys (fromList [(5,"a"), (3,"b")]) == [3,5]
 -- > keys empty == []
 
 keys  :: IntMap a -> [Key]
-keys
-  = foldrWithKey (\k _ ks -> k:ks) []
+keys = foldrWithKey (\k _ ks -> k : ks) []
 
 -- | /O(n*min(n,W))/. The set of all keys of the map.
 --
@@ -1514,7 +1514,9 @@ toAscList
   = foldrWithKey (\k x xs -> (k,x):xs) []
 
 #if __GLASGOW_HASKELL__
--- List fusion for the above three functions
+-- List fusion for the list generating functions
+{-# RULES "IntMap/elems" forall im . elems im = build (\c n -> foldr c n im) #-}
+{-# RULES "IntMap/keys" forall im . keys im = build (\c n -> foldrWithKey (\k _ ks -> c k ks) n im) #-}
 {-# RULES "IntMap/assocs" forall im . assocs im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
 {-# RULES "IntMap/toList" forall im . toList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
 {-# RULES "IntMap/toAscList" forall im . toAscList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}

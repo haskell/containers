@@ -790,10 +790,10 @@ toAscList :: IntSet -> [Int]
 toAscList = foldr (:) []
 
 #if __GLASGOW_HASKELL__
--- List fusion for the above three functions
+-- List fusion for the list generating functions
+{-# RULES "IntSet/elems" forall is . elems is = build (\c n -> foldr c n is) #-}
 {-# RULES "IntSet/toList" forall is . toList is = build (\c n -> foldr c n is) #-}
 {-# RULES "IntSet/toAscList" forall is . toAscList is = build (\c n -> foldr c n is) #-}
-{-# RULES "IntSet/elems" forall is . elems is = build (\c n -> foldr c n is) #-}
 #endif
 
 

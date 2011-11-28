@@ -1659,22 +1659,22 @@ foldlWithKey' f = go
 --------------------------------------------------------------------}
 -- | /O(n)/.
 -- Return all elements of the map in the ascending order of their keys.
+-- Subject to list fusion.
 --
 -- > elems (fromList [(5,"a"), (3,"b")]) == ["b","a"]
 -- > elems empty == []
 
 elems :: Map k a -> [a]
-elems m
-  = [x | (_,x) <- assocs m]
+elems = foldr (:) []
 
--- | /O(n)/. Return all keys of the map in ascending order.
+-- | /O(n)/. Return all keys of the map in ascending order. Subject to list
+-- fusion.
 --
 -- > keys (fromList [(5,"a"), (3,"b")]) == [3,5]
 -- > keys empty == []
 
 keys  :: Map k a -> [k]
-keys m
-  = [k | (k,_) <- assocs m]
+keys = foldrWithKey (\k _ ks -> k : ks) []
 
 -- | /O(n)/. The set of all keys of the map.
 --
@@ -1764,7 +1764,9 @@ toDescList :: Map k a -> [(k,a)]
 toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
 
 #if __GLASGOW_HASKELL__
--- List fusion for the above four functions
+-- List fusion for the list generating functions
+{-# RULES "Map/elems" forall m . elems m = build (\c n -> foldr c n m) #-}
+{-# RULES "Map/keys" forall m . keys m = build (\c n -> foldrWithKey (\k _ ks -> c k ks) n m) #-}
 {-# RULES "Map/assocs" forall m . assocs m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
 {-# RULES "Map/toList" forall m . toList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
 {-# RULES "Map/toAscList" forall m . toAscList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
