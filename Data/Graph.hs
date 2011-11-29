@@ -72,6 +72,7 @@ import qualified Data.IntSet as Set
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
+import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
 import Data.List
@@ -87,6 +88,10 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
                                         -- in any cycle.
                 | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
                                         -- reachable vertices.
+
+instance NFData a => NFData (SCC a) where
+    rnf (AcyclicSCC v) = rnf v
+    rnf (CyclicSCC vs) = rnf vs
 
 -- | The vertices of a list of strongly connected components.
 flattenSCCs :: [SCC a] -> [a]

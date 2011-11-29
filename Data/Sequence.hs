@@ -143,6 +143,7 @@ import Prelude hiding (
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), WrappedMonad(..), liftA, liftA2, liftA3)
+import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
@@ -188,6 +189,9 @@ instance Foldable Seq where
 
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
+
+instance NFData a => NFData (Seq a) where
+    rnf (Seq xs) = rnf xs
 
 instance Monad Seq where
     return = singleton
@@ -313,6 +317,11 @@ instance Traversable FingerTree where
         Deep v <$> traverse f pr <*> traverse (traverse f) m <*>
             traverse f sf
 
+instance NFData a => NFData (FingerTree a) where
+    rnf (Empty) = ()
+    rnf (Single x) = rnf x
+    rnf (Deep _ pr m sf) = rnf pr `seq` rnf m `seq` rnf sf
+
 {-# INLINE deep #-}
 {-# SPECIALIZE INLINE deep :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE INLINE deep :: Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
@@ -389,6 +398,12 @@ instance Traversable Digit where
     traverse f (Three a b c) = Three <$> f a <*> f b <*> f c
     traverse f (Four a b c d) = Four <$> f a <*> f b <*> f c <*> f d
 
+instance NFData a => NFData (Digit a) where
+    rnf (One a) = rnf a
+    rnf (Two a b) = rnf a `seq` rnf b
+    rnf (Three a b c) = rnf a `seq` rnf b `seq` rnf c
+    rnf (Four a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
+
 instance Sized a => Sized (Digit a) where
     {-# INLINE size #-}
     size = foldl1 (+) . fmap size
@@ -435,6 +450,10 @@ instance Traversable Node where
     traverse f (Node2 v a b) = Node2 v <$> f a <*> f b
     traverse f (Node3 v a b c) = Node3 v <$> f a <*> f b <*> f c
 
+instance NFData a => NFData (Node a) where
+    rnf (Node2 _ a b) = rnf a `seq` rnf b
+    rnf (Node3 _ a b c) = rnf a `seq` rnf b `seq` rnf c
+
 instance Sized (Node a) where
     size (Node2 v _ _)      = v
     size (Node3 v _ _ _)    = v
@@ -474,6 +493,9 @@ instance Foldable Elem where
 
 instance Traversable Elem where
     traverse f (Elem x) = Elem <$> f x
+
+instance NFData a => NFData (Elem a) where
+    rnf (Elem x) = rnf x
 
 -------------------------------------------------------
 -- Applicative construction
