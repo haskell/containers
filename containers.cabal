@@ -51,6 +51,9 @@ Library
 
     include-dirs: include
 
+    if impl(ghc<7.0)
+        extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
+
     if flag(testing)
         cpp-options: -DTESTING
 
