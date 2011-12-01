@@ -57,9 +57,10 @@ Library
 -- Every test-suite contains the build-depends and options of the library,
 -- plus the testing stuff.
 
--- Testing works for GHC >= 7.0. Test-suites could be modified to compile
--- with GHC < 7.0, but we don't really care, as GHC < 7.0 is bundled with
--- Cabal 1.8.* anyway.
+-- Because the test-suites cannot contain conditionals in GHC 7.0, the extensions
+-- are switched on for every compiler to allow GHC < 7.0 to compile the tests
+-- (because GHC < 7.0 cannot handle conditional LANGUAGE pragmas).
+-- When testing with GHC < 7.0 is not needed, the extensions should be removed.
 
 Test-suite map-lazy-properties
     hs-source-dirs: tests, .
@@ -69,6 +70,7 @@ Test-suite map-lazy-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -85,6 +87,7 @@ Test-suite map-strict-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -101,6 +104,7 @@ Test-suite set-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         QuickCheck,
@@ -115,6 +119,7 @@ Test-suite intmap-lazy-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -131,6 +136,7 @@ Test-suite intmap-strict-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -147,6 +153,7 @@ Test-suite intset-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         QuickCheck,
@@ -161,6 +168,7 @@ Test-suite seq-properties
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.3, ghc-prim
     ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         QuickCheck,
