@@ -987,12 +987,12 @@ findMax (Bin _ m l r)
 -- | /O(log n)/. Delete the minimal key. An error is thrown if the IntMap is already empty.
 -- Note, this is not the same behavior Map.
 deleteMin :: IntMap a -> IntMap a
-deleteMin = maybe (error "deleteMin: empty map has no minimal element") snd . minView
+deleteMin = maybe Nil snd . minView
 
 -- | /O(log n)/. Delete the maximal key. An error is thrown if the IntMap is already empty.
 -- Note, this is not the same behavior Map.
 deleteMax :: IntMap a -> IntMap a
-deleteMax = maybe (error "deleteMax: empty map has no maximal element") snd . maxView
+deleteMax = maybe Nil snd . maxView
 
 
 {--------------------------------------------------------------------

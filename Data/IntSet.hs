@@ -675,11 +675,11 @@ findMax (Bin _ m l r)
 
 -- | /O(min(n,W))/. Delete the minimal element.
 deleteMin :: IntSet -> IntSet
-deleteMin = maybe (error "deleteMin: empty set has no minimal element") snd . minView
+deleteMin = maybe Nil snd . minView
 
 -- | /O(min(n,W))/. Delete the maximal element.
 deleteMax :: IntSet -> IntSet
-deleteMax = maybe (error "deleteMax: empty set has no maximal element") snd . maxView
+deleteMax = maybe Nil snd . maxView
 
 {----------------------------------------------------------------------
   Map
