@@ -955,12 +955,12 @@ minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
 -- | /O(log n)/. Delete and find the maximal element.
-deleteFindMax :: IntMap a -> (a, IntMap a)
-deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxView
+deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | /O(log n)/. Delete and find the minimal element.
-deleteFindMin :: IntMap a -> (a, IntMap a)
-deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minView
+deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
 -- | /O(log n)/. The minimal key of the map.
 findMin :: IntMap a -> (Key, a)

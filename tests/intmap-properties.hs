@@ -622,10 +622,10 @@ test_deleteMax = do
     deleteMin (empty :: SMap) @?= empty
 
 test_deleteFindMin :: Assertion
-test_deleteFindMin = deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ("b", fromList[(5,"a"), (10,"c")])
+test_deleteFindMin = deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((3,"b"), fromList[(5,"a"), (10,"c")])
 
 test_deleteFindMax :: Assertion
-test_deleteFindMax = deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ("c", fromList [(3,"b"), (5,"a")])
+test_deleteFindMax = deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((10,"c"), fromList [(3,"b"), (5,"a")])
 
 test_updateMin :: Assertion
 test_updateMin = do
