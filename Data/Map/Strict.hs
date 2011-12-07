@@ -250,9 +250,7 @@ import Data.Map.Base hiding
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
-    , mapKeys
     , mapKeysWith
-    , mapKeysMonotonic
     , fromList
     , fromListWith
     , fromListWithKey
@@ -958,23 +956,6 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
   in x' `seq` (a3,Bin sx kx x' l' r')
 
 -- | /O(n*log n)/.
--- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
---
--- The size of the result may be smaller if @f@ maps two or more distinct
--- keys to the same new key.  In this case the value at the greatest of
--- the original keys is retained.
---
--- > mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        == fromList [(4, "b"), (6, "a")]
--- > mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "c"
--- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
-
-mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
-mapKeys = mapKeysWith (\x _ -> x)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE mapKeys #-}
-#endif
-
--- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
 --
 -- The size of the result may be smaller if @f@ maps two or more distinct
@@ -990,31 +971,6 @@ mapKeysWith c f = fromListWith c . List.map fFirst . toList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapKeysWith #-}
 #endif
-
-
--- | /O(n)/.
--- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
--- is strictly monotonic.
--- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
--- /The precondition is not checked./
--- Semi-formally, we have:
---
--- > and [x < y ==> f x < f y | x <- ls, y <- ls]
--- >                     ==> mapKeysMonotonic f s == mapKeys f s
--- >     where ls = keys s
---
--- This means that @f@ maps distinct original keys to distinct resulting keys.
--- This function has better performance than 'mapKeys'.
---
--- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
--- > valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) == True
--- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
-
-mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
-mapKeysMonotonic _ Tip = Tip
-mapKeysMonotonic f (Bin sz k x l r) =
-    let k' = f k
-    in k' `seq` Bin sz k' x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
 
 {--------------------------------------------------------------------
   Lists
