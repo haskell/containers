@@ -219,7 +219,6 @@ module Data.Map.Base (
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import qualified Data.Set as Set
-import qualified Data.List as List
 import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
@@ -1494,7 +1493,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 -- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
-mapKeys = mapKeysWith (\x _ -> x)
+mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapKeys #-}
 #endif
@@ -1510,8 +1509,7 @@ mapKeys = mapKeysWith (\x _ -> x)
 -- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
-mapKeysWith c f = fromListWith c . List.map fFirst . toList
-    where fFirst (x,y) = (f x, y)
+mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapKeysWith #-}
 #endif
