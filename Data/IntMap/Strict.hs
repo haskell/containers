@@ -634,42 +634,50 @@ intersectionWithKey _ _ Nil = Nil
 
 -- | /O(log n)/. Update the value at the minimal key.
 --
--- > updateMinWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
+-- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
+-- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
-updateMinWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
+updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey f t =
-  case t of Bin p m l r | m < 0 -> Bin p m l (go f r)
+  case t of Bin p m l r | m < 0 -> bin p m l (go f r)
             _ -> go f t
   where
-    go f' (Bin p m l r) = Bin p m (go f' l) r
-    go f' (Tip k y) = Tip k $! f' k y
+    go f' (Bin p m l r) = bin p m (go f' l) r
+    go f' (Tip k y) = case f' k y of
+                        Just y' -> y' `seq` Tip k y'
+                        Nothing -> Nil
     go _ Nil = error "updateMinWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
--- > updateMaxWithKey (\ k a -> (show k) ++ ":" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
+-- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
+-- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
-updateMaxWithKey :: (Key -> a -> a) -> IntMap a -> IntMap a
+updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey f t =
-  case t of Bin p m l r | m < 0 -> Bin p m (go f l) r
+  case t of Bin p m l r | m < 0 -> bin p m (go f l) r
             _ -> go f t
   where
-    go f' (Bin p m l r) = Bin p m l (go f' r)
-    go f' (Tip k y) = Tip k $! f' k y
+    go f' (Bin p m l r) = bin p m l (go f' r)
+    go f' (Tip k y) = case f' k y of
+                        Just y' -> y' `seq` Tip k y'
+                        Nothing -> Nil
     go _ Nil = error "updateMaxWithKey Nil"
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
--- > updateMax (\ a -> "X" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
+-- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
+-- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 
-updateMax :: (a -> a) -> IntMap a -> IntMap a
+updateMax :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMax f = updateMaxWithKey (const f)
 
 -- | /O(log n)/. Update the value at the minimal key.
 --
--- > updateMin (\ a -> "X" ++ a) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
+-- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
+-- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
-updateMin :: (a -> a) -> IntMap a -> IntMap a
+updateMin :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
 
 
