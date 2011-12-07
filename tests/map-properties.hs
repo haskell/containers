@@ -467,6 +467,7 @@ test_mapKeysWith = do
 
 test_mapKeysMonotonic :: Assertion
 test_mapKeysMonotonic = do
+    mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b")])          @?= fromList [(4, "b"), (6, "a")]
     mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
     valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) @?= True
     valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) @?= False
@@ -897,7 +898,7 @@ prop_index xs = length xs > 0 ==>
   in  xs == [ m ! i | i <- xs ]
 
 prop_null :: IMap -> Bool
-prop_null m = Data.Map.null m == (size m == 0)
+prop_null m = null m == (size m == 0)
 
 prop_member :: [Int] -> Int -> Bool
 prop_member xs n =
@@ -953,19 +954,19 @@ prop_filter :: (Int -> Bool) -> [(Int, Int)] -> Property
 prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.filter p m == fromList (List.filter (p . snd) xs)
+  in  filter p m == fromList (List.filter (p . snd) xs)
 
 prop_partition :: (Int -> Bool) -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
+  in  partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
 
 prop_map :: (Int -> Int) -> [(Int, Int)] -> Property
 prop_map f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.map f m == fromList [ (a, f b) | (a,b) <- xs ]
+  in  map f m == fromList [ (a, f b) | (a,b) <- xs ]
 
 prop_fmap :: (Int -> Int) -> [(Int, Int)] -> Property
 prop_fmap f ys = length ys > 0 ==>
@@ -990,22 +991,22 @@ prop_foldr :: Int -> [(Int, Int)] -> Property
 prop_foldr n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
 
 prop_foldr' :: Int -> [(Int, Int)] -> Property
 prop_foldr' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
 
 prop_foldl :: Int -> [(Int, Int)] -> Property
 prop_foldl n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.foldlWithKey (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldlWithKey (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
 
 prop_foldl' :: Int -> [(Int, Int)] -> Property
 prop_foldl' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.foldlWithKey' (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldlWithKey' (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)

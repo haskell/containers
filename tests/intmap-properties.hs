@@ -67,6 +67,9 @@ main = defaultMainWithOpts
              , testCase "mapAccum" test_mapAccum
              , testCase "mapAccumWithKey" test_mapAccumWithKey
              , testCase "mapAccumRWithKey" test_mapAccumRWithKey
+             , testCase "mapKeys" test_mapKeys
+             , testCase "mapKeysWith" test_mapKeysWith
+             , testCase "mapKeysMonotonic" test_mapKeysMonotonic
              , testCase "elems" test_elems
              , testCase "keys" test_keys
              , testCase "keysSet" test_keysSet
@@ -130,13 +133,14 @@ main = defaultMainWithOpts
              , testProperty "findWithDefault"      prop_findWithDefault
              , testProperty "findMin"              prop_findMin
              , testProperty "findMax"              prop_findMax
-             , testProperty "deleteMin"            prop_deleteMin
-             , testProperty "deleteMax"            prop_deleteMax
+             , testProperty "deleteMin"            prop_deleteMinModel
+             , testProperty "deleteMax"            prop_deleteMaxModel
              , testProperty "filter"               prop_filter
              , testProperty "partition"            prop_partition
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
-             , testProperty "split"                prop_split
+             , testProperty "mapkeys"              prop_mapkeys
+             , testProperty "split"                prop_splitModel
              , testProperty "foldr"                prop_foldr
              , testProperty "foldr'"               prop_foldr'
              , testProperty "foldl"                prop_foldl
@@ -421,6 +425,22 @@ test_mapAccumRWithKey = mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,
   where
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
+test_mapKeys :: Assertion
+test_mapKeys = do
+    mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        @?= fromList [(4, "b"), (6, "a")]
+    mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "c"
+    mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "c"
+
+test_mapKeysWith :: Assertion
+test_mapKeysWith = do
+    mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "cdab"
+    mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "cdab"
+
+test_mapKeysMonotonic :: Assertion
+test_mapKeysMonotonic = do
+    mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b")])          @?= fromList [(4, "b"), (6, "a")]
+    mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
+
 ----------------------------------------------------------------
 -- Conversion
 
@@ -619,7 +639,7 @@ test_deleteMin = do
 test_deleteMax :: Assertion
 test_deleteMax = do
     deleteMax (fromList [(5,"a"), (3,"b"), (7,"c")]) @?= fromList [(3,"b"), (5,"a")]
-    deleteMin (empty :: SMap) @?= empty
+    deleteMax (empty :: SMap) @?= empty
 
 test_deleteFindMin :: Assertion
 test_deleteFindMin = deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((3,"b"), fromList[(5,"a"), (10,"c")])
@@ -737,7 +757,7 @@ prop_alter t k = case lookup k t of
     f (Just ()) = Nothing
 
 ------------------------------------------------------------------------
--- New tests: compare against the list model (after nub on keys)
+-- Compare against the list model (after nub on keys)
 
 prop_index :: [Int] -> Property
 prop_index xs = length xs > 0 ==>
@@ -775,14 +795,14 @@ prop_findMax ys = length ys > 0 ==>
       m  = fromList xs
   in  findMax m == List.maximumBy (comparing fst) xs
 
-prop_deleteMin :: [(Int, Int)] -> Property
-prop_deleteMin ys = length ys > 0 ==>
+prop_deleteMinModel :: [(Int, Int)] -> Property
+prop_deleteMinModel ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  toAscList (deleteMin m) == tail (sort xs)
 
-prop_deleteMax :: [(Int, Int)] -> Property
-prop_deleteMax ys = length ys > 0 ==>
+prop_deleteMaxModel :: [(Int, Int)] -> Property
+prop_deleteMaxModel ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  toAscList (deleteMax m) == init (sort xs)
@@ -811,8 +831,14 @@ prop_fmap f ys = length ys > 0 ==>
       m  = fromList xs
   in  fmap f m == fromList [ (a, f b) | (a,b) <- xs ]
 
-prop_split :: Int -> [(Int, Int)] -> Property
-prop_split n ys = length ys > 0 ==>
+prop_mapkeys :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_mapkeys f ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
+
+prop_splitModel :: Int -> [(Int, Int)] -> Property
+prop_splitModel n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       (l, r) = split n $ fromList xs
   in  toAscList l == sort [(k, v) | (k,v) <- xs, k < n] &&
