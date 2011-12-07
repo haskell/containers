@@ -84,6 +84,9 @@ module Data.IntMap.Base (
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
+            , mapKeys
+            , mapKeysWith
+            , mapKeysMonotonic
 
             -- * Folds
             , foldr
@@ -347,7 +350,7 @@ member k m
       Nothing -> False
       Just _  -> True
 
--- | /O(log n)/. Is the key not a member of the map?
+-- | /O(min(n,W))/. Is the key not a member of the map?
 --
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
@@ -610,7 +613,7 @@ updateLookupWithKey f k t = k `seq`
 
 
 
--- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
+-- | /O(min(n,W))/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
@@ -868,7 +871,7 @@ intersectionWithKey _ _ Nil = Nil
   Min\/Max
 --------------------------------------------------------------------}
 
--- | /O(log n)/. Update the value at the minimal key.
+-- | /O(min(n,W))/. Update the value at the minimal key.
 --
 -- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
@@ -884,7 +887,7 @@ updateMinWithKey f t =
                         Nothing -> Nil
     go _ Nil = error "updateMinWithKey Nil"
 
--- | /O(log n)/. Update the value at the maximal key.
+-- | /O(min(n,W))/. Update the value at the maximal key.
 --
 -- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -900,7 +903,7 @@ updateMaxWithKey f t =
                         Nothing -> Nil
     go _ Nil = error "updateMaxWithKey Nil"
 
--- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
+-- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
 -- > maxViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((5,"a"), singleton 3 "b")
@@ -916,7 +919,7 @@ maxViewWithKey t =
     go (Tip k y) = ((k, y), Nil)
     go Nil = error "maxViewWithKey Nil"
 
--- | /O(log n)/. Retrieves the minimal (key,value) pair of the map, and
+-- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
 -- > minViewWithKey (fromList [(5,"a"), (3,"b")]) == Just ((3,"b"), singleton 5 "a")
@@ -932,7 +935,7 @@ minViewWithKey t =
     go (Tip k y) = ((k, y), Nil)
     go Nil = error "minViewWithKey Nil"
 
--- | /O(log n)/. Update the value at the maximal key.
+-- | /O(min(n,W))/. Update the value at the maximal key.
 --
 -- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
 -- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -940,7 +943,7 @@ minViewWithKey t =
 updateMax :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMax f = updateMaxWithKey (const f)
 
--- | /O(log n)/. Update the value at the minimal key.
+-- | /O(min(n,W))/. Update the value at the minimal key.
 --
 -- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
 -- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
@@ -952,25 +955,25 @@ updateMin f = updateMinWithKey (const f)
 first :: (a -> c) -> (a, b) -> (c, b)
 first f (x,y) = (f x,y)
 
--- | /O(log n)/. Retrieves the maximal key of the map, and the map
+-- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
 maxView t = liftM (first snd) (maxViewWithKey t)
 
--- | /O(log n)/. Retrieves the minimal key of the map, and the map
+-- | /O(min(n,W))/. Retrieves the minimal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
--- | /O(log n)/. Delete and find the maximal element.
+-- | /O(min(n,W))/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
--- | /O(log n)/. Delete and find the minimal element.
+-- | /O(min(n,W))/. Delete and find the minimal element.
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
--- | /O(log n)/. The minimal key of the map.
+-- | /O(min(n,W))/. The minimal key of the map.
 findMin :: IntMap a -> (Key, a)
 findMin Nil = error $ "findMin: empty map has no minimal element"
 findMin (Tip k v) = (k,v)
@@ -981,7 +984,7 @@ findMin (Bin _ m l r)
           go (Bin _ _ l' _) = go l'
           go Nil            = error "findMax Nil"
 
--- | /O(log n)/. The maximal key of the map.
+-- | /O(min(n,W))/. The maximal key of the map.
 findMax :: IntMap a -> (Key, a)
 findMax Nil = error $ "findMax: empty map has no maximal element"
 findMax (Tip k v) = (k,v)
@@ -992,12 +995,12 @@ findMax (Bin _ m l r)
           go (Bin _ _ _ r') = go r'
           go Nil            = error "findMax Nil"
 
--- | /O(log n)/. Delete the minimal key. An error is thrown if the IntMap is already empty.
+-- | /O(min(n,W))/. Delete the minimal key. An error is thrown if the IntMap is already empty.
 -- Note, this is not the same behavior Map.
 deleteMin :: IntMap a -> IntMap a
 deleteMin = maybe Nil snd . minView
 
--- | /O(log n)/. Delete the maximal key. An error is thrown if the IntMap is already empty.
+-- | /O(min(n,W))/. Delete the maximal key. An error is thrown if the IntMap is already empty.
 -- Note, this is not the same behavior Map.
 deleteMax :: IntMap a -> IntMap a
 deleteMax = maybe Nil snd . maxView
@@ -1158,6 +1161,52 @@ mapAccumRWithKey f a t
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
+-- | /O(n*min(n,W))/.
+-- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
+--
+-- The size of the result may be smaller if @f@ maps two or more distinct
+-- keys to the same new key.  In this case the value at the greatest of the
+-- original keys is retained.
+--
+-- > mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        == fromList [(4, "b"), (6, "a")]
+-- > mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "c"
+-- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
+
+mapKeys :: (Key->Key) -> IntMap a -> IntMap a
+mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
+
+-- | /O(n*min(n,W))/.
+-- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
+--
+-- The size of the result may be smaller if @f@ maps two or more distinct
+-- keys to the same new key.  In this case the associated values will be
+-- combined using @c@.
+--
+-- > mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "cdab"
+-- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
+
+mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
+mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
+
+-- | /O(n*min(n,W))/.
+-- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
+-- is strictly monotonic.
+-- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
+-- /The precondition is not checked./
+-- Semi-formally, we have:
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
+-- >                     ==> mapKeysMonotonic f s == mapKeys f s
+-- >     where ls = keys s
+--
+-- This means that @f@ maps distinct original keys to distinct resulting keys.
+-- This function has slightly better performance than 'mapKeys'.
+--
+-- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
+
+mapKeysMonotonic :: (Key->Key) -> IntMap a -> IntMap a
+mapKeysMonotonic f = fromDistinctAscList . foldrWithKey (\k x xs -> (f k, x) : xs) []
+
 {--------------------------------------------------------------------
   Filter
 --------------------------------------------------------------------}
@@ -1271,7 +1320,7 @@ mapEitherWithKey f (Tip k x) = case f k x of
   Right z -> (Nil, Tip k z)
 mapEitherWithKey _ Nil = (Nil, Nil)
 
--- | /O(log n)/. The expression (@'split' k map@) is a pair @(map1,map2)@
+-- | /O(min(n,W))/. The expression (@'split' k map@) is a pair @(map1,map2)@
 -- where all keys in @map1@ are lower than @k@ and all keys in
 -- @map2@ larger than @k@. Any key equal to @k@ is found in neither @map1@ nor @map2@.
 --
@@ -1296,7 +1345,7 @@ split k t =
                         | otherwise = (Nil, Nil)
     go _ Nil = (Nil, Nil)
 
--- | /O(log n)/. Performs a 'split' but also returns whether the pivot
+-- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
 --
 -- > splitLookup 2 (fromList [(5,"a"), (3,"b")]) == (empty, Nothing, fromList [(3,"b"), (5,"a")])

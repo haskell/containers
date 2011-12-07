@@ -120,6 +120,9 @@ module Data.IntMap.Strict (
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
+            , mapKeys
+            , mapKeysWith
+            , mapKeysMonotonic
 
             -- * Folds
             , foldr
@@ -221,6 +224,7 @@ import Data.IntMap.Base hiding
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
+    , mapKeysWith
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -745,6 +749,19 @@ mapAccumRWithKey f a t
                      in (a2 `strictPair` Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in x' `seq` (a' `strictPair` Tip k x')
       Nil         -> (a `strictPair` Nil)
+
+-- | /O(n*log n)/.
+-- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
+--
+-- The size of the result may be smaller if @f@ maps two or more distinct
+-- keys to the same new key.  In this case the associated values will be
+-- combined using @c@.
+--
+-- > mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 1 "cdab"
+-- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
+
+mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
+mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 {--------------------------------------------------------------------
   Filter

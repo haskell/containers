@@ -116,6 +116,9 @@ module Data.IntMap.Lazy (
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
+            , mapKeys
+            , mapKeysWith
+            , mapKeysMonotonic
 
             -- * Folds
             , IM.foldr
