@@ -1544,8 +1544,7 @@ keysSet m = IntSet.fromDistinctAscList (keys m)
 -- > assocs empty == []
 
 assocs :: IntMap a -> [(Key,a)]
-assocs
-  = toAscList
+assocs = toAscList
 
 
 {--------------------------------------------------------------------
@@ -1558,8 +1557,7 @@ assocs
 -- > toList empty == []
 
 toList :: IntMap a -> [(Key,a)]
-toList
-  = toAscList
+toList = toAscList
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs where the
 -- keys are in ascending order. Subject to list fusion.
@@ -1567,8 +1565,7 @@ toList
 -- > toAscList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
 
 toAscList :: IntMap a -> [(Key,a)]
-toAscList
-  = foldrWithKey (\k x xs -> (k,x):xs) []
+toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 
 #if __GLASGOW_HASKELL__
 -- List fusion for the list generating functions
