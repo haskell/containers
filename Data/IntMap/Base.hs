@@ -113,6 +113,7 @@ module Data.IntMap.Base (
 
             -- ** Ordered lists
             , toAscList
+            , toDescList
             , fromAscList
             , fromAscListWith
             , fromAscListWithKey
@@ -1567,6 +1568,14 @@ toList = toAscList
 toAscList :: IntMap a -> [(Key,a)]
 toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 
+-- | /O(n)/. Convert the map to a list of key\/value pairs where the keys
+-- are in descending order. Subject to list fusion.
+--
+-- > toDescList (fromList [(5,"a"), (3,"b")]) == [(5,"a"), (3,"b")]
+
+toDescList :: IntMap a -> [(Key,a)]
+toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
+
 #if __GLASGOW_HASKELL__
 -- List fusion for the list generating functions
 {-# RULES "IntMap/elems" forall im . elems im = build (\c n -> foldr c n im) #-}
@@ -1574,6 +1583,7 @@ toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 {-# RULES "IntMap/assocs" forall im . assocs im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
 {-# RULES "IntMap/toList" forall im . toList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
 {-# RULES "IntMap/toAscList" forall im . toAscList im = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n im) #-}
+{-# RULES "IntMap/toDescList" forall im . toDescList im = build (\c n -> foldlWithKey (\xs k x -> c (k,x) xs) n im) #-}
 #endif
 
 

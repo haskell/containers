@@ -79,6 +79,7 @@ main = defaultMainWithOpts
              , testCase "fromListWith" test_fromListWith
              , testCase "fromListWithKey" test_fromListWithKey
              , testCase "toAscList" test_toAscList
+             , testCase "toDescList" test_toDescList
              , testCase "showTree" test_showTree
              , testCase "fromAscList" test_fromAscList
              , testCase "fromAscListWith" test_fromAscListWith
@@ -125,6 +126,8 @@ main = defaultMainWithOpts
              , testProperty "intersection model"   prop_intersectionModel
              , testProperty "fromAscList"          prop_ordered
              , testProperty "fromList then toList" prop_list
+             , testProperty "toDescList"           prop_descList
+             , testProperty "toAscList+toDescList" prop_ascDescList
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
              , testProperty "null"                 prop_null
@@ -496,6 +499,9 @@ test_fromListWithKey = do
 test_toAscList :: Assertion
 test_toAscList = toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
 
+test_toDescList :: Assertion
+test_toDescList = toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")]
+
 test_showTree :: Assertion
 test_showTree =
        (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
@@ -744,6 +750,13 @@ prop_ordered
 
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
+
+prop_descList :: [Int] -> Bool
+prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
+
+prop_ascDescList :: [Int] -> Bool
+prop_ascDescList xs = toAscList m == reverse (toDescList m)
+  where m = fromList $ zip xs $ repeat ()
 
 ----------------------------------------------------------------
 

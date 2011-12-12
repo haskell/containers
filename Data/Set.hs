@@ -127,6 +127,7 @@ module Data.Set (
 
             -- ** Ordered list
             , toAscList
+            , toDescList
             , fromAscList
             , fromDistinctAscList
 
@@ -622,11 +623,17 @@ toList = toAscList
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
 
+-- | /O(n)/. Convert the set to a descending list of elements. Subject to list
+-- fusion.
+toDescList :: Set a -> [a]
+toDescList = foldl (flip (:)) []
+
 #if __GLASGOW_HASKELL__
 -- List fusion for the list generating functions
 {-# RULES "Set/elems" forall s . elems s = build (\c n -> foldr c n s) #-}
 {-# RULES "Set/toList" forall s . toList s = build (\c n -> foldr c n s) #-}
 {-# RULES "Set/toAscList" forall s . toAscList s = build (\c n -> foldr c n s) #-}
+{-# RULES "Set/toDescList" forall s . toDescList s = build (\c n -> foldl (\xs x -> c x xs) n s) #-}
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.

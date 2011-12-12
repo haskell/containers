@@ -149,6 +149,7 @@ module Data.IntMap.Strict (
 
             -- ** Ordered lists
             , toAscList
+            , toDescList
             , fromAscList
             , fromAscListWith
             , fromAscListWithKey

@@ -145,6 +145,7 @@ module Data.IntMap.Lazy (
 
             -- ** Ordered lists
             , toAscList
+            , toDescList
             , fromAscList
             , fromAscListWith
             , fromAscListWithKey

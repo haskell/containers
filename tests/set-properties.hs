@@ -26,6 +26,8 @@ main = defaultMainWithOpts [ testProperty "prop_Valid" prop_Valid
                            , testProperty "prop_Int" prop_Int
                            , testProperty "prop_Ordered" prop_Ordered
                            , testProperty "prop_List" prop_List
+                           , testProperty "prop_DescList" prop_DescList
+                           , testProperty "prop_AscDescList" prop_AscDescList
                            , testProperty "prop_fromList" prop_fromList
                            , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                            , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
@@ -169,6 +171,13 @@ prop_Ordered = forAll (choose (5,100)) $ \n ->
 
 prop_List :: [Int] -> Bool
 prop_List xs = (sort (nub xs) == toList (fromList xs))
+
+prop_DescList :: [Int] -> Bool
+prop_DescList xs = (reverse (sort (nub xs)) == toDescList (fromList xs))
+
+prop_AscDescList :: [Int] -> Bool
+prop_AscDescList xs = toAscList s == reverse (toDescList s)
+  where s = fromList xs
 
 prop_fromList :: [Int] -> Bool
 prop_fromList xs

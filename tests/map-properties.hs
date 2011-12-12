@@ -145,6 +145,8 @@ main = defaultMainWithOpts
          , testProperty "intersection model"   prop_intersectionModel
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromList then toList" prop_list
+         , testProperty "toDescList"           prop_descList
+         , testProperty "toAscList+toDescList" prop_ascDescList
          , testProperty "alter"                prop_alter
          , testProperty "index"                prop_index
          , testProperty "null"                 prop_null
@@ -877,6 +879,13 @@ prop_ordered
 
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
+
+prop_descList :: [Int] -> Bool
+prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
+
+prop_ascDescList :: [Int] -> Bool
+prop_ascDescList xs = toAscList m == reverse (toDescList m)
+  where m = fromList $ zip xs $ repeat ()
 
 ----------------------------------------------------------------
 

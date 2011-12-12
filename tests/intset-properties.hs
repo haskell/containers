@@ -20,6 +20,8 @@ main = defaultMainWithOpts [ testProperty "prop_Single" prop_Single
                            , testProperty "prop_Int" prop_Int
                            , testProperty "prop_Ordered" prop_Ordered
                            , testProperty "prop_List" prop_List
+                           , testProperty "prop_DescList" prop_DescList
+                           , testProperty "prop_AscDescList" prop_AscDescList
                            , testProperty "prop_fromList" prop_fromList
                            , testProperty "prop_MaskPow2" prop_MaskPow2
                            , testProperty "prop_Prefix" prop_Prefix
@@ -113,6 +115,13 @@ prop_Ordered
 prop_List :: [Int] -> Bool
 prop_List xs
   = (sort (nub xs) == toAscList (fromList xs))
+
+prop_DescList :: [Int] -> Bool
+prop_DescList xs = (reverse (sort (nub xs)) == toDescList (fromList xs))
+
+prop_AscDescList :: [Int] -> Bool
+prop_AscDescList xs = toAscList s == reverse (toDescList s)
+  where s = fromList xs
 
 prop_fromList :: [Int] -> Bool
 prop_fromList xs

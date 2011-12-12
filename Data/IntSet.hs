@@ -125,6 +125,7 @@ module Data.IntSet (
 
             -- ** Ordered list
             , toAscList
+            , toDescList
             , fromAscList
             , fromDistinctAscList
 
@@ -789,11 +790,17 @@ toList
 toAscList :: IntSet -> [Int]
 toAscList = foldr (:) []
 
+-- | /O(n)/. Convert the set to a descending list of elements. Subject to list
+-- fusion.
+toDescList :: IntSet -> [Int]
+toDescList = foldl (flip (:)) []
+
 #if __GLASGOW_HASKELL__
 -- List fusion for the list generating functions
 {-# RULES "IntSet/elems" forall is . elems is = build (\c n -> foldr c n is) #-}
 {-# RULES "IntSet/toList" forall is . toList is = build (\c n -> foldr c n is) #-}
 {-# RULES "IntSet/toAscList" forall is . toAscList is = build (\c n -> foldr c n is) #-}
+{-# RULES "IntSet/toDescList" forall is . toDescList is = build (\c n -> foldl (\xs x -> c x xs) n is) #-}
 #endif
 
 

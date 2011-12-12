@@ -1758,8 +1758,11 @@ toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs where the keys
 -- are in descending order. Subject to list fusion.
+--
+-- > toDescList (fromList [(5,"a"), (3,"b")]) == [(5,"a"), (3,"b")]
+
 toDescList :: Map k a -> [(k,a)]
-toDescList t  = foldlWithKey (\xs k x -> (k,x):xs) [] t
+toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
 #if __GLASGOW_HASKELL__
 -- List fusion for the list generating functions
