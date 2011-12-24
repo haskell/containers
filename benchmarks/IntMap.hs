@@ -11,11 +11,6 @@ import qualified Data.IntMap as M
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
-instance (NFData a) => NFData (M.IntMap a) where
-    rnf M.Nil = ()
-    rnf (M.Tip x y) = rnf x `seq` rnf y
-    rnf (M.Bin p m l r) = rnf p `seq` rnf m `seq` rnf l `seq` rnf r
-
 main = do
     let m = M.fromAscList elems :: M.IntMap Int
     defaultMainWith

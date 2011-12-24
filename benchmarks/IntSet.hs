@@ -10,11 +10,6 @@ import Criterion.Main
 import Data.List (foldl')
 import qualified Data.IntSet as S
 
-instance NFData S.IntSet where
-    rnf S.Nil = ()
-    rnf (S.Tip a b) = rnf a `seq` rnf b
-    rnf (S.Bin p m l r) = rnf p `seq` rnf m `seq` rnf l `seq` rnf r
-
 main = do
     let s = S.fromAscList elems :: S.IntSet
         s_even = S.fromAscList elems_even :: S.IntSet
