@@ -11,10 +11,6 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
-instance (NFData k, NFData a) => NFData (M.Map k a) where
-    rnf M.Tip = ()
-    rnf (M.Bin _ k a l r) = rnf k `seq` rnf a `seq` rnf l `seq` rnf r
-
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
