@@ -5,6 +5,18 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+{-# OPTIONS_GHC -Wwarn #-}
+
+-- The above -Wwarn is due to e.g.
+--
+-- {-# INLINE deep #-}
+-- {-# SPECIALIZE INLINE deep :: Digit (Elem a) -> FingerTree (Node (Elem a))
+--                            -> Digit (Elem a) -> FingerTree (Elem a) #-}
+--
+-- SPECIALISE really is wrong here.  We should either specialise or
+-- inline.  Not sure which is wanted.  Newer GHCs will emit a warning
+-- in this case.
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
