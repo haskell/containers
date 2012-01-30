@@ -37,6 +37,7 @@ module Data.IntMap.Base (
             , member
             , notMember
             , lookup
+            , successor
             , findWithDefault
 
             -- * Construction
@@ -371,6 +372,32 @@ lookup k = k `seq` go
       | otherwise = Nothing
     go Nil      = Nothing
 
+-- The 'successor' function is useful for implementing certain hashing schemes,
+-- such as consistent hashing.
+
+-- | /O(min(n,W))/. Lookup the smallest key (and corresponding value) greater
+-- than or equal to the given key.
+successor :: Key -> IntMap a -> Maybe (Key, a)
+successor k t = case t of
+    Bin _ m l r | m < 0 -> if k >= 0
+      then go l
+      else case go r of
+        Nothing -> Just $ findMin l
+        justx -> justx
+    _ -> go t
+  where
+    go (Bin p m l r)
+      | nomatch k p m = if k < p
+        then Just $ findMin l
+        else Nothing
+      | zero k m = case go l of
+        Nothing -> Just $ findMin r
+        justx -> justx
+      | otherwise = go r
+    go (Tip ky y)
+      | k > ky = Nothing
+      | otherwise = Just (ky, y)
+    go Nil = Nothing
 
 find :: Key -> IntMap a -> a
 find k m
