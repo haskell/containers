@@ -49,8 +49,7 @@ main = defaultMainWithOpts [ testProperty "prop_Valid" prop_Valid
                            , testProperty "prop_filter" prop_filter
                            ] opts
   where
-    opts = mempty { ropt_plain_output = Just True
-                  , ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
+    opts = mempty { ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
                                                       , topt_maximum_unsuitable_generated_tests = Just 500
                                                       }
                   }
