@@ -143,6 +143,10 @@ main = defaultMainWithOpts
          , testProperty "difference model"     prop_differenceModel
          , testProperty "intersection"         prop_intersection
          , testProperty "intersection model"   prop_intersectionModel
+         , testProperty "intersectionWith"     prop_intersectionWith
+         , testProperty "intersectionWithModel" prop_intersectionWithModel
+         , testProperty "intersectionWithKey"  prop_intersectionWithKey
+         , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -868,6 +872,28 @@ prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_intersectionModel xs ys
   = sort (keys (intersection (fromListWith (+) xs) (fromListWith (+) ys)))
     == sort (nub ((List.intersect) (Prelude.map fst xs) (Prelude.map fst ys)))
+
+prop_intersectionWith :: (Int -> Int -> Maybe Int) -> IMap -> IMap -> Bool
+prop_intersectionWith f t1 t2 = valid (intersectionWith f t1 t2)
+
+prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithModel xs ys
+  = toList (intersectionWith f (fromList xs') (fromList ys'))
+    == [(kx, f vx vy) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
+    where xs' = List.nubBy ((==) `on` fst) xs
+          ys' = List.nubBy ((==) `on` fst) ys
+          f l r = l + 2 * r
+
+prop_intersectionWithKey :: (Int -> Int -> Int -> Maybe Int) -> IMap -> IMap -> Bool
+prop_intersectionWithKey f t1 t2 = valid (intersectionWithKey f t1 t2)
+
+prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithKeyModel xs ys
+  = toList (intersectionWithKey f (fromList xs') (fromList ys'))
+    == [(kx, f kx vx vy) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
+    where xs' = List.nubBy ((==) `on` fst) xs
+          ys' = List.nubBy ((==) `on` fst) ys
+          f k l r = k + 2 * l + 3 * r
 
 ----------------------------------------------------------------
 
