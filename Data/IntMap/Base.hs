@@ -1383,7 +1383,7 @@ splitLookup k t =
 -- > let f a len = len + (length a)
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
-foldr f z t =
+foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -1396,7 +1396,7 @@ foldr f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
-foldr' f z t =
+foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -1416,7 +1416,7 @@ foldr' f z t =
 -- > let f len a = len + (length a)
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
-foldl f z t =
+foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
@@ -1429,7 +1429,7 @@ foldl f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
-foldl' f z t =
+foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
@@ -1450,7 +1450,7 @@ foldl' f z t =
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
 foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
-foldrWithKey f z t =
+foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -1463,7 +1463,7 @@ foldrWithKey f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
-foldrWithKey' f z t =
+foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -1484,7 +1484,7 @@ foldrWithKey' f z t =
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
 foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
-foldlWithKey f z t =
+foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
@@ -1497,7 +1497,7 @@ foldlWithKey f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
-foldlWithKey' f z t =
+foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where

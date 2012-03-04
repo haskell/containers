@@ -714,7 +714,7 @@ fold = foldr
 --
 -- > toAscList set = foldr (:) [] set
 foldr :: (Int -> b -> b) -> b -> IntSet -> b
-foldr f z t =
+foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -727,7 +727,7 @@ foldr f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldr' :: (Int -> b -> b) -> b -> IntSet -> b
-foldr' f z t =
+foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
@@ -744,7 +744,7 @@ foldr' f z t =
 --
 -- > toDescList set = foldl (flip (:)) [] set
 foldl :: (a -> Int -> a) -> a -> IntSet -> a
-foldl f z t =
+foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
@@ -758,7 +758,7 @@ foldl f z t =
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldl' :: (a -> Int -> a) -> a -> IntSet -> a
-foldl' f z t =
+foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
