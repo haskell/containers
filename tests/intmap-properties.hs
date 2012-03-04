@@ -10,7 +10,7 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import Data.Ord
 import Data.Function
-import Prelude hiding (lookup, null, map ,filter)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
 import Data.List (nub,sort)
@@ -879,22 +879,39 @@ prop_foldr :: Int -> [(Int, Int)] -> Property
 prop_foldr n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldr (+) n m == List.foldr (+) n (List.map snd xs) &&
+      foldr (:) [] m == List.map snd (List.sort xs) &&
+      foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldrWithKey (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
+      foldrWithKey (\k x xs -> (k,x):xs) [] m == List.sort xs
+
 
 prop_foldr' :: Int -> [(Int, Int)] -> Property
 prop_foldr' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldr' (+) n m == List.foldr (+) n (List.map snd xs) &&
+      foldr' (:) [] m == List.map snd (List.sort xs) &&
+      foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldrWithKey' (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
+      foldrWithKey' (\k x xs -> (k,x):xs) [] m == List.sort xs
 
 prop_foldl :: Int -> [(Int, Int)] -> Property
 prop_foldl n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldlWithKey (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldl (+) n m == List.foldr (+) n (List.map snd xs) &&
+      foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
+      foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldlWithKey (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
+      foldlWithKey (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
 
 prop_foldl' :: Int -> [(Int, Int)] -> Property
 prop_foldl' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldlWithKey' (\a _ b -> a + b) n m == List.foldr (+) n (List.map snd xs)
+  in  foldl' (+) n m == List.foldr (+) n (List.map snd xs) &&
+      foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
+      foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
+      foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
