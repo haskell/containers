@@ -5,18 +5,6 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
-{-# OPTIONS_GHC -Wwarn #-}
-
--- The above -Wwarn is due to e.g.
---
--- {-# INLINE deep #-}
--- {-# SPECIALIZE INLINE deep :: Digit (Elem a) -> FingerTree (Node (Elem a))
---                            -> Digit (Elem a) -> FingerTree (Elem a) #-}
---
--- SPECIALISE really is wrong here.  We should either specialise or
--- inline.  Not sure which is wanted.  Newer GHCs will emit a warning
--- in this case.
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
@@ -335,8 +323,6 @@ instance NFData a => NFData (FingerTree a) where
     rnf (Deep _ pr m sf) = rnf pr `seq` rnf m `seq` rnf sf
 
 {-# INLINE deep #-}
-{-# SPECIALIZE INLINE deep :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE INLINE deep :: Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
 deep            :: Sized a => Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
 deep pr m sf    =  Deep (size pr + size m + size sf) pr m sf
 
@@ -471,14 +457,10 @@ instance Sized (Node a) where
     size (Node3 v _ _ _)    = v
 
 {-# INLINE node2 #-}
-{-# SPECIALIZE node2 :: Elem a -> Elem a -> Node (Elem a) #-}
-{-# SPECIALIZE node2 :: Node a -> Node a -> Node (Node a) #-}
 node2           :: Sized a => a -> a -> Node a
 node2 a b       =  Node2 (size a + size b) a b
 
 {-# INLINE node3 #-}
-{-# SPECIALIZE node3 :: Elem a -> Elem a -> Elem a -> Node (Elem a) #-}
-{-# SPECIALIZE node3 :: Node a -> Node a -> Node a -> Node (Node a) #-}
 node3           :: Sized a => a -> a -> a -> Node a
 node3 a b c     =  Node3 (size a + size b + size c) a b c
 
