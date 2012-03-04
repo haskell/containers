@@ -1384,7 +1384,7 @@ splitLookup k t =
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
 foldr f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     go z' Nil           = z'
@@ -1397,7 +1397,7 @@ foldr f z t =
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
 foldr' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -1417,7 +1417,7 @@ foldr' f z t =
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
 foldl f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     go z' Nil           = z'
@@ -1430,7 +1430,7 @@ foldl f z t =
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
 foldl' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -1451,7 +1451,7 @@ foldl' f z t =
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
 foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     go z' Nil           = z'
@@ -1464,7 +1464,7 @@ foldrWithKey f z t =
 -- function is strict in the starting value.
 foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z l) r -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
@@ -1485,7 +1485,7 @@ foldrWithKey' f z t =
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
 foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     go z' Nil           = z'
@@ -1498,7 +1498,7 @@ foldlWithKey f z t =
 -- function is strict in the starting value.
 foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z t =
-  case t of Bin 0 m l r | m < 0 -> go (go z r) l -- put negative numbers before
+  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
             _                   -> go z t
   where
     STRICT_1_OF_2(go)
