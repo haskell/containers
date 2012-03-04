@@ -69,6 +69,7 @@ module Data.IntMap.Lazy (
             , member
             , notMember
             , IM.lookup
+            , successor
             , findWithDefault
 
             -- * Construction

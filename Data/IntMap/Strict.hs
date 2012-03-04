@@ -73,6 +73,7 @@ module Data.IntMap.Strict (
             , member
             , notMember
             , lookup
+            , successor
             , findWithDefault
 
             -- * Construction
