@@ -1385,7 +1385,8 @@ splitLookup k t =
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
 foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z r) l
+            _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip _ x)     = f x z'
@@ -1398,7 +1399,8 @@ foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
 foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z r) l
+            _ -> go z t
   where
     STRICT_1_OF_2(go)
     go z' Nil           = z'
@@ -1418,7 +1420,8 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
 foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z l) r
+            _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip _ x)     = f z' x
@@ -1431,7 +1434,8 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
 foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z l) r
+            _ -> go z t
   where
     STRICT_1_OF_2(go)
     go z' Nil           = z'
@@ -1452,7 +1456,8 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z r) l
+            _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip kx x)    = f kx x z'
@@ -1465,7 +1470,8 @@ foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z r) l
+            _ -> go z t
   where
     STRICT_1_OF_2(go)
     go z' Nil           = z'
@@ -1486,7 +1492,8 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z l) r
+            _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip kx x)    = f z' kx x
@@ -1499,7 +1506,8 @@ foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-            _                   -> go z t
+                        | otherwise -> go (go z l) r
+            _ -> go z t
   where
     STRICT_1_OF_2(go)
     go z' Nil           = z'
