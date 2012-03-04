@@ -799,12 +799,33 @@ toAscList = foldr (:) []
 toDescList :: IntSet -> [Int]
 toDescList = foldl (flip (:)) []
 
+-- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
--- List fusion for the list generating functions
-{-# RULES "IntSet/elems" forall is . elems is = build (\c n -> foldr c n is) #-}
-{-# RULES "IntSet/toList" forall is . toList is = build (\c n -> foldr c n is) #-}
-{-# RULES "IntSet/toAscList" forall is . toAscList is = build (\c n -> foldr c n is) #-}
-{-# RULES "IntSet/toDescList" forall is . toDescList is = build (\c n -> foldl (\xs x -> c x xs) n is) #-}
+-- The foldrFB and foldlFB are foldr and foldl equivalents, used for list fusion.
+-- They are important to convert unfused to{Asc,Desc}List back, see mapFB in prelude.
+foldrFB :: (Int -> b -> b) -> b -> IntSet -> b
+foldrFB = foldr
+{-# INLINE[0] foldrFB #-}
+foldlFB :: (a -> Int -> a) -> a -> IntSet -> a
+foldlFB = foldl
+{-# INLINE[0] foldlFB #-}
+
+-- Inline elems and toList, so that we need to fuse only toAscList.
+{-# INLINE elems #-}
+{-# INLINE toList #-}
+
+-- The fusion is enabled up to phase 2 included. If it does not succeed,
+-- convert in phase 1 the expanded to{Asc,Desc}List calls back to
+-- to{Asc,Desc}List.  In phase 0, we inline fold{lr}FB (which were used in
+-- a list fusion, otherwise it would go away in phase 1), and let compiler do
+-- whatever it wants with to{Asc,Desc}List -- it was forbidden to inline it
+-- before phase 0, otherwise the fusion rules would not fire at all.
+{-# NOINLINE[0] toAscList #-}
+{-# NOINLINE[0] toDescList #-}
+{-# RULES "IntSet.toAscList" [~1] forall s . toAscList s = build (\c n -> foldrFB c n s) #-}
+{-# RULES "IntSet.toAscListBack" [1] foldrFB (:) [] = toAscList #-}
+{-# RULES "IntSet.toDescList" [~1] forall s . toDescList s = build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
+{-# RULES "IntSet.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
 #endif
 
 

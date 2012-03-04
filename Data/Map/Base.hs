@@ -1768,14 +1768,39 @@ toAscList = foldrWithKey (\k x xs -> (k,x):xs) []
 toDescList :: Map k a -> [(k,a)]
 toDescList = foldlWithKey (\xs k x -> (k,x):xs) []
 
+-- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
--- List fusion for the list generating functions
-{-# RULES "Map/elems" forall m . elems m = build (\c n -> foldr c n m) #-}
-{-# RULES "Map/keys" forall m . keys m = build (\c n -> foldrWithKey (\k _ ks -> c k ks) n m) #-}
-{-# RULES "Map/assocs" forall m . assocs m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
-{-# RULES "Map/toList" forall m . toList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
-{-# RULES "Map/toAscList" forall m . toAscList m = build (\c n -> foldrWithKey (\k x xs -> c (k,x) xs) n m) #-}
-{-# RULES "Map/toDescList" forall m . toDescList m = build (\c n -> foldlWithKey (\xs k x -> c (k,x) xs) n m) #-}
+-- The foldrFB and foldlFB are fold{r,l}WithKey equivalents, used for list fusion.
+-- They are important to convert unfused methods back, see mapFB in prelude.
+foldrFB :: (k -> a -> b -> b) -> b -> Map k a -> b
+foldrFB = foldrWithKey
+{-# INLINE[0] foldrFB #-}
+foldlFB :: (a -> k -> b -> a) -> a -> Map k b -> a
+foldlFB = foldlWithKey
+{-# INLINE[0] foldlFB #-}
+
+-- Inline assocs and toList, so that we need to fuse only toAscList.
+{-# INLINE assocs #-}
+{-# INLINE toList #-}
+
+-- The fusion is enabled up to phase 2 included. If it does not succeed,
+-- convert in phase 1 the expanded elems,keys,to{Asc,Desc}List calls back to
+-- elems,keys,to{Asc,Desc}List.  In phase 0, we inline fold{lr}FB (which were
+-- used in a list fusion, otherwise it would go away in phase 1), and let compiler
+-- do whatever it wants with elems,keys,to{Asc,Desc}List -- it was forbidden to
+-- inline it before phase 0, otherwise the fusion rules would not fire at all.
+{-# NOINLINE[0] elems #-}
+{-# NOINLINE[0] keys #-}
+{-# NOINLINE[0] toAscList #-}
+{-# NOINLINE[0] toDescList #-}
+{-# RULES "Map.elems" [~1] forall m . elems m = build (\c n -> foldrFB (\_ x xs -> c x xs) n m) #-}
+{-# RULES "Map.elemsBack" [1] foldrFB (\_ x xs -> x : xs) [] = elems #-}
+{-# RULES "Map.keys" [~1] forall m . keys m = build (\c n -> foldrFB (\k _ xs -> c k xs) n m) #-}
+{-# RULES "Map.keysBack" [1] foldrFB (\k _ xs -> k : xs) [] = keys #-}
+{-# RULES "Map.toAscList" [~1] forall m . toAscList m = build (\c n -> foldrFB (\k x xs -> c (k,x) xs) n m) #-}
+{-# RULES "Map.toAscListBack" [1] foldrFB (\k x xs -> (k, x) : xs) [] = toAscList #-}
+{-# RULES "Map.toDescList" [~1] forall m . toDescList m = build (\c n -> foldlFB (\xs k x -> c (k,x) xs) n m) #-}
+{-# RULES "Map.toDescListBack" [1] foldlFB (\xs k x -> (k, x) : xs) [] = toDescList #-}
 #endif
 
 {--------------------------------------------------------------------
