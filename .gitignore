@@ -5,3 +5,6 @@
 *.tix
 .hpc/
 /dist/*
+GNUmakefile
+dist-install
+ghc.mk
