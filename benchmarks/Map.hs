@@ -18,49 +18,45 @@ main = do
     defaultMainWith
         defaultConfig
         (liftIO . evaluate $ rnf [m, m_even, m_odd])
-        [ bench "lookup absent" $ nf (lookup evens) m_odd
-        , bench "lookup present" $ nf (lookup evens) m_even
-        , bench "insert absent" $ nf (ins elems_even) m_odd
-        , bench "insert present" $ nf (ins elems_even) m_even
-        , bench "insertWith absent" $ nf (insWith elems_even) m_odd
-        , bench "insertWith present" $ nf (insWith elems_even) m_even
-        , bench "insertWith' absent" $ nf (insWith' elems_even) m_odd
-        , bench "insertWith' present" $ nf (insWith' elems_even) m_even
-        , bench "insertWithKey absent" $ nf (insWithKey elems_even) m_odd
-        , bench "insertWithKey present" $ nf (insWithKey elems_even) m_even
-        , bench "insertWithKey' absent" $ nf (insWithKey' elems_even) m_odd
-        , bench "insertWithKey' present" $ nf (insWithKey' elems_even) m_even
-        , bench "insertLookupWithKey absent" $
-          nf (insLookupWithKey elems_even) m_odd
-        , bench "insertLookupWithKey present" $
-          nf (insLookupWithKey elems_even) m_even
-        , bench "insertLookupWithKey' absent" $
-          nf (insLookupWithKey' elems_even) m_odd
-        , bench "insertLookupWithKey' present" $
-          nf (insLookupWithKey' elems_even) m_even
-        , bench "map" $ nf (M.map (+ 1)) m
-        , bench "mapWithKey" $ nf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ nf (ins elems) m
---         , bench "foldlWithKey'" $ nf (M.foldlWithKey' sum 0) m
-        , bench "foldrWithKey" $ nf (M.foldrWithKey consPair []) m
-        , bench "delete absent" $ nf (del evens) m_odd
-        , bench "delete present" $ nf (del evens) m
-        , bench "update absent" $ nf (upd Just evens) m_odd
-        , bench "update present" $ nf (upd Just evens) m_even
-        , bench "update delete" $ nf (upd (const Nothing) evens) m
-        , bench "updateLookupWithKey absent" $ nf (upd' Just evens) m_odd
-        , bench "updateLookupWithKey present" $ nf (upd' Just evens) m_even
-        , bench "updateLookupWithKey delete" $ nf (upd' (const Nothing) evens) m
-        , bench "alter absent"  $ nf (alt id evens) m_odd
-        , bench "alter insert"  $ nf (alt (const (Just 1)) evens) m_odd
-        , bench "alter update"  $ nf (alt id evens) m_even
-        , bench "alter delete"  $ nf (alt (const Nothing) evens) m
-        , bench "mapMaybe" $ nf (M.mapMaybe maybeDel) m
-        , bench "mapMaybeWithKey" $ nf (M.mapMaybeWithKey (const maybeDel)) m
-        , bench "lookupIndex" $ nf (lookupIndex keys) m
-        , bench "union" $ nf (M.union m_even) m_odd
-        , bench "difference" $ nf (M.difference m) m_even
-        , bench "intersection" $ nf (M.intersection m) m_even
+        [ bench "lookup absent" $ whnf (lookup evens) m_odd
+        , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "insert absent" $ whnf (ins elems_even) m_odd
+        , bench "insert present" $ whnf (ins elems_even) m_even
+        , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
+        , bench "insertWith present" $ whnf (insWith elems_even) m_even
+        , bench "insertWith' absent" $ whnf (insWith' elems_even) m_odd
+        , bench "insertWith' present" $ whnf (insWith' elems_even) m_even
+        , bench "insertWithKey absent" $ whnf (insWithKey elems_even) m_odd
+        , bench "insertWithKey present" $ whnf (insWithKey elems_even) m_even
+        , bench "insertWithKey' absent" $ whnf (insWithKey' elems_even) m_odd
+        , bench "insertWithKey' present" $ whnf (insWithKey' elems_even) m_even
+        , bench "insertLookupWithKey absent" $ whnf (insLookupWithKey elems_even) m_odd
+        , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
+        , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
+        , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
+        , bench "map" $ whnf (M.map (+ 1)) m
+        , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
+        , bench "foldlWithKey" $ whnf (ins elems) m
+--         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
+        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
+        , bench "delete absent" $ whnf (del evens) m_odd
+        , bench "delete present" $ whnf (del evens) m
+        , bench "update absent" $ whnf (upd Just evens) m_odd
+        , bench "update present" $ whnf (upd Just evens) m_even
+        , bench "update delete" $ whnf (upd (const Nothing) evens) m
+        , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
+        , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
+        , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
+        , bench "alter absent"  $ whnf (alt id evens) m_odd
+        , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
+        , bench "alter update"  $ whnf (alt id evens) m_even
+        , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
+        , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
+        , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
+        , bench "lookupIndex" $ whnf (lookupIndex keys) m
+        , bench "union" $ whnf (M.union m_even) m_odd
+        , bench "difference" $ whnf (M.difference m) m_even
+        , bench "intersection" $ whnf (M.intersection m) m_even
         ]
   where
     bound = 2^10

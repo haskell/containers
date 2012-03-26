@@ -1,18 +1,14 @@
-package := containers
-version := $(shell awk '/^version:/{print $$2}' ../$(package).cabal)
-lib := ../dist/build/libHS$(package)-$(version).a
+all:
 
-programs := bench-Map bench-Set bench-IntMap bench-IntSet bench-Sequence
-all: $(programs)
-run: $(patsubst %, %.csv, $(programs))
-
-bench-%: %.hs ../Data/%.hs
-	ghc -DTESTING -cpp -O2 -fregs-graph -rtsopts --make -fforce-recomp -i.. -o $@ $<
+bench-%: %.hs *.hs ../Data/*.hs ../Data/*/*.hs
+	ghc -O2 -DTESTING $< -i.. -o $@ -outputdir tmp -rtsopts
 
 bench-%.csv: bench-%
-	./bench-$* -u bench-$*.csv +RTS -K10M
+	./bench-$* -v -u bench-$*.csv
 
-.PHONY: clean
+.PHONY: clean veryclean
 clean:
-	-find . \( -name '*.o' -o -name '*.hi' \) -exec rm {} \;
-	-rm -f $(programs)
+	rm -rf tmp $(patsubst %.hs, bench-%, $(wildcard *.hs))
+
+veryclean: clean
+	rm -rf $(patsubst %.hs, bench-%.csv, $(wildcard *.hs))
