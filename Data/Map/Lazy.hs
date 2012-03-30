@@ -109,6 +109,7 @@ module Data.Map.Lazy (
             -- ** Map
             , M.map
             , mapWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
