@@ -114,6 +114,7 @@ module Data.Map.Base (
             -- ** Map
             , map
             , mapWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
@@ -1445,6 +1446,21 @@ mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
 mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
 
+-- | /O(n)/.
+-- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
+-- That is, behaves exactly like a regular 'traverse' except that the traversing
+-- function also has access to the key associated with a value.
+--
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
+{-# INLINE traverseWithKey #-}
+traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
+traverseWithKey f = go
+  where
+    go Tip = pure Tip
+    go (Bin s k v l r)
+      = flip (Bin s k) <$> go l <*> f k v <*> go r
+
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
 --
@@ -2326,9 +2342,7 @@ instance Functor (Map k) where
   fmap f m  = map f m
 
 instance Traversable (Map k) where
-  traverse _ Tip = pure Tip
-  traverse f (Bin s k v l r)
-    = flip (Bin s k) <$> traverse f l <*> f v <*> traverse f r
+  traverse f = traverseWithKey (\_ -> f)
 
 instance Foldable.Foldable (Map k) where
   fold Tip = mempty
