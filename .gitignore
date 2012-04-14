@@ -5,6 +5,7 @@
 *.tix
 .hpc/
 /dist/*
+/benchmarks/*.csv
 GNUmakefile
 dist-install
 ghc.mk

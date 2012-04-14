@@ -11,4 +11,4 @@ clean:
 	rm -rf tmp $(patsubst %.hs, bench-%, $(wildcard *.hs))
 
 veryclean: clean
-	rm -rf $(patsubst %.hs, bench-%.csv, $(wildcard *.hs))
+	rm -rf *.csv
