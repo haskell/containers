@@ -113,6 +113,9 @@ module Data.IntMap.Strict (
             , intersectionWith
             , intersectionWithKey
 
+            -- ** Universal combining function
+            , mergeWithKey
+
             -- * Traversal
             -- ** Map
             , map
@@ -216,6 +219,7 @@ import Data.IntMap.Base hiding
     , differenceWithKey
     , intersectionWith
     , intersectionWithKey
+    , mergeWithKey
     , updateMinWithKey
     , updateMaxWithKey
     , updateMax
@@ -520,24 +524,8 @@ unionWith f m1 m2
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
 
 unionWithKey :: (Key -> a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
-unionWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
-  | shorter m1 m2  = union1
-  | shorter m2 m1  = union2
-  | p1 == p2       = Bin p1 m1 (unionWithKey f l1 l2) (unionWithKey f r1 r2)
-  | otherwise      = join p1 t1 p2 t2
-  where
-    union1  | nomatch p2 p1 m1  = join p1 t1 p2 t2
-            | zero p2 m1        = Bin p1 m1 (unionWithKey f l1 t2) r1
-            | otherwise         = Bin p1 m1 l1 (unionWithKey f r1 t2)
-
-    union2  | nomatch p1 p2 m2  = join p1 t1 p2 t2
-            | zero p1 m2        = Bin p2 m2 (unionWithKey f t1 l2) r2
-            | otherwise         = Bin p2 m2 l2 (unionWithKey f t1 r2)
-
-unionWithKey f (Tip k x) t = insertWithKey f k x t
-unionWithKey f t (Tip k x) = insertWithKey (\k' x' y' -> f k' y' x') k x t  -- right bias
-unionWithKey _ Nil t  = t
-unionWithKey _ t Nil  = t
+unionWithKey f m1 m2
+  = mergeWithKey' Bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 $! f k1 x1 x2) id id m1 m2
 
 {--------------------------------------------------------------------
   Difference
@@ -563,31 +551,8 @@ differenceWith f m1 m2
 -- >     == singleton 3 "3:b|B"
 
 differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
-differenceWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
-  | shorter m1 m2  = difference1
-  | shorter m2 m1  = difference2
-  | p1 == p2       = bin p1 m1 (differenceWithKey f l1 l2) (differenceWithKey f r1 r2)
-  | otherwise      = t1
-  where
-    difference1 | nomatch p2 p1 m1  = t1
-                | zero p2 m1        = bin p1 m1 (differenceWithKey f l1 t2) r1
-                | otherwise         = bin p1 m1 l1 (differenceWithKey f r1 t2)
-
-    difference2 | nomatch p1 p2 m2  = t1
-                | zero p1 m2        = differenceWithKey f t1 l2
-                | otherwise         = differenceWithKey f t1 r2
-
-differenceWithKey f t1@(Tip k x) t2
-  = case lookup k t2 of
-      Just y  -> case f k x y of
-                   Just y' -> y' `seq` Tip k y'
-                   Nothing -> Nil
-      Nothing -> t1
-
-differenceWithKey _ Nil _       = Nil
-differenceWithKey f t (Tip k y) = updateWithKey (\k' x -> f k' x y) k t
-differenceWithKey _ t Nil       = t
-
+differenceWithKey f m1 m2
+  = mergeWithKey f id (const Nil) m1 m2
 
 {--------------------------------------------------------------------
   Intersection
@@ -607,31 +572,56 @@ intersectionWith f m1 m2
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 intersectionWithKey :: (Key -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
-intersectionWithKey f t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
-  | shorter m1 m2  = intersection1
-  | shorter m2 m1  = intersection2
-  | p1 == p2       = bin p1 m1 (intersectionWithKey f l1 l2) (intersectionWithKey f r1 r2)
-  | otherwise      = Nil
-  where
-    intersection1 | nomatch p2 p1 m1  = Nil
-                  | zero p2 m1        = intersectionWithKey f l1 t2
-                  | otherwise         = intersectionWithKey f r1 t2
+intersectionWithKey f m1 m2
+  = mergeWithKey' bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 $! f k1 x1 x2) (const Nil) (const Nil) m1 m2
 
-    intersection2 | nomatch p1 p2 m2  = Nil
-                  | zero p1 m2        = intersectionWithKey f t1 l2
-                  | otherwise         = intersectionWithKey f t1 r2
+{--------------------------------------------------------------------
+  MergeWithKey
+--------------------------------------------------------------------}
 
-intersectionWithKey f (Tip k x) t2
-  = case lookup k t2 of
-      Just y  -> Tip k $! f k x y
-      Nothing -> Nil
-intersectionWithKey f t1 (Tip k y)
-  = case lookup k t1 of
-      Just x  -> Tip k $! f k x y
-      Nothing -> Nil
-intersectionWithKey _ Nil _ = Nil
-intersectionWithKey _ _ Nil = Nil
+-- | /O(n+m)/. A high-performance universal combining function. Using
+-- 'mergeWithKey', all combining functions can be defined without any loss of
+-- efficiency (with exception of 'union', 'difference' and 'intersection',
+-- where sharing of some nodes is lost with 'mergeWithKey').
+--
+-- Please make sure you know what is going on when using 'mergeWithKey',
+-- otherwise you can be surprised by unexpected code growth or even
+-- corruption of the data structure.
+--
+-- When 'mergeWithKey' is given three arguments, it is inlined to the call
+-- site. You should therefore use 'mergeWithKey' only to define your custom
+-- combining functions. For example, you could define 'unionWithKey',
+-- 'differenceWithKey' and 'intersectionWithKey' as
+--
+-- > myUnionWithKey f m1 m2 = mergeWithKey (\k x1 x2 -> Just (f k x1 x2)) id id m1 m2
+-- > myDifferenceWithKey f m1 m2 = mergeWithKey f id (const empty) m1 m2
+-- > myIntersectionWithKey f m1 m2 = mergeWithKey (\k x1 x2 -> Just (f k x1 x2)) (const empty) (const empty) m1 m2
+--
+-- When calling @'mergeWithKey' combine only1 only2@, a function combining two
+-- 'IntMap's is created, such that
+--
+-- * if a key is present in both maps, it is passed with both corresponding
+--   values to the @combine@ function. Depending on the result, the key is either
+--   present in the result with specified value, or is left out;
+--
+-- * a nonempty subtree present only in the first map is passed to @only1@ and
+--   the output is added to the result;
+--
+-- * a nonempty subtree present only in the second map is passed to @only2@ and
+--   the output is added to the result.
+--
+-- The @only1@ and @only2@ methods /must return a map with a subset (possibly empty) of the keys of the given map/.
+-- The values can be modified arbitrarily.  Most common variants of @only1@ and
+-- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
+-- @'filterWithKey' f@ could be used for any @f@.
 
+mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap b -> IntMap c)
+             -> IntMap a -> IntMap b -> IntMap c
+mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
+  where combine (Tip k1 x1) (Tip _k2 x2) = case f k1 x1 x2 of Nothing -> Nil
+                                                              Just x -> x `seq` Tip k1 x
+        {-# INLINE combine #-}
+{-# INLINE mergeWithKey #-}
 
 {--------------------------------------------------------------------
   Min\/Max
