@@ -395,10 +395,10 @@ union t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
             | zero p1 m2        = Bin p2 m2 (union t1 l2) r2
             | otherwise         = Bin p2 m2 l2 (union t1 r2)
 
+union t@(Bin _ _ _ _) (Tip kx bm) = insertBM kx bm t
+union t@(Bin _ _ _ _) Nil = t
 union (Tip kx bm) t = insertBM kx bm t
-union t (Tip kx bm) = insertBM kx bm t
-union Nil t     = t
-union t Nil     = t
+union Nil t = t
 
 
 {--------------------------------------------------------------------
@@ -420,15 +420,18 @@ difference t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                 | zero p1 m2        = difference t1 l2
                 | otherwise         = difference t1 r2
 
+difference t@(Bin _ _ _ _) (Tip kx bm) = deleteBM kx bm t
+difference t@(Bin _ _ _ _) Nil = t
+
+difference t1@(Tip kx bm) t2 = differenceTip t2
+  where differenceTip (Bin p2 m2 l2 r2) | nomatch kx p2 m2 = t1
+                                        | zero kx m2 = differenceTip l2
+                                        | otherwise = differenceTip r2
+        differenceTip (Tip kx2 bm2) | kx == kx2 = tip kx (bm .&. complement bm2)
+                                    | otherwise = t1
+        differenceTip Nil = t1
+
 difference Nil _     = Nil
-
-difference t1@(Tip kx _) (Bin p2 m2 l2 r2)
-  | nomatch kx p2 m2 = t1
-  | zero kx m2       = difference t1 l2
-  | otherwise        = difference t1 r2
-
-difference t (Tip kx bm) = deleteBM kx bm t
-difference t Nil     = t
 
 
 
@@ -451,25 +454,25 @@ intersection t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
                   | zero p1 m2        = intersection t1 l2
                   | otherwise         = intersection t1 r2
 
-intersection t1 (Tip kx bm) = intersectBM kx bm t1
-intersection (Tip kx bm) t2 = intersectBM kx bm t2
+intersection t1@(Bin _ _ _ _) (Tip kx2 bm2) = intersectBM t1
+  where intersectBM (Bin p1 m1 l1 r1) | nomatch kx2 p1 m1 = Nil
+                                      | zero kx2 m1       = intersectBM l1
+                                      | otherwise         = intersectBM r1
+        intersectBM (Tip kx1 bm1) | kx1 == kx2 = tip kx1 (bm1 .&. bm2)
+                                  | otherwise = Nil
+        intersectBM Nil = Nil
+
+intersection (Bin _ _ _ _) Nil = Nil
+
+intersection (Tip kx1 bm1) t2 = intersectBM t2
+  where intersectBM (Bin p2 m2 l2 r2) | nomatch kx1 p2 m2 = Nil
+                                      | zero kx1 m2       = intersectBM l2
+                                      | otherwise         = intersectBM r2
+        intersectBM (Tip kx2 bm2) | kx1 == kx2 = tip kx1 (bm1 .&. bm2)
+                                  | otherwise = Nil
+        intersectBM Nil = Nil
 
 intersection Nil _ = Nil
-intersection _ Nil = Nil
-
--- The intersection of one tip with a map
-intersectBM :: Prefix -> BitMap -> IntSet -> IntSet
-STRICT_1_OF_3(intersectBM)
-STRICT_2_OF_3(intersectBM)
-intersectBM kx bm (Bin p2 m2 l2 r2)
-  | nomatch kx p2 m2 = Nil
-  | zero kx m2       = intersectBM kx bm l2
-  | otherwise        = intersectBM kx bm r2
-intersectBM kx bm (Tip kx' bm')
-  | kx == kx' = tip kx (bm .&. bm')
-  | otherwise = Nil
-intersectBM _ _ Nil = Nil
-
 
 {--------------------------------------------------------------------
   Subset
