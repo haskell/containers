@@ -116,6 +116,7 @@ module Data.IntMap.Lazy (
             -- ** Map
             , IM.map
             , mapWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey

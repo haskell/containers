@@ -120,6 +120,7 @@ module Data.IntMap.Strict (
             -- ** Map
             , map
             , mapWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey

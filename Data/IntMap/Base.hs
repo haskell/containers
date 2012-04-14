@@ -85,6 +85,7 @@ module Data.IntMap.Base (
             -- ** Map
             , map
             , mapWithKey
+            , traverseWithKey
             , mapAccum
             , mapAccumWithKey
             , mapAccumRWithKey
@@ -293,9 +294,7 @@ instance Foldable.Foldable IntMap where
   foldMap f (Bin _ _ l r) = Foldable.foldMap f l `mappend` Foldable.foldMap f r
 
 instance Traversable IntMap where
-    traverse _ Nil = pure Nil
-    traverse f (Tip k v) = Tip k <$> f v
-    traverse f (Bin p m l r) = Bin p m <$> traverse f l <*> traverse f r
+    traverse f = traverseWithKey (\_ -> f)
 
 instance NFData a => NFData (IntMap a) where
     rnf Nil = ()
@@ -1107,6 +1106,21 @@ mapWithKey f t
       Bin p m l r -> Bin p m (mapWithKey f l) (mapWithKey f r)
       Tip k x     -> Tip k (f k x)
       Nil         -> Nil
+
+-- | /O(n)/.
+-- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
+-- That is, behaves exactly like a regular 'traverse' except that the traversing
+-- function also has access to the key associated with a value.
+--
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
+{-# INLINE traverseWithKey #-}
+traverseWithKey :: Applicative t => (Key -> a -> t b) -> IntMap a -> t (IntMap b)
+traverseWithKey f = go
+  where
+    go Nil = pure Nil
+    go (Tip k v) = Tip k <$> f k v
+    go (Bin p m l r) = Bin p m <$> go l <*> go r
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.

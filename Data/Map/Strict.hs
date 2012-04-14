@@ -129,6 +129,7 @@ module Data.Map.Strict
     -- ** Map
     , map
     , mapWithKey
+    , traverseWithKey
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
