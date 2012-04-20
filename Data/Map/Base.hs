@@ -255,7 +255,9 @@ infixl 9 !,\\ --
 
 (!) :: Ord k => Map k a -> k -> a
 m ! k    = find k m
+#if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE (!) #-}
+#endif
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
