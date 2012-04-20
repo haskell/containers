@@ -61,6 +61,15 @@
 -- the Ord dictionary is not passed to 'go' and it is heap-allocated at the
 -- entry of the outer method.
 
+-- [Note: Order of constructors]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- The order of constructors of Set matters when considering performance.
+-- Currently in GHC 7.0, when type has 2 constructors, a forward conditional
+-- jump is made when successfully matching second constructor. Successful match
+-- of first constructor results in the forward jump not taken.
+-- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
+-- improves the benchmark by up to 10% on x86.
+
 module Data.Set (
             -- * Strictness properties
             -- $strictness
@@ -196,8 +205,10 @@ m1 \\ m2 = difference m1 m2
   Sets are size balanced trees
 --------------------------------------------------------------------}
 -- | A set of values @a@.
-data Set a    = Tip
-              | Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
+
+-- See Note: Order of constructors
+data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
+              | Tip
 
 type Size     = Int
 
