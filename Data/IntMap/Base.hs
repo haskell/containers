@@ -345,6 +345,7 @@ instance Data a => Data (IntMap a) where
 null :: IntMap a -> Bool
 null Nil = True
 null _   = False
+{-# INLINE null #-}
 
 -- | /O(n)/. Number of elements in the map.
 --
@@ -437,6 +438,7 @@ findWithDefault def k = k `seq` go
 empty :: IntMap a
 empty
   = Nil
+{-# INLINE empty #-}
 
 -- | /O(1)/. A map of one element.
 --
@@ -446,6 +448,7 @@ empty
 singleton :: Key -> a -> IntMap a
 singleton k x
   = Tip k x
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insert

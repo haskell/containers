@@ -299,6 +299,7 @@ findWithDefault def k = def `seq` k `seq` go
 singleton :: Key -> a -> IntMap a
 singleton k x
   = x `seq` Tip k x
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insert

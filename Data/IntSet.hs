@@ -293,6 +293,7 @@ instance Data IntSet where
 null :: IntSet -> Bool
 null Nil = True
 null _   = False
+{-# INLINE null #-}
 
 -- | /O(n)/. Cardinality of the set.
 size :: IntSet -> Int
@@ -326,11 +327,13 @@ notMember k = not . member k
 empty :: IntSet
 empty
   = Nil
+{-# INLINE empty #-}
 
 -- | /O(1)/. A set of one element.
 singleton :: Int -> IntSet
 singleton x
   = Tip (prefixOf x) (bitmapOf x)
+{-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
   Insert
