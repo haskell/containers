@@ -19,10 +19,29 @@
 -- on representations.
 -----------------------------------------------------------------------------
 
+-- [Note: INLINE bit fiddling]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -- It is essential that the bit fiddling functions like mask, zero, branchMask
 -- etc are inlined. If they do not, the memory allocation skyrockets. The GHC
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
+
+-- [Note: Local 'go' functions and capturing]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- Care must be taken when using 'go' function which captures an argument.
+-- Sometimes (for example when the argument is passed to a data constructor,
+-- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
+-- must be checked for increased allocation when creating and modifying such
+-- functions.
+
+-- [Note: Order of constructors]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- The order of constructors of IntMap matters when considering performance.
+-- Currently in GHC 7.0, when type has 3 constructors, they are matched from
+-- the first to the last -- the best performance is achieved when the
+-- constructors are ordered by frequency.
+-- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
+-- improves the benchmark by circa 10%.
 
 module Data.IntMap.Base (
             -- * Map type
@@ -239,14 +258,10 @@ shiftRL x i   = shiftR x i
   Types
 --------------------------------------------------------------------}
 
--- The order of constructors of IntMap matters when considering performance.
--- Currently in GHC 7.0, when type has 3 constructors, they are matched from
--- the first to the last -- the best performance is achieved when the
--- constructors are ordered by frequency.
--- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
--- improves the containers_benchmark by 9.5% on x86 and by 8% on x86_64.
 
 -- | A map of integers to values @a@.
+
+-- See Note: Order of constructors
 data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(IntMap a)
               | Tip {-# UNPACK #-} !Key a
               | Nil
@@ -790,7 +805,7 @@ intersectionWithKey f m1 m2
 --   the output is added to the result.
 --
 -- The @only1@ and @only2@ methods /must return a map with a subset (possibly empty) of the keys of the given map/.
--- The values can be modified arbitrarily.  Most common variants of @only1@ and
+-- The values can be modified arbitrarily. Most common variants of @only1@ and
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
 -- @'filterWithKey' f@ could be used for any @f@.
 

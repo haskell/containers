@@ -53,6 +53,8 @@
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
+-- See the notes at the beginning of Data.IntMap.Base.
+
 module Data.IntMap.Strict (
             -- * Strictness properties
             -- $strictness

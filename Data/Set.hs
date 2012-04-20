@@ -40,11 +40,15 @@
 -- equality.
 -----------------------------------------------------------------------------
 
+-- [Note: Using INLINABLE]
+-- ^^^^^^^^^^^^^^^^^^^^^^^
 -- It is crucial to the performance that the functions specialize on the Ord
 -- type when possible. GHC 7.0 and higher does this by itself when it sees th
 -- unfolding of a function -- that is why all public functions are marked
 -- INLINABLE (that exposes the unfolding).
---
+
+-- [Note: Using INLINE]
+-- ^^^^^^^^^^^^^^^^^^^^
 -- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
 -- We mark the functions that just navigate down the tree (lookup, insert,
 -- delete and similar). That navigation code gets inlined and thus specialized
@@ -52,8 +56,10 @@
 -- therefore only the tree navigation, all the real work (rebalancing) is not
 -- INLINED by using a NOINLINE.
 --
--- All methods that can be INLINE are not recursive -- a 'go' function doing
--- the real work is provided.
+-- All methods marked INLINE have to be nonrecursive -- a 'go' function doing
+-- the real work is provided. Curiously, it has to be given a type. Otherwise
+-- the Ord dictionary is not passed to 'go' and it is heap-allocated at the
+-- entry of the outer method.
 
 module Data.Set (
             -- * Strictness properties

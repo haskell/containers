@@ -49,10 +49,29 @@
 -- (32 or 64).
 -----------------------------------------------------------------------------
 
+-- [Note: INLINE bit fiddling]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -- It is essential that the bit fiddling functions like mask, zero, branchMask
 -- etc are inlined. If they do not, the memory allocation skyrockets. The GHC
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
+
+-- [Note: Local 'go' functions and capturing]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- Care must be taken when using 'go' function which captures an argument.
+-- Sometimes (for example when the argument is passed to a data constructor,
+-- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
+-- must be checked for increased allocation when creating and modifying such
+-- functions.
+
+-- [Note: Order of constructors]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- The order of constructors of IntSet matters when considering performance.
+-- Currently in GHC 7.0, when type has 3 constructors, they are matched from
+-- the first to the last -- the best performance is achieved when the
+-- constructors are ordered by frequency.
+-- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
+-- improves the benchmark by circa 10%.
 
 module Data.IntSet (
             -- * Strictness properties
@@ -219,14 +238,9 @@ m1 \\ m2 = difference m1 m2
   Types
 --------------------------------------------------------------------}
 
--- The order of constructors of IntSet matters when considering performance.
--- Currently in GHC 7.0, when type has 3 constructors, they are matched from
--- the first to the last -- the best performance is achieved when the
--- constructors are ordered by frequency.
--- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
--- improves the containers_benchmark by 11% on x86 and by 9% on x86_64.
-
 -- | A set of integers.
+
+-- See Note: Order of constructors
 data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 -- Invariant: Nil is never found as a child of Bin.
 -- Invariant: The Mask is a power of 2.  It is the largest bit position at which
@@ -288,20 +302,8 @@ size t
       Tip _ bm -> bitcount 0 bm
       Nil   -> 0
 
--- The 'go' function in the member causes 10% speedup, but also an
--- increased memory allocation. It does not cause speedup with other methods
--- like insert and delete, so it is present only in member.
-
--- Also mind the 'nomatch' line in member definition, which is not present in
--- IntMap.hs. That condition stops the search if the prefix of current vertex
--- is different that the element looked for. The member is correct both with
--- and without this condition. With this condition, elements not present are
--- rejected sooner, but a little bit more work is done for the elements in the
--- set (we are talking about 3-5% slowdown). Any of the solutions is better
--- than the other, because we do not know the distribution of input data.
--- Current state is historic.
-
 -- | /O(min(n,W))/. Is the value a member of the set?
+
 member :: Int -> IntSet -> Bool
 member x = x `seq` go
   where
