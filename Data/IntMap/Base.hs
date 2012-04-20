@@ -26,6 +26,7 @@
 -- usually gets it right, but it is disastrous if it does not. Therefore we
 -- explicitly mark these functions INLINE.
 
+
 -- [Note: Local 'go' functions and capturing]
 -- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -- Care must be taken when using 'go' function which captures an argument.
@@ -33,6 +34,7 @@
 -- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
 -- must be checked for increased allocation when creating and modifying such
 -- functions.
+
 
 -- [Note: Order of constructors]
 -- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

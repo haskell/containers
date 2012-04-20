@@ -47,6 +47,7 @@
 -- unfolding of a function -- that is why all public functions are marked
 -- INLINABLE (that exposes the unfolding).
 
+
 -- [Note: Using INLINE]
 -- ^^^^^^^^^^^^^^^^^^^^
 -- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
@@ -60,6 +61,7 @@
 -- the real work is provided. Curiously, it has to be given a type. Otherwise
 -- the Ord dictionary is not passed to 'go' and it is heap-allocated at the
 -- entry of the outer method.
+
 
 -- [Note: Order of constructors]
 -- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
