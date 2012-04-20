@@ -281,7 +281,7 @@ type Key    = Int
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
 (!) :: IntMap a -> Key -> a
-m ! k    = find k m
+m ! k = find k m
 
 -- | Same as 'difference'.
 (\\) :: IntMap a -> IntMap b -> IntMap a
@@ -363,11 +363,15 @@ size t
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 
+-- See Note: Local 'go' functions and capturing]
 member :: Key -> IntMap a -> Bool
-member k m
-  = case lookup k m of
-      Nothing -> False
-      Just _  -> True
+member k = k `seq` go
+  where
+    go (Bin p m l r) | nomatch k p m = False
+                     | zero k m  = go l
+                     | otherwise = go r
+    go (Tip kx _) = k == kx
+    go Nil = False
 
 -- | /O(min(n,W))/. Is the key not a member of the map?
 --
@@ -377,28 +381,32 @@ member k m
 notMember :: Key -> IntMap a -> Bool
 notMember k m = not $ member k m
 
--- The 'go' function in the lookup causes 10% speedup, but also an increased
--- memory allocation. It does not cause speedup with other methods like insert
--- and delete, so it is present only in lookup.
-
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
+
+-- See Note: Local 'go' functions and capturing]
 lookup :: Key -> IntMap a -> Maybe a
 lookup k = k `seq` go
   where
-    go (Bin _ m l r)
-      | zero k m  = go l
-      | otherwise = go r
-    go (Tip kx x)
-      | k == kx   = Just x
-      | otherwise = Nothing
-    go Nil      = Nothing
+    go (Bin p m l r) | nomatch k p m = Nothing
+                     | zero k m  = go l
+                     | otherwise = go r
+    go (Tip kx x) | k == kx   = Just x
+                  | otherwise = Nothing
+    go Nil = Nothing
 
 
+-- See Note: Local 'go' functions and capturing]
 find :: Key -> IntMap a -> a
-find k m
-  = case lookup k m of
-      Nothing -> error ("IntMap.find: key " ++ show k ++ " is not an element of the map")
-      Just x  -> x
+find k = k `seq` go
+  where
+    go (Bin p m l r) | nomatch k p m = not_found
+                     | zero k m  = go l
+                     | otherwise = go r
+    go (Tip kx x) | k == kx   = x
+                  | otherwise = not_found
+    go Nil = not_found
+
+    not_found = error ("IntMap.!: key" ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
 -- returns the value at key @k@ or returns @def@ when the key is not an
@@ -407,11 +415,16 @@ find k m
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
+-- See Note: Local 'go' functions and capturing]
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def k m
-  = case lookup k m of
-      Nothing -> def
-      Just x  -> x
+findWithDefault def k = k `seq` go
+  where
+    go (Bin p m l r) | nomatch k p m = def
+                     | zero k m  = go l
+                     | otherwise = go r
+    go (Tip kx x) | k == kx   = x
+                  | otherwise = def
+    go Nil = def
 
 {--------------------------------------------------------------------
   Construction

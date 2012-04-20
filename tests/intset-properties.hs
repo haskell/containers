@@ -11,6 +11,8 @@ import Test.Framework.Providers.QuickCheck2
 
 main :: IO ()
 main = defaultMainWithOpts [ testProperty "prop_Single" prop_Single
+                           , testProperty "prop_Member" prop_Member
+                           , testProperty "prop_NotMember" prop_NotMember
                            , testProperty "prop_InsertDelete" prop_InsertDelete
                            , testProperty "prop_MemberFromList" prop_MemberFromList
                            , testProperty "prop_UnionInsert" prop_UnionInsert
@@ -63,11 +65,21 @@ instance Arbitrary IntSet where
 
 
 {--------------------------------------------------------------------
-  Single, Insert, Delete, Member, FromList
+  Single, Member, Insert, Delete, Member, FromList
 --------------------------------------------------------------------}
 prop_Single :: Int -> Bool
 prop_Single x
   = (insert x empty == singleton x)
+
+prop_Member :: [Int] -> Int -> Bool
+prop_Member xs n =
+  let m  = fromList xs
+  in all (\k -> k `member` m == (k `elem` xs)) (n : xs)
+
+prop_NotMember :: [Int] -> Int -> Bool
+prop_NotMember xs n =
+  let m  = fromList xs
+  in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
 
 prop_InsertDelete :: Int -> IntSet -> Property
 prop_InsertDelete k t

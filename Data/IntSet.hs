@@ -304,6 +304,7 @@ size t
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 
+-- See Note: Local 'go' functions and capturing]
 member :: Int -> IntSet -> Bool
 member x = x `seq` go
   where
