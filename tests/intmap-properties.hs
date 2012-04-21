@@ -792,6 +792,11 @@ prop_mergeWithKeyModel xs ys
                                             (Just x, Nothing) -> if keep_x then Just (k, x) else Nothing
                                             (Just x, Just y) -> (\v -> (k, v)) `fmap` f k x y
 
+          -- We prevent inlining testMergeWithKey to disable the SpecConstr
+          -- optimalization. There are too many call patterns here so several
+          -- warnings are issued if testMergeWithKey gets inlined.
+          {-# NOINLINE testMergeWithKey #-}
+
 ----------------------------------------------------------------
 
 prop_ordered :: Property
