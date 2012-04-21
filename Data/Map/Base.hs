@@ -789,10 +789,16 @@ alter = go
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
 findIndex :: Ord k => k -> Map k a -> Int
-findIndex k t
-  = case lookupIndex k t of
-      Nothing  -> error "Map.findIndex: element is not in the map"
-      Just idx -> idx
+findIndex = go 0
+  where
+    go :: Ord k => Int -> k -> Map k a -> Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = error "Map.findIndex: element is not in the map"
+    go idx k (Bin _ kx _ l r) = case compare k kx of
+      LT -> go idx k l
+      GT -> go (idx + size l + 1) k r
+      EQ -> idx + size l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findIndex #-}
 #endif
@@ -806,16 +812,16 @@ findIndex k t
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
-lookupIndex k = lkp k 0
+lookupIndex = go 0
   where
-    STRICT_1_OF_3(lkp)
-    STRICT_2_OF_3(lkp)
-    lkp _   _    Tip  = Nothing
-    lkp key idx (Bin _ kx _ l r)
-      = case compare key kx of
-          LT -> lkp key idx l
-          GT -> lkp key (idx + size l + 1) r
-          EQ -> let idx' = idx + size l in idx' `seq` Just idx'
+    go :: Ord k => Int -> k -> Map k a -> Maybe Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = Nothing
+    go idx k (Bin _ kx _ l r) = case compare k kx of
+      LT -> go idx k l
+      GT -> go (idx + size l + 1) k r
+      EQ -> Just $! idx + size l
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
 #endif
@@ -872,8 +878,15 @@ updateAt f i t = i `seq`
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
 deleteAt :: Int -> Map k a -> Map k a
-deleteAt i m
-  = updateAt (\_ _ -> Nothing) i m
+deleteAt i t = i `seq`
+  case t of
+    Tip -> error "Map.deleteAt: index out of range"
+    Bin sx kx x l r -> case compare i sizeL of
+      LT -> balanceR kx x (deleteAt i l) r
+      GT -> balanceL kx x l (deleteAt (i-sizeL-1) r)
+      EQ -> glue l r
+      where
+        sizeL = size l
 
 
 {--------------------------------------------------------------------
