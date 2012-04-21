@@ -123,7 +123,7 @@ main = defaultMainWithOpts
          , testProperty "fromList"             prop_fromList
          , testProperty "insert to singleton"  prop_singleton
          , testProperty "insert"               prop_insert
-         , testProperty "insert then lookup"   prop_lookup
+         , testProperty "insert then lookup"   prop_insertLookup
          , testProperty "insert then delete"   prop_insertDelete
          , testProperty "insert then delete2"  prop_insertDelete2
          , testProperty "delete non member"    prop_deleteNonMember
@@ -156,6 +156,8 @@ main = defaultMainWithOpts
          , testProperty "null"                 prop_null
          , testProperty "member"               prop_member
          , testProperty "notmember"            prop_notmember
+         , testProperty "lookup"               prop_lookup
+         , testProperty "find"                 prop_find
          , testProperty "findWithDefault"      prop_findWithDefault
          , testProperty "findIndex"            prop_findIndex
          , testProperty "lookupIndex"          prop_lookupIndex
@@ -798,8 +800,8 @@ prop_singleton k x = insert k x empty == singleton k x
 prop_insert :: Int -> UMap -> Bool
 prop_insert k t = valid $ insert k () t
 
-prop_lookup :: Int -> UMap -> Bool
-prop_lookup k t = lookup k (insert k () t) /= Nothing
+prop_insertLookup :: Int -> UMap -> Bool
+prop_insertLookup k t = lookup k (insert k () t) /= Nothing
 
 prop_insertDelete :: Int -> UMap -> Bool
 prop_insertDelete k t = valid $ delete k (insert k () t)
@@ -938,18 +940,30 @@ prop_null m = null m == (size m == 0)
 prop_member :: [Int] -> Int -> Bool
 prop_member xs n =
   let m  = fromList (zip xs xs)
-  in  (n `elem` xs) == (n `member` m)
+  in all (\k -> k `member` m == (k `elem` xs)) (n : xs)
 
 prop_notmember :: [Int] -> Int -> Bool
 prop_notmember xs n =
   let m  = fromList (zip xs xs)
-  in  (n `notElem` xs) == (n `notMember` m)
+  in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
 
-prop_findWithDefault :: [(Int, Int)] -> Property
-prop_findWithDefault ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  and [ findWithDefault 0 i m == j | (i,j) <- xs ]
+prop_lookup :: [(Int, Int)] -> Int -> Bool
+prop_lookup xs n =
+  let xs' = List.nubBy ((==) `on` fst) xs
+      m = fromList xs'
+  in all (\k -> lookup k m == List.lookup k xs') (n : List.map fst xs')
+
+prop_find :: [(Int, Int)] -> Bool
+prop_find xs =
+  let xs' = List.nubBy ((==) `on` fst) xs
+      m = fromList xs'
+  in all (\(k, v) -> m ! k == v) xs'
+
+prop_findWithDefault :: [(Int, Int)] -> Int -> Int -> Bool
+prop_findWithDefault xs n x =
+  let xs' = List.nubBy ((==) `on` fst) xs
+      m = fromList xs'
+  in all (\k -> findWithDefault x k m == maybe x id (List.lookup k xs')) (n : List.map fst xs')
 
 prop_findIndex :: [(Int, Int)] -> Property
 prop_findIndex ys = length ys > 0 ==>
@@ -1013,7 +1027,7 @@ prop_mapkeys :: (Int -> Int) -> [(Int, Int)] -> Property
 prop_mapkeys f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  Data.Map.mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
+  in  mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>

@@ -65,6 +65,15 @@
 -- entry of the outer method.
 
 
+-- [Note: Local 'go' functions and capturing]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- Care must be taken when using 'go' function which captures an argument.
+-- Sometimes (for example when the argument is passed to a data constructor,
+-- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
+-- must be checked for increased allocation when creating and modifying such
+-- functions.
+
+
 -- [Note: Order of constructors]
 -- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -- The order of constructors of Map matters when considering performance.
@@ -271,7 +280,7 @@ infixl 9 !,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
 (!) :: Ord k => Map k a -> k -> a
-m ! k    = find k m
+m ! k = find k m
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE (!) #-}
 #endif
@@ -371,32 +380,30 @@ size (Bin sz _ _ _ _) = sz
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 
+-- See Note: Local 'go' functions and capturing
 lookup :: Ord k => k -> Map k a -> Maybe a
-lookup = go
+lookup k = k `seq` go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = Nothing
-    go k (Bin _ kx x l r) =
-        case compare k kx of
-            LT -> go k l
-            GT -> go k r
-            EQ -> Just x
+    go Tip = Nothing
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> Just x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookup #-}
 #else
 {-# INLINE lookup #-}
 #endif
 
+-- See Note: Local 'go' functions and capturing
 lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
-lookupAssoc = go
+lookupAssoc k = k `seq` go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = Nothing
-    go k (Bin _ kx x l r) =
-        case compare k kx of
-            LT -> go k l
-            GT -> go k r
-            EQ -> Just (kx,x)
+    go Tip = Nothing
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> Just (kx,x)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupAssoc #-}
 #else
@@ -408,10 +415,15 @@ lookupAssoc = go
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 
+-- See Note: Local 'go' functions and capturing
 member :: Ord k => k -> Map k a -> Bool
-member k m = case lookup k m of
-    Nothing -> False
-    Just _  -> True
+member k = k `seq` go
+  where
+    go Tip = False
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> True
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
 #else
@@ -433,11 +445,16 @@ notMember k m = not $ member k m
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
--- Consider using 'lookup' when elements may not be present.
+
+-- See Note: Local 'go' functions and capturing
 find :: Ord k => k -> Map k a -> a
-find k m = case lookup k m of
-    Nothing -> error "Map.find: element not in the map"
-    Just x  -> x
+find k = k `seq` go
+  where
+    go Tip = error "Map.!: given key is not an element in the map"
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE find #-}
 #else
@@ -451,10 +468,15 @@ find k m = case lookup k m of
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
+-- See Note: Local 'go' functions and capturing
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k m = case lookup k m of
-    Nothing -> def
-    Just x  -> x
+findWithDefault def k = k `seq` go
+  where
+    go Tip = def
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findWithDefault #-}
 #else

@@ -63,6 +63,15 @@
 -- entry of the outer method.
 
 
+-- [Note: Local 'go' functions and capturing]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- Care must be taken when using 'go' function which captures an argument.
+-- Sometimes (for example when the argument is passed to a data constructor,
+-- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
+-- must be checked for increased allocation when creating and modifying such
+-- functions.
+
+
 -- [Note: Order of constructors]
 -- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 -- The order of constructors of Set matters when considering performance.
@@ -261,15 +270,16 @@ size (Bin sz _ _ _) = sz
 {-# INLINE size #-}
 
 -- | /O(log n)/. Is the element in the set?
+
+-- See Note: Local 'go' functions and capturing
 member :: Ord a => a -> Set a -> Bool
-member = go
+member x = x `seq` go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = False
-    go x (Bin _ y l r) = case compare x y of
-          LT -> go x l
-          GT -> go x r
-          EQ -> True
+    go Tip = False
+    go (Bin _ y l r) = case compare x y of
+      LT -> go l
+      GT -> go r
+      EQ -> True
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
 #else

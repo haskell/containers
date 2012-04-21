@@ -11,6 +11,8 @@ import Test.Framework.Providers.QuickCheck2
 main :: IO ()
 main = defaultMainWithOpts [ testProperty "prop_Valid" prop_Valid
                            , testProperty "prop_Single" prop_Single
+                           , testProperty "prop_Member" prop_Member
+                           , testProperty "prop_NotMember" prop_NotMember
                            , testProperty "prop_InsertValid" prop_InsertValid
                            , testProperty "prop_InsertDelete" prop_InsertDelete
                            , testProperty "prop_DeleteValid" prop_DeleteValid
@@ -98,10 +100,20 @@ prop_Valid :: Property
 prop_Valid = forValidUnitTree $ \t -> valid t
 
 {--------------------------------------------------------------------
-  Single, Insert, Delete
+  Single, Member, Insert, Delete
 --------------------------------------------------------------------}
 prop_Single :: Int -> Bool
 prop_Single x = (insert x empty == singleton x)
+
+prop_Member :: [Int] -> Int -> Bool
+prop_Member xs n =
+  let m  = fromList xs
+  in all (\k -> k `member` m == (k `elem` xs)) (n : xs)
+
+prop_NotMember :: [Int] -> Int -> Bool
+prop_NotMember xs n =
+  let m  = fromList xs
+  in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
 
 prop_InsertValid :: Int -> Property
 prop_InsertValid k = forValidUnitTree $ \t -> valid (insert k t)

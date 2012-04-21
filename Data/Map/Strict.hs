@@ -297,10 +297,15 @@ import Data.StrictPair
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
+-- See Note: Local 'go' functions and capturing
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k m = def `seq` case lookup k m of
-    Nothing -> def
-    Just x  -> x
+findWithDefault def k = def `seq` k `seq` go
+  where
+    go Tip = def
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findWithDefault #-}
 #else
