@@ -409,7 +409,7 @@ find k = k `seq` go
                   | otherwise = not_found
     go Nil = not_found
 
-    not_found = error ("IntMap.!: key" ++ show k ++ " is not an element of the map")
+    not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
 -- returns the value at key @k@ or returns @def@ when the key is not an
