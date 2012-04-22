@@ -444,7 +444,6 @@ insertLookupWithKey = go
 
 {--------------------------------------------------------------------
   Deletion
-  [delete] is the inlined version of [deleteWith (\k x -> Nothing)]
 --------------------------------------------------------------------}
 
 -- | /O(log n)/. Update a value at a specific key with the result of the provided function.

@@ -544,7 +544,6 @@ insertLookupWithKey f k x t = k `seq`
 
 {--------------------------------------------------------------------
   Deletion
-  [delete] is the inlined version of [deleteWith (\k x -> Nothing)]
 --------------------------------------------------------------------}
 -- | /O(min(n,W))/. Delete a key and its value from the map. When the key is not
 -- a member of the map, the original map is returned.
