@@ -60,9 +60,14 @@
 -- INLINED by using a NOINLINE.
 --
 -- All methods marked INLINE have to be nonrecursive -- a 'go' function doing
--- the real work is provided. Curiously, it has to be given a type. Otherwise
--- the Ord dictionary is not passed to 'go' and it is heap-allocated at the
--- entry of the outer method.
+-- the real work is provided.
+
+
+-- [Note: Type of local 'go' function]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- If the local 'go' function uses an Ord class, it must be given a type
+-- which mentions this Ord class. Otherwise it is not passed as an argument and
+-- it is instead heap-allocated at the entry of the outer method.
 
 
 -- [Note: Local 'go' functions and capturing]
@@ -516,9 +521,11 @@ singleton k x = Bin 1 k x Tip Tip
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
+-- See Note: Type of local 'go' function
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
+    go :: Ord k => k -> a -> Map k a -> Map k a
     STRICT_1_OF_3(go)
     go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
@@ -562,9 +569,11 @@ insertWith f = insertWithKey (\_ x' y' -> f x' y')
 -- > insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
+-- See Note: Type of local 'go' function
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
+    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
     STRICT_2_OF_4(go)
     go _ kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
@@ -594,10 +603,12 @@ insertWithKey = go
 -- > insertLookup 5 "x" (fromList [(5,"a"), (3,"b")]) == (Just "a", fromList [(3, "b"), (5, "x")])
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
+-- See Note: Type of local 'go' function
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
 insertLookupWithKey = go
   where
+    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
     STRICT_2_OF_4(go)
     go _ kx x Tip = (Nothing, singleton kx x)
     go f kx x (Bin sy ky y l r) =
@@ -624,9 +635,11 @@ insertLookupWithKey = go
 -- > delete 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > delete 5 empty                         == empty
 
+-- See Note: Type of local 'go' function
 delete :: Ord k => k -> Map k a -> Map k a
 delete = go
   where
+    go :: Ord k => k -> Map k a -> Map k a
     STRICT_1_OF_2(go)
     go _ Tip = Tip
     go k (Bin _ kx x l r) =
@@ -699,9 +712,11 @@ update f = updateWithKey (\_ x -> f x)
 -- > updateWithKey f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
+-- See Note: Type of local 'go' function
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
+    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
     STRICT_2_OF_3(go)
     go _ _ Tip = Tip
     go f k(Bin sx kx x l r) =
@@ -726,9 +741,11 @@ updateWithKey = go
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
+-- See Note: Type of local 'go' function
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey = go
  where
+   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
    STRICT_2_OF_3(go)
    go _ _ Tip = (Nothing,Tip)
    go f k (Bin sx kx x l r) =
@@ -756,9 +773,11 @@ updateLookupWithKey = go
 -- > alter f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "c")]
 -- > alter f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "c")]
 
+-- See Note: Type of local 'go' function
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
+    go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
     STRICT_2_OF_3(go)
     go f k Tip = case f Nothing of
                Nothing -> Tip
@@ -788,6 +807,7 @@ alter = go
 -- > findIndex 5 (fromList [(5,"a"), (3,"b")]) == 1
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
+-- See Note: Type of local 'go' function
 findIndex :: Ord k => k -> Map k a -> Int
 findIndex = go 0
   where
@@ -811,6 +831,7 @@ findIndex = go 0
 -- > fromJust (lookupIndex 5 (fromList [(5,"a"), (3,"b")])) == 1
 -- > isJust (lookupIndex 6 (fromList [(5,"a"), (3,"b")]))   == False
 
+-- See Note: Type of local 'go' function
 lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex = go 0
   where

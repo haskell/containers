@@ -58,9 +58,14 @@
 -- INLINED by using a NOINLINE.
 --
 -- All methods marked INLINE have to be nonrecursive -- a 'go' function doing
--- the real work is provided. Curiously, it has to be given a type. Otherwise
--- the Ord dictionary is not passed to 'go' and it is heap-allocated at the
--- entry of the outer method.
+-- the real work is provided.
+
+
+-- [Note: Type of local 'go' function]
+-- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- If the local 'go' function uses an Ord class, it must be given a type
+-- which mentions this Ord class. Otherwise it is not passed as an argument and
+-- it is instead heap-allocated at the entry of the outer method.
 
 
 -- [Note: Local 'go' functions and capturing]
@@ -314,9 +319,12 @@ singleton x = Bin 1 x Tip Tip
 -- | /O(log n)/. Insert an element in a set.
 -- If the set already contains an element equal to the given value,
 -- it is replaced with the new value.
+
+-- See Note: Type of local 'go' function
 insert :: Ord a => a -> Set a -> Set a
 insert = go
   where
+    go :: Ord a => a -> Set a -> Set a
     STRICT_1_OF_2(go)
     go x Tip = singleton x
     go x (Bin sz y l r) = case compare x y of
@@ -331,9 +339,12 @@ insert = go
 
 -- Insert an element to the set only if it is not in the set. Used by
 -- `union`.
+
+-- See Note: Type of local 'go' function
 insertR :: Ord a => a -> Set a -> Set a
 insertR = go
   where
+    go :: Ord a => a -> Set a -> Set a
     STRICT_1_OF_2(go)
     go x Tip = singleton x
     go x t@(Bin _ y l r) = case compare x y of
@@ -347,9 +358,12 @@ insertR = go
 #endif
 
 -- | /O(log n)/. Delete an element from a set.
+
+-- See Note: Type of local 'go' function
 delete :: Ord a => a -> Set a -> Set a
 delete = go
   where
+    go :: Ord a => a -> Set a -> Set a
     STRICT_1_OF_2(go)
     go _ Tip = Tip
     go x (Bin _ y l r) = case compare x y of
