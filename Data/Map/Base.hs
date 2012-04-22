@@ -1511,7 +1511,8 @@ mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map f = mapWithKey (\_ x -> f x)
+map _ Tip = Tip
+map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
 
 -- | /O(n)/. Map a function over all values in the map.
 --
