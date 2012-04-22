@@ -606,7 +606,7 @@ fold = foldr
 --
 -- > toAscList set = foldr (:) [] set
 foldr :: (a -> b -> b) -> b -> Set a -> b
-foldr f = go
+foldr f z = go z
   where
     go z Tip           = z
     go z (Bin _ x l r) = go (f x (go z r)) l
@@ -616,7 +616,7 @@ foldr f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> Set a -> b
-foldr' f = go
+foldr' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip           = z
@@ -630,7 +630,7 @@ foldr' f = go
 --
 -- > toDescList set = foldl (flip (:)) [] set
 foldl :: (a -> b -> a) -> a -> Set b -> a
-foldl f = go
+foldl f z = go z
   where
     go z Tip           = z
     go z (Bin _ x l r) = go (f (go z l) x) r
@@ -640,7 +640,7 @@ foldl f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> Set b -> a
-foldl' f = go
+foldl' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip           = z

@@ -1648,7 +1648,7 @@ mapKeysMonotonic f (Bin sz k x l r) =
 -- > let f a len = len + (length a)
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldr :: (a -> b -> b) -> b -> Map k a -> b
-foldr f = go
+foldr f z = go z
   where
     go z Tip             = z
     go z (Bin _ _ x l r) = go (f x (go z r)) l
@@ -1658,7 +1658,7 @@ foldr f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> Map k a -> b
-foldr' f = go
+foldr' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip             = z
@@ -1675,7 +1675,7 @@ foldr' f = go
 -- > let f len a = len + (length a)
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldl :: (a -> b -> a) -> a -> Map k b -> a
-foldl f = go
+foldl f z = go z
   where
     go z Tip             = z
     go z (Bin _ _ x l r) = go (f (go z l) x) r
@@ -1685,7 +1685,7 @@ foldl f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> Map k b -> a
-foldl' f = go
+foldl' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip             = z
@@ -1703,7 +1703,7 @@ foldl' f = go
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
 foldrWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldrWithKey f = go
+foldrWithKey f z = go z
   where
     go z Tip             = z
     go z (Bin _ kx x l r) = go (f kx x (go z r)) l
@@ -1713,7 +1713,7 @@ foldrWithKey f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldrWithKey' f = go
+foldrWithKey' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip              = z
@@ -1731,7 +1731,7 @@ foldrWithKey' f = go
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
 foldlWithKey :: (a -> k -> b -> a) -> a -> Map k b -> a
-foldlWithKey f = go
+foldlWithKey f z = go z
   where
     go z Tip              = z
     go z (Bin _ kx x l r) = go (f (go z l) kx x) r
@@ -1741,7 +1741,7 @@ foldlWithKey f = go
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldlWithKey' :: (a -> k -> b -> a) -> a -> Map k b -> a
-foldlWithKey' f = go
+foldlWithKey' f z = go z
   where
     STRICT_1_OF_2(go)
     go z Tip              = z
