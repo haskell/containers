@@ -41,7 +41,7 @@
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
--- ^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~
 -- It is crucial to the performance that the functions specialize on the Ord
 -- type when possible. GHC 7.0 and higher does this by itself when it sees th
 -- unfolding of a function -- that is why all public functions are marked
@@ -49,7 +49,7 @@
 
 
 -- [Note: Using INLINE]
--- ^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~
 -- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
 -- We mark the functions that just navigate down the tree (lookup, insert,
 -- delete and similar). That navigation code gets inlined and thus specialized
@@ -62,14 +62,14 @@
 
 
 -- [Note: Type of local 'go' function]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- If the local 'go' function uses an Ord class, it must be given a type
 -- which mentions this Ord class. Otherwise it is not passed as an argument and
 -- it is instead heap-allocated at the entry of the outer method.
 
 
 -- [Note: Local 'go' functions and capturing]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Care must be taken when using 'go' function which captures an argument.
 -- Sometimes (for example when the argument is passed to a data constructor,
 -- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
@@ -78,7 +78,7 @@
 
 
 -- [Note: Order of constructors]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- The order of constructors of Set matters when considering performance.
 -- Currently in GHC 7.0, when type has 2 constructors, a forward conditional
 -- jump is made when successfully matching second constructor. Successful match

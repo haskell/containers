@@ -50,7 +50,7 @@
 -----------------------------------------------------------------------------
 
 -- [Note: INLINE bit fiddling]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- It is essential that the bit fiddling functions like mask, zero, branchMask
 -- etc are inlined. If they do not, the memory allocation skyrockets. The GHC
 -- usually gets it right, but it is disastrous if it does not. Therefore we
@@ -58,7 +58,7 @@
 
 
 -- [Note: Local 'go' functions and capturing]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Care must be taken when using 'go' function which captures an argument.
 -- Sometimes (for example when the argument is passed to a data constructor,
 -- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
@@ -67,7 +67,7 @@
 
 
 -- [Note: Order of constructors]
--- ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- The order of constructors of IntSet matters when considering performance.
 -- Currently in GHC 7.0, when type has 3 constructors, they are matched from
 -- the first to the last -- the best performance is achieved when the
