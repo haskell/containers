@@ -425,7 +425,7 @@ member :: Ord k => k -> Map k a -> Bool
 member k = k `seq` go
   where
     go Tip = False
-    go (Bin _ kx x l r) = case compare k kx of
+    go (Bin _ kx _ l r) = case compare k kx of
       LT -> go l
       GT -> go r
       EQ -> True
@@ -901,7 +901,7 @@ deleteAt :: Int -> Map k a -> Map k a
 deleteAt i t = i `seq`
   case t of
     Tip -> error "Map.deleteAt: index out of range"
-    Bin sx kx x l r -> case compare i sizeL of
+    Bin _ kx x l r -> case compare i sizeL of
       LT -> balanceR kx x (deleteAt i l) r
       GT -> balanceL kx x l (deleteAt (i-sizeL-1) r)
       EQ -> glue l r
@@ -1651,8 +1651,8 @@ mapKeysMonotonic f (Bin sz k x l r) =
 foldr :: (a -> b -> b) -> b -> Map k a -> b
 foldr f z = go z
   where
-    go z Tip             = z
-    go z (Bin _ _ x l r) = go (f x (go z r)) l
+    go z' Tip             = z'
+    go z' (Bin _ _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr #-}
 
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
@@ -1662,8 +1662,8 @@ foldr' :: (a -> b -> b) -> b -> Map k a -> b
 foldr' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip             = z
-    go z (Bin _ _ x l r) = go (f x (go z r)) l
+    go z' Tip             = z'
+    go z' (Bin _ _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr' #-}
 
 -- | /O(n)/. Fold the values in the map using the given left-associative
@@ -1678,8 +1678,8 @@ foldr' f z = go z
 foldl :: (a -> b -> a) -> a -> Map k b -> a
 foldl f z = go z
   where
-    go z Tip             = z
-    go z (Bin _ _ x l r) = go (f (go z l) x) r
+    go z' Tip             = z'
+    go z' (Bin _ _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
 
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
@@ -1689,8 +1689,8 @@ foldl' :: (a -> b -> a) -> a -> Map k b -> a
 foldl' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip             = z
-    go z (Bin _ _ x l r) = go (f (go z l) x) r
+    go z' Tip             = z'
+    go z' (Bin _ _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given right-associative
@@ -1706,8 +1706,8 @@ foldl' f z = go z
 foldrWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey f z = go z
   where
-    go z Tip             = z
-    go z (Bin _ kx x l r) = go (f kx x (go z r)) l
+    go z' Tip             = z'
+    go z' (Bin _ kx x l r) = go (f kx x (go z' r)) l
 {-# INLINE foldrWithKey #-}
 
 -- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
@@ -1717,8 +1717,8 @@ foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip              = z
-    go z (Bin _ kx x l r) = go (f kx x (go z r)) l
+    go z' Tip              = z'
+    go z' (Bin _ kx x l r) = go (f kx x (go z' r)) l
 {-# INLINE foldrWithKey' #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given left-associative
@@ -1734,8 +1734,8 @@ foldrWithKey' f z = go z
 foldlWithKey :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey f z = go z
   where
-    go z Tip              = z
-    go z (Bin _ kx x l r) = go (f (go z l) kx x) r
+    go z' Tip              = z'
+    go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
 {-# INLINE foldlWithKey #-}
 
 -- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
@@ -1745,8 +1745,8 @@ foldlWithKey' :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip              = z
-    go z (Bin _ kx x l r) = go (f (go z l) kx x) r
+    go z' Tip              = z'
+    go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
 {-# INLINE foldlWithKey' #-}
 
 {--------------------------------------------------------------------

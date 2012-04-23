@@ -626,8 +626,9 @@ intersectionWithKey f m1 m2
 mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap b -> IntMap c)
              -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
-  where combine (Tip k1 x1) (Tip _k2 x2) = case f k1 x1 x2 of Nothing -> Nil
-                                                              Just x -> x `seq` Tip k1 x
+  where -- We use the lambda form to avoid non-exhaustive pattern matches warning.
+        combine = \(Tip k1 x1) (Tip _k2 x2) -> case f k1 x1 x2 of Nothing -> Nil
+                                                                  Just x -> x `seq` Tip k1 x
         {-# INLINE combine #-}
 {-# INLINE mergeWithKey #-}
 

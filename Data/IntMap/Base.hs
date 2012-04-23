@@ -829,8 +829,9 @@ intersectionWithKey f m1 m2
 mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap b -> IntMap c)
              -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
-  where combine (Tip k1 x1) (Tip _k2 x2) = case f k1 x1 x2 of Nothing -> Nil
-                                                              Just x -> Tip k1 x
+  where -- We use the lambda form to avoid non-exhaustive pattern matches warning.
+        combine = \(Tip k1 x1) (Tip _k2 x2) -> case f k1 x1 x2 of Nothing -> Nil
+                                                                  Just x -> Tip k1 x
         {-# INLINE combine #-}
 {-# INLINE mergeWithKey #-}
 
@@ -860,22 +861,22 @@ mergeWithKey' bin' f g1 g2 = go
                | zero p1 m2        = bin' p2 m2 (go t1 l2) (g2 r2)
                | otherwise         = bin' p2 m2 (g2 l2) (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2@(Tip k2 x2) = merge t1'
+    go t1'@(Bin _ _ _ _) t2@(Tip k2 _) = merge t1'
       where merge t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = maybe_join p1 (g1 t1) k2 (g2 t2)
                                        | zero k2 m1 = bin' p1 m1 (merge l1) (g1 r1)
                                        | otherwise  = bin' p1 m1 (g1 l1) (merge r1)
-            merge t1@(Tip k1 x1) | k1 == k2 = f t1 t2
-                                 | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
+            merge t1@(Tip k1 _) | k1 == k2 = f t1 t2
+                                | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
             merge Nil = g2 t2
 
     go t1@(Bin _ _ _ _) Nil = g1 t1
 
-    go t1@(Tip k1 x1) t2' = merge t2'
+    go t1@(Tip k1 _) t2' = merge t2'
       where merge t2@(Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = maybe_join k1 (g1 t1) p2 (g2 t2)
                                        | zero k1 m2 = bin' p2 m2 (merge l2) (g2 r2)
                                        | otherwise  = bin' p2 m2 (g2 l2) (merge r2)
-            merge t2@(Tip k2 x2) | k1 == k2 = f t1 t2
-                                 | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
+            merge t2@(Tip k2 _) | k1 == k2 = f t1 t2
+                                | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
             merge Nil = g1 t1
 
     go Nil t2 = g2 t2

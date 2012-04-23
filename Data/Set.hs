@@ -608,8 +608,8 @@ fold = foldr
 foldr :: (a -> b -> b) -> b -> Set a -> b
 foldr f z = go z
   where
-    go z Tip           = z
-    go z (Bin _ x l r) = go (f x (go z r)) l
+    go z' Tip           = z'
+    go z' (Bin _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr #-}
 
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
@@ -619,8 +619,8 @@ foldr' :: (a -> b -> b) -> b -> Set a -> b
 foldr' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip           = z
-    go z (Bin _ x l r) = go (f x (go z r)) l
+    go z' Tip           = z'
+    go z' (Bin _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr' #-}
 
 -- | /O(n)/. Fold the elements in the set using the given left-associative
@@ -632,8 +632,8 @@ foldr' f z = go z
 foldl :: (a -> b -> a) -> a -> Set b -> a
 foldl f z = go z
   where
-    go z Tip           = z
-    go z (Bin _ x l r) = go (f (go z l) x) r
+    go z' Tip           = z'
+    go z' (Bin _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
 
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
@@ -643,8 +643,8 @@ foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
     STRICT_1_OF_2(go)
-    go z Tip           = z
-    go z (Bin _ x l r) = go (f (go z l) x) r
+    go z' Tip           = z'
+    go z' (Bin _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
 
 {--------------------------------------------------------------------
