@@ -53,27 +53,18 @@ lookupGE3 k t = k `seq` case t of
 
 lookupGE4 :: Key -> IntMap a -> Maybe (Key,a)
 lookupGE4 k t = k `seq` case t of
-    Bin _ m l r | m < 0 -> if k >= 0 then goNothing l
-                                     else goJust l r
-    _ -> goNothing t
+    Bin _ m l r | m < 0 -> if k >= 0 then go Nil l
+                                     else go l r
+    _ -> go Nil t
   where
-    goNothing (Bin p m l r)
-      | nomatch k p m = if k < p then fMin l else Nothing
-      | zero k m  = goJust r l
-      | otherwise = goNothing r
-    goNothing (Tip ky y)
-      | k > ky    = Nothing
-      | otherwise = Just (ky, y)
-    goNothing Nil  = Nothing
-
-    goJust def (Bin p m l r)
+    go def (Bin p m l r)
       | nomatch k p m = if k < p then fMin l else fMin def
-      | zero k m  = goJust r l
-      | otherwise = goJust def r
-    goJust def (Tip ky y)
+      | zero k m  = go r l
+      | otherwise = go def r
+    go def (Tip ky y)
       | k > ky    = fMin def
       | otherwise = Just (ky, y)
-    goJust def Nil  = fMin def
+    go def Nil  = fMin def
 
     fMin :: IntMap a -> Maybe (Key, a)
     fMin Nil = Nothing
