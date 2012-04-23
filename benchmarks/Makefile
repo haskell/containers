@@ -1,12 +1,14 @@
 all:
 
-bench-%: %.hs *.hs ../Data/*.hs ../Data/*/*.hs
-	ghc -O2 -DTESTING $< -i.. -o $@ -outputdir tmp -rtsopts
+bench-%: %.hs force
+	ghc -O2 -DTESTING $< -i../$(TOP) -o $@ -outputdir tmp -rtsopts
 
 bench-%.csv: bench-%
 	./bench-$* -v -u bench-$*.csv
 
-.PHONY: clean veryclean
+.PHONY: force clean veryclean
+force:
+
 clean:
 	rm -rf tmp $(patsubst %.hs, bench-%, $(wildcard *.hs))
 
