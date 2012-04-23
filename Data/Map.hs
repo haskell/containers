@@ -66,7 +66,7 @@ import qualified Data.Map.Strict as S
 --
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' = S.insertWith
-{-# INLINE insertWith' #-}
+{-# INLINABLE insertWith' #-}
 
 -- | /Deprecated./ As of version 0.5, replaced by 'S.insertWithKey'.
 --
@@ -74,7 +74,7 @@ insertWith' = S.insertWith
 -- applied strictly.
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey' = S.insertWithKey
-{-# INLINE insertWithKey' #-}
+{-# INLINABLE insertWithKey' #-}
 
 -- | /Deprecated./ As of version 0.5, replaced by
 -- 'S.insertLookupWithKey'.
@@ -83,7 +83,7 @@ insertWithKey' = S.insertWithKey
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
 insertLookupWithKey' = S.insertLookupWithKey
-{-# INLINE insertLookupWithKey' #-}
+{-# INLINABLE insertLookupWithKey' #-}
 
 -- | /Deprecated./ As of version 0.5, replaced by 'L.foldr'.
 --
