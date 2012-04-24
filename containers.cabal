@@ -43,6 +43,7 @@ Library
     other-modules:
         Data.IntMap.Base
         Data.Map.Base
+        Data.Set.Base
         Data.StrictPair
 
     include-dirs: include
