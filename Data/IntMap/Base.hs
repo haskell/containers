@@ -227,6 +227,11 @@ import GHC.Exts ( Word(..), Int(..), shiftRL#, build )
 import Data.Word
 #endif
 
+-- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
+#if defined(__GLASGOW_HASKELL__)
+#include "MachDeps.h"
+#endif
+
 -- Use macros to define strictness of functions.
 -- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
 -- We do not use BangPatterns, because they are not in any standard and we
@@ -1943,7 +1948,9 @@ highestBitMask x0
       x2 -> case (x2 .|. shiftRL x2 4) of
        x3 -> case (x3 .|. shiftRL x3 8) of
         x4 -> case (x4 .|. shiftRL x4 16) of
+#if !(defined(__GLASGOW_HASKELL__) && WORD_SIZE_IN_BITS==32)
          x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
+#endif
           x6 -> (x6 `xor` (shiftRL x6 1))
 {-# INLINE highestBitMask #-}
 
