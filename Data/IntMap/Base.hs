@@ -59,6 +59,10 @@ module Data.IntMap.Base (
             , notMember
             , lookup
             , findWithDefault
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
 
             -- * Construction
             , empty
@@ -433,6 +437,99 @@ findWithDefault def k = k `seq` go
     go (Tip kx x) | k == kx   = x
                   | otherwise = def
     go Nil = def
+
+-- | /O(log n)/. Find largest key smaller than the given one and return the
+-- corresponding (key, value) pair.
+--
+-- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
+-- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+
+-- See Note: Local 'go' functions and capturing.
+lookupLT :: Key -> IntMap a -> Maybe (Key, a)
+lookupLT k t = k `seq` case t of
+    Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
+                         | zero k m  = go def l
+                         | otherwise = go l r
+    go def (Tip ky y) | k <= ky   = unsafeFindMax def
+                      | otherwise = Just (ky, y)
+    go def Nil = unsafeFindMax def
+
+-- | /O(log n)/. Find smallest key greater than the given one and return the
+-- corresponding (key, value) pair.
+--
+-- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+-- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGT :: Key -> IntMap a -> Maybe (Key, a)
+lookupGT k t = k `seq` case t of
+    Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
+                         | zero k m  = go r l
+                         | otherwise = go def r
+    go def (Tip ky y) | k >= ky   = unsafeFindMin def
+                      | otherwise = Just (ky, y)
+    go def Nil = unsafeFindMin def
+
+-- | /O(log n)/. Find largest key smaller or equal to the given one and return
+-- the corresponding (key, value) pair.
+--
+-- > lookupLE 2 (fromList [(3,'a'), (5,'b')]) == Nothing
+-- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+-- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+
+-- See Note: Local 'go' functions and capturing.
+lookupLE :: Key -> IntMap a -> Maybe (Key, a)
+lookupLE k t = k `seq` case t of
+    Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
+                         | zero k m  = go def l
+                         | otherwise = go l r
+    go def (Tip ky y) | k < ky    = unsafeFindMax def
+                      | otherwise = Just (ky, y)
+    go def Nil = unsafeFindMax def
+
+-- | /O(log n)/. Find smallest key greater or equal to the given one and return
+-- the corresponding (key, value) pair.
+--
+-- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+-- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+-- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGE :: Key -> IntMap a -> Maybe (Key, a)
+lookupGE k t = k `seq` case t of
+    Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
+                         | zero k m  = go r l
+                         | otherwise = go def r
+    go def (Tip ky y) | k > ky    = unsafeFindMin def
+                      | otherwise = Just (ky, y)
+    go def Nil = unsafeFindMin def
+
+
+-- Helper function for lookupGE and lookupGT. It assumes that if a Bin node is
+-- given, it has m > 0.
+unsafeFindMin :: IntMap a -> Maybe (Key, a)
+unsafeFindMin Nil = Nothing
+unsafeFindMin (Tip ky y) = Just (ky, y)
+unsafeFindMin (Bin _ _ l _) = unsafeFindMin l
+
+-- Helper function for lookupLE and lookupLT. It assumes that if a Bin node is
+-- given, it has m > 0.
+unsafeFindMax :: IntMap a -> Maybe (Key, a)
+unsafeFindMax Nil = Nothing
+unsafeFindMax (Tip ky y) = Just (ky, y)
+unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
 
 {--------------------------------------------------------------------
   Construction

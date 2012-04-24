@@ -105,6 +105,10 @@ module Data.Set (
             , size
             , member
             , notMember
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
             , isSubsetOf
             , isProperSubsetOf
 
@@ -298,6 +302,100 @@ notMember a t = not $ member a t
 {-# INLINABLE notMember #-}
 #else
 {-# INLINE notMember #-}
+#endif
+
+-- | /O(log n)/. Find largest element smaller than the given one.
+--
+-- > lookupLT 3 (fromList [3, 5]) == Nothing
+-- > lookupLT 5 (fromList [3, 5]) == Just 3
+
+-- See Note: Local 'go' functions and capturing.
+lookupLT :: Ord a => a -> Set a -> Maybe a
+lookupLT x = x `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ y l r) | x <= y = goNothing l
+                            | otherwise = goJust y r
+
+    goJust best Tip = Just best
+    goJust best (Bin _ y l r) | x <= y = goJust best l
+                              | otherwise = goJust y r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupLT #-}
+#else
+{-# INLINE lookupLT #-}
+#endif
+
+-- | /O(log n)/. Find smallest element greater than the given one.
+--
+-- > lookupGT 4 (fromList [3, 5]) == Just 5
+-- > lookupGT 5 (fromList [3, 5]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGT :: Ord a => a -> Set a -> Maybe a
+lookupGT x = x `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ y l r) | x < y = goJust y l
+                            | otherwise = goNothing r
+
+    goJust best Tip = Just best
+    goJust best (Bin _ y l r) | x < y = goJust y l
+                              | otherwise = goJust best r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupGT #-}
+#else
+{-# INLINE lookupGT #-}
+#endif
+
+-- | /O(log n)/. Find largest element smaller or equal to the given one.
+--
+-- > lookupLE 2 (fromList [3, 5]) == Nothing
+-- > lookupLE 4 (fromList [3, 5]) == Just 3
+-- > lookupLE 5 (fromList [3, 5]) == Just 5
+
+-- See Note: Local 'go' functions and capturing.
+lookupLE :: Ord a => a -> Set a -> Maybe a
+lookupLE x = x `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ y l r) = case compare x y of LT -> goNothing l
+                                                  EQ -> Just y
+                                                  GT -> goJust y r
+
+    goJust best Tip = Just best
+    goJust best (Bin _ y l r) = case compare x y of LT -> goJust best l
+                                                    EQ -> Just y
+                                                    GT -> goJust y r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupLE #-}
+#else
+{-# INLINE lookupLE #-}
+#endif
+
+-- | /O(log n)/. Find smallest element greater or equal to the given one.
+--
+-- > lookupGE 3 (fromList [3, 5]) == Just 3
+-- > lookupGE 4 (fromList [3, 5]) == Just 5
+-- > lookupGE 6 (fromList [3, 5]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGE :: Ord a => a -> Set a -> Maybe a
+lookupGE x = x `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ y l r) = case compare x y of LT -> goJust y l
+                                                  EQ -> Just y
+                                                  GT -> goNothing r
+
+    goJust best Tip = Just best
+    goJust best (Bin _ y l r) = case compare x y of LT -> goJust y l
+                                                    EQ -> Just y
+                                                    GT -> goJust best r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupGE #-}
+#else
+{-# INLINE lookupGE #-}
 #endif
 
 {--------------------------------------------------------------------

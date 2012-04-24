@@ -102,6 +102,10 @@ module Data.Map.Base (
             , notMember
             , lookup
             , findWithDefault
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
 
             -- * Construction
             , empty
@@ -486,6 +490,104 @@ findWithDefault def k = k `seq` go
 {-# INLINABLE findWithDefault #-}
 #else
 {-# INLINE findWithDefault #-}
+#endif
+
+-- | /O(log n)/. Find largest key smaller than the given one and return the
+-- corresponding (key, value) pair.
+--
+-- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
+-- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+
+-- See Note: Local 'go' functions and capturing.
+lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
+lookupLT k = k `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ kx x l r) | k <= kx = goNothing l
+                               | otherwise = goJust kx x r
+
+    goJust kx' x' Tip = Just (kx', x')
+    goJust kx' x' (Bin _ kx x l r) | k <= kx = goJust kx' x' l
+                                   | otherwise = goJust kx x r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupLT #-}
+#else
+{-# INLINE lookupLT #-}
+#endif
+
+-- | /O(log n)/. Find smallest key greater than the given one and return the
+-- corresponding (key, value) pair.
+--
+-- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+-- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
+lookupGT k = k `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ kx x l r) | k < kx = goJust kx x l
+                               | otherwise = goNothing r
+
+    goJust kx' x' Tip = Just (kx', x')
+    goJust kx' x' (Bin _ kx x l r) | k < kx = goJust kx x l
+                                   | otherwise = goJust kx' x' r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupGT #-}
+#else
+{-# INLINE lookupGT #-}
+#endif
+
+-- | /O(log n)/. Find largest key smaller or equal to the given one and return
+-- the corresponding (key, value) pair.
+--
+-- > lookupLE 2 (fromList [(3,'a'), (5,'b')]) == Nothing
+-- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+-- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+
+-- See Note: Local 'go' functions and capturing.
+lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
+lookupLE k = k `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ kx x l r) = case compare k kx of LT -> goNothing l
+                                                      EQ -> Just (kx, x)
+                                                      GT -> goJust kx x r
+
+    goJust kx' x' Tip = Just (kx', x')
+    goJust kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust kx' x' l
+                                                          EQ -> Just (kx, x)
+                                                          GT -> goJust kx x r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupLE #-}
+#else
+{-# INLINE lookupLE #-}
+#endif
+
+-- | /O(log n)/. Find smallest key greater or equal to the given one and return
+-- the corresponding (key, value) pair.
+--
+-- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
+-- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
+-- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
+lookupGE k = k `seq` goNothing
+  where
+    goNothing Tip = Nothing
+    goNothing (Bin _ kx x l r) = case compare k kx of LT -> goJust kx x l
+                                                      EQ -> Just (kx, x)
+                                                      GT -> goNothing r
+
+    goJust kx' x' Tip = Just (kx', x')
+    goJust kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust kx x l
+                                                          EQ -> Just (kx, x)
+                                                          GT -> goJust kx' x' r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupGE #-}
+#else
+{-# INLINE lookupGE #-}
 #endif
 
 {--------------------------------------------------------------------

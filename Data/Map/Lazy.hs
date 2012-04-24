@@ -66,6 +66,10 @@ module Data.Map.Lazy (
             , notMember
             , M.lookup
             , findWithDefault
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
 
             -- * Construction
             , empty

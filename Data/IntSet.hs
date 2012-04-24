@@ -94,6 +94,10 @@ module Data.IntSet (
             , size
             , member
             , notMember
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
             , isSubsetOf
             , isProperSubsetOf
 
@@ -326,6 +330,107 @@ member x = x `seq` go
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Int -> IntSet -> Bool
 notMember k = not . member k
+
+-- | /O(log n)/. Find largest element smaller than the given one.
+--
+-- > lookupLT 3 (fromList [3, 5]) == Nothing
+-- > lookupLT 5 (fromList [3, 5]) == Just 3
+
+-- See Note: Local 'go' functions and capturing.
+lookupLT :: Int -> IntSet -> Maybe Int
+lookupLT x t = x `seq` case t of
+    Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch x p m = if x < p then unsafeFindMax def else unsafeFindMax r
+                         | zero x m  = go def l
+                         | otherwise = go l r
+    go def (Tip kx bm) | prefixOf x > kx = Just $ kx + highestBitSet bm
+                       | prefixOf x == kx && maskLT /= 0 = Just $ kx + highestBitSet maskLT
+                       | otherwise = unsafeFindMax def
+                       where maskLT = (bitmapOf x - 1) .&. bm
+    go def Nil = unsafeFindMax def
+
+
+-- | /O(log n)/. Find smallest element greater than the given one.
+--
+-- > lookupGT 4 (fromList [3, 5]) == Just 5
+-- > lookupGT 5 (fromList [3, 5]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGT :: Int -> IntSet -> Maybe Int
+lookupGT x t = x `seq` case t of
+    Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch x p m = if x < p then unsafeFindMin l else unsafeFindMin def
+                         | zero x m  = go r l
+                         | otherwise = go def r
+    go def (Tip kx bm) | prefixOf x < kx = Just $ kx + lowestBitSet bm
+                       | prefixOf x == kx && maskGT /= 0 = Just $ kx + lowestBitSet maskGT
+                       | otherwise = unsafeFindMin def
+                       where maskGT = (- ((bitmapOf x) `shiftLL` 1)) .&. bm
+    go def Nil = unsafeFindMin def
+
+
+-- | /O(log n)/. Find largest element smaller or equal to the given one.
+--
+-- > lookupLE 2 (fromList [3, 5]) == Nothing
+-- > lookupLE 4 (fromList [3, 5]) == Just 3
+-- > lookupLE 5 (fromList [3, 5]) == Just 5
+
+-- See Note: Local 'go' functions and capturing.
+lookupLE :: Int -> IntSet -> Maybe Int
+lookupLE x t = x `seq` case t of
+    Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch x p m = if x < p then unsafeFindMax def else unsafeFindMax r
+                         | zero x m  = go def l
+                         | otherwise = go l r
+    go def (Tip kx bm) | prefixOf x > kx = Just $ kx + highestBitSet bm
+                       | prefixOf x == kx && maskLE /= 0 = Just $ kx + highestBitSet maskLE
+                       | otherwise = unsafeFindMax def
+                       where maskLE = (((bitmapOf x) `shiftLL` 1) - 1) .&. bm
+    go def Nil = unsafeFindMax def
+
+
+-- | /O(log n)/. Find smallest element greater or equal to the given one.
+--
+-- > lookupGE 3 (fromList [3, 5]) == Just 3
+-- > lookupGE 4 (fromList [3, 5]) == Just 5
+-- > lookupGE 6 (fromList [3, 5]) == Nothing
+
+-- See Note: Local 'go' functions and capturing.
+lookupGE :: Int -> IntSet -> Maybe Int
+lookupGE x t = x `seq` case t of
+    Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
+    _ -> go Nil t
+  where
+    go def (Bin p m l r) | nomatch x p m = if x < p then unsafeFindMin l else unsafeFindMin def
+                         | zero x m  = go r l
+                         | otherwise = go def r
+    go def (Tip kx bm) | prefixOf x < kx = Just $ kx + lowestBitSet bm
+                       | prefixOf x == kx && maskGE /= 0 = Just $ kx + lowestBitSet maskGE
+                       | otherwise = unsafeFindMin def
+                       where maskGE = (- (bitmapOf x)) .&. bm
+    go def Nil = unsafeFindMin def
+
+
+
+-- Helper function for lookupGE and lookupGT. It assumes that if a Bin node is
+-- given, it has m > 0.
+unsafeFindMin :: IntSet -> Maybe Int
+unsafeFindMin Nil = Nothing
+unsafeFindMin (Tip kx bm) = Just $ kx + lowestBitSet bm
+unsafeFindMin (Bin _ _ l _) = unsafeFindMin l
+
+-- Helper function for lookupLE and lookupLT. It assumes that if a Bin node is
+-- given, it has m > 0.
+unsafeFindMax :: IntSet -> Maybe Int
+unsafeFindMax Nil = Nothing
+unsafeFindMax (Tip kx bm) = Just $ kx + highestBitSet bm
+unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
 
 {--------------------------------------------------------------------
   Construction

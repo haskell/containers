@@ -70,6 +70,10 @@ module Data.IntMap.Lazy (
             , notMember
             , IM.lookup
             , findWithDefault
+            , lookupLT
+            , lookupGT
+            , lookupLE
+            , lookupGE
 
             -- * Construction
             , empty

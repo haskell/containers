@@ -73,6 +73,10 @@ module Data.Map.Strict
     , notMember
     , lookup
     , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
     -- * Construction
     , empty

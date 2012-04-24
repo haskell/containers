@@ -107,8 +107,10 @@ Test-suite set-properties
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
+        HUnit,
         QuickCheck,
         test-framework,
+        test-framework-hunit,
         test-framework-quickcheck2
 
 Test-suite intmap-lazy-properties
@@ -156,8 +158,10 @@ Test-suite intset-properties
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
+        HUnit,
         QuickCheck,
         test-framework,
+        test-framework-hunit,
         test-framework-quickcheck2
 
 Test-suite seq-properties

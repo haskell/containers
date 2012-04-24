@@ -35,6 +35,10 @@ main = defaultMainWithOpts
          , testCase "notMember"  test_notMember
          , testCase "lookup"     test_lookup
          , testCase "findWithDefault"     test_findWithDefault
+         , testCase "lookupLT"   test_lookupLT
+         , testCase "lookupGT"   test_lookupGT
+         , testCase "lookupLE"   test_lookupLE
+         , testCase "lookupGE"   test_lookupGE
          , testCase "empty" test_empty
          , testCase "mempty" test_mempty
          , testCase "singleton" test_singleton
@@ -159,6 +163,10 @@ main = defaultMainWithOpts
          , testProperty "lookup"               prop_lookup
          , testProperty "find"                 prop_find
          , testProperty "findWithDefault"      prop_findWithDefault
+         , testProperty "lookupLT"             prop_lookupLT
+         , testProperty "lookupGT"             prop_lookupGT
+         , testProperty "lookupLE"             prop_lookupLE
+         , testProperty "lookupGE"             prop_lookupGE
          , testProperty "findIndex"            prop_findIndex
          , testProperty "lookupIndex"          prop_lookupIndex
          , testProperty "findMin"              prop_findMin
@@ -269,6 +277,28 @@ test_findWithDefault :: Assertion
 test_findWithDefault = do
     findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) @?= 'x'
     findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) @?= 'a'
+
+test_lookupLT :: Assertion
+test_lookupLT = do
+    lookupLT 3 (fromList [(3,'a'), (5,'b')]) @?= Nothing
+    lookupLT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
+
+test_lookupGT :: Assertion
+test_lookupGT = do
+    lookupGT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
+    lookupGT 5 (fromList [(3,'a'), (5,'b')]) @?= Nothing
+
+test_lookupLE :: Assertion
+test_lookupLE = do
+    lookupLE 2 (fromList [(3,'a'), (5,'b')]) @?= Nothing
+    lookupLE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
+    lookupLE 5 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
+
+test_lookupGE :: Assertion
+test_lookupGE = do
+    lookupGE 3 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
+    lookupGE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
+    lookupGE 6 (fromList [(3,'a'), (5,'b')]) @?= Nothing
 
 ----------------------------------------------------------------
 -- Construction
@@ -964,6 +994,32 @@ prop_findWithDefault xs n x =
   let xs' = List.nubBy ((==) `on` fst) xs
       m = fromList xs'
   in all (\k -> findWithDefault x k m == maybe x id (List.lookup k xs')) (n : List.map fst xs')
+
+test_lookupSomething :: (Int -> Map Int Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Bool
+test_lookupSomething lookup' cmp xs =
+  let odd_sorted_xs = filter_odd $ sort $ List.nubBy ((==) `on` fst) xs
+      t = fromList odd_sorted_xs
+      test k = case List.filter ((`cmp` k) . fst) odd_sorted_xs of
+                 []             -> lookup' k t == Nothing
+                 cs | 0 `cmp` 1 -> lookup' k t == Just (last cs) -- we want largest such element
+                    | otherwise -> lookup' k t == Just (head cs) -- we want smallest such element
+  in all test (List.map fst xs)
+
+  where filter_odd [] = []
+        filter_odd [_] = []
+        filter_odd (_ : o : xs) = o : filter_odd xs
+
+prop_lookupLT :: [(Int, Int)] -> Bool
+prop_lookupLT = test_lookupSomething lookupLT (<)
+
+prop_lookupGT :: [(Int, Int)] -> Bool
+prop_lookupGT = test_lookupSomething lookupGT (>)
+
+prop_lookupLE :: [(Int, Int)] -> Bool
+prop_lookupLE = test_lookupSomething lookupLE (<=)
+
+prop_lookupGE :: [(Int, Int)] -> Bool
+prop_lookupGE = test_lookupSomething lookupGE (>=)
 
 prop_findIndex :: [(Int, Int)] -> Property
 prop_findIndex ys = length ys > 0 ==>
