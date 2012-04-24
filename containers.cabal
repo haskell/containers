@@ -42,6 +42,7 @@ Library
             Data.Tree
     other-modules:
         Data.IntMap.Base
+        Data.IntSet.Base
         Data.Map.Base
         Data.Set.Base
         Data.StrictPair
