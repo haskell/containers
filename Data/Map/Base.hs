@@ -254,7 +254,7 @@ module Data.Map.Base (
             ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.Set as Set
+import qualified Data.Set.Base as Set
 import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
@@ -1879,7 +1879,8 @@ keys = foldrWithKey (\k _ ks -> k : ks) []
 -- > keysSet empty == Data.Set.empty
 
 keysSet :: Map k a -> Set.Set k
-keysSet m = Set.fromDistinctAscList (keys m)
+keysSet Tip = Set.Tip
+keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 
 -- | /O(n)/. An alias for 'toAscList'. Return all key\/value pairs in the map
 -- in ascending key order. Subject to list fusion.

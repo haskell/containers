@@ -210,7 +210,7 @@ module Data.IntMap.Base (
 import Data.Bits
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.IntSet as IntSet
+import qualified Data.IntSet.Base as IntSet
 import Data.Monoid (Monoid(..))
 import Data.Maybe (fromMaybe)
 import Data.Typeable
@@ -1683,8 +1683,15 @@ keys = foldrWithKey (\k _ ks -> k : ks) []
 -- > keysSet empty == Data.IntSet.empty
 
 keysSet :: IntMap a -> IntSet.IntSet
-keysSet m = IntSet.fromDistinctAscList (keys m)
-
+keysSet Nil = IntSet.Nil
+keysSet (Tip kx _) = IntSet.singleton kx
+keysSet (Bin p m l r)
+  | m .&. IntSet.suffixBitMask == 0 = IntSet.Bin p m (keysSet l) (keysSet r)
+  | otherwise = IntSet.Tip (p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
+  where STRICT_1_OF_2(computeBm)
+        computeBm acc (Bin _ _ l r) = computeBm (computeBm acc l) r
+        computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
+        computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
 
 -- | /O(n)/. An alias for 'toAscList'. Returns all key\/value pairs in the
 -- map in ascending key order. Subject to list fusion.

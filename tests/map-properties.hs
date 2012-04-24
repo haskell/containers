@@ -183,6 +183,7 @@ main = defaultMainWithOpts
          , testProperty "foldr'"               prop_foldr'
          , testProperty "foldl"                prop_foldl
          , testProperty "foldl'"               prop_foldl'
+         , testProperty "keysSet"              prop_keysSet
          ] opts
 
   where
@@ -1132,3 +1133,7 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+
+prop_keysSet :: [(Int, Int)] -> Bool
+prop_keysSet xs =
+  keysSet (fromList xs) == Data.Set.fromList (List.map fst xs)

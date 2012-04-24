@@ -153,6 +153,9 @@ module Data.IntSet.Base (
 
             -- * Internals
             , match
+            , suffixBitMask
+            , prefixBitMask
+            , bitmapOf
             ) where
 
 
