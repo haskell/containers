@@ -148,8 +148,9 @@ module Data.IntMap.Strict (
             -- * Conversion
             , elems
             , keys
-            , keysSet
             , assocs
+            , keysSet
+            , fromSet
 
             -- ** Lists
             , toList
@@ -206,6 +207,7 @@ module Data.IntMap.Strict (
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
+import Data.Bits
 import Data.IntMap.Base hiding
     ( findWithDefault
     , singleton
@@ -241,6 +243,7 @@ import Data.IntMap.Base hiding
     , mapMaybeWithKey
     , mapEither
     , mapEitherWithKey
+    , fromSet
     , fromList
     , fromListWith
     , fromListWithKey
@@ -249,6 +252,7 @@ import Data.IntMap.Base hiding
     , fromAscListWithKey
     , fromDistinctAscList
     )
+import qualified Data.IntSet.Base as IntSet
 import Data.StrictPair
 
 -- $strictness
@@ -828,6 +832,36 @@ mapEitherWithKey f (Tip k x) = case f k x of
   Right z -> z `seq` (Nil, Tip k z)
 mapEitherWithKey _ Nil = (Nil, Nil)
 
+{--------------------------------------------------------------------
+  Conversions
+--------------------------------------------------------------------}
+
+-- | /O(n)/. Build a map from a set of keys and a function which for each key
+-- computes its value.
+--
+-- > fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromSet undefined Data.IntSet.empty == empty
+
+fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
+fromSet _ IntSet.Nil = Nil
+fromSet f (IntSet.Bin p m l r) = Bin p m (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
+  where -- This is slightly complicated, as we to convert the dense
+        -- representation of IntSet into tree representation of IntMap.
+        --
+        -- We are given a nonzero bit mask 'bmask' of 'bits' bits with prefix 'prefix'.
+        -- We split bmask into halves corresponding to left and right subtree.
+        -- If they are both nonempty, we create a Bin node, otherwise exactly
+        -- one of them is nonempty and we construct the IntMap from that half.
+        buildTree g prefix bmask bits = prefix `seq` bmask `seq` case bits of
+          0 -> Tip prefix $! g prefix
+          _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
+                 bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+                           buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
+                       | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+                           buildTree g prefix bmask bits2
+                       | otherwise ->
+                           Bin prefix bits2 (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
 {--------------------------------------------------------------------
   Lists

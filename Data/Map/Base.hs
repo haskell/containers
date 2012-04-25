@@ -171,8 +171,9 @@ module Data.Map.Base (
             -- * Conversion
             , elems
             , keys
-            , keysSet
             , assocs
+            , keysSet
+            , fromSet
 
             -- ** Lists
             , toList
@@ -1873,15 +1874,6 @@ elems = foldr (:) []
 keys  :: Map k a -> [k]
 keys = foldrWithKey (\k _ ks -> k : ks) []
 
--- | /O(n)/. The set of all keys of the map.
---
--- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [3,5]
--- > keysSet empty == Data.Set.empty
-
-keysSet :: Map k a -> Set.Set k
-keysSet Tip = Set.Tip
-keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
-
 -- | /O(n)/. An alias for 'toAscList'. Return all key\/value pairs in the map
 -- in ascending key order. Subject to list fusion.
 --
@@ -1891,6 +1883,25 @@ keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 assocs :: Map k a -> [(k,a)]
 assocs m
   = toAscList m
+
+-- | /O(n)/. The set of all keys of the map.
+--
+-- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [3,5]
+-- > keysSet empty == Data.Set.empty
+
+keysSet :: Map k a -> Set.Set k
+keysSet Tip = Set.Tip
+keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
+
+-- | /O(n)/. Build a map from a set of keys and a function which for each key
+-- computes its value.
+--
+-- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromSet undefined Data.Set.empty == empty
+
+fromSet :: (k -> a) -> Set.Set k -> Map k a
+fromSet _ Set.Tip = Tip
+fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 
 {--------------------------------------------------------------------
   Lists

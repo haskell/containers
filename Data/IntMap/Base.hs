@@ -132,8 +132,9 @@ module Data.IntMap.Base (
             -- * Conversion
             , elems
             , keys
-            , keysSet
             , assocs
+            , keysSet
+            , fromSet
 
             -- ** Lists
             , toList
@@ -194,6 +195,7 @@ module Data.IntMap.Base (
             , natFromInt
             , intFromNat
             , shiftRL
+            , shiftLL
             , join
             , bin
             , zero
@@ -226,7 +228,8 @@ import Data.Data (Data(..), mkNoRepType)
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts ( Word(..), Int(..), shiftRL#, build )
+import GHC.Exts ( Word(..), Int(..), build )
+import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL# )
 #else
 import Data.Word
 #endif
@@ -253,17 +256,20 @@ intFromNat :: Nat -> Key
 intFromNat = fromIntegral
 {-# INLINE intFromNat #-}
 
-shiftRL :: Nat -> Key -> Nat
+-- Right and left logical shifts.
+shiftRL, shiftLL :: Nat -> Key -> Nat
 #if __GLASGOW_HASKELL__
 {--------------------------------------------------------------------
   GHC: use unboxing to get @shiftRL@ inlined.
 --------------------------------------------------------------------}
-shiftRL (W# x) (I# i)
-  = W# (shiftRL# x i)
+shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
+shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
 #else
 shiftRL x i   = shiftR x i
-{-# INLINE shiftRL #-}
+shiftLL x i   = shiftL x i
 #endif
+{-# INLINE shiftRL #-}
+{-# INLINE shiftLL #-}
 
 {--------------------------------------------------------------------
   Types
@@ -1677,6 +1683,15 @@ elems = foldr (:) []
 keys  :: IntMap a -> [Key]
 keys = foldrWithKey (\k _ ks -> k : ks) []
 
+-- | /O(n)/. An alias for 'toAscList'. Returns all key\/value pairs in the
+-- map in ascending key order. Subject to list fusion.
+--
+-- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
+-- > assocs empty == []
+
+assocs :: IntMap a -> [(Key,a)]
+assocs = toAscList
+
 -- | /O(n*min(n,W))/. The set of all keys of the map.
 --
 -- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.IntSet.fromList [3,5]
@@ -1693,15 +1708,32 @@ keysSet (Bin p m l r)
         computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
         computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
 
--- | /O(n)/. An alias for 'toAscList'. Returns all key\/value pairs in the
--- map in ascending key order. Subject to list fusion.
+-- | /O(n)/. Build a map from a set of keys and a function which for each key
+-- computes its value.
 --
--- > assocs (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
--- > assocs empty == []
+-- > fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromSet undefined Data.IntSet.empty == empty
 
-assocs :: IntMap a -> [(Key,a)]
-assocs = toAscList
-
+fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
+fromSet _ IntSet.Nil = Nil
+fromSet f (IntSet.Bin p m l r) = Bin p m (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
+  where -- This is slightly complicated, as we to convert the dense
+        -- representation of IntSet into tree representation of IntMap.
+        --
+        -- We are given a nonzero bit mask 'bmask' of 'bits' bits with prefix 'prefix'.
+        -- We split bmask into halves corresponding to left and right subtree.
+        -- If they are both nonempty, we create a Bin node, otherwise exactly
+        -- one of them is nonempty and we construct the IntMap from that half.
+        buildTree g prefix bmask bits = prefix `seq` bmask `seq` case bits of
+          0 -> Tip prefix (g prefix)
+          _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
+                 bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+                           buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
+                       | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+                           buildTree g prefix bmask bits2
+                       | otherwise ->
+                           Bin prefix bits2 (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
 {--------------------------------------------------------------------
   Lists

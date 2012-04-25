@@ -142,8 +142,9 @@ module Data.IntMap.Lazy (
             -- * Conversion
             , elems
             , keys
-            , keysSet
             , assocs
+            , keysSet
+            , fromSet
 
             -- ** Lists
             , toList

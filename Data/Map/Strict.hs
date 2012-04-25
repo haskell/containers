@@ -142,8 +142,9 @@ module Data.Map.Strict
     -- * Conversion
     , elems
     , keys
-    , keysSet
     , assocs
+    , keysSet
+    , fromSet
 
     -- ** Lists
     , toList
@@ -242,6 +243,7 @@ import Data.Map.Base hiding
     , mapAccumWithKey
     , mapAccumRWithKey
     , mapKeysWith
+    , fromSet
     , fromList
     , fromListWith
     , fromListWithKey
@@ -259,6 +261,7 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
+import qualified Data.Set.Base as Set
 import Data.StrictPair
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y
@@ -973,6 +976,20 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE mapKeysWith #-}
 #endif
+
+{--------------------------------------------------------------------
+  Conversions
+--------------------------------------------------------------------}
+
+-- | /O(n)/. Build a map from a set of keys and a function which for each key
+-- computes its value.
+--
+-- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromSet undefined Data.Set.empty == empty
+
+fromSet :: (k -> a) -> Set.Set k -> Map k a
+fromSet _ Set.Tip = Tip
+fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l) (fromSet f r)
 
 {--------------------------------------------------------------------
   Lists

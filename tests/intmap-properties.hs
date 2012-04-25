@@ -77,8 +77,9 @@ main = defaultMainWithOpts
              , testCase "mapKeysMonotonic" test_mapKeysMonotonic
              , testCase "elems" test_elems
              , testCase "keys" test_keys
+             , testCase "assocs" test_assocs
              , testCase "keysSet" test_keysSet
-             , testCase "associative" test_assocs
+             , testCase "keysSet" test_fromSet
              , testCase "toList" test_toList
              , testCase "fromList" test_fromList
              , testCase "fromListWith" test_fromListWith
@@ -163,6 +164,7 @@ main = defaultMainWithOpts
              , testProperty "foldl"                prop_foldl
              , testProperty "foldl'"               prop_foldl'
              , testProperty "keysSet"              prop_keysSet
+             , testProperty "fromSet"              prop_fromSet
              ] opts
 
   where
@@ -494,15 +496,20 @@ test_keys = do
     keys (fromList [(5,"a"), (3,"b")]) @?= [3,5]
     keys (empty :: UMap) @?= []
 
+test_assocs :: Assertion
+test_assocs = do
+    assocs (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+    assocs (empty :: UMap) @?= []
+
 test_keysSet :: Assertion
 test_keysSet = do
     keysSet (fromList [(5,"a"), (3,"b")]) @?= Data.IntSet.fromList [3,5]
     keysSet (empty :: UMap) @?= Data.IntSet.empty
 
-test_assocs :: Assertion
-test_assocs = do
-    assocs (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
-    assocs (empty :: UMap) @?= []
+test_fromSet :: Assertion
+test_fromSet = do
+   fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
+   fromSet undefined Data.IntSet.empty @?= (empty :: IMap)
 
 ----------------------------------------------------------------
 -- Lists
@@ -1027,3 +1034,8 @@ prop_foldl' n ys = length ys > 0 ==>
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
   keysSet (fromList xs) == Data.IntSet.fromList (List.map fst xs)
+
+prop_fromSet :: [(Int, Int)] -> Bool
+prop_fromSet ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in fromSet (\k -> fromJust $ List.lookup k xs) (Data.IntSet.fromList $ List.map fst xs) == fromList xs
