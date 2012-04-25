@@ -1689,7 +1689,7 @@ keysSet (Bin p m l r)
   | m .&. IntSet.suffixBitMask == 0 = IntSet.Bin p m (keysSet l) (keysSet r)
   | otherwise = IntSet.Tip (p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
   where STRICT_1_OF_2(computeBm)
-        computeBm acc (Bin _ _ l r) = computeBm (computeBm acc l) r
+        computeBm acc (Bin _ _ l' r') = computeBm (computeBm acc l') r'
         computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
         computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
 
