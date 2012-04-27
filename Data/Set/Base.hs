@@ -70,11 +70,14 @@
 
 -- [Note: Local 'go' functions and capturing]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Care must be taken when using 'go' function which captures an argument.
--- Sometimes (for example when the argument is passed to a data constructor,
--- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
--- must be checked for increased allocation when creating and modifying such
--- functions.
+-- As opposed to IntSet, when 'go' function captures an argument, increased
+-- heap-allocation can occur: sometimes in a polymorphic function, the 'go'
+-- floats out of its enclosing function and then it heap-allocates the
+-- dictionary and the argument. Maybe it floats out too late and strictness
+-- analyzer cannot see that these could be passed on stack.
+--
+-- For example, change 'member' so that its local 'go' function is not passing
+-- argument x and then look at the resulting code for hedgeInt.
 
 
 -- [Note: Order of constructors]
@@ -189,6 +192,7 @@ import Data.Data
 -- We do not use BangPatterns, because they are not in any standard and we
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -261,14 +265,16 @@ size (Bin sz _ _ _) = sz
 
 -- | /O(log n)/. Is the element in the set?
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 member :: Ord a => a -> Set a -> Bool
-member x = x `seq` go
+member = go
   where
-    go Tip = False
-    go (Bin _ y l r) = case compare x y of
-      LT -> go l
-      GT -> go r
+    go :: Ord a => a -> Set a -> Bool
+    STRICT_1_OF_2(go)
+    go _ Tip = False
+    go x (Bin _ y l r) = case compare x y of
+      LT -> go x l
+      GT -> go x r
       EQ -> True
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
@@ -290,17 +296,21 @@ notMember a t = not $ member a t
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupLT :: Ord a => a -> Set a -> Maybe a
-lookupLT x = x `seq` goNothing
+lookupLT = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ y l r) | x <= y = goNothing l
-                            | otherwise = goJust y r
+    goNothing :: Ord a => a -> Set a -> Maybe a
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing x (Bin _ y l r) | x <= y = goNothing x l
+                              | otherwise = goJust x y r
 
-    goJust best Tip = Just best
-    goJust best (Bin _ y l r) | x <= y = goJust best l
-                              | otherwise = goJust y r
+    goJust :: Ord a => a -> a -> Set a -> Maybe a
+    STRICT_1_OF_3(goJust)
+    goJust _ best Tip = Just best
+    goJust x best (Bin _ y l r) | x <= y = goJust x best l
+                                | otherwise = goJust x y r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupLT #-}
 #else
@@ -312,17 +322,21 @@ lookupLT x = x `seq` goNothing
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupGT :: Ord a => a -> Set a -> Maybe a
-lookupGT x = x `seq` goNothing
+lookupGT = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ y l r) | x < y = goJust y l
-                            | otherwise = goNothing r
+    goNothing :: Ord a => a -> Set a -> Maybe a
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing x (Bin _ y l r) | x < y = goJust x y l
+                              | otherwise = goNothing x r
 
-    goJust best Tip = Just best
-    goJust best (Bin _ y l r) | x < y = goJust y l
-                              | otherwise = goJust best r
+    goJust :: Ord a => a -> a -> Set a -> Maybe a
+    STRICT_1_OF_3(goJust)
+    goJust _ best Tip = Just best
+    goJust x best (Bin _ y l r) | x < y = goJust x y l
+                                | otherwise = goJust x best r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupGT #-}
 #else
@@ -335,19 +349,23 @@ lookupGT x = x `seq` goNothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
 -- > lookupLE 5 (fromList [3, 5]) == Just 5
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupLE :: Ord a => a -> Set a -> Maybe a
-lookupLE x = x `seq` goNothing
+lookupLE = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ y l r) = case compare x y of LT -> goNothing l
-                                                  EQ -> Just y
-                                                  GT -> goJust y r
-
-    goJust best Tip = Just best
-    goJust best (Bin _ y l r) = case compare x y of LT -> goJust best l
+    goNothing :: Ord a => a -> Set a -> Maybe a
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing x (Bin _ y l r) = case compare x y of LT -> goNothing x l
                                                     EQ -> Just y
-                                                    GT -> goJust y r
+                                                    GT -> goJust x y r
+
+    goJust :: Ord a => a -> a -> Set a -> Maybe a
+    STRICT_1_OF_3(goJust)
+    goJust _ best Tip = Just best
+    goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
+                                                      EQ -> Just y
+                                                      GT -> goJust x y r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupLE #-}
 #else
@@ -360,19 +378,23 @@ lookupLE x = x `seq` goNothing
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
 -- > lookupGE 6 (fromList [3, 5]) == Nothing
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupGE :: Ord a => a -> Set a -> Maybe a
-lookupGE x = x `seq` goNothing
+lookupGE = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ y l r) = case compare x y of LT -> goJust y l
-                                                  EQ -> Just y
-                                                  GT -> goNothing r
-
-    goJust best Tip = Just best
-    goJust best (Bin _ y l r) = case compare x y of LT -> goJust y l
+    goNothing :: Ord a => a -> Set a -> Maybe a
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing x (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                     EQ -> Just y
-                                                    GT -> goJust best r
+                                                    GT -> goNothing x r
+
+    goJust :: Ord a => a -> a -> Set a -> Maybe a
+    STRICT_1_OF_3(goJust)
+    goJust _ best Tip = Just best
+    goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
+                                                      EQ -> Just y
+                                                      GT -> goJust x best r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupGE #-}
 #else

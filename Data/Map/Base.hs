@@ -72,11 +72,14 @@
 
 -- [Note: Local 'go' functions and capturing]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- Care must be taken when using 'go' function which captures an argument.
--- Sometimes (for example when the argument is passed to a data constructor,
--- as in insert), GHC heap-allocates more than necessary. Therefore C-- code
--- must be checked for increased allocation when creating and modifying such
--- functions.
+-- As opposed to IntMap, when 'go' function captures an argument, increased
+-- heap-allocation can occur: sometimes in a polymorphic function, the 'go'
+-- floats out of its enclosing function and then it heap-allocates the
+-- dictionary and the argument. Maybe it floats out too late and strictness
+-- analyzer cannot see that these could be passed on stack.
+--
+-- For example, change 'member' so that its local 'go' function is not passing
+-- argument k and then look at the resulting code for hedgeInt.
 
 
 -- [Note: Order of constructors]
@@ -276,6 +279,7 @@ import Data.Data
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_4(fn) fn arg _ _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
@@ -390,14 +394,16 @@ size (Bin sz _ _ _ _) = sz
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 lookup :: Ord k => k -> Map k a -> Maybe a
-lookup k = k `seq` go
+lookup = go
   where
-    go Tip = Nothing
-    go (Bin _ kx x l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
+    go :: Ord k => k -> Map k a -> Maybe a
+    STRICT_1_OF_2(go)
+    go _ Tip = Nothing
+    go k (Bin _ kx x l r) = case compare k kx of
+      LT -> go k l
+      GT -> go k r
       EQ -> Just x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookup #-}
@@ -405,14 +411,16 @@ lookup k = k `seq` go
 {-# INLINE lookup #-}
 #endif
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 lookupAssoc :: Ord k => k -> Map k a -> Maybe (k,a)
-lookupAssoc k = k `seq` go
+lookupAssoc = go
   where
-    go Tip = Nothing
-    go (Bin _ kx x l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
+    go :: Ord k => k -> Map k a -> Maybe (k,a)
+    STRICT_1_OF_2(go)
+    go _ Tip = Nothing
+    go k (Bin _ kx x l r) = case compare k kx of
+      LT -> go k l
+      GT -> go k r
       EQ -> Just (kx,x)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupAssoc #-}
@@ -425,14 +433,16 @@ lookupAssoc k = k `seq` go
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 member :: Ord k => k -> Map k a -> Bool
-member k = k `seq` go
+member = go
   where
-    go Tip = False
-    go (Bin _ kx _ l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
+    go :: Ord k => k -> Map k a -> Bool
+    STRICT_1_OF_2(go)
+    go _ Tip = False
+    go k (Bin _ kx _ l r) = case compare k kx of
+      LT -> go k l
+      GT -> go k r
       EQ -> True
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE member #-}
@@ -456,14 +466,16 @@ notMember k m = not $ member k m
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 find :: Ord k => k -> Map k a -> a
-find k = k `seq` go
+find = go
   where
-    go Tip = error "Map.!: given key is not an element in the map"
-    go (Bin _ kx x l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
+    go :: Ord k => k -> Map k a -> a
+    STRICT_1_OF_2(go)
+    go _ Tip = error "Map.!: given key is not an element in the map"
+    go k (Bin _ kx x l r) = case compare k kx of
+      LT -> go k l
+      GT -> go k r
       EQ -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE find #-}
@@ -478,14 +490,16 @@ find k = k `seq` go
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
--- See Note: Local 'go' functions and capturing
+-- See Note: Type of local 'go' function
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k = k `seq` go
+findWithDefault = go
   where
-    go Tip = def
-    go (Bin _ kx x l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
+    go :: Ord k => a -> k -> Map k a -> a
+    STRICT_2_OF_3(go)
+    go def _ Tip = def
+    go def k (Bin _ kx x l r) = case compare k kx of
+      LT -> go def k l
+      GT -> go def k r
       EQ -> x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE findWithDefault #-}
@@ -499,17 +513,21 @@ findWithDefault def k = k `seq` go
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupLT k = k `seq` goNothing
+lookupLT = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ kx x l r) | k <= kx = goNothing l
-                               | otherwise = goJust kx x r
+    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing k (Bin _ kx x l r) | k <= kx = goNothing k l
+                                 | otherwise = goJust k kx x r
 
-    goJust kx' x' Tip = Just (kx', x')
-    goJust kx' x' (Bin _ kx x l r) | k <= kx = goJust kx' x' l
-                                   | otherwise = goJust kx x r
+    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_4(goJust)
+    goJust _ kx' x' Tip = Just (kx', x')
+    goJust k kx' x' (Bin _ kx x l r) | k <= kx = goJust k kx' x' l
+                                     | otherwise = goJust k kx x r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupLT #-}
 #else
@@ -522,17 +540,21 @@ lookupLT k = k `seq` goNothing
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupGT k = k `seq` goNothing
+lookupGT = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ kx x l r) | k < kx = goJust kx x l
-                               | otherwise = goNothing r
+    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing k (Bin _ kx x l r) | k < kx = goJust k kx x l
+                                 | otherwise = goNothing k r
 
-    goJust kx' x' Tip = Just (kx', x')
-    goJust kx' x' (Bin _ kx x l r) | k < kx = goJust kx x l
-                                   | otherwise = goJust kx' x' r
+    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_4(goJust)
+    goJust _ kx' x' Tip = Just (kx', x')
+    goJust k kx' x' (Bin _ kx x l r) | k < kx = goJust k kx x l
+                                     | otherwise = goJust k kx' x' r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupGT #-}
 #else
@@ -546,19 +568,23 @@ lookupGT k = k `seq` goNothing
 -- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupLE k = k `seq` goNothing
+lookupLE = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ kx x l r) = case compare k kx of LT -> goNothing l
-                                                      EQ -> Just (kx, x)
-                                                      GT -> goJust kx x r
+    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goNothing k l
+                                                        EQ -> Just (kx, x)
+                                                        GT -> goJust k kx x r
 
-    goJust kx' x' Tip = Just (kx', x')
-    goJust kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust kx' x' l
-                                                          EQ -> Just (kx, x)
-                                                          GT -> goJust kx x r
+    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_4(goJust)
+    goJust _ kx' x' Tip = Just (kx', x')
+    goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx' x' l
+                                                            EQ -> Just (kx, x)
+                                                            GT -> goJust k kx x r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupLE #-}
 #else
@@ -572,19 +598,23 @@ lookupLE k = k `seq` goNothing
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
 
--- See Note: Local 'go' functions and capturing.
+-- See Note: Type of local 'go' function
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupGE k = k `seq` goNothing
+lookupGE = goNothing
   where
-    goNothing Tip = Nothing
-    goNothing (Bin _ kx x l r) = case compare k kx of LT -> goJust kx x l
-                                                      EQ -> Just (kx, x)
-                                                      GT -> goNothing r
+    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_2(goNothing)
+    goNothing _ Tip = Nothing
+    goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
+                                                        EQ -> Just (kx, x)
+                                                        GT -> goNothing k r
 
-    goJust kx' x' Tip = Just (kx', x')
-    goJust kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust kx x l
-                                                          EQ -> Just (kx, x)
-                                                          GT -> goJust kx' x' r
+    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
+    STRICT_1_OF_4(goJust)
+    goJust _ kx' x' Tip = Just (kx', x')
+    goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
+                                                            EQ -> Just (kx, x)
+                                                            GT -> goJust k kx' x' r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupGE #-}
 #else
