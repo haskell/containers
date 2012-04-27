@@ -621,21 +621,22 @@ hedgeDiff blo bhi t (Bin _ x l r)
 intersection :: Ord a => Set a -> Set a -> Set a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1@(Bin s1 x1 l1 r1) t2@(Bin s2 x2 l2 r2) =
-   if s1 >= s2 then
-      let (lt,found,gt) = splitLookup x2 t1
-          tl            = intersection lt l2
-          tr            = intersection gt r2
-      in case found of
-      Just x -> join x tl tr
-      Nothing -> merge tl tr
-   else let (lt,found,gt) = splitMember x1 t2
-            tl            = intersection l1 lt
-            tr            = intersection r1 gt
-        in if found then join x1 tl tr
-           else merge tl tr
+intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
+#endif
+
+hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
+hedgeInt _ _ _   Tip = Tip
+hedgeInt _ _ Tip _   = Tip
+hedgeInt blo bhi (Bin _ x l r) t2
+  = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
+        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
+    in if x `member` t2 then join x l' r' else merge l' r'
+  where
+    bmi = JustS x
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE hedgeInt #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1000,23 +1001,14 @@ split x (Bin _ y l r)
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
-splitMember x t = let (l,m,r) = splitLookup x t in
-     (l,maybe False (const True) m,r)
+splitMember _ Tip = (Tip, False, Tip)
+splitMember x (Bin _ y l r)
+   = case compare x y of
+       LT -> let (lt, found, gt) = splitMember x l in (lt, found, join y gt r)
+       GT -> let (lt, found, gt) = splitMember x r in (join y l lt, found, gt)
+       EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember #-}
-#endif
-
--- | /O(log n)/. Performs a 'split' but also returns the pivot
--- element that was found in the original set.
-splitLookup :: Ord a => a -> Set a -> (Set a,Maybe a,Set a)
-splitLookup _ Tip = (Tip,Nothing,Tip)
-splitLookup x (Bin _ y l r)
-   = case compare x y of
-       LT -> let (lt,found,gt) = splitLookup x l in (lt,found,join y gt r)
-       GT -> let (lt,found,gt) = splitLookup x r in (join y l lt,found,gt)
-       EQ -> (l,Just y,r)
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE splitLookup #-}
 #endif
 
 {--------------------------------------------------------------------

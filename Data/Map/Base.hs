@@ -1401,17 +1401,22 @@ hedgeDiffWithKey f blo bhi t (Bin _ kx x l r)
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1@(Bin s1 k1 x1 l1 r1) t2@(Bin s2 k2 _ l2 r2) =
-   if s1 >= s2 then
-     case splitLookupWithKey k2 t1 of
-       (lt, Just (k, x), gt) -> join k x (intersection lt l2) (intersection gt r2)
-       (lt, Nothing, gt) -> merge (intersection lt l2) (intersection gt r2)
-   else
-      case splitLookup k1 t2 of
-        (lt, Just _, gt) -> join k1 x1 (intersection l1 lt) (intersection r1 gt)
-        (lt, Nothing, gt) -> merge (intersection l1 lt) (intersection r1 gt)
+intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
+#endif
+
+hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
+hedgeInt _ _ _   Tip = Tip
+hedgeInt _ _ Tip _   = Tip
+hedgeInt blo bhi (Bin _ kx x l r) t2
+  = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
+        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
+    in if kx `member` t2 then join kx x l' r' else merge l' r'
+  where
+    bmi = JustS kx
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE hedgeInt #-}
 #endif
 
 -- | /O(n+m)/. Intersection with a combining function.
