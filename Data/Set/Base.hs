@@ -559,20 +559,14 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 {-# INLINABLE union #-}
 #endif
 
-hedgeUnion :: Ord a
-           => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeUnion _     _     t1 Tip
-  = t1
-hedgeUnion blo bhi Tip (Bin _ x l r)
-  = join x (filterGt blo l) (filterLt bhi r)
-hedgeUnion blo bhi t1 (Bin _ x Tip Tip)
-  = insertR x t1     -- According to benchmarks, this special case increases
-                     -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ x l r) t2
-  = join x (hedgeUnion blo bmi l (trim blo bmi t2))
-           (hedgeUnion bmi bhi r (trim bmi bhi t2))
-  where
-    bmi = JustS x
+hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
+hedgeUnion _   _   t1  Tip = t1
+hedgeUnion blo bhi Tip (Bin _ x l r) = join x (filterGt blo l) (filterLt bhi r)
+hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchmarks, this special case increases
+                                                          -- performance up to 30%. It does not help in difference or intersection.
+hedgeUnion blo bhi (Bin _ x l r) t2 = join x (hedgeUnion blo bmi l (trim blo bmi t2))
+                                             (hedgeUnion bmi bhi r (trim bmi bhi t2))
+  where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeUnion #-}
 #endif
@@ -590,17 +584,12 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 {-# INLINABLE difference #-}
 #endif
 
-hedgeDiff :: Ord a
-          => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeDiff _ _ Tip _
-  = Tip
-hedgeDiff blo bhi (Bin _ x l r) Tip
-  = join x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ x l r)
-  = merge (hedgeDiff blo bmi (trim blo bmi t) l)
-          (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where
-    bmi = JustS x
+hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
+hedgeDiff _   _   Tip           _ = Tip
+hedgeDiff blo bhi (Bin _ x l r) Tip = join x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
+                                          (hedgeDiff bmi bhi (trim bmi bhi t) r)
+  where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
 #endif
@@ -630,12 +619,10 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
-hedgeInt blo bhi (Bin _ x l r) t2
-  = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
-        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
-    in if x `member` t2 then join x l' r' else merge l' r'
-  where
-    bmi = JustS x
+hedgeInt blo bhi (Bin _ x l r) t2 = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
+                                        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
+                                    in if x `member` t2 then join x l' r' else merge l' r'
+  where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
 #endif

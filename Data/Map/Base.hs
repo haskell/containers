@@ -682,7 +682,7 @@ insertR = go
     go :: Ord k => k -> a -> Map k a -> Map k a
     STRICT_1_OF_3(go)
     go kx x Tip = singleton kx x
-    go kx x t@(Bin sz ky y l r) =
+    go kx x t@(Bin _ ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
@@ -1237,29 +1237,22 @@ unionsWith f ts
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnionL NothingS NothingS t1 t2
+union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
 #endif
 
 -- left-biased hedge union
-hedgeUnionL :: Ord a
-            => MaybeS a -> MaybeS a -> Map a b -> Map a b
-            -> Map a b
-hedgeUnionL _     _     t1 Tip
-  = t1
-hedgeUnionL blo bhi Tip (Bin _ kx x l r)
-  = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeUnionL blo bhi t1 (Bin _ kx x Tip Tip)
-  = insertR kx x t1  -- According to benchmarks, this special case increases
-                     -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnionL blo bhi (Bin _ kx x l r) t2
-  = join kx x (hedgeUnionL blo bmi l (trim blo bmi t2))
-              (hedgeUnionL bmi bhi r (trim bmi bhi t2))
-  where
-    bmi = JustS kx
+hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
+hedgeUnion _   _   t1  Tip = t1
+hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
+                                                              -- performance up to 30%. It does not help in difference or intersection.
+hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim blo bmi t2))
+                                                   (hedgeUnion bmi bhi r (trim bmi bhi t2))
+  where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE hedgeUnionL #-}
+{-# INLINABLE hedgeUnion #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1331,18 +1324,12 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 {-# INLINABLE difference #-}
 #endif
 
-hedgeDiff :: Ord a
-          => MaybeS a -> MaybeS a -> Map a b -> Map a c
-          -> Map a b
-hedgeDiff _     _     Tip _
-  = Tip
-hedgeDiff blo bhi (Bin _ kx x l r) Tip
-  = join kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ kx _ l r)
-  = merge (hedgeDiff blo bmi (trim blo bmi t) l)
-          (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where
-    bmi = JustS kx
+hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
+hedgeDiff _   _   Tip              _ = Tip
+hedgeDiff blo bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
+                                             (hedgeDiff bmi bhi (trim bmi bhi t) r)
+  where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeDiff #-}
 #endif
@@ -1431,12 +1418,10 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
 hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
-hedgeInt blo bhi (Bin _ kx x l r) t2
-  = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
-        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
-    in if kx `member` t2 then join kx x l' r' else merge l' r'
-  where
-    bmi = JustS kx
+hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
+                                           r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
+                                       in if kx `member` t2 then join kx x l' r' else merge l' r'
+  where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
 #endif
