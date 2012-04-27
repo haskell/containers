@@ -619,8 +619,8 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
-hedgeInt blo bhi (Bin _ x l r) t2 = let l' = (hedgeInt blo bmi l (trim blo bmi t2))
-                                        r' = (hedgeInt bmi bhi r (trim bmi bhi t2))
+hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
+                                        r' = hedgeInt bmi bhi r (trim bmi bhi t2)
                                     in if x `member` t2 then join x l' r' else merge l' r'
   where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
