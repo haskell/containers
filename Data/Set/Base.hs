@@ -438,8 +438,8 @@ insert = go
 {-# INLINE insert #-}
 #endif
 
--- Insert an element to the set only if it is not in the set. Used by
--- `union`.
+-- Insert an element to the set only if it is not in the set.
+-- Used by `union`.
 
 -- See Note: Type of local 'go' function
 insertR :: Ord a => a -> Set a -> Set a
@@ -554,8 +554,6 @@ unions = foldlStrict union empty
 union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
-union (Bin _ x Tip Tip) t = insert x t
-union t (Bin _ x Tip Tip) = insertR x t
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
@@ -567,6 +565,9 @@ hedgeUnion _     _     t1 Tip
   = t1
 hedgeUnion blo bhi Tip (Bin _ x l r)
   = join x (filterGt blo l) (filterLt bhi r)
+hedgeUnion blo bhi t1 (Bin _ x Tip Tip)
+  = insertR x t1     -- According to benchmarks, this special case increases
+                     -- performance up to 30%. It does not help in difference or intersection.
 hedgeUnion blo bhi (Bin _ x l r) t2
   = join x (hedgeUnion blo bmi l (trim blo bmi t2))
            (hedgeUnion bmi bhi r (trim bmi bhi t2))

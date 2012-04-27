@@ -672,6 +672,27 @@ insert = go
 {-# INLINE insert #-}
 #endif
 
+-- Insert a new key and value in the map if it is not already present.
+-- Used by `union`.
+
+-- See Note: Type of local 'go' function
+insertR :: Ord k => k -> a -> Map k a -> Map k a
+insertR = go
+  where
+    go :: Ord k => k -> a -> Map k a -> Map k a
+    STRICT_1_OF_3(go)
+    go kx x Tip = singleton kx x
+    go kx x t@(Bin sz ky y l r) =
+        case compare kx ky of
+            LT -> balanceL ky y (go kx x l) r
+            GT -> balanceR ky y l (go kx x r)
+            EQ -> t
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE insertR #-}
+#else
+{-# INLINE insertR #-}
+#endif
+
 -- | /O(log n)/. Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@
 -- will insert the pair (key, value) into @mp@ if key does
@@ -1216,8 +1237,6 @@ unionsWith f ts
 union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
-union (Bin _ k x Tip Tip) t = insert k x t
-union t (Bin _ k x Tip Tip) = insertWith (\_ y->y) k x t
 union t1 t2 = hedgeUnionL NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE union #-}
@@ -1231,6 +1250,9 @@ hedgeUnionL _     _     t1 Tip
   = t1
 hedgeUnionL blo bhi Tip (Bin _ kx x l r)
   = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnionL blo bhi t1 (Bin _ kx x Tip Tip)
+  = insertR kx x t1  -- According to benchmarks, this special case increases
+                     -- performance up to 30%. It does not help in difference or intersection.
 hedgeUnionL blo bhi (Bin _ kx x l r) t2
   = join kx x (hedgeUnionL blo bmi l (trim blo bmi t2))
               (hedgeUnionL bmi bhi r (trim bmi bhi t2))
