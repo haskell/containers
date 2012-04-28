@@ -109,6 +109,9 @@ module Data.Map.Lazy (
             , intersectionWith
             , intersectionWithKey
 
+            -- ** Universal combining function
+            , mergeWithKey
+
             -- * Traversal
             -- ** Map
             , M.map

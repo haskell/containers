@@ -8,6 +8,7 @@ import Data.Map.Lazy as Data.Map
 
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
+import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Function
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
@@ -152,6 +153,7 @@ main = defaultMainWithOpts
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -934,6 +936,41 @@ prop_intersectionWithKeyModel xs ys
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
+
+prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_mergeWithKeyModel xs ys
+  = and [ testMergeWithKey f keep_x keep_y
+        | f <- [ \_k x1  _x2 -> Just x1
+               , \_k _x1 x2  -> Just x2
+               , \_k _x1 _x2 -> Nothing
+               , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
+               ]
+        , keep_x <- [ True, False ]
+        , keep_y <- [ True, False ]
+        ]
+
+    where xs' = List.nubBy ((==) `on` fst) xs
+          ys' = List.nubBy ((==) `on` fst) ys
+
+          xm = fromList xs'
+          ym = fromList ys'
+
+          testMergeWithKey f keep_x keep_y
+            = toList (mergeWithKey f (keep keep_x) (keep keep_y) xm ym) == emulateMergeWithKey f keep_x keep_y
+              where keep False _ = empty
+                    keep True  m = m
+
+                    emulateMergeWithKey f keep_x keep_y
+                      = Maybe.mapMaybe combine (sort $ List.union (List.map fst xs') (List.map fst ys'))
+                        where combine k = case (List.lookup k xs', List.lookup k ys') of
+                                            (Nothing, Just y) -> if keep_y then Just (k, y) else Nothing
+                                            (Just x, Nothing) -> if keep_x then Just (k, x) else Nothing
+                                            (Just x, Just y) -> (\v -> (k, v)) `fmap` f k x y
+
+          -- We prevent inlining testMergeWithKey to disable the SpecConstr
+          -- optimalization. There are too many call patterns here so several
+          -- warnings are issued if testMergeWithKey gets inlined.
+          {-# NOINLINE testMergeWithKey #-}
 
 ----------------------------------------------------------------
 
