@@ -65,9 +65,10 @@
 
 -- [Note: Type of local 'go' function]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- If the local 'go' function uses an Ord class, it must be given a type
--- which mentions this Ord class. Otherwise it is not passed as an argument and
--- it is instead heap-allocated at the entry of the outer method.
+-- If the local 'go' function uses an Ord class, it sometimes heap-allocates
+-- the Ord dictionary when the 'go' function does not have explicit type.
+-- In that case we give 'go' explicit type. But this slightly decrease
+-- performance, as the resulting 'go' function can float out to top level.
 
 
 -- [Note: Local 'go' functions and capturing]
@@ -396,12 +397,9 @@ size (Bin sz _ _ _ _) = sz
 --
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
-
--- See Note: Type of local 'go' function
 lookup :: Ord k => k -> Map k a -> Maybe a
 lookup = go
   where
-    go :: Ord k => k -> Map k a -> Maybe a
     STRICT_1_OF_2(go)
     go _ Tip = Nothing
     go k (Bin _ kx x l r) = case compare k kx of
@@ -418,12 +416,9 @@ lookup = go
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
-
--- See Note: Type of local 'go' function
 member :: Ord k => k -> Map k a -> Bool
 member = go
   where
-    go :: Ord k => k -> Map k a -> Bool
     STRICT_1_OF_2(go)
     go _ Tip = False
     go k (Bin _ kx _ l r) = case compare k kx of
@@ -451,12 +446,9 @@ notMember k m = not $ member k m
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
-
--- See Note: Type of local 'go' function
 find :: Ord k => k -> Map k a -> a
 find = go
   where
-    go :: Ord k => k -> Map k a -> a
     STRICT_1_OF_2(go)
     go _ Tip = error "Map.!: given key is not an element in the map"
     go k (Bin _ kx x l r) = case compare k kx of
@@ -475,12 +467,9 @@ find = go
 --
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
-
--- See Note: Type of local 'go' function
 findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault = go
   where
-    go :: Ord k => a -> k -> Map k a -> a
     STRICT_2_OF_3(go)
     go def _ Tip = def
     go def k (Bin _ kx x l r) = case compare k kx of
@@ -498,18 +487,14 @@ findWithDefault = go
 --
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
-
--- See Note: Type of local 'go' function
 lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLT = goNothing
   where
-    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing k (Bin _ kx x l r) | k <= kx = goNothing k l
                                  | otherwise = goJust k kx x r
 
-    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
     STRICT_1_OF_4(goJust)
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k <= kx = goJust k kx' x' l
@@ -525,18 +510,14 @@ lookupLT = goNothing
 --
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
-
--- See Note: Type of local 'go' function
 lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGT = goNothing
   where
-    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing k (Bin _ kx x l r) | k < kx = goJust k kx x l
                                  | otherwise = goNothing k r
 
-    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
     STRICT_1_OF_4(goJust)
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k < kx = goJust k kx x l
@@ -553,19 +534,15 @@ lookupGT = goNothing
 -- > lookupLE 2 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
-
--- See Note: Type of local 'go' function
 lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLE = goNothing
   where
-    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goNothing k l
                                                         EQ -> Just (kx, x)
                                                         GT -> goJust k kx x r
 
-    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
     STRICT_1_OF_4(goJust)
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx' x' l
@@ -583,19 +560,15 @@ lookupLE = goNothing
 -- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
-
--- See Note: Type of local 'go' function
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGE = goNothing
   where
-    goNothing :: Ord k => k -> Map k v -> Maybe (k, v)
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
                                                         EQ -> Just (kx, x)
                                                         GT -> goNothing k r
 
-    goJust :: Ord k => k -> k -> v -> Map k v -> Maybe (k, v)
     STRICT_1_OF_4(goJust)
     goJust _ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l

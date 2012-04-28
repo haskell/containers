@@ -63,9 +63,10 @@
 
 -- [Note: Type of local 'go' function]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- If the local 'go' function uses an Ord class, it must be given a type
--- which mentions this Ord class. Otherwise it is not passed as an argument and
--- it is instead heap-allocated at the entry of the outer method.
+-- If the local 'go' function uses an Ord class, it sometimes heap-allocates
+-- the Ord dictionary when the 'go' function does not have explicit type.
+-- In that case we give 'go' explicit type. But this slightly decrease
+-- performance, as the resulting 'go' function can float out to top level.
 
 
 -- [Note: Local 'go' functions and capturing]
@@ -264,12 +265,9 @@ size (Bin sz _ _ _) = sz
 {-# INLINE size #-}
 
 -- | /O(log n)/. Is the element in the set?
-
--- See Note: Type of local 'go' function
 member :: Ord a => a -> Set a -> Bool
 member = go
   where
-    go :: Ord a => a -> Set a -> Bool
     STRICT_1_OF_2(go)
     go _ Tip = False
     go x (Bin _ y l r) = case compare x y of
@@ -295,18 +293,14 @@ notMember a t = not $ member a t
 --
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
-
--- See Note: Type of local 'go' function
 lookupLT :: Ord a => a -> Set a -> Maybe a
 lookupLT = goNothing
   where
-    goNothing :: Ord a => a -> Set a -> Maybe a
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing x (Bin _ y l r) | x <= y = goNothing x l
                               | otherwise = goJust x y r
 
-    goJust :: Ord a => a -> a -> Set a -> Maybe a
     STRICT_1_OF_3(goJust)
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) | x <= y = goJust x best l
@@ -321,18 +315,14 @@ lookupLT = goNothing
 --
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
-
--- See Note: Type of local 'go' function
 lookupGT :: Ord a => a -> Set a -> Maybe a
 lookupGT = goNothing
   where
-    goNothing :: Ord a => a -> Set a -> Maybe a
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing x (Bin _ y l r) | x < y = goJust x y l
                               | otherwise = goNothing x r
 
-    goJust :: Ord a => a -> a -> Set a -> Maybe a
     STRICT_1_OF_3(goJust)
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) | x < y = goJust x y l
@@ -348,19 +338,15 @@ lookupGT = goNothing
 -- > lookupLE 2 (fromList [3, 5]) == Nothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
 -- > lookupLE 5 (fromList [3, 5]) == Just 5
-
--- See Note: Type of local 'go' function
 lookupLE :: Ord a => a -> Set a -> Maybe a
 lookupLE = goNothing
   where
-    goNothing :: Ord a => a -> Set a -> Maybe a
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing x (Bin _ y l r) = case compare x y of LT -> goNothing x l
                                                     EQ -> Just y
                                                     GT -> goJust x y r
 
-    goJust :: Ord a => a -> a -> Set a -> Maybe a
     STRICT_1_OF_3(goJust)
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
@@ -377,19 +363,15 @@ lookupLE = goNothing
 -- > lookupGE 3 (fromList [3, 5]) == Just 3
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
 -- > lookupGE 6 (fromList [3, 5]) == Nothing
-
--- See Note: Type of local 'go' function
 lookupGE :: Ord a => a -> Set a -> Maybe a
 lookupGE = goNothing
   where
-    goNothing :: Ord a => a -> Set a -> Maybe a
     STRICT_1_OF_2(goNothing)
     goNothing _ Tip = Nothing
     goNothing x (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                     EQ -> Just y
                                                     GT -> goNothing x r
 
-    goJust :: Ord a => a -> a -> Set a -> Maybe a
     STRICT_1_OF_3(goJust)
     goJust _ best Tip = Just best
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
