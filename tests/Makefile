@@ -1,3 +1,10 @@
+# The tests should be compiled and run using cabal:
+# > cabal configure --enable-tests
+# > cabal build
+# > cabal test
+#
+# This Makefile is used by developers to compile the tests manually.
+
 all:
 
 %-properties: %-properties.hs force
