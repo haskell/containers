@@ -17,7 +17,7 @@
 --
 -- A version of the graph algorithms described in:
 --
---   /Lazy Depth-First Search and Linear Graph Algorithms in Haskell/,
+--   /Structuring Depth-First Search Algorithms in Haskell/,
 --   by David King and John Launchbury.
 --
 -----------------------------------------------------------------------------
