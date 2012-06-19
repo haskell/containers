@@ -473,19 +473,19 @@ delete = go
 -- /0/ up to, but not including, the 'size' of the set. Calls 'error' when
 -- the key is not a 'member' of the set.
 --
--- > findIndex 2 (fromList [5, 3])    Error: element is not in the map
+-- > findIndex 2 (fromList [5, 3])    Error: element is not in the set
 -- > findIndex 3 (fromList [5, 3]) == 0
 -- > findIndex 5 (fromList [5, 3]) == 1
--- > findIndex 6 (fromList [5, 3])    Error: element is not in the map
+-- > findIndex 6 (fromList [5, 3])    Error: element is not in the set
 
 -- See Note: Type of local 'go' function
-findIndex :: Ord k => k -> Set k -> Int
+findIndex :: Ord a => a -> Set a -> Int
 findIndex = go 0
   where
-    go :: Ord k => Int -> k -> Set k -> Int
+    go :: Ord a => Int -> a -> Set a -> Int
     STRICT_1_OF_3(go)
     STRICT_2_OF_3(go)
-    go _   _ Tip  = error "Map.findIndex: element is not in the map"
+    go _   _ Tip  = error "Set.findIndex: element is not in the set"
     go idx k (Bin _ kx l r) = case compare k kx of
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
@@ -503,10 +503,10 @@ findIndex = go 0
 -- > isJust (lookupIndex 6 (fromList [5, 3]))   == False
 
 -- See Note: Type of local 'go' function
-lookupIndex :: Ord k => k -> Set k -> Maybe Int
+lookupIndex :: Ord a => a -> Set a -> Maybe Int
 lookupIndex = go 0
   where
-    go :: Ord k => Int -> k -> Set k -> Maybe Int
+    go :: Ord a => Int -> a -> Set a -> Maybe Int
     STRICT_1_OF_3(go)
     STRICT_2_OF_3(go)
     go _   _ Tip  = Nothing
