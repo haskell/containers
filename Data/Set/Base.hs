@@ -469,9 +469,9 @@ delete = go
 {--------------------------------------------------------------------
   Indexing
 --------------------------------------------------------------------}
--- | /O(log n)/. Return the /index/ of a key. The index is a number from
+-- | /O(log n)/. Return the /index/ of an element. The index is a number from
 -- /0/ up to, but not including, the 'size' of the set. Calls 'error' when
--- the key is not a 'member' of the set.
+-- the element is not a 'member' of the set.
 --
 -- > findIndex 2 (fromList [5, 3])    Error: element is not in the set
 -- > findIndex 3 (fromList [5, 3]) == 0
@@ -494,7 +494,7 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
+-- | /O(log n)/. Lookup the /index/ of an element. The index is a number from
 -- /0/ up to, but not including, the 'size' of the set.
 --
 -- > isJust (lookupIndex 2 (fromList [5, 3]))   == False
