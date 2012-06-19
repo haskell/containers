@@ -140,6 +140,12 @@ module Data.Set.Base (
             -- ** Legacy folds
             , fold
 
+            -- * Indexed
+            , lookupIndex
+            , findIndex
+            , elemAt
+            , deleteAt
+
             -- * Min\/Max
             , findMin
             , findMax
@@ -194,6 +200,7 @@ import Data.Data
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
+#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -458,6 +465,95 @@ delete = go
 #else
 {-# INLINE delete #-}
 #endif
+
+{--------------------------------------------------------------------
+  Indexing
+--------------------------------------------------------------------}
+-- | /O(log n)/. Return the /index/ of a key. The index is a number from
+-- /0/ up to, but not including, the 'size' of the set. Calls 'error' when
+-- the key is not a 'member' of the set.
+--
+-- > findIndex 2 (fromList [5, 3])    Error: element is not in the map
+-- > findIndex 3 (fromList [5, 3]) == 0
+-- > findIndex 5 (fromList [5, 3]) == 1
+-- > findIndex 6 (fromList [5, 3])    Error: element is not in the map
+
+-- See Note: Type of local 'go' function
+findIndex :: Ord k => k -> Set k -> Int
+findIndex = go 0
+  where
+    go :: Ord k => Int -> k -> Set k -> Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = error "Map.findIndex: element is not in the map"
+    go idx k (Bin _ kx l r) = case compare k kx of
+      LT -> go idx k l
+      GT -> go (idx + size l + 1) k r
+      EQ -> idx + size l
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE findIndex #-}
+#endif
+
+-- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
+-- /0/ up to, but not including, the 'size' of the set.
+--
+-- > isJust (lookupIndex 2 (fromList [5, 3]))   == False
+-- > fromJust (lookupIndex 3 (fromList [5, 3])) == 0
+-- > fromJust (lookupIndex 5 (fromList [5, 3])) == 1
+-- > isJust (lookupIndex 6 (fromList [5, 3]))   == False
+
+-- See Note: Type of local 'go' function
+lookupIndex :: Ord k => k -> Set k -> Maybe Int
+lookupIndex = go 0
+  where
+    go :: Ord k => Int -> k -> Set k -> Maybe Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = Nothing
+    go idx k (Bin _ kx l r) = case compare k kx of
+      LT -> go idx k l
+      GT -> go (idx + size l + 1) k r
+      EQ -> Just $! idx + size l
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupIndex #-}
+#endif
+
+-- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
+-- invalid index is used.
+--
+-- > elemAt 0 (fromList [5, 3]) == 3
+-- > elemAt 1 (fromList [5, 3]) == 5
+-- > elemAt 2 (fromList [5, 3])    Error: index out of range
+
+elemAt :: Int -> Set k -> k
+STRICT_1_OF_2(elemAt)
+elemAt _ Tip = error "Set.elemAt: index out of range"
+elemAt i (Bin _ k l r)
+  = case compare i sizeL of
+      LT -> elemAt i l
+      GT -> elemAt (i-sizeL-1) r
+      EQ -> k
+  where
+    sizeL = size l
+
+-- | /O(log n)/. Delete the element at /index/. Calls 'error' when an
+-- invalid index is used.
+--
+-- > deleteAt 0  (fromList [5, 3]) == singleton 5
+-- > deleteAt 1  (fromList [5, 3]) == singleton 3
+-- > deleteAt 2 (fromList [5, 3])     Error: index out of range
+-- > deleteAt (-1) (fromList [5, 3])  Error: index out of range
+
+deleteAt :: Int -> Set k -> Set k
+deleteAt i t = i `seq`
+  case t of
+    Tip -> error "Set.deleteAt: index out of range"
+    Bin _ k l r -> case compare i sizeL of
+      LT -> balanceR k (deleteAt i l) r
+      GT -> balanceL k l (deleteAt (i-sizeL-1) r)
+      EQ -> glue l r
+      where
+        sizeL = size l
 
 {--------------------------------------------------------------------
   Subset
