@@ -525,7 +525,7 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [5, 3]) == 5
 -- > elemAt 2 (fromList [5, 3])    Error: index out of range
 
-elemAt :: Int -> Set k -> k
+elemAt :: Int -> Set a -> k
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ k l r)
@@ -544,7 +544,7 @@ elemAt i (Bin _ k l r)
 -- > deleteAt 2 (fromList [5, 3])     Error: index out of range
 -- > deleteAt (-1) (fromList [5, 3])  Error: index out of range
 
-deleteAt :: Int -> Set k -> Set k
+deleteAt :: Int -> Set a -> Set a
 deleteAt i t = i `seq`
   case t of
     Tip -> error "Set.deleteAt: index out of range"
