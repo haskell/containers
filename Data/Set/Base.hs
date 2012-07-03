@@ -525,7 +525,7 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [5, 3]) == 5
 -- > elemAt 2 (fromList [5, 3])    Error: index out of range
 
-elemAt :: Int -> Set a -> k
+elemAt :: Int -> Set a -> a
 STRICT_1_OF_2(elemAt)
 elemAt _ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ k l r)
