@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use 'Data.IntMap.Lazy' instead.
+-- If you need value-lazy maps, use "Data.IntMap.Lazy" instead.
 -- The 'IntMap' type itself is shared between the lazy and strict modules,
 -- meaning that the same 'IntMap' value can be passed to functions in
 -- both modules (although that is rarely needed).
@@ -49,7 +49,7 @@
 -- (32 or 64).
 --
 -- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the 'Data.IntMap.Lazy' module, so if they are used
+-- are the same as for the "Data.IntMap.Lazy" module, so if they are used
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 

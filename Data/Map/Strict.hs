@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use 'Data.Map.Lazy' instead.
+-- If you need value-lazy maps, use "Data.Map.Lazy" instead.
 -- The 'Map' type is shared between the lazy and strict modules,
 -- meaning that the same 'Map' value can be passed to functions in
 -- both modules (although that is rarely needed).
@@ -45,7 +45,7 @@
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 --
 -- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the 'Data.Map.Lazy' module, so if they are used
+-- are the same as for the "Data.Map.Lazy" module, so if they are used
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 

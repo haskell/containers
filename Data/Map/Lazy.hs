@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- API of this module is strict in the keys, but lazy in the values.
--- If you need value-strict maps, use 'Data.Map.Strict' instead.
+-- If you need value-strict maps, use "Data.Map.Strict" instead.
 -- The 'Map' type itself is shared between the lazy and strict modules,
 -- meaning that the same 'Map' value can be passed to functions in
 -- both modules (although that is rarely needed).
