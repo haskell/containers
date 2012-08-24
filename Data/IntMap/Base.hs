@@ -222,6 +222,8 @@ import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
 import Control.DeepSeq (NFData(rnf))
 
+import Data.StrictPair
+
 #if __GLASGOW_HASKELL__
 import Text.Read
 import Data.Data (Data(..), mkNoRepType)
@@ -1402,16 +1404,18 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: (Key -> a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
-partitionWithKey predicate t
-  = case t of
-      Bin p m l r
-        -> let (l1,l2) = partitionWithKey predicate l
-               (r1,r2) = partitionWithKey predicate r
-           in (bin p m l1 r1, bin p m l2 r2)
-      Tip k x
-        | predicate k x -> (t,Nil)
-        | otherwise     -> (Nil,t)
-      Nil -> (Nil,Nil)
+partitionWithKey predicate0 t0 = toPair $ go predicate0 t0
+  where
+    go predicate t
+      = case t of
+          Bin p m l r
+            -> let (l1 :*: l2) = go predicate l
+                   (r1 :*: r2) = go predicate r
+               in bin p m l1 r1 :*: bin p m l2 r2
+          Tip k x
+            | predicate k x -> (t :*: Nil)
+            | otherwise     -> (Nil :*: t)
+          Nil -> (Nil :*: Nil)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1457,15 +1461,17 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
-mapEitherWithKey f (Bin p m l r)
-  = (bin p m l1 r1, bin p m l2 r2)
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
-mapEitherWithKey f (Tip k x) = case f k x of
-  Left y  -> (Tip k y, Nil)
-  Right z -> (Nil, Tip k z)
-mapEitherWithKey _ Nil = (Nil, Nil)
+    go f (Bin p m l r)
+      = bin p m l1 r1 :*: bin p m l2 r2
+      where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
+    go f (Tip k x) = case f k x of
+      Left y  -> (Tip k y :*: Nil)
+      Right z -> (Nil :*: Tip k z)
+    go _ Nil = (Nil :*: Nil)
 
 -- | /O(min(n,W))/. The expression (@'split' k map@) is a pair @(map1,map2)@
 -- where all keys in @map1@ are lower than @k@ and all keys in
@@ -1479,18 +1485,23 @@ mapEitherWithKey _ Nil = (Nil, Nil)
 
 split :: Key -> IntMap a -> (IntMap a, IntMap a)
 split k t =
-  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
-                                      then case go k l of (lt, gt) -> (union r lt, gt)
-                                      else case go k r of (lt, gt) -> (lt, union gt l)
-            _ -> go k t
+  case t of
+      Bin _ m l r
+          | m < 0 -> if k >= 0 -- handle negative numbers.
+                     then case go k l of (lt :*: gt) -> let lt' = union r lt 
+                                                        in lt' `seq` (lt', gt)
+                     else case go k r of (lt :*: gt) -> let gt' = union gt l
+                                                        in gt' `seq` (lt, gt')
+      _ -> case go k t of
+          (lt :*: gt) -> (lt, gt)
   where
-    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nil) else (Nil, t')
-                           | zero k' m = case go k' l of (lt, gt) -> (lt, union gt r)
-                           | otherwise = case go k' r of (lt, gt) -> (union l lt, gt)
-    go k' t'@(Tip ky _) | k' > ky   = (t', Nil)
-                        | k' < ky   = (Nil, t')
-                        | otherwise = (Nil, Nil)
-    go _ Nil = (Nil, Nil)
+    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
+                           | zero k' m = case go k' l of (lt :*: gt) -> lt :*: union gt r
+                           | otherwise = case go k' r of (lt :*: gt) -> union l lt :*: gt
+    go k' t'@(Tip ky _) | k' > ky   = (t' :*: Nil)
+                        | k' < ky   = (Nil :*: t')
+                        | otherwise = (Nil :*: Nil)
+    go _ Nil = (Nil :*: Nil)
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
@@ -1503,14 +1514,23 @@ split k t =
 
 splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
 splitLookup k t =
-  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
-                                      then case go k l of (lt, fnd, gt) -> (union r lt, fnd, gt)
-                                      else case go k r of (lt, fnd, gt) -> (lt, fnd, union gt l)
-            _ -> go k t
+  case t of
+      Bin _ m l r
+          | m < 0 -> if k >= 0 -- handle negative numbers.
+                     then case go k l of
+                         (lt, fnd, gt) -> let lt' = union r lt
+                                          in lt' `seq` (lt', fnd, gt)
+                     else case go k r of
+                         (lt, fnd, gt) -> let gt' = union gt l
+                                          in gt' `seq` (lt, fnd, gt')
+      _ -> go k t
   where
-    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
-                           | zero k' m = case go k' l of (lt, fnd, gt) -> (lt, fnd, union gt r)
-                           | otherwise = case go k' r of (lt, fnd, gt) -> (union l lt, fnd, gt)
+    go k' t'@(Bin p m l r)
+        | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
+        | zero k' m      = case go k' l of
+            (lt, fnd, gt) -> let gt' = union gt r in gt' `seq` (lt, fnd, gt')
+        | otherwise      = case go k' r of
+            (lt, fnd, gt) -> let lt' = union l lt in lt' `seq` (lt', fnd, gt)
     go k' t'@(Tip ky y) | k' > ky   = (t', Nothing, Nil)
                         | k' < ky   = (Nil, Nothing, t')
                         | otherwise = (Nil, Just y, Nil)

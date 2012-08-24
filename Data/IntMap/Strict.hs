@@ -390,16 +390,18 @@ insertWithKey f k x t = k `seq` x `seq`
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f k x t = k `seq` x `seq`
-  case t of
-    Bin p m l r
-      | nomatch k p m -> Nothing `strictPair` join k (Tip k x) p t
-      | zero k m      -> let (found,l') = insertLookupWithKey f k x l in (found `strictPair` Bin p m l' r)
-      | otherwise     -> let (found,r') = insertLookupWithKey f k x r in (found `strictPair` Bin p m l r')
-    Tip ky y
-      | k==ky         -> (Just y `strictPair` (Tip k $! f k x y))
-      | otherwise     -> (Nothing `strictPair` join k (Tip k x) ky t)
-    Nil -> Nothing `strictPair` Tip k x
+insertLookupWithKey f0 k0 x0 t0 = k0 `seq` x0 `seq` toPair $ go f0 k0 x0 t0
+  where
+    go f k x t =
+      case t of
+        Bin p m l r
+          | nomatch k p m -> Nothing :*: join k (Tip k x) p t
+          | zero k m      -> let (found :*: l') = go f k x l in (found :*: Bin p m l' r)
+          | otherwise     -> let (found :*: r') = go f k x r in (found :*: Bin p m l r')
+        Tip ky y
+          | k==ky         -> (Just y :*: (Tip k $! f k x y))
+          | otherwise     -> (Nothing :*: join k (Tip k x) ky t)
+        Nil -> Nothing :*: Tip k x
 
 
 {--------------------------------------------------------------------
@@ -475,18 +477,20 @@ updateWithKey f k t = k `seq`
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f k t = k `seq`
-  case t of
-    Bin p m l r
-      | nomatch k p m -> (Nothing, t)
-      | zero k m      -> let (found,l') = updateLookupWithKey f k l in (found `strictPair` bin p m l' r)
-      | otherwise     -> let (found,r') = updateLookupWithKey f k r in (found `strictPair` bin p m l r')
-    Tip ky y
-      | k==ky         -> case f k y of
-                           Just y' -> y' `seq` (Just y `strictPair` Tip ky y')
-                           Nothing -> (Just y, Nil)
-      | otherwise     -> (Nothing,t)
-    Nil -> (Nothing,Nil)
+updateLookupWithKey f0 k0 t0 = k0 `seq` toPair $ go f0 k0 t0
+  where
+    go f k t =
+      case t of
+        Bin p m l r
+          | nomatch k p m -> (Nothing :*: t)
+          | zero k m      -> let (found :*: l') = go f k l in (found :*: bin p m l' r)
+          | otherwise     -> let (found :*: r') = go f k r in (found :*: bin p m l r')
+        Tip ky y
+          | k==ky         -> case f k y of
+                               Just y' -> y' `seq` (Just y :*: Tip ky y')
+                               Nothing -> (Just y :*: Nil)
+          | otherwise     -> (Nothing :*: t)
+        Nil -> (Nothing :*: Nil)
 
 
 
@@ -743,24 +747,28 @@ mapAccumWithKey f a t
 -- the accumulating argument and the both elements of the
 -- result of the function.
 mapAccumL :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
-mapAccumL f a t
-  = case t of
-      Bin p m l r -> let (a1,l') = mapAccumL f a l
-                         (a2,r') = mapAccumL f a1 r
-                     in (a2 `strictPair` Bin p m l' r')
-      Tip k x     -> let (a',x') = f a k x in x' `seq` (a' `strictPair` Tip k x')
-      Nil         -> (a `strictPair` Nil)
+mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
+  where
+    go f a t
+      = case t of
+          Bin p m l r -> let (a1 :*: l') = go f a l
+                             (a2 :*: r') = go f a1 r
+                         in (a2 :*: Bin p m l' r')
+          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Nil         -> (a :*: Nil)
 
 -- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
-mapAccumRWithKey f a t
-  = case t of
-      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
-                         (a2,l') = mapAccumRWithKey f a1 l
-                     in (a2 `strictPair` Bin p m l' r')
-      Tip k x     -> let (a',x') = f a k x in x' `seq` (a' `strictPair` Tip k x')
-      Nil         -> (a `strictPair` Nil)
+mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
+  where
+    go f a t
+      = case t of
+          Bin p m l r -> let (a1 :*: r') = go f a r
+                             (a2 :*: l') = go f a1 l
+                         in (a2 :*: Bin p m l' r')
+          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Nil         -> (a :*: Nil)
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -822,15 +830,17 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
-mapEitherWithKey f (Bin p m l r)
-  = bin p m l1 r1 `strictPair` bin p m l2 r2
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
-mapEitherWithKey f (Tip k x) = case f k x of
-  Left y  -> y `seq` (Tip k y, Nil)
-  Right z -> z `seq` (Nil, Tip k z)
-mapEitherWithKey _ Nil = (Nil, Nil)
+    go f (Bin p m l r)
+      = bin p m l1 r1 :*: bin p m l2 r2
+      where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
+    go f (Tip k x) = case f k x of
+      Left y  -> y `seq` (Tip k y :*: Nil)
+      Right z -> z `seq` (Nil :*: Tip k z)
+    go _ Nil = (Nil :*: Nil)
 
 {--------------------------------------------------------------------
   Conversions

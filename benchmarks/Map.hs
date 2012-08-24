@@ -57,6 +57,7 @@ main = do
         , bench "union" $ whnf (M.union m_even) m_odd
         , bench "difference" $ whnf (M.difference m) m_even
         , bench "intersection" $ whnf (M.intersection m) m_even
+        , bench "split" $ whnf (M.split (bound `div` 2)) m
         ]
   where
     bound = 2^10

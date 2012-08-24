@@ -168,6 +168,8 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Control.DeepSeq (NFData)
 
+import Data.StrictPair
+
 #if __GLASGOW_HASKELL__
 import Text.Read
 import Data.Data (Data(..), mkNoRepType)
@@ -655,19 +657,21 @@ filter predicate t
 
 -- | /O(n)/. partition the set according to some predicate.
 partition :: (Int -> Bool) -> IntSet -> (IntSet,IntSet)
-partition predicate t
-  = case t of
-      Bin p m l r
-        -> let (l1,l2) = partition predicate l
-               (r1,r2) = partition predicate r
-           in (bin p m l1 r1, bin p m l2 r2)
-      Tip kx bm
-        -> let bm1 = foldl'Bits 0 (bitPred kx) 0 bm
-           in  (tip kx bm1, tip kx (bm `xor` bm1))
-      Nil -> (Nil,Nil)
-  where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
-                         | otherwise           = bm
-        {-# INLINE bitPred #-}
+partition predicate0 t0 = toPair $ go predicate0 t0
+  where
+    go predicate t
+      = case t of
+          Bin p m l r
+            -> let (l1 :*: l2) = go predicate l
+                   (r1 :*: r2) = go predicate r
+               in bin p m l1 r1 :*: bin p m l2 r2
+          Tip kx bm
+            -> let bm1 = foldl'Bits 0 (bitPred kx) 0 bm
+               in  tip kx bm1 :*: tip kx (bm `xor` bm1)
+          Nil -> (Nil :*: Nil)
+      where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
+                             | otherwise           = bm
+            {-# INLINE bitPred #-}
 
 
 -- | /O(min(n,W))/. The expression (@'split' x set@) is a pair @(set1,set2)@
@@ -677,41 +681,65 @@ partition predicate t
 -- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [4,5])
 split :: Int -> IntSet -> (IntSet,IntSet)
 split x t =
-  case t of Bin _ m l r | m < 0 -> if x >= 0 then case go x l of (lt, gt) -> (union lt r, gt)
-                                             else case go x r of (lt, gt) -> (lt, union gt l)
-            _ -> go x t
+  case t of
+      Bin _ m l r
+          | m < 0 -> if x >= 0  -- handle negative numbers.
+                     then case go x l of (lt :*: gt) -> let lt' = union lt r
+                                                        in lt' `seq` (lt', gt)
+                     else case go x r of (lt :*: gt) -> let gt' = union gt l
+                                                        in gt' `seq` (lt, gt')
+      _ -> case go x t of
+          (lt :*: gt) -> (lt, gt)
   where
-    go x' t'@(Bin p m l r) | match x' p m = if zero x' m then case go x' l of (lt, gt) -> (lt, union gt r)
-                                                         else case go x' r of (lt, gt) -> (union lt l, gt)
-                           | otherwise   = if x' < p then (Nil, t')
-                                                     else (t', Nil)
-    go x' t'@(Tip kx' bm) | kx' > x'          = (Nil, t')
-                            -- equivalent to kx' > prefixOf x'
-                          | kx' < prefixOf x' = (t', Nil)
-                          | otherwise = (tip kx' (bm .&. lowerBitmap), tip kx' (bm .&. higherBitmap))
-                              where lowerBitmap = bitmapOf x' - 1
-                                    higherBitmap = complement (lowerBitmap + bitmapOf x')
-    go _ Nil = (Nil, Nil)
+    go !x' t'@(Bin p m l r)
+        | match x' p m = if zero x' m
+                         then case go x' l of
+                             (lt :*: gt) -> lt :*: union gt r
+                         else case go x' r of
+                             (lt :*: gt) -> union lt l :*: gt
+        | otherwise   = if x' < p then (Nil :*: t')
+                        else (t' :*: Nil)
+    go x' t'@(Tip kx' bm)
+        | kx' > x'          = (Nil :*: t')
+          -- equivalent to kx' > prefixOf x'
+        | kx' < prefixOf x' = (t' :*: Nil)
+        | otherwise = tip kx' (bm .&. lowerBitmap) :*: tip kx' (bm .&. higherBitmap)
+            where lowerBitmap = bitmapOf x' - 1
+                  higherBitmap = complement (lowerBitmap + bitmapOf x')
+    go _ Nil = (Nil :*: Nil)
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Int -> IntSet -> (IntSet,Bool,IntSet)
 splitMember x t =
-  case t of Bin _ m l r | m < 0 -> if x >= 0 then case go x l of (lt, fnd, gt) -> (union lt r, fnd, gt)
-                                             else case go x r of (lt, fnd, gt) -> (lt, fnd, union gt l)
-            _ -> go x t
+  case t of
+      Bin _ m l r | m < 0 -> if x >= 0
+                             then case go x l of
+                                 (lt, fnd, gt) -> let lt' = union lt r
+                                                  in lt' `seq` (lt', fnd, gt)
+                             else case go x r of
+                                 (lt, fnd, gt) -> let gt' = union gt l
+                                                  in gt' `seq` (lt, fnd, gt')
+      _ -> go x t
   where
-    go x' t'@(Bin p m l r) | match x' p m = if zero x' m then case go x' l of (lt, fnd, gt) -> (lt, fnd, union gt r)
-                                                         else case go x' r of (lt, fnd, gt) -> (union lt l, fnd, gt)
-                           | otherwise   = if x' < p then (Nil, False, t')
-                                                     else (t', False, Nil)
-    go x' t'@(Tip kx' bm) | kx' > x'          = (Nil, False, t')
-                            -- equivalent to kx' > prefixOf x'
-                          | kx' < prefixOf x' = (t', False, Nil)
-                          | otherwise = (tip kx' (bm .&. lowerBitmap), (bm .&. bitmapOfx') /= 0, tip kx' (bm .&. higherBitmap))
-                              where bitmapOfx' = bitmapOf x'
-                                    lowerBitmap = bitmapOfx' - 1
-                                    higherBitmap = complement (lowerBitmap + bitmapOfx')
+    go x' t'@(Bin p m l r)
+        | match x' p m = if zero x' m
+                         then case go x' l of
+                             (lt, fnd, gt) -> (lt, fnd, union gt r)
+                         else case go x' r of
+                             (lt, fnd, gt) -> (union lt l, fnd, gt)
+        | otherwise   = if x' < p then (Nil, False, t') else (t', False, Nil)
+    go x' t'@(Tip kx' bm)
+        | kx' > x'          = (Nil, False, t')
+          -- equivalent to kx' > prefixOf x'
+        | kx' < prefixOf x' = (t', False, Nil)
+        | otherwise = let lt = tip kx' (bm .&. lowerBitmap)
+                          found = (bm .&. bitmapOfx') /= 0
+                          gt = tip kx' (bm .&. higherBitmap)
+                      in lt `seq` found `seq` gt `seq` (lt, found, gt)
+            where bitmapOfx' = bitmapOf x'
+                  lowerBitmap = bitmapOfx' - 1
+                  higherBitmap = complement (lowerBitmap + bitmapOfx')
     go _ Nil = (Nil, False, Nil)
 
 

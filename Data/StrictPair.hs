@@ -1,6 +1,9 @@
-module Data.StrictPair (strictPair) where
+module Data.StrictPair (StrictPair(..), toPair) where
 
--- | Evaluate both argument to WHNF and create a pair of the result.
-strictPair :: a -> b -> (a, b)
-strictPair x y = x `seq` y `seq` (x, y)
-{-# INLINE strictPair #-}
+-- | Same as regular Haskell pairs, but (x :*: _|_) = (_|_ :*: y) =
+-- _|_
+data StrictPair a b = !a :*: !b
+
+toPair :: StrictPair a b -> (a, b)
+toPair (x :*: y) = (x, y)
+{-# INLINE toPair #-}

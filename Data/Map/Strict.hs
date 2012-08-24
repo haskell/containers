@@ -434,19 +434,19 @@ insertWithKey = go
 -- See Map.Base.Note: Type of local 'go' function
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
-insertLookupWithKey = go
+insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
   where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
+    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
     STRICT_2_3_OF_4(go)
-    go _ kx x Tip = Nothing `strictPair` singleton kx x
+    go _ kx x Tip = Nothing :*: singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
-            LT -> let (found, l') = go f kx x l
-                  in found `strictPair` balanceL ky y l' r
-            GT -> let (found, r') = go f kx x r
-                  in found `strictPair` balanceR ky y l r'
+            LT -> let (found :*: l') = go f kx x l
+                  in found :*: balanceL ky y l' r
+            GT -> let (found :*: r') = go f kx x r
+                  in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
-                  in x' `seq` (Just y `strictPair` Bin sy kx x' l r)
+                  in x' `seq` (Just y :*: Bin sy kx x' l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertLookupWithKey #-}
 #else
@@ -547,20 +547,20 @@ updateWithKey = go
 
 -- See Map.Base.Note: Type of local 'go' function
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
-updateLookupWithKey = go
+updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
  where
-   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
+   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
    STRICT_2_OF_3(go)
-   go _ _ Tip = (Nothing,Tip)
+   go _ _ Tip = (Nothing :*: Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
-               LT -> let (found,l') = go f k l
-                     in found `strictPair` balanceR kx x l' r
-               GT -> let (found,r') = go f k r
-                     in found `strictPair` balanceL kx x l r'
+               LT -> let (found :*: l') = go f k l
+                     in found :*: balanceR kx x l' r
+               GT -> let (found :*: r') = go f k r
+                     in found :*: balanceL kx x l r'
                EQ -> case f kx x of
-                       Just x' -> x' `seq` (Just x' `strictPair` Bin sx kx x' l r)
-                       Nothing -> (Just x,glue l r)
+                       Just x' -> x' `seq` (Just x' :*: Bin sx kx x' l r)
+                       Nothing -> (Just x :*: glue l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #else
@@ -899,13 +899,15 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
-mapEitherWithKey _ Tip = (Tip, Tip)
-mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> y `seq` (join kx y l1 r1 `strictPair` merge l2 r2)
-  Right z -> z `seq` (merge l1 r1 `strictPair` join kx z l2 r2)
- where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go f (Bin _ kx x l r) = case f kx x of
+      Left y  -> y `seq` (join kx y l1 r1 :*: merge l2 r2)
+      Right z -> z `seq` (merge l1 r1 :*: join kx z l2 r2)
+     where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
 
 {--------------------------------------------------------------------
   Mapping
