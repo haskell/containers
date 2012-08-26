@@ -182,6 +182,8 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
+import Data.StrictPair
+
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
 import Text.Read
@@ -623,11 +625,13 @@ filter p (Bin _ x l r)
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: (a -> Bool) -> Set a -> (Set a,Set a)
-partition _ Tip = (Tip, Tip)
-partition p (Bin _ x l r) = case (partition p l, partition p r) of
-  ((l1, l2), (r1, r2))
-    | p x       -> (join x l1 r1, merge l2 r2)
-    | otherwise -> (merge l1 r1, join x l2 r2)
+partition p0 t0 = toPair $ go p0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go p (Bin _ x l r) = case (go p l, go p r) of
+      ((l1 :*: l2), (r1 :*: r2))
+        | p x       -> join x l1 r1 :*: merge l2 r2
+        | otherwise -> merge l1 r1 :*: join x l2 r2
 
 {----------------------------------------------------------------------
   Map
@@ -958,12 +962,14 @@ filterLt (JustS b) t = filter' b t
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split _ Tip = (Tip,Tip)
-split x (Bin _ y l r)
-  = case compare x y of
-      LT -> let (lt,gt) = split x l in (lt,join y gt r)
-      GT -> let (lt,gt) = split x r in (join y l lt,gt)
-      EQ -> (l,r)
+split x0 t0 = toPair $ go x0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go x (Bin _ y l r)
+      = case compare x y of
+          LT -> let (lt :*: gt) = go x l in (lt :*: join y gt r)
+          GT -> let (lt :*: gt) = go x r in (join y l lt :*: gt)
+          EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
@@ -974,8 +980,12 @@ splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember _ Tip = (Tip, False, Tip)
 splitMember x (Bin _ y l r)
    = case compare x y of
-       LT -> let (lt, found, gt) = splitMember x l in (lt, found, join y gt r)
-       GT -> let (lt, found, gt) = splitMember x r in (join y l lt, found, gt)
+       LT -> let (lt, found, gt) = splitMember x l
+                 gt' = join y gt r
+             in gt' `seq` (lt, found, gt')
+       GT -> let (lt, found, gt) = splitMember x r
+                 lt' = join y l lt
+             in lt' `seq` (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember #-}

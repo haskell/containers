@@ -1548,13 +1548,15 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
-partitionWithKey _ Tip = (Tip,Tip)
-partitionWithKey p (Bin _ kx x l r)
-  | p kx x    = (join kx x l1 r1,merge l2 r2)
-  | otherwise = (merge l1 r1,join kx x l2 r2)
+partitionWithKey p0 t0 = toPair $ go p0 t0
   where
-    (l1,l2) = partitionWithKey p l
-    (r1,r2) = partitionWithKey p r
+    go _ Tip = (Tip :*: Tip)
+    go p (Bin _ kx x l r)
+      | p kx x    = join kx x l1 r1 :*: merge l2 r2
+      | otherwise = merge l1 r1 :*: join kx x l2 r2
+      where
+        (l1 :*: l2) = go p l
+        (r1 :*: r2) = go p r
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1598,13 +1600,15 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
-mapEitherWithKey _ Tip = (Tip, Tip)
-mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> (join kx y l1 r1, merge l2 r2)
-  Right z -> (merge l1 r1, join kx z l2 r2)
- where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go f (Bin _ kx x l r) = case f kx x of
+      Left y  -> join kx y l1 r1 :*: merge l2 r2
+      Right z -> merge l1 r1 :*: join kx z l2 r2
+     where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
 
 {--------------------------------------------------------------------
   Mapping
@@ -2145,23 +2149,27 @@ trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r
 
 -- See Note: Type of local 'go' function
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
-trimLookupLo lk NothingS t = greater lk t
-  where greater :: Ord k => k -> Map k a -> (Maybe a, Map k a)
-        greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> lookup lo l `strictPair` t'
-                                                               EQ -> (Just x, r)
-                                                               GT -> greater lo r
-        greater _ Tip = (Nothing, Tip)
-trimLookupLo lk (JustS hk) t = middle lk hk t
-  where middle :: Ord k => k -> k -> Map k a -> (Maybe a, Map k a)
-        middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> lookup lo l `strictPair` t'
-                                                                    | otherwise -> middle lo hi l
-                                                                 EQ -> Just x `strictPair` lesser hi r
-                                                                 GT -> middle lo hi r
-        middle _ _ Tip = (Nothing, Tip)
+trimLookupLo lk0 mhk0 t0 = toPair $ go lk0 mhk0 t0
+  where
+    go lk NothingS t = greater lk t
+      where greater :: Ord k => k -> Map k a -> StrictPair (Maybe a) (Map k a)
+            greater lo t'@(Bin _ kx x l r) = case compare lo kx of
+                LT -> lookup lo l :*: t'
+                EQ -> (Just x :*: r)
+                GT -> greater lo r
+            greater _ Tip = (Nothing :*: Tip)
+    go lk (JustS hk) t = middle lk hk t
+      where middle :: Ord k => k -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
+            middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of
+                LT | kx < hi -> lookup lo l :*: t'
+                   | otherwise -> middle lo hi l
+                EQ -> Just x :*: lesser hi r
+                GT -> middle lo hi r
+            middle _ _ Tip = (Nothing :*: Tip)
 
-        lesser :: Ord k => k -> Map k a -> Map k a
-        lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
-        lesser _ t' = t'
+            lesser :: Ord k => k -> Map k a -> Map k a
+            lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
+            lesser _ t' = t'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE trimLookupLo #-}
 #endif
@@ -2209,13 +2217,15 @@ filterLt (JustS b) t = filter' b t
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split k t = k `seq`
-  case t of
-    Tip            -> (Tip, Tip)
-    Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,gt) = split k l in (lt,join kx x gt r)
-      GT -> let (lt,gt) = split k r in (join kx x l lt,gt)
-      EQ -> (l,r)
+split k0 t0 = k0 `seq` toPair $ go k0 t0
+  where
+    go k t =
+      case t of
+        Tip            -> (Tip :*: Tip)
+        Bin _ kx x l r -> case compare k kx of
+          LT -> let (lt :*: gt) = go k l in lt :*: join kx x gt r
+          GT -> let (lt :*: gt) = go k r in join kx x l lt :*: gt
+          EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
@@ -2234,8 +2244,12 @@ splitLookup k t = k `seq`
   case t of
     Tip            -> (Tip,Nothing,Tip)
     Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,z,gt) = splitLookup k l in (lt,z,join kx x gt r)
-      GT -> let (lt,z,gt) = splitLookup k r in (join kx x l lt,z,gt)
+      LT -> let (lt,z,gt) = splitLookup k l
+                gt' = join kx x gt r
+            in gt' `seq` (lt,z,gt')
+      GT -> let (lt,z,gt) = splitLookup k r
+                lt' = join kx x l lt
+            in lt' `seq` (lt',z,gt)
       EQ -> (l,Just x,r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup #-}
