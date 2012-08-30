@@ -4,7 +4,7 @@ bench-%: %.hs force
 	ghc -O2 -DTESTING $< -i../$(TOP) -o $@ -outputdir tmp -rtsopts
 
 bench-%.csv: bench-%
-	./bench-$* -v -u bench-$*.csv
+	./bench-$* $(BENCHMARK) -v -u bench-$*.csv
 
 .PHONY: force clean veryclean
 force:
