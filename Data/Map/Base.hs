@@ -250,6 +250,7 @@ module Data.Map.Base (
             , balanceR
             , delta
             , join
+            , insertMax
             , merge
             , glue
             , trim
@@ -1916,15 +1917,52 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
+-- If the keys of the list are ordered, linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+--
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
 fromList :: Ord k => [(k,a)] -> Map k a
-fromList xs
-  = foldlStrict ins empty xs
+fromList [] = Tip
+fromList [(kx, x)] = Bin 1 kx x Tip Tip
+fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip Tip) xs0
+                           | otherwise = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    ins t (k,x) = insert k x t
+    not_ordered kx [] = False
+    not_ordered kx ((ky,_) : _) = kx >= ky
+    {-# INLINE not_ordered #-}
+
+    fromList' t xs = foldlStrict ins t xs
+      where ins t (k,x) = insert k x t
+
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go _ t [(kx, x)] = insertMax kx x t
+    go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
+                              | otherwise = case create s xss of
+                                  (r, ys, []) -> go (s `shiftL` 1) (join kx x l r) ys
+                                  (r, _,  ys) -> fromList' (join kx x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [], [])
+    create s xs@(xp : xss)
+      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> (Bin 1 kx x Tip Tip, [], xss)
+                                    | otherwise -> (Bin 1 kx x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [(ky, y)], zs) -> (insertMax ky y l, [], zs)
+                      (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
+                                               | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> (join ky y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif

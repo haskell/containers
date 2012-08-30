@@ -778,10 +778,49 @@ foldlFB = foldl
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
+--
+-- If the elemens are ordered, linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
 fromList :: Ord a => [a] -> Set a
-fromList = foldlStrict ins empty
+fromList [] = Tip
+fromList [x] = Bin 1 x Tip Tip
+fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
+                    | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
-    ins t x = insert x t
+    not_ordered x [] = False
+    not_ordered x (y : _) = x >= y
+    {-# INLINE not_ordered #-}
+
+    fromList' t xs = foldlStrict ins t xs
+      where ins t x = insert x t
+
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go _ t [x] = insertMax x t
+    go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
+                        | otherwise = case create s xss of
+                            (r, ys, []) -> go (s `shiftL` 1) (join x l r) ys
+                            (r, _,  ys) -> fromList' (join x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [], [])
+    create s xs@(x : xss)
+      | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
+                                      else (Bin 1 x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [y], zs) -> (insertMax y l, [], zs)
+                      (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
+                                         | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> (join y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
