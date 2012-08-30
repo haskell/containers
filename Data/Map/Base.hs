@@ -263,6 +263,7 @@ module Data.Map.Base (
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import qualified Data.Set.Base as Set
 import Data.StrictPair
+import Data.Bits (shiftL, shiftR)
 import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Traversable (Traversable(traverse))
@@ -2086,24 +2087,25 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
+-- For some reason, when 'singleton' is used in fromDistinctAscList or in
+-- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList xs
-  = create const (length xs) xs
+fromDistinctAscList [] = Tip
+fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    -- 1) use continuations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to create bushier trees.
-    create c 0 xs' = c Tip xs'
-    create c 5 xs' = case xs' of
-                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
-                            -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
-                       _ -> error "fromDistinctAscList create"
-    create c n xs' = seq nr $ create (createR nr c) nl xs'
-      where nl = n `div` 2
-            nr = n - nl - 1
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go s l ((kx, x) : xs) = case create s xs of
+                              (r, ys) -> go (s `shiftL` 1) (join kx x l r) ys
 
-    createR n c l ((k,x):ys) = create (createB l k x c) n ys
-    createR _ _ _ []         = error "fromDistinctAscList createR []"
-    createB l k x c r zs     = c (bin k x l r) zs
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [])
+    create s xs@(x' : xs')
+      | s == 1 = case x' of (kx, x) -> (Bin 1 kx x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (r, zs) -> (join ky y l r, zs)
 
 
 {--------------------------------------------------------------------

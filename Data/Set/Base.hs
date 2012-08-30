@@ -177,6 +177,7 @@ module Data.Set.Base (
 
 import Prelude hiding (filter,foldl,foldr,null,map)
 import qualified Data.List as List
+import Data.Bits (shiftL, shiftR)
 import Data.Monoid (Monoid(..))
 import qualified Data.Foldable as Foldable
 import Data.Typeable
@@ -815,24 +816,26 @@ fromAscList xs
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
-fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList xs
-  = create const (length xs) xs
-  where
-    -- 1) use continutations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to create bushier trees.
-    create c 0 xs' = c Tip xs'
-    create c 5 xs' = case xs' of
-                       (x1:x2:x3:x4:x5:xx)
-                            -> c (bin x4 (bin x2 (singleton x1) (singleton x3)) (singleton x5)) xx
-                       _ -> error "fromDistinctAscList create 5"
-    create c n xs' = seq nr $ create (createR nr c) nl xs'
-      where nl = n `div` 2
-            nr = n - nl - 1
 
-    createR n c l (x:ys) = create (createB l x c) n ys
-    createR _ _ _ []     = error "fromDistinctAscList createR []"
-    createB l x c r zs   = c (bin x l r) zs
+-- For some reason, when 'singleton' is used in fromDistinctAscList or in
+-- create, it is not inlined, so we inline it manually.
+fromDistinctAscList :: [a] -> Set a
+fromDistinctAscList [] = Tip
+fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+  where
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go s l (x : xs) = case create s xs of
+                        (r, ys) -> go (s `shiftL` 1) (join x l r) ys
+
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [])
+    create s xs@(x : xs')
+      | s == 1 = (Bin 1 x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (l, y:ys) -> case create (s `shiftR` 1) ys of
+                        (r, zs) -> (join y l r, zs)
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
