@@ -59,6 +59,7 @@ main = do
         , bench "intersection" $ whnf (M.intersection m) m_even
         , bench "split" $ whnf (M.split (bound `div` 2)) m
         , bench "fromList" $ whnf M.fromList elems
+        , bench "fromList-desc" $ whnf M.fromList (reverse elems)
         , bench "fromAscList" $ whnf M.fromAscList elems
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         ]

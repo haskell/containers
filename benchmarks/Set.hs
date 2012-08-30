@@ -34,6 +34,7 @@ main = do
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
         , bench "fromList" $ whnf S.fromList elems
+        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
         , bench "fromAscList" $ whnf S.fromAscList elems
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         ]
