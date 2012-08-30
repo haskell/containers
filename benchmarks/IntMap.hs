@@ -41,7 +41,7 @@ main = do
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromAscList" $ whnf M.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf M.fromAscList elems
+        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         ]
   where
     elems = zip keys values

@@ -60,7 +60,7 @@ main = do
         , bench "split" $ whnf (M.split (bound `div` 2)) m
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromAscList" $ whnf M.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf M.fromAscList elems
+        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         ]
   where
     bound = 2^12
