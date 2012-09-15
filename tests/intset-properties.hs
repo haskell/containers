@@ -1,4 +1,10 @@
+{-# LANGUAGE CPP #-}
+#if MIN_VERSION_base(4,5,0)
+import Data.Bits ((.&.), popCount)
+import Data.Word (Word)
+#else
 import Data.Bits ((.&.))
+#endif
 import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -59,6 +65,9 @@ main = defaultMainWithOpts [ testCase "lookupLT" test_lookupLT
                            , testProperty "prop_splitMember" prop_splitMember
                            , testProperty "prop_partition" prop_partition
                            , testProperty "prop_filter" prop_filter
+#if MIN_VERSION_base(4,5,0)
+                           , testProperty "prop_bitcount" prop_bitcount
+#endif
                            ] opts
   where
     opts = mempty { ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
@@ -310,3 +319,13 @@ prop_partition s i = case partition odd s of
 
 prop_filter :: IntSet -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)
+
+#if MIN_VERSION_base(4,5,0)
+prop_bitcount :: Int -> Word -> Bool
+prop_bitcount a w = bitcount_orig a w == bitcount_new a w
+  where
+    bitcount_orig a0 x0 = go a0 x0
+      where go a 0 = a
+            go a x = go (a + 1) (x .&. (x-1))
+    bitcount_new a x = a + popCount x
+#endif
