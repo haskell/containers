@@ -790,11 +790,11 @@ fromList [x] = Bin 1 x Tip Tip
 fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                     | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
-    not_ordered x [] = False
+    not_ordered _ [] = False
     not_ordered x (y : _) = x >= y
     {-# INLINE not_ordered #-}
 
-    fromList' t xs = foldlStrict ins t xs
+    fromList' t0 xs = foldlStrict ins t0 xs
       where ins t x = insert x t
 
     STRICT_1_OF_3(go)

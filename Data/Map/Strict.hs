@@ -1026,11 +1026,11 @@ fromList [(kx, x)] = x `seq` Bin 1 kx x Tip Tip
 fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0 x0 Tip Tip) xs0
                            | otherwise = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    not_ordered kx [] = False
+    not_ordered _ [] = False
     not_ordered kx ((ky,_) : _) = kx >= ky
     {-# INLINE not_ordered #-}
 
-    fromList' t xs = foldlStrict ins t xs
+    fromList' t0 xs = foldlStrict ins t0 xs
       where ins t (k,x) = insert k x t
 
     STRICT_1_OF_3(go)
