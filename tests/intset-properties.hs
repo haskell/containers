@@ -18,62 +18,57 @@ import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck hiding ((.&.))
 
 main :: IO ()
-main = defaultMainWithOpts [ testCase "lookupLT" test_lookupLT
-                           , testCase "lookupGT" test_lookupGT
-                           , testCase "lookupLE" test_lookupLE
-                           , testCase "lookupGE" test_lookupGE
-                           , testCase "split" test_split
-                           , testProperty "prop_Single" prop_Single
-                           , testProperty "prop_Member" prop_Member
-                           , testProperty "prop_NotMember" prop_NotMember
-                           , testProperty "prop_LookupLT" prop_LookupLT
-                           , testProperty "prop_LookupGT" prop_LookupGT
-                           , testProperty "prop_LookupLE" prop_LookupLE
-                           , testProperty "prop_LookupGE" prop_LookupGE
-                           , testProperty "prop_InsertDelete" prop_InsertDelete
-                           , testProperty "prop_MemberFromList" prop_MemberFromList
-                           , testProperty "prop_UnionInsert" prop_UnionInsert
-                           , testProperty "prop_UnionAssoc" prop_UnionAssoc
-                           , testProperty "prop_UnionComm" prop_UnionComm
-                           , testProperty "prop_Diff" prop_Diff
-                           , testProperty "prop_Int" prop_Int
-                           , testProperty "prop_Ordered" prop_Ordered
-                           , testProperty "prop_List" prop_List
-                           , testProperty "prop_DescList" prop_DescList
-                           , testProperty "prop_AscDescList" prop_AscDescList
-                           , testProperty "prop_fromList" prop_fromList
-                           , testProperty "prop_MaskPow2" prop_MaskPow2
-                           , testProperty "prop_Prefix" prop_Prefix
-                           , testProperty "prop_LeftRight" prop_LeftRight
-                           , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
-                           , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
-                           , testProperty "prop_isSubsetOf" prop_isSubsetOf
-                           , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
-                           , testProperty "prop_size" prop_size
-                           , testProperty "prop_findMax" prop_findMax
-                           , testProperty "prop_findMin" prop_findMin
-                           , testProperty "prop_ord" prop_ord
-                           , testProperty "prop_readShow" prop_readShow
-                           , testProperty "prop_foldR" prop_foldR
-                           , testProperty "prop_foldR'" prop_foldR'
-                           , testProperty "prop_foldL" prop_foldL
-                           , testProperty "prop_foldL'" prop_foldL'
-                           , testProperty "prop_map" prop_map
-                           , testProperty "prop_maxView" prop_maxView
-                           , testProperty "prop_minView" prop_minView
-                           , testProperty "prop_split" prop_split
-                           , testProperty "prop_splitMember" prop_splitMember
-                           , testProperty "prop_partition" prop_partition
-                           , testProperty "prop_filter" prop_filter
+main = defaultMain [ testCase "lookupLT" test_lookupLT
+                   , testCase "lookupGT" test_lookupGT
+                   , testCase "lookupLE" test_lookupLE
+                   , testCase "lookupGE" test_lookupGE
+                   , testCase "split" test_split
+                   , testProperty "prop_Single" prop_Single
+                   , testProperty "prop_Member" prop_Member
+                   , testProperty "prop_NotMember" prop_NotMember
+                   , testProperty "prop_LookupLT" prop_LookupLT
+                   , testProperty "prop_LookupGT" prop_LookupGT
+                   , testProperty "prop_LookupLE" prop_LookupLE
+                   , testProperty "prop_LookupGE" prop_LookupGE
+                   , testProperty "prop_InsertDelete" prop_InsertDelete
+                   , testProperty "prop_MemberFromList" prop_MemberFromList
+                   , testProperty "prop_UnionInsert" prop_UnionInsert
+                   , testProperty "prop_UnionAssoc" prop_UnionAssoc
+                   , testProperty "prop_UnionComm" prop_UnionComm
+                   , testProperty "prop_Diff" prop_Diff
+                   , testProperty "prop_Int" prop_Int
+                   , testProperty "prop_Ordered" prop_Ordered
+                   , testProperty "prop_List" prop_List
+                   , testProperty "prop_DescList" prop_DescList
+                   , testProperty "prop_AscDescList" prop_AscDescList
+                   , testProperty "prop_fromList" prop_fromList
+                   , testProperty "prop_MaskPow2" prop_MaskPow2
+                   , testProperty "prop_Prefix" prop_Prefix
+                   , testProperty "prop_LeftRight" prop_LeftRight
+                   , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
+                   , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
+                   , testProperty "prop_isSubsetOf" prop_isSubsetOf
+                   , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
+                   , testProperty "prop_size" prop_size
+                   , testProperty "prop_findMax" prop_findMax
+                   , testProperty "prop_findMin" prop_findMin
+                   , testProperty "prop_ord" prop_ord
+                   , testProperty "prop_readShow" prop_readShow
+                   , testProperty "prop_foldR" prop_foldR
+                   , testProperty "prop_foldR'" prop_foldR'
+                   , testProperty "prop_foldL" prop_foldL
+                   , testProperty "prop_foldL'" prop_foldL'
+                   , testProperty "prop_map" prop_map
+                   , testProperty "prop_maxView" prop_maxView
+                   , testProperty "prop_minView" prop_minView
+                   , testProperty "prop_split" prop_split
+                   , testProperty "prop_splitMember" prop_splitMember
+                   , testProperty "prop_partition" prop_partition
+                   , testProperty "prop_filter" prop_filter
 #if MIN_VERSION_base(4,5,0)
-                           , testProperty "prop_bitcount" prop_bitcount
+                   , testProperty "prop_bitcount" prop_bitcount
 #endif
-                           ] opts
-  where
-    opts = mempty { ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
-                                                      , topt_maximum_unsuitable_generated_tests = Just 500
-                                                      }
-                  }
+                   ]
 
 ----------------------------------------------------------------
 -- Unit tests

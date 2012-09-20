@@ -27,7 +27,7 @@ import Text.Show.Functions ()
 default (Int)
 
 main :: IO ()
-main = defaultMainWithOpts
+main = defaultMain
          [ testCase "ticket4242" test_ticket4242
          , testCase "index"      test_index
          , testCase "size"       test_size
@@ -189,13 +189,7 @@ main = defaultMainWithOpts
          , testProperty "foldl'"               prop_foldl'
          , testProperty "keysSet"              prop_keysSet
          , testProperty "fromSet"              prop_fromSet
-         ] opts
-
-  where
-    opts = mempty { ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
-                                                      , topt_maximum_unsuitable_generated_tests = Just 500
-                                                      }
-                  }
+         ]
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
