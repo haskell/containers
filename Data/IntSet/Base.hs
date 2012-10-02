@@ -77,7 +77,7 @@
 
 module Data.IntSet.Base (
             -- * Set type
-              IntSet(..)      -- instance Eq,Show
+              IntSet(..), Key -- instance Eq,Show
 
             -- * Operators
             , (\\)
@@ -260,6 +260,7 @@ data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 type Prefix = Int
 type Mask   = Int
 type BitMap = Word
+type Key    = Int
 
 instance Monoid IntSet where
     mempty  = empty
@@ -303,7 +304,7 @@ size t
 -- | /O(min(n,W))/. Is the value a member of the set?
 
 -- See Note: Local 'go' functions and capturing]
-member :: Int -> IntSet -> Bool
+member :: Key -> IntSet -> Bool
 member x = x `seq` go
   where
     go (Bin p m l r)
@@ -314,7 +315,7 @@ member x = x `seq` go
     go Nil = False
 
 -- | /O(min(n,W))/. Is the element not in the set?
-notMember :: Int -> IntSet -> Bool
+notMember :: Key -> IntSet -> Bool
 notMember k = not . member k
 
 -- | /O(log n)/. Find largest element smaller than the given one.
@@ -323,7 +324,7 @@ notMember k = not . member k
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
 
 -- See Note: Local 'go' functions and capturing.
-lookupLT :: Int -> IntSet -> Maybe Int
+lookupLT :: Key -> IntSet -> Maybe Key
 lookupLT x t = x `seq` case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
     _ -> go Nil t
@@ -344,7 +345,7 @@ lookupLT x t = x `seq` case t of
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
 
 -- See Note: Local 'go' functions and capturing.
-lookupGT :: Int -> IntSet -> Maybe Int
+lookupGT :: Key -> IntSet -> Maybe Key
 lookupGT x t = x `seq` case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
     _ -> go Nil t
@@ -366,7 +367,7 @@ lookupGT x t = x `seq` case t of
 -- > lookupLE 5 (fromList [3, 5]) == Just 5
 
 -- See Note: Local 'go' functions and capturing.
-lookupLE :: Int -> IntSet -> Maybe Int
+lookupLE :: Key -> IntSet -> Maybe Key
 lookupLE x t = x `seq` case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
     _ -> go Nil t
@@ -388,7 +389,7 @@ lookupLE x t = x `seq` case t of
 -- > lookupGE 6 (fromList [3, 5]) == Nothing
 
 -- See Note: Local 'go' functions and capturing.
-lookupGE :: Int -> IntSet -> Maybe Int
+lookupGE :: Key -> IntSet -> Maybe Key
 lookupGE x t = x `seq` case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
     _ -> go Nil t
@@ -406,14 +407,14 @@ lookupGE x t = x `seq` case t of
 
 -- Helper function for lookupGE and lookupGT. It assumes that if a Bin node is
 -- given, it has m > 0.
-unsafeFindMin :: IntSet -> Maybe Int
+unsafeFindMin :: IntSet -> Maybe Key
 unsafeFindMin Nil = Nothing
 unsafeFindMin (Tip kx bm) = Just $ kx + lowestBitSet bm
 unsafeFindMin (Bin _ _ l _) = unsafeFindMin l
 
 -- Helper function for lookupLE and lookupLT. It assumes that if a Bin node is
 -- given, it has m > 0.
-unsafeFindMax :: IntSet -> Maybe Int
+unsafeFindMax :: IntSet -> Maybe Key
 unsafeFindMax Nil = Nothing
 unsafeFindMax (Tip kx bm) = Just $ kx + highestBitSet bm
 unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
@@ -428,7 +429,7 @@ empty
 {-# INLINE empty #-}
 
 -- | /O(1)/. A set of one element.
-singleton :: Int -> IntSet
+singleton :: Key -> IntSet
 singleton x
   = Tip (prefixOf x) (bitmapOf x)
 {-# INLINE singleton #-}
@@ -438,7 +439,7 @@ singleton x
 --------------------------------------------------------------------}
 -- | /O(min(n,W))/. Add a value to the set. There is no left- or right bias for
 -- IntSets.
-insert :: Int -> IntSet -> IntSet
+insert :: Key -> IntSet -> IntSet
 insert x = x `seq` insertBM (prefixOf x) (bitmapOf x)
 
 -- Helper function for insert and union.
@@ -456,7 +457,7 @@ insertBM kx bm t = kx `seq` bm `seq`
 
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
-delete :: Int -> IntSet -> IntSet
+delete :: Key -> IntSet -> IntSet
 delete x = x `seq` deleteBM (prefixOf x) (bitmapOf x)
 
 -- Deletes all values mentioned in the BitMap from the set.
@@ -643,7 +644,7 @@ isSubsetOf Nil _         = True
   Filter
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy some predicate.
-filter :: (Int -> Bool) -> IntSet -> IntSet
+filter :: (Key -> Bool) -> IntSet -> IntSet
 filter predicate t
   = case t of
       Bin p m l r
@@ -656,7 +657,7 @@ filter predicate t
         {-# INLINE bitPred #-}
 
 -- | /O(n)/. partition the set according to some predicate.
-partition :: (Int -> Bool) -> IntSet -> (IntSet,IntSet)
+partition :: (Key -> Bool) -> IntSet -> (IntSet,IntSet)
 partition predicate0 t0 = toPair $ go predicate0 t0
   where
     go predicate t
@@ -679,7 +680,7 @@ partition predicate0 t0 = toPair $ go predicate0 t0
 -- comprises the elements of @set@ greater than @x@.
 --
 -- > split 3 (fromList [1..5]) == (fromList [1,2], fromList [4,5])
-split :: Int -> IntSet -> (IntSet,IntSet)
+split :: Key -> IntSet -> (IntSet,IntSet)
 split x t =
   case t of
       Bin _ m l r
@@ -710,7 +711,7 @@ split x t =
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
-splitMember :: Int -> IntSet -> (IntSet,Bool,IntSet)
+splitMember :: Key -> IntSet -> (IntSet,Bool,IntSet)
 splitMember x t =
   case t of
       Bin _ m l r | m < 0 -> if x >= 0
@@ -749,7 +750,7 @@ splitMember x t =
 
 -- | /O(min(n,W))/. Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
-maxView :: IntSet -> Maybe (Int, IntSet)
+maxView :: IntSet -> Maybe (Key, IntSet)
 maxView t =
   case t of Nil -> Nothing
             Bin p m l r | m < 0 -> case go l of (result, l') -> Just (result, bin p m l' r)
@@ -761,7 +762,7 @@ maxView t =
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
-minView :: IntSet -> Maybe (Int, IntSet)
+minView :: IntSet -> Maybe (Key, IntSet)
 minView t =
   case t of Nil -> Nothing
             Bin p m l r | m < 0 -> case go r of (result, r') -> Just (result, bin p m l r')
@@ -774,18 +775,18 @@ minView t =
 -- | /O(min(n,W))/. Delete and find the minimal element.
 --
 -- > deleteFindMin set = (findMin set, deleteMin set)
-deleteFindMin :: IntSet -> (Int, IntSet)
+deleteFindMin :: IntSet -> (Key, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 --
 -- > deleteFindMax set = (findMax set, deleteMax set)
-deleteFindMax :: IntSet -> (Int, IntSet)
+deleteFindMax :: IntSet -> (Key, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
 
 -- | /O(min(n,W))/. The minimal element of the set.
-findMin :: IntSet -> Int
+findMin :: IntSet -> Key
 findMin Nil = error "findMin: empty set has no minimal element"
 findMin (Tip kx bm) = kx + lowestBitSet bm
 findMin (Bin _ m l r)
@@ -796,7 +797,7 @@ findMin (Bin _ m l r)
           find Nil            = error "findMin Nil"
 
 -- | /O(min(n,W))/. The maximal element of a set.
-findMax :: IntSet -> Int
+findMax :: IntSet -> Key
 findMax Nil = error "findMax: empty set has no maximal element"
 findMax (Tip kx bm) = kx + highestBitSet bm
 findMax (Bin _ m l r)
@@ -825,7 +826,7 @@ deleteMax = maybe Nil snd . maxView
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
-map :: (Int->Int) -> IntSet -> IntSet
+map :: (Key -> Key) -> IntSet -> IntSet
 map f = fromList . List.map f . toList
 
 {--------------------------------------------------------------------
@@ -836,7 +837,7 @@ map f = fromList . List.map f . toList
 -- for compatibility only.
 --
 -- /Please note that fold will be deprecated in the future and removed./
-fold :: (Int -> b -> b) -> b -> IntSet -> b
+fold :: (Key -> b -> b) -> b -> IntSet -> b
 fold = foldr
 {-# INLINE fold #-}
 
@@ -846,7 +847,7 @@ fold = foldr
 -- For example,
 --
 -- > toAscList set = foldr (:) [] set
-foldr :: (Int -> b -> b) -> b -> IntSet -> b
+foldr :: (Key -> b -> b) -> b -> IntSet -> b
 foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -860,7 +861,7 @@ foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldr' :: (Int -> b -> b) -> b -> IntSet -> b
+foldr' :: (Key -> b -> b) -> b -> IntSet -> b
 foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -878,7 +879,7 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- For example,
 --
 -- > toDescList set = foldl (flip (:)) [] set
-foldl :: (a -> Int -> a) -> a -> IntSet -> a
+foldl :: (a -> Key -> a) -> a -> IntSet -> a
 foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r
@@ -893,7 +894,7 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldl' :: (a -> Int -> a) -> a -> IntSet -> a
+foldl' :: (a -> Key -> a) -> a -> IntSet -> a
 foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r
@@ -910,7 +911,7 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 --------------------------------------------------------------------}
 -- | /O(n)/. An alias of 'toAscList'. The elements of a set in ascending order.
 -- Subject to list fusion.
-elems :: IntSet -> [Int]
+elems :: IntSet -> [Key]
 elems
   = toAscList
 
@@ -918,28 +919,28 @@ elems
   Lists
 --------------------------------------------------------------------}
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
-toList :: IntSet -> [Int]
+toList :: IntSet -> [Key]
 toList
   = toAscList
 
 -- | /O(n)/. Convert the set to an ascending list of elements. Subject to list
 -- fusion.
-toAscList :: IntSet -> [Int]
+toAscList :: IntSet -> [Key]
 toAscList = foldr (:) []
 
 -- | /O(n)/. Convert the set to a descending list of elements. Subject to list
 -- fusion.
-toDescList :: IntSet -> [Int]
+toDescList :: IntSet -> [Key]
 toDescList = foldl (flip (:)) []
 
 -- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
 -- The foldrFB and foldlFB are foldr and foldl equivalents, used for list fusion.
 -- They are important to convert unfused to{Asc,Desc}List back, see mapFB in prelude.
-foldrFB :: (Int -> b -> b) -> b -> IntSet -> b
+foldrFB :: (Key -> b -> b) -> b -> IntSet -> b
 foldrFB = foldr
 {-# INLINE[0] foldrFB #-}
-foldlFB :: (a -> Int -> a) -> a -> IntSet -> a
+foldlFB :: (a -> Key -> a) -> a -> IntSet -> a
 foldlFB = foldl
 {-# INLINE[0] foldlFB #-}
 
@@ -963,7 +964,7 @@ foldlFB = foldl
 
 
 -- | /O(n*min(n,W))/. Create a set from a list of integers.
-fromList :: [Int] -> IntSet
+fromList :: [Key] -> IntSet
 fromList xs
   = foldlStrict ins empty xs
   where
@@ -971,7 +972,7 @@ fromList xs
 
 -- | /O(n)/. Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./
-fromAscList :: [Int] -> IntSet
+fromAscList :: [Key] -> IntSet
 fromAscList [] = Nil
 fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
   where
@@ -982,7 +983,7 @@ fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements.
 -- /The precondition (input list is strictly ascending) is not checked./
-fromDistinctAscList :: [Int] -> IntSet
+fromDistinctAscList :: [Key] -> IntSet
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work (prefixOf z0) (bitmapOf z0) zs0 Nada
   where

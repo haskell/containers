@@ -222,6 +222,7 @@ import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
 import Control.DeepSeq (NFData(rnf))
 
+import Data.IntSet.Base (Key)
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -287,7 +288,6 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(In
 
 type Prefix = Int
 type Mask   = Int
-type Key    = Int
 
 {--------------------------------------------------------------------
   Operators
