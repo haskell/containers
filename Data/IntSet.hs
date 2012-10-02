@@ -56,6 +56,7 @@ module Data.IntSet (
 #else
               IntSet(..)      -- instance Eq,Show
 #endif
+            , Key
 
             -- * Operators
             , (\\)

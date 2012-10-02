@@ -222,6 +222,7 @@ import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
 import Control.DeepSeq (NFData(rnf))
 
+import Data.IntSet.Base (Key)
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -287,7 +288,6 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(In
 
 type Prefix = Int
 type Mask   = Int
-type Key    = Int
 
 {--------------------------------------------------------------------
   Operators
@@ -1619,7 +1619,7 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 --
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
-foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -1633,7 +1633,7 @@ foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -1655,7 +1655,7 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 --
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
-foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r
@@ -1669,7 +1669,7 @@ foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r

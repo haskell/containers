@@ -90,6 +90,6 @@ fold = foldr
 -- /O(n)/. Fold the keys and values in the map using the given
 -- right-associative binary operator. This function is an equivalent
 -- of 'foldrWithKey' and is present for compatibility only.
-foldWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}
