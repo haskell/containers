@@ -2,6 +2,7 @@ import qualified Data.IntSet as IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
 import Data.Monoid (mempty)
+import Data.Maybe
 import Data.Set
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import Test.Framework
@@ -36,6 +37,10 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_Diff" prop_Diff
                    , testProperty "prop_IntValid" prop_IntValid
                    , testProperty "prop_Int" prop_Int
+                   , testCase "lookupIndex" test_lookupIndex
+                   , testCase "findIndex" test_findIndex
+                   , testCase "elemAt" test_elemAt
+                   , testCase "deleteAt" test_deleteAt
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
@@ -229,6 +234,32 @@ prop_IntValid = forValidUnitTree $ \t1 ->
 prop_Int :: [Int] -> [Int] -> Bool
 prop_Int xs ys = toAscList (intersection (fromList xs) (fromList ys))
                  == List.sort (nub ((List.intersect) (xs)  (ys)))
+
+{--------------------------------------------------------------------
+  Indexed
+--------------------------------------------------------------------}
+
+test_lookupIndex :: Assertion
+test_lookupIndex = do
+    isJust   (lookupIndex 2 (fromList [5,3])) @?= False
+    fromJust (lookupIndex 3 (fromList [5,3])) @?= 0
+    fromJust (lookupIndex 5 (fromList [5,3])) @?= 1
+    isJust   (lookupIndex 6 (fromList [5,3])) @?= False
+
+test_findIndex :: Assertion
+test_findIndex = do
+    findIndex 3 (fromList [5,3]) @?= 0
+    findIndex 5 (fromList [5,3]) @?= 1
+
+test_elemAt :: Assertion
+test_elemAt = do
+    elemAt 0 (fromList [5,3]) @?= 3
+    elemAt 1 (fromList [5,3]) @?= 5
+
+test_deleteAt :: Assertion
+test_deleteAt = do
+    deleteAt 0 (fromList [5,3]) @?= singleton 5
+    deleteAt 1 (fromList [5,3]) @?= singleton 3
 
 {--------------------------------------------------------------------
   Lists
