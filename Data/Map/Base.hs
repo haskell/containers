@@ -912,9 +912,10 @@ alter = go
 {--------------------------------------------------------------------
   Indexing
 --------------------------------------------------------------------}
--- | /O(log n)/. Return the /index/ of a key. The index is a number from
--- /0/ up to, but not including, the 'size' of the map. Calls 'error' when
--- the key is not a 'member' of the map.
+-- | /O(log n)/. Return the /index/ of a key, which is its zero-based index in
+-- the sequence sorted by keys. The index is a number from /0/ up to, but not
+-- including, the 'size' of the map. Calls 'error' when the key is not
+-- a 'member' of the map.
 --
 -- > findIndex 2 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 -- > findIndex 3 (fromList [(5,"a"), (3,"b")]) == 0
@@ -937,8 +938,9 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
--- /0/ up to, but not including, the 'size' of the map.
+-- | /O(log n)/. Lookup the /index/ of a key, which is its zero-based index in
+-- the sequence sorted by keys. The index is a number from /0/ up to, but not
+-- including, the 'size' of the map.
 --
 -- > isJust (lookupIndex 2 (fromList [(5,"a"), (3,"b")]))   == False
 -- > fromJust (lookupIndex 3 (fromList [(5,"a"), (3,"b")])) == 0
@@ -961,8 +963,9 @@ lookupIndex = go 0
 {-# INLINABLE lookupIndex #-}
 #endif
 
--- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
--- invalid index is used.
+-- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- index in the sequence sorted by keys. If the /index/ is out of range (less
+-- than zero, greater or equal to 'size' of the map), 'error' is called.
 --
 -- > elemAt 0 (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
@@ -979,8 +982,9 @@ elemAt i (Bin _ kx x l r)
   where
     sizeL = size l
 
--- | /O(log n)/. Update the element at /index/. Calls 'error' when an
--- invalid index is used.
+-- | /O(log n)/. Update the element at /index/, i.e. by its zero-based index in
+-- the sequence sorted by keys. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the map), 'error' is called.
 --
 -- > updateAt (\ _ _ -> Just "x") 0    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "x"), (5, "a")]
 -- > updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "x")]
@@ -1004,8 +1008,9 @@ updateAt f i t = i `seq`
       where
         sizeL = size l
 
--- | /O(log n)/. Delete the element at /index/.
--- Defined as (@'deleteAt' i map = 'updateAt' (\k x -> 'Nothing') i map@).
+-- | /O(log n)/. Delete the element at /index/, i.e. by its zero-based index in
+-- the sequence sorted by keys. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the map), 'error' is called.
 --
 -- > deleteAt 0  (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 -- > deleteAt 1  (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"

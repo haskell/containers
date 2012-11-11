@@ -1044,9 +1044,10 @@ splitMember x (Bin _ y l r)
   Indexing
 --------------------------------------------------------------------}
 
--- | /O(log n)/. Return the /index/ of an element. The index is a number from
--- /0/ up to, but not including, the 'size' of the set. Calls 'error' when
--- the element is not a 'member' of the set.
+-- | /O(log n)/. Return the /index/ of an element, which is its zero-based
+-- index in the sorted sequence of elements. The index is a number from /0/ up
+-- to, but not including, the 'size' of the set. Calls 'error' when the element
+-- is not a 'member' of the set.
 --
 -- > findIndex 2 (fromList [5,3])    Error: element is not in the set
 -- > findIndex 3 (fromList [5,3]) == 0
@@ -1069,8 +1070,9 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | /O(log n)/. Lookup the /index/ of an element. The index is a number from
--- /0/ up to, but not including, the 'size' of the set.
+-- | /O(log n)/. Lookup the /index/ of an element, which is its zero-based index in
+-- the sorted sequence of elements. The index is a number from /0/ up to, but not
+-- including, the 'size' of the set.
 --
 -- > isJust   (lookupIndex 2 (fromList [5,3])) == False
 -- > fromJust (lookupIndex 3 (fromList [5,3])) == 0
@@ -1093,8 +1095,9 @@ lookupIndex = go 0
 {-# INLINABLE lookupIndex #-}
 #endif
 
--- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
--- invalid index is used.
+-- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- index in the sorted sequence of elements. If the /index/ is out of range (less
+-- than zero, greater or equal to 'size' of the set), 'error' is called.
 --
 -- > elemAt 0 (fromList [5,3]) == 3
 -- > elemAt 1 (fromList [5,3]) == 5
@@ -1111,7 +1114,9 @@ elemAt i (Bin _ x l r)
   where
     sizeL = size l
 
--- | /O(log n)/. Delete the element at /index/.
+-- | /O(log n)/. Delete the element at /index/, i.e. by its zero-based index in
+-- the sorted sequence of elements. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the set), 'error' is called.
 --
 -- > deleteAt 0    (fromList [5,3]) == singleton 5
 -- > deleteAt 1    (fromList [5,3]) == singleton 3
