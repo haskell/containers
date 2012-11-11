@@ -15,7 +15,7 @@
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
--- This module re-exports the value lazy 'Data.Map.Lazy' API, plus
+-- This module re-exports the value lazy "Data.Map.Lazy" API, plus
 -- several obsolete value strict functions. Please note that these functions
 -- have different strictness properties than those in "Data.Map.Strict":
 -- they only evaluate the values inserted into the map. For example, the
