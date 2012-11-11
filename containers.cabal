@@ -177,6 +177,21 @@ Test-suite intset-properties
         test-framework-hunit,
         test-framework-quickcheck2
 
+Test-suite deprecated-properties
+    hs-source-dirs: tests, .
+    main-is: deprecated-properties.hs
+    type: exitcode-stdio-1.0
+    cpp-options: -DTESTING
+
+    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.4, ghc-prim
+    ghc-options: -O2
+    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
+
+    build-depends:
+        QuickCheck,
+        test-framework,
+        test-framework-quickcheck2
+
 Test-suite seq-properties
     hs-source-dirs: tests, .
     main-is: seq-properties.hs
