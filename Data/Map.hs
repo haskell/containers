@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- This module re-exports the value lazy "Data.Map.Lazy" API, plus
--- several obsolete value strict functions. Please note that these functions
+-- several deprecated value strict functions. Please note that these functions
 -- have different strictness properties than those in "Data.Map.Strict":
 -- they only evaluate the values inserted into the map. For example, the
 -- default value to 'insertWith'' is only evaluated if it's used, i.e. because

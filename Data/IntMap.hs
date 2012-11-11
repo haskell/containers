@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- This module re-exports the value lazy "Data.IntMap.Lazy" API, plus
--- several obsolete value strict functions. Please note that these functions
+-- several deprecated value strict functions. Please note that these functions
 -- have different strictness properties than those in "Data.IntMap.Strict":
 -- they only evaluate the result of the combining function. For example, the
 -- default value to 'insertWith'' is only evaluated if the combining function
