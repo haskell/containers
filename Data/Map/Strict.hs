@@ -713,7 +713,6 @@ unionWith f m1 m2
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset \``union`\` smallset).
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -767,7 +766,8 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
   Intersection
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. Intersection with a combining function.
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -778,8 +778,8 @@ intersectionWith f m1 m2
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.
--- Intersection is more efficient on (bigset \``intersection`\` smallset).
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"

@@ -535,7 +535,6 @@ unions = foldlStrict union empty
 -- | /O(n+m)/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
 -- The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset `union` smallset).
 union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
@@ -582,8 +581,9 @@ hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. The intersection of two sets.
--- Elements of the result come from the first set, so for example
+-- | /O(n+m)/. The intersection of two sets.  The implementation uses an
+-- efficient /hedge/ algorithm comparable with /hedge-union/.  Elements of the
+-- result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
 -- > data AB = A | B deriving Show
