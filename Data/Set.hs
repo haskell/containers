@@ -100,6 +100,12 @@ module Data.Set (
             -- ** Legacy folds
             , fold
 
+            -- * Indexed
+            , lookupIndex
+            , findIndex
+            , elemAt
+            , deleteAt
+
             -- * Min\/Max
             , findMin
             , findMax
