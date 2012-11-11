@@ -1496,8 +1496,21 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
     by Peter Wegner in CACM 3 (1960), 322. (Also discovered independently by
     Derrick Lehmer and published in 1964 in a book edited by Beckenbach.)"
 ----------------------------------------------------------------------}
-bitcount :: Int -> Word -> Int
+
+-- We want to be able to compile without cabal. Nevertheless
+-- #if defined(MIN_VERSION_base) && MIN_VERSION_base(4,5,0)
+-- does not work, because if MIN_VERSION_base is undefined,
+-- the last condition is syntactically wrong.
+#define MIN_VERSION_base_4_5_0 0
+#ifdef MIN_VERSION_base
 #if MIN_VERSION_base(4,5,0)
+#undef MIN_VERSION_base_4_5_0
+#define MIN_VERSION_base_4_5_0 1
+#endif
+#endif
+
+bitcount :: Int -> Word -> Int
+#if MIN_VERSION_base_4_5_0
 bitcount a x = a + popCount x
 #else
 bitcount a0 x0 = go a0 x0
