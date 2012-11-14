@@ -142,9 +142,9 @@ import Prelude hiding (
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
-import Control.Applicative (Applicative(..), (<$>), WrappedMonad(..), liftA,
-                            liftA2, liftA3)
-import qualified Control.Applicative as Applicative
+import Control.Applicative (Applicative(..), (<$>), Alternative,
+                            WrappedMonad(..), liftA, liftA2, liftA3)
+import qualified Control.Applicative as Applicative (Alternative(..))
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
@@ -208,7 +208,7 @@ instance MonadPlus Seq where
     mzero = empty
     mplus = (><)
 
-instance Applicative.Alternative Seq where
+instance Alternative Seq where
     empty = empty
     (<|>) = (><)
 
