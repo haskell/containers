@@ -198,9 +198,17 @@ instance Monad Seq where
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
 
+instance Applicative Seq where
+    pure = singleton
+    (<*>) = ap
+
 instance MonadPlus Seq where
     mzero = empty
     mplus = (><)
+
+instance Control.Applicative.Alternative Seq where
+  Control.Applicative.empty = empty
+  (Control.Applicative.<|>) = (><)
 
 instance Eq a => Eq (Seq a) where
     xs == ys = length xs == length ys && toList xs == toList ys
