@@ -202,7 +202,8 @@ instance Monad Seq where
 
 instance Applicative Seq where
     pure = singleton
-    (<*>) = ap
+    fs <*> xs = foldl' add empty fs
+      where add ys f = ys >< fmap f xs
 
 instance MonadPlus Seq where
     mzero = empty
