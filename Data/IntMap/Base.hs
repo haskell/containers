@@ -1125,13 +1125,17 @@ findMax (Bin _ m l r)
           go (Bin _ _ _ r') = go r'
           go Nil            = error "findMax Nil"
 
--- | /O(min(n,W))/. Delete the minimal key. An error is thrown if the IntMap is already empty.
--- Note, this is not the same behavior Map.
+-- | /O(min(n,W))/. Delete the minimal key. Returns an empty map if the map is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMin :: IntMap a -> IntMap a
 deleteMin = maybe Nil snd . minView
 
--- | /O(min(n,W))/. Delete the maximal key. An error is thrown if the IntMap is already empty.
--- Note, this is not the same behavior Map.
+-- | /O(min(n,W))/. Delete the maximal key. Returns an empty map if the map is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMax :: IntMap a -> IntMap a
 deleteMax = maybe Nil snd . maxView
 

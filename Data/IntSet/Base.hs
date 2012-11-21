@@ -808,11 +808,17 @@ findMax (Bin _ m l r)
           find Nil            = error "findMax Nil"
 
 
--- | /O(min(n,W))/. Delete the minimal element.
+-- | /O(min(n,W))/. Delete the minimal element. Returns an empty set if the set is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Set.Set' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntSet' was already empty.
 deleteMin :: IntSet -> IntSet
 deleteMin = maybe Nil snd . minView
 
--- | /O(min(n,W))/. Delete the maximal element.
+-- | /O(min(n,W))/. Delete the maximal element. Returns an empty set if the set is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Set.Set' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntSet' was already empty.
 deleteMax :: IntSet -> IntSet
 deleteMax = maybe Nil snd . maxView
 

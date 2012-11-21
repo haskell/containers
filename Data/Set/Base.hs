@@ -517,13 +517,13 @@ findMax (Bin _ x _ Tip)  = x
 findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
 
--- | /O(log n)/. Delete the minimal element.
+-- | /O(log n)/. Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
 deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
 deleteMin Tip             = Tip
 
--- | /O(log n)/. Delete the maximal element.
+-- | /O(log n)/. Delete the maximal element. Returns an empty set if the set is empty.
 deleteMax :: Set a -> Set a
 deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
