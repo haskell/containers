@@ -335,14 +335,22 @@ instance (Ord k) => Monoid (Map k v) where
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
--- We omit reflection services for the sake of data abstraction.
+-- We provide limited reflection services for the sake of data abstraction.
 
 instance (Data k, Data a, Ord k) => Data (Map k a) where
   gfoldl f z m   = z fromList `f` toList m
-  toConstr _     = error "toConstr"
-  gunfold _ _    = error "gunfold"
-  dataTypeOf _   = mkNoRepType "Data.Map.Map"
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  dataTypeOf _   = mapDataType
   dataCast2 f    = gcast2 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr mapDataType "fromList" [] Prefix
+
+mapDataType :: DataType
+mapDataType = mkDataType "Data.Map.Base.Map" [fromListConstr]
 
 #endif
 
