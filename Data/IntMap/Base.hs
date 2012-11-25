@@ -227,7 +227,7 @@ import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
 import Text.Read
-import Data.Data (Data(..), mkNoRepType)
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
 #endif
 
 #if __GLASGOW_HASKELL__
@@ -342,14 +342,22 @@ instance NFData a => NFData (IntMap a) where
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
--- We omit reflection services for the sake of data abstraction.
+-- We provide limited reflection services for the sake of data abstraction.
 
 instance Data a => Data (IntMap a) where
   gfoldl f z im = z fromList `f` (toList im)
-  toConstr _    = error "toConstr"
-  gunfold _ _   = error "gunfold"
-  dataTypeOf _  = mkNoRepType "Data.IntMap.IntMap"
-  dataCast1 f   = gcast1 f
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  dataTypeOf _   = intMapDataType
+  dataCast1 f    = gcast1 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
+
+intMapDataType :: DataType
+intMapDataType = mkDataType "Data.IntMap.Base.IntMap" [fromListConstr]
 
 #endif
 
