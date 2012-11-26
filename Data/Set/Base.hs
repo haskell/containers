@@ -659,7 +659,7 @@ partition p0 t0 = toPair $ go p0 t0
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
-map :: (Ord a, Ord b) => (a->b) -> Set a -> Set b
+map :: Ord b => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE map #-}
