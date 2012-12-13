@@ -46,185 +46,184 @@
 -- improves the benchmark by circa 10%.
 
 module Data.IntMap.Base (
-            -- * Map type
-              IntMap(..), Key          -- instance Eq,Show
+    -- * Map type
+      IntMap(..), Key          -- instance Eq,Show
 
-            -- * Operators
-            , (!), (\\)
+    -- * Operators
+    , (!), (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookup
+    , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
-            -- * Construction
-            , empty
-            , singleton
+    -- * Construction
+    , empty
+    , singleton
 
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWithKey
-            , insertLookupWithKey
+    -- ** Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
 
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
+    -- ** Delete\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
 
-            -- * Combine
+    -- * Combine
 
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
+    -- ** Union
+    , union
+    , unionWith
+    , unionWithKey
+    , unions
+    , unionsWith
 
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
+    -- ** Difference
+    , difference
+    , differenceWith
+    , differenceWithKey
 
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
+    -- ** Intersection
+    , intersection
+    , intersectionWith
+    , intersectionWithKey
 
-            -- ** Universal combining function
-            , mergeWithKey
-            , mergeWithKey'
+    -- ** Universal combining function
+    , mergeWithKey
+    , mergeWithKey'
 
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , traverseWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
+    -- * Traversal
+    -- ** Map
+    , map
+    , mapWithKey
+    , traverseWithKey
+    , mapAccum
+    , mapAccumWithKey
+    , mapAccumRWithKey
+    , mapKeys
+    , mapKeysWith
+    , mapKeysMonotonic
 
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
 
-            -- * Conversion
-            , elems
-            , keys
-            , assocs
-            , keysSet
-            , fromSet
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+    , fromSet
 
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
+    -- ** Lists
+    , toList
+    , fromList
+    , fromListWith
+    , fromListWithKey
 
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
+    -- ** Ordered lists
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
 
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
+    -- * Filter
+    , filter
+    , filterWithKey
+    , partition
+    , partitionWithKey
 
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
+    , mapMaybe
+    , mapMaybeWithKey
+    , mapEither
+    , mapEitherWithKey
 
-            , split
-            , splitLookup
+    , split
+    , splitLookup
 
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
+    -- * Submap
+    , isSubmapOf, isSubmapOfBy
+    , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , updateMin
+    , updateMax
+    , updateMinWithKey
+    , updateMaxWithKey
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
+    -- * Debugging
+    , showTree
+    , showTreeWith
 
-            -- * Internal types
-            , Mask, Prefix, Nat
+    -- * Internal types
+    , Mask, Prefix, Nat
 
-            -- * Utility
-            , natFromInt
-            , intFromNat
-            , shiftRL
-            , shiftLL
-            , join
-            , bin
-            , zero
-            , nomatch
-            , match
-            , mask
-            , maskW
-            , shorter
-            , branchMask
-            , highestBitMask
-            , foldlStrict
-            ) where
+    -- * Utility
+    , natFromInt
+    , intFromNat
+    , shiftRL
+    , shiftLL
+    , join
+    , bin
+    , zero
+    , nomatch
+    , match
+    , mask
+    , maskW
+    , shorter
+    , branchMask
+    , highestBitMask
+    , foldlStrict
+    ) where
 
-import Data.Bits
-
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.IntSet.Base as IntSet
-import Data.Monoid (Monoid(..))
-import Data.Maybe (fromMaybe)
-import Data.Typeable
-import qualified Data.Foldable as Foldable
-import Data.Traversable (Traversable(traverse))
-import Data.Word (Word)
-import Control.Applicative (Applicative(pure,(<*>)),(<$>))
-import Control.Monad ( liftM )
+import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Control.DeepSeq (NFData(rnf))
+import Control.Monad (liftM)
+import Data.Bits
+import qualified Data.Foldable as Foldable
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+import Data.Typeable
+import Data.Word (Word)
+import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import Data.BitUtil
 import Data.IntSet.Base (Key)
+import qualified Data.IntSet.Base as IntSet
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -259,7 +258,10 @@ intFromNat = fromIntegral
 -- | A map of integers to values @a@.
 
 -- See Note: Order of constructors
-data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(IntMap a)
+data IntMap a = Bin {-# UNPACK #-} !Prefix
+                    {-# UNPACK #-} !Mask
+                    !(IntMap a)
+                    !(IntMap a)
               | Tip {-# UNPACK #-} !Key a
               | Nil
 

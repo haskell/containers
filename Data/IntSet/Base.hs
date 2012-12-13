@@ -76,116 +76,113 @@
 -- improves the benchmark by circa 10%.
 
 module Data.IntSet.Base (
-            -- * Set type
-              IntSet(..), Key -- instance Eq,Show
+    -- * Set type
+      IntSet(..), Key -- instance Eq,Show
 
-            -- * Operators
-            , (\\)
+    -- * Operators
+    , (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
-            , isSubsetOf
-            , isProperSubsetOf
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
+    , isSubsetOf
+    , isProperSubsetOf
 
-            -- * Construction
-            , empty
-            , singleton
-            , insert
-            , delete
+    -- * Construction
+    , empty
+    , singleton
+    , insert
+    , delete
 
-            -- * Combine
-            , union
-            , unions
-            , difference
-            , intersection
+    -- * Combine
+    , union
+    , unions
+    , difference
+    , intersection
 
-            -- * Filter
-            , filter
-            , partition
-            , split
-            , splitMember
+    -- * Filter
+    , filter
+    , partition
+    , split
+    , splitMember
 
-            -- * Map
-            , map
+    -- * Map
+    , map
 
-            -- * Folds
-            , foldr
-            , foldl
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            -- ** Legacy folds
-            , fold
+    -- * Folds
+    , foldr
+    , foldl
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    -- ** Legacy folds
+    , fold
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , maxView
-            , minView
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , maxView
+    , minView
 
-            -- * Conversion
+    -- * Conversion
 
-            -- ** List
-            , elems
-            , toList
-            , fromList
+    -- ** List
+    , elems
+    , toList
+    , fromList
 
-            -- ** Ordered list
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromDistinctAscList
+    -- ** Ordered list
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromDistinctAscList
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
+    -- * Debugging
+    , showTree
+    , showTreeWith
 
-            -- * Internals
-            , match
-            , suffixBitMask
-            , prefixBitMask
-            , bitmapOf
-            ) where
+    -- * Internals
+    , match
+    , suffixBitMask
+    , prefixBitMask
+    , bitmapOf
+    ) where
 
-
-import Prelude hiding (filter,foldr,foldl,null,map)
-import Data.Bits
-
-import qualified Data.List as List
-import Data.Monoid (Monoid(..))
-import Data.Maybe (fromMaybe)
-import Data.Typeable
 import Control.DeepSeq (NFData)
+import Data.Bits
+import qualified Data.List as List
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Monoid(..))
+import Data.Typeable
+import Data.Word (Word)
+import Prelude hiding (filter, foldr, foldl, null, map)
 
 import Data.BitUtil
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
-import Text.Read
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
+import Text.Read
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts ( Word(..), Int(..), build )
-import GHC.Prim ( indexInt8OffAddr# )
-#else
-import Data.Word
+import GHC.Exts (Int(..), build)
+import GHC.Prim (indexInt8OffAddr#)
 #endif
 
 -- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
 #if defined(__GLASGOW_HASKELL__)
-#include "MachDeps.h"
+# include "MachDeps.h"
 #endif
 
 -- Use macros to define strictness of functions.
