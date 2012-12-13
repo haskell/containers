@@ -194,8 +194,6 @@ module Data.IntMap.Base (
     -- * Utility
     , natFromInt
     , intFromNat
-    , shiftRL
-    , shiftLL
     , join
     , bin
     , zero

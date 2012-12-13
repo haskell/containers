@@ -252,6 +252,8 @@ import Data.IntMap.Base hiding
     , fromAscListWithKey
     , fromDistinctAscList
     )
+
+import Data.BitUtil
 import qualified Data.IntSet.Base as IntSet
 import Data.StrictPair
 
