@@ -218,28 +218,20 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable
 import qualified Data.Foldable as Foldable
 import Data.Traversable (Traversable(traverse))
+import Data.Word (Word)
 import Control.Applicative (Applicative(pure,(<*>)),(<$>))
 import Control.Monad ( liftM )
 import Control.DeepSeq (NFData(rnf))
 
+import Data.BitUtil
 import Data.IntSet.Base (Key)
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
+                  DataType, mkDataType)
+import GHC.Exts (build)
 import Text.Read
-import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
-#endif
-
-#if __GLASGOW_HASKELL__
-import GHC.Exts ( Word(..), Int(..), build )
-import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL# )
-#else
-import Data.Word
-#endif
-
--- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
-#if defined(__GLASGOW_HASKELL__)
-#include "MachDeps.h"
 #endif
 
 -- Use macros to define strictness of functions.
@@ -258,21 +250,6 @@ natFromInt = fromIntegral
 intFromNat :: Nat -> Key
 intFromNat = fromIntegral
 {-# INLINE intFromNat #-}
-
--- Right and left logical shifts.
-shiftRL, shiftLL :: Nat -> Key -> Nat
-#if __GLASGOW_HASKELL__
-{--------------------------------------------------------------------
-  GHC: use unboxing to get @shiftRL@ inlined.
---------------------------------------------------------------------}
-shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
-shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
-#else
-shiftRL x i   = shiftR x i
-shiftLL x i   = shiftL x i
-#endif
-{-# INLINE shiftRL #-}
-{-# INLINE shiftLL #-}
 
 {--------------------------------------------------------------------
   Types
@@ -2066,26 +2043,6 @@ branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
 {-# INLINE branchMask #-}
-
--- The highestBitMask implementation is based on
--- http://graphics.stanford.edu/~seander/bithacks.html#RoundUpPowerOf2
--- which has been put in the public domain.
-
--- | Return a word where only the highest bit is set.
-highestBitMask :: Nat -> Nat
-highestBitMask x1 = let x2 = x1 .|. x1 `shiftR` 1
-                        x3 = x2 .|. x2 `shiftR` 2
-                        x4 = x3 .|. x3 `shiftR` 4
-                        x5 = x4 .|. x4 `shiftR` 8
-                        x6 = x5 .|. x5 `shiftR` 16
-#if !(defined(__GLASGOW_HASKELL__) && WORD_SIZE_IN_BITS==32)
-                        x7 = x6 .|. x6 `shiftR` 32
-                     in x7 `xor` (x7 `shiftR` 1)
-#else
-                     in x6 `xor` (x6 `shiftR` 1)
-#endif
-{-# INLINE highestBitMask #-}
-
 
 {--------------------------------------------------------------------
   Utilities

@@ -52,6 +52,7 @@ Library
             Data.Sequence
             Data.Tree
     other-modules:
+        Data.BitUtil
         Data.IntMap.Base
         Data.IntSet.Base
         Data.Map.Base

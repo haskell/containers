@@ -1,3 +1,7 @@
+{-# LANGUAGE CPP #-}
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+{-# LANGUAGE Trustworthy #-}
+#endif
 module Data.StrictPair (StrictPair(..), toPair) where
 
 -- | Same as regular Haskell pairs, but (x :*: _|_) = (_|_ :*: y) =

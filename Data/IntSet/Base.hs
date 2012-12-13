@@ -168,6 +168,7 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Control.DeepSeq (NFData)
 
+import Data.BitUtil
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -177,7 +178,7 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataT
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( Word(..), Int(..), build )
-import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL#, indexInt8OffAddr# )
+import GHC.Prim ( indexInt8OffAddr# )
 #else
 import Data.Word
 #endif
@@ -208,21 +209,6 @@ natFromInt i = fromIntegral i
 intFromNat :: Nat -> Int
 intFromNat w = fromIntegral w
 {-# INLINE intFromNat #-}
-
--- Right and left logical shifts.
-shiftRL, shiftLL :: Nat -> Int -> Nat
-#if __GLASGOW_HASKELL__
-{--------------------------------------------------------------------
-  GHC: use unboxing to get @shiftRL@ and @shiftLL@ inlined.
---------------------------------------------------------------------}
-shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
-shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
-#else
-shiftRL x i   = shiftR x i
-shiftLL x i   = shiftL x i
-#endif
-{-# INLINE shiftRL #-}
-{-# INLINE shiftLL #-}
 
 {--------------------------------------------------------------------
   Operators
@@ -1275,61 +1261,6 @@ branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
 {-# INLINE branchMask #-}
-
-{----------------------------------------------------------------------
-  Finding the highest bit (mask) in a word [x] can be done efficiently in
-  three ways:
-  * convert to a floating point value and the mantissa tells us the
-    [log2(x)] that corresponds with the highest bit position. The mantissa
-    is retrieved either via the standard C function [frexp] or by some bit
-    twiddling on IEEE compatible numbers (float). Note that one needs to
-    use at least [double] precision for an accurate mantissa of 32 bit
-    numbers.
-  * use bit twiddling, a logarithmic sequence of bitwise or's and shifts (bit).
-  * use processor specific assembler instruction (asm).
-
-  The most portable way would be [bit], but is it efficient enough?
-  I have measured the cycle counts of the different methods on an AMD
-  Athlon-XP 1800 (~ Pentium III 1.8Ghz) using the RDTSC instruction:
-
-  highestBitMask: method  cycles
-                  --------------
-                   frexp   200
-                   float    33
-                   bit      11
-                   asm      12
-
-  highestBit:     method  cycles
-                  --------------
-                   frexp   195
-                   float    33
-                   bit      11
-                   asm      11
-
-  Wow, the bit twiddling is on today's RISC like machines even faster
-  than a single CISC instruction (BSR)!
-----------------------------------------------------------------------}
-
-{----------------------------------------------------------------------
-  [highestBitMask] returns a word where only the highest bit is set.
-  It is found by first setting all bits in lower positions than the
-  highest bit and than taking an exclusive or with the original value.
-  Allthough the function may look expensive, GHC compiles this into
-  excellent C code that subsequently compiled into highly efficient
-  machine code. The algorithm is derived from Jorg Arndt's FXT library.
-----------------------------------------------------------------------}
-highestBitMask :: Nat -> Nat
-highestBitMask x0
-  = case (x0 .|. shiftRL x0 1) of
-     x1 -> case (x1 .|. shiftRL x1 2) of
-      x2 -> case (x2 .|. shiftRL x2 4) of
-       x3 -> case (x3 .|. shiftRL x3 8) of
-        x4 -> case (x4 .|. shiftRL x4 16) of
-#if !(defined(__GLASGOW_HASKELL__) && WORD_SIZE_IN_BITS==32)
-         x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
-#endif
-          x6 -> (x6 `xor` (shiftRL x6 1))
-{-# INLINE highestBitMask #-}
 
 {----------------------------------------------------------------------
   To get best performance, we provide fast implementations of
