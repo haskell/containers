@@ -93,184 +93,185 @@
 -- improves the benchmark by up to 10% on x86.
 
 module Data.Map.Base (
-            -- * Map type
-              Map(..)          -- instance Eq,Show,Read
+    -- * Map type
+      Map(..)          -- instance Eq,Show,Read
 
-            -- * Operators
-            , (!), (\\)
+    -- * Operators
+    , (!), (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookup
+    , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
-            -- * Construction
-            , empty
-            , singleton
+    -- * Construction
+    , empty
+    , singleton
 
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWithKey
-            , insertLookupWithKey
+    -- ** Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
 
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
+    -- ** Delete\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
 
-            -- * Combine
+    -- * Combine
 
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
+    -- ** Union
+    , union
+    , unionWith
+    , unionWithKey
+    , unions
+    , unionsWith
 
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
+    -- ** Difference
+    , difference
+    , differenceWith
+    , differenceWithKey
 
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
+    -- ** Intersection
+    , intersection
+    , intersectionWith
+    , intersectionWithKey
 
-            -- ** Universal combining function
-            , mergeWithKey
+    -- ** Universal combining function
+    , mergeWithKey
 
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , traverseWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
+    -- * Traversal
+    -- ** Map
+    , map
+    , mapWithKey
+    , traverseWithKey
+    , mapAccum
+    , mapAccumWithKey
+    , mapAccumRWithKey
+    , mapKeys
+    , mapKeysWith
+    , mapKeysMonotonic
 
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
 
-            -- * Conversion
-            , elems
-            , keys
-            , assocs
-            , keysSet
-            , fromSet
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+    , fromSet
 
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
+    -- ** Lists
+    , toList
+    , fromList
+    , fromListWith
+    , fromListWithKey
 
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
+    -- ** Ordered lists
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
 
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
+    -- * Filter
+    , filter
+    , filterWithKey
+    , partition
+    , partitionWithKey
 
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
+    , mapMaybe
+    , mapMaybeWithKey
+    , mapEither
+    , mapEitherWithKey
 
-            , split
-            , splitLookup
+    , split
+    , splitLookup
 
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
+    -- * Submap
+    , isSubmapOf, isSubmapOfBy
+    , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Indexed
-            , lookupIndex
-            , findIndex
-            , elemAt
-            , updateAt
-            , deleteAt
+    -- * Indexed
+    , lookupIndex
+    , findIndex
+    , elemAt
+    , updateAt
+    , deleteAt
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , updateMin
+    , updateMax
+    , updateMinWithKey
+    , updateMaxWithKey
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
-            , valid
+    -- * Debugging
+    , showTree
+    , showTreeWith
+    , valid
 
-            -- Used by the strict version
-            , bin
-            , balance
-            , balanced
-            , balanceL
-            , balanceR
-            , delta
-            , join
-            , insertMax
-            , merge
-            , glue
-            , trim
-            , trimLookupLo
-            , foldlStrict
-            , MaybeS(..)
-            , filterGt
-            , filterLt
-            ) where
+    -- Used by the strict version
+    , bin
+    , balance
+    , balanced
+    , balanceL
+    , balanceR
+    , delta
+    , join
+    , insertMax
+    , merge
+    , glue
+    , trim
+    , trimLookupLo
+    , foldlStrict
+    , MaybeS(..)
+    , filterGt
+    , filterLt
+    ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.Set.Base as Set
-import Data.StrictPair
-import Data.Bits (shiftL, shiftR)
-import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
-import Data.Traversable (Traversable(traverse))
-import qualified Data.Foldable as Foldable
-import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+import Data.Bits (shiftL, shiftR)
+import qualified Data.Foldable as Foldable
+import Data.Monoid (Monoid(..))
+import Data.StrictPair
+import Data.Traversable (Traversable(traverse))
+import Data.Typeable
+import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+
+import qualified Data.Set.Base as Set
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
