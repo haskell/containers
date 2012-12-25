@@ -129,6 +129,8 @@ module Data.Map.Lazy (
     , M.foldl
     , foldrWithKey
     , foldlWithKey
+    , foldMapWithKey
+
     -- ** Strict folds
     , foldr'
     , foldl'

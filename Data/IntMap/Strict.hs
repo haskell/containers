@@ -139,6 +139,8 @@ module Data.IntMap.Strict (
     , foldl
     , foldrWithKey
     , foldlWithKey
+    , foldMapWithKey
+
     -- ** Strict folds
     , foldr'
     , foldl'

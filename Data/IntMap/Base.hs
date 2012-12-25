@@ -123,6 +123,8 @@ module Data.IntMap.Base (
     , foldl
     , foldrWithKey
     , foldlWithKey
+    , foldMapWithKey
+
     -- ** Strict folds
     , foldr'
     , foldl'
@@ -1669,6 +1671,19 @@ foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
     go z' (Tip kx x)    = f z' kx x
     go z' (Bin _ _ l r) = go (go z' l) r
 {-# INLINE foldlWithKey' #-}
+
+-- | /O(n)/. Fold the keys and values in the map using the given monoid, such that
+--
+-- @'foldMapWithKey' f = 'Prelude.fold' . 'mapWithKey' f@
+--
+-- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
+foldMapWithKey :: Monoid m => (Key -> a -> m) -> IntMap a -> m
+foldMapWithKey f = go
+  where
+    go Nil           = mempty
+    go (Tip kx x)    = f kx x
+    go (Bin _ _ l r) = go l `mappend` go r
+{-# INLINE foldMapWithKey #-}
 
 {--------------------------------------------------------------------
   List variations
