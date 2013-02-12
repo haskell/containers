@@ -20,9 +20,15 @@
 --  // generate the instances.
 
 #define INSTANCE_TYPEABLE0(tycon,tcname,str) deriving instance Typeable tycon
+#if __GLASGOW_HASKELL__ >= 707
+#define INSTANCE_TYPEABLE1(tycon,tcname,str) deriving instance Typeable tycon
+#define INSTANCE_TYPEABLE2(tycon,tcname,str) deriving instance Typeable tycon
+#define INSTANCE_TYPEABLE3(tycon,tcname,str) deriving instance Typeable tycon
+#else
 #define INSTANCE_TYPEABLE1(tycon,tcname,str) deriving instance Typeable1 tycon
 #define INSTANCE_TYPEABLE2(tycon,tcname,str) deriving instance Typeable2 tycon
 #define INSTANCE_TYPEABLE3(tycon,tcname,str) deriving instance Typeable3 tycon
+#endif
 
 #else /* !__GLASGOW_HASKELL__ */
 
