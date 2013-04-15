@@ -179,6 +179,7 @@ module Data.IntMap.Strict (
 
     , split
     , splitLookup
+    , divide
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy

@@ -163,6 +163,7 @@ module Data.IntMap.Base (
 
     , split
     , splitLookup
+    , divide
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy
@@ -1477,7 +1478,7 @@ split k t =
   case t of
       Bin _ m l r
           | m < 0 -> if k >= 0 -- handle negative numbers.
-                     then case go k l of (lt :*: gt) -> let lt' = union r lt 
+                     then case go k l of (lt :*: gt) -> let lt' = union r lt
                                                         in lt' `seq` (lt', gt)
                      else case go k r of (lt :*: gt) -> let gt' = union gt l
                                                         in gt' `seq` (lt, gt')
@@ -1524,6 +1525,16 @@ splitLookup k t =
                         | k' < ky   = (Nil, Nothing, t')
                         | otherwise = (Nil, Just y, Nil)
     go _ Nil = (Nil, Nothing, Nil)
+
+-- | /O(1)/. Divide the map into two maps of roughly equal size.
+--
+-- For example,
+--
+-- > divide (fromList [(5, "a"), (3, "b")]) == (fromList [(3,"b")],fromList [(5,"a")])
+divide :: IntMap a -> (IntMap a, IntMap a)
+divide (Bin _ _ a b) = (a,       b)
+divide (Tip k v)     = (Tip k v, Nil)
+divide  Nil          = (Nil,     Nil)
 
 {--------------------------------------------------------------------
   Fold

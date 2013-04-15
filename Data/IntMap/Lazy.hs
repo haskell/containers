@@ -173,6 +173,7 @@ module Data.IntMap.Lazy (
 
     , split
     , splitLookup
+    , divide
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy
