@@ -295,14 +295,20 @@ instance Monoid (IntMap a) where
     mconcat = unions
 
 instance Foldable.Foldable IntMap where
-  fold Nil = mempty
-  fold (Tip _ v) = v
-  fold (Bin _ _ l r) = Foldable.fold l `mappend` Foldable.fold r
+  fold t = go t
+    where go Nil = mempty
+          go (Tip _ v) = v
+          go (Bin _ _ l r) = go l `mappend` go r
+  {-# INLINABLE fold #-}
   foldr = foldr
+  {-# INLINE foldr #-}
   foldl = foldl
-  foldMap _ Nil = mempty
-  foldMap f (Tip _k v) = f v
-  foldMap f (Bin _ _ l r) = Foldable.foldMap f l `mappend` Foldable.foldMap f r
+  {-# INLINE foldl #-}
+  foldMap f t = go t
+    where go Nil = mempty
+          go (Tip _ v) = f v
+          go (Bin _ _ l r) = go l `mappend` go r
+  {-# INLINE foldMap #-}
 
 instance Traversable IntMap where
     traverse f = traverseWithKey (\_ -> f)

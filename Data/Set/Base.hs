@@ -234,12 +234,20 @@ instance Ord a => Monoid (Set a) where
     mconcat = unions
 
 instance Foldable.Foldable Set where
-    fold Tip = mempty
-    fold (Bin _ k l r) = Foldable.fold l `mappend` k `mappend` Foldable.fold r
+    fold t = go t
+      where go Tip = mempty
+            go (Bin 1 k _ _) = k
+            go (Bin _ k l r) = go l `mappend` (k `mappend` go r)
+    {-# INLINABLE fold #-}
     foldr = foldr
+    {-# INLINE foldr #-}
     foldl = foldl
-    foldMap _ Tip = mempty
-    foldMap f (Bin _ k l r) = Foldable.foldMap f l `mappend` f k `mappend` Foldable.foldMap f r
+    {-# INLINE foldl #-}
+    foldMap f t = go t
+      where go Tip = mempty
+            go (Bin 1 k _ _) = f k
+            go (Bin _ k l r) = go l `mappend` (f k `mappend` go r)
+    {-# INLINE foldMap #-}
 
 #if __GLASGOW_HASKELL__
 

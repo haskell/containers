@@ -2603,12 +2603,20 @@ instance Traversable (Map k) where
   traverse f = traverseWithKey (\_ -> f)
 
 instance Foldable.Foldable (Map k) where
-  fold Tip = mempty
-  fold (Bin _ _ v l r) = Foldable.fold l `mappend` v `mappend` Foldable.fold r
+  fold t = go t
+    where go Tip = mempty
+          go (Bin 1 _ v _ _) = v
+          go (Bin _ _ v l r) = go l `mappend` (v `mappend` go r)
+  {-# INLINABLE fold #-}
   foldr = foldr
+  {-# INLINE foldr #-}
   foldl = foldl
-  foldMap _ Tip = mempty
-  foldMap f (Bin _ _ v l r) = Foldable.foldMap f l `mappend` f v `mappend` Foldable.foldMap f r
+  {-# INLINE foldl #-}
+  foldMap f t = go t
+    where go Tip = mempty
+          go (Bin 1 _ v _ _) = f v
+          go (Bin _ _ v l r) = go l `mappend` (f v `mappend` go r)
+  {-# INLINE foldMap #-}
 
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
