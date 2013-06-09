@@ -1658,8 +1658,8 @@ traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
 traverseWithKey f = go
   where
     go Tip = pure Tip
-    go (Bin s k v l r)
-      = flip (Bin s k) <$> go l <*> f k v <*> go r
+    go (Bin 1 k v _ _) = (\v' -> Bin 1 k v' Tip Tip) <$> f k v
+    go (Bin s k v l r) = flip (Bin s k) <$> go l <*> f k v <*> go r
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
@@ -2601,6 +2601,7 @@ instance Functor (Map k) where
 
 instance Traversable (Map k) where
   traverse f = traverseWithKey (\_ -> f)
+  {-# INLINE traverse #-}
 
 instance Foldable.Foldable (Map k) where
   fold t = go t

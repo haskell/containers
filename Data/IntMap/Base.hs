@@ -312,6 +312,7 @@ instance Foldable.Foldable IntMap where
 
 instance Traversable IntMap where
     traverse f = traverseWithKey (\_ -> f)
+    {-# INLINE traverse #-}
 
 instance NFData a => NFData (IntMap a) where
     rnf Nil = ()
