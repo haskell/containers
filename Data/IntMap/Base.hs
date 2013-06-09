@@ -1250,13 +1250,13 @@ mapWithKey f t
 --
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
-{-# INLINE traverseWithKey #-}
 traverseWithKey :: Applicative t => (Key -> a -> t b) -> IntMap a -> t (IntMap b)
 traverseWithKey f = go
   where
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
     go (Bin p m l r) = Bin p m <$> go l <*> go r
+{-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
