@@ -169,6 +169,8 @@ module Data.Map.Base (
     , foldl
     , foldrWithKey
     , foldlWithKey
+    , foldMapWithKey
+
     -- ** Strict folds
     , foldr'
     , foldl'
@@ -1872,6 +1874,18 @@ foldlWithKey' f z = go z
     go z' Tip              = z'
     go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
 {-# INLINE foldlWithKey' #-}
+
+-- | /O(n)/. Fold the keys and values in the map using the given monoid, such that
+--
+-- @'foldMapWithKey' f = 'Prelude.fold' . 'mapWithKey' f@
+--
+-- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
+foldMapWithKey :: Monoid m => (k -> a -> m) -> Map k a -> m
+foldMapWithKey f = go
+  where
+    go Tip             = mempty
+    go (Bin _ k v l r) = go l `mappend` f k v `mappend` go r
+{-# INLINE foldMapWithKey #-}
 
 {--------------------------------------------------------------------
   List variations
