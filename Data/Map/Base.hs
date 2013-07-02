@@ -1884,7 +1884,8 @@ foldMapWithKey :: Monoid m => (k -> a -> m) -> Map k a -> m
 foldMapWithKey f = go
   where
     go Tip             = mempty
-    go (Bin _ k v l r) = go l `mappend` f k v `mappend` go r
+    go (Bin 1 k v _ _) = f k v
+    go (Bin _ k v l r) = go l `mappend` (f k v `mappend` go r)
 {-# INLINE foldMapWithKey #-}
 
 {--------------------------------------------------------------------
