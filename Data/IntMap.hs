@@ -59,7 +59,6 @@ module Data.IntMap
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import Data.IntMap.Base (IntMap(..), join, nomatch, zero)
 import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
