@@ -46,197 +46,189 @@
 -- improves the benchmark by circa 10%.
 
 module Data.IntMap.Base (
-            -- * Map type
-              IntMap(..), Key          -- instance Eq,Show
+    -- * Map type
+      IntMap(..), Key          -- instance Eq,Show
 
-            -- * Operators
-            , (!), (\\)
+    -- * Operators
+    , (!), (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookup
+    , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
-            -- * Construction
-            , empty
-            , singleton
+    -- * Construction
+    , empty
+    , singleton
 
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWithKey
-            , insertLookupWithKey
+    -- ** Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
 
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
+    -- ** Delete\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
 
-            -- * Combine
+    -- * Combine
 
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
+    -- ** Union
+    , union
+    , unionWith
+    , unionWithKey
+    , unions
+    , unionsWith
 
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
+    -- ** Difference
+    , difference
+    , differenceWith
+    , differenceWithKey
 
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
+    -- ** Intersection
+    , intersection
+    , intersectionWith
+    , intersectionWithKey
 
-            -- ** Universal combining function
-            , mergeWithKey
-            , mergeWithKey'
+    -- ** Universal combining function
+    , mergeWithKey
+    , mergeWithKey'
 
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , traverseWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
+    -- * Traversal
+    -- ** Map
+    , map
+    , mapWithKey
+    , traverseWithKey
+    , mapAccum
+    , mapAccumWithKey
+    , mapAccumRWithKey
+    , mapKeys
+    , mapKeysWith
+    , mapKeysMonotonic
 
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
 
-            -- * Conversion
-            , elems
-            , keys
-            , assocs
-            , keysSet
-            , fromSet
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+    , fromSet
 
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
+    -- ** Lists
+    , toList
+    , fromList
+    , fromListWith
+    , fromListWithKey
 
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
+    -- ** Ordered lists
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
 
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
+    -- * Filter
+    , filter
+    , filterWithKey
+    , partition
+    , partitionWithKey
 
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
+    , mapMaybe
+    , mapMaybeWithKey
+    , mapEither
+    , mapEitherWithKey
 
-            , split
-            , splitLookup
+    , split
+    , splitLookup
 
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
+    -- * Submap
+    , isSubmapOf, isSubmapOfBy
+    , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , updateMin
+    , updateMax
+    , updateMinWithKey
+    , updateMaxWithKey
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
+    -- * Debugging
+    , showTree
+    , showTreeWith
 
-            -- * Internal types
-            , Mask, Prefix, Nat
+    -- * Internal types
+    , Mask, Prefix, Nat
 
-            -- * Utility
-            , natFromInt
-            , intFromNat
-            , shiftRL
-            , shiftLL
-            , join
-            , bin
-            , zero
-            , nomatch
-            , match
-            , mask
-            , maskW
-            , shorter
-            , branchMask
-            , highestBitMask
-            , foldlStrict
-            ) where
+    -- * Utility
+    , natFromInt
+    , intFromNat
+    , join
+    , bin
+    , zero
+    , nomatch
+    , match
+    , mask
+    , maskW
+    , shorter
+    , branchMask
+    , highestBitMask
+    , foldlStrict
+    ) where
 
-import Data.Bits
-
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.IntSet.Base as IntSet
-import Data.Monoid (Monoid(..))
-import Data.Maybe (fromMaybe)
-import Data.Typeable
-import qualified Data.Foldable as Foldable
-import Data.Traversable (Traversable(traverse))
-import Control.Applicative (Applicative(pure,(<*>)),(<$>))
-import Control.Monad ( liftM )
+import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Control.DeepSeq (NFData(rnf))
+import Control.Monad (liftM)
+import Data.Bits
+import qualified Data.Foldable as Foldable
+import Data.Maybe (fromMaybe)
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+import Data.Typeable
+import Data.Word (Word)
+import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+
+import Data.BitUtil
+import Data.IntSet.Base (Key)
+import qualified Data.IntSet.Base as IntSet
+import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
+                  DataType, mkDataType)
+import GHC.Exts (build)
 import Text.Read
-import Data.Data (Data(..), mkNoRepType)
-#endif
-
-#if __GLASGOW_HASKELL__
-import GHC.Exts ( Word(..), Int(..), build )
-import GHC.Prim ( uncheckedShiftL#, uncheckedShiftRL# )
-#else
-import Data.Word
-#endif
-
--- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
-#if defined(__GLASGOW_HASKELL__)
-#include "MachDeps.h"
 #endif
 
 -- Use macros to define strictness of functions.
@@ -256,21 +248,6 @@ intFromNat :: Nat -> Key
 intFromNat = fromIntegral
 {-# INLINE intFromNat #-}
 
--- Right and left logical shifts.
-shiftRL, shiftLL :: Nat -> Key -> Nat
-#if __GLASGOW_HASKELL__
-{--------------------------------------------------------------------
-  GHC: use unboxing to get @shiftRL@ inlined.
---------------------------------------------------------------------}
-shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
-shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
-#else
-shiftRL x i   = shiftR x i
-shiftLL x i   = shiftL x i
-#endif
-{-# INLINE shiftRL #-}
-{-# INLINE shiftLL #-}
-
 {--------------------------------------------------------------------
   Types
 --------------------------------------------------------------------}
@@ -279,13 +256,15 @@ shiftLL x i   = shiftL x i
 -- | A map of integers to values @a@.
 
 -- See Note: Order of constructors
-data IntMap a = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !(IntMap a) !(IntMap a)
+data IntMap a = Bin {-# UNPACK #-} !Prefix
+                    {-# UNPACK #-} !Mask
+                    !(IntMap a)
+                    !(IntMap a)
               | Tip {-# UNPACK #-} !Key a
               | Nil
 
 type Prefix = Int
 type Mask   = Int
-type Key    = Int
 
 {--------------------------------------------------------------------
   Operators
@@ -340,14 +319,22 @@ instance NFData a => NFData (IntMap a) where
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
--- We omit reflection services for the sake of data abstraction.
+-- We provide limited reflection services for the sake of data abstraction.
 
 instance Data a => Data (IntMap a) where
   gfoldl f z im = z fromList `f` (toList im)
-  toConstr _    = error "toConstr"
-  gunfold _ _   = error "gunfold"
-  dataTypeOf _  = mkNoRepType "Data.IntMap.IntMap"
-  dataCast1 f   = gcast1 f
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  dataTypeOf _   = intMapDataType
+  dataCast1 f    = gcast1 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
+
+intMapDataType :: DataType
+intMapDataType = mkDataType "Data.IntMap.Base.IntMap" [fromListConstr]
 
 #endif
 
@@ -1123,13 +1110,17 @@ findMax (Bin _ m l r)
           go (Bin _ _ _ r') = go r'
           go Nil            = error "findMax Nil"
 
--- | /O(min(n,W))/. Delete the minimal key. An error is thrown if the IntMap is already empty.
--- Note, this is not the same behavior Map.
+-- | /O(min(n,W))/. Delete the minimal key. Returns an empty map if the map is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMin :: IntMap a -> IntMap a
 deleteMin = maybe Nil snd . minView
 
--- | /O(min(n,W))/. Delete the maximal key. An error is thrown if the IntMap is already empty.
--- Note, this is not the same behavior Map.
+-- | /O(min(n,W))/. Delete the maximal key. Returns an empty map if the map is empty.
+--
+-- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
+-- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMax :: IntMap a -> IntMap a
 deleteMax = maybe Nil snd . maxView
 
@@ -1402,16 +1393,18 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: (Key -> a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
-partitionWithKey predicate t
-  = case t of
-      Bin p m l r
-        -> let (l1,l2) = partitionWithKey predicate l
-               (r1,r2) = partitionWithKey predicate r
-           in (bin p m l1 r1, bin p m l2 r2)
-      Tip k x
-        | predicate k x -> (t,Nil)
-        | otherwise     -> (Nil,t)
-      Nil -> (Nil,Nil)
+partitionWithKey predicate0 t0 = toPair $ go predicate0 t0
+  where
+    go predicate t
+      = case t of
+          Bin p m l r
+            -> let (l1 :*: l2) = go predicate l
+                   (r1 :*: r2) = go predicate r
+               in bin p m l1 r1 :*: bin p m l2 r2
+          Tip k x
+            | predicate k x -> (t :*: Nil)
+            | otherwise     -> (Nil :*: t)
+          Nil -> (Nil :*: Nil)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1457,15 +1450,17 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
-mapEitherWithKey f (Bin p m l r)
-  = (bin p m l1 r1, bin p m l2 r2)
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
-mapEitherWithKey f (Tip k x) = case f k x of
-  Left y  -> (Tip k y, Nil)
-  Right z -> (Nil, Tip k z)
-mapEitherWithKey _ Nil = (Nil, Nil)
+    go f (Bin p m l r)
+      = bin p m l1 r1 :*: bin p m l2 r2
+      where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
+    go f (Tip k x) = case f k x of
+      Left y  -> (Tip k y :*: Nil)
+      Right z -> (Nil :*: Tip k z)
+    go _ Nil = (Nil :*: Nil)
 
 -- | /O(min(n,W))/. The expression (@'split' k map@) is a pair @(map1,map2)@
 -- where all keys in @map1@ are lower than @k@ and all keys in
@@ -1479,18 +1474,23 @@ mapEitherWithKey _ Nil = (Nil, Nil)
 
 split :: Key -> IntMap a -> (IntMap a, IntMap a)
 split k t =
-  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
-                                      then case go k l of (lt, gt) -> (union r lt, gt)
-                                      else case go k r of (lt, gt) -> (lt, union gt l)
-            _ -> go k t
+  case t of
+      Bin _ m l r
+          | m < 0 -> if k >= 0 -- handle negative numbers.
+                     then case go k l of (lt :*: gt) -> let lt' = union r lt 
+                                                        in lt' `seq` (lt', gt)
+                     else case go k r of (lt :*: gt) -> let gt' = union gt l
+                                                        in gt' `seq` (lt, gt')
+      _ -> case go k t of
+          (lt :*: gt) -> (lt, gt)
   where
-    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nil) else (Nil, t')
-                           | zero k' m = case go k' l of (lt, gt) -> (lt, union gt r)
-                           | otherwise = case go k' r of (lt, gt) -> (union l lt, gt)
-    go k' t'@(Tip ky _) | k' > ky   = (t', Nil)
-                        | k' < ky   = (Nil, t')
-                        | otherwise = (Nil, Nil)
-    go _ Nil = (Nil, Nil)
+    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
+                           | zero k' m = case go k' l of (lt :*: gt) -> lt :*: union gt r
+                           | otherwise = case go k' r of (lt :*: gt) -> union l lt :*: gt
+    go k' t'@(Tip ky _) | k' > ky   = (t' :*: Nil)
+                        | k' < ky   = (Nil :*: t')
+                        | otherwise = (Nil :*: Nil)
+    go _ Nil = (Nil :*: Nil)
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
@@ -1503,14 +1503,23 @@ split k t =
 
 splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
 splitLookup k t =
-  case t of Bin _ m l r | m < 0 -> if k >= 0 -- handle negative numbers.
-                                      then case go k l of (lt, fnd, gt) -> (union r lt, fnd, gt)
-                                      else case go k r of (lt, fnd, gt) -> (lt, fnd, union gt l)
-            _ -> go k t
+  case t of
+      Bin _ m l r
+          | m < 0 -> if k >= 0 -- handle negative numbers.
+                     then case go k l of
+                         (lt, fnd, gt) -> let lt' = union r lt
+                                          in lt' `seq` (lt', fnd, gt)
+                     else case go k r of
+                         (lt, fnd, gt) -> let gt' = union gt l
+                                          in gt' `seq` (lt, fnd, gt')
+      _ -> go k t
   where
-    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
-                           | zero k' m = case go k' l of (lt, fnd, gt) -> (lt, fnd, union gt r)
-                           | otherwise = case go k' r of (lt, fnd, gt) -> (union l lt, fnd, gt)
+    go k' t'@(Bin p m l r)
+        | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
+        | zero k' m      = case go k' l of
+            (lt, fnd, gt) -> let gt' = union gt r in gt' `seq` (lt, fnd, gt')
+        | otherwise      = case go k' r of
+            (lt, fnd, gt) -> let lt' = union l lt in lt' `seq` (lt', fnd, gt)
     go k' t'@(Tip ky y) | k' > ky   = (t', Nothing, Nil)
                         | k' < ky   = (Nil, Nothing, t')
                         | otherwise = (Nil, Just y, Nil)
@@ -1599,7 +1608,7 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 --
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
-foldrWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -1613,7 +1622,7 @@ foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldrWithKey' :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
                         | otherwise -> go (go z r) l
@@ -1635,7 +1644,7 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 --
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
-foldlWithKey :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r
@@ -1649,7 +1658,7 @@ foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
-foldlWithKey' :: (a -> Int -> b -> a) -> a -> IntMap b -> a
+foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
                         | otherwise -> go (go z l) r
@@ -2034,62 +2043,6 @@ branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
 {-# INLINE branchMask #-}
-
-{----------------------------------------------------------------------
-  Finding the highest bit (mask) in a word [x] can be done efficiently in
-  three ways:
-  * convert to a floating point value and the mantissa tells us the
-    [log2(x)] that corresponds with the highest bit position. The mantissa
-    is retrieved either via the standard C function [frexp] or by some bit
-    twiddling on IEEE compatible numbers (float). Note that one needs to
-    use at least [double] precision for an accurate mantissa of 32 bit
-    numbers.
-  * use bit twiddling, a logarithmic sequence of bitwise or's and shifts (bit).
-  * use processor specific assembler instruction (asm).
-
-  The most portable way would be [bit], but is it efficient enough?
-  I have measured the cycle counts of the different methods on an AMD
-  Athlon-XP 1800 (~ Pentium III 1.8Ghz) using the RDTSC instruction:
-
-  highestBitMask: method  cycles
-                  --------------
-                   frexp   200
-                   float    33
-                   bit      11
-                   asm      12
-
-  highestBit:     method  cycles
-                  --------------
-                   frexp   195
-                   float    33
-                   bit      11
-                   asm      11
-
-  Wow, the bit twiddling is on today's RISC like machines even faster
-  than a single CISC instruction (BSR)!
-----------------------------------------------------------------------}
-
-{----------------------------------------------------------------------
-  [highestBitMask] returns a word where only the highest bit is set.
-  It is found by first setting all bits in lower positions than the
-  highest bit and than taking an exclusive or with the original value.
-  Allthough the function may look expensive, GHC compiles this into
-  excellent C code that subsequently compiled into highly efficient
-  machine code. The algorithm is derived from Jorg Arndt's FXT library.
-----------------------------------------------------------------------}
-highestBitMask :: Nat -> Nat
-highestBitMask x0
-  = case (x0 .|. shiftRL x0 1) of
-     x1 -> case (x1 .|. shiftRL x1 2) of
-      x2 -> case (x2 .|. shiftRL x2 4) of
-       x3 -> case (x3 .|. shiftRL x3 8) of
-        x4 -> case (x4 .|. shiftRL x4 16) of
-#if !(defined(__GLASGOW_HASKELL__) && WORD_SIZE_IN_BITS==32)
-         x5 -> case (x5 .|. shiftRL x5 32) of   -- for 64 bit platforms
-#endif
-          x6 -> (x6 `xor` (shiftRL x6 1))
-{-# INLINE highestBitMask #-}
-
 
 {--------------------------------------------------------------------
   Utilities

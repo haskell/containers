@@ -15,8 +15,12 @@
 -- An efficient implementation of maps from integer keys to values
 -- (dictionaries).
 --
--- This module re-exports the value lazy 'Data.IntMap.Lazy' API, plus
--- several value strict functions from 'Data.IntMap.Strict'.
+-- This module re-exports the value lazy "Data.IntMap.Lazy" API, plus
+-- several deprecated value strict functions. Please note that these functions
+-- have different strictness properties than those in "Data.IntMap.Strict":
+-- they only evaluate the result of the combining function. For example, the
+-- default value to 'insertWith'' is only evaluated if the combining function
+-- is called and uses it.
 --
 -- These modules are intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.
@@ -55,26 +59,44 @@ module Data.IntMap
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Data.IntMap.Base (IntMap(..), join, nomatch, zero)
 import Data.IntMap.Lazy
-import qualified Data.IntMap.Strict as S
 
--- | /Deprecated./ As of version 0.5, replaced by 'S.insertWith'.
+-- | /Deprecated./ As of version 0.5, replaced by
+-- 'Data.IntMap.Strict.insertWith'.
 --
--- /O(log n)/. Same as 'insertWith', but the combining function is
--- applied strictly.  This function is deprecated, use 'insertWith' in
--- "Data.IntMap.Strict" instead.
+-- /O(log n)/. Same as 'insertWith', but the result of the combining function
+-- is evaluated to WHNF before inserted to the map. In contrast to
+-- 'Data.IntMap.Strict.insertWith', the value argument is not evaluted when not
+-- needed by the combining function.
+
 insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith' = S.insertWith
-{-# INLINE insertWith' #-}
+-- We do not reuse Data.IntMap.Strict.insertWith, because it is stricter -- it
+-- forces evaluation of the given value.
+insertWith' f k x t
+  = insertWithKey' (\_ x' y' -> f x' y') k x t
 
--- | /Deprecated./ As of version 0.5, replaced by 'S.insertWithKey'.
+-- | /Deprecated./ As of version 0.5, replaced by
+-- 'Data.IntMap.Strict.insertWithKey'.
 --
--- /O(log n)/. Same as 'insertWithKey', but the combining function is
--- applied strictly.  This function is deprecated, use 'insertWithKey'
--- in "Data.IntMap.Strict" instead.
+-- /O(log n)/. Same as 'insertWithKey', but the result of the combining
+-- function is evaluated to WHNF before inserted to the map. In contrast to
+-- 'Data.IntMap.Strict.insertWithKey', the value argument is not evaluted when
+-- not needed by the combining function.
+
 insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey' = S.insertWithKey
-{-# INLINE insertWithKey' #-}
+-- We do not reuse Data.IntMap.Strict.insertWithKey, because it is stricter -- it
+-- forces evaluation of the given value.
+insertWithKey' f k x t = k `seq`
+  case t of
+    Bin p m l r
+      | nomatch k p m -> join k (Tip k x) p t
+      | zero k m      -> Bin p m (insertWithKey' f k x l) r
+      | otherwise     -> Bin p m l (insertWithKey' f k x r)
+    Tip ky y
+      | k==ky         -> Tip k $! f k x y
+      | otherwise     -> join k (Tip k x) ky t
+    Nil -> Tip k x
 
 -- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
 --
@@ -90,6 +112,6 @@ fold = foldr
 -- /O(n)/. Fold the keys and values in the map using the given
 -- right-associative binary operator. This function is an equivalent
 -- of 'foldrWithKey' and is present for compatibility only.
-foldWithKey :: (Int -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}

@@ -57,9 +57,14 @@ main = do
         , bench "union" $ whnf (M.union m_even) m_odd
         , bench "difference" $ whnf (M.difference m) m_even
         , bench "intersection" $ whnf (M.intersection m) m_even
+        , bench "split" $ whnf (M.split (bound `div` 2)) m
+        , bench "fromList" $ whnf M.fromList elems
+        , bench "fromList-desc" $ whnf M.fromList (reverse elems)
+        , bench "fromAscList" $ whnf M.fromAscList elems
+        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         ]
   where
-    bound = 2^10
+    bound = 2^12
     elems = zip keys values
     elems_even = zip evens evens
     elems_odd = zip odds odds

@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use 'Data.IntMap.Lazy' instead.
+-- If you need value-lazy maps, use "Data.IntMap.Lazy" instead.
 -- The 'IntMap' type itself is shared between the lazy and strict modules,
 -- meaning that the same 'IntMap' value can be passed to functions in
 -- both modules (although that is rarely needed).
@@ -49,161 +49,161 @@
 -- (32 or 64).
 --
 -- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the 'Data.IntMap.Lazy' module, so if they are used
+-- are the same as for the "Data.IntMap.Lazy" module, so if they are used
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 -- See the notes at the beginning of Data.IntMap.Base.
 
 module Data.IntMap.Strict (
-            -- * Strictness properties
-            -- $strictness
+    -- * Strictness properties
+    -- $strictness
 
-            -- * Map type
+    -- * Map type
 #if !defined(TESTING)
-              IntMap, Key          -- instance Eq,Show
+    IntMap, Key          -- instance Eq,Show
 #else
-              IntMap(..), Key          -- instance Eq,Show
+    IntMap(..), Key          -- instance Eq,Show
 #endif
 
-            -- * Operators
-            , (!), (\\)
+    -- * Operators
+    , (!), (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookup
+    , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
-            -- * Construction
-            , empty
-            , singleton
+    -- * Construction
+    , empty
+    , singleton
 
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWithKey
-            , insertLookupWithKey
+    -- ** Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
 
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
+    -- ** Delete\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
 
-            -- * Combine
+    -- * Combine
 
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
+    -- ** Union
+    , union
+    , unionWith
+    , unionWithKey
+    , unions
+    , unionsWith
 
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
+    -- ** Difference
+    , difference
+    , differenceWith
+    , differenceWithKey
 
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
+    -- ** Intersection
+    , intersection
+    , intersectionWith
+    , intersectionWithKey
 
-            -- ** Universal combining function
-            , mergeWithKey
+    -- ** Universal combining function
+    , mergeWithKey
 
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , traverseWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
+    -- * Traversal
+    -- ** Map
+    , map
+    , mapWithKey
+    , traverseWithKey
+    , mapAccum
+    , mapAccumWithKey
+    , mapAccumRWithKey
+    , mapKeys
+    , mapKeysWith
+    , mapKeysMonotonic
 
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
 
-            -- * Conversion
-            , elems
-            , keys
-            , assocs
-            , keysSet
-            , fromSet
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+    , fromSet
 
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
+    -- ** Lists
+    , toList
+    , fromList
+    , fromListWith
+    , fromListWithKey
 
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
+    -- ** Ordered lists
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
 
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
+    -- * Filter
+    , filter
+    , filterWithKey
+    , partition
+    , partitionWithKey
 
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
+    , mapMaybe
+    , mapMaybeWithKey
+    , mapEither
+    , mapEitherWithKey
 
-            , split
-            , splitLookup
+    , split
+    , splitLookup
 
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
+    -- * Submap
+    , isSubmapOf, isSubmapOfBy
+    , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , updateMin
+    , updateMax
+    , updateMinWithKey
+    , updateMaxWithKey
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
-            ) where
+    -- * Debugging
+    , showTree
+    , showTreeWith
+    ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
@@ -252,6 +252,8 @@ import Data.IntMap.Base hiding
     , fromAscListWithKey
     , fromDistinctAscList
     )
+
+import Data.BitUtil
 import qualified Data.IntSet.Base as IntSet
 import Data.StrictPair
 
@@ -390,16 +392,18 @@ insertWithKey f k x t = k `seq` x `seq`
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f k x t = k `seq` x `seq`
-  case t of
-    Bin p m l r
-      | nomatch k p m -> Nothing `strictPair` join k (Tip k x) p t
-      | zero k m      -> let (found,l') = insertLookupWithKey f k x l in (found `strictPair` Bin p m l' r)
-      | otherwise     -> let (found,r') = insertLookupWithKey f k x r in (found `strictPair` Bin p m l r')
-    Tip ky y
-      | k==ky         -> (Just y `strictPair` (Tip k $! f k x y))
-      | otherwise     -> (Nothing `strictPair` join k (Tip k x) ky t)
-    Nil -> Nothing `strictPair` Tip k x
+insertLookupWithKey f0 k0 x0 t0 = k0 `seq` x0 `seq` toPair $ go f0 k0 x0 t0
+  where
+    go f k x t =
+      case t of
+        Bin p m l r
+          | nomatch k p m -> Nothing :*: join k (Tip k x) p t
+          | zero k m      -> let (found :*: l') = go f k x l in (found :*: Bin p m l' r)
+          | otherwise     -> let (found :*: r') = go f k x r in (found :*: Bin p m l r')
+        Tip ky y
+          | k==ky         -> (Just y :*: (Tip k $! f k x y))
+          | otherwise     -> (Nothing :*: join k (Tip k x) ky t)
+        Nil -> Nothing :*: Tip k x
 
 
 {--------------------------------------------------------------------
@@ -475,18 +479,20 @@ updateWithKey f k t = k `seq`
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f k t = k `seq`
-  case t of
-    Bin p m l r
-      | nomatch k p m -> (Nothing, t)
-      | zero k m      -> let (found,l') = updateLookupWithKey f k l in (found `strictPair` bin p m l' r)
-      | otherwise     -> let (found,r') = updateLookupWithKey f k r in (found `strictPair` bin p m l r')
-    Tip ky y
-      | k==ky         -> case f k y of
-                           Just y' -> y' `seq` (Just y `strictPair` Tip ky y')
-                           Nothing -> (Just y, Nil)
-      | otherwise     -> (Nothing,t)
-    Nil -> (Nothing,Nil)
+updateLookupWithKey f0 k0 t0 = k0 `seq` toPair $ go f0 k0 t0
+  where
+    go f k t =
+      case t of
+        Bin p m l r
+          | nomatch k p m -> (Nothing :*: t)
+          | zero k m      -> let (found :*: l') = go f k l in (found :*: bin p m l' r)
+          | otherwise     -> let (found :*: r') = go f k r in (found :*: bin p m l r')
+        Tip ky y
+          | k==ky         -> case f k y of
+                               Just y' -> y' `seq` (Just y :*: Tip ky y')
+                               Nothing -> (Just y :*: Nil)
+          | otherwise     -> (Nothing :*: t)
+        Nil -> (Nothing :*: Nil)
 
 
 
@@ -743,24 +749,28 @@ mapAccumWithKey f a t
 -- the accumulating argument and the both elements of the
 -- result of the function.
 mapAccumL :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
-mapAccumL f a t
-  = case t of
-      Bin p m l r -> let (a1,l') = mapAccumL f a l
-                         (a2,r') = mapAccumL f a1 r
-                     in (a2 `strictPair` Bin p m l' r')
-      Tip k x     -> let (a',x') = f a k x in x' `seq` (a' `strictPair` Tip k x')
-      Nil         -> (a `strictPair` Nil)
+mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
+  where
+    go f a t
+      = case t of
+          Bin p m l r -> let (a1 :*: l') = go f a l
+                             (a2 :*: r') = go f a1 r
+                         in (a2 :*: Bin p m l' r')
+          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Nil         -> (a :*: Nil)
 
 -- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
-mapAccumRWithKey f a t
-  = case t of
-      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
-                         (a2,l') = mapAccumRWithKey f a1 l
-                     in (a2 `strictPair` Bin p m l' r')
-      Tip k x     -> let (a',x') = f a k x in x' `seq` (a' `strictPair` Tip k x')
-      Nil         -> (a `strictPair` Nil)
+mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
+  where
+    go f a t
+      = case t of
+          Bin p m l r -> let (a1 :*: r') = go f a r
+                             (a2 :*: l') = go f a1 l
+                         in (a2 :*: Bin p m l' r')
+          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Nil         -> (a :*: Nil)
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -822,15 +832,17 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
-mapEitherWithKey f (Bin p m l r)
-  = bin p m l1 r1 `strictPair` bin p m l2 r2
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
-mapEitherWithKey f (Tip k x) = case f k x of
-  Left y  -> y `seq` (Tip k y, Nil)
-  Right z -> z `seq` (Nil, Tip k z)
-mapEitherWithKey _ Nil = (Nil, Nil)
+    go f (Bin p m l r)
+      = bin p m l1 r1 :*: bin p m l2 r2
+      where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
+    go f (Tip k x) = case f k x of
+      Left y  -> y `seq` (Tip k y :*: Nil)
+      Right z -> z `seq` (Nil :*: Tip k z)
+    go _ Nil = (Nil :*: Nil)
 
 {--------------------------------------------------------------------
   Conversions

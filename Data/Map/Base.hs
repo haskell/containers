@@ -93,182 +93,185 @@
 -- improves the benchmark by up to 10% on x86.
 
 module Data.Map.Base (
-            -- * Map type
-              Map(..)          -- instance Eq,Show,Read
+    -- * Map type
+      Map(..)          -- instance Eq,Show,Read
 
-            -- * Operators
-            , (!), (\\)
+    -- * Operators
+    , (!), (\\)
 
-            -- * Query
-            , null
-            , size
-            , member
-            , notMember
-            , lookup
-            , findWithDefault
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+    -- * Query
+    , null
+    , size
+    , member
+    , notMember
+    , lookup
+    , findWithDefault
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
 
-            -- * Construction
-            , empty
-            , singleton
+    -- * Construction
+    , empty
+    , singleton
 
-            -- ** Insertion
-            , insert
-            , insertWith
-            , insertWithKey
-            , insertLookupWithKey
+    -- ** Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
 
-            -- ** Delete\/Update
-            , delete
-            , adjust
-            , adjustWithKey
-            , update
-            , updateWithKey
-            , updateLookupWithKey
-            , alter
+    -- ** Delete\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
 
-            -- * Combine
+    -- * Combine
 
-            -- ** Union
-            , union
-            , unionWith
-            , unionWithKey
-            , unions
-            , unionsWith
+    -- ** Union
+    , union
+    , unionWith
+    , unionWithKey
+    , unions
+    , unionsWith
 
-            -- ** Difference
-            , difference
-            , differenceWith
-            , differenceWithKey
+    -- ** Difference
+    , difference
+    , differenceWith
+    , differenceWithKey
 
-            -- ** Intersection
-            , intersection
-            , intersectionWith
-            , intersectionWithKey
+    -- ** Intersection
+    , intersection
+    , intersectionWith
+    , intersectionWithKey
 
-            -- ** Universal combining function
-            , mergeWithKey
+    -- ** Universal combining function
+    , mergeWithKey
 
-            -- * Traversal
-            -- ** Map
-            , map
-            , mapWithKey
-            , traverseWithKey
-            , mapAccum
-            , mapAccumWithKey
-            , mapAccumRWithKey
-            , mapKeys
-            , mapKeysWith
-            , mapKeysMonotonic
+    -- * Traversal
+    -- ** Map
+    , map
+    , mapWithKey
+    , traverseWithKey
+    , mapAccum
+    , mapAccumWithKey
+    , mapAccumRWithKey
+    , mapKeys
+    , mapKeysWith
+    , mapKeysMonotonic
 
-            -- * Folds
-            , foldr
-            , foldl
-            , foldrWithKey
-            , foldlWithKey
-            -- ** Strict folds
-            , foldr'
-            , foldl'
-            , foldrWithKey'
-            , foldlWithKey'
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
 
-            -- * Conversion
-            , elems
-            , keys
-            , assocs
-            , keysSet
-            , fromSet
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+    , fromSet
 
-            -- ** Lists
-            , toList
-            , fromList
-            , fromListWith
-            , fromListWithKey
+    -- ** Lists
+    , toList
+    , fromList
+    , fromListWith
+    , fromListWithKey
 
-            -- ** Ordered lists
-            , toAscList
-            , toDescList
-            , fromAscList
-            , fromAscListWith
-            , fromAscListWithKey
-            , fromDistinctAscList
+    -- ** Ordered lists
+    , toAscList
+    , toDescList
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
 
-            -- * Filter
-            , filter
-            , filterWithKey
-            , partition
-            , partitionWithKey
+    -- * Filter
+    , filter
+    , filterWithKey
+    , partition
+    , partitionWithKey
 
-            , mapMaybe
-            , mapMaybeWithKey
-            , mapEither
-            , mapEitherWithKey
+    , mapMaybe
+    , mapMaybeWithKey
+    , mapEither
+    , mapEitherWithKey
 
-            , split
-            , splitLookup
+    , split
+    , splitLookup
 
-            -- * Submap
-            , isSubmapOf, isSubmapOfBy
-            , isProperSubmapOf, isProperSubmapOfBy
+    -- * Submap
+    , isSubmapOf, isSubmapOfBy
+    , isProperSubmapOf, isProperSubmapOfBy
 
-            -- * Indexed
-            , lookupIndex
-            , findIndex
-            , elemAt
-            , updateAt
-            , deleteAt
+    -- * Indexed
+    , lookupIndex
+    , findIndex
+    , elemAt
+    , updateAt
+    , deleteAt
 
-            -- * Min\/Max
-            , findMin
-            , findMax
-            , deleteMin
-            , deleteMax
-            , deleteFindMin
-            , deleteFindMax
-            , updateMin
-            , updateMax
-            , updateMinWithKey
-            , updateMaxWithKey
-            , minView
-            , maxView
-            , minViewWithKey
-            , maxViewWithKey
+    -- * Min\/Max
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , updateMin
+    , updateMax
+    , updateMinWithKey
+    , updateMaxWithKey
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
 
-            -- * Debugging
-            , showTree
-            , showTreeWith
-            , valid
+    -- * Debugging
+    , showTree
+    , showTreeWith
+    , valid
 
-            -- Used by the strict version
-            , bin
-            , balance
-            , balanced
-            , balanceL
-            , balanceR
-            , delta
-            , join
-            , merge
-            , glue
-            , trim
-            , trimLookupLo
-            , foldlStrict
-            , MaybeS(..)
-            , filterGt
-            , filterLt
-            ) where
+    -- Used by the strict version
+    , bin
+    , balance
+    , balanced
+    , balanceL
+    , balanceR
+    , delta
+    , join
+    , insertMax
+    , merge
+    , glue
+    , trim
+    , trimLookupLo
+    , foldlStrict
+    , MaybeS(..)
+    , filterGt
+    , filterLt
+    ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
-import qualified Data.Set.Base as Set
-import Data.StrictPair
-import Data.Monoid (Monoid(..))
 import Control.Applicative (Applicative(..), (<$>))
-import Data.Traversable (Traversable(traverse))
-import qualified Data.Foldable as Foldable
-import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+import Data.Bits (shiftL, shiftR)
+import qualified Data.Foldable as Foldable
+import Data.Monoid (Monoid(..))
+import Data.StrictPair
+import Data.Traversable (Traversable(traverse))
+import Data.Typeable
+import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+
+import qualified Data.Set.Base as Set
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
@@ -333,14 +336,22 @@ instance (Ord k) => Monoid (Map k v) where
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
--- We omit reflection services for the sake of data abstraction.
+-- We provide limited reflection services for the sake of data abstraction.
 
 instance (Data k, Data a, Ord k) => Data (Map k a) where
   gfoldl f z m   = z fromList `f` toList m
-  toConstr _     = error "toConstr"
-  gunfold _ _    = error "gunfold"
-  dataTypeOf _   = mkNoRepType "Data.Map.Map"
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  dataTypeOf _   = mapDataType
   dataCast2 f    = gcast2 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr mapDataType "fromList" [] Prefix
+
+mapDataType :: DataType
+mapDataType = mkDataType "Data.Map.Base.Map" [fromListConstr]
 
 #endif
 
@@ -910,9 +921,10 @@ alter = go
 {--------------------------------------------------------------------
   Indexing
 --------------------------------------------------------------------}
--- | /O(log n)/. Return the /index/ of a key. The index is a number from
--- /0/ up to, but not including, the 'size' of the map. Calls 'error' when
--- the key is not a 'member' of the map.
+-- | /O(log n)/. Return the /index/ of a key, which is its zero-based index in
+-- the sequence sorted by keys. The index is a number from /0/ up to, but not
+-- including, the 'size' of the map. Calls 'error' when the key is not
+-- a 'member' of the map.
 --
 -- > findIndex 2 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 -- > findIndex 3 (fromList [(5,"a"), (3,"b")]) == 0
@@ -935,8 +947,9 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | /O(log n)/. Lookup the /index/ of a key. The index is a number from
--- /0/ up to, but not including, the 'size' of the map.
+-- | /O(log n)/. Lookup the /index/ of a key, which is its zero-based index in
+-- the sequence sorted by keys. The index is a number from /0/ up to, but not
+-- including, the 'size' of the map.
 --
 -- > isJust (lookupIndex 2 (fromList [(5,"a"), (3,"b")]))   == False
 -- > fromJust (lookupIndex 3 (fromList [(5,"a"), (3,"b")])) == 0
@@ -959,8 +972,9 @@ lookupIndex = go 0
 {-# INLINABLE lookupIndex #-}
 #endif
 
--- | /O(log n)/. Retrieve an element by /index/. Calls 'error' when an
--- invalid index is used.
+-- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- index in the sequence sorted by keys. If the /index/ is out of range (less
+-- than zero, greater or equal to 'size' of the map), 'error' is called.
 --
 -- > elemAt 0 (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
@@ -977,8 +991,9 @@ elemAt i (Bin _ kx x l r)
   where
     sizeL = size l
 
--- | /O(log n)/. Update the element at /index/. Calls 'error' when an
--- invalid index is used.
+-- | /O(log n)/. Update the element at /index/, i.e. by its zero-based index in
+-- the sequence sorted by keys. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the map), 'error' is called.
 --
 -- > updateAt (\ _ _ -> Just "x") 0    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "x"), (5, "a")]
 -- > updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "x")]
@@ -1002,8 +1017,9 @@ updateAt f i t = i `seq`
       where
         sizeL = size l
 
--- | /O(log n)/. Delete the element at /index/.
--- Defined as (@'deleteAt' i map = 'updateAt' (\k x -> 'Nothing') i map@).
+-- | /O(log n)/. Delete the element at /index/, i.e. by its zero-based index in
+-- the sequence sorted by keys. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the map), 'error' is called.
 --
 -- > deleteAt 0  (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 -- > deleteAt 1  (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -1189,7 +1205,6 @@ unionsWith f ts
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
 -- The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset \``union`\` smallset).
 --
 -- > union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "a"), (7, "C")]
 
@@ -1230,7 +1245,6 @@ unionWith f m1 m2
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset \``union`\` smallset).
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -1309,6 +1323,8 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 -- | /O(n+m)/. Intersection of two maps.
 -- Return data in the first map for the keys existing in both maps.
 -- (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
+-- The implementation uses an efficient /hedge/ algorithm comparable with
+-- /hedge-union/.
 --
 -- > intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "a"
 
@@ -1331,7 +1347,8 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
 {-# INLINABLE hedgeInt #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -1342,8 +1359,8 @@ intersectionWith f m1 m2
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.
--- Intersection is more efficient on (bigset \``intersection`\` smallset).
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -1548,13 +1565,15 @@ partition p m
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
-partitionWithKey _ Tip = (Tip,Tip)
-partitionWithKey p (Bin _ kx x l r)
-  | p kx x    = (join kx x l1 r1,merge l2 r2)
-  | otherwise = (merge l1 r1,join kx x l2 r2)
+partitionWithKey p0 t0 = toPair $ go p0 t0
   where
-    (l1,l2) = partitionWithKey p l
-    (r1,r2) = partitionWithKey p r
+    go _ Tip = (Tip :*: Tip)
+    go p (Bin _ kx x l r)
+      | p kx x    = join kx x l1 r1 :*: merge l2 r2
+      | otherwise = merge l1 r1 :*: join kx x l2 r2
+      where
+        (l1 :*: l2) = go p l
+        (r1 :*: r2) = go p r
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1598,13 +1617,15 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
-mapEitherWithKey _ Tip = (Tip, Tip)
-mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> (join kx y l1 r1, merge l2 r2)
-  Right z -> (merge l1 r1, join kx z l2 r2)
- where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go f (Bin _ kx x l r) = case f kx x of
+      Left y  -> join kx y l1 r1 :*: merge l2 r2
+      Right z -> merge l1 r1 :*: join kx z l2 r2
+     where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
 
 {--------------------------------------------------------------------
   Mapping
@@ -1911,15 +1932,52 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
+-- If the keys of the list are ordered, linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+--
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
 fromList :: Ord k => [(k,a)] -> Map k a
-fromList xs
-  = foldlStrict ins empty xs
+fromList [] = Tip
+fromList [(kx, x)] = Bin 1 kx x Tip Tip
+fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip Tip) xs0
+                           | otherwise = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    ins t (k,x) = insert k x t
+    not_ordered _ [] = False
+    not_ordered kx ((ky,_) : _) = kx >= ky
+    {-# INLINE not_ordered #-}
+
+    fromList' t0 xs = foldlStrict ins t0 xs
+      where ins t (k,x) = insert k x t
+
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go _ t [(kx, x)] = insertMax kx x t
+    go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
+                              | otherwise = case create s xss of
+                                  (r, ys, []) -> go (s `shiftL` 1) (join kx x l r) ys
+                                  (r, _,  ys) -> fromList' (join kx x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [], [])
+    create s xs@(xp : xss)
+      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> (Bin 1 kx x Tip Tip, [], xss)
+                                    | otherwise -> (Bin 1 kx x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [(ky, y)], zs) -> (insertMax ky y l, [], zs)
+                      (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
+                                               | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> (join ky y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -2082,24 +2140,25 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
+-- For some reason, when 'singleton' is used in fromDistinctAscList or in
+-- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList xs
-  = create const (length xs) xs
+fromDistinctAscList [] = Tip
+fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    -- 1) use continuations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to create bushier trees.
-    create c 0 xs' = c Tip xs'
-    create c 5 xs' = case xs' of
-                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
-                            -> c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3)) (singleton k5 x5)) xx
-                       _ -> error "fromDistinctAscList create"
-    create c n xs' = seq nr $ create (createR nr c) nl xs'
-      where nl = n `div` 2
-            nr = n - nl - 1
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go s l ((kx, x) : xs) = case create s xs of
+                              (r, ys) -> go (s `shiftL` 1) (join kx x l r) ys
 
-    createR n c l ((k,x):ys) = create (createB l k x c) n ys
-    createR _ _ _ []         = error "fromDistinctAscList createR []"
-    createB l k x c r zs     = c (bin k x l r) zs
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [])
+    create s xs@(x' : xs')
+      | s == 1 = case x' of (kx, x) -> (Bin 1 kx x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (r, zs) -> (join ky y l r, zs)
 
 
 {--------------------------------------------------------------------
@@ -2145,23 +2204,27 @@ trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r
 
 -- See Note: Type of local 'go' function
 trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
-trimLookupLo lk NothingS t = greater lk t
-  where greater :: Ord k => k -> Map k a -> (Maybe a, Map k a)
-        greater lo t'@(Bin _ kx x l r) = case compare lo kx of LT -> lookup lo l `strictPair` t'
-                                                               EQ -> (Just x, r)
-                                                               GT -> greater lo r
-        greater _ Tip = (Nothing, Tip)
-trimLookupLo lk (JustS hk) t = middle lk hk t
-  where middle :: Ord k => k -> k -> Map k a -> (Maybe a, Map k a)
-        middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of LT | kx < hi -> lookup lo l `strictPair` t'
-                                                                    | otherwise -> middle lo hi l
-                                                                 EQ -> Just x `strictPair` lesser hi r
-                                                                 GT -> middle lo hi r
-        middle _ _ Tip = (Nothing, Tip)
+trimLookupLo lk0 mhk0 t0 = toPair $ go lk0 mhk0 t0
+  where
+    go lk NothingS t = greater lk t
+      where greater :: Ord k => k -> Map k a -> StrictPair (Maybe a) (Map k a)
+            greater lo t'@(Bin _ kx x l r) = case compare lo kx of
+                LT -> lookup lo l :*: t'
+                EQ -> (Just x :*: r)
+                GT -> greater lo r
+            greater _ Tip = (Nothing :*: Tip)
+    go lk (JustS hk) t = middle lk hk t
+      where middle :: Ord k => k -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
+            middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of
+                LT | kx < hi -> lookup lo l :*: t'
+                   | otherwise -> middle lo hi l
+                EQ -> Just x :*: lesser hi r
+                GT -> middle lo hi r
+            middle _ _ Tip = (Nothing :*: Tip)
 
-        lesser :: Ord k => k -> Map k a -> Map k a
-        lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
-        lesser _ t' = t'
+            lesser :: Ord k => k -> Map k a -> Map k a
+            lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
+            lesser _ t' = t'
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE trimLookupLo #-}
 #endif
@@ -2209,13 +2272,15 @@ filterLt (JustS b) t = filter' b t
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split k t = k `seq`
-  case t of
-    Tip            -> (Tip, Tip)
-    Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,gt) = split k l in (lt,join kx x gt r)
-      GT -> let (lt,gt) = split k r in (join kx x l lt,gt)
-      EQ -> (l,r)
+split k0 t0 = k0 `seq` toPair $ go k0 t0
+  where
+    go k t =
+      case t of
+        Tip            -> (Tip :*: Tip)
+        Bin _ kx x l r -> case compare k kx of
+          LT -> let (lt :*: gt) = go k l in lt :*: join kx x gt r
+          GT -> let (lt :*: gt) = go k r in join kx x l lt :*: gt
+          EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
@@ -2234,8 +2299,12 @@ splitLookup k t = k `seq`
   case t of
     Tip            -> (Tip,Nothing,Tip)
     Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,z,gt) = splitLookup k l in (lt,z,join kx x gt r)
-      GT -> let (lt,z,gt) = splitLookup k r in (join kx x l lt,z,gt)
+      LT -> let (lt,z,gt) = splitLookup k l
+                gt' = join kx x gt r
+            in gt' `seq` (lt,z,gt')
+      GT -> let (lt,z,gt) = splitLookup k r
+                lt' = join kx x l lt
+            in lt' `seq` (lt',z,gt)
       EQ -> (l,Just x,r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup #-}

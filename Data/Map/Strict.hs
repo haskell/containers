@@ -16,7 +16,7 @@
 -- (dictionaries).
 --
 -- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use 'Data.Map.Lazy' instead.
+-- If you need value-lazy maps, use "Data.Map.Lazy" instead.
 -- The 'Map' type is shared between the lazy and strict modules,
 -- meaning that the same 'Map' value can be passed to functions in
 -- both modules (although that is rarely needed).
@@ -45,7 +45,7 @@
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 --
 -- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the 'Data.Map.Lazy' module, so if they are used
+-- are the same as for the "Data.Map.Lazy" module, so if they are used
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
@@ -267,6 +267,7 @@ import Data.Map.Base hiding
     )
 import qualified Data.Set.Base as Set
 import Data.StrictPair
+import Data.Bits (shiftL, shiftR)
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y
 -- denotes an y-ary function strict in the x-th parameter. Similarly
@@ -274,6 +275,8 @@ import Data.StrictPair
 -- y-th parameter.  We do not use BangPatterns, because they are not
 -- in any standard and we want the compilers to be compiled by as many
 -- compilers as possible.
+#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 #define STRICT_1_2_OF_3(fn) fn arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
 #define STRICT_2_3_OF_4(fn) fn _ arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
@@ -434,19 +437,19 @@ insertWithKey = go
 -- See Map.Base.Note: Type of local 'go' function
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
-insertLookupWithKey = go
+insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
   where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
+    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
     STRICT_2_3_OF_4(go)
-    go _ kx x Tip = Nothing `strictPair` singleton kx x
+    go _ kx x Tip = Nothing :*: singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
-            LT -> let (found, l') = go f kx x l
-                  in found `strictPair` balanceL ky y l' r
-            GT -> let (found, r') = go f kx x r
-                  in found `strictPair` balanceR ky y l r'
+            LT -> let (found :*: l') = go f kx x l
+                  in found :*: balanceL ky y l' r
+            GT -> let (found :*: r') = go f kx x r
+                  in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
-                  in x' `seq` (Just y `strictPair` Bin sy kx x' l r)
+                  in x' `seq` (Just y :*: Bin sy kx x' l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertLookupWithKey #-}
 #else
@@ -547,20 +550,20 @@ updateWithKey = go
 
 -- See Map.Base.Note: Type of local 'go' function
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
-updateLookupWithKey = go
+updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
  where
-   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
+   go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
    STRICT_2_OF_3(go)
-   go _ _ Tip = (Nothing,Tip)
+   go _ _ Tip = (Nothing :*: Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
-               LT -> let (found,l') = go f k l
-                     in found `strictPair` balanceR kx x l' r
-               GT -> let (found,r') = go f k r
-                     in found `strictPair` balanceL kx x l r'
+               LT -> let (found :*: l') = go f k l
+                     in found :*: balanceR kx x l' r
+               GT -> let (found :*: r') = go f k r
+                     in found :*: balanceL kx x l r'
                EQ -> case f kx x of
-                       Just x' -> x' `seq` (Just x' `strictPair` Bin sx kx x' l r)
-                       Nothing -> (Just x,glue l r)
+                       Just x' -> x' `seq` (Just x' :*: Bin sx kx x' l r)
+                       Nothing -> (Just x :*: glue l r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE updateLookupWithKey #-}
 #else
@@ -710,7 +713,6 @@ unionWith f m1 m2
 
 -- | /O(n+m)/.
 -- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset \``union`\` smallset).
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -764,7 +766,8 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
   Intersection
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. Intersection with a combining function.
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -775,8 +778,8 @@ intersectionWith f m1 m2
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.
--- Intersection is more efficient on (bigset \``intersection`\` smallset).
+-- | /O(n+m)/. Intersection with a combining function.  The implementation uses
+-- an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -899,13 +902,15 @@ mapEither f m
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
 
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
-mapEitherWithKey _ Tip = (Tip, Tip)
-mapEitherWithKey f (Bin _ kx x l r) = case f kx x of
-  Left y  -> y `seq` (join kx y l1 r1 `strictPair` merge l2 r2)
-  Right z -> z `seq` (merge l1 r1 `strictPair` join kx z l2 r2)
- where
-    (l1,l2) = mapEitherWithKey f l
-    (r1,r2) = mapEitherWithKey f r
+mapEitherWithKey f0 t0 = toPair $ go f0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go f (Bin _ kx x l r) = case f kx x of
+      Left y  -> y `seq` (join kx y l1 r1 :*: merge l2 r2)
+      Right z -> z `seq` (merge l1 r1 :*: join kx z l2 r2)
+     where
+        (l1 :*: l2) = go f l
+        (r1 :*: r2) = go f r
 
 {--------------------------------------------------------------------
   Mapping
@@ -1006,15 +1011,52 @@ fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l)
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
+-- If the keys of the list are ordered, linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+--
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
 fromList :: Ord k => [(k,a)] -> Map k a
-fromList xs
-  = foldlStrict ins empty xs
+fromList [] = Tip
+fromList [(kx, x)] = x `seq` Bin 1 kx x Tip Tip
+fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0 x0 Tip Tip) xs0
+                           | otherwise = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    ins t (k,x) = insert k x t
+    not_ordered _ [] = False
+    not_ordered kx ((ky,_) : _) = kx >= ky
+    {-# INLINE not_ordered #-}
+
+    fromList' t0 xs = foldlStrict ins t0 xs
+      where ins t (k,x) = insert k x t
+
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go _ t [(kx, x)] = x `seq` insertMax kx x t
+    go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
+                              | otherwise = case create s xss of
+                                  (r, ys, []) -> x `seq` go (s `shiftL` 1) (join kx x l r) ys
+                                  (r, _,  ys) -> x `seq` fromList' (join kx x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [], [])
+    create s xs@(xp : xss)
+      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> x `seq` (Bin 1 kx x Tip Tip, [], xss)
+                                    | otherwise -> x `seq` (Bin 1 kx x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [(ky, y)], zs) -> y `seq` (insertMax ky y l, [], zs)
+                      (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
+                                               | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> y `seq` (join ky y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -1117,23 +1159,22 @@ fromAscListWithKey f xs
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
+-- For some reason, when 'singleton' is used in fromDistinctAscList or in
+-- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList xs
-  = create const (length xs) xs
+fromDistinctAscList [] = Tip
+fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    -- 1) use continuations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to create bushier trees.
-    create c 0 xs' = c Tip xs'
-    create c 5 xs' = case xs' of
-                       ((k1,x1):(k2,x2):(k3,x3):(k4,x4):(k5,x5):xx)
-                            -> x1 `seq` x2 `seq` x3 `seq` x4 `seq` x5 `seq`
-                               c (bin k4 x4 (bin k2 x2 (singleton k1 x1) (singleton k3 x3))
-                                  (singleton k5 x5)) xx
-                       _ -> error "fromDistinctAscList create"
-    create c n xs' = seq nr $ create (createR nr c) nl xs'
-      where nl = n `div` 2
-            nr = n - nl - 1
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go s l ((kx, x) : xs) = case create s xs of
+                              (r, ys) -> x `seq` go (s `shiftL` 1) (join kx x l r) ys
 
-    createR n c l ((k,x):ys) = x `seq` create (createB l k x c) n ys
-    createR _ _ _ []         = error "fromDistinctAscList createR []"
-    createB l k x c r zs     = x `seq` c (bin k x l r) zs
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [])
+    create s xs@(x' : xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (r, zs) -> y `seq` (join ky y l r, zs)

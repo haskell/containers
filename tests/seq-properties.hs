@@ -21,7 +21,7 @@ import Test.Framework.Providers.QuickCheck2
 
 
 main :: IO ()
-main = defaultMainWithOpts
+main = defaultMain
        [ testProperty "fmap" prop_fmap
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
@@ -90,13 +90,7 @@ main = defaultMainWithOpts
        , testProperty "zipWith3" prop_zipWith3
        , testProperty "zip4" prop_zip4
        , testProperty "zipWith4" prop_zipWith4
-       ] opts
-
-  where
-    opts = mempty { ropt_test_options = Just $ mempty { topt_maximum_generated_tests = Just 500
-                                                      , topt_maximum_unsuitable_generated_tests = Just 500
-                                                      }
-                  }
+       ]
 
 ------------------------------------------------------------------------
 -- Arbitrary

@@ -127,6 +127,12 @@ module Data.Set.Base (
             , split
             , splitMember
 
+            -- * Indexed
+            , lookupIndex
+            , findIndex
+            , elemAt
+            , deleteAt
+
             -- * Map
             , map
             , mapMonotonic
@@ -177,10 +183,13 @@ module Data.Set.Base (
 
 import Prelude hiding (filter,foldl,foldr,null,map)
 import qualified Data.List as List
+import Data.Bits (shiftL, shiftR)
 import Data.Monoid (Monoid(..))
 import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+
+import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
@@ -194,6 +203,7 @@ import Data.Data
 -- want the compilers to be compiled by as many compilers as possible.
 #define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
+#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 
 {--------------------------------------------------------------------
   Operators
@@ -238,14 +248,22 @@ instance Foldable.Foldable Set where
 --------------------------------------------------------------------}
 
 -- This instance preserves data abstraction at the cost of inefficiency.
--- We omit reflection services for the sake of data abstraction.
+-- We provide limited reflection services for the sake of data abstraction.
 
 instance (Data a, Ord a) => Data (Set a) where
   gfoldl f z set = z fromList `f` (toList set)
-  toConstr _     = error "toConstr"
-  gunfold _ _    = error "gunfold"
-  dataTypeOf _   = mkNoRepType "Data.Set.Set"
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromList)
+    _ -> error "gunfold"
+  dataTypeOf _   = setDataType
   dataCast1 f    = gcast1 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr setDataType "fromList" [] Prefix
+
+setDataType :: DataType
+setDataType = mkDataType "Data.Set.Base.Set" [fromListConstr]
 
 #endif
 
@@ -507,13 +525,13 @@ findMax (Bin _ x _ Tip)  = x
 findMax (Bin _ _ _ r)    = findMax r
 findMax Tip              = error "Set.findMax: empty set has no maximal element"
 
--- | /O(log n)/. Delete the minimal element.
+-- | /O(log n)/. Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
 deleteMin (Bin _ _ Tip r) = r
 deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
 deleteMin Tip             = Tip
 
--- | /O(log n)/. Delete the maximal element.
+-- | /O(log n)/. Delete the maximal element. Returns an empty set if the set is empty.
 deleteMax :: Set a -> Set a
 deleteMax (Bin _ _ l Tip) = l
 deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
@@ -532,7 +550,6 @@ unions = foldlStrict union empty
 -- | /O(n+m)/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
 -- The implementation uses the efficient /hedge-union/ algorithm.
--- Hedge-union is more efficient on (bigset `union` smallset).
 union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
@@ -579,8 +596,9 @@ hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. The intersection of two sets.
--- Elements of the result come from the first set, so for example
+-- | /O(n+m)/. The intersection of two sets.  The implementation uses an
+-- efficient /hedge/ algorithm comparable with /hedge-union/.  Elements of the
+-- result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
 -- > data AB = A | B deriving Show
@@ -623,11 +641,13 @@ filter p (Bin _ x l r)
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: (a -> Bool) -> Set a -> (Set a,Set a)
-partition _ Tip = (Tip, Tip)
-partition p (Bin _ x l r) = case (partition p l, partition p r) of
-  ((l1, l2), (r1, r2))
-    | p x       -> (join x l1 r1, merge l2 r2)
-    | otherwise -> (merge l1 r1, join x l2 r2)
+partition p0 t0 = toPair $ go p0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go p (Bin _ x l r) = case (go p l, go p r) of
+      ((l1 :*: l2), (r1 :*: r2))
+        | p x       -> join x l1 r1 :*: merge l2 r2
+        | otherwise -> merge l1 r1 :*: join x l2 r2
 
 {----------------------------------------------------------------------
   Map
@@ -639,7 +659,7 @@ partition p (Bin _ x l r) = case (partition p l, partition p r) of
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
-map :: (Ord a, Ord b) => (a->b) -> Set a -> Set b
+map :: Ord b => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE map #-}
@@ -773,10 +793,49 @@ foldlFB = foldl
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
+--
+-- If the elemens are ordered, linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
 fromList :: Ord a => [a] -> Set a
-fromList = foldlStrict ins empty
+fromList [] = Tip
+fromList [x] = Bin 1 x Tip Tip
+fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
+                    | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
-    ins t x = insert x t
+    not_ordered _ [] = False
+    not_ordered x (y : _) = x >= y
+    {-# INLINE not_ordered #-}
+
+    fromList' t0 xs = foldlStrict ins t0 xs
+      where ins t x = insert x t
+
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go _ t [x] = insertMax x t
+    go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
+                        | otherwise = case create s xss of
+                            (r, ys, []) -> go (s `shiftL` 1) (join x l r) ys
+                            (r, _,  ys) -> fromList' (join x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [], [])
+    create s xs@(x : xss)
+      | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
+                                      else (Bin 1 x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [y], zs) -> (insertMax y l, [], zs)
+                      (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
+                                         | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> (join y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -811,24 +870,26 @@ fromAscList xs
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
-fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList xs
-  = create const (length xs) xs
-  where
-    -- 1) use continutations so that we use heap space instead of stack space.
-    -- 2) special case for n==5 to create bushier trees.
-    create c 0 xs' = c Tip xs'
-    create c 5 xs' = case xs' of
-                       (x1:x2:x3:x4:x5:xx)
-                            -> c (bin x4 (bin x2 (singleton x1) (singleton x3)) (singleton x5)) xx
-                       _ -> error "fromDistinctAscList create 5"
-    create c n xs' = seq nr $ create (createR nr c) nl xs'
-      where nl = n `div` 2
-            nr = n - nl - 1
 
-    createR n c l (x:ys) = create (createB l x c) n ys
-    createR _ _ _ []     = error "fromDistinctAscList createR []"
-    createB l x c r zs   = c (bin x l r) zs
+-- For some reason, when 'singleton' is used in fromDistinctAscList or in
+-- create, it is not inlined, so we inline it manually.
+fromDistinctAscList :: [a] -> Set a
+fromDistinctAscList [] = Tip
+fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+  where
+    STRICT_1_OF_3(go)
+    go _ t [] = t
+    go s l (x : xs) = case create s xs of
+                        (r, ys) -> go (s `shiftL` 1) (join x l r) ys
+
+    STRICT_1_OF_2(create)
+    create _ [] = (Tip, [])
+    create s xs@(x : xs')
+      | s == 1 = (Bin 1 x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (l, y:ys) -> case create (s `shiftR` 1) ys of
+                        (r, zs) -> (join y l r, zs)
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
@@ -958,12 +1019,14 @@ filterLt (JustS b) t = filter' b t
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split _ Tip = (Tip,Tip)
-split x (Bin _ y l r)
-  = case compare x y of
-      LT -> let (lt,gt) = split x l in (lt,join y gt r)
-      GT -> let (lt,gt) = split x r in (join y l lt,gt)
-      EQ -> (l,r)
+split x0 t0 = toPair $ go x0 t0
+  where
+    go _ Tip = (Tip :*: Tip)
+    go x (Bin _ y l r)
+      = case compare x y of
+          LT -> let (lt :*: gt) = go x l in (lt :*: join y gt r)
+          GT -> let (lt :*: gt) = go x r in (join y l lt :*: gt)
+          EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
 #endif
@@ -974,12 +1037,111 @@ splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember _ Tip = (Tip, False, Tip)
 splitMember x (Bin _ y l r)
    = case compare x y of
-       LT -> let (lt, found, gt) = splitMember x l in (lt, found, join y gt r)
-       GT -> let (lt, found, gt) = splitMember x r in (join y l lt, found, gt)
+       LT -> let (lt, found, gt) = splitMember x l
+                 gt' = join y gt r
+             in gt' `seq` (lt, found, gt')
+       GT -> let (lt, found, gt) = splitMember x r
+                 lt' = join y l lt
+             in lt' `seq` (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember #-}
 #endif
+
+{--------------------------------------------------------------------
+  Indexing
+--------------------------------------------------------------------}
+
+-- | /O(log n)/. Return the /index/ of an element, which is its zero-based
+-- index in the sorted sequence of elements. The index is a number from /0/ up
+-- to, but not including, the 'size' of the set. Calls 'error' when the element
+-- is not a 'member' of the set.
+--
+-- > findIndex 2 (fromList [5,3])    Error: element is not in the set
+-- > findIndex 3 (fromList [5,3]) == 0
+-- > findIndex 5 (fromList [5,3]) == 1
+-- > findIndex 6 (fromList [5,3])    Error: element is not in the set
+
+-- See Note: Type of local 'go' function
+findIndex :: Ord a => a -> Set a -> Int
+findIndex = go 0
+  where
+    go :: Ord a => Int -> a -> Set a -> Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = error "Set.findIndex: element is not in the set"
+    go idx x (Bin _ kx l r) = case compare x kx of
+      LT -> go idx x l
+      GT -> go (idx + size l + 1) x r
+      EQ -> idx + size l
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE findIndex #-}
+#endif
+
+-- | /O(log n)/. Lookup the /index/ of an element, which is its zero-based index in
+-- the sorted sequence of elements. The index is a number from /0/ up to, but not
+-- including, the 'size' of the set.
+--
+-- > isJust   (lookupIndex 2 (fromList [5,3])) == False
+-- > fromJust (lookupIndex 3 (fromList [5,3])) == 0
+-- > fromJust (lookupIndex 5 (fromList [5,3])) == 1
+-- > isJust   (lookupIndex 6 (fromList [5,3])) == False
+
+-- See Note: Type of local 'go' function
+lookupIndex :: Ord a => a -> Set a -> Maybe Int
+lookupIndex = go 0
+  where
+    go :: Ord a => Int -> a -> Set a -> Maybe Int
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
+    go _   _ Tip  = Nothing
+    go idx x (Bin _ kx l r) = case compare x kx of
+      LT -> go idx x l
+      GT -> go (idx + size l + 1) x r
+      EQ -> Just $! idx + size l
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupIndex #-}
+#endif
+
+-- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- index in the sorted sequence of elements. If the /index/ is out of range (less
+-- than zero, greater or equal to 'size' of the set), 'error' is called.
+--
+-- > elemAt 0 (fromList [5,3]) == 3
+-- > elemAt 1 (fromList [5,3]) == 5
+-- > elemAt 2 (fromList [5,3])    Error: index out of range
+
+elemAt :: Int -> Set a -> a
+STRICT_1_OF_2(elemAt)
+elemAt _ Tip = error "Set.elemAt: index out of range"
+elemAt i (Bin _ x l r)
+  = case compare i sizeL of
+      LT -> elemAt i l
+      GT -> elemAt (i-sizeL-1) r
+      EQ -> x
+  where
+    sizeL = size l
+
+-- | /O(log n)/. Delete the element at /index/, i.e. by its zero-based index in
+-- the sorted sequence of elements. If the /index/ is out of range (less than zero,
+-- greater or equal to 'size' of the set), 'error' is called.
+--
+-- > deleteAt 0    (fromList [5,3]) == singleton 5
+-- > deleteAt 1    (fromList [5,3]) == singleton 3
+-- > deleteAt 2    (fromList [5,3])    Error: index out of range
+-- > deleteAt (-1) (fromList [5,3])    Error: index out of range
+
+deleteAt :: Int -> Set a -> Set a
+deleteAt i t = i `seq`
+  case t of
+    Tip -> error "Set.deleteAt: index out of range"
+    Bin _ x l r -> case compare i sizeL of
+      LT -> balanceR x (deleteAt i l) r
+      GT -> balanceL x l (deleteAt (i-sizeL-1) r)
+      EQ -> glue l r
+      where
+        sizeL = size l
+
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.

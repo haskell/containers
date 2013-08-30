@@ -33,11 +33,15 @@ main = do
         , bench "union" $ whnf (S.union s_even) s_odd
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
+        , bench "fromList" $ whnf S.fromList elems
+        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
+        , bench "fromAscList" $ whnf S.fromAscList elems
+        , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         ]
   where
-    elems = [1..2^10]
-    elems_even = [2,4..2^10]
-    elems_odd = [1,3..2^10]
+    elems = [1..2^12]
+    elems_even = [2,4..2^12]
+    elems_odd = [1,3..2^12]
 
 member :: [Int] -> S.Set Int -> Int
 member xs s = foldl' (\n x -> if S.member x s then n + 1 else n) 0 xs

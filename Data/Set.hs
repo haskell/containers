@@ -81,6 +81,12 @@ module Data.Set (
             , split
             , splitMember
 
+            -- * Indexed
+            , lookupIndex
+            , findIndex
+            , elemAt
+            , deleteAt
+
             -- * Map
             , S.map
             , mapMonotonic
