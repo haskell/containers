@@ -263,14 +263,13 @@ import Data.StrictPair
 --
 -- This module satisfies the following strictness properties:
 --
--- 1. Key and value arguments are evaluated to WHNF;
+-- 1. Key arguments are evaluated to WHNF;
 --
 -- 2. Keys and values are evaluated to WHNF before they are stored in
 --    the map.
 --
--- Here are some examples that illustrate the first property:
+-- Here's an example illustrating the first property:
 --
--- > insertWith (\ new old -> old) k undefined m  ==  undefined
 -- > delete undefined m  ==  undefined
 --
 -- Here are some examples that illustrate the second property:
@@ -291,7 +290,7 @@ import Data.StrictPair
 
 -- See IntMap.Base.Note: Local 'go' functions and capturing]
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def k = def `seq` k `seq` go
+findWithDefault def k = k `seq` go
   where
     go (Bin p m l r) | nomatch k p m = def
                      | zero k m  = go l
@@ -367,16 +366,16 @@ insertWith f k x t
 -- in the result of @f@.
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f k x t = k `seq` x `seq`
+insertWithKey f k x t = k `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> join k (Tip k x) p t
+      | nomatch k p m -> join k (singleton k x) p t
       | zero k m      -> Bin p m (insertWithKey f k x l) r
       | otherwise     -> Bin p m l (insertWithKey f k x r)
     Tip ky y
       | k==ky         -> Tip k $! f k x y
-      | otherwise     -> join k (Tip k x) ky t
-    Nil -> Tip k x
+      | otherwise     -> join k (singleton k x) ky t
+    Nil -> singleton k x
 
 -- | /O(min(n,W))/. The expression (@'insertLookupWithKey' f k x map@)
 -- is a pair where the first element is equal to (@'lookup' k map@)
@@ -394,18 +393,18 @@ insertWithKey f k x t = k `seq` x `seq`
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f0 k0 x0 t0 = k0 `seq` x0 `seq` toPair $ go f0 k0 x0 t0
+insertLookupWithKey f0 k0 x0 t0 = k0 `seq` toPair $ go f0 k0 x0 t0
   where
     go f k x t =
       case t of
         Bin p m l r
-          | nomatch k p m -> Nothing :*: join k (Tip k x) p t
+          | nomatch k p m -> Nothing :*: join k (singleton k x) p t
           | zero k m      -> let (found :*: l') = go f k x l in (found :*: Bin p m l' r)
           | otherwise     -> let (found :*: r') = go f k x r in (found :*: Bin p m l r')
         Tip ky y
           | k==ky         -> (Just y :*: (Tip k $! f k x y))
-          | otherwise     -> (Nothing :*: join k (Tip k x) ky t)
-        Nil -> Nothing :*: Tip k x
+          | otherwise     -> (Nothing :*: join k (singleton k x) ky t)
+        Nil -> Nothing :*: (singleton k x)
 
 
 {--------------------------------------------------------------------

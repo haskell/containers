@@ -12,16 +12,15 @@
 -- Stability   :  provisional
 -- Portability :  portable
 --
+-- /Note:/ You should use "Data.Map.Strict" instead of this module if:
+--
+-- * You will eventually need all the values stored.
+--
+-- * The stored values don't represent large virtual data structures
+-- to be lazily computed.
+--
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
---
--- This module re-exports the value lazy "Data.Map.Lazy" API, plus
--- several deprecated value strict functions. Please note that these functions
--- have different strictness properties than those in "Data.Map.Strict":
--- they only evaluate the values inserted into the map. For example, the
--- default value to 'insertWith'' is only evaluated if it's used, i.e. because
--- there's no value for the key already or because the higher-order argument
--- that combines the old and new value uses it.
 --
 -- These modules are intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.
@@ -57,15 +56,13 @@ module Data.Map
     ) where
 
 import Prelude hiding (foldr)
-import Data.Map.Base (Map(..), balanceL, balanceR)
 import Data.Map.Lazy
-import Data.StrictPair
+import qualified Data.Map.Strict as Strict
 
 -- | /Deprecated./ As of version 0.5, replaced by 'Data.Map.Strict.insertWith'.
 --
 -- /O(log n)/. Same as 'insertWith', but the value being inserted to the map is
--- evaluated to WHNF beforehand. In contrast to 'Data.Map.Strict.insertWith',
--- the value argument is not evaluted when not needed.
+-- evaluated to WHNF beforehand.
 --
 -- For example, to update a counter:
 --
@@ -73,12 +70,7 @@ import Data.StrictPair
 --
 
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
--- We do not reuse Data.Map.Strict.insertWith, because it is stricter -- it
--- forces evaluation of the given value. Some people depend on the original
--- behaviour, which forces only the key and the result of combining function.
--- Particularly, people use insertWith' as a strict version of adjust, which
--- requires to use undefined in the place of the value.
-insertWith' f = insertWithKey' (\_ x' y' -> f x' y')
+insertWith' = Strict.insertWith
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWith' #-}
 #else
@@ -89,23 +81,12 @@ insertWith' f = insertWithKey' (\_ x' y' -> f x' y')
 -- 'Data.Map.Strict.insertWithKey'.
 --
 -- /O(log n)/. Same as 'insertWithKey', but the value being inserted to the map is
--- evaluated to WHNF beforehand. In contrast to 'Data.Map.Strict.insertWithKey',
--- the value argument is not evaluted when not needed.
+-- evaluated to WHNF beforehand.
 
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 -- We do not reuse Data.Map.Strict.insertWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
-insertWithKey' = go
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ kx _ _ | kx `seq` False = undefined
-    go _ kx x Tip = x `seq` singleton kx x
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> let x' = f kx x y
-                  in x' `seq` Bin sy kx x' l r
+insertWithKey' = Strict.insertWithKey
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWithKey' #-}
 #else
@@ -116,27 +97,13 @@ insertWithKey' = go
 -- 'Data.Map.Strict.insertLookupWithKey'.
 --
 -- /O(log n)/. Same as 'insertLookupWithKey', but the value being inserted to
--- the map is evaluated to WHNF beforehand. In contrast to
--- 'Data.Map.Strict.insertLookupWithKey', the value argument is not evaluted
--- when not needed.
+-- the map is evaluated to WHNF beforehand.
 
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
 -- We do not reuse Data.Map.Strict.insertLookupWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
-insertLookupWithKey' f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
-    go _ kx _ _ | kx `seq` False = undefined
-    go _ kx x Tip = x `seq` Nothing :*: singleton kx x
-    go f kx x (Bin sy ky y l r) =
-        case compare kx ky of
-            LT -> let (found :*: l') = go f kx x l
-                  in found :*: balanceL ky y l' r
-            GT -> let (found :*: r') = go f kx x r
-                  in found :*: balanceR ky y l r'
-            EQ -> let x' = f kx x y
-                  in x' `seq` (Just y :*: Bin sy kx x' l r)
+insertLookupWithKey' = Strict.insertLookupWithKey
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertLookupWithKey' #-}
 #else

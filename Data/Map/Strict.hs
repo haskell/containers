@@ -281,20 +281,19 @@ import Data.Bits (shiftL, shiftR)
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 #define STRICT_1_2_OF_3(fn) fn arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
-#define STRICT_2_3_OF_4(fn) fn _ arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
+#define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
 
 -- $strictness
 --
 -- This module satisfies the following strictness properties:
 --
--- 1. Key and value arguments are evaluated to WHNF;
+-- 1. Key arguments are evaluated to WHNF;
 --
 -- 2. Keys and values are evaluated to WHNF before they are stored in
 --    the map.
 --
--- Here are some examples that illustrate the first property:
+-- Here's an example illustrating the first property:
 --
--- > insertWith (\ new old -> old) k undefined m  ==  undefined
 -- > delete undefined m  ==  undefined
 --
 -- Here are some examples that illustrate the second property:
@@ -315,7 +314,7 @@ import Data.Bits (shiftL, shiftR)
 
 -- See Map.Base.Note: Local 'go' functions and capturing
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k = def `seq` k `seq` go
+findWithDefault def k = k `seq` go
   where
     go Tip = def
     go (Bin _ kx x l r) = case compare k kx of
@@ -406,7 +405,7 @@ insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    STRICT_2_3_OF_4(go)
+    STRICT_2_OF_4(go)
     go _ kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
@@ -442,7 +441,7 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
-    STRICT_2_3_OF_4(go)
+    STRICT_2_OF_4(go)
     go _ kx x Tip = Nothing :*: singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of

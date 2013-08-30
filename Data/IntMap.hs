@@ -60,43 +60,26 @@ module Data.IntMap
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 import Data.IntMap.Base (IntMap(..), join, nomatch, zero)
+import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
 -- | /Deprecated./ As of version 0.5, replaced by
 -- 'Data.IntMap.Strict.insertWith'.
 --
 -- /O(log n)/. Same as 'insertWith', but the result of the combining function
--- is evaluated to WHNF before inserted to the map. In contrast to
--- 'Data.IntMap.Strict.insertWith', the value argument is not evaluted when not
--- needed by the combining function.
+-- is evaluated to WHNF before inserted to the map.
 
 insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
--- We do not reuse Data.IntMap.Strict.insertWith, because it is stricter -- it
--- forces evaluation of the given value.
-insertWith' f k x t
-  = insertWithKey' (\_ x' y' -> f x' y') k x t
+insertWith' = Strict.insertWith
 
 -- | /Deprecated./ As of version 0.5, replaced by
 -- 'Data.IntMap.Strict.insertWithKey'.
 --
 -- /O(log n)/. Same as 'insertWithKey', but the result of the combining
--- function is evaluated to WHNF before inserted to the map. In contrast to
--- 'Data.IntMap.Strict.insertWithKey', the value argument is not evaluted when
--- not needed by the combining function.
+-- function is evaluated to WHNF before inserted to the map.
 
 insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
--- We do not reuse Data.IntMap.Strict.insertWithKey, because it is stricter -- it
--- forces evaluation of the given value.
-insertWithKey' f k x t = k `seq`
-  case t of
-    Bin p m l r
-      | nomatch k p m -> join k (Tip k x) p t
-      | zero k m      -> Bin p m (insertWithKey' f k x l) r
-      | otherwise     -> Bin p m l (insertWithKey' f k x r)
-    Tip ky y
-      | k==ky         -> Tip k $! f k x y
-      | otherwise     -> join k (Tip k x) ky t
-    Nil -> Tip k x
+insertWithKey' = Strict.insertWithKey
 
 -- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
 --
