@@ -58,7 +58,7 @@ module Data.IntMap
     , foldWithKey
     ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Prelude ()  -- hide foldr
 import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
