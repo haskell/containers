@@ -93,6 +93,10 @@ instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
     rnf (CyclicSCC vs) = rnf vs
 
+instance Functor SCC where
+    fmap f (AcyclicSCC v) = AcyclicSCC (f v)
+    fmap f (CyclicSCC vs) = CyclicSCC (fmap f vs)
+
 -- | The vertices of a list of strongly connected components.
 flattenSCCs :: [SCC a] -> [a]
 flattenSCCs = concatMap flattenSCC
