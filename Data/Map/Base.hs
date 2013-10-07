@@ -258,6 +258,7 @@ module Data.Map.Base (
     , trim
     , trimLookupLo
     , foldlStrict
+    , splitTree
     , MaybeS(..)
     , filterGt
     , filterLt
@@ -2813,3 +2814,15 @@ foldlStrict f = go
     go z []     = z
     go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
+
+
+-- | /O(1)/.  Decompose a Map into pieces.  No guarantee is made as to the sizes of
+-- the pieces, but some of them will be balanced, and some may be empty.
+splitTree :: Map k b -> Maybe (Map k b, Map k b, Map k b)
+splitTree orig =
+  case orig of 
+    Tip           -> Nothing
+    Bin 1 k v l r -> Just (singleton k v, l, r)
+{-# INLINE splitTree #-}
+
+
