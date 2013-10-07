@@ -302,7 +302,10 @@ instance Functor (SetM s) where
 instance Applicative (SetM s) where
     pure x = SetM $ const (return x)
     {-# INLINE pure #-}
-    SetM f <*> SetM v = SetM $ \s -> f s <*> v s
+    SetM f <*> SetM v = SetM $ \s -> f s >>= (`fmap` v s)
+    -- We could also use the following definition
+    --   SetM f <*> SetM v = SetM $ \s -> f s <*> v s
+    -- but Applicative (ST s) instance is present only in GHC 7.2+
     {-# INLINE (<*>) #-}
 
 run          :: Bounds -> (forall s. SetM s a) -> a
