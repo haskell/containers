@@ -251,7 +251,7 @@ module Data.Map.Base (
     , balanceL
     , balanceR
     , delta
-    , join
+    , link
     , insertMax
     , merge
     , glue
@@ -1221,10 +1221,10 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 -- left-biased hedge union
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
 hedgeUnion _   _   t1  Tip = t1
-hedgeUnion blo bhi Tip (Bin _ kx x l r) = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeUnion blo bhi Tip (Bin _ kx x l r) = link kx x (filterGt blo l) (filterLt bhi r)
 hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
                                                               -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ kx x l r) t2 = join kx x (hedgeUnion blo bmi l (trim blo bmi t2))
+hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim blo bmi t2))
                                                    (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
@@ -1276,7 +1276,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
 hedgeDiff _   _   Tip              _ = Tip
-hedgeDiff blo bhi (Bin _ kx x l r) Tip = join kx x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi (Bin _ kx x l r) Tip = link kx x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                              (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS kx
@@ -1343,7 +1343,7 @@ hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
 hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                       in if kx `member` t2 then join kx x l' r' else merge l' r'
+                                       in if kx `member` t2 then link kx x l' r' else merge l' r'
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
@@ -1424,18 +1424,18 @@ mergeWithKey f g1 g2 = go
     go t1 t2 = hedgeMerge NothingS NothingS t1 t2
 
     hedgeMerge _   _   t1  Tip = g1 t1
-    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ join kx x (filterGt blo l) (filterLt bhi r)
+    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ link kx x (filterGt blo l) (filterLt bhi r)
     hedgeMerge blo bhi (Bin _ kx x l r) t2 = let l' = hedgeMerge blo bmi l (trim blo bmi t2)
                                                  (found, trim_t2) = trimLookupLo kx bhi t2
                                                  r' = hedgeMerge bmi bhi r trim_t2
                                              in case found of
                                                   Nothing -> case g1 (singleton kx x) of
                                                                Tip -> merge l' r'
-                                                               (Bin _ _ x' Tip Tip) -> join kx x' l' r'
+                                                               (Bin _ _ x' Tip Tip) -> link kx x' l' r'
                                                                _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
                                                   Just x2 -> case f kx x x2 of
                                                                Nothing -> merge l' r'
-                                                               Just x' -> join kx x' l' r'
+                                                               Just x' -> link kx x' l' r'
       where bmi = JustS kx
 {-# INLINE mergeWithKey #-}
 
@@ -1543,7 +1543,7 @@ filter p m
 filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
 filterWithKey p (Bin _ kx x l r)
-  | p kx x    = join kx x (filterWithKey p l) (filterWithKey p r)
+  | p kx x    = link kx x (filterWithKey p l) (filterWithKey p r)
   | otherwise = merge (filterWithKey p l) (filterWithKey p r)
 
 -- | /O(n)/. Partition the map according to a predicate. The first
@@ -1571,8 +1571,8 @@ partitionWithKey p0 t0 = toPair $ go p0 t0
   where
     go _ Tip = (Tip :*: Tip)
     go p (Bin _ kx x l r)
-      | p kx x    = join kx x l1 r1 :*: merge l2 r2
-      | otherwise = merge l1 r1 :*: join kx x l2 r2
+      | p kx x    = link kx x l1 r1 :*: merge l2 r2
+      | otherwise = merge l1 r1 :*: link kx x l2 r2
       where
         (l1 :*: l2) = go p l
         (r1 :*: r2) = go p r
@@ -1593,7 +1593,7 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
-  Just y  -> join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Just y  -> link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
@@ -1623,8 +1623,8 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
     go _ Tip = (Tip :*: Tip)
     go f (Bin _ kx x l r) = case f kx x of
-      Left y  -> join kx y l1 r1 :*: merge l2 r2
-      Right z -> merge l1 r1 :*: join kx z l2 r2
+      Left y  -> link kx y l1 r1 :*: merge l2 r2
+      Right z -> merge l1 r1 :*: link kx z l2 r2
      where
         (l1 :*: l2) = go f l
         (r1 :*: r2) = go f r
@@ -1974,8 +1974,8 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
     go _ t [(kx, x)] = insertMax kx x t
     go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
                               | otherwise = case create s xss of
-                                  (r, ys, []) -> go (s `shiftL` 1) (join kx x l r) ys
-                                  (r, _,  ys) -> fromList' (join kx x l r) ys
+                                  (r, ys, []) -> go (s `shiftL` 1) (link kx x l r) ys
+                                  (r, _,  ys) -> fromList' (link kx x l r) ys
 
     -- The create is returning a triple (tree, xs, ys). Both xs and ys
     -- represent not yet processed elements and only one of them can be nonempty.
@@ -1992,7 +1992,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
                       (l, [(ky, y)], zs) -> (insertMax ky y l, [], zs)
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> (join ky y l r, zs, ws)
+                                                   (r, zs, ws) -> (link ky y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -2164,7 +2164,7 @@ fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
     STRICT_1_OF_3(go)
     go _ t [] = t
     go s l ((kx, x) : xs) = case create s xs of
-                              (r, ys) -> go (s `shiftL` 1) (join kx x l r) ys
+                              (r, ys) -> go (s `shiftL` 1) (link kx x l r) ys
 
     STRICT_1_OF_2(create)
     create _ [] = (Tip, [])
@@ -2173,7 +2173,7 @@ fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, []) -> res
                       (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (r, zs) -> (join ky y l r, zs)
+                        (r, zs) -> (link ky y l r, zs)
 
 
 {--------------------------------------------------------------------
@@ -2254,7 +2254,7 @@ filterGt NothingS t = t
 filterGt (JustS b) t = filter' b t
   where filter' _   Tip = Tip
         filter' b' (Bin _ kx x l r) =
-          case compare b' kx of LT -> join kx x (filter' b' l) r
+          case compare b' kx of LT -> link kx x (filter' b' l) r
                                 EQ -> r
                                 GT -> filter' b' r
 #if __GLASGOW_HASKELL__ >= 700
@@ -2266,7 +2266,7 @@ filterLt NothingS t = t
 filterLt (JustS b) t = filter' b t
   where filter' _   Tip = Tip
         filter' b' (Bin _ kx x l r) =
-          case compare kx b' of LT -> join kx x l (filter' b' r)
+          case compare kx b' of LT -> link kx x l (filter' b' r)
                                 EQ -> l
                                 GT -> filter' b' l
 #if __GLASGOW_HASKELL__ >= 700
@@ -2293,8 +2293,8 @@ split k0 t0 = k0 `seq` toPair $ go k0 t0
       case t of
         Tip            -> (Tip :*: Tip)
         Bin _ kx x l r -> case compare k kx of
-          LT -> let (lt :*: gt) = go k l in lt :*: join kx x gt r
-          GT -> let (lt :*: gt) = go k r in join kx x l lt :*: gt
+          LT -> let (lt :*: gt) = go k l in lt :*: link kx x gt r
+          GT -> let (lt :*: gt) = go k r in link kx x l lt :*: gt
           EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
@@ -2315,10 +2315,10 @@ splitLookup k t = k `seq`
     Tip            -> (Tip,Nothing,Tip)
     Bin _ kx x l r -> case compare k kx of
       LT -> let (lt,z,gt) = splitLookup k l
-                gt' = join kx x gt r
+                gt' = link kx x gt r
             in gt' `seq` (lt,z,gt')
       GT -> let (lt,z,gt) = splitLookup k r
-                lt' = join kx x l lt
+                lt' = link kx x l lt
             in lt' `seq` (lt',z,gt)
       EQ -> (l,Just x,r)
 #if __GLASGOW_HASKELL__ >= 700
@@ -2337,7 +2337,7 @@ splitLookup k t = k `seq`
     [balance k x l r] Restores the balance and size.
                       Assumes that the original tree was balanced and
                       that [l] or [r] has changed by at most one element.
-    [join k x l r]    Restores balance and size.
+    [link k x l r]    Restores balance and size.
 
   Furthermore, we can construct a new tree from two trees. Both operations
   assume that all values in [l] < all values in [r] and that [l] and [r]
@@ -2347,7 +2347,7 @@ splitLookup k t = k `seq`
     [merge l r]       Merges two trees and restores balance.
 
   Note: in contrast to Adam's paper, we use (<=) comparisons instead
-  of (<) comparisons in [join], [merge] and [balance].
+  of (<) comparisons in [link], [merge] and [balance].
   Quickcheck (on [difference]) showed that this was necessary in order
   to maintain the invariants. It is quite unsatisfactory that I haven't
   been able to find out why this is actually the case! Fortunately, it
@@ -2355,14 +2355,14 @@ splitLookup k t = k `seq`
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
-  Join
+  Link
 --------------------------------------------------------------------}
-join :: k -> a -> Map k a -> Map k a -> Map k a
-join kx x Tip r  = insertMin kx x r
-join kx x l Tip  = insertMax kx x l
-join kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
-  | delta*sizeL < sizeR  = balanceL kz z (join kx x l lz) rz
-  | delta*sizeR < sizeL  = balanceR ky y ly (join kx x ry r)
+link :: k -> a -> Map k a -> Map k a -> Map k a
+link kx x Tip r  = insertMin kx x r
+link kx x l Tip  = insertMax kx x l
+link kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
+  | delta*sizeL < sizeR  = balanceL kz z (link kx x l lz) rz
+  | delta*sizeR < sizeL  = balanceR ky y ly (link kx x ry r)
   | otherwise            = bin kx x l r
 
 

@@ -208,7 +208,7 @@ module Data.Map.Lazy (
     -- * Internals
     , bin
     , balanced
-    , join
+    , link
     , merge
 #endif
 

@@ -177,7 +177,7 @@ module Data.Set.Base (
             -- Internals (for testing)
             , bin
             , balanced
-            , join
+            , link
             , merge
             ) where
 
@@ -568,10 +568,10 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeUnion _   _   t1  Tip = t1
-hedgeUnion blo bhi Tip (Bin _ x l r) = join x (filterGt blo l) (filterLt bhi r)
+hedgeUnion blo bhi Tip (Bin _ x l r) = link x (filterGt blo l) (filterLt bhi r)
 hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchmarks, this special case increases
                                                           -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ x l r) t2 = join x (hedgeUnion blo bmi l (trim blo bmi t2))
+hedgeUnion blo bhi (Bin _ x l r) t2 = link x (hedgeUnion blo bmi l (trim blo bmi t2))
                                              (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
@@ -593,7 +593,7 @@ difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 
 hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeDiff _   _   Tip           _ = Tip
-hedgeDiff blo bhi (Bin _ x l r) Tip = join x (filterGt blo l) (filterLt bhi r)
+hedgeDiff blo bhi (Bin _ x l r) Tip = link x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                           (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS x
@@ -629,7 +629,7 @@ hedgeInt _ _ _   Tip = Tip
 hedgeInt _ _ Tip _   = Tip
 hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
                                         r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                    in if x `member` t2 then join x l' r' else merge l' r'
+                                    in if x `member` t2 then link x l' r' else merge l' r'
   where bmi = JustS x
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE hedgeInt #-}
@@ -642,7 +642,7 @@ hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
 filter p (Bin _ x l r)
-    | p x       = join x (filter p l) (filter p r)
+    | p x       = link x (filter p l) (filter p r)
     | otherwise = merge (filter p l) (filter p r)
 
 -- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
@@ -654,8 +654,8 @@ partition p0 t0 = toPair $ go p0 t0
     go _ Tip = (Tip :*: Tip)
     go p (Bin _ x l r) = case (go p l, go p r) of
       ((l1 :*: l2), (r1 :*: r2))
-        | p x       -> join x l1 r1 :*: merge l2 r2
-        | otherwise -> merge l1 r1 :*: join x l2 r2
+        | p x       -> link x l1 r1 :*: merge l2 r2
+        | otherwise -> merge l1 r1 :*: link x l2 r2
 
 {----------------------------------------------------------------------
   Map
@@ -825,8 +825,8 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
     go _ t [x] = insertMax x t
     go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
                         | otherwise = case create s xss of
-                            (r, ys, []) -> go (s `shiftL` 1) (join x l r) ys
-                            (r, _,  ys) -> fromList' (join x l r) ys
+                            (r, ys, []) -> go (s `shiftL` 1) (link x l r) ys
+                            (r, _,  ys) -> fromList' (link x l r) ys
 
     -- The create is returning a triple (tree, xs, ys). Both xs and ys
     -- represent not yet processed elements and only one of them can be nonempty.
@@ -843,7 +843,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                       (l, [y], zs) -> (insertMax y l, [], zs)
                       (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
                                          | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> (join y l r, zs, ws)
+                                                   (r, zs, ws) -> (link y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -888,7 +888,7 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
     STRICT_1_OF_3(go)
     go _ t [] = t
     go s l (x : xs) = case create s xs of
-                        (r, ys) -> go (s `shiftL` 1) (join x l r) ys
+                        (r, ys) -> go (s `shiftL` 1) (link x l r) ys
 
     STRICT_1_OF_2(create)
     create _ [] = (Tip, [])
@@ -897,7 +897,7 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, []) -> res
                       (l, y:ys) -> case create (s `shiftR` 1) ys of
-                        (r, zs) -> (join y l r, zs)
+                        (r, zs) -> (link y l r, zs)
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
@@ -1001,7 +1001,7 @@ filterGt NothingS t = t
 filterGt (JustS b) t = filter' b t
   where filter' _   Tip = Tip
         filter' b' (Bin _ x l r) =
-          case compare b' x of LT -> join x (filter' b' l) r
+          case compare b' x of LT -> link x (filter' b' l) r
                                EQ -> r
                                GT -> filter' b' r
 #if __GLASGOW_HASKELL__ >= 700
@@ -1013,7 +1013,7 @@ filterLt NothingS t = t
 filterLt (JustS b) t = filter' b t
   where filter' _   Tip = Tip
         filter' b' (Bin _ x l r) =
-          case compare x b' of LT -> join x l (filter' b' r)
+          case compare x b' of LT -> link x l (filter' b' r)
                                EQ -> l
                                GT -> filter' b' l
 #if __GLASGOW_HASKELL__ >= 700
@@ -1032,8 +1032,8 @@ split x0 t0 = toPair $ go x0 t0
     go _ Tip = (Tip :*: Tip)
     go x (Bin _ y l r)
       = case compare x y of
-          LT -> let (lt :*: gt) = go x l in (lt :*: join y gt r)
-          GT -> let (lt :*: gt) = go x r in (join y l lt :*: gt)
+          LT -> let (lt :*: gt) = go x l in (lt :*: link y gt r)
+          GT -> let (lt :*: gt) = go x r in (link y l lt :*: gt)
           EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE split #-}
@@ -1046,10 +1046,10 @@ splitMember _ Tip = (Tip, False, Tip)
 splitMember x (Bin _ y l r)
    = case compare x y of
        LT -> let (lt, found, gt) = splitMember x l
-                 gt' = join y gt r
+                 gt' = link y gt r
              in gt' `seq` (lt, found, gt')
        GT -> let (lt, found, gt) = splitMember x r
-                 lt' = join y l lt
+                 lt' = link y l lt
              in lt' `seq` (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__ >= 700
@@ -1163,7 +1163,7 @@ deleteAt i t = i `seq`
     [balance x l r]   Restores the balance and size.
                       Assumes that the original tree was balanced and
                       that [l] or [r] has changed by at most one element.
-    [join x l r]      Restores balance and size.
+    [link x l r]      Restores balance and size.
 
   Furthermore, we can construct a new tree from two trees. Both operations
   assume that all values in [l] < all values in [r] and that [l] and [r]
@@ -1173,7 +1173,7 @@ deleteAt i t = i `seq`
     [merge l r]       Merges two trees and restores balance.
 
   Note: in contrast to Adam's paper, we use (<=) comparisons instead
-  of (<) comparisons in [join], [merge] and [balance].
+  of (<) comparisons in [link], [merge] and [balance].
   Quickcheck (on [difference]) showed that this was necessary in order
   to maintain the invariants. It is quite unsatisfactory that I haven't
   been able to find out why this is actually the case! Fortunately, it
@@ -1181,14 +1181,14 @@ deleteAt i t = i `seq`
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
-  Join
+  Link
 --------------------------------------------------------------------}
-join :: a -> Set a -> Set a -> Set a
-join x Tip r  = insertMin x r
-join x l Tip  = insertMax x l
-join x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
-  | delta*sizeL < sizeR  = balanceL z (join x l lz) rz
-  | delta*sizeR < sizeL  = balanceR y ly (join x ry r)
+link :: a -> Set a -> Set a -> Set a
+link x Tip r  = insertMin x r
+link x l Tip  = insertMax x l
+link x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
+  | delta*sizeL < sizeR  = balanceL z (link x l lz) rz
+  | delta*sizeR < sizeL  = balanceR y ly (link x ry r)
   | otherwise            = bin x l r
 
 

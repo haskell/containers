@@ -196,7 +196,7 @@ module Data.IntMap.Base (
     -- * Utility
     , natFromInt
     , intFromNat
-    , join
+    , link
     , bin
     , zero
     , nomatch
@@ -572,12 +572,12 @@ insert :: Key -> a -> IntMap a -> IntMap a
 insert k x t = k `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> join k (Tip k x) p t
+      | nomatch k p m -> link k (Tip k x) p t
       | zero k m      -> Bin p m (insert k x l) r
       | otherwise     -> Bin p m l (insert k x r)
     Tip ky _
       | k==ky         -> Tip k x
-      | otherwise     -> join k (Tip k x) ky t
+      | otherwise     -> link k (Tip k x) ky t
     Nil -> Tip k x
 
 -- right-biased insertion, used by 'union'
@@ -610,12 +610,12 @@ insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWithKey f k x t = k `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> join k (Tip k x) p t
+      | nomatch k p m -> link k (Tip k x) p t
       | zero k m      -> Bin p m (insertWithKey f k x l) r
       | otherwise     -> Bin p m l (insertWithKey f k x r)
     Tip ky y
       | k==ky         -> Tip k (f k x y)
-      | otherwise     -> join k (Tip k x) ky t
+      | otherwise     -> link k (Tip k x) ky t
     Nil -> Tip k x
 
 -- | /O(min(n,W))/. The expression (@'insertLookupWithKey' f k x map@)
@@ -637,12 +637,12 @@ insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a,
 insertLookupWithKey f k x t = k `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> (Nothing,join k (Tip k x) p t)
+      | nomatch k p m -> (Nothing,link k (Tip k x) p t)
       | zero k m      -> let (found,l') = insertLookupWithKey f k x l in (found,Bin p m l' r)
       | otherwise     -> let (found,r') = insertLookupWithKey f k x r in (found,Bin p m l r')
     Tip ky y
       | k==ky         -> (Just y,Tip k (f k x y))
-      | otherwise     -> (Nothing,join k (Tip k x) ky t)
+      | otherwise     -> (Nothing,link k (Tip k x) ky t)
     Nil -> (Nothing,Tip k x)
 
 
@@ -762,7 +762,7 @@ alter f k t = k `seq`
     Bin p m l r
       | nomatch k p m -> case f Nothing of
                            Nothing -> t
-                           Just x -> join k (Tip k x) p t
+                           Just x -> link k (Tip k x) p t
       | zero k m      -> bin p m (alter f k l) r
       | otherwise     -> bin p m l (alter f k r)
     Tip ky y
@@ -770,7 +770,7 @@ alter f k t = k `seq`
                            Just x -> Tip ky x
                            Nothing -> Nil
       | otherwise     -> case f Nothing of
-                           Just x -> join k (Tip k x) ky t
+                           Just x -> link k (Tip k x) ky t
                            Nothing -> Tip ky y
     Nil               -> case f Nothing of
                            Just x -> Tip k x
@@ -956,39 +956,39 @@ mergeWithKey' bin' f g1 g2 = go
       | shorter m1 m2  = merge1
       | shorter m2 m1  = merge2
       | p1 == p2       = bin' p1 m1 (go l1 l2) (go r1 r2)
-      | otherwise      = maybe_join p1 (g1 t1) p2 (g2 t2)
+      | otherwise      = maybe_link p1 (g1 t1) p2 (g2 t2)
       where
-        merge1 | nomatch p2 p1 m1  = maybe_join p1 (g1 t1) p2 (g2 t2)
+        merge1 | nomatch p2 p1 m1  = maybe_link p1 (g1 t1) p2 (g2 t2)
                | zero p2 m1        = bin' p1 m1 (go l1 t2) (g1 r1)
                | otherwise         = bin' p1 m1 (g1 l1) (go r1 t2)
-        merge2 | nomatch p1 p2 m2  = maybe_join p1 (g1 t1) p2 (g2 t2)
+        merge2 | nomatch p1 p2 m2  = maybe_link p1 (g1 t1) p2 (g2 t2)
                | zero p1 m2        = bin' p2 m2 (go t1 l2) (g2 r2)
                | otherwise         = bin' p2 m2 (g2 l2) (go t1 r2)
 
     go t1'@(Bin _ _ _ _) t2'@(Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = maybe_join p1 (g1 t1) k2 (g2 t2)
+      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = maybe_link p1 (g1 t1) k2 (g2 t2)
                                              | zero k2 m1 = bin' p1 m1 (merge t2 k2 l1) (g1 r1)
                                              | otherwise  = bin' p1 m1 (g1 l1) (merge t2 k2 r1)
             merge t2 k2 t1@(Tip k1 _) | k1 == k2 = f t1 t2
-                                      | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
+                                      | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
             merge t2 _  Nil = g2 t2
 
     go t1@(Bin _ _ _ _) Nil = g1 t1
 
     go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 t2@(Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = maybe_join k1 (g1 t1) p2 (g2 t2)
+      where merge t1 k1 t2@(Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = maybe_link k1 (g1 t1) p2 (g2 t2)
                                              | zero k1 m2 = bin' p2 m2 (merge t1 k1 l2) (g2 r2)
                                              | otherwise  = bin' p2 m2 (g2 l2) (merge t1 k1 r2)
             merge t1 k1 t2@(Tip k2 _) | k1 == k2 = f t1 t2
-                                      | otherwise = maybe_join k1 (g1 t1) k2 (g2 t2)
+                                      | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
             merge t1 _  Nil = g1 t1
 
     go Nil t2 = g2 t2
 
-    maybe_join _ Nil _ t2 = t2
-    maybe_join _ t1 _ Nil = t1
-    maybe_join p1 t1 p2 t2 = join p1 t1 p2 t2
-    {-# INLINE maybe_join #-}
+    maybe_link _ Nil _ t2 = t2
+    maybe_link _ t1 _ Nil = t1
+    maybe_link p1 t1 p2 t2 = link p1 t1 p2 t2
+    {-# INLINE maybe_link #-}
 {-# INLINE mergeWithKey' #-}
 
 {--------------------------------------------------------------------
@@ -1923,7 +1923,7 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
                  else work z zs (Push px tx stk)
 
     finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
+    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
         where m = branchMask px py
               p = mask px m
 
@@ -2004,16 +2004,16 @@ INSTANCE_TYPEABLE1(IntMap,intMapTc,"IntMap")
   Helpers
 --------------------------------------------------------------------}
 {--------------------------------------------------------------------
-  Join
+  Link
 --------------------------------------------------------------------}
-join :: Prefix -> IntMap a -> Prefix -> IntMap a -> IntMap a
-join p1 t1 p2 t2
+link :: Prefix -> IntMap a -> Prefix -> IntMap a -> IntMap a
+link p1 t1 p2 t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
     m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE join #-}
+{-# INLINE link #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.

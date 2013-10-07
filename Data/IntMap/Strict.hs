@@ -328,12 +328,12 @@ insert :: Key -> a -> IntMap a -> IntMap a
 insert k x t = k `seq` x `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> join k (Tip k x) p t
+      | nomatch k p m -> link k (Tip k x) p t
       | zero k m      -> Bin p m (insert k x l) r
       | otherwise     -> Bin p m l (insert k x r)
     Tip ky _
       | k==ky         -> Tip k x
-      | otherwise     -> join k (Tip k x) ky t
+      | otherwise     -> link k (Tip k x) ky t
     Nil -> Tip k x
 
 -- right-biased insertion, used by 'union'
@@ -369,12 +369,12 @@ insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWithKey f k x t = k `seq`
   case t of
     Bin p m l r
-      | nomatch k p m -> join k (singleton k x) p t
+      | nomatch k p m -> link k (singleton k x) p t
       | zero k m      -> Bin p m (insertWithKey f k x l) r
       | otherwise     -> Bin p m l (insertWithKey f k x r)
     Tip ky y
       | k==ky         -> Tip k $! f k x y
-      | otherwise     -> join k (singleton k x) ky t
+      | otherwise     -> link k (singleton k x) ky t
     Nil -> singleton k x
 
 -- | /O(min(n,W))/. The expression (@'insertLookupWithKey' f k x map@)
@@ -398,12 +398,12 @@ insertLookupWithKey f0 k0 x0 t0 = k0 `seq` toPair $ go f0 k0 x0 t0
     go f k x t =
       case t of
         Bin p m l r
-          | nomatch k p m -> Nothing :*: join k (singleton k x) p t
+          | nomatch k p m -> Nothing :*: link k (singleton k x) p t
           | zero k m      -> let (found :*: l') = go f k x l in (found :*: Bin p m l' r)
           | otherwise     -> let (found :*: r') = go f k x r in (found :*: Bin p m l r')
         Tip ky y
           | k==ky         -> (Just y :*: (Tip k $! f k x y))
-          | otherwise     -> (Nothing :*: join k (singleton k x) ky t)
+          | otherwise     -> (Nothing :*: link k (singleton k x) ky t)
         Nil -> Nothing :*: (singleton k x)
 
 
@@ -506,7 +506,7 @@ alter f k t = k `seq`
     Bin p m l r
       | nomatch k p m -> case f Nothing of
                            Nothing -> t
-                           Just x  -> x `seq` join k (Tip k x) p t
+                           Just x  -> x `seq` link k (Tip k x) p t
       | zero k m      -> bin p m (alter f k l) r
       | otherwise     -> bin p m l (alter f k r)
     Tip ky y
@@ -514,7 +514,7 @@ alter f k t = k `seq`
                            Just  x -> x `seq` Tip ky x
                            Nothing -> Nil
       | otherwise     -> case f Nothing of
-                           Just x  -> x `seq` join k (Tip k x) ky t
+                           Just x  -> x `seq` link k (Tip k x) ky t
                            Nothing -> t
     Nil               -> case f Nothing of
                            Just x  -> x `seq` Tip k x
@@ -970,7 +970,7 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
                  else work z zs (Push px tx stk)
 
     finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
+    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
         where m = branchMask px py
               p = mask px m
 

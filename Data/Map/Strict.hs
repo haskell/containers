@@ -215,7 +215,7 @@ module Data.Map.Strict
     -- * Internals
     , bin
     , balanced
-    , join
+    , link
     , merge
 #endif
     ) where
@@ -842,18 +842,18 @@ mergeWithKey f g1 g2 = go
     go t1 t2 = hedgeMerge NothingS NothingS t1 t2
 
     hedgeMerge _   _   t1  Tip = g1 t1
-    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ join kx x (filterGt blo l) (filterLt bhi r)
+    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ link kx x (filterGt blo l) (filterLt bhi r)
     hedgeMerge blo bhi (Bin _ kx x l r) t2 = let l' = hedgeMerge blo bmi l (trim blo bmi t2)
                                                  (found, trim_t2) = trimLookupLo kx bhi t2
                                                  r' = hedgeMerge bmi bhi r trim_t2
                                              in case found of
                                                   Nothing -> case g1 (singleton kx x) of
                                                                Tip -> merge l' r'
-                                                               (Bin _ _ x' Tip Tip) -> join kx x' l' r'
+                                                               (Bin _ _ x' Tip Tip) -> link kx x' l' r'
                                                                _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
                                                   Just x2 -> case f kx x x2 of
                                                                Nothing -> merge l' r'
-                                                               Just x' -> x' `seq` join kx x' l' r'
+                                                               Just x' -> x' `seq` link kx x' l' r'
       where bmi = JustS kx
 {-# INLINE mergeWithKey #-}
 
@@ -877,7 +877,7 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
-  Just y  -> y `seq` join kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Just y  -> y `seq` link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
@@ -907,8 +907,8 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
     go _ Tip = (Tip :*: Tip)
     go f (Bin _ kx x l r) = case f kx x of
-      Left y  -> y `seq` (join kx y l1 r1 :*: merge l2 r2)
-      Right z -> z `seq` (merge l1 r1 :*: join kx z l2 r2)
+      Left y  -> y `seq` (link kx y l1 r1 :*: merge l2 r2)
+      Right z -> z `seq` (merge l1 r1 :*: link kx z l2 r2)
      where
         (l1 :*: l2) = go f l
         (r1 :*: r2) = go f r
@@ -1039,8 +1039,8 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
     go _ t [(kx, x)] = x `seq` insertMax kx x t
     go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
                               | otherwise = case create s xss of
-                                  (r, ys, []) -> x `seq` go (s `shiftL` 1) (join kx x l r) ys
-                                  (r, _,  ys) -> x `seq` fromList' (join kx x l r) ys
+                                  (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
+                                  (r, _,  ys) -> x `seq` fromList' (link kx x l r) ys
 
     -- The create is returning a triple (tree, xs, ys). Both xs and ys
     -- represent not yet processed elements and only one of them can be nonempty.
@@ -1057,7 +1057,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
                       (l, [(ky, y)], zs) -> y `seq` (insertMax ky y l, [], zs)
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> y `seq` (join ky y l r, zs, ws)
+                                                   (r, zs, ws) -> y `seq` (link ky y l r, zs, ws)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE fromList #-}
 #endif
@@ -1169,7 +1169,7 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip T
     STRICT_1_OF_3(go)
     go _ t [] = t
     go s l ((kx, x) : xs) = case create s xs of
-                              (r, ys) -> x `seq` go (s `shiftL` 1) (join kx x l r) ys
+                              (r, ys) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
 
     STRICT_1_OF_2(create)
     create _ [] = (Tip, [])
@@ -1178,4 +1178,4 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip T
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, []) -> res
                       (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (r, zs) -> y `seq` (join ky y l r, zs)
+                        (r, zs) -> y `seq` (link ky y l r, zs)

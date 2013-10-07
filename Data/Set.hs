@@ -132,7 +132,7 @@ module Data.Set (
             -- Internals (for testing)
             , bin
             , balanced
-            , join
+            , link
             , merge
 #endif
             ) where

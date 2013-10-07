@@ -458,12 +458,12 @@ insertBM :: Prefix -> BitMap -> IntSet -> IntSet
 insertBM kx bm t = kx `seq` bm `seq`
   case t of
     Bin p m l r
-      | nomatch kx p m -> join kx (Tip kx bm) p t
+      | nomatch kx p m -> link kx (Tip kx bm) p t
       | zero kx m      -> Bin p m (insertBM kx bm l) r
       | otherwise      -> Bin p m l (insertBM kx bm r)
     Tip kx' bm'
       | kx' == kx -> Tip kx' (bm .|. bm')
-      | otherwise -> join kx (Tip kx bm) kx' t
+      | otherwise -> link kx (Tip kx bm) kx' t
     Nil -> Tip kx bm
 
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
@@ -501,13 +501,13 @@ union t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2  = union1
   | shorter m2 m1  = union2
   | p1 == p2       = Bin p1 m1 (union l1 l2) (union r1 r2)
-  | otherwise      = join p1 t1 p2 t2
+  | otherwise      = link p1 t1 p2 t2
   where
-    union1  | nomatch p2 p1 m1  = join p1 t1 p2 t2
+    union1  | nomatch p2 p1 m1  = link p1 t1 p2 t2
             | zero p2 m1        = Bin p1 m1 (union l1 t2) r1
             | otherwise         = Bin p1 m1 l1 (union r1 t2)
 
-    union2  | nomatch p1 p2 m2  = join p1 t1 p2 t2
+    union2  | nomatch p1 p2 m2  = link p1 t1 p2 t2
             | zero p1 m2        = Bin p2 m2 (union t1 l2) r2
             | otherwise         = Bin p2 m2 l2 (union t1 r2)
 
@@ -1019,7 +1019,7 @@ fromDistinctAscList (z0 : zs0) = work (prefixOf z0) (bitmapOf z0) zs0 Nada
                  else work (prefixOf z) (bitmapOf z) zs (Push px tx stk)
 
     finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (join py ty px tx) stk
+    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
         where m = branchMask px py
               p = mask px m
 
@@ -1179,16 +1179,16 @@ withEmpty bars = "   ":bars
   Helpers
 --------------------------------------------------------------------}
 {--------------------------------------------------------------------
-  Join
+  Link
 --------------------------------------------------------------------}
-join :: Prefix -> IntSet -> Prefix -> IntSet -> IntSet
-join p1 t1 p2 t2
+link :: Prefix -> IntSet -> Prefix -> IntSet -> IntSet
+link p1 t1 p2 t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
     m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE join #-}
+{-# INLINE link #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.
