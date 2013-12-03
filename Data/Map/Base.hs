@@ -2816,10 +2816,18 @@ foldlStrict f = go
 {-# INLINE foldlStrict #-}
 
 
--- | /O(1)/.  Decompose a map into pieces, based on the structure of the underlying
+-- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  No guarantee is made as to the sizes of the pieces; an internal, but
--- deterministic process determines this.  This is most useful for consuming a map in
--- parallel.
+-- deterministic process determines this.  
+--
+-- Examples:
+--     
+-- > splitRoot (fromList (zip [1..6] ['a'..])) ==
+-- >   [fromList [(4,'d')],fromList [(1,'a'),(2,'b'),(3,'c')],fromList [(5,'e'),(6,'f')]]
+--
+-- > splitRoot M.empty == []
+--
+--  This function is useful for consuming a map in parallel.
 splitRoot :: Map k b -> [Map k b]
 splitRoot orig =
   case orig of 

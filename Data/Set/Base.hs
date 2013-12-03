@@ -174,12 +174,12 @@ module Data.Set.Base (
             , showTree
             , showTreeWith
             , valid
-              
+
             -- Internals (for testing)
             , bin
             , balanced
             , link
-            , merge              
+            , merge
             ) where
 
 import Prelude hiding (filter,foldl,foldr,null,map)
@@ -1405,10 +1405,18 @@ foldlStrict f = go
     go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
 
--- | /O(1)/.  Decompose a set into pieces, based on the structure of the underlying
+-- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  No guarantee is made as to the sizes of the pieces; an internal, but
--- deterministic process determines this.  This is most useful for consuming a set in
--- parallel.
+-- deterministic process determines this. 
+--
+-- Examples:
+--     
+-- > splitRoot (fromList [1..6]) ==
+-- >   [fromList [4],fromList [1,2,3],fromList [5,6]]
+--    
+-- > splitRoot M.empty == []
+--
+--  This function is useful for consuming a set in parallel.    
 splitRoot :: Set a -> [Set a]
 splitRoot orig =
   case orig of 
