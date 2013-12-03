@@ -211,6 +211,7 @@ module Data.Map.Base (
 
     , split
     , splitLookup
+    , splitRoot
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy
@@ -258,7 +259,6 @@ module Data.Map.Base (
     , trim
     , trimLookupLo
     , foldlStrict
-    , splitTree
     , MaybeS(..)
     , filterGt
     , filterLt
@@ -2816,15 +2816,13 @@ foldlStrict f = go
 {-# INLINE foldlStrict #-}
 
 
--- | /O(1)/.  Decompose a Map into pieces, based on the structure of the underlying
--- tree.  No guarantee is made as to the sizes of the pieces: an internal, but
--- deterministic process determines this.  This is most useful for consuming a Map in
+-- | /O(1)/.  Decompose a map into pieces, based on the structure of the underlying
+-- tree.  No guarantee is made as to the sizes of the pieces; an internal, but
+-- deterministic process determines this.  This is most useful for consuming a map in
 -- parallel.
-splitTree :: Map k b -> [Map k b]
-splitTree orig =
+splitRoot :: Map k b -> [Map k b]
+splitRoot orig =
   case orig of 
     Tip           -> []
-    Bin 1 k v l r -> [singleton k v, l, r]
-{-# INLINE splitTree #-}
-
-
+    Bin _ k v l r -> [singleton k v, l, r]
+{-# INLINE splitRoot #-}
