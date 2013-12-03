@@ -2816,13 +2816,15 @@ foldlStrict f = go
 {-# INLINE foldlStrict #-}
 
 
--- | /O(1)/.  Decompose a Map into pieces.  No guarantee is made as to the sizes of
--- the pieces, but some of them will be balanced, and some may be empty.
-splitTree :: Map k b -> Maybe (Map k b, Map k b, Map k b)
+-- | /O(1)/.  Decompose a Map into pieces, based on the structure of the underlying
+-- tree.  No guarantee is made as to the sizes of the pieces: an internal, but
+-- deterministic process determines this.  This is most useful for consuming a Map in
+-- parallel.
+splitTree :: Map k b -> [Map k b]
 splitTree orig =
   case orig of 
-    Tip           -> Nothing
-    Bin 1 k v l r -> Just (singleton k v, l, r)
+    Tip           -> []
+    Bin 1 k v l r -> [singleton k v, l, r]
 {-# INLINE splitTree #-}
 
 
