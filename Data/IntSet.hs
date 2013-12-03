@@ -90,6 +90,7 @@ module Data.IntSet (
             , partition
             , split
             , splitMember
+            , splitRoot
 
             -- * Map
             , IS.map
