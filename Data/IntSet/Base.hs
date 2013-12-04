@@ -1493,19 +1493,20 @@ foldlStrict f = go
 -- relationships of the output subsets.
 --
 -- Examples:
---     
+--
 -- > splitRoot (fromList [1..120]) == [fromList [1..63],fromList [64..120]]
 -- > splitRoot empty == []
 --
---  Note that the current implementation will not return more than two subsets, but
---  you should not depend on this remaining the case in future versions.  Also, the
---  current version will not continue splitting all the way to individual singleton
---  sets -- it will stop before that.
+--  Note that the current implementation does not return more than two subsets,
+--  but you should not depend on this behaviour because it can change in the
+--  future without notice. Also, the current version does not continue
+--  splitting all the way to individual singleton sets -- it stops at some
+--  point.
 splitRoot :: IntSet -> [IntSet]
 splitRoot orig =
   case orig of
     Nil           -> []
-    -- NOTE: we don't currently split below Tip, but we could.    
+    -- NOTE: we don't currently split below Tip, but we could.
     x@(Tip _ _)   -> [x]
     Bin _ _ l r   -> [l, r]
 {-# INLINE splitRoot #-}

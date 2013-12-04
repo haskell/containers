@@ -2086,14 +2086,15 @@ foldlStrict f = go
 -- relationships of the output subsets.
 --
 -- Examples:
---     
+--
 -- > splitRoot (fromList (zip [1..6::Int] ['a'..])) ==
 -- >   [fromList [(1,'a'),(2,'b'),(3,'c')],fromList [(4,'d'),(5,'e'),(6,'f')]]
--- 
+--
 -- > splitRoot empty == []
 --
---  Note that the current implementation will not return more than two submaps,
---  but you should not depend on this remaining the case in future versions.
+--  Note that the current implementation does not return more than two submaps,
+--  but you should not depend on this behaviour because it can change in the
+--  future without notice.
 splitRoot :: IntMap a -> [IntMap a]
 splitRoot orig =
   case orig of

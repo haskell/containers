@@ -2825,17 +2825,18 @@ foldlStrict f = go
 -- elements in the second, and so on).
 --
 -- Examples:
---     
+--
 -- > splitRoot (fromList (zip [1..6] ['a'..])) ==
 -- >   [fromList [(1,'a'),(2,'b'),(3,'c')],fromList [(4,'d')],fromList [(5,'e'),(6,'f')]]
 --
 -- > splitRoot empty == []
 --
---  Note that the current implementation will not return more than three subsets,
---  but you should not depend on this remaining the case in future versions.
+--  Note that the current implementation does not return more than three submaps,
+--  but you should not depend on this behaviour because it can change in the
+--  future without notice.
 splitRoot :: Map k b -> [Map k b]
 splitRoot orig =
-  case orig of 
+  case orig of
     Tip           -> []
     Bin _ k v l r -> [l, singleton k v, r]
 {-# INLINE splitRoot #-}

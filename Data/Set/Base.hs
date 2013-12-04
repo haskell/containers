@@ -1414,17 +1414,18 @@ foldlStrict f = go
 -- elements in the second, and so on).
 --
 -- Examples:
---     
+--
 -- > splitRoot (fromList [1..6]) ==
 -- >   [fromList [1,2,3],fromList [4],fromList [5,6]]
---    
+--
 -- > splitRoot empty == []
 --
---  Note that the current implementation will not return more than three subsets,
---  but you should not depend on this remaining the case in future versions.
+--  Note that the current implementation does not return more than three subsets,
+--  but you should not depend on this behaviour because it can change in the
+--  future without notice.
 splitRoot :: Set a -> [Set a]
 splitRoot orig =
-  case orig of 
+  case orig of
     Tip           -> []
     Bin _ v l r -> [l, singleton v, r]
 {-# INLINE splitRoot #-}
