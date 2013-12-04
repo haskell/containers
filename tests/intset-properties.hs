@@ -63,6 +63,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
                    , testProperty "prop_splitMember" prop_splitMember
+                   , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
 #if MIN_VERSION_base(4,5,0)
@@ -307,6 +308,9 @@ prop_split s i = case split i s of
 prop_splitMember :: IntSet -> Int -> Bool
 prop_splitMember s i = case splitMember i s of
     (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s && i `delete` s == union s1 s2
+
+prop_splitRoot :: IntSet -> Bool
+prop_splitRoot s = (s == unions (splitRoot s))
 
 prop_partition :: IntSet -> Int -> Bool
 prop_partition s i = case partition odd s of
