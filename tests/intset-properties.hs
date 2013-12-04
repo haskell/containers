@@ -310,7 +310,14 @@ prop_splitMember s i = case splitMember i s of
     (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s && i `delete` s == union s1 s2
 
 prop_splitRoot :: IntSet -> Bool
-prop_splitRoot s = (s == unions (splitRoot s))
+prop_splitRoot s = loop ls && (s == unions ls)
+ where
+  ls = splitRoot s
+  loop [] = True
+  loop (s1:rst) = List.null
+                  [ (x,y) | x <- toList s1
+                          , y <- toList (unions rst)
+                          , x > y ]
 
 prop_partition :: IntSet -> Int -> Bool
 prop_partition s i = case partition odd s of

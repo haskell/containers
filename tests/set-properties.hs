@@ -363,7 +363,7 @@ prop_splitMember s i = case splitMember i s of
 prop_splitRoot :: Set Int -> Bool
 prop_splitRoot s = loop ls && (s == unions ls)
  where
-  ls = splitRoot s 
+  ls = splitRoot s
   loop [] = True
   loop (s1:rst) = List.null
                   [ (x,y) | x <- toList s1

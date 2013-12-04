@@ -1487,10 +1487,11 @@ foldlStrict f = go
 
 -- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.
---     
--- No guarantee is made as to the sizes of the pieces; an internal, but deterministic
--- process determines this.  Further, there are no guarantees about the ordering
--- relationships of the output subsets.
+--
+-- No guarantee is made as to the sizes of the pieces; an internal, but
+-- deterministic process determines this.  However, it is guaranteed that the
+-- pieces returned will be in ascending order (all elements in the first submap
+-- less than all elements in the second, and so on).
 --
 -- Examples:
 --
@@ -1505,8 +1506,9 @@ foldlStrict f = go
 splitRoot :: IntSet -> [IntSet]
 splitRoot orig =
   case orig of
-    Nil           -> []
+    Nil -> []
     -- NOTE: we don't currently split below Tip, but we could.
-    x@(Tip _ _)   -> [x]
-    Bin _ _ l r   -> [l, r]
+    x@(Tip _ _) -> [x]
+    Bin _ m l r | m < 0 -> [r, l]
+                | otherwise -> [l, r]
 {-# INLINE splitRoot #-}

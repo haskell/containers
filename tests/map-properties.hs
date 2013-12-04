@@ -863,7 +863,7 @@ prop_split k t = let (r,l) = split k t
 prop_splitRoot :: UMap -> Bool
 prop_splitRoot s = loop ls && (s == unions ls)
  where
-  ls = splitRoot s 
+  ls = splitRoot s
   loop [] = True
   loop (s1:rst) = List.null
                   [ (x,y) | x <- toList s1

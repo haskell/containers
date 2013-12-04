@@ -160,7 +160,7 @@ main = defaultMain
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
              , testProperty "split"                prop_splitModel
-             , testProperty "prop_splitRoot"       prop_splitRoot
+             , testProperty "splitRoot"            prop_splitRoot
              , testProperty "foldr"                prop_foldr
              , testProperty "foldr'"               prop_foldr'
              , testProperty "foldl"                prop_foldl
@@ -996,7 +996,14 @@ prop_splitModel n ys = length ys > 0 ==>
       toAscList r == sort [(k, v) | (k,v) <- xs, k > n]
 
 prop_splitRoot :: IMap -> Bool
-prop_splitRoot s = (s == unions (splitRoot s))
+prop_splitRoot s = loop ls && (s == unions ls)
+ where
+  ls = splitRoot s
+  loop [] = True
+  loop (s1:rst) = List.null
+                  [ (x,y) | x <- toList s1
+                          , y <- toList (unions rst)
+                          , x > y ]
 
 prop_foldr :: Int -> [(Int, Int)] -> Property
 prop_foldr n ys = length ys > 0 ==>
