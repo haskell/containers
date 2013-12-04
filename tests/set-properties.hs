@@ -31,7 +31,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_InsertValid" prop_InsertValid
                    , testProperty "prop_InsertDelete" prop_InsertDelete
                    , testProperty "prop_DeleteValid" prop_DeleteValid
---                   , testProperty "prop_Join" prop_Join
+                   , testProperty "prop_Link" prop_Link
                    , testProperty "prop_Merge" prop_Merge
                    , testProperty "prop_UnionValid" prop_UnionValid
                    , testProperty "prop_UnionInsert" prop_UnionInsert
@@ -216,10 +216,10 @@ prop_DeleteValid k = forValidUnitTree $ \t -> valid (delete k (insert k t))
 {--------------------------------------------------------------------
   Balance
 --------------------------------------------------------------------}
--- prop_Join :: Int -> Property
--- prop_Join x = forValidUnitTree $ \t ->
---     let (l,r) = split x t
---     in valid (join x l r)
+prop_Link :: Int -> Property
+prop_Link x = forValidUnitTree $ \t ->
+    let (l,r) = split x t
+    in valid (link x l r)
 
 prop_Merge :: Int -> Property
 prop_Merge x = forValidUnitTree $ \t ->

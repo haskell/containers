@@ -137,7 +137,7 @@ main = defaultMain
          , testProperty "deleteMax"            prop_deleteMax
          , testProperty "split"                prop_split
          , testProperty "splitRoot"            prop_splitRoot
---         , testProperty "split then join"      prop_join
+         , testProperty "split then link"      prop_link
          , testProperty "split then merge"     prop_merge
          , testProperty "union"                prop_union
          , testProperty "union model"          prop_unionModel
@@ -870,9 +870,9 @@ prop_splitRoot s = loop ls && (s == unions ls)
                           , y <- toList (unions rst)
                           , x > y ]
 
--- prop_join :: Int -> UMap -> Bool
--- prop_join k t = let (l,r) = split k t
---                 in valid (join k () l r)
+prop_link :: Int -> UMap -> Bool
+prop_link k t = let (l,r) = split k t
+                in valid (link k () l r)
 
 prop_merge :: Int -> UMap -> Bool
 prop_merge k t = let (l,r) = split k t
