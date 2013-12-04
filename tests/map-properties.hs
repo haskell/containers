@@ -136,7 +136,8 @@ main = defaultMain
          , testProperty "deleteMin"            prop_deleteMin
          , testProperty "deleteMax"            prop_deleteMax
          , testProperty "split"                prop_split
-         , testProperty "split then join"      prop_join
+         , testProperty "splitRoot"            prop_splitRoot
+--         , testProperty "split then join"      prop_join
          , testProperty "split then merge"     prop_merge
          , testProperty "union"                prop_union
          , testProperty "union model"          prop_unionModel
@@ -859,9 +860,19 @@ prop_split :: Int -> UMap -> Bool
 prop_split k t = let (r,l) = split k t
                  in (valid r, valid l) == (True, True)
 
-prop_join :: Int -> UMap -> Bool
-prop_join k t = let (l,r) = split k t
-                in valid (join k () l r)
+prop_splitRoot :: UMap -> Bool
+prop_splitRoot s = loop ls && (s == unions ls)
+ where
+  ls = splitRoot s 
+  loop [] = True
+  loop (s1:rst) = List.null
+                  [ (x,y) | x <- toList s1
+                          , y <- toList (unions rst)
+                          , x > y ]
+
+-- prop_join :: Int -> UMap -> Bool
+-- prop_join k t = let (l,r) = split k t
+--                 in valid (join k () l r)
 
 prop_merge :: Int -> UMap -> Bool
 prop_merge k t = let (l,r) = split k t

@@ -31,7 +31,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_InsertValid" prop_InsertValid
                    , testProperty "prop_InsertDelete" prop_InsertDelete
                    , testProperty "prop_DeleteValid" prop_DeleteValid
-                   , testProperty "prop_Join" prop_Join
+--                   , testProperty "prop_Join" prop_Join
                    , testProperty "prop_Merge" prop_Merge
                    , testProperty "prop_UnionValid" prop_UnionValid
                    , testProperty "prop_UnionInsert" prop_UnionInsert
@@ -64,6 +64,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
                    , testProperty "prop_splitMember" prop_splitMember
+                   , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
                    ]
@@ -215,10 +216,10 @@ prop_DeleteValid k = forValidUnitTree $ \t -> valid (delete k (insert k t))
 {--------------------------------------------------------------------
   Balance
 --------------------------------------------------------------------}
-prop_Join :: Int -> Property
-prop_Join x = forValidUnitTree $ \t ->
-    let (l,r) = split x t
-    in valid (join x l r)
+-- prop_Join :: Int -> Property
+-- prop_Join x = forValidUnitTree $ \t ->
+--     let (l,r) = split x t
+--     in valid (join x l r)
 
 prop_Merge :: Int -> Property
 prop_Merge x = forValidUnitTree $ \t ->
@@ -358,6 +359,16 @@ prop_split s i = case split i s of
 prop_splitMember :: Set Int -> Int -> Bool
 prop_splitMember s i = case splitMember i s of
     (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s && i `delete` s == union s1 s2
+
+prop_splitRoot :: Set Int -> Bool
+prop_splitRoot s = loop ls && (s == unions ls)
+ where
+  ls = splitRoot s 
+  loop [] = True
+  loop (s1:rst) = List.null
+                  [ (x,y) | x <- toList s1
+                          , y <- toList (unions rst)
+                          , x > y ]
 
 prop_partition :: Set Int -> Int -> Bool
 prop_partition s i = case partition odd s of

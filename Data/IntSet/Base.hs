@@ -111,6 +111,7 @@ module Data.IntSet.Base (
     , partition
     , split
     , splitMember
+    , splitRoot
 
     -- * Map
     , map
@@ -1483,3 +1484,28 @@ foldlStrict f = go
     go z []     = z
     go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
+
+-- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
+-- tree.  This function is useful for consuming a set in parallel.
+--     
+-- No guarantee is made as to the sizes of the pieces; an internal, but deterministic
+-- process determines this.  Further, there are no guarantees about the ordering
+-- relationships of the output subsets.
+--
+-- Examples:
+--     
+-- > splitRoot (fromList [1..120]) == [fromList [1..63],fromList [64..120]]
+-- > splitRoot empty == []
+--
+--  Note that the current implementation will not return more than two subsets, but
+--  you should not depend on this remaining the case in future versions.  Also, the
+--  current version will not continue splitting all the way to individual singleton
+--  sets -- it will stop before that.
+splitRoot :: IntSet -> [IntSet]
+splitRoot orig =
+  case orig of
+    Nil           -> []
+    -- NOTE: we don't currently split below Tip, but we could.    
+    x@(Tip _ _)   -> [x]
+    Bin _ _ l r   -> [l, r]
+{-# INLINE splitRoot #-}

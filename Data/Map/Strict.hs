@@ -178,6 +178,7 @@ module Data.Map.Strict
 
     , split
     , splitLookup
+    , splitRoot
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy

@@ -126,6 +126,7 @@ module Data.Set.Base (
             , partition
             , split
             , splitMember
+            , splitRoot
 
             -- * Indexed
             , lookupIndex
@@ -1403,6 +1404,31 @@ foldlStrict f = go
     go z []     = z
     go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
+
+-- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
+-- tree.  This function is useful for consuming a set in parallel.
+--
+-- No guarantee is made as to the sizes of the pieces; an internal, but
+-- deterministic process determines this.  However, it is guaranteed that the pieces
+-- returned will be in ascending order (all elements in the first subset less than all
+-- elements in the second, and so on).
+--
+-- Examples:
+--     
+-- > splitRoot (fromList [1..6]) ==
+-- >   [fromList [1,2,3],fromList [4],fromList [5,6]]
+--    
+-- > splitRoot empty == []
+--
+--  Note that the current implementation will not return more than three subsets,
+--  but you should not depend on this remaining the case in future versions.
+splitRoot :: Set a -> [Set a]
+splitRoot orig =
+  case orig of 
+    Tip           -> []
+    Bin _ v l r -> [l, singleton v, r]
+{-# INLINE splitRoot #-}
+
 
 {--------------------------------------------------------------------
   Debugging

@@ -211,6 +211,7 @@ module Data.Map.Base (
 
     , split
     , splitLookup
+    , splitRoot
 
     -- * Submap
     , isSubmapOf, isSubmapOfBy
@@ -2813,3 +2814,28 @@ foldlStrict f = go
     go z []     = z
     go z (x:xs) = let z' = f z x in z' `seq` go z' xs
 {-# INLINE foldlStrict #-}
+
+
+-- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
+-- tree.  This function is useful for consuming a map in parallel.
+--
+-- No guarantee is made as to the sizes of the pieces; an internal, but
+-- deterministic process determines this.  However, it is guaranteed that the pieces
+-- returned will be in ascending order (all elements in the first submap less than all
+-- elements in the second, and so on).
+--
+-- Examples:
+--     
+-- > splitRoot (fromList (zip [1..6] ['a'..])) ==
+-- >   [fromList [(1,'a'),(2,'b'),(3,'c')],fromList [(4,'d')],fromList [(5,'e'),(6,'f')]]
+--
+-- > splitRoot empty == []
+--
+--  Note that the current implementation will not return more than three subsets,
+--  but you should not depend on this remaining the case in future versions.
+splitRoot :: Map k b -> [Map k b]
+splitRoot orig =
+  case orig of 
+    Tip           -> []
+    Bin _ k v l r -> [l, singleton k v, r]
+{-# INLINE splitRoot #-}

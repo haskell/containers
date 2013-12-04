@@ -80,6 +80,7 @@ module Data.Set (
             , partition
             , split
             , splitMember
+            , splitRoot
 
             -- * Indexed
             , lookupIndex
