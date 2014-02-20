@@ -105,6 +105,7 @@ module Data.Map.Base (
     , member
     , notMember
     , lookup
+    , lookupWith
     , findWithDefault
     , lookupLT
     , lookupGT
@@ -210,7 +211,9 @@ module Data.Map.Base (
     , mapEitherWithKey
 
     , split
+    , splitWith
     , splitLookup
+    , splitLookupWith
     , splitRoot
 
     -- * Submap
@@ -412,18 +415,28 @@ size (Bin sz _ _ _ _) = sz
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 lookup :: Ord k => k -> Map k a -> Maybe a
-lookup = go
-  where
-    STRICT_1_OF_2(go)
-    go _ Tip = Nothing
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> Just x
+lookup = lookupWith compare
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookup #-}
 #else
 {-# INLINE lookup #-}
+#endif
+
+-- | /O(log n)/. Like 'lookup', but using a user-supplied function to perform
+-- comparisons between the input and the keys of the map.
+lookupWith :: (b -> k -> Ordering) -> b -> Map k a -> Maybe a
+lookupWith f = go
+  where
+    STRICT_1_OF_2(go)
+    go _ Tip = Nothing
+    go k (Bin _ kx x l r) = case f k kx of
+      LT -> go k l
+      GT -> go k r
+      EQ -> Just x
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE lookupWith #-}
+#else
+{-# INLINE lookupWith #-}
 #endif
 
 -- | /O(log n)/. Is the key a member of the map? See also 'notMember'.
@@ -2288,17 +2301,26 @@ filterLt (JustS b) t = filter' b t
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split k0 t0 = k0 `seq` toPair $ go k0 t0
+split = splitWith compare
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE split #-}
+#endif
+
+-- | /O(log n)/. Like 'split', but using a user-supplied function to perform
+-- comparisons between the input and the keys of the map.
+
+splitWith :: (b -> k -> Ordering) -> b -> Map k a -> (Map k a,Map k a)
+splitWith f k0 t0 = k0 `seq` toPair $ go k0 t0
   where
     go k t =
       case t of
         Tip            -> (Tip :*: Tip)
-        Bin _ kx x l r -> case compare k kx of
+        Bin _ kx x l r -> case f k kx of
           LT -> let (lt :*: gt) = go k l in lt :*: link kx x gt r
           GT -> let (lt :*: gt) = go k r in link kx x l lt :*: gt
           EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE split #-}
+{-# INLINABLE splitWith #-}
 #endif
 
 -- | /O(log n)/. The expression (@'splitLookup' k map@) splits a map just
@@ -2311,14 +2333,20 @@ split k0 t0 = k0 `seq` toPair $ go k0 t0
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k t = k `seq`
+splitLookup = splitLookupWith compare
+
+-- | /O(log n)/. Like 'splitLookup', but using a user-supplied function to
+-- perform comparisons between the input and the keys of the map.
+
+splitLookupWith :: (b -> k -> Ordering) -> b -> Map k a -> (Map k a,Maybe a,Map k a)
+splitLookupWith f k t = k `seq`
   case t of
     Tip            -> (Tip,Nothing,Tip)
-    Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,z,gt) = splitLookup k l
+    Bin _ kx x l r -> case f k kx of
+      LT -> let (lt,z,gt) = splitLookupWith f k l
                 gt' = link kx x gt r
             in gt' `seq` (lt,z,gt')
-      GT -> let (lt,z,gt) = splitLookup k r
+      GT -> let (lt,z,gt) = splitLookupWith f k r
                 lt' = link kx x l lt
             in lt' `seq` (lt',z,gt)
       EQ -> (l,Just x,r)

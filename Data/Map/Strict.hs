@@ -72,6 +72,7 @@ module Data.Map.Strict
     , member
     , notMember
     , lookup
+    , lookupWith
     , findWithDefault
     , lookupLT
     , lookupGT
@@ -177,7 +178,9 @@ module Data.Map.Strict
     , mapEitherWithKey
 
     , split
+    , splitWith
     , splitLookup
+    , splitLookupWith
     , splitRoot
 
     -- * Submap
