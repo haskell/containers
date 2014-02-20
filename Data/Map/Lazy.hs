@@ -65,6 +65,7 @@ module Data.Map.Lazy (
     , member
     , notMember
     , M.lookup
+    , M.lookupWith
     , findWithDefault
     , lookupLT
     , lookupGT
@@ -170,7 +171,9 @@ module Data.Map.Lazy (
     , mapEitherWithKey
 
     , split
+    , splitWith
     , splitLookup
+    , splitLookupWith
     , splitRoot
 
     -- * Submap
