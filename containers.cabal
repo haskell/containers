@@ -63,6 +63,8 @@ Library
 
     if impl(ghc<7.0)
         extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
+    if impl(ghc >= 7.8)
+        extensions: RoleAnnotations
 
 -------------------
 -- T E S T I N G --

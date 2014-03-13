@@ -327,6 +327,10 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
+#if __GLASGOW_HASKELL__ >= 708
+type role Map nominal representational
+#endif
+
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
     mappend = union
