@@ -229,7 +229,7 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL >= 708
+#if __GLASGOW_HASKELL__ >= 708
 type role Set nominal
 #endif
 
