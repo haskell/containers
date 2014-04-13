@@ -5,6 +5,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+#if __GLASGOW_HASKELL__ >= 708
+{-# LANGUAGE TypeFamilies #-}
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Set.Base
@@ -194,6 +197,9 @@ import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
+#if __GLASGOW_HASKELL__ >= 708
+import qualified GHC.Exts as GHCExts
+#endif
 import Text.Read
 import Data.Data
 #endif
@@ -763,6 +769,13 @@ elems = toAscList
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
+#if __GLASGOW_HASKELL__ >= 708
+instance (Ord a) => GHCExts.IsList (Set a) where
+  type Item (Set a) = a
+  fromList = fromList
+  toList   = toList
+#endif
+
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]
 toList = toAscList
