@@ -5,6 +5,10 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+{-# LANGUAGE ScopedTypeVariables #-}
+#if __GLASGOW_HASKELL__ >= 708
+{-# LANGUAGE TypeFamilies #-}
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap.Base
@@ -231,6 +235,9 @@ import Data.StrictPair
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
 import GHC.Exts (build)
+#if __GLASGOW_HASKELL__ >= 708
+import qualified GHC.Exts as GHCExts
+#endif
 import Text.Read
 #endif
 
@@ -1770,6 +1777,13 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
+#if __GLASGOW_HASKELL__ >= 708
+instance GHCExts.IsList (IntMap a) where
+  type Item (IntMap a) = (Key,a)
+  fromList = fromList
+  toList   = toList
+#endif
+
 -- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list
 -- fusion.
 --
@@ -1907,7 +1921,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-fromDistinctAscList :: [(Key,a)] -> IntMap a
+fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where

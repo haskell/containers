@@ -7,6 +7,7 @@
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE TypeFamilies #-}
 #endif
 -----------------------------------------------------------------------------
 -- |
@@ -281,6 +282,9 @@ import qualified Data.Set.Base as Set
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
+#if __GLASGOW_HASKELL__ >= 708
+import qualified GHC.Exts as GHCExts
+#endif
 import Text.Read
 import Data.Data
 #endif
@@ -1951,6 +1955,13 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
   Lists
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
+#if __GLASGOW_HASKELL__ >= 708
+instance (Ord k) => GHCExts.IsList (Map k v) where
+  type Item (Map k v) = (k,v)
+  fromList = fromList
+  toList   = toList
+#endif
+
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
