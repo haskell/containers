@@ -211,14 +211,13 @@ Test-suite seq-properties
         test-framework-quickcheck2
 
 test-suite map-strictness-properties
-  hs-source-dirs: tests
+  hs-source-dirs: tests, .
   main-is: MapStrictness.hs
   type: exitcode-stdio-1.0
 
   build-depends:
     base,
     ChasingBottoms,
-    containers,
     QuickCheck >= 2.4.0.1,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
@@ -226,14 +225,13 @@ test-suite map-strictness-properties
   ghc-options: -Wall
 
 test-suite intmap-strictness-properties
-  hs-source-dirs: tests
+  hs-source-dirs: tests, .
   main-is: IntMapStrictness.hs
   type: exitcode-stdio-1.0
 
   build-depends:
     base,
     ChasingBottoms,
-    containers,
     QuickCheck >= 2.4.0.1,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
