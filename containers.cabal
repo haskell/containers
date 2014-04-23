@@ -216,9 +216,12 @@ test-suite map-strictness-properties
   type: exitcode-stdio-1.0
 
   build-depends:
-    base,
+    array,
+    base >= 4.2 && < 5,
     ChasingBottoms,
+    deepseq >= 1.2 && < 1.4,
     QuickCheck >= 2.4.0.1,
+    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -230,9 +233,12 @@ test-suite intmap-strictness-properties
   type: exitcode-stdio-1.0
 
   build-depends:
-    base,
+    array,
+    base >= 4.2 && < 5,
     ChasingBottoms,
+    deepseq >= 1.2 && < 1.4,
     QuickCheck >= 2.4.0.1,
+    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
