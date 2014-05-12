@@ -32,7 +32,7 @@ module Data.Tree(
     ) where
 
 import Control.Applicative (Applicative(..), (<$>))
-import Control.Monad
+import Control.Monad (liftM)
 import Data.Monoid (Monoid(..))
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
