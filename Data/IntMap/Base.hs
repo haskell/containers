@@ -395,7 +395,7 @@ member k = k `seq` go
     go (Tip kx _) = k == kx
     go Nil = False
 
-infix 4 member
+infix 4 `member`
 
 -- | /O(min(n,W))/. Is the key not a member of the map?
 --
@@ -405,7 +405,7 @@ infix 4 member
 notMember :: Key -> IntMap a -> Bool
 notMember k m = not $ member k m
 
-infix 4 notMember
+infix 4 `notMember`
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 
@@ -822,7 +822,7 @@ union :: IntMap a -> IntMap a -> IntMap a
 union m1 m2
   = mergeWithKey' Bin const id id m1 m2
 
-infixl 5 union
+infixl 5 `union`
 
 -- | /O(n+m)/. The union with a combining function.
 --
@@ -887,7 +887,7 @@ intersection :: IntMap a -> IntMap b -> IntMap a
 intersection m1 m2
   = mergeWithKey' bin const (const Nil) (const Nil) m1 m2
 
-infixl 5 intersection
+infixl 5 `intersection`
 
 -- | /O(n+m)/. The intersection with a combining function.
 --
