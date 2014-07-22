@@ -332,13 +332,9 @@ member x = x `seq` go
     go (Tip y bm) = prefixOf x == y && bitmapOf x .&. bm /= 0
     go Nil = False
 
-infix 4 member
-
 -- | /O(min(n,W))/. Is the element not in the set?
 notMember :: Key -> IntSet -> Bool
 notMember k = not . member k
-
-infix 4 notMember
 
 -- | /O(log n)/. Find largest element smaller than the given one.
 --
@@ -527,7 +523,6 @@ union t@(Bin _ _ _ _) Nil = t
 union (Tip kx bm) t = insertBM kx bm t
 union Nil t = t
 
-infixl 5 union
 
 {--------------------------------------------------------------------
   Difference
@@ -601,8 +596,6 @@ intersection (Tip kx1 bm1) t2 = intersectBM t2
         intersectBM Nil = Nil
 
 intersection Nil _ = Nil
-
-infixl 5 intersection
 
 {--------------------------------------------------------------------
   Subset

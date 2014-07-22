@@ -318,8 +318,6 @@ member = go
 {-# INLINE member #-}
 #endif
 
-infix 4 member
-
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
@@ -328,8 +326,6 @@ notMember a t = not $ member a t
 #else
 {-# INLINE notMember #-}
 #endif
-
-infix 4 notMember
 
 -- | /O(log n)/. Find largest element smaller than the given one.
 --
@@ -582,8 +578,6 @@ union t1 t2 = hedgeUnion NothingS NothingS t1 t2
 {-# INLINABLE union #-}
 #endif
 
-infixl 5 union
-
 hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeUnion _   _   t1  Tip = t1
 hedgeUnion blo bhi Tip (Bin _ x l r) = link x (filterGt blo l) (filterLt bhi r)
@@ -641,8 +635,6 @@ intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE intersection #-}
 #endif
-
-infixl 5 intersection
 
 hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
 hedgeInt _ _ _   Tip = Tip
