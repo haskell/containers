@@ -83,15 +83,15 @@ instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 
 -- | Neat 2-dimensional drawing of a tree.
-drawTree :: Tree String -> String
+drawTree :: Show a => Tree a -> String
 drawTree  = unlines . draw
 
 -- | Neat 2-dimensional drawing of a forest.
-drawForest :: Forest String -> String
+drawForest :: Show a => Forest a -> String
 drawForest  = unlines . map drawTree
 
-draw :: Tree String -> [String]
-draw (Node x ts0) = x : drawSubTrees ts0
+draw :: Show a => Tree a -> [String]
+draw (Node x ts0) = show x : drawSubTrees ts0
   where
     drawSubTrees [] = []
     drawSubTrees [t] =
