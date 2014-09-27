@@ -149,7 +149,7 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
-import Data.Foldable
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1), foldl', toList)
 import Data.Traversable
 import Data.Typeable
 
