@@ -194,6 +194,7 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
+import Data.StrictFold
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -1416,12 +1417,6 @@ bin x l r
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.

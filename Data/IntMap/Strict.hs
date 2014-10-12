@@ -258,6 +258,7 @@ import Data.IntMap.Base hiding
 
 import Data.BitUtil
 import qualified Data.IntSet.Base as IntSet
+import Data.StrictFold
 import Data.StrictPair
 
 -- $strictness

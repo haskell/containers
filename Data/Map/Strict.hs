@@ -269,7 +269,9 @@ import Data.Map.Base hiding
     , updateMaxWithKey
     )
 import qualified Data.Set.Base as Set
+import Data.StrictFold
 import Data.StrictPair
+
 import Data.Bits (shiftL, shiftR)
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y

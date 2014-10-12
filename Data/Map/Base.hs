@@ -262,7 +262,6 @@ module Data.Map.Base (
     , glue
     , trim
     , trimLookupLo
-    , foldlStrict
     , MaybeS(..)
     , filterGt
     , filterLt
@@ -279,6 +278,7 @@ import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import qualified Data.Set.Base as Set
+import Data.StrictFold
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
@@ -2826,13 +2826,6 @@ validsize t
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
-
 
 -- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a map in parallel.

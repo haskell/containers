@@ -211,7 +211,6 @@ module Data.IntMap.Base (
     , shorter
     , branchMask
     , highestBitMask
-    , foldlStrict
     ) where
 
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
@@ -229,6 +228,7 @@ import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 import Data.BitUtil
 import Data.IntSet.Base (Key)
 import qualified Data.IntSet.Base as IntSet
+import Data.StrictFold
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -2084,13 +2084,6 @@ branchMask p1 p2
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a map in parallel.

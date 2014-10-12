@@ -57,6 +57,7 @@ Library
         Data.IntSet.Base
         Data.Map.Base
         Data.Set.Base
+        Data.StrictFold
         Data.StrictPair
 
     include-dirs: include

@@ -192,6 +192,7 @@ import Data.Word (Word)
 import Prelude hiding (filter, foldr, foldl, null, map)
 
 import Data.BitUtil
+import Data.StrictFold
 import Data.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -1491,12 +1492,6 @@ bitcount a0 x0 = go a0 x0
 {--------------------------------------------------------------------
   Utilities
 --------------------------------------------------------------------}
-foldlStrict :: (a -> b -> a) -> a -> [b] -> a
-foldlStrict f = go
-  where
-    go z []     = z
-    go z (x:xs) = let z' = f z x in z' `seq` go z' xs
-{-# INLINE foldlStrict #-}
 
 -- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.
