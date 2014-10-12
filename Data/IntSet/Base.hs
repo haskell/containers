@@ -191,9 +191,9 @@ import Data.Typeable
 import Data.Word (Word)
 import Prelude hiding (filter, foldr, foldl, null, map)
 
-import Data.BitUtil
-import Data.StrictFold
-import Data.StrictPair
+import Data.Utils.BitUtil
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 #if __GLASGOW_HASKELL__
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)

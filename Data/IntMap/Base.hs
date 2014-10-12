@@ -225,11 +225,11 @@ import Data.Typeable
 import Data.Word (Word)
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
-import Data.BitUtil
 import Data.IntSet.Base (Key)
 import qualified Data.IntSet.Base as IntSet
-import Data.StrictFold
-import Data.StrictPair
+import Data.Utils.BitUtil
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 #if __GLASGOW_HASKELL__
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),

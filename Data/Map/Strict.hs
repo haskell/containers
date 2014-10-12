@@ -269,8 +269,8 @@ import Data.Map.Base hiding
     , updateMaxWithKey
     )
 import qualified Data.Set.Base as Set
-import Data.StrictFold
-import Data.StrictPair
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 import Data.Bits (shiftL, shiftR)
 

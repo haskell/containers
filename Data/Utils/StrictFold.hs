@@ -2,7 +2,7 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
-module Data.StrictFold (foldlStrict) where
+module Data.Utils.StrictFold (foldlStrict) where
 
 -- | Same as regular 'Data.List.foldl'', but marked INLINE so that it is always
 -- inlined. This allows further optimization of the call to f, which can be

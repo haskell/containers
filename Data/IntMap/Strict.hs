@@ -256,10 +256,10 @@ import Data.IntMap.Base hiding
     , fromDistinctAscList
     )
 
-import Data.BitUtil
 import qualified Data.IntSet.Base as IntSet
-import Data.StrictFold
-import Data.StrictPair
+import Data.Utils.BitUtil
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 -- $strictness
 --

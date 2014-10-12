@@ -7,7 +7,7 @@
 #endif
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.BitUtil
+-- Module      :  Data.Utils.BitUtil
 -- Copyright   :  (c) Clark Gaebel 2012
 --                (c) Johan Tibel 2012
 -- License     :  BSD-style
@@ -16,7 +16,7 @@
 -- Portability :  portable
 -----------------------------------------------------------------------------
 
-module Data.BitUtil
+module Data.Utils.BitUtil
     ( highestBitMask
     , shiftLL
     , shiftRL

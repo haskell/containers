@@ -272,13 +272,13 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
 import Data.Monoid (Monoid(..))
-import Data.StrictPair
 import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import qualified Data.Set.Base as Set
-import Data.StrictFold
+import Data.Utils.StrictFold
+import Data.Utils.StrictPair
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )

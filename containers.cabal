@@ -52,13 +52,13 @@ Library
             Data.Sequence
             Data.Tree
     other-modules:
-        Data.BitUtil
         Data.IntMap.Base
         Data.IntSet.Base
         Data.Map.Base
         Data.Set.Base
-        Data.StrictFold
-        Data.StrictPair
+        Data.Utils.BitUtil
+        Data.Utils.StrictFold
+        Data.Utils.StrictPair
 
     include-dirs: include
 
