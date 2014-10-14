@@ -79,6 +79,13 @@ instance Traversable Tree where
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
 
+#if MIN_VERSION_base(4,8,0)
+    null _ = False
+    {-# INLINE null #-}
+    toList = flatten
+    {-# INLINE toList #-}
+#endif
+
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 

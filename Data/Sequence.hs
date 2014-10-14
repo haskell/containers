@@ -189,6 +189,13 @@ instance Foldable Seq where
     foldl1 f (Seq xs) = getElem (foldl1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
 
+#if MIN_VERSION_base(4,8,0)
+    length = length
+    {-# INLINE length #-}
+    null   = null
+    {-# INLINE null #-}
+#endif
+
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
 
