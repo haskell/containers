@@ -244,7 +244,7 @@ graphFromEdges edges0
                                    EQ -> Just mid
                                    GT -> findVertex (mid+1) b
                               where
-                                mid = (a + b) `div` 2
+                                mid = a + (b - a) `div` 2
 
 -------------------------------------------------------------------------
 --                                                                      -
