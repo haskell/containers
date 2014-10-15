@@ -1171,6 +1171,7 @@ minView x   = Just (first snd $ deleteFindMin x)
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
+-- empty map.
 --
 -- > maxView (fromList [(5,"a"), (3,"b")]) == Just ("a", singleton 3 "b")
 -- > maxView empty == Nothing
