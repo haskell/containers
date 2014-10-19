@@ -262,6 +262,26 @@ instance Foldable.Foldable Set where
             go (Bin _ k l r) = go l `mappend` (f k `mappend` go r)
     {-# INLINE foldMap #-}
 
+#if MIN_VERSION_base(4,6,0)
+    foldl' = foldl'
+    {-# INLINE foldl' #-}
+    foldr' = foldr'
+    {-# INLINE foldr' #-}
+#endif
+#if MIN_VERSION_base(4,8,0)
+    length = size
+    {-# INLINE length #-}
+    null   = null
+    {-# INLINE null #-}
+    toList = toList
+    {-# INLINE toList #-}
+    minimum = findMin
+    {-# INLINE minimum #-}
+    maximum = findMax
+    {-# INLINE maximum #-}
+#endif
+
+
 #if __GLASGOW_HASKELL__
 
 {--------------------------------------------------------------------

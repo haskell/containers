@@ -162,26 +162,6 @@ module Data.IntSet.Base (
     , bitmapOf
     ) where
 
--- We want to be able to compile without cabal. Nevertheless
--- #if defined(MIN_VERSION_base) && MIN_VERSION_base(4,5,0)
--- does not work, because if MIN_VERSION_base is undefined,
--- the last condition is syntactically wrong.
-#define MIN_VERSION_base_4_5_0 0
-#ifdef MIN_VERSION_base
-#if MIN_VERSION_base(4,5,0)
-#undef MIN_VERSION_base_4_5_0
-#define MIN_VERSION_base_4_5_0 1
-#endif
-#endif
-
-#define MIN_VERSION_base_4_7_0 0
-#ifdef MIN_VERSION_base
-#if MIN_VERSION_base(4,7,0)
-#undef MIN_VERSION_base_4_7_0
-#define MIN_VERSION_base_4_7_0 1
-#endif
-#endif
-
 import Control.DeepSeq (NFData)
 import Data.Bits
 import qualified Data.List as List
@@ -1228,7 +1208,7 @@ tip kx bm = Tip kx bm
 ----------------------------------------------------------------------}
 
 suffixBitMask :: Int
-#if MIN_VERSION_base_4_7_0
+#if MIN_VERSION_base(4,7,0)
 suffixBitMask = finiteBitSize (undefined::Word) - 1
 #else
 suffixBitMask = bitSize (undefined::Word) - 1
@@ -1479,7 +1459,7 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
 ----------------------------------------------------------------------}
 
 bitcount :: Int -> Word -> Int
-#if MIN_VERSION_base_4_5_0
+#if MIN_VERSION_base(4,5,0)
 bitcount a x = a + popCount x
 #else
 bitcount a0 x0 = go a0 x0

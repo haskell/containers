@@ -320,6 +320,21 @@ instance Foldable.Foldable IntMap where
           go (Bin _ _ l r) = go l `mappend` go r
   {-# INLINE foldMap #-}
 
+#if MIN_VERSION_base(4,6,0)
+  foldl' = foldl'
+  {-# INLINE foldl' #-}
+  foldr' = foldr'
+  {-# INLINE foldr' #-}
+#endif
+#if MIN_VERSION_base(4,8,0)
+  length = size
+  {-# INLINE length #-}
+  null   = null
+  {-# INLINE null #-}
+  toList = elems -- NB: Foldable.toList /= IntMap.toList
+  {-# INLINE toList #-}
+#endif
+
 instance Traversable IntMap where
     traverse f = traverseWithKey (\_ -> f)
     {-# INLINE traverse #-}

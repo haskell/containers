@@ -2654,6 +2654,21 @@ instance Foldable.Foldable (Map k) where
           go (Bin _ _ v l r) = go l `mappend` (f v `mappend` go r)
   {-# INLINE foldMap #-}
 
+#if MIN_VERSION_base(4,6,0)
+  foldl' = foldl'
+  {-# INLINE foldl' #-}
+  foldr' = foldr'
+  {-# INLINE foldr' #-}
+#endif
+#if MIN_VERSION_base(4,8,0)
+  length = size
+  {-# INLINE length #-}
+  null   = null
+  {-# INLINE null #-}
+  toList = elems -- NB: Foldable.toList /= Map.toList
+  {-# INLINE toList #-}
+#endif
+
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
     rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
