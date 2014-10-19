@@ -161,6 +161,7 @@ module Data.Map.Base (
     , map
     , mapWithKey
     , traverseWithKey
+    , traverseWithKey_
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
@@ -1684,6 +1685,18 @@ traverseWithKey f = go
     go (Bin 1 k v _ _) = (\v' -> Bin 1 k v' Tip Tip) <$> f k v
     go (Bin s k v l r) = flip (Bin s k) <$> go l <*> f k v <*> go r
 {-# INLINE traverseWithKey #-}
+
+
+-- | /O(n)/.
+-- This is a version of 'traverseWithKey' that doesn't require allocating a new 'Map'.
+-- It is useful for iterating over the contents of the map for side effect only.
+traverseWithKey_ :: Applicative t => (k -> a -> t ()) -> Map k a -> t ()
+traverseWithKey_ f = go
+  where
+    go Tip             = pure ()
+    go (Bin _ k v l r) = f k v *> go l *> go r 
+{-# INLINE traverseWithKey_ #-}
+
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.

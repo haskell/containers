@@ -115,6 +115,7 @@ module Data.IntMap.Base (
     , map
     , mapWithKey
     , traverseWithKey
+    , traverseWithKey_
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
@@ -213,7 +214,7 @@ module Data.IntMap.Base (
     , highestBitMask
     ) where
 
-import Control.Applicative (Applicative(pure, (<*>)), (<$>))
+import Control.Applicative (Applicative(pure, (<*>)), (<$>), (*>))
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (liftM)
 import Data.Bits
@@ -1327,6 +1328,17 @@ traverseWithKey f = go
     go (Tip k v) = Tip k <$> f k v
     go (Bin p m l r) = Bin p m <$> go l <*> go r
 {-# INLINE traverseWithKey #-}
+
+-- | /O(n)/.
+-- This is a version of 'traverseWithKey' that doesn't require allocating a new 'IntMap'.
+-- It is useful for iterating over the contents of the map for side effect only.
+traverseWithKey_ :: Applicative t => (Key -> a -> t ()) -> IntMap a -> t ()
+traverseWithKey_ f = go
+  where
+    go Nil = pure ()
+    go (Tip k v) = f k v
+    go (Bin _ _ l r) = go l *> go r 
+{-# INLINE traverseWithKey_ #-}
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
