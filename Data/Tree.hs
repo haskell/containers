@@ -45,6 +45,14 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Data (Data)
 #endif
 
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
+#endif
+
+
 -- | Multi-way trees, also known as /rose trees/.
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value

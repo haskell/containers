@@ -202,6 +202,14 @@ import GHC.Prim (indexInt8OffAddr#)
 #define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
+#endif
+
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 -- A "Nat" is a natural machine word (an unsigned Int)
