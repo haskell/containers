@@ -255,7 +255,7 @@ instance Ord a => Monoid (Set a) where
     mconcat = unions
 
 instance Foldable.Foldable Set where
-    fold t = go t
+    fold = go
       where go Tip = mempty
             go (Bin 1 k _ _) = k
             go (Bin _ k l r) = go l `mappend` (k `mappend` go r)

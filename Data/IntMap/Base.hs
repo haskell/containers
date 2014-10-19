@@ -313,7 +313,7 @@ instance Monoid (IntMap a) where
     mconcat = unions
 
 instance Foldable.Foldable IntMap where
-  fold t = go t
+  fold = go
     where go Nil = mempty
           go (Tip _ v) = v
           go (Bin _ _ l r) = go l `mappend` go r

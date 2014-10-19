@@ -2647,7 +2647,7 @@ instance Traversable (Map k) where
   {-# INLINE traverse #-}
 
 instance Foldable.Foldable (Map k) where
-  fold t = go t
+  fold = go
     where go Tip = mempty
           go (Bin 1 _ v _ _) = v
           go (Bin _ _ v l r) = go l `mappend` (v `mappend` go r)
