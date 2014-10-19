@@ -2675,6 +2675,31 @@ instance Foldable.Foldable (Map k) where
   {-# INLINE null #-}
   toList = elems -- NB: Foldable.toList /= Map.toList
   {-# INLINE toList #-}
+  elem = go
+    where STRICT_1_OF_2(go)
+          go _ Tip = False
+          go x (Bin _ _ v l r) = x == v || go x l || go x r
+  {-# INLINABLE elem #-}
+  maximum = start
+    where start Tip = error "Map.Foldable.maximum: called with empty map"
+          start (Bin _ _ v l r) = go (go v l) r
+
+          STRICT_1_OF_2(go)
+          go m Tip = m
+          go m (Bin _ _ v l r) = go (go (max m v) l) r
+  {-# INLINABLE maximum #-}
+  minimum = start
+    where start Tip = error "Map.Foldable.minumum: called with empty map"
+          start (Bin _ _ v l r) = go (go v l) r
+
+          STRICT_1_OF_2(go)
+          go m Tip = m
+          go m (Bin _ _ v l r) = go (go (min m v) l) r
+  {-# INLINABLE minimum #-}
+  sum = foldl' (+) 0
+  {-# INLINABLE sum #-}
+  product = foldl' (*) 1
+  {-# INLINABLE product #-}
 #endif
 
 instance (NFData k, NFData a) => NFData (Map k a) where

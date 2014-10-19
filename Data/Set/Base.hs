@@ -283,10 +283,19 @@ instance Foldable.Foldable Set where
     {-# INLINE null #-}
     toList = toList
     {-# INLINE toList #-}
+    elem = go
+      where STRICT_1_OF_2(go)
+            go _ Tip = False
+            go x (Bin _ y l r) = x == y || go x l || go x r
+    {-# INLINABLE elem #-}
     minimum = findMin
     {-# INLINE minimum #-}
     maximum = findMax
     {-# INLINE maximum #-}
+    sum = foldl' (+) 0
+    {-# INLINABLE sum #-}
+    product = foldl' (*) 1
+    {-# INLINABLE product #-}
 #endif
 
 

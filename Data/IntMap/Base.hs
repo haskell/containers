@@ -341,6 +341,36 @@ instance Foldable.Foldable IntMap where
   {-# INLINE null #-}
   toList = elems -- NB: Foldable.toList /= IntMap.toList
   {-# INLINE toList #-}
+  elem = go
+    where STRICT_1_OF_2(go)
+          go _ Nil = False
+          go x (Tip _ y) = x == y
+          go x (Bin _ _ l r) = go x l || go x r
+  {-# INLINABLE elem #-}
+  maximum = start
+    where start Nil = error "IntMap.Foldable.maximum: called with empty map"
+          start (Tip _ y) = y
+          start (Bin _ _ l r) = go (start l) r
+
+          STRICT_1_OF_2(go)
+          go m Nil = m
+          go m (Tip _ y) = max m y
+          go m (Bin _ _ l r) = go (go m l) r
+  {-# INLINABLE maximum #-}
+  minimum = start
+    where start Nil = error "IntMap.Foldable.minimum: called with empty map"
+          start (Tip _ y) = y
+          start (Bin _ _ l r) = go (start l) r
+
+          STRICT_1_OF_2(go)
+          go m Nil = m
+          go m (Tip _ y) = min m y
+          go m (Bin _ _ l r) = go (go m l) r
+  {-# INLINABLE minimum #-}
+  sum = foldl' (+) 0
+  {-# INLINABLE sum #-}
+  product = foldl' (*) 1
+  {-# INLINABLE product #-}
 #endif
 
 instance Traversable IntMap where
