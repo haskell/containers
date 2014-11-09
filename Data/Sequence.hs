@@ -346,7 +346,7 @@ instance Traversable FingerTree where
 instance NFData a => NFData (FingerTree a) where
     rnf (Empty) = ()
     rnf (Single x) = rnf x
-    rnf (Deep _ pr m sf) = rnf pr `seq` rnf m `seq` rnf sf
+    rnf (Deep _ pr m sf) = rnf pr `seq` rnf sf `seq` rnf m
 
 {-# INLINE deep #-}
 deep            :: Sized a => Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
