@@ -9,6 +9,12 @@
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
 #endif
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map.Base
@@ -288,6 +294,9 @@ import qualified GHC.Exts as GHCExts
 import Text.Read
 import Data.Data
 #endif
+#if MIN_VERSION_base(4,8,0)
+import Data.Coerce
+#endif
 
 -- Use macros to define strictness of functions.
 -- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
@@ -298,13 +307,6 @@ import Data.Data
 #define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
 #define STRICT_1_OF_4(fn) fn arg _ _ _ | arg `seq` False = undefined
 #define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
-
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
-#endif
 
 
 {--------------------------------------------------------------------
@@ -1660,6 +1662,14 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
+#if MIN_VERSION_base(4,8,0)
+-- Safe coercions were introduced in 4.7.0, but I am not sure if they played
+-- well enough with RULES to do what we want.
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/coerce" map coerce = coerce
+ #-}
+#endif
 
 -- | /O(n)/. Map a function over all values in the map.
 --

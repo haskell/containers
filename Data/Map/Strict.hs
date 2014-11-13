@@ -1,6 +1,12 @@
 {-# LANGUAGE CPP #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
+#endif
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
 #endif
 -----------------------------------------------------------------------------
 -- |
@@ -273,6 +279,9 @@ import Data.Utils.StrictFold
 import Data.Utils.StrictPair
 
 import Data.Bits (shiftL, shiftR)
+#if MIN_VERSION_base(4,8,0)
+import Data.Coerce
+#endif
 
 -- Use macros to define strictness of functions.  STRICT_x_OF_y
 -- denotes an y-ary function strict in the x-th parameter. Similarly
@@ -926,6 +935,14 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f r)
+#if MIN_VERSION_base(4,8,0)
+-- Safe coercions were introduced in 4.7.0, but I am not sure if they played
+-- well enough with RULES to do what we want.
+{-# NOINLINE [1] map #-}
+{-# RULES
+"mapSeq/coerce" map coerce = coerce
+ #-}
+#endif
 
 -- | /O(n)/. Map a function over all values in the map.
 --
