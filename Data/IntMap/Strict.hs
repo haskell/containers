@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 709
+{-# LANGUAGE Safe #-}
+#elif !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 -----------------------------------------------------------------------------
