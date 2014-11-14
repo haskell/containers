@@ -162,7 +162,7 @@ module Data.IntSet.Base (
     , bitmapOf
     ) where
 
-import Control.DeepSeq (NFData)
+import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
@@ -1099,7 +1099,7 @@ INSTANCE_TYPEABLE0(IntSet,intSetTc,"IntSet")
 -- The IntSet constructors consist only of strict fields of Ints and
 -- IntSets, thus the default NFData instance which evaluates to whnf
 -- should suffice
-instance NFData IntSet
+instance NFData IntSet where rnf x = seq x ()
 
 {--------------------------------------------------------------------
   Debugging
