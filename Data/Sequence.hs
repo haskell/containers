@@ -191,10 +191,15 @@ instance Functor Seq where
 
 fmapSeq :: (a -> b) -> Seq a -> Seq b
 fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] fmapSeq #-}
+{-# RULES
+"fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
+ #-}
+#endif
 #if MIN_VERSION_base(4,8,0)
 -- Safe coercions were introduced in 4.7.0, but I am not sure if they played
 -- well enough with RULES to do what we want.
-{-# NOINLINE [1] fmapSeq #-}
 {-# RULES
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
@@ -1264,6 +1269,18 @@ adjustDigit f i (Four a b c d)
 -- element in the sequence.
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
+
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] mapWithIndex #-}
+{-# RULES
+"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f k (g k a)) xs
+"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
+  mapWithIndex (\k a -> f k (g a)) xs
+"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f (g k a)) xs
+ #-}
+#endif
 
 -- Splitting
 
