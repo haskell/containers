@@ -3,8 +3,15 @@
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Safe #-}
+{-# LANGUAGE Trustworthy #-}
 #endif
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
+#endif
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Tree
@@ -45,11 +52,8 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Data (Data)
 #endif
 
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
+#if MIN_VERSION_base(4,8,0)
+import Data.Coerce
 #endif
 
 
@@ -69,7 +73,18 @@ type Forest a = [Tree a]
 INSTANCE_TYPEABLE1(Tree,treeTc,"Tree")
 
 instance Functor Tree where
-    fmap f (Node x ts) = Node (f x) (map (fmap f) ts)
+    fmap = fmapTree
+
+fmapTree :: (a -> b) -> Tree a -> Tree b
+fmapTree f (Node x ts) = Node (f x) (map (fmapTree f) ts)
+#if MIN_VERSION_base(4,8,0)
+-- Safe coercions were introduced in 4.7.0, but I am not sure if they played
+-- well enough with RULES to do what we want.
+{-# NOINLINE [1] fmapTree #-}
+{-# RULES
+"fmapTree/coerce" fmapTree coerce = coerce
+ #-}
+#endif
 
 instance Applicative Tree where
     pure x = Node x []

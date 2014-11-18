@@ -5,6 +5,12 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+-- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
+-- Nevertheless, as a convenience, we also allow compiling without cabal by
+-- defining trivial MIN_VERSION_base if needed.
+#ifndef MIN_VERSION_base
+#define MIN_VERSION_base(major1,major2,minor) 0
+#endif
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
@@ -159,12 +165,8 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 #endif
-
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
+#if MIN_VERSION_base(4,8,0)
+import Data.Coerce
 #endif
 
 
@@ -182,9 +184,20 @@ class Sized a where
 newtype Seq a = Seq (FingerTree (Elem a))
 
 instance Functor Seq where
-    fmap f (Seq xs) = Seq (fmap (fmap f) xs)
+    fmap = fmapSeq
 #ifdef __GLASGOW_HASKELL__
     x <$ s = replicate (length s) x
+#endif
+
+fmapSeq :: (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
+#if MIN_VERSION_base(4,8,0)
+-- Safe coercions were introduced in 4.7.0, but I am not sure if they played
+-- well enough with RULES to do what we want.
+{-# NOINLINE [1] fmapSeq #-}
+{-# RULES
+"fmapSeq/coerce" fmapSeq coerce = coerce
+ #-}
 #endif
 
 instance Foldable Seq where
