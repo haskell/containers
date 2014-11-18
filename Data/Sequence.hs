@@ -149,7 +149,7 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1), foldl', toList)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', foldr', toList)
 import Data.Traversable
 import Data.Typeable
 
@@ -188,6 +188,7 @@ instance Functor Seq where
 #endif
 
 instance Foldable Seq where
+    foldMap f (Seq xs) = foldMap (foldMap f) xs
     foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
     foldl f z (Seq xs) = foldl (foldl f) z xs
 
@@ -310,6 +311,11 @@ instance Sized a => Sized (FingerTree a) where
     size (Deep v _ _ _)     = v
 
 instance Foldable FingerTree where
+    foldMap _ Empty = mempty
+    foldMap f (Single x) = f x
+    foldMap f (Deep _ pr m sf) =
+        foldMap f pr `mappend` (foldMap (foldMap f) m `mappend` foldMap f sf)
+
     foldr _ z Empty = z
     foldr f z (Single x) = x `f` z
     foldr f z (Deep _ pr m sf) =
@@ -388,6 +394,11 @@ data Digit a
 #endif
 
 instance Foldable Digit where
+    foldMap f (One a) = f a
+    foldMap f (Two a b) = f a `mappend` f b
+    foldMap f (Three a b c) = f a `mappend` (f b `mappend` f c)
+    foldMap f (Four a b c d) = f a `mappend` (f b `mappend` (f c `mappend` f d))
+
     foldr f z (One a) = a `f` z
     foldr f z (Two a b) = a `f` (b `f` z)
     foldr f z (Three a b c) = a `f` (b `f` (c `f` z))
@@ -458,6 +469,9 @@ data Node a
 #endif
 
 instance Foldable Node where
+    foldMap f (Node2 _ a b) = f a `mappend` f b
+    foldMap f (Node3 _ a b c) = f a `mappend` (f b `mappend` f c)
+
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
 
@@ -508,6 +522,7 @@ instance Functor Elem where
     fmap f (Elem x) = Elem (f x)
 
 instance Foldable Elem where
+    foldMap f (Elem x) = f x
     foldr f z (Elem x) = f x z
     foldl f z (Elem x) = f z x
 
@@ -1009,6 +1024,9 @@ instance Functor ViewR where
     fmap f (xs :> x)    = fmap f xs :> f x
 
 instance Foldable ViewR where
+    foldMap _ EmptyR = mempty
+    foldMap f (xs :> x) = foldMap f xs `mappend` f x
+
     foldr _ z EmptyR = z
     foldr f z (xs :> x) = foldr f (f x z) xs
 
@@ -1017,6 +1035,14 @@ instance Foldable ViewR where
 
     foldr1 _ EmptyR = error "foldr1: empty view"
     foldr1 f (xs :> x) = foldr f x xs
+#if MIN_VERSION_base(4,8,0)
+    -- The default definitions are sensible for ViewL, but not so much for
+    -- ViewR.
+    null EmptyR = True
+    null (_ :> _) = False
+
+    length = foldr' (\_ k -> k+1) 0
+#endif
 
 instance Traversable ViewR where
     traverse _ EmptyR       = pure EmptyR
