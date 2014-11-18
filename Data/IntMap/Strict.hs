@@ -1,7 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 709
-{-# LANGUAGE Safe #-}
-#elif !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 -----------------------------------------------------------------------------
@@ -262,6 +260,9 @@ import qualified Data.IntSet.Base as IntSet
 import Data.Utils.BitUtil
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
+#if __GLASGOW_HASKELL__ >= 709
+import Data.Coerce
+#endif
 
 -- $strictness
 --
@@ -722,6 +723,11 @@ map f t
 {-# NOINLINE [1] map #-}
 {-# RULES
 "map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
+#endif
+#if __GLASGOW_HASKELL__ >= 709
+{-# RULES
+"map/coerce" map coerce = coerce
  #-}
 #endif
 
