@@ -935,10 +935,15 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map _ Tip = Tip
 map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f r)
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
+#endif
 #if MIN_VERSION_base(4,8,0)
 -- Safe coercions were introduced in 4.7.0, but I am not sure if they played
 -- well enough with RULES to do what we want.
-{-# NOINLINE [1] map #-}
 {-# RULES
 "mapSeq/coerce" map coerce = coerce
  #-}
@@ -951,8 +956,21 @@ map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
-mapWithKey f (Bin sx kx x l r) = let x' = f kx x
-                                 in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+mapWithKey f (Bin sx kx x l r) =
+  let x' = f kx x
+  in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] mapWithKey #-}
+{-# RULES
+"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k (g k a)) xs
+"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k (g a)) xs
+"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f (g k a)) xs
+ #-}
+#endif
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.

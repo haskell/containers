@@ -718,6 +718,13 @@ map f t
       Tip k x     -> Tip k $! f x
       Nil         -> Nil
 
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] map #-}
+{-# RULES
+"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+ #-}
+#endif
+
 -- | /O(n)/. Map a function over all values in the map.
 --
 -- > let f key x = (show key) ++ ":" ++ x
@@ -729,6 +736,18 @@ mapWithKey f t
       Bin p m l r -> Bin p m (mapWithKey f l) (mapWithKey f r)
       Tip k x     -> Tip k $! f k x
       Nil         -> Nil
+
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] mapWithKey #-}
+{-# RULES
+"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k (g k a)) xs
+"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k (g a)) xs
+"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f (g k a)) xs
+ #-}
+#endif
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
