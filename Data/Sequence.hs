@@ -228,11 +228,13 @@ instance Monad Seq where
     return = singleton
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
+    (>>) = (*>)
 
 instance Applicative Seq where
     pure = singleton
     fs <*> xs = foldl' add empty fs
       where add ys f = ys >< fmap f xs
+    xs *> ys = replicateSeq (length xs) ys
 
 instance MonadPlus Seq where
     mzero = empty
@@ -654,6 +656,19 @@ replicateM :: Monad m => Int -> m a -> m (Seq a)
 replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
+
+-- | @'replicateSeq' n xs@ concatenates @n@ copies of @xs@.
+replicateSeq :: Int -> Seq a -> Seq a
+replicateSeq n xs
+  | n < 0     = error "replicateSeq takes a nonnegative integer argument"
+  | n == 0    = empty
+  | otherwise = go n xs
+  where
+    -- Invariant: k >= 1
+    go 1 xs = xs
+    go k xs | even k    = kxs
+            | otherwise = xs >< kxs
+            where kxs = go (k `quot` 2) $! (xs >< xs)
 
 -- | /O(1)/. Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
