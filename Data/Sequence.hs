@@ -165,7 +165,7 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 #endif
-#if MIN_VERSION_base(4,8,0)
+#if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
 
@@ -197,9 +197,8 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 "fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
  #-}
 #endif
-#if MIN_VERSION_base(4,8,0)
--- Safe coercions were introduced in 4.7.0, but I am not sure if they played
--- well enough with RULES to do what we want.
+#if __GLASGOW_HASKELL__ >= 709
+-- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
 {-# RULES
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
