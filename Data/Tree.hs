@@ -50,6 +50,7 @@ import Control.DeepSeq (NFData(rnf))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
+import GHC.Exts (build)
 #endif
 
 #if MIN_VERSION_base(4,8,0)
@@ -133,7 +134,23 @@ draw (Node x ts0) = x : drawSubTrees ts0
 
 -- | The elements of a tree in pre-order.
 flatten :: Tree a -> [a]
-flatten t = squish t []
+#ifndef __GLASGOW_HASKELL__
+flatten = flattenSimply
+#else
+{-# INLINE flatten #-}
+flatten t = build (\c n -> flattenFB c t n)
+
+flattenFB :: (a -> b -> b) -> Tree a -> b -> b
+flattenFB c (Node x ts) xs = x `c` Prelude.foldr (flattenFB c) xs ts
+{-# NOINLINE [0] flattenFB #-}
+
+{-# RULES
+"flattenList" forall t . flattenFB (:) t [] = flattenSimply t
+ #-}
+#endif
+
+flattenSimply :: Tree a -> [a]
+flattenSimply t = squish t []
   where squish (Node x ts) xs = x:Prelude.foldr squish xs ts
 
 -- | Lists of nodes at each level of the tree.
