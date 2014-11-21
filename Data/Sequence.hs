@@ -168,6 +168,9 @@ import Data.Data
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity(..))
+#endif
 
 
 infixr 5 `consTree`
@@ -554,19 +557,16 @@ instance NFData a => NFData (Elem a) where
 -------------------------------------------------------
 -- Applicative construction
 -------------------------------------------------------
+#if !MIN_VERSION_base(4,8,0)
+newtype Identity a = Identity {runIdentity :: a}
 
-newtype Id a = Id {runId :: a}
+instance Functor Identity where
+    fmap f (Identity x) = Identity (f x)
 
-instance Functor Id where
-    fmap f (Id x) = Id (f x)
-
-instance Monad Id where
-    return = Id
-    m >>= k = k (runId m)
-
-instance Applicative Id where
-    pure = return
-    (<*>) = ap
+instance Applicative Identity where
+    pure = Identity
+    Identity f <*> Identity x = Identity (f x)
+#endif
 
 -- | This is essentially a clone of Control.Monad.State.Strict.
 newtype State s a = State {runState :: s -> (s, a)}
@@ -598,13 +598,13 @@ mapAccumL' f s t = runState (traverse (State . flip f) t) s
 -- specified.  This is a generalization of 'replicateA', which itself
 -- is a generalization of many Data.Sequence methods.
 {-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
-{-# SPECIALIZE applicativeTree :: Int -> Int -> Id a -> Id (FingerTree a) #-}
--- Special note: the Id specialization automatically does node sharing,
+{-# SPECIALIZE applicativeTree :: Int -> Int -> Identity a -> Identity (FingerTree a) #-}
+-- Special note: the Identity specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
     0 -> pure Empty
-    1 -> liftA Single m
+    1 -> fmap Single m
     2 -> deepA one emptyTree one
     3 -> deepA two emptyTree one
     4 -> deepA two emptyTree two
@@ -612,12 +612,12 @@ applicativeTree n mSize m = mSize `seq` case n of
     6 -> deepA three emptyTree three
     7 -> deepA four emptyTree three
     8 -> deepA four emptyTree four
-    _ -> let (q, r) = n `quotRem` 3 in q `seq` case r of
-        0 -> deepA three (applicativeTree (q - 2) mSize' n3) three
-        1 -> deepA four (applicativeTree (q - 2) mSize' n3) three
-        _ -> deepA four (applicativeTree (q - 2) mSize' n3) four
+    _ -> case n `quotRem` 3 of
+           (q,0) -> deepA three (applicativeTree (q - 2) mSize' n3) three
+           (q,1) -> deepA four  (applicativeTree (q - 2) mSize' n3) three
+           (q,_) -> deepA four  (applicativeTree (q - 2) mSize' n3) four
   where
-    one = liftA One m
+    one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
     four = liftA3 Four m m m <*> m
@@ -641,7 +641,7 @@ singleton x     =  Seq (Single (Elem x))
 -- | /O(log n)/. @replicate n x@ is a sequence consisting of @n@ copies of @x@.
 replicate       :: Int -> a -> Seq a
 replicate n x
-  | n >= 0      = runId (replicateA n (Id x))
+  | n >= 0      = runIdentity (replicateA n (Identity x))
   | otherwise   = error "replicate takes a nonnegative integer argument"
 
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
