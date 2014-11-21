@@ -279,7 +279,7 @@ import Data.Utils.StrictFold
 import Data.Utils.StrictPair
 
 import Data.Bits (shiftL, shiftR)
-#if MIN_VERSION_base(4,8,0)
+#if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
 
@@ -941,9 +941,8 @@ map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f
 "map/map" forall f g xs . map f (map g xs) = map (f . g) xs
  #-}
 #endif
-#if MIN_VERSION_base(4,8,0)
--- Safe coercions were introduced in 4.7.0, but I am not sure if they played
--- well enough with RULES to do what we want.
+#if __GLASGOW_HASKELL__ >= 709
+-- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
 {-# RULES
 "mapSeq/coerce" map coerce = coerce
  #-}

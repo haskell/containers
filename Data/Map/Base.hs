@@ -294,7 +294,7 @@ import qualified GHC.Exts as GHCExts
 import Text.Read
 import Data.Data
 #endif
-#if MIN_VERSION_base(4,8,0)
+#if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
 
@@ -1668,9 +1668,8 @@ map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
 "map/map" forall f g xs . map f (map g xs) = map (f . g) xs
  #-}
 #endif
-#if MIN_VERSION_base(4,8,0)
--- Safe coercions were introduced in 4.7.0, but I am not sure if they played
--- well enough with RULES to do what we want.
+#if __GLASGOW_HASKELL__ >= 709
+-- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
 {-# RULES
 "map/coerce" map coerce = coerce
  #-}
