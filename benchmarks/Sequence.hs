@@ -20,10 +20,16 @@ main = do
         r1000 = rlist 1000
     rnf [r10, r100, r1000] `seq` return ()
     defaultMain
-        [ bench "splitAt/append 10" $ nf (shuffle r10) s10
-        , bench "splitAt/append 100" $ nf (shuffle r100) s100
-        , bench "splitAt/append 1000" $ nf (shuffle r1000) s1000
-        ]
+      [ bgroup "splitAt/append"
+         [ bench "10" $ nf (shuffle r10) s10
+         , bench "100" $ nf (shuffle r100) s100
+         , bench "1000" $ nf (shuffle r1000) s1000
+         ]
+      , bgroup "zip"
+         [ bench "ix10000/5000" $ nf (\(xs,ys) -> S.zip xs ys `S.index` 5000) (S.replicate 10000 (), S.fromList [1..10000::Int])
+         , bench "nf150" $ nf (uncurry S.zip) (S.fromList [1..150::Int], S.replicate 150 ())
+         , bench "nf10000" $ nf (uncurry S.zip) (S.fromList [1..10000::Int], S.replicate 10000 ())
+         ] ]
 
 -- splitAt+append: repeatedly cut the sequence at a random point
 -- and rejoin the pieces in the opposite order.
