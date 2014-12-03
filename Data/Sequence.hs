@@ -5,6 +5,9 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+#if __GLASGOW_HASKELL__ >= 708
+{-# LANGUAGE TypeFamilies #-}
+#endif
 -- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
 -- Nevertheless, as a convenience, we also allow compiling without cabal by
 -- defining trivial MIN_VERSION_base if needed.
@@ -171,7 +174,9 @@ import Data.Coerce
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
 #endif
-
+#if __GLASGOW_HASKELL__ >= 708
+import qualified GHC.Exts
+#endif
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
@@ -1654,6 +1659,13 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
 fromList        =  Data.List.foldl' (|>) empty
+
+#if __GLASGOW_HASKELL__ >= 708
+instance GHC.Exts.IsList (Seq a) where
+    type Item (Seq a) = a
+    fromList = fromList
+    toList = toList
+#endif
 
 ------------------------------------------------------------------------
 -- Reverse
