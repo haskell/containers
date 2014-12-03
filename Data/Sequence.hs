@@ -1718,14 +1718,18 @@ instance Splittable (Seq a) where
     splitState = splitAt
 
 instance (Splittable a, Splittable b) => Splittable (a, b) where
-    splitState i (a, b) = ((al, bl), (ar, br))
+    splitState i (a, b) = (al `seq` bl `seq` (al, bl), ar `seq` br `seq` (ar, br))
       where
         (al, ar) = splitState i a
         (bl, br) = splitState i b
 
+{-# SPECIALIZE splitTraverseSeq :: (Seq x -> a -> b) -> Seq x -> Seq a -> Seq b #-}
+{-# SPECIALIZE splitTraverseSeq :: ((Seq x, Seq y) -> a -> b) -> (Seq x, Seq y) -> Seq a -> Seq b #-}
 splitTraverseSeq :: (Splittable s) => (s -> a -> b) -> s -> Seq a -> Seq b
 splitTraverseSeq f s (Seq xs) = Seq $ splitTraverseTree (\s' (Elem a) -> Elem (f s' a)) s xs
 
+{-# SPECIALIZE splitTraverseTree :: (Seq x -> Elem y -> b) -> Seq x -> FingerTree (Elem y) -> FingerTree b #-}
+{-# SPECIALIZE splitTraverseTree :: (Seq x -> Node y -> b) -> Seq x -> FingerTree (Node y) -> FingerTree b #-}
 splitTraverseTree :: (Sized a, Splittable s) => (s -> a -> b) -> s -> FingerTree a -> FingerTree b
 splitTraverseTree _f _s Empty = Empty
 splitTraverseTree f s (Single xs) = Single $ f s xs
@@ -1734,6 +1738,8 @@ splitTraverseTree f s (Deep n pr m sf) = Deep n (splitTraverseDigit f prs pr) (s
     (prs, r) = splitState (size pr) s
     (ms, sfs) = splitState (n - size pr - size sf) r
 
+{-# SPECIALIZE splitTraverseDigit :: (Seq x -> Elem y -> b) -> Seq x -> Digit (Elem y) -> Digit b #-}
+{-# SPECIALIZE splitTraverseDigit :: (Seq x -> Node y -> b) -> Seq x -> Digit (Node y) -> Digit b #-}
 splitTraverseDigit :: (Sized a, Splittable s) => (s -> a -> b) -> s -> Digit a -> Digit b
 splitTraverseDigit f s (One a) = One (f s a)
 splitTraverseDigit f s (Two a b) = Two (f first a) (f second b)
@@ -1749,6 +1755,8 @@ splitTraverseDigit f s (Four a b c d) = Four (f first a) (f second b) (f third c
     (middle, fourth) = splitState (size b + size c) s'
     (second, third) = splitState (size b) middle
 
+{-# SPECIALIZE splitTraverseNode :: (Seq x -> Elem y -> b) -> Seq x -> Node (Elem y) -> Node b #-}
+{-# SPECIALIZE splitTraverseNode :: (Seq x -> Node y -> b) -> Seq x -> Node (Node y) -> Node b #-}
 splitTraverseNode :: (Sized a, Splittable s) => (s -> a -> b) -> s -> Node a -> Node b
 splitTraverseNode f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
   where
