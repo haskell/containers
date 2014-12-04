@@ -155,7 +155,15 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
+#if MIN_VERSION_base(4,8,0)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr', toList))
+#else
+#if MIN_VERSION_base(4,6,0)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
+#else
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', foldr', toList)
+#endif
+#endif
 import Data.Traversable
 import Data.Typeable
 
