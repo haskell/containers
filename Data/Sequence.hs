@@ -128,6 +128,7 @@ module Data.Sequence (
     foldlWithIndex, -- :: (b -> Int -> a -> b) -> b -> Seq a -> b
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
     -- * Transformations
+    genSplitTraverseSeq,
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
     reverse,        -- :: Seq a -> Seq a
     -- ** Zips
@@ -1709,13 +1710,58 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 -- For zipping, and probably also for (<*>), it is useful to build a result by
 -- traversing a sequence while splitting up something else.  For zipping, we
 -- traverse the first sequence while splitting up the second [and third [and
--- fourth]]. For fs <*> xs, we expect soon to traverse
+-- fourth]]. For fs <*> xs, we hope to traverse
 --
 -- > replicate (length fs * length xs) ()
 --
 -- while splitting something essentially equivalent to
 --
 -- > fmap (\f -> fmap f xs) fs
+--
+-- What makes all this crazy code a good idea:
+--
+-- Suppose we zip together two sequences of the same length:
+--
+-- zs = zip xs ys
+--
+-- We want to get reasonably fast indexing into zs immediately, rather than
+-- needing to construct the entire thing first, as the previous implementation
+-- required. The first aspect is that we build the result "outside-in" or
+-- "top-down", rather than left to right. That gives us access to both ends
+-- quickly. But that's not enough, by itself, to give immediate access to the
+-- center of zs. For that, we need to be able to skip over larger segments of
+-- zs, delaying their construction until we actually need them. The way we do
+-- this is to traverse xs, while splitting up ys according to the structure of
+-- xs. If we have a Deep _ pr m sf, we split ys into three pieces, and hand off
+-- one piece to the prefix, one to the middle, and one to the suffix of the
+-- result. The key point is that we don't need to actually do anything further
+-- with those pieces until we actually need them; the computations to split
+-- them up further and zip them with their matching pieces can be delayed until
+-- they're actually needed. We do the same thing for Digits (splitting into
+-- between one and four pieces) and Nodes (splitting into two or three). The
+-- ultimate result is that we can index, or split at, any location in zs in
+-- O(log(min{i,n-i})) time *immediately*, with only a constant-factor slowdown
+-- as thunks are forced along the path.
+--
+-- Benchmark info, and alternatives:
+--
+-- The old zipping code used mapAccumL to traverse the first sequence while
+-- cutting down the second sequence one piece at a time.
+--
+-- An alternative way to express that basic idea is to convert both sequences
+-- to lists, zip the lists, and then convert the result back to a sequence.
+-- I'll call this the "listy" implementation.
+--
+-- I benchmarked two operations: Each started by zipping two sequences
+-- constructed with replicate and/or fromList. The first would then immediately
+-- index into the result. The second would apply deepseq to force the entire
+-- result.  The new implementation worked much better than either of the others
+-- on the immediate indexing test, as expected. It also worked better than the
+-- old implementation for all the deepseq tests. For short sequences, the listy
+-- implementation outperformed all the others on the deepseq test. However, the
+-- splitting implementation caught up and surpassed it once the sequences grew
+-- long enough. It seems likely that by avoiding rebuilding, it interacts
+-- better with the cache hierarchy.
 --
 -- David Feuer, with excellent guidance from Carter Schonwald, December 2014
 
@@ -1730,6 +1776,16 @@ instance (Splittable a, Splittable b) => Splittable (a, b) where
       where
         (al, ar) = splitState i a
         (bl, br) = splitState i b
+
+data GenSplittable s = GenSplittable s (Int -> s -> (s,s))
+instance Splittable (GenSplittable s) where
+    splitState i (GenSplittable s spl) = (GenSplittable l spl, GenSplittable r spl)
+      where
+        (l,r) = spl i s
+
+{-# INLINE genSplitTraverseSeq #-}
+genSplitTraverseSeq :: (Int -> s -> (s, s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
+genSplitTraverseSeq spl f s = splitTraverseSeq (\(GenSplittable s _) -> f s) (GenSplittable s spl)
 
 {-# SPECIALIZE splitTraverseSeq :: (Seq x -> a -> b) -> Seq x -> Seq a -> Seq b #-}
 {-# SPECIALIZE splitTraverseSeq :: ((Seq x, Seq y) -> a -> b) -> (Seq x, Seq y) -> Seq a -> Seq b #-}
