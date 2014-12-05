@@ -59,7 +59,11 @@ module Data.Sequence (
     (<|),           -- :: a -> Seq a -> Seq a
     (|>),           -- :: Seq a -> a -> Seq a
     (><),           -- :: Seq a -> Seq a -> Seq a
+    arrayElemsAsSeq,  -- :: Ix i => Array i a -> Seq a
+    arrayAssocsAsSeq,  -- :: Ix i => Array i a -> Seq (i, a)
+    ixRangeAsSeq,     -- :: Ix i => (i,i) -> Seq i
     fromList,       -- :: [a] -> Seq a
+    fromVectorLike, -- :: (Int -> a) -> Int -> Seq a
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
@@ -174,8 +178,17 @@ import Data.Coerce
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
 #endif
+import Data.Int
+import Data.Word
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts
+#endif
+#ifdef __GLASGOW_HASKELL__
+import GHC.Arr (Ix, Array)
+import qualified GHC.Arr as Arr
+#else
+import Data.Array (Ix, Array)
+import qualified Data.Array as Arr
 #endif
 
 infixr 5 `consTree`
@@ -1665,6 +1678,96 @@ instance GHC.Exts.IsList (Seq a) where
     type Item (Seq a) = a
     fromList = fromList
     toList = toList
+#endif
+
+
+------------------------------------------------------------------------
+-- Vector-like things
+------------------------------------------------------------------------
+
+newtype SliceStart = SliceStart Int
+instance Splittable SliceStart where
+    splitState n (SliceStart s) = (SliceStart s, SliceStart (n + s))
+
+-- | /O(n)/. Create a sequence from an abstract representation of a vector. The
+-- sequence is built incrementally. As a result, you must force the entire
+-- structure of the sequence to be sure the vector becomes garbage.
+fromVectorLike        :: (Int -> a) -> Int -> Seq a
+fromVectorLike f s
+  | s <= 0 = empty
+  | otherwise = splitTraverseSeq (\(SliceStart s) _ -> f s) (SliceStart 0) (replicate s ())
+
+-- | /O(n)/. Create a sequence consisting of the elements of an 'Array'. In
+-- GHC, the sequence is generated incrementally. As a result, you must force
+-- the entire structure of the sequence to be sure the 'Array' becomes garbage.
+-- In implementations other than GHC, the sequence is generated naively;
+-- performance is likely to be poor.
+arrayElemsAsSeq :: Ix i => Array i a -> Seq a
+#ifdef __GLASGOW_HASKELL__
+arrayElemsAsSeq a = fromVectorLike (Arr.unsafeAt a) (Arr.numElements a)
+#else
+arrayElemsAsSeq a = fromList2 (Arr.rangeSize (Arr.bounds a)) (Arr.elems a)
+#endif
+
+-- | /O(n)/. Create a sequence representing the association list of an 'Array'.
+-- In GHC, the sequence is generated incrementally as long as the Array is
+-- indexed with 'Int', 'Int32', 'Int64', 'Word', 'Word32', 'Word64', 'Integer',
+-- or 'Char'. As a result, you must force the entire structure of the sequence
+-- to be sure the 'Array' becomes garbage. In implementations other than GHC,
+-- or with other index types, the sequence is generated naively and performance
+-- is likely to be poor.
+arrayAssocsAsSeq :: Ix i => Array i a -> Seq (i, a)
+arrayAssocsAsSeq a = fromList2 (Arr.rangeSize (Arr.bounds a)) (Arr.assocs a)
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] arrayAssocsAsSeq #-}
+{-# RULES
+"arrayAssocsAsSeqInt" forall (a :: Array Int a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqInt32" forall (a :: Array Int32 a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqInt64" forall (a :: Array Int64 a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqInteger" forall (a :: Array Integer a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqWord" forall (a :: Array Word a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqWord32" forall (a :: Array Word32 a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqWord64" forall (a :: Array Word64 a) . arrayAssocsAsSeq a = arrayAssocsAsSeqIntegral a
+"arrayAssocsAsSeqChar" forall (a :: Array Char a) .
+  arrayAssocsAsSeq a = fromVectorLike (\i -> (toEnum i, Arr.unsafeAt a i)) (Arr.numElements a)
+ #-}
+
+{-# INLINABLE arrayAssocsAsSeqIntegral #-}
+{-# SPECIALIZE arrayAssocsAsSeqIntegral :: Array Int a -> Seq (Int, a) #-}
+arrayAssocsAsSeqIntegral :: (Ix i, Integral i) => Array i a -> Seq (i, a)
+arrayAssocsAsSeqIntegral a = fromVectorLike
+                             (\i -> (fromIntegral i, Arr.unsafeAt a i)) (Arr.numElements a)
+#endif
+
+-- | /O(n)/. Create a sequence representing a range of indices, similar to
+-- 'Data.Ix.range'.  In GHC, the sequence is generated incrementally as long as
+-- the 'Ix' type is 'Int', 'Int32', 'Int64', 'Word', 'Word32', 'Word64',
+-- 'Integer', or 'Char'. In implementations other than GHC, or with other index
+-- types, the sequence is generated naively and performance is likely to be
+-- poor.
+
+ixRangeAsSeq :: Ix i => (i, i) -> Seq i
+ixRangeAsSeq r = fromList2 (Arr.rangeSize r) (Arr.range r)
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] ixRangeAsSeq #-}
+{-# RULES
+"ixRangeAsSeqInt" forall (r::(Int,Int)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqWord" forall (r::(Word,Word)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqInt32" forall (r::(Int32,Int32)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqInt64" forall (r::(Int64,Int64)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqWord32" forall (r::(Word32,Word32)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqWord64" forall (r::(Word64,Word64)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqInteger" forall (r::(Integer,Integer)) . ixRangeAsSeq r = ixRangeAsSeqIntegral r
+"ixRangeAsSeqChar" forall (r::(Char,Char)) .
+  ixRangeAsSeq r = case r of
+                     (l, h) -> fromVectorLike (\i -> toEnum (i + fromEnum l)) (fromEnum h - fromEnum l)
+ #-}
+
+{-# INLINABLE ixRangeAsSeqIntegral #-}
+{-# SPECIALIZE ixRangeAsSeqIntegral :: (Int, Int) -> Seq Int #-}
+ixRangeAsSeqIntegral :: Integral i => (i, i) -> Seq i
+ixRangeAsSeqIntegral r = case r of
+                           (l, h) -> fromVectorLike (\i -> fromIntegral i + l) (fromIntegral (h - l))
 #endif
 
 ------------------------------------------------------------------------
