@@ -19,6 +19,7 @@
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
 --                (c) Louis Wasserman 2009
+--                (c) David Feuer and Milan Straka 2014
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
@@ -60,6 +61,7 @@ module Data.Sequence (
     (|>),           -- :: Seq a -> a -> Seq a
     (><),           -- :: Seq a -> Seq a -> Seq a
     fromList,       -- :: [a] -> Seq a
+    fromFunction,   -- :: Int -> (Int -> a) -> Seq a
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
@@ -128,7 +130,6 @@ module Data.Sequence (
     foldlWithIndex, -- :: (b -> Int -> a -> b) -> b -> Seq a -> b
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
     -- * Transformations
-    genSplitTraverseSeq,
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
     reverse,        -- :: Seq a -> Seq a
     -- ** Zips
@@ -177,13 +178,21 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 #endif
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
+#define COERCE coerce
+#else
+#ifdef __GLASGOW_HASKELL__
+import qualified Unsafe.Coerce
+-- Note that by compiling this file with GHC 7.8 or later, we prove that
+-- it is safe to use COERCE with earlier GHC versions.
+#define COERCE Unsafe.Coerce.unsafeCoerce
+#endif
 #endif
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
 #endif
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 import qualified GHC.Exts
 #endif
 
@@ -1292,11 +1301,56 @@ adjustDigit f i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | A generalization of 'fmap', 'mapWithIndex' takes a mapping function
--- that also depends on the element's index, and applies it to every
+-- | /O(n)/. A generalization of 'fmap', 'mapWithIndex' takes a mapping
+-- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
-mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
+mapWithIndex f (Seq xs) = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f s a)) 0 xs
+ where
+  {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
+  {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
+  mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
+  mapWithIndexTree _f s Empty = s `seq` Empty
+  mapWithIndexTree f s (Single xs) = Single $ f s xs
+  mapWithIndexTree f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
+          Deep n
+               (mapWithIndexDigit f s pr)
+               (mapWithIndexTree (mapWithIndexNode f) sPspr m)
+               (mapWithIndexDigit f sPsprm sf)
+    where
+      sPspr = s + size pr
+      sPsprm = s + n - size sf
+
+  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
+  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
+  mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
+  mapWithIndexDigit f s (One a) = One (f s a)
+  mapWithIndexDigit f s (Two a b) = sPsa `seq` Two (f s a) (f sPsa b)
+    where
+      sPsa = s + size a
+  mapWithIndexDigit f s (Three a b c) = sPsa `seq` sPsab `seq`
+                                      Three (f s a) (f sPsa b) (f sPsab c)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+  mapWithIndexDigit f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+                          Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+      sPsabc = sPsab + size c
+
+  {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
+  {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
+  mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
+  mapWithIndexNode f s (Node2 ns a b) = sPsa `seq` Node2 ns (f s a) (f sPsa b)
+    where
+      sPsa = s + size a
+  mapWithIndexNode f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
+                                     Node3 ns (f s a) (f sPsa b) (f sPsab c)
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] mapWithIndex #-}
@@ -1310,6 +1364,36 @@ mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
  #-}
 #endif
 
+-- | /O(n)/. Convert a given sequence length and a function representing that
+-- sequence into a sequence.
+fromFunction :: Int -> (Int -> a) -> Seq a
+fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
+                   | len == 0 = empty
+#ifdef __GLASGOW_HASKELL__
+                   | otherwise = Seq $ create (COERCE f) 1 0 len
+#else
+                   | otherwise = Seq $ create (Elem . f) 1 0 len
+#endif
+ where
+  create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
+  create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
+    1 -> Single $ b i
+    2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
+    3 -> Deep (3*s) (Two (b i) (b (i+s))) Empty (One (b (i+2*s)))
+    4 -> Deep (4*s) (Two (b i) (b (i+s))) Empty (Two (b (i+2*s)) (b (i+3*s)))
+    5 -> Deep (5*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Two (b (i+3*s)) (b (i+4*s)))
+    6 -> Deep (5*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Three (b (i+3*s)) (b (i+4*s)) (b (i+5*s)))
+    _ -> case trees `quotRem` 3 of
+      (trees',1) -> Deep (trees*s) (Two (b i) (b (i+s)))
+                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+2*s) (trees'-1))
+                         (Two (b (i+(2+3*(trees'-1))*s)) (b (i+(3+3*(trees'-1))*s)))
+      (trees',2) -> Deep (trees*s) (Three (b i) (b (i+s)) (b (i+2*s)))
+                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+3*s) (trees'-1))
+                         (Two (b (i+(3+3*(trees'-1))*s)) (b (i+(4+3*(trees'-1))*s)))
+      (trees',0) -> Deep (trees*s) (Three (b i) (b (i+s)) (b (i+2*s)))
+                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+3*s) (trees'-2))
+                         (Three (b (i+(3+3*(trees'-2))*s)) (b (i+(4+3*(trees'-2))*s)) (b (i+(5+3*(trees'-2))*s)))
+
 -- Splitting
 
 -- | /O(log(min(i,n-i)))/. The first @i@ elements of a sequence.
@@ -1317,14 +1401,14 @@ mapWithIndex f xs = snd (mapAccumL' (\ i x -> (i + 1, f i x)) 0 xs)
 -- If the sequence contains fewer than @i@ elements, the whole sequence
 -- is returned.
 take            :: Int -> Seq a -> Seq a
-take i          =  fst . splitAt i
+take i          =  fst . splitAt' i
 
 -- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
 -- If @i@ is negative, @'drop' i s@ yields the whole sequence.
 -- If the sequence contains fewer than @i@ elements, the empty sequence
 -- is returned.
 drop            :: Int -> Seq a -> Seq a
-drop i          =  snd . splitAt i
+drop i          =  snd . splitAt' i
 
 -- | /O(log(min(i,n-i)))/. Split a sequence at a given position.
 -- @'splitAt' i s = ('take' i s, 'drop' i s)@.
@@ -1332,13 +1416,18 @@ splitAt                 :: Int -> Seq a -> (Seq a, Seq a)
 splitAt i (Seq xs)      =  (Seq l, Seq r)
   where (l, r)          =  split i xs
 
+-- | /O(log(min(i,n-i))) A strict version of 'splitAt'.
+splitAt'                 :: Int -> Seq a -> (Seq a, Seq a)
+splitAt' i (Seq xs)      = case split i xs of
+                             (l, r) -> (Seq l, Seq r)
+
 split :: Int -> FingerTree (Elem a) ->
     (FingerTree (Elem a), FingerTree (Elem a))
 split i Empty   = i `seq` (Empty, Empty)
 split i xs
-  | size xs > i = (l, consTree x r)
+  | size xs > i = case splitTree i xs of
+                    Split l x r -> (l, consTree x r)
   | otherwise   = (xs, Empty)
-  where Split l x r = splitTree i xs
 
 data Split t a = Split t a t
 #if TESTING
@@ -1704,7 +1793,7 @@ reverseNode f (Node2 s a b) = Node2 s (f b) (f a)
 reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 
 ------------------------------------------------------------------------
--- Traversing with splittable "state"
+-- Mapping with a splittable value
 ------------------------------------------------------------------------
 
 -- For zipping, and probably also for (<*>), it is useful to build a result by
@@ -1765,70 +1854,68 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 --
 -- David Feuer, with excellent guidance from Carter Schonwald, December 2014
 
-class Splittable s where
-    splitState :: Int -> s -> (s,s)
+-- | /O(n)/. Constructs a new sequence with the same structure as an existing
+-- sequence using a user-supplied mapping function along with a splittable
+-- value and a way to split it. The value is split up lazily according to the
+-- structure of the sequence, so one piece of the value is distributed to each
+-- element of the sequence. The caller should provide a splitter function that
+-- takes a number, @n@, and a splittable value, breaks off a chunk of size @n@
+-- from the value, and returns that chunk and the remainder as a pair. The
+-- following examples will hopefully make the usage clear:
+--
+-- > zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+-- > zipWith f s1 s2 = splitMap splitAt (\b a -> f a (b `index` 0)) s2' s1'
+-- >   where
+-- >     minLen = min (length s1) (length s2)
+-- >     s1' = take minLen s1
+-- >     s2' = take minLen s2
+--
+-- > mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
+-- > mapWithIndex f = splitMap (\n i -> (i, n+i)) f 0
+splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
+splitMap splt' = go
+ where
+  go f s (Seq xs) = Seq $ splitMapTree splt' (\s' (Elem a) -> Elem (f s' a)) s xs
 
-instance Splittable (Seq a) where
-    splitState = splitAt
+  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
+  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
+  splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
+  splitMapTree splt _f _s Empty = Empty
+  splitMapTree splt f s (Single xs) = Single $ f s xs
+  splitMapTree splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTree splt (splitMapNode splt f) ms m) (splitMapDigit splt f sfs sf)
+    where
+      (prs, r) = splt (size pr) s
+      (ms, sfs) = splt (n - size pr - size sf) r
 
-instance (Splittable a, Splittable b) => Splittable (a, b) where
-    splitState i (a, b) = (al `seq` bl `seq` (al, bl), ar `seq` br `seq` (ar, br))
-      where
-        (al, ar) = splitState i a
-        (bl, br) = splitState i b
+  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Digit (Elem y) -> Digit b #-}
+  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Digit (Node y) -> Digit b #-}
+  splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
+  splitMapDigit splt f s (One a) = One (f s a)
+  splitMapDigit splt f s (Two a b) = Two (f first a) (f second b)
+    where
+      (first, second) = splt (size a) s
+  splitMapDigit splt f s (Three a b c) = Three (f first a) (f second b) (f third c)
+    where
+      (first, r) = splt (size a) s
+      (second, third) = splt (size b) r
+  splitMapDigit splt f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
+    where
+      (first, s') = splt (size a) s
+      (middle, fourth) = splt (size b + size c) s'
+      (second, third) = splt (size b) middle
 
-data GenSplittable s = GenSplittable s (Int -> s -> (s,s))
-instance Splittable (GenSplittable s) where
-    splitState i (GenSplittable s spl) = (GenSplittable l spl, GenSplittable r spl)
-      where
-        (l,r) = spl i s
+  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Node (Elem y) -> Node b #-}
+  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Node (Node y) -> Node b #-}
+  splitMapNode :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Node a -> Node b
+  splitMapNode splt f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
+    where
+      (first, second) = splt (size a) s
+  splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
+    where
+      (first, r) = splt (size a) s
+      (second, third) = splt (size b) r
 
-{-# INLINE genSplitTraverseSeq #-}
-genSplitTraverseSeq :: (Int -> s -> (s, s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
-genSplitTraverseSeq spl f s = splitTraverseSeq (\(GenSplittable s _) -> f s) (GenSplittable s spl)
-
-{-# SPECIALIZE splitTraverseSeq :: (Seq x -> a -> b) -> Seq x -> Seq a -> Seq b #-}
-{-# SPECIALIZE splitTraverseSeq :: ((Seq x, Seq y) -> a -> b) -> (Seq x, Seq y) -> Seq a -> Seq b #-}
-splitTraverseSeq :: (Splittable s) => (s -> a -> b) -> s -> Seq a -> Seq b
-splitTraverseSeq f s (Seq xs) = Seq $ splitTraverseTree (\s' (Elem a) -> Elem (f s' a)) s xs
-
-{-# SPECIALIZE splitTraverseTree :: (Seq x -> Elem y -> b) -> Seq x -> FingerTree (Elem y) -> FingerTree b #-}
-{-# SPECIALIZE splitTraverseTree :: (Seq x -> Node y -> b) -> Seq x -> FingerTree (Node y) -> FingerTree b #-}
-splitTraverseTree :: (Sized a, Splittable s) => (s -> a -> b) -> s -> FingerTree a -> FingerTree b
-splitTraverseTree _f _s Empty = Empty
-splitTraverseTree f s (Single xs) = Single $ f s xs
-splitTraverseTree f s (Deep n pr m sf) = Deep n (splitTraverseDigit f prs pr) (splitTraverseTree (splitTraverseNode f) ms m) (splitTraverseDigit f sfs sf)
-  where
-    (prs, r) = splitState (size pr) s
-    (ms, sfs) = splitState (n - size pr - size sf) r
-
-{-# SPECIALIZE splitTraverseDigit :: (Seq x -> Elem y -> b) -> Seq x -> Digit (Elem y) -> Digit b #-}
-{-# SPECIALIZE splitTraverseDigit :: (Seq x -> Node y -> b) -> Seq x -> Digit (Node y) -> Digit b #-}
-splitTraverseDigit :: (Sized a, Splittable s) => (s -> a -> b) -> s -> Digit a -> Digit b
-splitTraverseDigit f s (One a) = One (f s a)
-splitTraverseDigit f s (Two a b) = Two (f first a) (f second b)
-  where
-    (first, second) = splitState (size a) s
-splitTraverseDigit f s (Three a b c) = Three (f first a) (f second b) (f third c)
-  where
-    (first, r) = splitState (size a) s
-    (second, third) = splitState (size b) r
-splitTraverseDigit f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
-  where
-    (first, s') = splitState (size a) s
-    (middle, fourth) = splitState (size b + size c) s'
-    (second, third) = splitState (size b) middle
-
-{-# SPECIALIZE splitTraverseNode :: (Seq x -> Elem y -> b) -> Seq x -> Node (Elem y) -> Node b #-}
-{-# SPECIALIZE splitTraverseNode :: (Seq x -> Node y -> b) -> Seq x -> Node (Node y) -> Node b #-}
-splitTraverseNode :: (Sized a, Splittable s) => (s -> a -> b) -> s -> Node a -> Node b
-splitTraverseNode f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
-  where
-    (first, second) = splitState (size a) s
-splitTraverseNode f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
-  where
-    (first, r) = splitState (size a) s
-    (second, third) = splitState (size b) r
+{-# INLINE splitMap #-}
 
 getSingleton :: Seq a -> a
 getSingleton (Seq (Single (Elem a))) = a
@@ -1850,7 +1937,7 @@ zip = zipWith (,)
 -- For example, @zipWith (+)@ is applied to two sequences to take the
 -- sequence of corresponding sums.
 zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith f s1 s2 = splitTraverseSeq (\s a -> f a (getSingleton s)) s2' s1'
+zipWith f s1 s2 = splitMap splitAt' (\s a -> f a (getSingleton s)) s2' s1'
   where
     minLen = min (length s1) (length s2)
     s1' = take minLen s1
@@ -1865,9 +1952,8 @@ zip3 = zipWith3 (,,)
 -- three elements, as well as three sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith3 :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
-zipWith3 f s1 s2 s3 = splitTraverseSeq (\s a ->
-    case s of
-      (b, c) -> f a (getSingleton b) (getSingleton c)) (s2', s3') s1'
+zipWith3 f s1 s2 s3 = splitMap (\i (s,t) -> case (splitAt' i s, splitAt' i t) of ((s', s''), (t', t'')) -> ((s',t'),(s'',t'')))
+    (\(b,c) a -> f a (getSingleton b) (getSingleton c)) (s2',s3') s1'
   where
     minLen = minimum [length s1, length s2, length s3]
     s1' = take minLen s1
@@ -1883,9 +1969,8 @@ zip4 = zipWith4 (,,,)
 -- four elements, as well as four sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith4 :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
-zipWith4 f s1 s2 s3 s4 = splitTraverseSeq (\s a ->
-    case s of
-      (b, (c, d)) -> f a (getSingleton b) (getSingleton c) (getSingleton d)) (s2', (s3', s4')) s1'
+zipWith4 f s1 s2 s3 s4 = splitMap (\i (s,t,u) -> case (splitAt' i s, splitAt' i t, splitAt' i u) of ((s',s''),(t',t''),(u',u'')) -> ((s',t',u'),(s'',t'',u'')))
+  (\(b, c, d) a -> f a (getSingleton b) (getSingleton c) (getSingleton d)) (s2',s3',s4') s1'
   where
     minLen = minimum [length s1, length s2, length s3, length s4]
     s1' = take minLen s1
