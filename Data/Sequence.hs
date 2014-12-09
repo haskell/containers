@@ -1662,11 +1662,34 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- Lists
 ------------------------------------------------------------------------
 
+-- The implementation below, by Ross Paterson, avoids the rebuilding
+-- the previous (|>)-based implementation suffered from.
+
 -- | /O(n)/. Create a sequence from a finite list of elements.
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
-fromList        =  Data.List.foldl' (|>) empty
+fromList xs = Seq $ mkTree 1 $ Data.List.map Elem xs
+  where
+    {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
+    {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
+    mkTree :: (Sized a) => Int -> [a] -> FingerTree a
+    mkTree s [] = s `seq` Empty
+    mkTree s [x1] = s `seq` Single x1
+    mkTree s [x1, x2] = Deep (2*s) (One x1) Empty (One x2)
+    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) Empty (Two x2 x3)
+    mkTree s (x1:x2:x3:xs) = s `seq` case getNodes (3*s) xs of
+                                       (ns, sf) -> m `seq` deep' (Three x1 x2 x3) m sf
+                                           where m = mkTree (3*s) ns
+
+    deep' pr@(Three x1 _ _) m sf = Deep (3*size x1 + size m + size sf) pr m sf
+    
+    getNodes :: Int -> [a] -> ([Node a], Digit a)
+    getNodes s [x1] = s `seq` ([], One x1)
+    getNodes s [x1, x2] = s `seq` ([], Two x1 x2)
+    getNodes s [x1, x2, x3] = s `seq` ([], Three x1 x2 x3)
+    getNodes s (x1:x2:x3:xs) = s `seq` (Node3 s x1 x2 x3:ns, d)
+       where (ns, d) = getNodes s xs
 
 #if __GLASGOW_HASKELL__ >= 708
 instance GHC.Exts.IsList (Seq a) where
