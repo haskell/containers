@@ -1382,7 +1382,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
     3 -> Deep (3*s) (Two (b i) (b (i+s))) Empty (One (b (i+2*s)))
     4 -> Deep (4*s) (Two (b i) (b (i+s))) Empty (Two (b (i+2*s)) (b (i+3*s)))
     5 -> Deep (5*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Two (b (i+3*s)) (b (i+4*s)))
-    6 -> Deep (5*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Three (b (i+3*s)) (b (i+4*s)) (b (i+5*s)))
+    6 -> Deep (6*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Three (b (i+3*s)) (b (i+4*s)) (b (i+5*s)))
     _ -> case trees `quotRem` 3 of
       (trees',1) -> Deep (trees*s) (Two (b i) (b (i+s)))
                          (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+2*s) (trees'-1))
@@ -1937,11 +1937,15 @@ zip = zipWith (,)
 -- For example, @zipWith (+)@ is applied to two sequences to take the
 -- sequence of corresponding sums.
 zipWith :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith f s1 s2 = splitMap splitAt' (\s a -> f a (getSingleton s)) s2' s1'
+zipWith f s1 s2 = zipWith' f s1' s2'
   where
     minLen = min (length s1) (length s2)
     s1' = take minLen s1
     s2' = take minLen s2
+
+-- | A version of zipWith that assumes the sequences have the same length.
+zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith' f s1 s2 = splitMap splitAt' (\s a -> f a (getSingleton s)) s2 s1
 
 -- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
@@ -1952,13 +1956,15 @@ zip3 = zipWith3 (,,)
 -- three elements, as well as three sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith3 :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
-zipWith3 f s1 s2 s3 = splitMap (\i (s,t) -> case (splitAt' i s, splitAt' i t) of ((s', s''), (t', t'')) -> ((s',t'),(s'',t'')))
-    (\(b,c) a -> f a (getSingleton b) (getSingleton c)) (s2',s3') s1'
+zipWith3 f s1 s2 s3 = zipWith' ($) (zipWith' f s1' s2') s3'
   where
     minLen = minimum [length s1, length s2, length s3]
     s1' = take minLen s1
     s2' = take minLen s2
     s3' = take minLen s3
+
+zipWith3' :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
+zipWith3' f s1 s2 s3 = zipWith' ($) (zipWith' f s1 s2) s3
 
 -- | /O(min(n1,n2,n3,n4))/.  'zip4' takes four sequences and returns a
 -- sequence of quadruples, analogous to 'zip'.
@@ -1969,8 +1975,7 @@ zip4 = zipWith4 (,,,)
 -- four elements, as well as four sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith4 :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
-zipWith4 f s1 s2 s3 s4 = splitMap (\i (s,t,u) -> case (splitAt' i s, splitAt' i t, splitAt' i u) of ((s',s''),(t',t''),(u',u'')) -> ((s',t',u'),(s'',t'',u'')))
-  (\(b, c, d) a -> f a (getSingleton b) (getSingleton c) (getSingleton d)) (s2',s3',s4') s1'
+zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
   where
     minLen = minimum [length s1, length s2, length s3, length s4]
     s1' = take minLen s1
