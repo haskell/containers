@@ -1374,25 +1374,29 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
 #else
                    | otherwise = Seq $ create (Elem . f) 1 0 len
 #endif
- where
-  create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
-  create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
-    1 -> Single $ b i
-    2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
-    3 -> Deep (3*s) (Two (b i) (b (i+s))) Empty (One (b (i+2*s)))
-    4 -> Deep (4*s) (Two (b i) (b (i+s))) Empty (Two (b (i+2*s)) (b (i+3*s)))
-    5 -> Deep (5*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Two (b (i+3*s)) (b (i+4*s)))
-    6 -> Deep (6*s) (Three (b i) (b (i+s)) (b (i+2*s))) Empty (Three (b (i+3*s)) (b (i+4*s)) (b (i+5*s)))
-    _ -> case trees `quotRem` 3 of
-      (trees',1) -> Deep (trees*s) (Two (b i) (b (i+s)))
-                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+2*s) (trees'-1))
-                         (Two (b (i+(2+3*(trees'-1))*s)) (b (i+(3+3*(trees'-1))*s)))
-      (trees',2) -> Deep (trees*s) (Three (b i) (b (i+s)) (b (i+2*s)))
-                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+3*s) (trees'-1))
-                         (Two (b (i+(3+3*(trees'-1))*s)) (b (i+(4+3*(trees'-1))*s)))
-      (trees',0) -> Deep (trees*s) (Three (b i) (b (i+s)) (b (i+2*s)))
-                         (create (\j -> Node3 (3*s) (b j) (b (j+s)) (b (j+2*s))) (3*s) (i+3*s) (trees'-2))
-                         (Three (b (i+(3+3*(trees'-2))*s)) (b (i+(4+3*(trees'-2))*s)) (b (i+(5+3*(trees'-2))*s)))
+  where
+    create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
+    create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
+       1 -> Single $ b i
+       2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
+       3 -> Deep (3*s) (createTwo b s i) Empty (One (b (i+2*s)))
+       4 -> Deep (4*s) (createTwo b s i) Empty (createTwo b s (i+2*s))
+       5 -> Deep (5*s) (createThree b s i) Empty (createTwo b s (i+3*s))
+       6 -> Deep (6*s) (createThree b s i) Empty (createThree b s (i+3*s))
+       _ -> case trees `quotRem` 3 of
+           (trees', 1) -> Deep (trees*s) (createTwo b s i)
+                              (create mb (3*s) (i+2*s) (trees'-1))
+                              (createTwo b s (i+(2+3*(trees'-1))*s))
+           (trees', 2) -> Deep (trees*s) (createThree b s i)
+                              (create mb (3*s) (i+3*s) (trees'-1))
+                              (createTwo b s (i+(3+3*(trees'-1))*s))
+           (trees', 0) -> Deep (trees*s) (createThree b s i)
+                              (create mb (3*s) (i+3*s) (trees'-2))
+                              (createThree b s (i+(3+3*(trees'-2))*s))
+      where
+        createTwo b s i = Two (b i) (b (i + s))
+        createThree b s i = Three (b i) (b (i + s)) (b (i + s + s))
+        mb j = Node3 (3*s) (b j) (b (j + s)) (b (j + 2*s))
 
 -- Splitting
 
