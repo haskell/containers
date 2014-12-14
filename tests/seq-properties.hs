@@ -36,6 +36,7 @@ main = defaultMain
        , testProperty "(|>)" prop_snoc
        , testProperty "(><)" prop_append
        , testProperty "fromList" prop_fromList
+       , testProperty "fromFunction" prop_fromFunction
        , testProperty "replicate" prop_replicate
        , testProperty "replicateA" prop_replicateA
        , testProperty "replicateM" prop_replicateM
@@ -269,6 +270,10 @@ prop_append xs ys =
 prop_fromList :: [A] -> Bool
 prop_fromList xs =
     toList' (fromList xs) ~= xs
+
+prop_fromFunction :: [A] -> Bool
+prop_fromFunction xs =
+    toList' (fromFunction (Prelude.length xs) (xs!!)) ~= xs
 
 -- ** Repetition
 
