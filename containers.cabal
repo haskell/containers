@@ -211,7 +211,7 @@ Test-suite seq-properties
 
 test-suite map-strictness-properties
   hs-source-dirs: tests, .
-  main-is: MapStrictness.hs
+  main-is: map-strictness.hs
   type: exitcode-stdio-1.0
 
   build-depends:
@@ -228,7 +228,7 @@ test-suite map-strictness-properties
 
 test-suite intmap-strictness-properties
   hs-source-dirs: tests, .
-  main-is: IntMapStrictness.hs
+  main-is: intmap-strictness.hs
   type: exitcode-stdio-1.0
 
   build-depends:
