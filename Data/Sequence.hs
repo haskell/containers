@@ -164,9 +164,9 @@ import Data.Functor (Functor(..))
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr', toList))
 #else
 #if MIN_VERSION_base(4,6,0)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl'), toList)
 #else
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', foldr', toList)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', toList)
 #endif
 #endif
 import Data.Traversable
@@ -180,6 +180,7 @@ import Data.Data
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
+import qualified GHC.Exts
 #define COERCE coerce
 #else
 #ifdef __GLASGOW_HASKELL__
@@ -191,9 +192,6 @@ import qualified Unsafe.Coerce
 #endif
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
-#endif
-#ifdef __GLASGOW_HASKELL__
-import qualified GHC.Exts
 #endif
 
 infixr 5 `consTree`
@@ -246,6 +244,8 @@ instance Foldable Seq where
     {-# INLINE length #-}
     null   = null
     {-# INLINE null #-}
+    toList   = toList
+    {-# INLINE toList #-}
 #endif
 
 instance Traversable Seq where
@@ -610,10 +610,6 @@ instance Applicative (State s) where
 
 execState :: State s a -> s -> a
 execState m x = snd (runState m x)
-
--- | A helper method: a strict version of mapAccumL.
-mapAccumL' :: Traversable t => (a -> b -> (a, c)) -> a -> t b -> (a, t c)
-mapAccumL' f s t = runState (traverse (State . flip f) t) s
 
 -- | 'applicativeTree' takes an Applicative-wrapped construction of a
 -- piece of a FingerTree, assumed to always have the same size (which
@@ -1305,12 +1301,12 @@ adjustDigit f i (Four a b c d)
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
-mapWithIndex f (Seq xs) = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f s a)) 0 xs
+mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)) 0 xs'
  where
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
   mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
-  mapWithIndexTree _f s Empty = s `seq` Empty
+  mapWithIndexTree _ s Empty = s `seq` Empty
   mapWithIndexTree f s (Single xs) = Single $ f s xs
   mapWithIndexTree f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
           Deep n
@@ -1379,23 +1375,23 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
     create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
        1 -> Single $ b i
        2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
-       3 -> Deep (3*s) (createTwo b s i) Empty (One (b (i+2*s)))
-       4 -> Deep (4*s) (createTwo b s i) Empty (createTwo b s (i+2*s))
-       5 -> Deep (5*s) (createThree b s i) Empty (createTwo b s (i+3*s))
-       6 -> Deep (6*s) (createThree b s i) Empty (createThree b s (i+3*s))
+       3 -> Deep (3*s) (createTwo i) Empty (One (b (i+2*s)))
+       4 -> Deep (4*s) (createTwo i) Empty (createTwo (i+2*s))
+       5 -> Deep (5*s) (createThree i) Empty (createTwo (i+3*s))
+       6 -> Deep (6*s) (createThree i) Empty (createThree (i+3*s))
        _ -> case trees `quotRem` 3 of
-           (trees', 1) -> Deep (trees*s) (createTwo b s i)
+           (trees', 1) -> Deep (trees*s) (createTwo i)
                               (create mb (3*s) (i+2*s) (trees'-1))
-                              (createTwo b s (i+(2+3*(trees'-1))*s))
-           (trees', 2) -> Deep (trees*s) (createThree b s i)
+                              (createTwo (i+(2+3*(trees'-1))*s))
+           (trees', 2) -> Deep (trees*s) (createThree i)
                               (create mb (3*s) (i+3*s) (trees'-1))
-                              (createTwo b s (i+(3+3*(trees'-1))*s))
-           (trees', 0) -> Deep (trees*s) (createThree b s i)
+                              (createTwo (i+(3+3*(trees'-1))*s))
+           (trees', _) -> Deep (trees*s) (createThree i)
                               (create mb (3*s) (i+3*s) (trees'-2))
-                              (createThree b s (i+(3+3*(trees'-2))*s))
+                              (createThree (i+(3+3*(trees'-2))*s))
       where
-        createTwo b s i = Two (b i) (b (i + s))
-        createThree b s i = Three (b i) (b (i + s)) (b (i + s + s))
+        createTwo j = Two (b j) (b (j + s))
+        createThree j = Three (b j) (b (j + s)) (b (j + 2*s))
         mb j = Node3 (3*s) (b j) (b (j + s)) (b (j + 2*s))
 
 -- Splitting
@@ -1884,8 +1880,8 @@ splitMap splt' = go
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
   splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
-  splitMapTree splt _f _s Empty = Empty
-  splitMapTree splt f s (Single xs) = Single $ f s xs
+  splitMapTree _    _ _ Empty = Empty
+  splitMapTree _    f s (Single xs) = Single $ f s xs
   splitMapTree splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTree splt (splitMapNode splt f) ms m) (splitMapDigit splt f sfs sf)
     where
       (prs, r) = splt (size pr) s
@@ -1894,7 +1890,7 @@ splitMap splt' = go
   {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Digit (Elem y) -> Digit b #-}
   {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Digit (Node y) -> Digit b #-}
   splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
-  splitMapDigit splt f s (One a) = One (f s a)
+  splitMapDigit _    f s (One a) = One (f s a)
   splitMapDigit splt f s (Two a b) = Two (f first a) (f second b)
     where
       (first, second) = splt (size a) s
