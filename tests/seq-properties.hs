@@ -2,6 +2,7 @@ import Data.Sequence    -- needs to be compiled with -DTESTING for use here
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
+import Data.Array (listArray)
 import Data.Foldable (Foldable(..), toList, all, sum)
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
@@ -37,6 +38,7 @@ main = defaultMain
        , testProperty "(><)" prop_append
        , testProperty "fromList" prop_fromList
        , testProperty "fromFunction" prop_fromFunction
+       , testProperty "fromArray" prop_fromArray
        , testProperty "replicate" prop_replicate
        , testProperty "replicateA" prop_replicateA
        , testProperty "replicateM" prop_replicateM
@@ -274,6 +276,10 @@ prop_fromList xs =
 prop_fromFunction :: [A] -> Bool
 prop_fromFunction xs =
     toList' (fromFunction (Prelude.length xs) (xs!!)) ~= xs
+
+prop_fromArray :: [A] -> Bool
+prop_fromArray xs =
+    toList' (fromArray (listArray (42, 42+Prelude.length xs-1) xs)) ~= xs
 
 -- ** Repetition
 

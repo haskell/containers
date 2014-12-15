@@ -62,6 +62,7 @@ module Data.Sequence (
     (><),           -- :: Seq a -> Seq a -> Seq a
     fromList,       -- :: [a] -> Seq a
     fromFunction,   -- :: Int -> (Int -> a) -> Seq a
+    fromArray,      -- :: Ix i => Array i a -> Seq a
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
@@ -178,6 +179,13 @@ import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
+#endif
+
+-- Array stuff, with GHC.Arr on GHC
+import Data.Array (Ix, Array)
+import qualified Data.Array
+#ifdef __GLASGOW_HASKELL__
+import qualified GHC.Arr
 #endif
 
 -- Coercion on GHC 7.8+
@@ -1398,6 +1406,17 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
     lift_elem g = Elem . g
 #endif
     {-# INLINE lift_elem #-}
+
+-- | /O(n)/. Create a sequence consisting of the elements of an 'Array'.
+-- Note that the resulting sequence elements may be evaluated lazily (as on GHC),
+-- so you must force the entire structure to be sure that the original array
+-- can be garbage-collected.
+fromArray :: Ix i => Array i a -> Seq a
+#ifdef __GLASGOW_HASKELL__
+fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
+#else
+fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array.elems a)
+#endif
 
 -- Splitting
 
