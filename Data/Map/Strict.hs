@@ -2,12 +2,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
-#endif
+
+#include "containers.h"
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map.Strict
@@ -283,17 +280,6 @@ import Data.Bits (shiftL, shiftR)
 import Data.Coerce
 #endif
 
--- Use macros to define strictness of functions.  STRICT_x_OF_y
--- denotes an y-ary function strict in the x-th parameter. Similarly
--- STRICT_x_y_OF_z denotes an z-ary function strict in the x-th and
--- y-th parameter.  We do not use BangPatterns, because they are not
--- in any standard and we want the compilers to be compiled by as many
--- compilers as possible.
-#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
-#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
-#define STRICT_1_2_OF_3(fn) fn arg1 arg2 _ | arg1 `seq` arg2 `seq` False = undefined
-#define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
 
 -- $strictness
 --
@@ -369,7 +355,8 @@ insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_2_OF_3(go)
+    STRICT_1_OF_3(go)
+    STRICT_2_OF_3(go)
     go kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of

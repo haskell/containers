@@ -5,6 +5,9 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+
+#include "containers.h"
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Graph

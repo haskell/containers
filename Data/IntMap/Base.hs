@@ -9,12 +9,8 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
 #endif
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
-#endif
+
+#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
@@ -250,12 +246,6 @@ import Text.Read
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
-
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
-#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
 
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -2093,7 +2083,6 @@ instance (Read e) => Read (IntMap e) where
   Typeable
 --------------------------------------------------------------------}
 
-#include "Typeable.h"
 INSTANCE_TYPEABLE1(IntMap,intMapTc,"IntMap")
 
 {--------------------------------------------------------------------

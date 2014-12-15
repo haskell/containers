@@ -2,6 +2,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+
+#include "containers.h"
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap.Strict

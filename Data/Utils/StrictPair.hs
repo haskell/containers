@@ -2,6 +2,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
+
+#include "containers.h"
+
 module Data.Utils.StrictPair (StrictPair(..), toPair) where
 
 -- | Same as regular Haskell pairs, but (x :*: _|_) = (_|_ :*: y) =

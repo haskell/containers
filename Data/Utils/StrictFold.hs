@@ -2,6 +2,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
+
+#include "containers.h"
+
 module Data.Utils.StrictFold (foldlStrict) where
 
 -- | Same as regular 'Data.List.foldl'', but marked INLINE so that it is always

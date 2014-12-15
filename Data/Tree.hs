@@ -5,12 +5,8 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
-#endif
+
+#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
@@ -69,7 +65,6 @@ data Tree a = Node {
 #endif
 type Forest a = [Tree a]
 
-#include "Typeable.h"
 INSTANCE_TYPEABLE1(Tree,treeTc,"Tree")
 
 instance Functor Tree where

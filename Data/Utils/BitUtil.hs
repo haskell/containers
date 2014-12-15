@@ -5,6 +5,9 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+
+#include "containers.h"
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Utils.BitUtil
@@ -21,11 +24,6 @@ module Data.Utils.BitUtil
     , shiftLL
     , shiftRL
     ) where
-
--- On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
-#if defined(__GLASGOW_HASKELL__)
-# include "MachDeps.h"
-#endif
 
 import Data.Bits ((.|.), xor)
 

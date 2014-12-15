@@ -8,12 +8,9 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
 #endif
--- We use cabal-generated MIN_VERSION_base to adapt to changes of base.
--- Nevertheless, as a convenience, we also allow compiling without cabal by
--- defining trivial MIN_VERSION_base if needed.
-#ifndef MIN_VERSION_base
-#define MIN_VERSION_base(major1,major2,minor) 0
-#endif
+
+#include "containers.h"
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence
@@ -200,14 +197,6 @@ import Data.Functor.Identity (Identity(..))
 #endif
 
 
--- Use macros to define strictness of functions.
--- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
--- We do not use BangPatterns, because they are not in any standard and we
--- want the compilers to be compiled by as many compilers as possible.
-#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
-
-
 infixr 5 `consTree`
 infixl 5 `snocTree`
 
@@ -322,7 +311,6 @@ instance Monoid (Seq a) where
     mempty = empty
     mappend = (><)
 
-#include "Typeable.h"
 INSTANCE_TYPEABLE1(Seq,seqTc,"Seq")
 
 #if __GLASGOW_HASKELL__
