@@ -1773,7 +1773,7 @@ fromList xs = Seq $ mkTree 1 $ Data.List.map Elem xs
                                            where m = mkTree (3*s) ns
 
     deep' pr@(Three x1 _ _) m sf = Deep (3*size x1 + size m + size sf) pr m sf
-    
+
     getNodes :: Int -> [a] -> ([Node a], Digit a)
     getNodes s [x1] = s `seq` ([], One x1)
     getNodes s [x1, x2] = s `seq` ([], Two x1 x2)
