@@ -36,7 +36,8 @@ main = do
          [ bench "ix10000/5000" $ nf (\(xs,ys) -> S.zip xs ys `S.index` 5000) (s10000, u10000)
          , bench "nf100" $ nf (uncurry S.zip) (s100, u100)
          , bench "nf10000" $ nf (uncurry S.zip) (s10000, u10000)
-         ] ]
+         ]
+      ]
 
 -- splitAt+append: repeatedly cut the sequence at a random point
 -- and rejoin the pieces in the opposite order.
