@@ -181,14 +181,7 @@ import Data.Data
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 import qualified GHC.Exts
-#define COERCE coerce
 #else
-#ifdef __GLASGOW_HASKELL__
-import qualified Unsafe.Coerce
--- Note that by compiling this file with GHC 7.8 or later, we prove that
--- it is safe to use COERCE with earlier GHC versions.
-#define COERCE Unsafe.Coerce.unsafeCoerce
-#endif
 #endif
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
@@ -1365,11 +1358,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
 fromFunction :: Int -> (Int -> a) -> Seq a
 fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
                    | len == 0 = empty
-#ifdef __GLASGOW_HASKELL__
-                   | otherwise = Seq $ create (COERCE f) 1 0 len
-#else
-                   | otherwise = Seq $ create (Elem . f) 1 0 len
-#endif
+                   | otherwise = Seq $ create (lift_elem f) 1 0 len
   where
     create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
     create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
@@ -1396,6 +1385,14 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
         {-# INLINE createThree #-}
         mb j = Node3 (3*s) (b j) (b (j + s)) (b (j + 2*s))
         {-# INLINE mb #-}
+
+    lift_elem :: (Int -> a) -> (Int -> Elem a)
+#if __GLASGOW_HASKELL__ >= 708
+    lift_elem g = coerce g
+#else
+    lift_elem g = Elem . g
+#endif
+    {-# INLINE lift_elem #-}
 
 -- Splitting
 
