@@ -183,7 +183,6 @@ import Data.Data
 
 -- Array stuff, with GHC.Arr on GHC
 import Data.Array (Ix, Array)
-import qualified Data.Array
 #ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
 #endif
@@ -199,6 +198,15 @@ import qualified GHC.Exts
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
 #endif
+
+
+-- Use macros to define strictness of functions.
+-- STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
+-- We do not use BangPatterns, because they are not in any standard and we
+-- want the compilers to be compiled by as many compilers as possible.
+#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
+#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
+
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
@@ -1783,27 +1791,27 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
-fromList xs = Seq $ mkTree 1 $ map_elem xs
+fromList = Seq . mkTree 1 . map_elem
   where
     {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
     {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
     mkTree :: (Sized a) => Int -> [a] -> FingerTree a
-    mkTree s [] = s `seq` Empty
-    mkTree s [x1] = s `seq` Single x1
+    STRICT_1_OF_2(mkTree)
+    mkTree _ [] = Empty
+    mkTree _ [x1] = Single x1
     mkTree s [x1, x2] = Deep (2*s) (One x1) Empty (One x2)
     mkTree s [x1, x2, x3] = Deep (3*s) (One x1) Empty (Two x2 x3)
-    mkTree s (x1:x2:x3:xs) = s `seq` case getNodes (3*s) xs of
-                                       (ns, sf) -> m `seq` deep' (Three x1 x2 x3) m sf
-                                           where m = mkTree (3*s) ns
+    mkTree s (x1:x2:x3:x4:xs) = case getNodes (3*s) x4 xs of
+      (ns, sf) -> case mkTree (3*s) ns of
+        m -> m `seq` Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
 
-    deep' pr@(Three x1 _ _) m sf = Deep (3*size x1 + size m + size sf) pr m sf
-
-    getNodes :: Int -> [a] -> ([Node a], Digit a)
-    getNodes s [x1] = s `seq` ([], One x1)
-    getNodes s [x1, x2] = s `seq` ([], Two x1 x2)
-    getNodes s [x1, x2, x3] = s `seq` ([], Three x1 x2 x3)
-    getNodes s (x1:x2:x3:xs) = s `seq` (Node3 s x1 x2 x3:ns, d)
-       where (ns, d) = getNodes s xs
+    getNodes :: Int -> a -> [a] -> ([Node a], Digit a)
+    STRICT_1_OF_3(getNodes)
+    getNodes _ x1 [] = ([], One x1)
+    getNodes _ x1 [x2] = ([], Two x1 x2)
+    getNodes _ x1 [x2, x3] = ([], Three x1 x2 x3)
+    getNodes s x1 (x2:x3:x4:xs) = (Node3 s x1 x2 x3:ns, d)
+       where (ns, d) = getNodes s x4 xs
 
     map_elem :: [a] -> [Elem a]
 #if __GLASGOW_HASKELL__ >= 708
