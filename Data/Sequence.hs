@@ -172,17 +172,22 @@ import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', t
 import Data.Traversable
 import Data.Typeable
 
+-- GHC specific stuff
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 #endif
+
+-- Coercion on GHC 7.8+
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 import qualified GHC.Exts
 #else
 #endif
+
+-- Identity functor on base 4.8 (GHC 7.10+)
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
 #endif
