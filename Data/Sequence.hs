@@ -1391,8 +1391,11 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
                               (createThree (i+(3+3*(trees'-2))*s))
       where
         createTwo j = Two (b j) (b (j + s))
+        {-# INLINE createTwo #-}
         createThree j = Three (b j) (b (j + s)) (b (j + 2*s))
+        {-# INLINE createThree #-}
         mb j = Node3 (3*s) (b j) (b (j + s)) (b (j + 2*s))
+        {-# INLINE mb #-}
 
 -- Splitting
 
