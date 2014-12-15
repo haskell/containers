@@ -37,6 +37,13 @@ main = do
          , bench "nf100" $ nf (uncurry S.zip) (s100, u100)
          , bench "nf10000" $ nf (uncurry S.zip) (s10000, u10000)
          ]
+      , bgroup "fromFunction"
+         [ bench "ix10000/5000" $ nf (\s -> S.fromFunction s (+1) `S.index` (s `div` 2)) 10000
+         , bench "nf10" $ nf (\s -> S.fromFunction s (+1)) 10
+         , bench "nf100" $ nf (\s -> S.fromFunction s (+1)) 100
+         , bench "nf1000" $ nf (\s -> S.fromFunction s (+1)) 1000
+         , bench "nf10000" $ nf (\s -> S.fromFunction s (+1)) 10000
+         ]
       ]
 
 -- splitAt+append: repeatedly cut the sequence at a random point
