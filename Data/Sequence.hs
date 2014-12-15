@@ -19,7 +19,7 @@
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
 --                (c) Louis Wasserman 2009
---                (c) David Feuer and Milan Straka 2014
+--                (c) David Feuer, Ross Paterson, and Milan Straka 2014
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
