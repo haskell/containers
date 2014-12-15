@@ -1759,7 +1759,7 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
-fromList xs = Seq $ mkTree 1 $ Data.List.map Elem xs
+fromList xs = Seq $ mkTree 1 $ map_elem xs
   where
     {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
     {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
@@ -1780,6 +1780,14 @@ fromList xs = Seq $ mkTree 1 $ Data.List.map Elem xs
     getNodes s [x1, x2, x3] = s `seq` ([], Three x1 x2 x3)
     getNodes s (x1:x2:x3:xs) = s `seq` (Node3 s x1 x2 x3:ns, d)
        where (ns, d) = getNodes s xs
+
+    map_elem :: [a] -> [Elem a]
+#if __GLASGOW_HASKELL__ >= 708
+    map_elem xs = coerce xs
+#else
+    map_elem xs = Data.List.map Elem xs
+#endif
+    {-# INLINE map_elem #-}
 
 #if __GLASGOW_HASKELL__ >= 708
 instance GHC.Exts.IsList (Seq a) where
