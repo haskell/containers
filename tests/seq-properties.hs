@@ -3,7 +3,7 @@ import Data.Sequence    -- needs to be compiled with -DTESTING for use here
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
 import Data.Array (listArray)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1), toList, all, sum)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), toList, all, sum)
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Monoid (Monoid(..))
