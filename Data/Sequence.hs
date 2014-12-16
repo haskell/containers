@@ -247,8 +247,6 @@ instance Foldable Seq where
     {-# INLINE length #-}
     null   = null
     {-# INLINE null #-}
-    toList   = toList
-    {-# INLINE toList #-}
 #endif
 
 instance Traversable Seq where
