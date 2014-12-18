@@ -1872,9 +1872,9 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 -- them up further and zip them with their matching pieces can be delayed until
 -- they're actually needed. We do the same thing for Digits (splitting into
 -- between one and four pieces) and Nodes (splitting into two or three). The
--- ultimate result is that we can index, or split at, any location in zs in
--- O(log(min{i,n-i})) time *immediately*, with only a constant-factor slowdown
--- as thunks are forced along the path.
+-- ultimate result is that we can index into, or split at, any location in zs
+-- in O((log(min{i,n-i}))^2) time *immediately*, while still being able to
+-- force all the thunks in O(n) time.
 --
 -- Benchmark info, and alternatives:
 --
