@@ -1806,6 +1806,7 @@ fromList = Seq . mkTree 1 . map_elem
 instance GHC.Exts.IsList (Seq a) where
     type Item (Seq a) = a
     fromList = fromList
+    fromListN = fromList2
     toList = toList
 #endif
 
