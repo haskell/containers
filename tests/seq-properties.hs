@@ -112,7 +112,15 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
         arb :: (Arbitrary a, Sized a) => Int -> Gen (FingerTree a)
         arb 0 = return Empty
         arb 1 = Single <$> arbitrary
-        arb n = deep <$> arbitrary <*> arb (n `div` 2) <*> arbitrary
+        arb n = do
+            pr <- arbitrary
+            sf <- arbitrary
+            let n_pr = Prelude.length (toList pr)
+            let n_sf = Prelude.length (toList sf)
+            -- adding n `div` 7 ensures that n_m >= 0, and makes more Singles
+            let n_m = max (n `div` 7) ((n - n_pr - n_sf) `div` 3)
+            m <- arb n_m
+            return $ deep pr m sf
 
     shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
     shrink (Deep _ pr m sf) =
