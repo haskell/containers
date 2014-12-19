@@ -252,9 +252,23 @@ instance NFData a => NFData (Seq a) where
 
 instance Monad Seq where
     return = singleton
-    xs >>= f = foldl' add empty xs
-      where add ys x = ys >< f x
+    (>>=) = bindSeq
+
     (>>) = (*>)
+
+bindSeq :: Seq a -> (a -> Seq b) -> Seq b
+xs `bindSeq` f = foldl' add empty xs
+      where add ys x = ys >< f x
+
+#ifdef __GLASGOW_HASKELL__
+-- Since xs *> ys is more efficient than xs >>= const ys, we try to rewrite
+-- the latter to the definition of the former.
+{-# NOINLINE [1] bindSeq #-}
+{-# RULES
+"bind/const" forall xs ys . bindSeq xs (\_ -> ys) = replicateSeq (length xs) ys
+ #-}
+#endif
+
 
 instance Applicative Seq where
     pure = singleton
