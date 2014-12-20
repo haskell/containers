@@ -1,6 +1,7 @@
 -- > ghc -DTESTING --make -O2 -fforce-recomp -i.. Sequence.hs
 module Main where
 
+import Control.Applicative
 import Control.DeepSeq
 import Criterion.Main
 import Data.List (foldl')
@@ -43,6 +44,22 @@ main = do
          , bench "nf100" $ nf (\s -> S.fromFunction s (+1)) 100
          , bench "nf1000" $ nf (\s -> S.fromFunction s (+1)) 1000
          , bench "nf10000" $ nf (\s -> S.fromFunction s (+1)) 10000
+         ]
+      , bgroup "<*>"
+         [ bench "ix1000/500000" $
+              nf (\s -> ((+) <$> s <*> s) `S.index` (S.length s `div` 2)) (S.fromFunction 1000 (+1))
+         , bench "nf100/2500/rep" $
+              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (100,2500)
+         , bench "nf100/2500/ff" $
+              nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (100,2500)
+         , bench "nf500/500/rep" $
+              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (500,500)
+         , bench "nf500/500/ff" $
+              nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (500,500)
+         , bench "nf2500/100/rep" $
+              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (2500,100)
+         , bench "nf2500/100/ff" $
+              nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (2500,100)
          ]
       ]
 
