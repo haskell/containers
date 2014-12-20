@@ -17,6 +17,7 @@ import qualified Prelude
 import qualified Data.List
 import Test.QuickCheck hiding ((><))
 import Test.QuickCheck.Poly
+import Test.QuickCheck.Function
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
 
@@ -93,6 +94,9 @@ main = defaultMain
        , testProperty "zipWith3" prop_zipWith3
        , testProperty "zip4" prop_zip4
        , testProperty "zipWith4" prop_zipWith4
+       , testProperty "<*>" prop_ap
+       , testProperty "*>" prop_then
+       , testProperty ">>=" prop_bind
        ]
 
 ------------------------------------------------------------------------
@@ -587,6 +591,22 @@ prop_zipWith4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Bool
 prop_zipWith4 xs ys zs ts =
     toList' (zipWith4 f xs ys zs ts) ~= Data.List.zipWith4 f (toList xs) (toList ys) (toList zs) (toList ts)
   where f = (,,,)
+
+-- Applicative operations
+
+prop_ap :: Seq A -> Seq B -> Bool
+prop_ap xs ys =
+    toList' ((,) <$> xs <*> ys) ~= ( (,) <$> toList xs <*> toList ys )
+
+prop_then :: Seq A -> Seq B -> Bool
+prop_then xs ys =
+    toList' (xs *> ys) ~= (toList xs *> toList ys)
+
+-- Monad operations
+
+prop_bind :: Seq A -> Fun A (Seq B) -> Bool
+prop_bind xs (Fun _ f) =
+    toList' (xs >>= f) ~= (toList xs >>= toList . f)
 
 -- Simple test monad
 
