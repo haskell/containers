@@ -1,10 +1,12 @@
 all:
 
 bench-%: %.hs force
-	ghc -O2 -DTESTING $< -i../$(TOP) -o $@ -outputdir tmp -rtsopts
+	ghc -O2 -DTESTING $< -I../include -i../$(TOP) -o $@ -outputdir tmp -rtsopts
+
+.PRECIOUS: bench-%
 
 bench-%.csv: bench-%
-	./bench-$* $(BENCHMARK) -v -u bench-$*.csv
+	./bench-$* "$(BENCHMARK)" -v1 --csv bench-$*.csv
 
 .PHONY: force clean veryclean
 force:
