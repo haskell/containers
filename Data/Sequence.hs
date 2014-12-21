@@ -277,7 +277,7 @@ apShort :: Seq (a -> b) -> Seq a -> Seq b
 apShort (Seq fs) xs = Seq $ case toList xs of
             [a,b] -> ap2FT fs (a,b)
             [a,b,c] -> ap3FT fs (a,b,c)
-            _ -> error "apShort: not 2-6"
+            _ -> error "apShort: not 2-3"
 
 ap2FT :: FingerTree (Elem (a->b)) -> (a,a) -> FingerTree (Elem b)
 ap2FT fs (x,y) = Deep (size fs * 2)
@@ -298,104 +298,85 @@ ap3FT fs (x,y,z) = Deep (size fs * 3)
 -- <*> when the length of each argument is at least four.
 apty :: Seq (a -> b) -> Seq a -> Seq b
 apty (Seq fs) (Seq xs@Deep{}) = Seq $
-    runApState (fmap firstf) (fmap lastf) fmap fs' (ApState xs' xs' xs')
+    Deep (s' * size fs)
+         (fmap (fmap firstf) pr')
+         (aptyMiddle (fmap firstf) (fmap lastf) fmap fs' xs')
+         (fmap (fmap lastf) sf')
   where
     (Elem firstf, fs', Elem lastf) = trimTree fs
-    xs' = rigidify xs
+    xs'@(Deep s' pr' _m' sf') = rigidify xs
 apty _ _ = error "apty: expects a Deep constructor"
 
-data ApState a = ApState (FingerTree a) (FingerTree a) (FingerTree a)
-
--- | 'runApState' uses three copies of the @xs@ tree to produce the @fs<*>xs@
--- tree. It pulls left digits off the left tree, right digits off the right tree,
--- and squashes down the other four digits. Once it gets to the bottom, it turns
--- the middle tree into a 2-3 tree, applies 'mapMulFT' to produce the main body,
--- and glues all the pieces together.
-runApState
+-- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.
+-- It produces the center part of a finger tree, with a prefix corresponding
+-- to the prefix of @xs@ and a suffix corresponding to the suffix of @xs@
+-- omitted; the missing suffix and prefix are added by the caller.
+-- For the recursive call, it squashes the prefix and the suffix into
+-- the center tree. Once it gets to the bottom, it turns the tree into
+-- a 2-3 tree, applies 'mapMulFT' to produce the main body, and glues all
+-- the pieces together.
+aptyMiddle
   :: Sized c =>
      (c -> d)
      -> (c -> d)
      -> ((a -> b) -> c -> d)
      -> FingerTree (Elem (a -> b))
-     -> ApState c
-     -> FingerTree d
+     -> FingerTree c
+     -> FingerTree (Node d)
 -- Not at the bottom yet
-runApState firstf
+aptyMiddle firstf
            lastf
            map23
            fs
-           (ApState
-              (Deep sl
-                    prl
-                    (Deep sml prml mml sfml)
-                    sfl)
-              (Deep sm
-                    prm
-                    (Deep _smm prmm mmm sfmm)
-                    sfm)
-              (Deep sr
-                    prr
-                    (Deep smr prmr mmr sfmr)
-                    sfr))
-    = Deep (sl + sr + sm * size fs)
-           (fmap firstf prl)
-           (runApState (fmap firstf)
+           (Deep s pr (Deep sm prm mm sfm) sf)
+    = Deep (sm + s * (size fs + 1)) -- note: sm = s - size pr - size sf
+           (fmap (fmap firstf) prm)
+           (aptyMiddle (fmap firstf)
                        (fmap lastf)
                        (\f -> fmap (map23 f))
                        fs
-                       nextState)
-           (fmap lastf sfr)
-     where nextState =
-             ApState
-               (Deep (sml + size sfl) prml mml (squashR sfml sfl))
-               (Deep sm (squashL prm prmm) mmm (squashR sfmm sfm))
-               (Deep (smr + size prr) (squashL prr prmr) mmr sfmr)
+                       (Deep s (squashL pr prm) mm (squashR sfm sf)))
+           (fmap (fmap lastf) sfm)
 
 -- At the bottom
-runApState firstf
+aptyMiddle firstf
            lastf
            map23
            fs
-           (ApState
-              (Deep sl prl ml sfl)
-              (Deep sm prm mm sfm)
-              (Deep sr prr mr sfr))
-      = Deep (sl + sr + sm * size fs)
-             (fmap firstf prl)
-             ((fmap (fmap firstf) ml `snocTree` fmap firstf (digitToNode sfl))
-              `appendTree0` middle `appendTree0`
-              (fmap lastf (digitToNode prr) `consTree`  fmap (fmap lastf) mr))
-             (fmap lastf sfr)
-    where middle = case trimTree $ mapMulFT sm (\(Elem f) -> fmap (fmap (map23 f)) converted) fs of
+           (Deep s pr m sf)
+      = (fmap (fmap firstf) m `snocTree` fmap firstf (digitToNode sf))
+        `appendTree0` middle `appendTree0`
+        (fmap lastf (digitToNode pr) `consTree`  fmap (fmap lastf) m)
+    where middle = case trimTree $ mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs of
                      (firstMapped, restMapped, lastMapped) ->
                         Deep (size firstMapped + size restMapped + size lastMapped)
                              (nodeToDigit firstMapped) restMapped (nodeToDigit lastMapped)
-          converted = case mm of
-                                    Empty -> Node2 sm lconv rconv
-                                    Single q -> Node3 sm lconv q rconv
-                                    Deep{} -> error "runApState: a tree is shallower than the middle tree"
-          lconv = digitToNode prm
-          rconv = digitToNode sfm
+          converted = case m of
+                                    Empty -> Node2 s lconv rconv
+                                    Single q -> Node3 s lconv q rconv
+                                    Deep{} -> error "aptyMiddle: impossible"
+          lconv = digitToNode pr
+          rconv = digitToNode sf
 
-runApState _ _ _ _ _ = error "runApState: ApState must hold Deep finger trees of the same depth"
+aptyMiddle _ _ _ _ _ = error "aptyMiddle: expected Deep finger tree"
 
 {-# SPECIALIZE
- runApState
+ aptyMiddle
   :: (Node c -> d)
      -> (Node c -> d)
      -> ((a -> b) -> Node c -> d)
      -> FingerTree (Elem (a -> b))
-     -> ApState (Node c)
-     -> FingerTree d
+     -> FingerTree (Node c)
+     -> FingerTree (Node d)
  #-}
 {-# SPECIALIZE
- runApState
+ aptyMiddle
   :: (Elem c -> d)
      -> (Elem c -> d)
      -> ((a -> b) -> Elem c -> d)
      -> FingerTree (Elem (a -> b))
-     -> ApState (Elem c)
-     -> FingerTree d
+     -> FingerTree (Elem c)
+     -> FingerTree (Node d)
  #-}
 
 digitToNode :: Sized a => Digit a -> Node a
@@ -2096,16 +2077,9 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 -- Mapping with a splittable value
 ------------------------------------------------------------------------
 
--- For zipping, and probably also for (<*>), it is useful to build a result by
+-- For zipping, it is useful to build a result by
 -- traversing a sequence while splitting up something else.  For zipping, we
--- traverse the first sequence while splitting up the second [and third [and
--- fourth]]. For fs <*> xs, we hope to traverse
---
--- > replicate (length fs * length xs) ()
---
--- while splitting something essentially equivalent to
---
--- > fmap (\f -> fmap f xs) fs
+-- traverse the first sequence while splitting up the second.
 --
 -- What makes all this crazy code a good idea:
 --
@@ -2129,8 +2103,8 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 -- they're actually needed. We do the same thing for Digits (splitting into
 -- between one and four pieces) and Nodes (splitting into two or three). The
 -- ultimate result is that we can index into, or split at, any location in zs
--- in O((log(min{i,n-i}))^2) time *immediately*, while still being able to
--- force all the thunks in O(n) time.
+-- in polylogarithmic time *immediately*, while still being able to force all
+-- the thunks in O(n) time.
 --
 -- Benchmark info, and alternatives:
 --
