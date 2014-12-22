@@ -3,6 +3,7 @@ module Main where
 
 import Control.Applicative
 import Control.DeepSeq
+import Control.Exception (evaluate)
 import Criterion.Main
 import Data.List (foldl')
 import qualified Data.Sequence as S
@@ -14,19 +15,19 @@ main = do
         s100 = S.fromList [1..100] :: S.Seq Int
         s1000 = S.fromList [1..1000] :: S.Seq Int
         s10000 = S.fromList [1..10000] :: S.Seq Int
-    rnf [s10, s100, s1000, s10000] `seq` return ()
+    evaluate $ rnf [s10, s100, s1000, s10000]
     let g = mkStdGen 1
     let rlist n = map (`mod` (n+1)) (take 10000 (randoms g)) :: [Int]
         r10 = rlist 10
         r100 = rlist 100
         r1000 = rlist 1000
         r10000 = rlist 10000
-    rnf [r10, r100, r1000, r10000] `seq` return ()
+    evaluate $ rnf [r10, r100, r1000, r10000]
     let u10 = S.replicate 10 () :: S.Seq ()
         u100 = S.replicate 100 () :: S.Seq ()
         u1000 = S.replicate 1000 () :: S.Seq ()
         u10000 = S.replicate 10000 () :: S.Seq ()
-    rnf [u10, u100, u1000, u10000] `seq` return ()
+    evaluate $ rnf [u10, u100, u1000, u10000]
     defaultMain
       [ bgroup "splitAt/append"
          [ bench "10" $ nf (shuffle r10) s10

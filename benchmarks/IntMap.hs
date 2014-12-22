@@ -4,7 +4,6 @@ module Main where
 import Control.DeepSeq
 import Control.Exception (evaluate)
 import Control.Monad.Trans (liftIO)
-import Criterion.Config
 import Criterion.Main
 import Data.List (foldl')
 import qualified Data.IntMap as M
@@ -13,9 +12,8 @@ import Prelude hiding (lookup)
 
 main = do
     let m = M.fromAscList elems :: M.IntMap Int
-    defaultMainWith
-        defaultConfig
-        (liftIO . evaluate $ rnf [m])
+    evaluate $ rnf [m]
+    defaultMain
         [ bench "lookup" $ whnf (lookup keys) m
         , bench "insert" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
