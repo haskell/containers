@@ -4,7 +4,6 @@ module Main where
 import Control.DeepSeq
 import Control.Exception (evaluate)
 import Control.Monad.Trans (liftIO)
-import Criterion.Config
 import Criterion.Main
 import Data.List (foldl')
 import qualified Data.Map as M
@@ -15,9 +14,8 @@ main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
-    defaultMainWith
-        defaultConfig
-        (liftIO . evaluate $ rnf [m, m_even, m_odd])
+    evaluate $ rnf [m, m_even, m_odd]
+    defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd

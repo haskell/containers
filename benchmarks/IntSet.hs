@@ -5,7 +5,6 @@ module Main where
 import Control.DeepSeq
 import Control.Exception (evaluate)
 import Control.Monad.Trans (liftIO)
-import Criterion.Config
 import Criterion.Main
 import Data.List (foldl')
 import qualified Data.IntSet as S
@@ -14,9 +13,8 @@ main = do
     let s = S.fromAscList elems :: S.IntSet
         s_even = S.fromAscList elems_even :: S.IntSet
         s_odd = S.fromAscList elems_odd :: S.IntSet
-    defaultMainWith
-        defaultConfig
-        (liftIO . evaluate $ rnf [s, s_even, s_odd])
+    evaluate $ rnf [s, s_even, s_odd]
+    defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
         , bench "map" $ whnf (S.map (+ 1)) s
