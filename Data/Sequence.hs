@@ -169,10 +169,7 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', toList)
-#if MIN_VERSION_base(4,8,0)
-import Data.Foldable (foldr')
-#endif
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', foldr', toList)
 import Data.Traversable
 import Data.Typeable
 
@@ -241,14 +238,41 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 
 instance Foldable Seq where
     foldMap f (Seq xs) = foldMap (foldMap f) xs
-    foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
+    foldr f z (Seq xs) = foldr f' z xs
+#if __GLASGOW_HASKELL__ >= 708
+      where f' = coerce f
+#else
+      where f' = flip (foldr f)
+#endif
+
     foldl f z (Seq xs) = foldl (foldl f) z xs
 
+
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (Seq xs) = foldr' f' z xs
+#if __GLASGOW_HASKELL__ >= 708
+      where f' = coerce f
+#else
+      where f' = flip (foldr' f)
+#endif
+
+    foldl' f z (Seq xs) = foldl' (foldl' f) z xs
+#endif
+
+
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
+#if __GLASGOW_HASKELL__ >= 708
+      where f' = coerce f
+#else
       where f' (Elem x) (Elem y) = Elem (f x y)
+#endif
 
     foldl1 f (Seq xs) = getElem (foldl1 f' xs)
+#if __GLASGOW_HASKELL__ >= 708
+      where f' = coerce f
+#else
       where f' (Elem x) (Elem y) = Elem (f x y)
+#endif
 
 #if MIN_VERSION_base(4,8,0)
     length = length
@@ -619,10 +643,24 @@ instance Foldable FingerTree where
     foldr f z (Deep _ pr m sf) =
         foldr f (foldr (flip (foldr f)) (foldr f z sf) m) pr
 
+#if MIN_VERSION_base(4,6,0)
+    foldr' _ z Empty = z
+    foldr' f z (Single x) = x `f` z
+    foldr' f z (Deep _ pr m sf) =
+        (foldr' f $! (foldr' (flip (foldr' f)) $! (foldr' f z sf)) m) pr
+#endif
+
     foldl _ z Empty = z
     foldl f z (Single x) = z `f` x
     foldl f z (Deep _ pr m sf) =
         foldl f (foldl (foldl f) (foldl f z pr) m) sf
+
+#if MIN_VERSION_base(4,6,0)
+    foldl' _ z Empty = z
+    foldl' f z (Single x) = z `f` x
+    foldl' f z (Deep _ pr m sf) =
+        (foldl' f $! ((foldl' (foldl' f) $! (foldl' f z pr)) m)) sf
+#endif
 
     foldr1 _ Empty = error "foldr1: empty sequence"
     foldr1 _ (Single x) = x
@@ -702,10 +740,24 @@ instance Foldable Digit where
     foldr f z (Three a b c) = a `f` (b `f` (c `f` z))
     foldr f z (Four a b c d) = a `f` (b `f` (c `f` (d `f` z)))
 
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (One a) = f a z
+    foldr' f z (Two a b) = f a $! f b z
+    foldr' f z (Three a b c) = f a $! f b $! f c z
+    foldr' f z (Four a b c d) = f a $! f b $! f c $! f d z
+#endif
+
     foldl f z (One a) = z `f` a
     foldl f z (Two a b) = (z `f` a) `f` b
     foldl f z (Three a b c) = ((z `f` a) `f` b) `f` c
     foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
+
+#if MIN_VERSION_base(4,6,0)
+    foldl' f z (One a) = f z a
+    foldl' f z (Two a b) = (f $! f z a) b
+    foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
+    foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
+#endif
 
     foldr1 _ (One a) = a
     foldr1 f (Two a b) = a `f` b
@@ -773,8 +825,18 @@ instance Foldable Node where
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
 
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (Node2 _ a b) = f a $! f b z
+    foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
+#endif
+
     foldl f z (Node2 _ a b) = (z `f` a) `f` b
     foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
+
+#if MIN_VERSION_base(4,6,0)
+    foldl' f z (Node2 _ a b) = (f $! f z a) b
+    foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
+#endif
 
 instance Functor Node where
     {-# INLINE fmap #-}
@@ -825,9 +887,21 @@ instance Functor Elem where
 #endif
 
 instance Foldable Elem where
+#if __GLASGOW_HASKELL__ >= 708
+    foldMap = coerce
+    foldl = coerce
+    foldl' = coerce
+#else
     foldMap f (Elem x) = f x
-    foldr f z (Elem x) = f x z
     foldl f z (Elem x) = f z x
+#if MIN_VERSION_base(4,6,0)
+    foldl' f z (Elem x) = f z x
+#endif
+#endif
+    foldr f z (Elem x) = f x z
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (Elem x) = f x z
+#endif
 
 instance Traversable Elem where
     traverse f (Elem x) = Elem <$> f x
