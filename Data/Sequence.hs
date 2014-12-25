@@ -179,8 +179,6 @@ import Data.Array (Ix, Array)
 #ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
 import qualified Data.Primitive.Array as PA
-import Data.STRef
-import Control.Monad.ST
 #endif
 
 -- Coercion on GHC 7.8+
@@ -824,6 +822,12 @@ instance Applicative Identity where
 
 -- | This is essentially a clone of Control.Monad.State.Strict.
 newtype State s a = State {runState :: s -> (s, a)}
+
+put :: s -> State s ()
+put s = State (\_ -> (s, ()))
+
+get :: State s s
+get = State (\s -> (s, s))
 
 instance Functor (State s) where
     fmap = liftA
@@ -2352,23 +2356,20 @@ fromList2 n = execState (replicateA n (State ht))
 -- GHC, the result of 'fromArrayMonolithic' is guaranteed not to retain any
 -- references to the array, unless individual array entries contain such. To
 -- accomplish this, it reads each entry out of the array before returning. With
--- other implementations, or with GHC before base 4.4.0, this is identical to
--- 'fromArray'.
+-- other implementations, this is identical to 'fromArray'.
 fromArrayMonolithic :: Ix i => Array i a -> Seq a
-#if defined(__GLASGOW_HASKELL__) && MIN_VERSION_base(4,4,0)
+#ifdef __GLASGOW_HASKELL__
 fromArrayMonolithic (GHC.Arr.Array _ _ len ar)
-   = runST (fromArrayMonolithicST (PA.Array ar))
+   = execState (fromArrayMonolithicState (PA.Array ar)) 0
   where
-    {-# INLINE fromArrayMonolithicST #-}
-    fromArrayMonolithicST :: PA.Array a -> ST s (Seq a)
-    fromArrayMonolithicST a =
-      do
-        i <- newSTRef (0::Int)
-        replicateA len (do
-          i' <- readSTRef i
-          x <- PA.indexArrayM a i'
-          writeSTRef i (i'+1)
-          return x)
+    {-# INLINE fromArrayMonolithicState #-}
+    fromArrayMonolithicState :: PA.Array a -> State Int (Seq a)
+    fromArrayMonolithicState a =
+      replicateA len (do
+        i <- get
+        x <- PA.indexArrayM a i
+        put (i+1)
+        return x)
 #else
 fromArrayMonolithic = fromArray
 #endif
