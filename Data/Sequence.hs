@@ -856,17 +856,14 @@ applicativeTree n mSize m = mSize `seq` case n of
     4 -> deepA two emptyTree two
     5 -> deepA three emptyTree two
     6 -> deepA three emptyTree three
-    7 -> deepA four emptyTree three
-    8 -> deepA four emptyTree four
     _ -> case n `quotRem` 3 of
            (q,0) -> deepA three (applicativeTree (q - 2) mSize' n3) three
-           (q,1) -> deepA four  (applicativeTree (q - 2) mSize' n3) three
-           (q,_) -> deepA four  (applicativeTree (q - 2) mSize' n3) four
+           (q,1) -> deepA two (applicativeTree (q - 1) mSize' n3) two
+           (q,_) -> deepA three (applicativeTree (q - 1) mSize' n3) two
   where
     one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
-    four = liftA3 Four m m m <*> m
     deepA = liftA3 (Deep (n * mSize))
     mSize' = 3 * mSize
     n3 = liftA3 (Node3 mSize') m m m
@@ -2335,7 +2332,7 @@ unstableSortBy cmp (Seq xs) =
         toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
 
 -- | fromList2, given a list and its length, constructs a completely
--- balanced Seq whose elements are that list using the applicativeTree
+-- balanced Seq whose elements are that list using the replicateA
 -- generalization.
 fromList2 :: Int -> [a] -> Seq a
 fromList2 n = execState (replicateA n (State ht))
