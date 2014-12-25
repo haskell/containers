@@ -60,6 +60,7 @@ module Data.Sequence (
     fromList,       -- :: [a] -> Seq a
     fromFunction,   -- :: Int -> (Int -> a) -> Seq a
     fromArray,      -- :: Ix i => Array i a -> Seq a
+    fromArrayMonolithic, -- :: Ix i => Array i a -> Seq a
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
@@ -177,6 +178,9 @@ import Data.Data
 import Data.Array (Ix, Array)
 #ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
+import qualified Data.Primitive.Array as PA
+import Data.STRef
+import Control.Monad.ST
 #endif
 
 -- Coercion on GHC 7.8+
@@ -1643,6 +1647,7 @@ fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
 fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array.elems a)
 #endif
 
+
 -- Splitting
 
 -- | /O(log(min(i,n-i)))/. The first @i@ elements of a sequence.
@@ -2335,13 +2340,38 @@ unstableSortBy cmp (Seq xs) =
         toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
 
 -- | fromList2, given a list and its length, constructs a completely
--- balanced Seq whose elements are that list using the applicativeTree
+-- balanced Seq whose elements are that list using the replicateA
 -- generalization.
 fromList2 :: Int -> [a] -> Seq a
 fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
+
+-- | /O(n)/. Create a sequence consisting of the elements of an 'Array'. With
+-- GHC, the result of 'fromArrayMonolithic' is guaranteed not to retain any
+-- references to the array, unless individual array entries contain such. To
+-- accomplish this, it reads each entry out of the array before returning. With
+-- other implementations, or with GHC before base 4.4.0, this is identical to
+-- 'fromArray'.
+fromArrayMonolithic :: Ix i => Array i a -> Seq a
+#if defined(__GLASGOW_HASKELL__) && MIN_VERSION_base(4,4,0)
+fromArrayMonolithic (GHC.Arr.Array _ _ len ar)
+   = runST (fromArrayMonolithicST (PA.Array ar))
+  where
+    {-# INLINE fromArrayMonolithicST #-}
+    fromArrayMonolithicST :: PA.Array a -> ST s (Seq a)
+    fromArrayMonolithicST a =
+      do
+        i <- newSTRef (0::Int)
+        replicateA len (do
+          i' <- readSTRef i
+          x <- PA.indexArrayM a i'
+          writeSTRef i (i'+1)
+          return x)
+#else
+fromArrayMonolithic = fromArray
+#endif
 
 -- | A 'PQueue' is a simple pairing heap.
 data PQueue e = PQueue e (PQL e)
