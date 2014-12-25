@@ -850,7 +850,9 @@ execState m x = snd (runState m x)
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
     0 -> pure Empty
-    1 -> fmap Single m
+    -- Note: using liftA instead of fmap prevents GHC from passing in a
+    -- Functor dictionary.
+    1 -> liftA Single m
     2 -> deepA one emptyTree one
     3 -> deepA two emptyTree one
     4 -> deepA two emptyTree two
@@ -863,7 +865,7 @@ applicativeTree n mSize m = mSize `seq` case n of
            (q,1) -> deepA four  (applicativeTree (q - 2) mSize' n3) three
            (q,_) -> deepA four  (applicativeTree (q - 2) mSize' n3) four
   where
-    one = fmap One m
+    one = liftA One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
     four = liftA3 Four m m m <*> m
