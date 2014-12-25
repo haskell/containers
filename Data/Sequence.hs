@@ -563,9 +563,9 @@ seqDataType = mkDataType "Data.Sequence.Seq" [emptyConstr, consConstr]
 -- Finger trees
 
 data FingerTree a
-    = Empty
+    = Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
     | Single a
-    | Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
+    | Empty
 #if TESTING
     deriving Show
 #endif
