@@ -192,7 +192,9 @@ module Data.Set.Base (
 import Prelude hiding (filter,foldl,foldr,null,map)
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid (Monoid(..))
+#endif
 import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))

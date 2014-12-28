@@ -147,6 +147,9 @@ module Data.Sequence (
 
 import Prelude hiding (
     Functor(..),
+#if MIN_VERSION_base(4,8,0)
+    Applicative, foldMap, Monoid,
+#endif
     null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)

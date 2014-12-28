@@ -34,13 +34,19 @@ module Data.Tree(
     unfoldTreeM_BF, unfoldForestM_BF,
     ) where
 
+#if MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>))
+import Data.Foldable (toList)
+#else
 import Control.Applicative (Applicative(..), (<$>))
-import Control.Monad (liftM)
+import Data.Foldable (Foldable(foldMap), toList)
 import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+#endif
+
+import Control.Monad (liftM)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
-import Data.Foldable (Foldable(foldMap), toList)
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
@@ -51,7 +57,6 @@ import Data.Data (Data)
 #if MIN_VERSION_base(4,8,0)
 import Data.Coerce
 #endif
-
 
 -- | Multi-way trees, also known as /rose trees/.
 data Tree a = Node {

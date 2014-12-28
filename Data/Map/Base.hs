@@ -270,12 +270,17 @@ module Data.Map.Base (
     , filterLt
     ) where
 
+#if MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>))
+#else
 import Control.Applicative (Applicative(..), (<$>))
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+#endif
+
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 

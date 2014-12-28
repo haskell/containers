@@ -75,7 +75,9 @@ import qualified Data.IntSet as Set
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
+#endif
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
