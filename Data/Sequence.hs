@@ -162,6 +162,7 @@ module Data.Sequence (
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
     traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
+    intersperse,    -- :: a -> Seq a -> Seq a
     -- ** Zips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
@@ -186,7 +187,7 @@ import Prelude hiding (
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
-import Control.Applicative (Applicative(..), (<$>), Alternative,
+import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
                             WrappedMonad(..), liftA, liftA2, liftA3)
 import qualified Control.Applicative as Applicative (Alternative(..))
 import Control.DeepSeq (NFData(rnf))
@@ -567,6 +568,13 @@ thin12 s pr m (Two a b) = DeepTh s pr (thin m) (Two12 a b)
 thin12 s pr m (Three a b c) = DeepTh s pr (thin $ m `snocTree` node2 a b) (One12 c)
 thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two12 c d)
 
+-- | Intersperse an element between the elements of a sequence.
+-- > intersperse a empty = empty
+-- > intersperse a (singleton x) = singleton x
+-- > intersperse a (fromList [x,y]) = fromList [x,a,y]
+-- > intersperse a (fromList [x,y,z]) = fromList [x,a,y,a,z]
+intersperse :: a -> Seq a -> Seq a
+intersperse y xs = drop 1 $ xs <**> (const y <| singleton id)
 
 instance MonadPlus Seq where
     mzero = empty
