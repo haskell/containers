@@ -130,6 +130,7 @@ module Data.Sequence (
     -- * Transformations
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
     reverse,        -- :: Seq a -> Seq a
+    filterM,        -- :: Applicative f => (a -> f Bool) -> Seq a -> f (Seq a)
     -- ** Zips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
@@ -488,6 +489,12 @@ thin12 (Deep s pr m (Three a b c)) = Deep s pr (thin $ m `snocTree` node2 a b) (
 thin12 (Deep s pr m (Four a b c d)) = Deep s pr (thin $ m `snocTree` node2 a b) (Two c d)
 thin12 _ = error "thin12 expects a Deep FingerTree."
 
+filterM :: Applicative f => (a -> f Bool) -> Seq a -> f (Seq a)
+filterM p = foldr go (pure empty)
+  where
+    go x r = f <$> p x <*> r
+      where
+        f flg ys = if flg then x <| ys else ys
 
 instance MonadPlus Seq where
     mzero = empty
