@@ -216,16 +216,21 @@ module Data.IntMap.Base (
     , highestBitMask
     ) where
 
+#if MIN_VERSION_base(4,8,0)
+import Control.Applicative ((<$>))
+#else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(traverse))
+import Data.Word (Word)
+#endif
+
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (liftM)
 import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
 import Data.Typeable
-import Data.Word (Word)
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import Data.IntSet.Base (Key)

@@ -169,9 +169,11 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
+#if !MIN_VERSION_base(4,8,0)
 import Data.Monoid (Monoid(..))
-import Data.Typeable
 import Data.Word (Word)
+#endif
+import Data.Typeable
 import Prelude hiding (filter, foldr, foldl, null, map)
 
 import Data.Utils.BitUtil
