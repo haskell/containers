@@ -341,15 +341,18 @@ aptyMiddle firstf
                        (Deep s (squashL pr prm) mm (squashR sfm sf)))
            (fmap (fmap lastf) sfm)
 
--- At the bottom
+-- At the bottom. Note that these appendTree0 calls are very cheap, because in
+-- each case, one of the arguments is guaranteed to be Empty or Single.
 aptyMiddle firstf
            lastf
            map23
            fs
            (Deep s pr m sf)
-      = (fmap (fmap firstf) m `snocTree` fmap firstf (digitToNode sf))
-        `appendTree0` middle `appendTree0`
-        (fmap lastf (digitToNode pr) `consTree`  fmap (fmap lastf) m)
+      = fmap (fmap firstf) m `appendTree0`
+        ((fmap firstf (digitToNode sf)
+            `consTree` middle)
+            `snocTree` fmap lastf (digitToNode pr))
+        `appendTree0`  fmap (fmap lastf) m
     where middle = case trimTree $ mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs of
                      (firstMapped, restMapped, lastMapped) ->
                         Deep (size firstMapped + size restMapped + size lastMapped)
@@ -472,17 +475,16 @@ rigidify Single{} = error "rigidify: singleton"
 -- | /O(log n)/ (incremental) Rejigger a finger tree so the digits are all ones
 -- and twos.
 thin :: Sized a => FingerTree a -> FingerTree a
--- Note that 'thin' may call itself at most once before passing the job on to
--- 'thin12'. 'thin12' will produce a 'Deep' constructor immediately before
--- calling 'thin'.
+-- Note that 'thin12' will produce a 'Deep' constructor immediately before
+-- recursively calling 'thin'.
 thin Empty = Empty
 thin (Single a) = Single a
 thin t@(Deep s pr m sf) =
   case pr of
     One{} -> thin12 t
     Two{} -> thin12 t
-    Three a b c  -> thin $ Deep s (One a) (node2 b c `consTree` m) sf
-    Four a b c d -> thin $ Deep s (Two a b) (node2 c d `consTree` m) sf
+    Three a b c  -> thin12 $ Deep s (One a) (node2 b c `consTree` m) sf
+    Four a b c d -> thin12 $ Deep s (Two a b) (node2 c d `consTree` m) sf
 
 thin12 :: Sized a => FingerTree a -> FingerTree a
 thin12 (Deep s pr m sf@One{}) = Deep s pr (thin m) sf
