@@ -44,6 +44,10 @@
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.
 --
+-- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
+--
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 --
