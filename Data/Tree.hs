@@ -46,6 +46,7 @@ import Data.Traversable (Traversable(traverse))
 
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+import Control.Monad (mapAndUnzipM)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
@@ -177,16 +178,23 @@ unfoldTreeM_BF f b = do
 unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
 unfoldForestM_BF _ [] = return []
 unfoldForestM_BF f bs = do
-  asbss' <- mapM f bs
-  return . rebuild asbss' =<< unfoldForestM_BF f (concatMap snd asbss')
+  (as, bss') <- mapAndUnzipM f bs
+  let (lens, things) = concatMapAndCount id bss'
+  return . rebuild (zip as lens) =<< unfoldForestM_BF f things
 
-rebuild :: [(a,[b])] -> [Tree a] -> [Tree a]
+rebuild :: [(a,Int)] -> [Tree a] -> [Tree a]
 rebuild = foldr go id
   where
-    go (a,bs) r ts = case splitAlong bs ts of
+    go (a,blen) r ts = case splitAt blen ts of
                         (us,ts') -> Node a us : r ts'
 
-splitAlong :: [a] -> [b] -> ([b], [b])
-splitAlong [] bs = ([], bs)
-splitAlong (_:as) (b:bs) = (b:l, r)
-  where (l,r) = splitAlong as bs
+concatMapAndCount :: (a -> [b]) -> [a] -> ([Int], [b])
+concatMapAndCount f = foldr (\x (ls, xs) ->
+  case appendAndCount (f x) xs of
+     (len, xs') -> (len : ls, xs')) ([],[])
+
+appendAndCount :: [a] -> [a] -> (Int,[a])
+appendAndCount xs ys = foldr (\x r n ->
+          let (foonum, foolist) = r $! n+1 in
+            (foonum, x : foolist))
+                       (\n -> n `seq` (n,ys)) xs 0
