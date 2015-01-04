@@ -16,7 +16,8 @@
 -- Module      :  Data.Sequence
 -- Copyright   :  (c) Ross Paterson 2005
 --                (c) Louis Wasserman 2009
---                (c) David Feuer, Ross Paterson, and Milan Straka 2014
+--                (c) Bertram Felgenhauer, David Feuer, Ross Paterson, and
+--                    Milan Straka 2014
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  experimental
@@ -29,7 +30,7 @@
 --
 -- An amortized running time is given for each operation, with /n/ referring
 -- to the length of the sequence and /i/ being the integral index used by
--- some operations.  These bounds hold even in a persistent (shared) setting.
+-- some operations. These bounds hold even in a persistent (shared) setting.
 --
 -- The implementation uses 2-3 finger trees annotated with sizes,
 -- as described in section 4.2 of
@@ -40,8 +41,15 @@
 --      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>
 --
 -- /Note/: Many of these operations have the same names as similar
--- operations on lists in the "Prelude".  The ambiguity may be resolved
+-- operations on lists in the "Prelude". The ambiguity may be resolved
 -- using either qualification or the @hiding@ clause.
+--
+-- /Warning/: The size of a 'Seq' must not exceed @maxBound::Int@.  Violation
+-- of this condition is not detected and if the size limit is exceeded, the
+-- behaviour of the sequence is undefined.  This is unlikely to occur in most
+-- applications, but some care may be required when using '><', '<*>', '*>', or
+-- '>>', particularly repeatedly and particularly in combination with
+-- 'replicate' or 'fromFunction'.
 --
 -----------------------------------------------------------------------------
 
