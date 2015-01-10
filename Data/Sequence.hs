@@ -640,13 +640,13 @@ deep            :: Sized a => Digit a -> FingerTree (Node a) -> Digit a -> Finge
 deep pr m sf    =  Deep (size pr + size m + size sf) pr m sf
 
 {-# INLINE pullL #-}
-pullL :: Sized a => Int -> FingerTree (Node a) -> Digit a -> FingerTree a
+pullL :: Int -> FingerTree (Node a) -> Digit a -> FingerTree a
 pullL s m sf = case viewLTree m of
     Nothing2        -> digitToTree' s sf
     Just2 pr m'     -> Deep s (nodeToDigit pr) m' sf
 
 {-# INLINE pullR #-}
-pullR :: Sized a => Int -> Digit a -> FingerTree (Node a) -> FingerTree a
+pullR :: Int -> Digit a -> FingerTree (Node a) -> FingerTree a
 pullR s pr m = case viewRTree m of
     Nothing2        -> digitToTree' s pr
     Just2 m' sf     -> Deep s pr m' (nodeToDigit sf)
@@ -1840,7 +1840,7 @@ initsNode (Node3 s a b c) = Node3 s (One a) (Two a b) (Three a b c)
 {-# SPECIALIZE tailsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
 -- | Given a function to apply to tails of a tree, applies that function
 -- to every tail of the specified tree.
-tailsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+tailsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
 tailsTree _ Empty = Empty
 tailsTree f (Single x) = Single (f (Single x))
 tailsTree f (Deep n pr m sf) =
@@ -1855,7 +1855,7 @@ tailsTree f (Deep n pr m sf) =
 {-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
 -- | Given a function to apply to inits of a tree, applies that function
 -- to every init of the specified tree.
-initsTree :: (Sized a, Sized b) => (FingerTree a -> b) -> FingerTree a -> FingerTree b
+initsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
 initsTree _ Empty = Empty
 initsTree f (Single x) = Single (f (Single x))
 initsTree f (Deep n pr m sf) =
