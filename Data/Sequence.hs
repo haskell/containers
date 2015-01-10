@@ -186,6 +186,7 @@ import Data.Data
 
 -- Array stuff, with GHC.Arr on GHC
 import Data.Array (Ix, Array)
+import qualified Data.Array
 #ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
 #endif
@@ -1649,6 +1650,10 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
 fromArray :: Ix i => Array i a -> Seq a
 #ifdef __GLASGOW_HASKELL__
 fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
+ where
+  -- The following definition uses (Ix i) constraing, which is needed for the
+  -- other fromArray definition.
+  _ = Data.Array.rangeSize (Data.Array.bounds a)
 #else
 fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array.elems a)
 #endif
