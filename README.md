@@ -9,4 +9,4 @@ Contributing
 
 For reporting bugs (and maybe even the respective fix), please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
 
-For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](http://www.haskell.org/haskellwiki/Library_submissions#Guidance_for_proposers) (but use the GitHub facilities instead of GHC's Trac for submitting patches).
+For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers). Especially note that all API changes/enhancements should be discussed on libraries@haskell.org mailing list.
