@@ -75,6 +75,6 @@
 #else
 #define MIN_VERSION_base(major1,major2,minor) (0)
 #endif
-#endif // MIN_VERSION_base was not defined
+#endif
 
-#endif // This file was already included
+#endif
