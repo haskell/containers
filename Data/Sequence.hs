@@ -271,53 +271,67 @@ instance Monad Seq where
 
 instance Applicative Seq where
     pure = singleton
-
-    Seq Empty <*> xs = xs `seq` empty
-    fs <*> Seq Empty = fs `seq` empty
-    fs <*> Seq (Single (Elem x)) = fmap ($ x) fs
-    fs <*> xs
-      | length fs < 4 = foldl' add empty fs
-      where add ys f = ys >< fmap f xs
-    fs <*> xs | length xs < 4 = apShort fs xs
-    fs <*> xs = apty fs xs
-
     xs *> ys = replicateSeq (length xs) ys
 
--- <*> when the length of the first argument is at least two and
--- the length of the second is two or three.
-apShort :: Seq (a -> b) -> Seq a -> Seq b
-apShort (Seq fs) xs = Seq $ case toList xs of
-            [a,b] -> ap2FT fs (a,b)
-            [a,b,c] -> ap3FT fs (a,b,c)
-            _ -> error "apShort: not 2-3"
+    fs <*> xs = case viewl fs of
+      EmptyL -> empty
+      firstf :< fs' -> case viewr fs' of
+        EmptyR -> fmap firstf xs
+        Seq fs''FT :> lastf -> case (rigidify . (\(Seq a) -> a)) xs of
+             RigidEmpty -> empty
+             RigidOne (Elem x) -> fmap ($x) fs
+             RigidTwo (Elem x1) (Elem x2) ->
+                Seq $ ap2FT firstf fs''FT lastf (x1, x2)
+             RigidThree (Elem x1) (Elem x2) (Elem x3) ->
+                Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
+             RigidFull r@(Rigid s pr _m sf) -> Seq $
+                   Deep (s * length fs)
+                        (fmap (fmap firstf) (nodeToDigit pr))
+                        (aptyMiddle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                        (fmap (fmap lastf) (nodeToDigit sf))
 
-ap2FT :: FingerTree (Elem (a->b)) -> (a,a) -> FingerTree (Elem b)
-ap2FT fs (x,y) = Deep (size fs * 2)
+
+ap2FT :: (a -> b) -> FingerTree (Elem (a->b)) -> (a -> b) -> (a,a) -> FingerTree (Elem b)
+ap2FT firstf fs lastf (x,y) =
+                 Deep (size fs * 2 + 4)
                       (Two (Elem $ firstf x) (Elem $ firstf y))
-                      (mapMulFT 2 (\(Elem f) -> Node2 2 (Elem (f x)) (Elem (f y))) m)
+                      (mapMulFT 2 (\(Elem f) -> Node2 2 (Elem (f x)) (Elem (f y))) fs)
                       (Two (Elem $ lastf x) (Elem $ lastf y))
-  where
-    (Elem firstf, m, Elem lastf) = trimTree fs
 
-ap3FT :: FingerTree (Elem (a->b)) -> (a,a,a) -> FingerTree (Elem b)
-ap3FT fs (x,y,z) = Deep (size fs * 3)
+ap3FT :: (a -> b) -> FingerTree (Elem (a->b)) -> (a -> b) -> (a,a,a) -> FingerTree (Elem b)
+ap3FT firstf fs lastf (x,y,z) = Deep (size fs * 3 + 6)
                         (Three (Elem $ firstf x) (Elem $ firstf y) (Elem $ firstf z))
-                        (mapMulFT 3 (\(Elem f) -> Node3 3 (Elem (f x)) (Elem (f y)) (Elem (f z))) m)
+                        (mapMulFT 3 (\(Elem f) -> Node3 3 (Elem (f x)) (Elem (f y)) (Elem (f z))) fs)
                         (Three (Elem $ lastf x) (Elem $ lastf y) (Elem $ lastf z))
-  where
-    (Elem firstf, m, Elem lastf) = trimTree fs
 
--- <*> when the length of each argument is at least four.
-apty :: Seq (a -> b) -> Seq a -> Seq b
-apty (Seq fs) (Seq xs@Deep{}) = Seq $
-    Deep (s' * size fs)
-         (fmap (fmap firstf) pr')
-         (aptyMiddle (fmap firstf) (fmap lastf) fmap fs' xs')
-         (fmap (fmap lastf) sf')
-  where
-    (Elem firstf, fs', Elem lastf) = trimTree fs
-    xs'@(Deep s' pr' _m' sf') = rigidify xs
-apty _ _ = error "apty: expects a Deep constructor"
+
+data Rigidified a = RigidEmpty
+                  | RigidOne a
+                  | RigidTwo a a
+                  | RigidThree a a a
+                  | RigidFull (Rigid a)
+#ifdef TESTING
+                  deriving Show
+#endif
+
+data Rigid a = Rigid {-# UNPACK #-} !Int !(Digit23 a) (Thin (Node a)) !(Digit23 a)
+#ifdef TESTING
+             deriving Show
+#endif
+
+data Thin a = EmptyTh
+            | SingleTh a
+            | DeepTh {-# UNPACK #-} !Int !(Digit12 a) (Thin (Node a)) !(Digit12 a)
+#ifdef TESTING
+            deriving Show
+#endif
+
+data Digit12 a = One12 a | Two12 a a
+#ifdef TESTING
+        deriving Show
+#endif
+
+type Digit23 a = Node a
 
 -- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.
 -- It produces the center part of a finger tree, with a prefix corresponding
@@ -333,47 +347,48 @@ aptyMiddle
      -> (c -> d)
      -> ((a -> b) -> c -> d)
      -> FingerTree (Elem (a -> b))
-     -> FingerTree c
+     -> Rigid c
      -> FingerTree (Node d)
+
 -- Not at the bottom yet
+
 aptyMiddle firstf
            lastf
            map23
            fs
-           (Deep s pr (Deep sm prm mm sfm) sf)
+           (Rigid s pr (DeepTh sm prm mm sfm) sf)
     = Deep (sm + s * (size fs + 1)) -- note: sm = s - size pr - size sf
-           (fmap (fmap firstf) prm)
+           (fmap (fmap firstf) (digit12ToDigit prm))
            (aptyMiddle (fmap firstf)
                        (fmap lastf)
-                       (\f -> fmap (map23 f))
+                       (fmap . map23)
                        fs
-                       (Deep s (squashL pr prm) mm (squashR sfm sf)))
-           (fmap (fmap lastf) sfm)
+                       (Rigid s (squashL pr prm) mm (squashR sfm sf)))
+           (fmap (fmap lastf) (digit12ToDigit sfm))
 
--- At the bottom. Note that these appendTree0 calls are very cheap, because in
--- each case, one of the arguments is guaranteed to be Empty or Single.
+-- At the bottom
+
 aptyMiddle firstf
            lastf
            map23
            fs
-           (Deep s pr m sf)
-      = fmap (fmap firstf) m `appendTree0`
-        ((fmap firstf (digitToNode sf)
-            `consTree` middle)
-            `snocTree` fmap lastf (digitToNode pr))
-        `appendTree0`  fmap (fmap lastf) m
-    where middle = case trimTree $ mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs of
-                     (firstMapped, restMapped, lastMapped) ->
-                        Deep (size firstMapped + size restMapped + size lastMapped)
-                             (nodeToDigit firstMapped) restMapped (nodeToDigit lastMapped)
-          converted = case m of
-                                    Empty -> Node2 s lconv rconv
-                                    Single q -> Node3 s lconv q rconv
-                                    Deep{} -> error "aptyMiddle: impossible"
-          lconv = digitToNode pr
-          rconv = digitToNode sf
+           (Rigid s pr EmptyTh sf)
+     = deep
+            (One (fmap firstf sf))
+            (mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs)
+            (One (fmap lastf pr))
+   where converted = node2 pr sf
 
-aptyMiddle _ _ _ _ _ = error "aptyMiddle: expected Deep finger tree"
+aptyMiddle firstf
+           lastf
+           map23
+           fs
+           (Rigid s pr (SingleTh q) sf)
+     = deep
+            (Two (fmap firstf q) (fmap firstf sf))
+            (mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs)
+            (Two (fmap lastf pr) (fmap lastf q))
+   where converted = node3 pr q sf
 
 {-# SPECIALIZE
  aptyMiddle
@@ -381,7 +396,7 @@ aptyMiddle _ _ _ _ _ = error "aptyMiddle: expected Deep finger tree"
      -> (Node c -> d)
      -> ((a -> b) -> Node c -> d)
      -> FingerTree (Elem (a -> b))
-     -> FingerTree (Node c)
+     -> Rigid (Node c)
      -> FingerTree (Node d)
  #-}
 {-# SPECIALIZE
@@ -390,33 +405,24 @@ aptyMiddle _ _ _ _ _ = error "aptyMiddle: expected Deep finger tree"
      -> (Elem c -> d)
      -> ((a -> b) -> Elem c -> d)
      -> FingerTree (Elem (a -> b))
-     -> FingerTree (Elem c)
+     -> Rigid (Elem c)
      -> FingerTree (Node d)
  #-}
 
-digitToNode :: Sized a => Digit a -> Node a
-digitToNode (Two a b) = node2 a b
-digitToNode (Three a b c) = node3 a b c
-digitToNode _ = error "digitToNode: not representable as a node"
-
-type Digit23 = Digit
-type Digit12 = Digit
+digit12ToDigit :: Digit12 a -> Digit a
+digit12ToDigit (One12 a) = One a
+digit12ToDigit (Two12 a b) = Two a b
 
 -- Squash the first argument down onto the left side of the second.
 squashL :: Sized a => Digit23 a -> Digit12 (Node a) -> Digit23 (Node a)
-squashL (Two a b) (One n) = Two (node2 a b) n
-squashL (Two a b) (Two n1 n2) = Three (node2 a b) n1 n2
-squashL (Three a b c) (One n) = Two (node3 a b c) n
-squashL (Three a b c) (Two n1 n2) = Three (node3 a b c) n1 n2
-squashL _ _ = error "squashL: wrong digit types"
+squashL m (One12 n) = node2 m n
+squashL m (Two12 n1 n2) = node3 m n1 n2
 
 -- Squash the second argument down onto the right side of the first
 squashR :: Sized a => Digit12 (Node a) -> Digit23 a -> Digit23 (Node a)
-squashR (One n) (Two a b) = Two n (node2 a b)
-squashR (Two n1 n2) (Two a b) = Three n1 n2 (node2 a b)
-squashR (One n) (Three a b c) = Two n (node3 a b c)
-squashR (Two n1 n2) (Three a b c) = Three n1 n2 (node3 a b c)
-squashR _ _ = error "squashR: wrong digit types"
+squashR (One12 n) m = node2 n m
+squashR (Two12 n1 n2) m = node3 n1 n2 m
+
 
 -- | /O(m*n)/ (incremental) Takes an /O(m)/ function and a finger tree of size
 -- /n/ and maps the function over the tree leaves. Unlike the usual 'fmap', the
@@ -435,72 +441,81 @@ mapMulNode mul f (Node2 s a b)   = Node2 (mul * s) (f a) (f b)
 mapMulNode mul f (Node3 s a b c) = Node3 (mul * s) (f a) (f b) (f c)
 
 
-trimTree :: Sized a => FingerTree a -> (a, FingerTree a, a)
-trimTree Empty = error "trim: empty tree"
-trimTree Single{} = error "trim: singleton"
-trimTree t = case splitTree 0 t of
-                 Split _ hd r ->
-                   case splitTree (size r - 1) r of
-                     Split m tl _ -> (hd, m, tl)
+-- rigidify :: Seq a -> Rigidified (Elem a)
+-- rigidify (Seq xs) = rigidify' xs
 
 -- | /O(log n)/ (incremental) Takes the extra flexibility out of a 'FingerTree'
 -- to make it a genuine 2-3 finger tree. The result of 'rigidify' will have
 -- only 'Two' and 'Three' digits at the top level and only 'One' and 'Two'
 -- digits elsewhere.  It gives an error if the tree has fewer than four
 -- elements.
-rigidify :: Sized a => FingerTree a -> FingerTree a
+rigidify :: FingerTree (Elem a) -> Rigidified (Elem a)
 -- Note that 'rigidify' may call itself, but it will do so at most
 -- once: each call to 'rigidify' will either fix the whole tree or fix one digit
 -- and leave the other alone. The patterns below just fix up the top level of
 -- the tree; 'rigidify' delegates the hard work to 'thin'.
 
 -- The top of the tree is fine.
-rigidify (Deep s pr@Two{} m sf@Three{}) = Deep s pr (thin m) sf
-rigidify (Deep s pr@Three{} m sf@Three{}) = Deep s pr (thin m) sf
-rigidify (Deep s pr@Two{} m sf@Two{}) = Deep s pr (thin m) sf
-rigidify (Deep s pr@Three{} m sf@Two{}) = Deep s pr (thin m) sf
+
+rigidify (Deep s (Two a b) m (Three c d e)) =
+  RigidFull $ Rigid s (node2 a b) (thin m) (node3 c d e)
+rigidify (Deep s (Three a b c) m (Three d e f)) =
+  RigidFull $ Rigid s (node3 a b c) (thin m) (node3 d e f)
+rigidify (Deep s (Two a b) m (Two c d)) =
+  RigidFull $ Rigid s (node2 a b) (thin m) (node2 c d)
+rigidify (Deep s (Three a b c) m (Two d e)) =
+  RigidFull $ Rigid s (node3 a b c) (thin m) (node2 d e)
 
 -- One of the Digits is a Four.
 rigidify (Deep s (Four a b c d) m sf) =
    rigidify $ Deep s (Two a b) (node2 c d `consTree` m) sf
+
 rigidify (Deep s pr m (Four a b c d)) =
    rigidify $ Deep s pr (m `snocTree` node2 a b) (Two c d)
 
--- One of the Digits is a One. If the middle is empty, we can only rigidify the
--- tree if the other Digit is a Three.
-rigidify (Deep s (One a) Empty (Three b c d)) = Deep s (Two a b) Empty (Two c d)
-rigidify (Deep s (One a) m sf) = rigidify $ case viewLTree m of
-   Just2 (Node2 _ b c) m' -> Deep s (Three a b c) m' sf
-   Just2 (Node3 _ b c d) m' -> Deep s (Two a b) (node2 c d `consTree` m') sf
-   Nothing2 -> error "rigidify: small tree"
-rigidify (Deep s (Three a b c) Empty (One d)) = Deep s (Two a b) Empty (Two c d)
-rigidify (Deep s pr m (One e)) = rigidify $ case viewRTree m of
-   Just2 m' (Node2 _ a b) -> Deep s pr m' (Three a b e)
-   Just2 m' (Node3 _ a b c) -> Deep s pr (m' `snocTree` node2 a b) (Two c e)
-   Nothing2 -> error "rigidify: small tree"
-rigidify Empty = error "rigidify: empty tree"
-rigidify Single{} = error "rigidify: singleton"
+-- One of the Digits is a One.
+rigidify (Deep s (One a) m sf) = case viewLTree m of
+   Just2 (Node2 _ b c) m' -> rigidify $ Deep s (Three a b c) m' sf
+   Just2 (Node3 _ b c d) m' -> rigidify $ Deep s (Two a b) (node2 c d `consTree` m') sf
+   Nothing2 -> case sf of
+     One b -> RigidTwo a b
+     Two b c -> RigidThree a b c
+     Three b c d -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c d)
+     Four b c d e -> RigidFull $ Rigid s (node3 a b c) EmptyTh (node2 d e)
+
+rigidify (Deep s pr m (One e)) = case viewRTree m of
+   Just2 m' (Node2 _ a b) -> rigidify $ Deep s pr m' (Three a b e)
+   Just2 m' (Node3 _ a b c) -> rigidify $ Deep s pr (m' `snocTree` node2 a b) (Two c e)
+   Nothing2 -> case pr of
+     One a -> RigidTwo a e
+     Two a b -> RigidThree a b e
+     Three a b c -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c e)
+     Four a b c d -> RigidFull $ Rigid s (node3 a b c) EmptyTh (node2 d e)
+
+rigidify Empty = RigidEmpty
+
+rigidify (Single q) = RigidOne q
+
 
 -- | /O(log n)/ (incremental) Rejigger a finger tree so the digits are all ones
 -- and twos.
-thin :: Sized a => FingerTree a -> FingerTree a
+thin :: Sized a => FingerTree a -> Thin a
 -- Note that 'thin12' will produce a 'Deep' constructor immediately before
 -- recursively calling 'thin'.
-thin Empty = Empty
-thin (Single a) = Single a
-thin t@(Deep s pr m sf) =
+thin Empty = EmptyTh
+thin (Single a) = SingleTh a
+thin (Deep s pr m sf) =
   case pr of
-    One{} -> thin12 t
-    Two{} -> thin12 t
-    Three a b c  -> thin12 $ Deep s (One a) (node2 b c `consTree` m) sf
-    Four a b c d -> thin12 $ Deep s (Two a b) (node2 c d `consTree` m) sf
+    One a -> thin12 s (One12 a) m sf
+    Two a b -> thin12 s (Two12 a b) m sf
+    Three a b c  -> thin12 s (One12 a) (node2 b c `consTree` m) sf
+    Four a b c d -> thin12 s (Two12 a b) (node2 c d `consTree` m) sf
 
-thin12 :: Sized a => FingerTree a -> FingerTree a
-thin12 (Deep s pr m sf@One{}) = Deep s pr (thin m) sf
-thin12 (Deep s pr m sf@Two{}) = Deep s pr (thin m) sf
-thin12 (Deep s pr m (Three a b c)) = Deep s pr (thin $ m `snocTree` node2 a b) (One c)
-thin12 (Deep s pr m (Four a b c d)) = Deep s pr (thin $ m `snocTree` node2 a b) (Two c d)
-thin12 _ = error "thin12 expects a Deep FingerTree."
+thin12 :: Sized a => Int -> Digit12 a -> FingerTree (Node a) -> Digit a -> Thin a
+thin12 s pr m (One a) = DeepTh s pr (thin m) (One12 a)
+thin12 s pr m (Two a b) = DeepTh s pr (thin m) (Two12 a b)
+thin12 s pr m (Three a b c) = DeepTh s pr (thin $ m `snocTree` node2 a b) (One12 c)
+thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two12 c d)
 
 
 instance MonadPlus Seq where
@@ -975,9 +990,7 @@ Seq xs >< Seq ys = Seq (appendTree0 xs ys)
 
 -- The appendTree/addDigits gunk below is machine generated
 
-{-# SPECIALIZE appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE appendTree0 :: FingerTree (Node a) -> FingerTree (Node a) -> FingerTree (Node a) #-}
-appendTree0 :: Sized a => FingerTree a -> FingerTree a -> FingerTree a
+appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a)
 appendTree0 Empty xs =
     xs
 appendTree0 xs Empty =
