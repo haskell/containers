@@ -271,13 +271,13 @@ instance Monad Seq where
 
 instance Applicative Seq where
     pure = singleton
-    xs *> ys = replicateSeq (length xs) ys
+    xs *> ys = cycleN (length xs) ys
 
-    fs <*> xs = case viewl fs of
+    fs <*> xs@(Seq xsFT) = case viewl fs of
       EmptyL -> empty
       firstf :< fs' -> case viewr fs' of
         EmptyR -> fmap firstf xs
-        Seq fs''FT :> lastf -> case (rigidify . (\(Seq a) -> a)) xs of
+        Seq fs''FT :> lastf -> case rigidify xsFT of
              RigidEmpty -> empty
              RigidOne (Elem x) -> fmap ($x) fs
              RigidTwo (Elem x1) (Elem x2) ->
@@ -933,18 +933,79 @@ replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
 
--- | @'replicateSeq' n xs@ concatenates @n@ copies of @xs@.
-replicateSeq :: Int -> Seq a -> Seq a
-replicateSeq n s
-  | n < 0     = error "replicateSeq takes a nonnegative integer argument"
+-- | @'cycleN' n xs@ concatenates @n@ copies of @xs@.
+cycleN :: Int -> Seq a -> Seq a
+cycleN n xs
+  | n < 0     = error "cycleN takes a nonnegative integer argument"
   | n == 0    = empty
-  | otherwise = go n s
-  where
-    -- Invariant: k >= 1
-    go 1 xs = xs
-    go k xs | even k    = kxs
-            | otherwise = xs >< kxs
-            where kxs = go (k `quot` 2) $! (xs >< xs)
+  | n == 1    = xs
+cycleN n (Seq xsFT) = case rigidify xsFT of
+             RigidEmpty -> empty
+             RigidOne (Elem x) -> replicate n x
+             RigidTwo x1 x2 -> Seq $
+               Deep (n*2) pair
+                    (runIdentity $ applicativeTree (n-2) 2 (Identity (node2 x1 x2)))
+                    pair
+               where pair = Two x1 x2
+             RigidThree x1 x2 x3 -> Seq $
+               Deep (n*3) triple
+                    (runIdentity $ applicativeTree (n-2) 3 (Identity (node3 x1 x2 x3)))
+                    triple
+               where triple = Three x1 x2 x3
+             RigidFull r@(Rigid s pr _m sf) -> Seq $
+                   Deep (n*s)
+                        (nodeToDigit pr)
+                        (cycleNMiddle (n-2) r)
+                        (nodeToDigit sf)
+
+cycleNMiddle
+  :: Sized c => Int
+     -> Rigid c
+     -> FingerTree (Node c)
+
+STRICT_1_OF_2(cycleNMiddle)
+
+-- Not at the bottom yet
+
+cycleNMiddle n
+           (Rigid s pr (DeepTh sm prm mm sfm) sf)
+    = Deep (sm + s * (n + 1)) -- note: sm = s - size pr - size sf
+           (digit12ToDigit prm)
+           (cycleNMiddle n
+                       (Rigid s (squashL pr prm) mm (squashR sfm sf)))
+           (digit12ToDigit sfm)
+
+-- At the bottom
+
+cycleNMiddle n
+           (Rigid s pr EmptyTh sf)
+     = deep
+            (One sf)
+            (runIdentity $ applicativeTree n s (Identity converted))
+            (One pr)
+   where converted = node2 pr sf
+
+cycleNMiddle n
+           (Rigid s pr (SingleTh q) sf)
+     = deep
+            (Two q sf)
+            (runIdentity $ applicativeTree n s (Identity converted))
+            (Two pr q)
+   where converted = node3 pr q sf
+
+{-# SPECIALIZE
+ cycleNMiddle
+  :: Int
+     -> Rigid (Node c)
+     -> FingerTree (Node (Node c))
+ #-}
+{-# SPECIALIZE
+ cycleNMiddle
+  :: Int
+     -> Rigid (Elem c)
+     -> FingerTree (Node (Elem c))
+ #-}
+
 
 -- | /O(1)/. Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
