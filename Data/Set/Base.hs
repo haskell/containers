@@ -853,7 +853,7 @@ foldlFB = foldl
 
 -- | /O(n*log n)/. Create a set from a list of elements.
 --
--- If the elemens are ordered, linear-time implementation is used,
+-- If the elements are ordered, a linear-time implementation is used,
 -- with the performance equal to 'fromDistinctAscList'.
 
 -- For some reason, when 'singleton' is used in fromList or in
