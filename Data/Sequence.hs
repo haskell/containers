@@ -314,11 +314,16 @@ data Rigidified a = RigidEmpty
                   deriving Show
 #endif
 
+-- | A finger tree whose top level has only Two and/or Three digits, and whose
+-- other levels have only One and Two digits. A Rigid tree is precisely what one
+-- gets by unzipping/inverting a 2-3 tree, so it is precisely what we need to
+-- turn a finger tree into in order to transform it into a 2-3 tree.
 data Rigid a = Rigid {-# UNPACK #-} !Int !(Digit23 a) (Thin (Node a)) !(Digit23 a)
 #ifdef TESTING
              deriving Show
 #endif
 
+-- | A finger tree whose digits are all ones and twos
 data Thin a = EmptyTh
             | SingleTh a
             | DeepTh {-# UNPACK #-} !Int !(Digit12 a) (Thin (Node a)) !(Digit12 a)
@@ -331,16 +336,23 @@ data Digit12 a = One12 a | Two12 a a
         deriving Show
 #endif
 
+-- | Sometimes, we want to emphasize that we are viewing a node as a top-level
+-- digit of a 'Rigid' tree.
 type Digit23 a = Node a
 
--- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.
--- It produces the center part of a finger tree, with a prefix corresponding
--- to the prefix of @xs@ and a suffix corresponding to the suffix of @xs@
--- omitted; the missing suffix and prefix are added by the caller.
--- For the recursive call, it squashes the prefix and the suffix into
--- the center tree. Once it gets to the bottom, it turns the tree into
--- a 2-3 tree, applies 'mapMulFT' to produce the main body, and glues all
--- the pieces together.
+-- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.  It
+-- produces the center part of a finger tree, with a prefix corresponding to
+-- the prefix of @xs@ and a suffix corresponding to the suffix of @xs@ omitted;
+-- the missing suffix and prefix are added by the caller.  For the recursive
+-- call, it squashes the prefix and the suffix into the center tree. Once it
+-- gets to the bottom, it turns the tree into a 2-3 tree, applies 'mapMulFT' to
+-- produce the main body, and glues all the pieces together.
+--
+-- 'map23' itself is a bit horrifying because of the nested types involved. Its
+-- job is to map over the *elements* of a 2-3 tree, rather than the subtrees.
+-- If we used a higher-order nested type with MPTC, we could probably use a
+-- class, but as it is we have to build up 'map23' explicitly through the
+-- recursion.
 aptyMiddle
   :: Sized c =>
      (c -> d)
@@ -440,67 +452,57 @@ mapMulNode :: Int -> (a -> b) -> Node a -> Node b
 mapMulNode mul f (Node2 s a b)   = Node2 (mul * s) (f a) (f b)
 mapMulNode mul f (Node3 s a b c) = Node3 (mul * s) (f a) (f b) (f c)
 
-
--- rigidify :: Seq a -> Rigidified (Elem a)
--- rigidify (Seq xs) = rigidify' xs
-
 -- | /O(log n)/ (incremental) Takes the extra flexibility out of a 'FingerTree'
 -- to make it a genuine 2-3 finger tree. The result of 'rigidify' will have
--- only 'Two' and 'Three' digits at the top level and only 'One' and 'Two'
--- digits elsewhere.  It gives an error if the tree has fewer than four
--- elements.
+-- only two and three digits at the top level and only one and two
+-- digits elsewhere. If the tree has fewer than four elements, 'rigidify'
+-- will simply extract them, and will not build a tree.
 rigidify :: FingerTree (Elem a) -> Rigidified (Elem a)
--- Note that 'rigidify' may call itself, but it will do so at most
--- once: each call to 'rigidify' will either fix the whole tree or fix one digit
--- and leave the other alone. The patterns below just fix up the top level of
--- the tree; 'rigidify' delegates the hard work to 'thin'.
+-- The patterns below just fix up the top level of the tree; 'rigidify'
+-- delegates the hard work to 'thin'.
 
--- The top of the tree is fine.
+rigidify Empty = RigidEmpty
 
-rigidify (Deep s (Two a b) m (Three c d e)) =
-  RigidFull $ Rigid s (node2 a b) (thin m) (node3 c d e)
-rigidify (Deep s (Three a b c) m (Three d e f)) =
-  RigidFull $ Rigid s (node3 a b c) (thin m) (node3 d e f)
-rigidify (Deep s (Two a b) m (Two c d)) =
-  RigidFull $ Rigid s (node2 a b) (thin m) (node2 c d)
-rigidify (Deep s (Three a b c) m (Two d e)) =
-  RigidFull $ Rigid s (node3 a b c) (thin m) (node2 d e)
+rigidify (Single q) = RigidOne q
 
--- One of the Digits is a Four.
-rigidify (Deep s (Four a b c d) m sf) =
-   rigidify $ Deep s (Two a b) (node2 c d `consTree` m) sf
+-- The left digit is Two or Three
+rigidify (Deep s (Two a b) m sf) = rigidifyRight s (node2 a b) m sf
+rigidify (Deep s (Three a b c) m sf) = rigidifyRight s (node3 a b c) m sf
 
-rigidify (Deep s pr m (Four a b c d)) =
-   rigidify $ Deep s pr (m `snocTree` node2 a b) (Two c d)
+-- The left digit is Four
+rigidify (Deep s (Four a b c d) m sf) = rigidifyRight s (node2 a b) (node2 c d `consTree` m) sf
 
--- One of the Digits is a One.
+-- The left digit is One
 rigidify (Deep s (One a) m sf) = case viewLTree m of
-   Just2 (Node2 _ b c) m' -> rigidify $ Deep s (Three a b c) m' sf
-   Just2 (Node3 _ b c d) m' -> rigidify $ Deep s (Two a b) (node2 c d `consTree` m') sf
+   Just2 (Node2 _ b c) m' -> rigidifyRight s (node3 a b c) m' sf
+   Just2 (Node3 _ b c d) m' -> rigidifyRight s (node2 a b) (node2 c d `consTree` m') sf
    Nothing2 -> case sf of
      One b -> RigidTwo a b
      Two b c -> RigidThree a b c
      Three b c d -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c d)
      Four b c d e -> RigidFull $ Rigid s (node3 a b c) EmptyTh (node2 d e)
 
-rigidify (Deep s pr m (One e)) = case viewRTree m of
-   Just2 m' (Node2 _ a b) -> rigidify $ Deep s pr m' (Three a b e)
-   Just2 m' (Node3 _ a b c) -> rigidify $ Deep s pr (m' `snocTree` node2 a b) (Two c e)
-   Nothing2 -> case pr of
-     One a -> RigidTwo a e
-     Two a b -> RigidThree a b e
-     Three a b c -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c e)
-     Four a b c d -> RigidFull $ Rigid s (node3 a b c) EmptyTh (node2 d e)
+-- | /O(log n)/ (incremental) Takes a tree whose left side has been rigidified
+-- and finishes the job.
+rigidifyRight :: Int -> Digit23 (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> Rigidified (Elem a)
 
-rigidify Empty = RigidEmpty
+-- The right digit is Two, Three, or Four
+rigidifyRight s pr m (Two a b) = RigidFull $ Rigid s pr (thin m) (node2 a b)
+rigidifyRight s pr m (Three a b c) = RigidFull $ Rigid s pr (thin m) (node3 a b c)
+rigidifyRight s pr m (Four a b c d) = RigidFull $ Rigid s pr (thin $ m `snocTree` node2 a b) (node2 c d)
 
-rigidify (Single q) = RigidOne q
-
+-- The right digit is One
+rigidifyRight s pr m (One e) = case viewRTree m of
+    Just2 m' (Node2 _ a b) -> RigidFull $ Rigid s pr (thin m') (node3 a b e)
+    Just2 m' (Node3 _ a b c) -> RigidFull $ Rigid s pr (thin $ m' `snocTree` node2 a b) (node2 c e)
+    Nothing2 -> case pr of
+      Node2 _ a b -> RigidThree a b e
+      Node3 _ a b c -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c e)
 
 -- | /O(log n)/ (incremental) Rejigger a finger tree so the digits are all ones
 -- and twos.
 thin :: Sized a => FingerTree a -> Thin a
--- Note that 'thin12' will produce a 'Deep' constructor immediately before
+-- Note that 'thin12' will produce a 'DeepTh' constructor immediately before
 -- recursively calling 'thin'.
 thin Empty = EmptyTh
 thin (Single a) = SingleTh a
