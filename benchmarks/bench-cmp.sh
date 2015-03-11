@@ -1,3 +1,3 @@
 #!/bin/sh
 
-./bench-cmp.pl "$@" | column -nts\; | less -SR
+(echo 'Benchmark;Runtime change;Original runtime'; ./bench-cmp.pl "$@") | column -nts\;
