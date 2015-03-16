@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE FlexibleInstances #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -182,6 +184,7 @@ import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
+import Data.String (IsString(..))
 #endif
 
 -- Array stuff, with GHC.Arr on GHC
@@ -2135,6 +2138,11 @@ instance GHC.Exts.IsList (Seq a) where
     fromList = fromList
     fromListN = fromList2
     toList = toList
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+instance IsString (Seq Char) where
+    fromString = fromList
 #endif
 
 ------------------------------------------------------------------------
