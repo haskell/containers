@@ -882,7 +882,6 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
                         | otherwise -> go (go z l) r
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
     go z' Nil           = z'
     go z' (Tip kx bm)   = foldlBits kx f z' bm
     go z' (Bin _ _ l r) = go (go z' l) r
