@@ -252,3 +252,21 @@ test-suite intmap-strictness-properties
 
   ghc-options: -Wall
   include-dirs: include
+
+test-suite intset-strictness-properties
+  hs-source-dirs: tests, .
+  main-is: intset-strictness.hs
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    array,
+    base >= 4.2 && < 5,
+    ChasingBottoms,
+    deepseq >= 1.2 && < 1.5,
+    QuickCheck >= 2.4.0.1,
+    ghc-prim,
+    test-framework >= 0.3.3,
+    test-framework-quickcheck2 >= 0.2.9
+
+  ghc-options: -Wall
+  include-dirs: include
