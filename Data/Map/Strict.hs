@@ -98,6 +98,7 @@ module Data.Map.Strict
     -- ** Delete\/Update
     , delete
     , adjust
+    , adjustWithDefault
     , adjustWithKey
     , update
     , updateWithKey

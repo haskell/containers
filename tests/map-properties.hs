@@ -49,6 +49,7 @@ main = defaultMain
          , testCase "insertLookupWithKey" test_insertLookupWithKey
          , testCase "delete" test_delete
          , testCase "adjust" test_adjust
+         , testCase "adjustWithDefault" test_adjustWithDefault
          , testCase "adjustWithKey" test_adjustWithKey
          , testCase "update" test_update
          , testCase "updateWithKey" test_updateWithKey
@@ -362,6 +363,12 @@ test_adjust = do
     adjust ("new " ++) 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "new a")]
     adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     adjust ("new " ++) 7 empty                         @?= empty
+
+test_adjustWithDefault :: Assertion
+test_adjustWithDefault = do
+    adjustWithDefault "c" ("new " ++) 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "new a")]
+    adjustWithDefault "c" ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "new c")]
+    adjustWithDefault "c" ("new " ++) 7 empty                         @?= fromList [(7, "new c")]
 
 test_adjustWithKey :: Assertion
 test_adjustWithKey = do
