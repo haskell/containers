@@ -1799,6 +1799,12 @@ mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic _ Tip = Tip
 mapKeysMonotonic f (Bin sz k x l r) =
     Bin sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
+#if __GLASGOW_HASKELL__ >= 709
+-- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
+{-# RULES
+"mapKeysMonotonic/coerce" mapKeysMonotonic coerce = coerce
+ #-}
+#endif
 
 {--------------------------------------------------------------------
   Folds
