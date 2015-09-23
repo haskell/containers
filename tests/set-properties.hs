@@ -18,6 +18,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGE" test_lookupGE
                    , testCase "lookupIndex" test_lookupIndex
                    , testCase "findIndex" test_findIndex
+                   , testCase "lookupElem" test_lookupElem
                    , testCase "elemAt" test_elemAt
                    , testCase "deleteAt" test_deleteAt
                    , testProperty "prop_Valid" prop_Valid
@@ -110,6 +111,12 @@ test_findIndex :: Assertion
 test_findIndex = do
     findIndex 3 (fromList [5,3]) @?= 0
     findIndex 5 (fromList [5,3]) @?= 1
+
+test_lookupElem :: Assertion
+test_lookupElem = do
+    fromJust (lookupElem 0 (fromList [5,3])) @?= 3
+    fromJust (lookupElem 1 (fromList [5,3])) @?= 5
+    isJust   (lookupElem 2 (fromList [5,3])) @?= False
 
 test_elemAt :: Assertion
 test_elemAt = do

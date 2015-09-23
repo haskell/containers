@@ -92,6 +92,7 @@ module Data.Set (
             -- * Indexed
             , lookupIndex
             , findIndex
+            , lookupElem
             , elemAt
             , deleteAt
 

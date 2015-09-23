@@ -142,6 +142,7 @@ module Data.Set.Base (
             -- * Indexed
             , lookupIndex
             , findIndex
+            , lookupElem
             , elemAt
             , deleteAt
 
@@ -1160,6 +1161,24 @@ lookupIndex = go 0
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE lookupIndex #-}
 #endif
+
+-- | /O(log n)/. Lookup an element by its /index/, i.e. by its zero-based
+-- index in the sorted sequence of elements.
+--
+-- > fromJust (lookupElem 0 (fromList [5,3])) == 3
+-- > fromJust (lookupElem 1 (fromList [5,3])) == 5
+-- > isJust   (lookupElem 2 (fromList [5,3])) == False
+
+lookupElem :: Int -> Set a -> Maybe a
+STRICT_1_OF_2(lookupElem)
+lookupElem _ Tip = Nothing
+lookupElem i (Bin _ x l r)
+  = case compare i sizeL of
+      LT -> lookupElem i l
+      GT -> lookupElem (i-sizeL-1) r
+      EQ -> Just x
+  where
+    sizeL = size l
 
 -- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
