@@ -35,7 +35,6 @@ module Data.Tree(
     ) where
 
 #if MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>))
 import Data.Foldable (toList)
 #else
 import Control.Applicative (Applicative(..), (<$>))
