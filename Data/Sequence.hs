@@ -404,25 +404,6 @@ aptyMiddle firstf
             (Two (fmap lastf pr) (fmap lastf q))
    where converted = node3 pr q sf
 
-{-# SPECIALIZE
- aptyMiddle
-  :: (Node c -> d)
-     -> (Node c -> d)
-     -> ((a -> b) -> Node c -> d)
-     -> FingerTree (Elem (a -> b))
-     -> Rigid (Node c)
-     -> FingerTree (Node d)
- #-}
-{-# SPECIALIZE
- aptyMiddle
-  :: (Elem c -> d)
-     -> (Elem c -> d)
-     -> ((a -> b) -> Elem c -> d)
-     -> FingerTree (Elem (a -> b))
-     -> Rigid (Elem c)
-     -> FingerTree (Node d)
- #-}
-
 digit12ToDigit :: Digit12 a -> Digit a
 digit12ToDigit (One12 a) = One a
 digit12ToDigit (Two12 a b) = Two a b
@@ -997,19 +978,6 @@ cycleNMiddle n
             (runIdentity $ applicativeTree n s (Identity converted))
             (Two pr q)
    where converted = node3 pr q sf
-
-{-# SPECIALIZE
- cycleNMiddle
-  :: Int
-     -> Rigid (Node c)
-     -> FingerTree (Node (Node c))
- #-}
-{-# SPECIALIZE
- cycleNMiddle
-  :: Int
-     -> Rigid (Elem c)
-     -> FingerTree (Node (Elem c))
- #-}
 
 
 -- | /O(1)/. Add an element to the left end of a sequence.
