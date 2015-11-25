@@ -216,9 +216,7 @@ module Data.IntMap.Base (
     , highestBitMask
     ) where
 
-#if MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>))
-#else
+#if !(MIN_VERSION_base(4,8,0))
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))

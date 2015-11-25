@@ -35,7 +35,6 @@ module Data.Tree(
     ) where
 
 #if MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>))
 import Data.Foldable (toList)
 #else
 import Control.Applicative (Applicative(..), (<$>))
@@ -92,7 +91,7 @@ instance Applicative Tree where
         Node (f x) (map (f <$>) txs ++ map (<*> tx) tfs)
 
 instance Monad Tree where
-    return x = Node x []
+    return = pure
     Node x ts >>= f = Node x' (ts' ++ map (>>= f) ts)
       where Node x' ts' = f x
 

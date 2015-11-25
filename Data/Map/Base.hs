@@ -270,9 +270,7 @@ module Data.Map.Base (
     , filterLt
     ) where
 
-#if MIN_VERSION_base(4,8,0)
-import Control.Applicative ((<$>))
-#else
+#if !(MIN_VERSION_base(4,8,0))
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))

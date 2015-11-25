@@ -158,7 +158,7 @@ module Data.Sequence (
 import Prelude hiding (
     Functor(..),
 #if MIN_VERSION_base(4,8,0)
-    Applicative, foldMap, Monoid,
+    Applicative, (<$>), foldMap, Monoid,
 #endif
     null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
@@ -267,7 +267,7 @@ instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
 
 instance Monad Seq where
-    return = singleton
+    return = pure
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
     (>>) = (*>)
@@ -861,12 +861,13 @@ instance Functor (State s) where
 instance Monad (State s) where
     {-# INLINE return #-}
     {-# INLINE (>>=) #-}
-    return x = State $ \ s -> (s, x)
+    return = pure
     m >>= k = State $ \ s -> case runState m s of
         (s', x) -> runState (k x) s'
 
 instance Applicative (State s) where
-    pure = return
+    {-# INLINE pure #-}
+    pure x = State $ \ s -> (s, x)
     (<*>) = ap
 
 execState :: State s a -> s -> a
