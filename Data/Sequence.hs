@@ -357,8 +357,7 @@ type Digit23 a = Node a
 -- class, but as it is we have to build up 'map23' explicitly through the
 -- recursion.
 aptyMiddle
-  :: Sized c =>
-     (c -> d)
+  :: (c -> d)
      -> (c -> d)
      -> ((a -> b) -> c -> d)
      -> FingerTree (Elem (a -> b))
@@ -429,12 +428,12 @@ digit12ToDigit (One12 a) = One a
 digit12ToDigit (Two12 a b) = Two a b
 
 -- Squash the first argument down onto the left side of the second.
-squashL :: Sized a => Digit23 a -> Digit12 (Node a) -> Digit23 (Node a)
+squashL :: Digit23 a -> Digit12 (Node a) -> Digit23 (Node a)
 squashL m (One12 n) = node2 m n
 squashL m (Two12 n1 n2) = node3 m n1 n2
 
 -- Squash the second argument down onto the right side of the first
-squashR :: Sized a => Digit12 (Node a) -> Digit23 a -> Digit23 (Node a)
+squashR :: Digit12 (Node a) -> Digit23 a -> Digit23 (Node a)
 squashR (One12 n) m = node2 n m
 squashR (Two12 n1 n2) m = node3 n1 n2 m
 
@@ -965,7 +964,7 @@ cycleN n (Seq xsFT) = case rigidify xsFT of
                         (nodeToDigit sf)
 
 cycleNMiddle
-  :: Sized c => Int
+  :: Int
      -> Rigid c
      -> FingerTree (Node c)
 
