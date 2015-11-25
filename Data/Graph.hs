@@ -295,7 +295,7 @@ chop (Node v ts : us)
 newtype SetM s a = SetM { runSetM :: STArray s Vertex Bool -> ST s a }
 
 instance Monad (SetM s) where
-    return x     = SetM $ const (return x)
+    return = pure
     {-# INLINE return #-}
     SetM v >>= f = SetM $ \s -> do { x <- v s; runSetM (f x) s }
     {-# INLINE (>>=) #-}
