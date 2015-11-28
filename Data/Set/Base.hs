@@ -199,6 +199,9 @@ import Data.Bits (shiftL, shiftR)
 #if !MIN_VERSION_base(4,8,0)
 import Data.Monoid (Monoid(..))
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
@@ -245,8 +248,17 @@ type role Set nominal
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
-    mappend = union
     mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+    mappend = union
+#else
+    mappend = (<>)
+
+instance Ord a => Semigroup (Set a) where
+    (<>)    = union
+    stimes  = stimesIdempotentMonoid
+#endif
+
 
 instance Foldable.Foldable Set where
     fold = go

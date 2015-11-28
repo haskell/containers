@@ -175,6 +175,9 @@ import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', t
 #if MIN_VERSION_base(4,8,0)
 import Data.Foldable (foldr')
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>)))
+#endif
 import Data.Traversable
 import Data.Typeable
 
@@ -543,7 +546,14 @@ instance Read a => Read (Seq a) where
 
 instance Monoid (Seq a) where
     mempty = empty
+#if !(MIN_VERSION_base(4,9,0))
     mappend = (><)
+#else
+    mappend = (<>)
+
+instance Semigroup (Seq a) where
+    (<>)    = (><)
+#endif
 
 INSTANCE_TYPEABLE1(Seq,seqTc,"Seq")
 

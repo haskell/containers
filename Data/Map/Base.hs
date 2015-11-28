@@ -275,6 +275,9 @@ import Control.Applicative (Applicative(..), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
@@ -340,8 +343,16 @@ type role Map nominal representational
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
-    mappend = union
     mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+    mappend = union
+#else
+    mappend = (<>)
+
+instance (Ord k) => Semigroup (Map k v) where
+    (<>)    = union
+    stimes  = stimesIdempotentMonoid
+#endif
 
 #if __GLASGOW_HASKELL__
 
