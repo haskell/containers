@@ -173,6 +173,9 @@ import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..))
 import Data.Word (Word)
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 import Data.Typeable
 import Prelude hiding (filter, foldr, foldl, null, map)
 
@@ -247,8 +250,16 @@ type Key    = Int
 
 instance Monoid IntSet where
     mempty  = empty
-    mappend = union
     mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+    mappend = union
+#else
+    mappend = (<>)
+
+instance Semigroup IntSet where
+    (<>)    = union
+    stimes  = stimesIdempotentMonoid
+#endif
 
 #if __GLASGOW_HASKELL__
 

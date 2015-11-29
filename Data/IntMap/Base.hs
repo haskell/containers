@@ -222,6 +222,9 @@ import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+#endif
 
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (liftM)
@@ -305,8 +308,16 @@ infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 instance Monoid (IntMap a) where
     mempty  = empty
-    mappend = union
     mconcat = unions
+#if !(MIN_VERSION_base(4,9,0))
+    mappend = union
+#else
+    mappend = (<>)
+
+instance Semigroup (IntMap a) where
+    (<>)    = union
+    stimes  = stimesIdempotentMonoid
+#endif
 
 instance Foldable.Foldable IntMap where
   fold = go

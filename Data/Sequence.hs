@@ -175,6 +175,9 @@ import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', t
 #if MIN_VERSION_base(4,8,0)
 import Data.Foldable (foldr')
 #endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>)))
+#endif
 import Data.Traversable
 import Data.Typeable
 
@@ -543,7 +546,14 @@ instance Read a => Read (Seq a) where
 
 instance Monoid (Seq a) where
     mempty = empty
+#if !(MIN_VERSION_base(4,9,0))
     mappend = (><)
+#else
+    mappend = (<>)
+
+instance Semigroup (Seq a) where
+    (<>)    = (><)
+#endif
 
 INSTANCE_TYPEABLE1(Seq,seqTc,"Seq")
 
@@ -2449,28 +2459,28 @@ unrollPQ cmp = unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
     unrollPQ' (PQueue x ts) = x:mergePQs0 ts
-    (<>) = mergePQ cmp
+    (<+>) = mergePQ cmp
     mergePQs0 Nil = []
     mergePQs0 (t :& Nil) = unrollPQ' t
-    mergePQs0 (t1 :& t2 :& ts) = mergePQs (t1 <> t2) ts
+    mergePQs0 (t1 :& t2 :& ts) = mergePQs (t1 <+> t2) ts
     mergePQs t ts = t `seq` case ts of
         Nil             -> unrollPQ' t
-        t1 :& Nil       -> unrollPQ' (t <> t1)
-        t1 :& t2 :& ts' -> mergePQs (t <> (t1 <> t2)) ts'
+        t1 :& Nil       -> unrollPQ' (t <+> t1)
+        t1 :& t2 :& ts' -> mergePQs (t <+> (t1 <+> t2)) ts'
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'FingerTree' to a 'PQueue'.
 toPQ :: (e -> e -> Ordering) -> (a -> PQueue e) -> FingerTree a -> Maybe (PQueue e)
 toPQ _ _ Empty = Nothing
 toPQ _ f (Single x) = Just (f x)
-toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <> sf') ((pr' <> sf') <>) (toPQ cmp fNode m))
+toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) (toPQ cmp fNode m))
   where
     fDigit digit = case fmap f digit of
         One a           -> a
-        Two a b         -> a <> b
-        Three a b c     -> a <> b <> c
-        Four a b c d    -> (a <> b) <> (c <> d)
-    (<>) = mergePQ cmp
+        Two a b         -> a <+> b
+        Three a b c     -> a <+> b <+> c
+        Four a b c d    -> (a <+> b) <+> (c <+> d)
+    (<+>) = mergePQ cmp
     fNode = fDigit . nodeToDigit
     pr' = fDigit pr
     sf' = fDigit sf
