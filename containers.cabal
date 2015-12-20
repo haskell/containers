@@ -25,6 +25,7 @@ extra-source-files:
     benchmarks/SetOperations/*.hs
     benchmarks/LookupGE/Makefile
     benchmarks/LookupGE/*.hs
+    changelog.md
 
 source-repository head
     type:     git
