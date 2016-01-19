@@ -139,6 +139,7 @@ module Data.Sequence (
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
     -- * Transformations
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
+    traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
     -- ** Zips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
@@ -209,6 +210,7 @@ import qualified GHC.Exts
 import Data.Functor.Identity (Identity(..))
 #endif
 
+default ()
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
@@ -1658,6 +1660,123 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
   mapWithIndex (\k a -> f (g k a)) xs
  #-}
 #endif
+
+-- | 'traverseWithIndex' is a version of 'traverse' that also offers
+--   access to the index of each element.
+traverseWithIndex :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
+traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> Elem <$> f' s a) 0 xs'
+ where
+-- We have to specialize these functions by hand, unfortunately, because
+-- GHC does not specialize until *all* instances are determined.
+-- If we tried to used the Sized trick, it would likely leak to runtime.
+  traverseWithIndexTreeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
+  traverseWithIndexTreeE _ s Empty = s `seq` pure Empty
+  traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
+  traverseWithIndexTreeE f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
+          Deep n <$>
+               traverseWithIndexDigitE f s pr <*>
+               traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m <*>
+               traverseWithIndexDigitE f sPsprm sf
+    where
+      sPspr = s + size pr
+      sPsprm = s + n - size sf
+
+  traverseWithIndexTreeN :: Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
+  traverseWithIndexTreeN _ s Empty = s `seq` pure Empty
+  traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
+  traverseWithIndexTreeN f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
+          Deep n <$>
+               traverseWithIndexDigitN f s pr <*>
+               traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m <*>
+               traverseWithIndexDigitN f sPsprm sf
+    where
+      sPspr = s + size pr
+      sPsprm = s + n - size sf
+
+  traverseWithIndexDigitE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
+  traverseWithIndexDigitE f s (One a) = One <$> f s a
+  traverseWithIndexDigitE f s (Two a b) = sPsa `seq` Two <$> f s a <*> f sPsa b
+    where
+      sPsa = s + size a
+  traverseWithIndexDigitE f s (Three a b c) = sPsa `seq` sPsab `seq`
+                                      Three <$> f s a <*> f sPsa b <*> f sPsab c
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+  traverseWithIndexDigitE f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+                          Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+      sPsabc = sPsab + size c
+
+  traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
+  traverseWithIndexDigitN f s (One a) = One <$> f s a
+  traverseWithIndexDigitN f s (Two a b) = sPsa `seq` Two <$> f s a <*> f sPsa b
+    where
+      sPsa = s + size a
+  traverseWithIndexDigitN f s (Three a b c) = sPsa `seq` sPsab `seq`
+                                      Three <$> f s a <*> f sPsa b <*> f sPsab c
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+  traverseWithIndexDigitN f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+                          Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+      sPsabc = sPsab + size c
+
+  traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
+  traverseWithIndexNodeE f s (Node2 ns a b) = sPsa `seq` Node2 ns <$> f s a <*> f sPsa b
+    where
+      sPsa = s + size a
+  traverseWithIndexNodeE f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
+                                     Node3 ns <$> f s a <*> f sPsa b <*> f sPsab c
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+
+  traverseWithIndexNodeN :: Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
+  traverseWithIndexNodeN f s (Node2 ns a b) = sPsa `seq` Node2 ns <$> f s a <*> f sPsa b
+    where
+      sPsa = s + size a
+  traverseWithIndexNodeN f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
+                                     Node3 ns <$> f s a <*> f sPsa b <*> f sPsab c
+    where
+      sPsa = s + size a
+      sPsab = sPsa + size b
+
+{-# NOINLINE [1] traverseWithIndex #-}
+#ifdef __GLASGOW_HASKELL__
+{-# RULES
+"travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
+  traverseWithIndex (\k a -> f k (g k a)) xs
+"travWithIndex/fmapSeq" forall f g xs . traverseWithIndex f (fmapSeq g xs) =
+  traverseWithIndex (\k a -> f k (g a)) xs
+ #-}
+#endif
+{-
+It might be nice to be able to rewrite
+
+traverseWithIndex f (fromFunction i g)
+to
+replicateAWithIndex i (\k -> f k (g k))
+and
+traverse f (fromFunction i g)
+to
+replicateAWithIndex i (f . g)
+
+but we don't have replicateAWithIndex as yet.
+
+We might wish for a rule like
+"fmapSeq/travWithIndex" forall f g xs . fmapSeq f <$> traverseWithIndex g xs =
+  traverseWithIndex (\k a -> f <$> g k a) xs
+Unfortunately, this rule could screw up the inliner's treatment of
+fmap in general, and it also relies on the arbitrary Functor being
+valid.
+-}
+
 
 -- | /O(n)/. Convert a given sequence length and a function representing that
 -- sequence into a sequence.

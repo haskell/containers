@@ -216,7 +216,8 @@ Test-suite seq-properties
     build-depends:
         QuickCheck,
         test-framework,
-        test-framework-quickcheck2
+        test-framework-quickcheck2,
+        transformers
 
 test-suite map-strictness-properties
   hs-source-dirs: tests, .

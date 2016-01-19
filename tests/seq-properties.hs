@@ -2,6 +2,7 @@ import Data.Sequence    -- needs to be compiled with -DTESTING for use here
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
+import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), toList, all, sum)
 import Data.Functor ((<$>), (<$))
@@ -87,6 +88,7 @@ main = defaultMain
        , testProperty "foldlWithIndex" prop_foldlWithIndex
        , testProperty "foldrWithIndex" prop_foldrWithIndex
        , testProperty "mapWithIndex" prop_mapWithIndex
+       , testProperty "traverseWithIndex" prop_traverseWithIndex
        , testProperty "reverse" prop_reverse
        , testProperty "zip" prop_zip
        , testProperty "zipWith" prop_zipWith
@@ -113,7 +115,7 @@ instance Arbitrary a => Arbitrary (Elem a) where
 instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
     arbitrary = sized arb
       where
-        arb :: (Arbitrary a, Sized a) => Int -> Gen (FingerTree a)
+        arb :: (Arbitrary b, Sized b) => Int -> Gen (FingerTree b)
         arb 0 = return Empty
         arb 1 = Single <$> arbitrary
         arb n = do
@@ -558,6 +560,11 @@ prop_mapWithIndex :: Seq A -> Bool
 prop_mapWithIndex xs =
     toList' (mapWithIndex f xs) ~= map (uncurry f) (Data.List.zip [0..] (toList xs))
   where f = (,)
+
+prop_traverseWithIndex :: Seq Int -> Bool
+prop_traverseWithIndex xs =
+    runState (traverseWithIndex (\i x -> modify ((i,x) :)) xs) [] ==
+    runState (sequenceA . mapWithIndex (\i x -> modify ((i,x) :)) $ xs) [] 
 
 prop_reverse :: Seq A -> Bool
 prop_reverse xs =
