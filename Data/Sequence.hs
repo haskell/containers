@@ -2131,7 +2131,7 @@ instance IsString (Seq Char) where
 reverse :: Seq a -> Seq a
 reverse (Seq xs) = Seq (reverseTree id xs)
 
-reverseTree :: (a -> a) -> FingerTree a -> FingerTree a
+reverseTree :: (a -> b) -> FingerTree a -> FingerTree b
 reverseTree _ Empty = Empty
 reverseTree f (Single x) = Single (f x)
 reverseTree f (Deep s pr m sf) =
@@ -2140,13 +2140,13 @@ reverseTree f (Deep s pr m sf) =
         (reverseDigit f pr)
 
 {-# INLINE reverseDigit #-}
-reverseDigit :: (a -> a) -> Digit a -> Digit a
+reverseDigit :: (a -> b) -> Digit a -> Digit b
 reverseDigit f (One a) = One (f a)
 reverseDigit f (Two a b) = Two (f b) (f a)
 reverseDigit f (Three a b c) = Three (f c) (f b) (f a)
 reverseDigit f (Four a b c d) = Four (f d) (f c) (f b) (f a)
 
-reverseNode :: (a -> a) -> Node a -> Node a
+reverseNode :: (a -> b) -> Node a -> Node b
 reverseNode f (Node2 s a b) = Node2 s (f b) (f a)
 reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 
