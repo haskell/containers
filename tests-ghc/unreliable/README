@@ -1,2 +1,0 @@
-These coerce tests depend on whether RULES are fired or not,
-so adding them to general GHC suite might cause testing failures.
