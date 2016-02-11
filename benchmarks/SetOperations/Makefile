@@ -1,3 +1,3 @@
-TOP = ..
+TOP = ../
 
 include ../Makefile
