@@ -819,7 +819,7 @@ intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const
 -- > myIntersectionWithKey f m1 m2 = mergeWithKey (\k x1 x2 -> Just (f k x1 x2)) (const empty) (const empty) m1 m2
 --
 -- When calling @'mergeWithKey' combine only1 only2@, a function combining two
--- 'IntMap's is created, such that
+-- 'Map's is created, such that
 --
 -- * if a key is present in both maps, it is passed with both corresponding
 --   values to the @combine@ function. Depending on the result, the key is either
