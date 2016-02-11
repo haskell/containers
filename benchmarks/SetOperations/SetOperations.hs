@@ -19,7 +19,7 @@ benchmark fromList swap methods = do
              | (mode_str, (left, right)) <- [ ("disj_nn", disj_nn), ("disj_ns", disj_ns), ("disj_nt", disj_nt)
                                             , ("common_nn", common_nn), ("common_ns", common_ns), ("common_nt", common_nt)
                                             , ("mix_nn", mix_nn), ("mix_ns", mix_ns), ("mix_nt", mix_nt)
-                                            , ("block_nn", block_nn), ("block_sn", block_ns)
+                                            , ("block_nn", block_nn), ("block_ns", block_ns)
                                             ]
 
              , (mode_str, left, right) <- replicate 2 (mode_str, left, right) ++
@@ -35,11 +35,11 @@ benchmark fromList swap methods = do
     !common_nn = seqPair $ (all_n, fromList [2,4..n])
     !common_ns = seqPair $ (all_n, fromList [0,1+n`div`s..n])
     !common_nt = seqPair $ (all_n, fromList [0,1+n`div`t..n])
-    !mix_nn = seqPair $ fromLists $ partition ((== 0) . (`mod` 2)) [1..n+n]
-    !mix_ns = seqPair $ fromLists $ partition ((== 0) . (`mod` (1 + n`div`s))) [1..s+n]
-    !mix_nt = seqPair $ fromLists $ partition ((== 0) . (`mod` (1 + n`div`t))) [1..t+n]
-    !block_nn = seqPair $ fromLists $ partition ((< t) . (`mod` (t * 2))) [1..n+n]
-    !block_ns = seqPair $ fromLists $ partition ((< t) . (`mod` (t * (1 + n`div`s)))) [1..s+n]
+    !mix_nn = seqPair $ fromLists $ partition ((/= 0) . (`mod` 2)) [1..n+n]
+    !mix_ns = seqPair $ fromLists $ partition ((/= 0) . (`mod` (1 + n`div`s))) [1..s+n]
+    !mix_nt = seqPair $ fromLists $ partition ((/= 0) . (`mod` (1 + n`div`t))) [1..t+n]
+    !block_nn = seqPair $ fromLists $ partition ((>= t) . (`mod` (t * 2))) [1..n+n]
+    !block_ns = seqPair $ fromLists $ partition ((>= t) . (`mod` (t * (1 + n`div`s)))) [1..s+n]
 
     fromLists (xs, ys) = (fromList xs, fromList ys)
     seqPair pair@(xs, ys) = xs `seq` ys `seq` pair
