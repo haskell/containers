@@ -1,5 +1,0 @@
-test('mapcoerceseq', when(compiler_ge('ghc','7.9')), compile_and_run, ['-package containers'])
-test('mapcoercemap', when(compiler_ge('ghc','7.9')), compile_and_run, ['-package containers'])
-test('mapcoercesmap', when(compiler_ge('ghc','7.9')), compile_and_run, ['-package containers'])
-test('mapcoerceintmap', when(compiler_ge('ghc','7.9')), compile_and_run, ['-package containers'])
-test('mapcoerceintmapstrict', when(compiler_ge('ghc','7.9')), compile_and_run, ['-package containers'])
