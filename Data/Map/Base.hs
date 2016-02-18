@@ -8,6 +8,8 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE EmptyDataDecls #-}
 #endif
 
 #include "containers.h"
@@ -293,6 +295,8 @@ import Data.Utils.StrictPair
 import GHC.Exts ( build )
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
+import GHC.Generics hiding (Prefix, prec, (:*:))
+import qualified GHC.Generics as Generics
 #endif
 import Text.Read
 import Data.Data
@@ -377,7 +381,39 @@ fromListConstr = mkConstr mapDataType "fromList" [] Prefix
 
 mapDataType :: DataType
 mapDataType = mkDataType "Data.Map.Base.Map" [fromListConstr]
+#endif
 
+#if __GLASGOW_HASKELL__ >= 708
+
+{--------------------------------------------------------------------
+  A Generic instance
+--------------------------------------------------------------------}
+
+-- list of pairs; LP k v ~ [(k, v)] so LP k ~ [(k, *)]
+type LP k = [] Generics.:.: Rec1 ((,) k)
+type Rep1Map k = D1 D1Map (C1 C1Map (S1 NoSelector (LP k)))
+
+instance (Eq k, Ord k) => Generic1 (Map k) where
+  type Rep1 (Map k) = Rep1Map k
+  from1 m = M1 (M1 (M1 (Comp1 (Rec1 <$> toList m))))
+  to1 (M1 (M1 (M1 l))) = fromList (unRec1 <$> unComp1 l)
+
+data D1Map
+data C1Map
+
+instance Datatype D1Map where
+  datatypeName _ = "Map"
+  moduleName   _ = "Data.Map.Base"
+
+instance Constructor C1Map  where
+  conName _ = "Map.fromList"
+
+type Rep0Map k v = D1 D1Map (C1 C1Map (S1 NoSelector (Rec0 [(k, v)])))
+
+instance (Eq k, Ord k) => Generic (Map k v) where
+  type Rep (Map k v) = Rep0Map k v
+  from m = M1 (M1 (M1 (K1 $ toList m)))
+  to (M1 (M1 (M1 (K1 l)))) = fromList l
 #endif
 
 {--------------------------------------------------------------------

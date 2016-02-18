@@ -8,6 +8,8 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE EmptyDataDecls #-}
 #endif
 
 #include "containers.h"
@@ -213,6 +215,7 @@ import Data.Utils.StrictPair
 import GHC.Exts ( build )
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
+import GHC.Generics hiding (Prefix, prec, (:*:))
 #endif
 import Text.Read
 import Data.Data
@@ -329,6 +332,29 @@ fromListConstr = mkConstr setDataType "fromList" [] Prefix
 setDataType :: DataType
 setDataType = mkDataType "Data.Set.Base.Set" [fromListConstr]
 
+#endif
+
+#if __GLASGOW_HASKELL__ >= 708
+
+{--------------------------------------------------------------------
+  A Generic instance
+--------------------------------------------------------------------}
+data D1Set
+data C1Set
+
+instance Datatype D1Set where
+  datatypeName _ = "Set"
+  moduleName   _ = "Data.Set.Base"
+
+instance Constructor C1Set  where
+  conName _ = "Set.fromList"
+
+type Rep0Set a = D1 D1Set (C1 C1Set (S1 NoSelector (Rec0 [a])))
+
+instance (Eq a, Ord a) => Generic (Set a) where
+  type Rep (Set a) = Rep0Set a
+  from s = M1 (M1 (M1 (K1 $ toList s)))
+  to (M1 (M1 (M1 (K1 l)))) = fromList l
 #endif
 
 {--------------------------------------------------------------------
