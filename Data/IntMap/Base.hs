@@ -8,6 +8,8 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE EmptyDataDecls #-}
 #endif
 
 #include "containers.h"
@@ -246,6 +248,9 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
 import GHC.Exts (build)
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
+import GHC.Generics hiding (Prefix, prec, (:*:))
+import qualified GHC.Generics as Generics
+
 #endif
 import Text.Read
 #endif
@@ -413,6 +418,39 @@ fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
 intMapDataType :: DataType
 intMapDataType = mkDataType "Data.IntMap.Base.IntMap" [fromListConstr]
 
+#endif
+
+#if __GLASGOW_HASKELL__ >= 708
+
+{--------------------------------------------------------------------
+  A Generic instance
+--------------------------------------------------------------------}
+
+-- list of pairs; LP k v ~ [(k, v)] so LP k ~ [(k, *)]
+type LP k = [] Generics.:.: Rec1 ((,) k)
+type Rep1IntMap = D1 D1IntMap (C1 C1IntMap (S1 NoSelector (LP Key)))
+
+instance Generic1 IntMap where
+  type Rep1 IntMap = Rep1IntMap
+  from1 m = M1 (M1 (M1 (Comp1 (Rec1 <$> toList m))))
+  to1 (M1 (M1 (M1 l))) = fromList (unRec1 <$> unComp1 l)
+
+data D1IntMap
+data C1IntMap
+
+instance Datatype D1IntMap where
+  datatypeName _ = "IntMap"
+  moduleName   _ = "Data.IntMap.Base"
+
+instance Constructor C1IntMap  where
+  conName _ = "IntMap.fromList"
+
+type Rep0IntMap a = D1 D1IntMap (C1 C1IntMap (S1 NoSelector (Rec0 [(Key, a)])))
+
+instance Generic (IntMap a) where
+  type Rep (IntMap a) = Rep0IntMap a
+  from m = M1 (M1 (M1 (K1 $ toList m)))
+  to (M1 (M1 (M1 (K1 l)))) = fromList l
 #endif
 
 {--------------------------------------------------------------------
@@ -1579,7 +1617,7 @@ split k t =
   case t of
       Bin _ m l r
           | m < 0 -> if k >= 0 -- handle negative numbers.
-                     then case go k l of (lt :*: gt) -> let lt' = union r lt 
+                     then case go k l of (lt :*: gt) -> let lt' = union r lt
                                                         in lt' `seq` (lt', gt)
                      else case go k r of (lt :*: gt) -> let gt' = union gt l
                                                         in gt' `seq` (lt, gt')
