@@ -1259,13 +1259,6 @@ deleteAt i t = i `seq`
     [glue l r]        Glues [l] and [r] together. Assumes that [l] and
                       [r] are already balanced with respect to each other.
     [merge l r]       Merges two trees and restores balance.
-
-  Note: in contrast to Adam's paper, we use (<=) comparisons instead
-  of (<) comparisons in [link], [merge] and [balance].
-  Quickcheck (on [difference]) showed that this was necessary in order
-  to maintain the invariants. It is quite unsatisfactory that I haven't
-  been able to find out why this is actually the case! Fortunately, it
-  doesn't hurt to be a bit more conservative.
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
