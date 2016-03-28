@@ -85,6 +85,8 @@ Test-suite map-lazy-properties
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
+        -- only needed for base < 4.8 to get Identity
+        transformers,
         HUnit,
         QuickCheck,
         test-framework,
@@ -103,6 +105,8 @@ Test-suite map-strict-properties
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
+        -- only needed for base < 4.8 to get Identity
+        transformers,
         HUnit,
         QuickCheck,
         test-framework,
