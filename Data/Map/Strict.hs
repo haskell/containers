@@ -103,6 +103,7 @@ module Data.Map.Strict
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , at
 
     -- * Combine
 

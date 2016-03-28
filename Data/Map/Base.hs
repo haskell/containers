@@ -138,6 +138,7 @@ module Data.Map.Base (
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , at
 
     -- * Combine
 
@@ -977,6 +978,27 @@ alter = go
 {-# INLINABLE alter #-}
 #else
 {-# INLINE alter #-}
+#endif
+
+at :: (Functor f, Ord k) =>
+      k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+at = go
+  where
+    STRICT_1_OF_3(go)
+    go k f Tip = (`fmap` f Nothing) $ \ mx -> case mx of
+               Nothing -> Tip
+               Just x  -> singleton k x
+
+    go k f (Bin sx kx x l r) = case compare k kx of
+               LT -> (\ m -> balance kx x m r) `fmap` go k f l
+               GT -> (\ m -> balance kx x l m) `fmap` go k f r
+               EQ -> (`fmap` f (Just x)) $ \ mx' -> case mx' of
+                       Just x' -> Bin sx kx x' l r
+                       Nothing -> glue l r
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE at #-}
+#else
+{-# INLINE at #-}
 #endif
 
 {--------------------------------------------------------------------
