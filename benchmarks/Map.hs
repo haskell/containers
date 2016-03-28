@@ -1,10 +1,12 @@
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
+import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq
 import Control.Exception (evaluate)
 import Control.Monad.Trans (liftIO)
 import Criterion.Main
+import Data.Functor.Identity (Identity(runIdentity))
 import Data.List (foldl')
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
@@ -18,6 +20,8 @@ main = do
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "at lookup absent" $ whnf (atLookup evens) m_odd
+        , bench "at lookup present" $ whnf (atLookup evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
         , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
@@ -49,6 +53,10 @@ main = do
         , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
         , bench "alter update"  $ whnf (alt id evens) m_even
         , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
+        , bench "at alter absent" $ whnf (atAlt id evens) m_odd
+        , bench "at alter insert" $ whnf (atAlt (const (Just 1)) evens) m_odd
+        , bench "at alter update" $ whnf (atAlt id evens) m_even
+        , bench "at alter delete" $ whnf (atAlt (const Nothing) evens) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys) m
@@ -79,6 +87,9 @@ add3 x y z = x + y + z
 
 lookup :: [Int] -> M.Map Int Int -> Int
 lookup xs m = foldl' (\n k -> fromMaybe n (M.lookup k m)) 0 xs
+
+atLookup :: [Int] -> M.Map Int Int -> Int
+atLookup xs m = foldl' (\n k -> fromMaybe n (getConst (M.at k Const m))) 0 xs
 
 lookupIndex :: [Int] -> M.Map Int Int -> Int
 lookupIndex xs m = foldl' (\n k -> fromMaybe n (M.lookupIndex k m)) 0 xs
@@ -123,6 +134,9 @@ upd' f xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> f a) k m) m x
 
 alt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 alt f xs m = foldl' (\m k -> M.alter f k m) m xs
+
+atAlt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+atAlt f xs m = foldl' (\m k -> runIdentity (M.at k (pure . f) m)) m xs
 
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
