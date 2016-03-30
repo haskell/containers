@@ -22,8 +22,14 @@ main = do
         , bench "lookup present" $ whnf (lookup evens) m_even
         , bench "at lookup absent" $ whnf (atLookup evens) m_odd
         , bench "at lookup present" $ whnf (atLookup evens) m_even
+        , bench "atLens lookup absent" $ whnf (atLensLookup evens) m_odd
+        , bench "atLens lookup present" $ whnf (atLensLookup evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
+        , bench "at insert absent" $ whnf (atIns elems_even) m_odd
+        , bench "at insert present" $ whnf (atIns elems_even) m_even
+        , bench "atLens insert absent" $ whnf (atLensIns elems_even) m_odd
+        , bench "atLens insert present" $ whnf (atLensIns elems_even) m_even
         , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
         , bench "insertWith present" $ whnf (insWith elems_even) m_even
         , bench "insertWith' absent" $ whnf (insWith' elems_even) m_odd
@@ -57,6 +63,10 @@ main = do
         , bench "at alter insert" $ whnf (atAlt (const (Just 1)) evens) m_odd
         , bench "at alter update" $ whnf (atAlt id evens) m_even
         , bench "at alter delete" $ whnf (atAlt (const Nothing) evens) m
+        , bench "atLens alter absent" $ whnf (atLensAlt id evens) m_odd
+        , bench "atLens alter insert" $ whnf (atLensAlt (const (Just 1)) evens) m_odd
+        , bench "atLens alter update" $ whnf (atLensAlt id evens) m_even
+        , bench "atLens alter delete" $ whnf (atLensAlt (const Nothing) evens) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys) m
@@ -91,11 +101,20 @@ lookup xs m = foldl' (\n k -> fromMaybe n (M.lookup k m)) 0 xs
 atLookup :: [Int] -> M.Map Int Int -> Int
 atLookup xs m = foldl' (\n k -> fromMaybe n (getConst (M.at k Const m))) 0 xs
 
+atLensLookup :: [Int] -> M.Map Int Int -> Int
+atLensLookup xs m = foldl' (\n k -> fromMaybe n (getConst (atLens k Const m))) 0 xs
+
 lookupIndex :: [Int] -> M.Map Int Int -> Int
 lookupIndex xs m = foldl' (\n k -> fromMaybe n (M.lookupIndex k m)) 0 xs
 
 ins :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 ins xs m = foldl' (\m (k, v) -> M.insert k v m) m xs
+
+atIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
+atIns xs m = foldl' (\m (k, v) -> runIdentity (M.at k (\_ -> pure (Just v)) m)) m xs
+
+atLensIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
+atLensIns xs m = foldl' (\m (k, v) -> runIdentity (atLens k (\_ -> pure (Just v)) m)) m xs
 
 insWith :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 insWith xs m = foldl' (\m (k, v) -> M.insertWith (+) k v m) m xs
@@ -137,6 +156,22 @@ alt f xs m = foldl' (\m k -> M.alter f k m) m xs
 
 atAlt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 atAlt f xs m = foldl' (\m k -> runIdentity (M.at k (pure . f) m)) m xs
+
+atLensAlt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+atLensAlt f xs m = foldl' (\m k -> runIdentity (atLens k (pure . f) m)) m xs
+
+-- implementation from Control.Lens.At for comparison
+atLens :: (Functor f, Ord k) =>
+          k -> (Maybe a -> f (Maybe a)) -> M.Map k a -> f (M.Map k a)
+atLens k f m = (`fmap` f mx) $ \ mx' ->
+  case mx' of
+    Just x' -> M.insert k x' m
+    Nothing ->
+      case mx of
+        Nothing -> m
+        Just x  -> M.delete k m
+  where mx = M.lookup k m
+{-# INLINE atLens #-}
 
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
