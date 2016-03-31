@@ -2130,7 +2130,7 @@ partition p = foldl part (empty, empty)
 -- @xs@ and returns a sequence of those elements which satisfy the
 -- predicate.
 filter :: (a -> Bool) -> Seq a -> Seq a
-filter p = foldl (\ xs x -> if p x then xs |> x else xs) empty
+filter p = foldl' (\ xs x -> if p x then xs |> x else xs) empty
 
 -- Indexing sequences
 
