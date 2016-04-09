@@ -35,6 +35,8 @@ Library
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5
     if impl(ghc>=6.10)
         build-depends: ghc-prim
+    if impl(ghc)
+        build-depends: primitive
 
     ghc-options: -O2 -Wall
 
@@ -209,6 +211,8 @@ Test-suite seq-properties
     cpp-options: -DTESTING
 
     build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    if impl(ghc)
+        build-depends: primitive
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
