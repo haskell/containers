@@ -27,7 +27,7 @@ module Data.Tree(
     -- * Two-dimensional drawing
     drawTree, drawForest,
     -- * Extraction
-    flatten, levels,
+    flatten, levels, paths, steps,
     -- * Building trees
     unfoldTree, unfoldForest,
     unfoldTreeM, unfoldForestM,
@@ -141,6 +141,15 @@ levels t =
     map (map rootLabel) $
         takeWhile (not . null) $
         iterate (concatMap subForest) [t]
+
+-- | All complete paths from the root node to the ends.
+paths :: Tree a -> [[a]]
+paths (Node a []) = [[a]]
+paths (Node a as) = map (a:) $ concatMap paths as
+
+-- | All partial paths from the root node to the ends.
+steps :: Tree a -> [[a]]
+steps (Node a as) = [a]:concatMap (map (a:) . steps) as
 
 -- | Build a tree from a seed value
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a
