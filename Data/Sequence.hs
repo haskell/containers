@@ -141,6 +141,7 @@ module Data.Sequence (
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
     traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
+    filterM,        -- :: Applicative f => (a -> f Bool) -> Seq a -> f (Seq a)
     -- ** Zips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
@@ -507,6 +508,12 @@ thin12 s pr m (Two a b) = DeepTh s pr (thin m) (Two12 a b)
 thin12 s pr m (Three a b c) = DeepTh s pr (thin $ m `snocTree` node2 a b) (One12 c)
 thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two12 c d)
 
+filterM :: Applicative f => (a -> f Bool) -> Seq a -> f (Seq a)
+filterM p = foldr go (pure empty)
+  where
+    go x r = f <$> p x <*> r
+      where
+        f flg ys = if flg then x <| ys else ys
 
 instance MonadPlus Seq where
     mzero = empty
