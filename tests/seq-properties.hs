@@ -116,7 +116,7 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
     arbitrary = sized arb
       where
         arb :: (Arbitrary b, Sized b) => Int -> Gen (FingerTree b)
-        arb 0 = return Empty
+        arb 0 = return EmptyT
         arb 1 = Single <$> arbitrary
         arb n = do
             pr <- arbitrary
@@ -128,13 +128,13 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
             m <- arb n_m
             return $ deep pr m sf
 
-    shrink (Deep _ (One a) Empty (One b)) = [Single a, Single b]
+    shrink (Deep _ (One a) EmptyT (One b)) = [Single a, Single b]
     shrink (Deep _ pr m sf) =
         [deep pr' m sf | pr' <- shrink pr] ++
         [deep pr m' sf | m' <- shrink m] ++
         [deep pr m sf' | sf' <- shrink sf]
     shrink (Single x) = map Single (shrink x)
-    shrink Empty = []
+    shrink EmptyT = []
 
 instance (Arbitrary a, Sized a) => Arbitrary (Node a) where
     arbitrary = oneof [
@@ -176,7 +176,7 @@ instance Valid (Seq a) where
     valid (Seq xs) = valid xs
 
 instance (Sized a, Valid a) => Valid (FingerTree a) where
-    valid Empty = True
+    valid EmptyT = True
     valid (Single x) = valid x
     valid (Deep s pr m sf) =
         s == size pr + size m + size sf && valid pr && valid m && valid sf
