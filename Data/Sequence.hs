@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+#if __GLASGOW_HASKELL__ >= 708
+#define DEFINE_PATTERN_SYNONYMS 1
+#endif
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -9,6 +12,10 @@
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
+#endif
+#ifdef DEFINE_PATTERN_SYNONYMS
+{-# LANGUAGE PatternSynonyms #-}
+{-# LANGUAGE ViewPatterns #-}
 #endif
 
 #include "containers.h"
@@ -56,10 +63,24 @@
 -----------------------------------------------------------------------------
 
 module Data.Sequence (
-#if !defined(TESTING)
-    Seq,
+#if defined(TESTING)
+    Elem(..), FingerTree(..), Node(..), Digit(..),
+#if __GLASGOW_HASKELL__ >= 800
+    Seq (.., Empty, (:<|), (:|>)),
 #else
-    Seq(..), Elem(..), FingerTree(..), Node(..), Digit(..),
+    Seq (..),
+#endif
+
+#elif __GLASGOW_HASKELL__ >= 800
+    Seq (Empty, (:<|), (:|>)),
+#else
+    Seq,
+#if defined(DEFINE_PATTERN_SYNONYMS)
+    -- * Pattern synonyms
+    pattern Empty,  -- :: Seq a
+    pattern (:<|),  -- :: a -> Seq a -> Seq a
+    pattern (:|>),  -- :: Seq a -> a -> Seq a
+#endif
 #endif
     -- * Construction
     empty,          -- :: Seq a
@@ -219,6 +240,45 @@ infixr 5 `appendTree0`
 infixr 5 ><
 infixr 5 <|, :<
 infixl 5 |>, :>
+
+#ifdef DEFINE_PATTERN_SYNONYMS
+infixr 5 :<|
+infixl 5 :|>
+
+-- TODO: Once GHC implements some way to prevent non-exhaustive
+-- pattern match warnings for pattern synonyms, we should be
+-- sure to take advantage of that.
+
+-- Unfortunately, there's some extra noise here because
+-- pattern synonyms could not have signatures until 7.10,
+-- but 8.0 at least will warn if they're missing.
+#if __GLASGOW_HASKELL__ >= 710
+pattern Empty :: Seq a
+#endif
+pattern Empty = Seq EmptyT
+
+-- Non-trivial bidirectional pattern synonyms are only
+-- available in GHC >= 7.10. In earlier versions, these
+-- can be used to match, but not to construct.
+
+#if __GLASGOW_HASKELL__ >= 710
+pattern (:<|) :: a -> Seq a -> Seq a
+#endif
+pattern x :<| xs <- (viewl -> x :< xs)
+#if __GLASGOW_HASKELL__ >= 710
+  where
+    x :<| xs = x <| xs
+#endif
+
+#if __GLASGOW_HASKELL__ >= 710
+pattern (:|>) :: Seq a -> a -> Seq a
+#endif
+pattern xs :|> x <- (viewr -> xs :> x)
+#if __GLASGOW_HASKELL__ >= 710
+  where
+    xs :|> x = xs |> x
+#endif
+#endif
 
 class Sized a where
     size :: a -> Int
@@ -432,7 +492,7 @@ squashR (Two12 n1 n2) m = node3 n1 n2 m
 -- @Node(Node(Elem y))@. The multiplier argument serves to make the annotations
 -- match up properly.
 mapMulFT :: Int -> (a -> b) -> FingerTree a -> FingerTree b
-mapMulFT _ _ Empty = Empty
+mapMulFT _ _ EmptyT = EmptyT
 mapMulFT _mul f (Single a) = Single (f a)
 mapMulFT mul f (Deep s pr m sf) = Deep (mul * s) (fmap f pr) (mapMulFT mul (mapMulNode mul f) m) (fmap f sf)
 
@@ -449,7 +509,7 @@ rigidify :: FingerTree (Elem a) -> Rigidified (Elem a)
 -- The patterns below just fix up the top level of the tree; 'rigidify'
 -- delegates the hard work to 'thin'.
 
-rigidify Empty = RigidEmpty
+rigidify EmptyT = RigidEmpty
 
 rigidify (Single q) = RigidOne q
 
@@ -492,7 +552,7 @@ rigidifyRight s pr m (One e) = case viewRTree m of
 thin :: Sized a => FingerTree a -> Thin a
 -- Note that 'thin12' will produce a 'DeepTh' constructor immediately before
 -- recursively calling 'thin'.
-thin Empty = EmptyTh
+thin EmptyT = EmptyTh
 thin (Single a) = SingleTh a
 thin (Deep s pr m sf) =
   case pr of
@@ -589,7 +649,7 @@ seqDataType = mkDataType "Data.Sequence.Seq" [emptyConstr, consConstr]
 -- Finger trees
 
 data FingerTree a
-    = Empty
+    = EmptyT
     | Single a
     | Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
 #if TESTING
@@ -599,51 +659,51 @@ data FingerTree a
 instance Sized a => Sized (FingerTree a) where
     {-# SPECIALIZE instance Sized (FingerTree (Elem a)) #-}
     {-# SPECIALIZE instance Sized (FingerTree (Node a)) #-}
-    size Empty              = 0
+    size EmptyT             = 0
     size (Single x)         = size x
     size (Deep v _ _ _)     = v
 
 instance Foldable FingerTree where
-    foldMap _ Empty = mempty
+    foldMap _ EmptyT = mempty
     foldMap f (Single x) = f x
     foldMap f (Deep _ pr m sf) =
         foldMap f pr `mappend` (foldMap (foldMap f) m `mappend` foldMap f sf)
 
-    foldr _ z Empty = z
+    foldr _ z EmptyT = z
     foldr f z (Single x) = x `f` z
     foldr f z (Deep _ pr m sf) =
         foldr f (foldr (flip (foldr f)) (foldr f z sf) m) pr
 
-    foldl _ z Empty = z
+    foldl _ z EmptyT = z
     foldl f z (Single x) = z `f` x
     foldl f z (Deep _ pr m sf) =
         foldl f (foldl (foldl f) (foldl f z pr) m) sf
 
-    foldr1 _ Empty = error "foldr1: empty sequence"
+    foldr1 _ EmptyT = error "foldr1: empty sequence"
     foldr1 _ (Single x) = x
     foldr1 f (Deep _ pr m sf) =
         foldr f (foldr (flip (foldr f)) (foldr1 f sf) m) pr
 
-    foldl1 _ Empty = error "foldl1: empty sequence"
+    foldl1 _ EmptyT = error "foldl1: empty sequence"
     foldl1 _ (Single x) = x
     foldl1 f (Deep _ pr m sf) =
         foldl f (foldl (foldl f) (foldl1 f pr) m) sf
 
 instance Functor FingerTree where
-    fmap _ Empty = Empty
+    fmap _ EmptyT = EmptyT
     fmap f (Single x) = Single (f x)
     fmap f (Deep v pr m sf) =
         Deep v (fmap f pr) (fmap (fmap f) m) (fmap f sf)
 
 instance Traversable FingerTree where
-    traverse _ Empty = pure Empty
+    traverse _ EmptyT = pure EmptyT
     traverse f (Single x) = Single <$> f x
     traverse f (Deep v pr m sf) =
         Deep v <$> traverse f pr <*> traverse (traverse f) m <*>
             traverse f sf
 
 instance NFData a => NFData (FingerTree a) where
-    rnf (Empty) = ()
+    rnf EmptyT = ()
     rnf (Single x) = rnf x
     rnf (Deep _ pr m sf) = rnf pr `seq` rnf sf `seq` rnf m
 
@@ -740,16 +800,16 @@ instance Sized a => Sized (Digit a) where
 {-# SPECIALIZE digitToTree :: Digit (Node a) -> FingerTree (Node a) #-}
 digitToTree     :: Sized a => Digit a -> FingerTree a
 digitToTree (One a) = Single a
-digitToTree (Two a b) = deep (One a) Empty (One b)
-digitToTree (Three a b c) = deep (Two a b) Empty (One c)
-digitToTree (Four a b c d) = deep (Two a b) Empty (Two c d)
+digitToTree (Two a b) = deep (One a) EmptyT (One b)
+digitToTree (Three a b c) = deep (Two a b) EmptyT (One c)
+digitToTree (Four a b c d) = deep (Two a b) EmptyT (Two c d)
 
 -- | Given the size of a digit and the digit itself, efficiently converts
 -- it to a FingerTree.
 digitToTree' :: Int -> Digit a -> FingerTree a
-digitToTree' n (Four a b c d) = Deep n (Two a b) Empty (Two c d)
-digitToTree' n (Three a b c) = Deep n (Two a b) Empty (One c)
-digitToTree' n (Two a b) = Deep n (One a) Empty (One b)
+digitToTree' n (Four a b c d) = Deep n (Two a b) EmptyT (Two c d)
+digitToTree' n (Three a b c) = Deep n (Two a b) EmptyT (One c)
+digitToTree' n (Two a b) = Deep n (One a) EmptyT (One b)
 digitToTree' n (One a) = n `seq` Single a
 
 -- Nodes
@@ -876,7 +936,7 @@ execState m x = snd (runState m x)
 -- reducing memory usage of the resulting tree to /O(log n)/.
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n mSize m = mSize `seq` case n of
-    0 -> pure Empty
+    0 -> pure EmptyT
     1 -> fmap Single m
     2 -> deepA one emptyTree one
     3 -> deepA two emptyTree one
@@ -894,7 +954,7 @@ applicativeTree n mSize m = mSize `seq` case n of
     deepA = liftA3 (Deep (n * mSize))
     mSize' = 3 * mSize
     n3 = liftA3 (Node3 mSize') m m m
-    emptyTree = pure Empty
+    emptyTree = pure EmptyT
 
 ------------------------------------------------------------------------
 -- Construction
@@ -902,7 +962,7 @@ applicativeTree n mSize m = mSize `seq` case n of
 
 -- | /O(1)/. The empty sequence.
 empty           :: Seq a
-empty           =  Seq Empty
+empty           =  Seq EmptyT
 
 -- | /O(1)/. A singleton sequence.
 singleton       :: a -> Seq a
@@ -1000,8 +1060,8 @@ x <| Seq xs     =  Seq (Elem x `consTree` xs)
 {-# SPECIALIZE consTree :: Elem a -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE consTree :: Node a -> FingerTree (Node a) -> FingerTree (Node a) #-}
 consTree        :: Sized a => a -> FingerTree a -> FingerTree a
-consTree a Empty        = Single a
-consTree a (Single b)   = deep (One a) Empty (One b)
+consTree a EmptyT       = Single a
+consTree a (Single b)   = deep (One a) EmptyT (One b)
 consTree a (Deep s (Four b c d e) m sf) = m `seq`
     Deep (size a + s) (Two a b) (node3 c d e `consTree` m) sf
 consTree a (Deep s (Three b c d) m sf) =
@@ -1019,8 +1079,8 @@ Seq xs |> x     =  Seq (xs `snocTree` Elem x)
 {-# SPECIALIZE snocTree :: FingerTree (Elem a) -> Elem a -> FingerTree (Elem a) #-}
 {-# SPECIALIZE snocTree :: FingerTree (Node a) -> Node a -> FingerTree (Node a) #-}
 snocTree        :: Sized a => FingerTree a -> a -> FingerTree a
-snocTree Empty a        =  Single a
-snocTree (Single a) b   =  deep (One a) Empty (One b)
+snocTree EmptyT a       =  Single a
+snocTree (Single a) b   =  deep (One a) EmptyT (One b)
 snocTree (Deep s pr m (Four a b c d)) e = m `seq`
     Deep (s + size e) pr (m `snocTree` node3 a b c) (Two d e)
 snocTree (Deep s pr m (Three a b c)) d =
@@ -1037,9 +1097,9 @@ Seq xs >< Seq ys = Seq (appendTree0 xs ys)
 -- The appendTree/addDigits gunk below is machine generated
 
 appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a)
-appendTree0 Empty xs =
+appendTree0 EmptyT xs =
     xs
-appendTree0 xs Empty =
+appendTree0 xs EmptyT =
     xs
 appendTree0 (Single x) xs =
     x `consTree` xs
@@ -1085,9 +1145,9 @@ addDigits0 m1 (Four a b c d) (Four e f g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 
 appendTree1 :: FingerTree (Node a) -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree1 Empty a xs =
+appendTree1 EmptyT a xs =
     a `consTree` xs
-appendTree1 xs a Empty =
+appendTree1 xs a EmptyT =
     xs `snocTree` a
 appendTree1 (Single x) a xs =
     x `consTree` a `consTree` xs
@@ -1131,9 +1191,9 @@ addDigits1 m1 (Four a b c d) e (Four f g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
 
 appendTree2 :: FingerTree (Node a) -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree2 Empty a b xs =
+appendTree2 EmptyT a b xs =
     a `consTree` b `consTree` xs
-appendTree2 xs a b Empty =
+appendTree2 xs a b EmptyT =
     xs `snocTree` a `snocTree` b
 appendTree2 (Single x) a b xs =
     x `consTree` a `consTree` b `consTree` xs
@@ -1177,9 +1237,9 @@ addDigits2 m1 (Four a b c d) e f (Four g h i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
 
 appendTree3 :: FingerTree (Node a) -> Node a -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree3 Empty a b c xs =
+appendTree3 EmptyT a b c xs =
     a `consTree` b `consTree` c `consTree` xs
-appendTree3 xs a b c Empty =
+appendTree3 xs a b c EmptyT =
     xs `snocTree` a `snocTree` b `snocTree` c
 appendTree3 (Single x) a b c xs =
     x `consTree` a `consTree` b `consTree` c `consTree` xs
@@ -1223,9 +1283,9 @@ addDigits3 m1 (Four a b c d) e f g (Four h i j k) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node2 j k) m2
 
 appendTree4 :: FingerTree (Node a) -> Node a -> Node a -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree4 Empty a b c d xs =
+appendTree4 EmptyT a b c d xs =
     a `consTree` b `consTree` c `consTree` d `consTree` xs
-appendTree4 xs a b c d Empty =
+appendTree4 xs a b c d EmptyT =
     xs `snocTree` a `snocTree` b `snocTree` c `snocTree` d
 appendTree4 (Single x) a b c d xs =
     x `consTree` a `consTree` b `consTree` c `consTree` d `consTree` xs
@@ -1296,8 +1356,8 @@ iterateN n f x
 
 -- | /O(1)/. Is this the empty sequence?
 null            :: Seq a -> Bool
-null (Seq Empty) = True
-null _          =  False
+null (Seq EmptyT) = True
+null _            =  False
 
 -- | /O(1)/. The number of elements in the sequence.
 length          :: Seq a -> Int
@@ -1347,8 +1407,8 @@ viewl (Seq xs)  =  case viewLTree xs of
 {-# SPECIALIZE viewLTree :: FingerTree (Elem a) -> Maybe2 (Elem a) (FingerTree (Elem a)) #-}
 {-# SPECIALIZE viewLTree :: FingerTree (Node a) -> Maybe2 (Node a) (FingerTree (Node a)) #-}
 viewLTree       :: Sized a => FingerTree a -> Maybe2 a (FingerTree a)
-viewLTree Empty                 = Nothing2
-viewLTree (Single a)            = Just2 a Empty
+viewLTree EmptyT                = Nothing2
+viewLTree (Single a)            = Just2 a EmptyT
 viewLTree (Deep s (One a) m sf) = Just2 a (pullL (s - size a) m sf)
 viewLTree (Deep s (Two a b) m sf) =
     Just2 a (Deep (s - size a) (One b) m sf)
@@ -1409,8 +1469,8 @@ viewr (Seq xs)  =  case viewRTree xs of
 {-# SPECIALIZE viewRTree :: FingerTree (Elem a) -> Maybe2 (FingerTree (Elem a)) (Elem a) #-}
 {-# SPECIALIZE viewRTree :: FingerTree (Node a) -> Maybe2 (FingerTree (Node a)) (Node a) #-}
 viewRTree       :: Sized a => FingerTree a -> Maybe2 (FingerTree a) a
-viewRTree Empty                 = Nothing2
-viewRTree (Single z)            = Just2 Empty z
+viewRTree EmptyT                = Nothing2
+viewRTree (Single z)            = Just2 EmptyT z
 viewRTree (Deep s pr m (One z)) = Just2 (pullR (s - size z) pr m) z
 viewRTree (Deep s pr m (Two y z)) =
     Just2 (Deep (s - size z) pr m (One y)) z
@@ -1477,7 +1537,7 @@ data Place a = Place {-# UNPACK #-} !Int a
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Elem a) -> Place (Elem a) #-}
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Node a) -> Place (Node a) #-}
 lookupTree :: Sized a => Int -> FingerTree a -> Place a
-lookupTree _ Empty = error "lookupTree of empty tree"
+lookupTree _ EmptyT = error "lookupTree of empty tree"
 lookupTree i (Single x) = Place i x
 lookupTree i (Deep totalSize pr m sf)
   | i < spr     =  lookupDigit i pr
@@ -1546,7 +1606,7 @@ adjust f i (Seq xs)
 {-# SPECIALIZE adjustTree :: (Int -> Node a -> Node a) -> Int -> FingerTree (Node a) -> FingerTree (Node a) #-}
 adjustTree      :: Sized a => (Int -> a -> a) ->
             Int -> FingerTree a -> FingerTree a
-adjustTree _ _ Empty = error "adjustTree of empty tree"
+adjustTree _ _ EmptyT = error "adjustTree of empty tree"
 adjustTree f i (Single x) = Single (f i x)
 adjustTree f i (Deep s pr m sf)
   | i < spr     = Deep s (adjustDigit f i pr) m sf
@@ -1607,7 +1667,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
   mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
-  mapWithIndexTree _ s Empty = s `seq` Empty
+  mapWithIndexTree _ s EmptyT = s `seq` EmptyT
   mapWithIndexTree f s (Single xs) = Single $ f s xs
   mapWithIndexTree f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
           Deep n
@@ -1670,7 +1730,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 -- GHC does not specialize until *all* instances are determined.
 -- If we tried to used the Sized trick, it would likely leak to runtime.
   traverseWithIndexTreeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
-  traverseWithIndexTreeE _ s Empty = s `seq` pure Empty
+  traverseWithIndexTreeE _ s EmptyT = s `seq` pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeE f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
           Deep n <$>
@@ -1682,7 +1742,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       sPsprm = s + n - size sf
 
   traverseWithIndexTreeN :: Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
-  traverseWithIndexTreeN _ s Empty = s `seq` pure Empty
+  traverseWithIndexTreeN _ s EmptyT = s `seq` pure EmptyT
   traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeN f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
           Deep n <$>
@@ -1788,11 +1848,11 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
     create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
     create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
        1 -> Single $ b i
-       2 -> Deep (2*s) (One (b i)) Empty (One (b (i+s)))
-       3 -> Deep (3*s) (createTwo i) Empty (One (b (i+2*s)))
-       4 -> Deep (4*s) (createTwo i) Empty (createTwo (i+2*s))
-       5 -> Deep (5*s) (createThree i) Empty (createTwo (i+3*s))
-       6 -> Deep (6*s) (createThree i) Empty (createThree (i+3*s))
+       2 -> Deep (2*s) (One (b i)) EmptyT (One (b (i+s)))
+       3 -> Deep (3*s) (createTwo i) EmptyT (One (b (i+2*s)))
+       4 -> Deep (4*s) (createTwo i) EmptyT (createTwo (i+2*s))
+       5 -> Deep (5*s) (createThree i) EmptyT (createTwo (i+3*s))
+       6 -> Deep (6*s) (createThree i) EmptyT (createThree (i+3*s))
        _ -> case trees `quotRem` 3 of
            (trees', 1) -> Deep (trees*s) (createTwo i)
                               (create mb (3*s) (i+2*s) (trees'-1))
@@ -1863,11 +1923,11 @@ splitAt' i (Seq xs)      = case split i xs of
 
 split :: Int -> FingerTree (Elem a) ->
     (FingerTree (Elem a), FingerTree (Elem a))
-split i Empty   = i `seq` (Empty, Empty)
+split i EmptyT  = i `seq` (EmptyT, EmptyT)
 split i xs
   | size xs > i = case splitTree i xs of
                     Split l x r -> (l, consTree x r)
-  | otherwise   = (xs, Empty)
+  | otherwise   = (xs, EmptyT)
 
 data Split t a = Split t a t
 #if TESTING
@@ -1877,16 +1937,16 @@ data Split t a = Split t a t
 {-# SPECIALIZE splitTree :: Int -> FingerTree (Elem a) -> Split (FingerTree (Elem a)) (Elem a) #-}
 {-# SPECIALIZE splitTree :: Int -> FingerTree (Node a) -> Split (FingerTree (Node a)) (Node a) #-}
 splitTree :: Sized a => Int -> FingerTree a -> Split (FingerTree a) a
-splitTree _ Empty = error "splitTree of empty tree"
-splitTree i (Single x) = i `seq` Split Empty x Empty
+splitTree _ EmptyT = error "splitTree of empty tree"
+splitTree i (Single x) = i `seq` Split EmptyT x EmptyT
 splitTree i (Deep _ pr m sf)
   | i < spr     = case splitDigit i pr of
-            Split l x r -> Split (maybe Empty digitToTree l) x (deepL r m sf)
+            Split l x r -> Split (maybe EmptyT digitToTree l) x (deepL r m sf)
   | i < spm     = case splitTree im m of
             Split ml xs mr -> case splitNode (im - size ml) xs of
                 Split l x r -> Split (deepR pr ml l) x (deepL r mr sf)
   | otherwise   = case splitDigit (i - spm) sf of
-            Split l x r -> Split (deepR pr m l) x (maybe Empty digitToTree r)
+            Split l x r -> Split (deepR pr m l) x (maybe EmptyT digitToTree r)
   where
     spr     = size pr
     spm     = spr + size m
@@ -2017,7 +2077,7 @@ initsNode (Node3 s a b c) = Node3 s (One a) (Two a b) (Three a b c)
 -- | Given a function to apply to tails of a tree, applies that function
 -- to every tail of the specified tree.
 tailsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
-tailsTree _ Empty = Empty
+tailsTree _ EmptyT = EmptyT
 tailsTree f (Single x) = Single (f (Single x))
 tailsTree f (Deep n pr m sf) =
     Deep n (fmap (\ pr' -> f (deep pr' m sf)) (tailsDigit pr))
@@ -2032,7 +2092,7 @@ tailsTree f (Deep n pr m sf) =
 -- | Given a function to apply to inits of a tree, applies that function
 -- to every init of the specified tree.
 initsTree :: Sized a => (FingerTree a -> b) -> FingerTree a -> FingerTree b
-initsTree _ Empty = Empty
+initsTree _ EmptyT = EmptyT
 initsTree f (Single x) = Single (f (Single x))
 initsTree f (Deep n pr m sf) =
     Deep n (fmap (f . digitToTree) (initsDigit pr))
@@ -2205,10 +2265,10 @@ fromList = Seq . mkTree 1 . map_elem
     {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
     mkTree :: (Sized a) => Int -> [a] -> FingerTree a
     STRICT_1_OF_2(mkTree)
-    mkTree _ [] = Empty
+    mkTree _ [] = EmptyT
     mkTree _ [x1] = Single x1
-    mkTree s [x1, x2] = Deep (2*s) (One x1) Empty (One x2)
-    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) Empty (Two x2 x3)
+    mkTree s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
+    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
     mkTree s (x1:x2:x3:x4:xs) = case getNodes (3*s) x4 xs of
       (ns, sf) -> case mkTree (3*s) ns of
         m -> m `seq` Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
@@ -2251,7 +2311,7 @@ reverse :: Seq a -> Seq a
 reverse (Seq xs) = Seq (reverseTree id xs)
 
 reverseTree :: (a -> b) -> FingerTree a -> FingerTree b
-reverseTree _ Empty = Empty
+reverseTree _ EmptyT = EmptyT
 reverseTree f (Single x) = Single (f x)
 reverseTree f (Deep s pr m sf) =
     Deep s (reverseDigit f sf)
@@ -2350,7 +2410,7 @@ splitMap splt' = go
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
   splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
-  splitMapTree _    _ _ Empty = Empty
+  splitMapTree _    _ _ EmptyT = EmptyT
   splitMapTree _    f s (Single xs) = Single $ f s xs
   splitMapTree splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTree splt (splitMapNode splt f) ms m) (splitMapDigit splt f sfs sf)
     where
@@ -2389,7 +2449,7 @@ splitMap splt' = go
 
 getSingleton :: Seq a -> a
 getSingleton (Seq (Single (Elem a))) = a
-getSingleton (Seq Empty) = error "getSingleton: Empty"
+getSingleton (Seq EmptyT) = error "getSingleton: EmptyT"
 getSingleton _ = error "getSingleton: Not a singleton."
 
 ------------------------------------------------------------------------
@@ -2590,7 +2650,7 @@ unrollPQ cmp = unrollPQ'
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'FingerTree' to a 'PQueue'.
 toPQ :: (e -> e -> Ordering) -> (a -> PQueue e) -> FingerTree a -> Maybe (PQueue e)
-toPQ _ _ Empty = Nothing
+toPQ _ _ EmptyT = Nothing
 toPQ _ f (Single x) = Just (f x)
 toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) (toPQ cmp fNode m))
   where
