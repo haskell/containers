@@ -6,8 +6,10 @@
 
   * Add `IsString` instance to `Data.Sequence`.
 
-  * Define `Semigroup` instances for ``Data.Map`, `Data.Set`, `Data.IntMap`,
+  * Define `Semigroup` instances for `Data.Map`, `Data.Set`, `Data.IntMap`,
     `Data.IntSet` and `Data.Sequence`.
+
+  * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Seq`.
 
 ## 0.5.6.2  *Dec 2014*
 
