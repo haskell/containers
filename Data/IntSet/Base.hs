@@ -7,7 +7,6 @@
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE EmptyDataDecls #-}
 #endif
 
 #include "containers.h"
@@ -193,7 +192,6 @@ import Text.Read
 import GHC.Exts (Int(..), build)
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-import GHC.Generics hiding (Prefix, prec, (:*:))
 #endif
 import GHC.Prim (indexInt8OffAddr#)
 #endif
@@ -286,31 +284,6 @@ fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
 intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Base.IntSet" [fromListConstr]
 
-#endif
-
-#if __GLASGOW_HASKELL__ >= 708
-
-{--------------------------------------------------------------------
-  A Generic instance
---------------------------------------------------------------------}
-
-type Rep0IntSet = D1 D1IntSet (C1 C1IntSet (S1 NoSelector (Rec0 [Key])))
-
-instance Generic IntSet where
-    type Rep IntSet = Rep0IntSet
-    from s = M1 (M1 (M1 (K1 $ toList s)))
-    to (M1 (M1 (M1 (K1 t)))) = fromList t
-
-data D1IntSet
-data C1IntSet
-
-instance Datatype D1IntSet where
-    datatypeName _ = "IntSet"
-    moduleName   _ = "Data.IntSet.Base"
-
-instance Constructor C1IntSet where
-    conName     _ = "IntSet"
-    conIsRecord _ = False
 #endif
 
 {--------------------------------------------------------------------
