@@ -11,6 +11,8 @@
 
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Seq`.
 
+  * Derive `Generic` and `Generic1` for `Data.Tree.Tree`.
+
 ## 0.5.6.2  *Dec 2014*
 
   * Bundled with GHC 7.10.1.
