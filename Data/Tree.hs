@@ -2,6 +2,9 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
+#if __GLASGOW_HASKELL__ >= 702
+{-# LANGUAGE DeriveGeneric #-}
+#endif
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
@@ -52,6 +55,11 @@ import Control.DeepSeq (NFData(rnf))
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
 #endif
+#if __GLASGOW_HASKELL__ >= 706
+import GHC.Generics (Generic, Generic1)
+#elif __GLASGOW_HASKELL__ >= 702
+import GHC.Generics (Generic)
+#endif
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Coerce
@@ -63,7 +71,13 @@ data Tree a = Node {
         subForest :: Forest a   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
+#if __GLASGOW_HASKELL__ >= 706
+  deriving (Eq, Read, Show, Data, Generic, Generic1)
+#elif __GLASGOW_HASKELL__ >= 702
+  deriving (Eq, Read, Show, Data, Generic)
+#else
   deriving (Eq, Read, Show, Data)
+#endif
 #else
   deriving (Eq, Read, Show)
 #endif
