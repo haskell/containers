@@ -98,6 +98,7 @@ main = defaultMain
        , testProperty "zipWith4" prop_zipWith4
        , testProperty "<*>" prop_ap
        , testProperty "*>" prop_then
+       , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
        ]
 
@@ -608,6 +609,10 @@ prop_ap xs ys =
 prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =
     toList' (xs *> ys) ~= (toList xs *> toList ys)
+
+prop_intersperse :: A -> Seq A -> Bool
+prop_intersperse x xs =
+    toList' (intersperse x xs) ~= Data.List.intersperse x (toList xs)
 
 -- Monad operations
 
