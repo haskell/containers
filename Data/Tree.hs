@@ -41,16 +41,14 @@ module Data.Tree(
 import Data.Foldable (toList)
 #else
 import Control.Applicative (Applicative(..), (<$>))
-import Data.Foldable (Foldable(foldMap), toList)
+import Data.Foldable (Foldable(foldMap))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 #endif
 
-import Control.Monad (liftM)
-import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
-            ViewL(..), ViewR(..), viewl, viewr)
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+import Control.Monad (mapAndUnzipM)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
@@ -182,32 +180,34 @@ unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 -- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
 -- by Chris Okasaki, /ICFP'00/.
 unfoldTreeM_BF :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
-unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
-  where
-    getElement xs = case viewl xs of
-        x :< _ -> x
-        EmptyL -> error "unfoldTreeM_BF"
+unfoldTreeM_BF f b = do
+  (a, bs) <- f b
+  return . Node a =<< unfoldForestM_BF f bs
 
 -- | Monadic forest builder, in breadth-first order,
 -- using an algorithm adapted from
 -- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
 -- by Chris Okasaki, /ICFP'00/.
 unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
-unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
+unfoldForestM_BF _ [] = return []
+unfoldForestM_BF f bs = do
+  (as, bss') <- mapAndUnzipM f bs
+  let (lens, things) = concatMapAndCount id bss'
+  return . rebuild (zip as lens) =<< unfoldForestM_BF f things
 
--- takes a sequence (queue) of seeds
--- produces a sequence (reversed queue) of trees of the same length
-unfoldForestQ :: Monad m => (b -> m (a, [b])) -> Seq b -> m (Seq (Tree a))
-unfoldForestQ f aQ = case viewl aQ of
-    EmptyL -> return empty
-    a :< aQ' -> do
-        (b, as) <- f a
-        tQ <- unfoldForestQ f (Prelude.foldl (|>) aQ' as)
-        let (tQ', ts) = splitOnto [] as tQ
-        return (Node b ts <| tQ')
+rebuild :: [(a,Int)] -> [Tree a] -> [Tree a]
+rebuild = foldr go id
   where
-    splitOnto :: [a'] -> [b'] -> Seq a' -> (Seq a', [a'])
-    splitOnto as [] q = (q, as)
-    splitOnto as (_:bs) q = case viewr q of
-        q' :> a -> splitOnto (a:as) bs q'
-        EmptyR -> error "unfoldForestQ"
+    go (a,blen) r ts = case splitAt blen ts of
+                        (us,ts') -> Node a us : r ts'
+
+concatMapAndCount :: (a -> [b]) -> [a] -> ([Int], [b])
+concatMapAndCount f = foldr (\x (ls, xs) ->
+  case appendAndCount (f x) xs of
+     (len, xs') -> (len : ls, xs')) ([],[])
+
+appendAndCount :: [a] -> [a] -> (Int,[a])
+appendAndCount xs ys = foldr (\x r n ->
+          let (foonum, foolist) = r $! n+1 in
+            (foonum, x : foolist))
+                       (\n -> n `seq` (n,ys)) xs 0

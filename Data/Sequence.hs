@@ -2617,8 +2617,7 @@ instance Functor PQL where
 instance Show e => Show (PQueue e) where
     show = unlines . draw . fmap show
 
--- borrowed wholesale from Data.Tree, as Data.Tree actually depends
--- on Data.Sequence
+-- borrowed wholesale from Data.Tree
 draw :: PQueue String -> [String]
 draw (PQueue x ts0) = x : drawSubTrees ts0
   where
