@@ -2,11 +2,13 @@
 
 ## 0.5.8.1
 
-  * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Seq`.
+  * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
-  * Derive `Generic` and `Generic1` for `Data.Tree.Tree`.
+  * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.
 
-  * Add `intersperse` for sequences.
+  * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
+
+  * Derive `Generic` and `Generic1` for `Data.Tree`.
 
 ## 0.5.7.1  *Dec 2015*
 
