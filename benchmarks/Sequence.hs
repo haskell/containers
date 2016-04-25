@@ -4,10 +4,12 @@ module Main where
 import Control.Applicative
 import Control.DeepSeq
 import Control.Exception (evaluate)
+import Control.Monad.Trans.State.Strict
 import Criterion.Main
 import Data.List (foldl')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
+import Data.Traversable (traverse)
 import System.Random
 
 main = do
@@ -33,6 +35,21 @@ main = do
          [ bench "10" $ nf (shuffle r10) s10
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
+         ]
+      , bgroup "traverseWithIndex/State"
+         [ bench "10" $ nf multiplyDown s10
+         , bench "100" $ nf multiplyDown s100
+         , bench "1000" $ nf multiplyDown s1000
+         ]
+      , bgroup "traverse/State"
+         [ bench "10" $ nf multiplyUp s10
+         , bench "100" $ nf multiplyUp s100
+         , bench "1000" $ nf multiplyUp s1000
+         ]
+      , bgroup "replicateA/State"
+         [ bench "10" $ nf stateReplicate 10
+         , bench "100" $ nf stateReplicate 100
+         , bench "1000" $ nf stateReplicate 1000
          ]
       , bgroup "zip"
          [ bench "ix10000/5000" $ nf (\(xs,ys) -> S.zip xs ys `S.index` 5000) (s10000, u10000)
@@ -76,3 +93,23 @@ shuffle :: [Int] -> S.Seq Int -> Int
 shuffle ps s = case S.viewl (S.drop (S.length s `div` 2) (foldl' cut s ps)) of
     x S.:< _ -> x
   where cut xs p = let (front, back) = S.splitAt p xs in back S.>< front
+
+stateReplicate :: Int -> S.Seq Char
+stateReplicate n = flip evalState 0 . S.replicateA n $ do
+  old <- get
+  if old > (10 :: Int) then put 0 else put (old + 1)
+  return $ toEnum old
+
+multiplyUp :: S.Seq Int -> S.Seq Int
+multiplyUp = flip evalState 0 . traverse go where
+  go x = do
+    s <- get
+    put (s + 1)
+    return (s * x)
+
+multiplyDown :: S.Seq Int -> S.Seq Int
+multiplyDown = flip evalState 0 . S.traverseWithIndex go where
+  go i x = do
+    s <- get
+    put (s - 1)
+    return (s * i * x)
