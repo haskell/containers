@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__ >= 708
 #define DEFINE_PATTERN_SYNONYMS 1
 #endif
@@ -707,7 +708,7 @@ instance Traversable FingerTree where
     traverse _ EmptyT = pure EmptyT
     traverse f (Single x) = Single <$> f x
     traverse f (Deep v pr m sf) =
-        Deep v <$> traverse f pr <*> traverse (traverse f) m <*>
+        deep' v <$> traverse f pr <*> traverse (traverse f) m <*>
             traverse f sf
 
 instance NFData a => NFData (FingerTree a) where
@@ -818,7 +819,7 @@ digitToTree' :: Int -> Digit a -> FingerTree a
 digitToTree' n (Four a b c d) = Deep n (Two a b) EmptyT (Two c d)
 digitToTree' n (Three a b c) = Deep n (Two a b) EmptyT (One c)
 digitToTree' n (Two a b) = Deep n (One a) EmptyT (One b)
-digitToTree' n (One a) = n `seq` Single a
+digitToTree' !_n (One a) = Single a
 
 -- Nodes
 
@@ -828,6 +829,24 @@ data Node a
 #if TESTING
     deriving Show
 #endif
+
+-- Sometimes, we need to apply a Node2, Node3, or Deep constructor
+-- to a size and pass the result to a function. If we calculate,
+-- say, `Node2 n <$> x <*> y`, then according to -ddump-simpl,
+-- GHC boxes up `n`, passes it to the strict constructor for `Node2`,
+-- and passes the result to `fmap`. Using `node2'` instead prevents
+-- this, forming a closure with the unboxed size.
+{-# INLINE node2' #-}
+node2' :: Int -> a -> a -> Node a
+node2' !s = \a b -> Node2 s a b
+
+{-# INLINE node3' #-}
+node3' :: Int -> a -> a -> a -> Node a
+node3' !s = \a b c -> Node3 s a b c
+
+{-# INLINE deep' #-}
+deep' :: Int -> Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
+deep' !s = \pr m sf -> Deep s pr m sf
 
 instance Foldable Node where
     foldMap f (Node2 _ a b) = f a `mappend` f b
@@ -846,8 +865,8 @@ instance Functor Node where
 
 instance Traversable Node where
     {-# INLINE traverse #-}
-    traverse f (Node2 v a b) = Node2 v <$> f a <*> f b
-    traverse f (Node3 v a b c) = Node3 v <$> f a <*> f b <*> f c
+    traverse f (Node2 v a b) = node2' v <$> f a <*> f b
+    traverse f (Node3 v a b c) = node3' v <$> f a <*> f b <*> f c
 
 instance NFData a => NFData (Node a) where
     rnf (Node2 _ a b) = rnf a `seq` rnf b
@@ -943,7 +962,7 @@ execState m x = snd (runState m x)
 -- Special note: the Identity specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
-applicativeTree n mSize m = mSize `seq` case n of
+applicativeTree n !mSize m = case n of
     0 -> pure EmptyT
     1 -> fmap Single m
     2 -> deepA one emptyTree one
@@ -955,13 +974,13 @@ applicativeTree n mSize m = mSize `seq` case n of
            (q,0) -> deepA three (applicativeTree (q - 2) mSize' n3) three
            (q,1) -> deepA two (applicativeTree (q - 1) mSize' n3) two
            (q,_) -> deepA three (applicativeTree (q - 1) mSize' n3) two
+      where !mSize' = 3 * mSize
+            n3 = liftA3 (node3' mSize') m m m
   where
     one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
-    deepA = liftA3 (Deep (n * mSize))
-    mSize' = 3 * mSize
-    n3 = liftA3 (Node3 mSize') m m m
+    deepA = liftA3 (deep' (n * mSize))
     emptyTree = pure EmptyT
 
 ------------------------------------------------------------------------
@@ -1029,11 +1048,9 @@ cycleNMiddle
      -> Rigid c
      -> FingerTree (Node c)
 
-STRICT_1_OF_2(cycleNMiddle)
-
 -- Not at the bottom yet
 
-cycleNMiddle n
+cycleNMiddle !n
            (Rigid s pr (DeepTh sm prm mm sfm) sf)
     = Deep (sm + s * (n + 1)) -- note: sm = s - size pr - size sf
            (digit12ToDigit prm)
@@ -1070,6 +1087,10 @@ x <| Seq xs     =  Seq (Elem x `consTree` xs)
 consTree        :: Sized a => a -> FingerTree a -> FingerTree a
 consTree a EmptyT       = Single a
 consTree a (Single b)   = deep (One a) EmptyT (One b)
+-- As described in the paper, we force the middle of a tree
+-- *before* consing onto it; this preserves the amortized
+-- bounds but prevents repeated consing from building up
+-- gigantic suspensions.
 consTree a (Deep s (Four b c d e) m sf) = m `seq`
     Deep (size a + s) (Two a b) (node3 c d e `consTree` m) sf
 consTree a (Deep s (Three b c d) m sf) =
@@ -1089,6 +1110,7 @@ Seq xs |> x     =  Seq (xs `snocTree` Elem x)
 snocTree        :: Sized a => FingerTree a -> a -> FingerTree a
 snocTree EmptyT a       =  Single a
 snocTree (Single a) b   =  deep (One a) EmptyT (One b)
+-- See note on `seq` in `consTree`.
 snocTree (Deep s pr m (Four a b c d)) e = m `seq`
     Deep (s + size e) pr (m `snocTree` node3 a b c) (Two d e)
 snocTree (Deep s pr m (Three a b c)) d =
@@ -1675,47 +1697,47 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
   mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
-  mapWithIndexTree _ s EmptyT = s `seq` EmptyT
+  mapWithIndexTree _ !_s EmptyT = EmptyT
   mapWithIndexTree f s (Single xs) = Single $ f s xs
-  mapWithIndexTree f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
+  mapWithIndexTree f s (Deep n pr m sf) =
           Deep n
                (mapWithIndexDigit f s pr)
                (mapWithIndexTree (mapWithIndexNode f) sPspr m)
                (mapWithIndexDigit f sPsprm sf)
     where
-      sPspr = s + size pr
-      sPsprm = s + n - size sf
+      !sPspr = s + size pr
+      !sPsprm = s + n - size sf
 
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
   mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
-  mapWithIndexDigit f s (One a) = One (f s a)
-  mapWithIndexDigit f s (Two a b) = sPsa `seq` Two (f s a) (f sPsa b)
+  mapWithIndexDigit f !s (One a) = One (f s a)
+  mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
     where
-      sPsa = s + size a
-  mapWithIndexDigit f s (Three a b c) = sPsa `seq` sPsab `seq`
+      !sPsa = s + size a
+  mapWithIndexDigit f s (Three a b c) =
                                       Three (f s a) (f sPsa b) (f sPsab c)
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-  mapWithIndexDigit f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+  mapWithIndexDigit f s (Four a b c d) =
                           Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-      sPsabc = sPsab + size c
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+      !sPsabc = sPsab + size c
 
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
   mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
-  mapWithIndexNode f s (Node2 ns a b) = sPsa `seq` Node2 ns (f s a) (f sPsa b)
+  mapWithIndexNode f s (Node2 ns a b) = Node2 ns (f s a) (f sPsa b)
     where
-      sPsa = s + size a
-  mapWithIndexNode f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
+      !sPsa = s + size a
+  mapWithIndexNode f s (Node3 ns a b c) =
                                      Node3 ns (f s a) (f sPsa b) (f sPsab c)
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] mapWithIndex #-}
@@ -1738,82 +1760,82 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 -- GHC does not specialize until *all* instances are determined.
 -- If we tried to used the Sized trick, it would likely leak to runtime.
   traverseWithIndexTreeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
-  traverseWithIndexTreeE _ s EmptyT = s `seq` pure EmptyT
+  traverseWithIndexTreeE _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
-  traverseWithIndexTreeE f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
-          Deep n <$>
+  traverseWithIndexTreeE f s (Deep n pr m sf) =
+          deep' n <$>
                traverseWithIndexDigitE f s pr <*>
                traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m <*>
                traverseWithIndexDigitE f sPsprm sf
     where
-      sPspr = s + size pr
-      sPsprm = s + n - size sf
+      !sPspr = s + size pr
+      !sPsprm = s + n - size sf
 
   traverseWithIndexTreeN :: Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
-  traverseWithIndexTreeN _ s EmptyT = s `seq` pure EmptyT
+  traverseWithIndexTreeN _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
-  traverseWithIndexTreeN f s (Deep n pr m sf) = sPspr `seq` sPsprm `seq`
-          Deep n <$>
+  traverseWithIndexTreeN f s (Deep n pr m sf) =
+          deep' n <$>
                traverseWithIndexDigitN f s pr <*>
                traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m <*>
                traverseWithIndexDigitN f sPsprm sf
     where
-      sPspr = s + size pr
-      sPsprm = s + n - size sf
+      !sPspr = s + size pr
+      !sPsprm = s + n - size sf
 
   traverseWithIndexDigitE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
-  traverseWithIndexDigitE f s (One a) = One <$> f s a
-  traverseWithIndexDigitE f s (Two a b) = sPsa `seq` Two <$> f s a <*> f sPsa b
+  traverseWithIndexDigitE f !s (One a) = One <$> f s a
+  traverseWithIndexDigitE f s (Two a b) = Two <$> f s a <*> f sPsa b
     where
-      sPsa = s + size a
-  traverseWithIndexDigitE f s (Three a b c) = sPsa `seq` sPsab `seq`
+      !sPsa = s + size a
+  traverseWithIndexDigitE f s (Three a b c) =
                                       Three <$> f s a <*> f sPsa b <*> f sPsab c
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-  traverseWithIndexDigitE f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+  traverseWithIndexDigitE f s (Four a b c d) =
                           Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-      sPsabc = sPsab + size c
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+      !sPsabc = sPsab + size c
 
   traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
-  traverseWithIndexDigitN f s (One a) = One <$> f s a
-  traverseWithIndexDigitN f s (Two a b) = sPsa `seq` Two <$> f s a <*> f sPsa b
+  traverseWithIndexDigitN f !s (One a) = One <$> f s a
+  traverseWithIndexDigitN f s (Two a b) = Two <$> f s a <*> f sPsa b
     where
-      sPsa = s + size a
-  traverseWithIndexDigitN f s (Three a b c) = sPsa `seq` sPsab `seq`
+      !sPsa = s + size a
+  traverseWithIndexDigitN f s (Three a b c) =
                                       Three <$> f s a <*> f sPsa b <*> f sPsab c
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-  traverseWithIndexDigitN f s (Four a b c d) = sPsa `seq` sPsab `seq` sPsabc `seq`
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+  traverseWithIndexDigitN f s (Four a b c d) =
                           Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
-      sPsabc = sPsab + size c
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+      !sPsabc = sPsab + size c
 
   traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
-  traverseWithIndexNodeE f s (Node2 ns a b) = sPsa `seq` Node2 ns <$> f s a <*> f sPsa b
+  traverseWithIndexNodeE f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
     where
-      sPsa = s + size a
-  traverseWithIndexNodeE f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
-                                     Node3 ns <$> f s a <*> f sPsa b <*> f sPsab c
+      !sPsa = s + size a
+  traverseWithIndexNodeE f s (Node3 ns a b c) =
+                                     node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
 
   traverseWithIndexNodeN :: Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
-  traverseWithIndexNodeN f s (Node2 ns a b) = sPsa `seq` Node2 ns <$> f s a <*> f sPsa b
+  traverseWithIndexNodeN f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
     where
-      sPsa = s + size a
-  traverseWithIndexNodeN f s (Node3 ns a b c) = sPsa `seq` sPsab `seq`
-                                     Node3 ns <$> f s a <*> f sPsa b <*> f sPsab c
+      !sPsa = s + size a
+  traverseWithIndexNodeN f s (Node3 ns a b c) =
+                                     node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
     where
-      sPsa = s + size a
-      sPsab = sPsa + size b
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
 
 {-# NOINLINE [1] traverseWithIndex #-}
 #ifdef __GLASGOW_HASKELL__
@@ -1854,7 +1876,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
                    | otherwise = Seq $ create (lift_elem f) 1 0 len
   where
     create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
-    create b{-tree_builder-} s{-tree_size-} i{-start_index-} trees = i `seq` s `seq` case trees of
+    create b{-tree_builder-} !s{-tree_size-} !i{-start_index-} trees = case trees of
        1 -> Single $ b i
        2 -> Deep (2*s) (One (b i)) EmptyT (One (b (i+s)))
        3 -> Deep (3*s) (createTwo i) EmptyT (One (b (i+2*s)))
@@ -1931,7 +1953,7 @@ splitAt' i (Seq xs)      = case split i xs of
 
 split :: Int -> FingerTree (Elem a) ->
     (FingerTree (Elem a), FingerTree (Elem a))
-split i EmptyT  = i `seq` (EmptyT, EmptyT)
+split !_i EmptyT  = (EmptyT, EmptyT)
 split i xs
   | size xs > i = case splitTree i xs of
                     Split l x r -> (l, consTree x r)
@@ -1946,7 +1968,7 @@ data Split t a = Split t a t
 {-# SPECIALIZE splitTree :: Int -> FingerTree (Node a) -> Split (FingerTree (Node a)) (Node a) #-}
 splitTree :: Sized a => Int -> FingerTree a -> Split (FingerTree a) a
 splitTree _ EmptyT = error "splitTree of empty tree"
-splitTree i (Single x) = i `seq` Split EmptyT x EmptyT
+splitTree !_i (Single x) = Split EmptyT x EmptyT
 splitTree i (Deep _ pr m sf)
   | i < spr     = case splitDigit i pr of
             Split l x r -> Split (maybe EmptyT digitToTree l) x (deepL r m sf)
@@ -1979,7 +2001,7 @@ splitNode i (Node3 _ a b c)
 {-# SPECIALIZE splitDigit :: Int -> Digit (Elem a) -> Split (Maybe (Digit (Elem a))) (Elem a) #-}
 {-# SPECIALIZE splitDigit :: Int -> Digit (Node a) -> Split (Maybe (Digit (Node a))) (Node a) #-}
 splitDigit :: Sized a => Int -> Digit a -> Split (Maybe (Digit a)) a
-splitDigit i (One a) = i `seq` Split Nothing a Nothing
+splitDigit !_i (One a) = Split Nothing a Nothing
 splitDigit i (Two a b)
   | i < sa      = Split Nothing a (Just (One b))
   | otherwise   = Split (Just (One a)) b Nothing
@@ -2114,13 +2136,13 @@ initsTree f (Deep n pr m sf) =
 -- | 'foldlWithIndex' is a version of 'foldl' that also provides access
 -- to the index of each element.
 foldlWithIndex :: (b -> Int -> a -> b) -> b -> Seq a -> b
-foldlWithIndex f z xs = foldl (\ g x i -> i `seq` f (g (i - 1)) i x) (const z) xs (length xs - 1)
+foldlWithIndex f z xs = foldl (\ g x !i -> f (g (i - 1)) i x) (const z) xs (length xs - 1)
 
 {-# INLINE foldrWithIndex #-}
 -- | 'foldrWithIndex' is a version of 'foldr' that also provides access
 -- to the index of each element.
 foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
-foldrWithIndex f z xs = foldr (\ x g i -> i `seq` f i x (g (i+1))) (const z) xs 0
+foldrWithIndex f z xs = foldr (\ x g !i -> f i x (g (i+1))) (const z) xs 0
 
 {-# INLINE listToMaybe' #-}
 -- 'listToMaybe\'' is a good consumer version of 'listToMaybe'.
@@ -2272,18 +2294,16 @@ fromList = Seq . mkTree 1 . map_elem
     {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
     {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
     mkTree :: (Sized a) => Int -> [a] -> FingerTree a
-    STRICT_1_OF_2(mkTree)
-    mkTree _ [] = EmptyT
+    mkTree !_ [] = EmptyT
     mkTree _ [x1] = Single x1
     mkTree s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
     mkTree s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
     mkTree s (x1:x2:x3:x4:xs) = case getNodes (3*s) x4 xs of
       (ns, sf) -> case mkTree (3*s) ns of
-        m -> m `seq` Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
+        !m -> Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
 
     getNodes :: Int -> a -> [a] -> ([Node a], Digit a)
-    STRICT_1_OF_3(getNodes)
-    getNodes _ x1 [] = ([], One x1)
+    getNodes !_ x1 [] = ([], One x1)
     getNodes _ x1 [x2] = ([], Two x1 x2)
     getNodes _ x1 [x2, x3] = ([], Three x1 x2 x3)
     getNodes s x1 (x2:x3:x4:xs) = (Node3 s x1 x2 x3:ns, d)
@@ -2650,7 +2670,7 @@ unrollPQ cmp = unrollPQ'
     mergePQs0 Nil = []
     mergePQs0 (t :& Nil) = unrollPQ' t
     mergePQs0 (t1 :& t2 :& ts) = mergePQs (t1 <+> t2) ts
-    mergePQs t ts = t `seq` case ts of
+    mergePQs !t ts = case ts of
         Nil             -> unrollPQ' t
         t1 :& Nil       -> unrollPQ' (t <+> t1)
         t1 :& t2 :& ts' -> mergePQs (t <+> (t1 <+> t2)) ts'
