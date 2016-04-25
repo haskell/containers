@@ -1,5 +1,13 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.5.8.1
+
+  * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Seq`.
+
+  * Derive `Generic` and `Generic1` for `Data.Tree.Tree`.
+
+  * Add `intersperse` for sequences.
+
 ## 0.5.7.1  *Dec 2015*
 
   * Planned to bundle with GHC 8.0.1.
@@ -8,12 +16,6 @@
 
   * Define `Semigroup` instances for `Data.Map`, `Data.Set`, `Data.IntMap`,
     `Data.IntSet` and `Data.Sequence`.
-
-  * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Seq`.
-
-  * Derive `Generic` and `Generic1` for `Data.Tree.Tree`.
-
-  * Add `intersperse` for sequences.
 
 ## 0.5.6.2  *Dec 2014*
 
