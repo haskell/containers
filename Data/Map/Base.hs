@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -314,7 +315,7 @@ infixl 9 !,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
 (!) :: Ord k => Map k a -> k -> a
-m ! k = find k m
+(!) m k = find k m
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE (!) #-}
 #endif
@@ -436,8 +437,7 @@ size (Bin sz _ _ _ _) = sz
 lookup :: Ord k => k -> Map k a -> Maybe a
 lookup = go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = Nothing
+    go !_ Tip = Nothing
     go k (Bin _ kx x l r) = case compare k kx of
       LT -> go k l
       GT -> go k r
@@ -455,8 +455,7 @@ lookup = go
 member :: Ord k => k -> Map k a -> Bool
 member = go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = False
+    go !_ Tip = False
     go k (Bin _ kx _ l r) = case compare k kx of
       LT -> go k l
       GT -> go k r
@@ -485,8 +484,7 @@ notMember k m = not $ member k m
 find :: Ord k => k -> Map k a -> a
 find = go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = error "Map.!: given key is not an element in the map"
+    go !_ Tip = error "Map.!: given key is not an element in the map"
     go k (Bin _ kx x l r) = case compare k kx of
       LT -> go k l
       GT -> go k r
@@ -506,8 +504,7 @@ find = go
 findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault = go
   where
-    STRICT_2_OF_3(go)
-    go def _ Tip = def
+    go def !_ Tip = def
     go def k (Bin _ kx x l r) = case compare k kx of
       LT -> go def k l
       GT -> go def k r
@@ -526,13 +523,11 @@ findWithDefault = go
 lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLT = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing k (Bin _ kx x l r) | k <= kx = goNothing k l
                                  | otherwise = goJust k kx x r
 
-    STRICT_1_OF_4(goJust)
-    goJust _ kx' x' Tip = Just (kx', x')
+    goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k <= kx = goJust k kx' x' l
                                      | otherwise = goJust k kx x r
 #if __GLASGOW_HASKELL__ >= 700
@@ -549,13 +544,11 @@ lookupLT = goNothing
 lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGT = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing k (Bin _ kx x l r) | k < kx = goJust k kx x l
                                  | otherwise = goNothing k r
 
-    STRICT_1_OF_4(goJust)
-    goJust _ kx' x' Tip = Just (kx', x')
+    goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k < kx = goJust k kx x l
                                      | otherwise = goJust k kx' x' r
 #if __GLASGOW_HASKELL__ >= 700
@@ -573,14 +566,12 @@ lookupGT = goNothing
 lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupLE = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goNothing k l
                                                         EQ -> Just (kx, x)
                                                         GT -> goJust k kx x r
 
-    STRICT_1_OF_4(goJust)
-    goJust _ kx' x' Tip = Just (kx', x')
+    goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx' x' l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx x r
@@ -599,14 +590,12 @@ lookupLE = goNothing
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
 lookupGE = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing k (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
                                                         EQ -> Just (kx, x)
                                                         GT -> goNothing k r
 
-    STRICT_1_OF_4(goJust)
-    goJust _ kx' x' Tip = Just (kx', x')
+    goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx' x' r
@@ -654,8 +643,7 @@ insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_OF_3(go)
-    go kx x Tip = singleton kx x
+    go !kx x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
@@ -675,8 +663,7 @@ insertR :: Ord k => k -> a -> Map k a -> Map k a
 insertR = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_OF_3(go)
-    go kx x Tip = singleton kx x
+    go !kx x Tip = singleton kx x
     go kx x t@(Bin _ ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
@@ -723,8 +710,7 @@ insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = singleton kx x
+    go _ !kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
@@ -758,8 +744,7 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 insertLookupWithKey = go
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> (Maybe a, Map k a)
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = (Nothing, singleton kx x)
+    go _ !kx x Tip = (Nothing, singleton kx x)
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found, l') = go f kx x l
@@ -788,8 +773,7 @@ delete :: Ord k => k -> Map k a -> Map k a
 delete = go
   where
     go :: Ord k => k -> Map k a -> Map k a
-    STRICT_1_OF_2(go)
-    go _ Tip = Tip
+    go !_ Tip = Tip
     go k (Bin _ kx x l r) =
         case compare k kx of
             LT -> balanceR kx x (go k l) r
@@ -865,8 +849,7 @@ updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
     go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go _ _ Tip = Tip
+    go _ !_ Tip = Tip
     go f k(Bin sx kx x l r) =
         case compare k kx of
            LT -> balanceR kx x (go f k l) r
@@ -894,8 +877,7 @@ updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,
 updateLookupWithKey = go
  where
    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
-   STRICT_2_OF_3(go)
-   go _ _ Tip = (Nothing,Tip)
+   go _ !_ Tip = (Nothing,Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
                LT -> let (found,l') = go f k l in (found,balanceR kx x l' r)
@@ -926,8 +908,7 @@ alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
     go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go f k Tip = case f Nothing of
+    go f !k Tip = case f Nothing of
                Nothing -> Tip
                Just x  -> singleton k x
 
@@ -961,9 +942,7 @@ findIndex :: Ord k => k -> Map k a -> Int
 findIndex = go 0
   where
     go :: Ord k => Int -> k -> Map k a -> Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = error "Map.findIndex: element is not in the map"
+    go !_   !_ Tip  = error "Map.findIndex: element is not in the map"
     go idx k (Bin _ kx _ l r) = case compare k kx of
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
@@ -986,9 +965,7 @@ lookupIndex :: Ord k => k -> Map k a -> Maybe Int
 lookupIndex = go 0
   where
     go :: Ord k => Int -> k -> Map k a -> Maybe Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = Nothing
+    go !_  !_ Tip  = Nothing
     go idx k (Bin _ kx _ l r) = case compare k kx of
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
@@ -1006,8 +983,7 @@ lookupIndex = go 0
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 elemAt :: Int -> Map k a -> (k,a)
-STRICT_1_OF_2(elemAt)
-elemAt _ Tip = error "Map.elemAt: index out of range"
+elemAt !_ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of
       LT -> elemAt i l
@@ -1030,7 +1006,7 @@ elemAt i (Bin _ kx x l r)
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-updateAt f i t = i `seq`
+updateAt f !i t =
   case t of
     Tip -> error "Map.updateAt: index out of range"
     Bin sx kx x l r -> case compare i sizeL of
@@ -1052,7 +1028,7 @@ updateAt f i t = i `seq`
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
 deleteAt :: Int -> Map k a -> Map k a
-deleteAt i t = i `seq`
+deleteAt !i t =
   case t of
     Tip -> error "Map.deleteAt: index out of range"
     Bin _ kx x l r -> case compare i sizeL of
@@ -1835,8 +1811,7 @@ foldr f z = go z
 foldr' :: (a -> b -> b) -> b -> Map k a -> b
 foldr' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip             = z'
+    go !z' Tip             = z'
     go z' (Bin _ _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr' #-}
 
@@ -1862,8 +1837,7 @@ foldl f z = go z
 foldl' :: (a -> b -> a) -> a -> Map k b -> a
 foldl' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip             = z'
+    go !z' Tip             = z'
     go z' (Bin _ _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
 
@@ -1890,8 +1864,7 @@ foldrWithKey f z = go z
 foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip              = z'
+    go !z' Tip              = z'
     go z' (Bin _ kx x l r) = go (f kx x (go z' r)) l
 {-# INLINE foldrWithKey' #-}
 
@@ -1918,8 +1891,7 @@ foldlWithKey f z = go z
 foldlWithKey' :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip              = z'
+    go !z' Tip              = z'
     go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
 {-# INLINE foldlWithKey' #-}
 
@@ -2024,8 +1996,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
     fromList' t0 xs = foldlStrict ins t0 xs
       where ins t (k,x) = insert k x t
 
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go _ t [(kx, x)] = insertMax kx x t
     go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
                               | otherwise = case create s xss of
@@ -2037,8 +2008,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
     -- If ys is nonempty, the keys in ys are not ordered with respect to tree
     -- and must be inserted using fromList'. Otherwise the keys have been
     -- ordered so far.
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [], [])
+    create !_ [] = (Tip, [], [])
     create s xs@(xp : xss)
       | s == 1 = case xp of (kx, x) | not_ordered kx xss -> (Bin 1 kx x Tip Tip, [], xss)
                                     | otherwise -> (Bin 1 kx x Tip Tip, xss, [])
@@ -2216,13 +2186,11 @@ fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList [] = Tip
 fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go s l ((kx, x) : xs) = case create s xs of
                               (r, ys) -> go (s `shiftL` 1) (link kx x l r) ys
 
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [])
+    create !_ [] = (Tip, [])
     create s xs@(x' : xs')
       | s == 1 = case x' of (kx, x) -> (Bin 1 kx x Tip Tip, xs')
       | otherwise = case create (s `shiftR` 1) xs of
@@ -2342,7 +2310,7 @@ filterLt (JustS b) t = filter' b t
 -- > split 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], empty)
 
 split :: Ord k => k -> Map k a -> (Map k a,Map k a)
-split k0 t0 = k0 `seq` toPair $ go k0 t0
+split !k0 t0 = toPair $ go k0 t0
   where
     go k t =
       case t of
@@ -2365,16 +2333,16 @@ split k0 t0 = k0 `seq` toPair $ go k0 t0
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k t = k `seq`
+splitLookup !k t =
   case t of
     Tip            -> (Tip,Nothing,Tip)
     Bin _ kx x l r -> case compare k kx of
       LT -> let (lt,z,gt) = splitLookup k l
-                gt' = link kx x gt r
-            in gt' `seq` (lt,z,gt')
+                !gt' = link kx x gt r
+            in (lt,z,gt')
       GT -> let (lt,z,gt) = splitLookup k r
-                lt' = link kx x l lt
-            in lt' `seq` (lt',z,gt)
+                !lt' = link kx x l lt
+            in (lt',z,gt)
       EQ -> (l,Just x,r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitLookup #-}
@@ -2696,24 +2664,21 @@ instance Foldable.Foldable (Map k) where
   toList = elems -- NB: Foldable.toList /= Map.toList
   {-# INLINE toList #-}
   elem = go
-    where STRICT_1_OF_2(go)
-          go _ Tip = False
+    where go !_ Tip = False
           go x (Bin _ _ v l r) = x == v || go x l || go x r
   {-# INLINABLE elem #-}
   maximum = start
     where start Tip = error "Map.Foldable.maximum: called with empty map"
           start (Bin _ _ v l r) = go (go v l) r
 
-          STRICT_1_OF_2(go)
-          go m Tip = m
+          go !m Tip = m
           go m (Bin _ _ v l r) = go (go (max m v) l) r
   {-# INLINABLE maximum #-}
   minimum = start
     where start Tip = error "Map.Foldable.minumum: called with empty map"
           start (Bin _ _ v l r) = go (go v l) r
 
-          STRICT_1_OF_2(go)
-          go m Tip = m
+          go !m Tip = m
           go m (Bin _ _ v l r) = go (go (min m v) l) r
   {-# INLINABLE minimum #-}
   sum = foldl' (+) 0
