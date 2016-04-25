@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
@@ -359,9 +360,7 @@ insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go kx x Tip = singleton kx x
+    go !kx !x Tip = singleton kx x
     go kx x (Bin sz ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
@@ -408,14 +407,15 @@ insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = singleton kx x
+    -- Forcing `kx` may look redundant, but it's possible `compare` will
+    -- be lazy.
+    go _ !kx x Tip = singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
-            EQ -> let x' = f kx x y
-                  in x' `seq` Bin sy kx x' l r
+            EQ -> let !x' = f kx x y
+                  in Bin sy kx x' l r
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE insertWithKey #-}
 #else
@@ -444,8 +444,7 @@ insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
-    STRICT_2_OF_4(go)
-    go _ kx x Tip = Nothing :*: singleton kx x
+    go _ !kx x Tip = Nothing :*: singleton kx x
     go f kx x (Bin sy ky y l r) =
         case compare kx ky of
             LT -> let (found :*: l') = go f kx x l
@@ -528,8 +527,7 @@ updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
     go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go _ _ Tip = Tip
+    go _ !_ Tip = Tip
     go f k(Bin sx kx x l r) =
         case compare k kx of
            LT -> balanceR kx x (go f k l) r
@@ -557,8 +555,7 @@ updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,
 updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
  where
    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
-   STRICT_2_OF_3(go)
-   go _ _ Tip = (Nothing :*: Tip)
+   go _ !_ Tip = (Nothing :*: Tip)
    go f k (Bin sx kx x l r) =
           case compare k kx of
                LT -> let (found :*: l') = go f k l
@@ -591,8 +588,7 @@ alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where
     go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
-    STRICT_2_OF_3(go)
-    go f k Tip = case f Nothing of
+    go f !k Tip = case f Nothing of
                Nothing -> Tip
                Just x  -> singleton k x
 
@@ -1062,8 +1058,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
     fromList' t0 xs = foldlStrict ins t0 xs
       where ins t (k,x) = insert k x t
 
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go _ t [(kx, x)] = x `seq` insertMax kx x t
     go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
                               | otherwise = case create s xss of
@@ -1075,8 +1070,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
     -- If ys is nonempty, the keys in ys are not ordered with respect to tree
     -- and must be inserted using fromList'. Otherwise the keys have been
     -- ordered so far.
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [], [])
+    create !_ [] = (Tip, [], [])
     create s xs@(xp : xss)
       | s == 1 = case xp of (kx, x) | not_ordered kx xss -> x `seq` (Bin 1 kx x Tip Tip, [], xss)
                                     | otherwise -> x `seq` (Bin 1 kx x Tip Tip, xss, [])
@@ -1194,13 +1188,11 @@ fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList [] = Tip
 fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go s l ((kx, x) : xs) = case create s xs of
                               (r, ys) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
 
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [])
+    create !_ [] = (Tip, [])
     create s xs@(x' : xs')
       | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip, xs')
       | otherwise = case create (s `shiftR` 1) xs of
