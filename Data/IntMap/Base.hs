@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -294,7 +295,7 @@ type Mask   = Int
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
 (!) :: IntMap a -> Key -> a
-m ! k = find k m
+(!) m k = find k m
 
 -- | Same as 'difference'.
 (\\) :: IntMap a -> IntMap b -> IntMap a
@@ -349,8 +350,7 @@ instance Foldable.Foldable IntMap where
   toList = elems -- NB: Foldable.toList /= IntMap.toList
   {-# INLINE toList #-}
   elem = go
-    where STRICT_1_OF_2(go)
-          go _ Nil = False
+    where go !_ Nil = False
           go x (Tip _ y) = x == y
           go x (Bin _ _ l r) = go x l || go x r
   {-# INLINABLE elem #-}
@@ -359,8 +359,7 @@ instance Foldable.Foldable IntMap where
           start (Tip _ y) = y
           start (Bin _ _ l r) = go (start l) r
 
-          STRICT_1_OF_2(go)
-          go m Nil = m
+          go !m Nil = m
           go m (Tip _ y) = max m y
           go m (Bin _ _ l r) = go (go m l) r
   {-# INLINABLE maximum #-}
@@ -369,8 +368,7 @@ instance Foldable.Foldable IntMap where
           start (Tip _ y) = y
           start (Bin _ _ l r) = go (start l) r
 
-          STRICT_1_OF_2(go)
-          go m Nil = m
+          go !m Nil = m
           go m (Tip _ y) = min m y
           go m (Bin _ _ l r) = go (go m l) r
   {-# INLINABLE minimum #-}
@@ -447,7 +445,7 @@ size t
 
 -- See Note: Local 'go' functions and capturing]
 member :: Key -> IntMap a -> Bool
-member k = k `seq` go
+member !k = go
   where
     go (Bin p m l r) | nomatch k p m = False
                      | zero k m  = go l
@@ -467,7 +465,7 @@ notMember k m = not $ member k m
 
 -- See Note: Local 'go' functions and capturing]
 lookup :: Key -> IntMap a -> Maybe a
-lookup k = k `seq` go
+lookup !k = go
   where
     go (Bin p m l r) | nomatch k p m = Nothing
                      | zero k m  = go l
@@ -479,7 +477,7 @@ lookup k = k `seq` go
 
 -- See Note: Local 'go' functions and capturing]
 find :: Key -> IntMap a -> a
-find k = k `seq` go
+find !k = go
   where
     go (Bin p m l r) | nomatch k p m = not_found
                      | zero k m  = go l
@@ -499,7 +497,7 @@ find k = k `seq` go
 
 -- See Note: Local 'go' functions and capturing]
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def k = k `seq` go
+findWithDefault def !k = go
   where
     go (Bin p m l r) | nomatch k p m = def
                      | zero k m  = go l
@@ -516,7 +514,7 @@ findWithDefault def k = k `seq` go
 
 -- See Note: Local 'go' functions and capturing.
 lookupLT :: Key -> IntMap a -> Maybe (Key, a)
-lookupLT k t = k `seq` case t of
+lookupLT !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
@@ -535,7 +533,7 @@ lookupLT k t = k `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupGT :: Key -> IntMap a -> Maybe (Key, a)
-lookupGT k t = k `seq` case t of
+lookupGT !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
@@ -555,7 +553,7 @@ lookupGT k t = k `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupLE :: Key -> IntMap a -> Maybe (Key, a)
-lookupLE k t = k `seq` case t of
+lookupLE !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
@@ -575,7 +573,7 @@ lookupLE k t = k `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupGE :: Key -> IntMap a -> Maybe (Key, a)
-lookupGE k t = k `seq` case t of
+lookupGE !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
@@ -637,7 +635,7 @@ singleton k x
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 insert :: Key -> a -> IntMap a -> IntMap a
-insert k x t = k `seq`
+insert !k x t =
   case t of
     Bin p m l r
       | nomatch k p m -> link k (Tip k x) p t
@@ -675,7 +673,7 @@ insertWith f k x t
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f k x t = k `seq`
+insertWithKey f !k x t =
   case t of
     Bin p m l r
       | nomatch k p m -> link k (Tip k x) p t
@@ -702,7 +700,7 @@ insertWithKey f k x t = k `seq`
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f k x t = k `seq`
+insertLookupWithKey f !k x t =
   case t of
     Bin p m l r
       | nomatch k p m -> (Nothing,link k (Tip k x) p t)
@@ -725,7 +723,7 @@ insertLookupWithKey f k x t = k `seq`
 -- > delete 5 empty                         == empty
 
 delete :: Key -> IntMap a -> IntMap a
-delete k t = k `seq`
+delete !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> t
@@ -782,7 +780,7 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f k t = k `seq`
+updateWithKey f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> t
@@ -806,7 +804,7 @@ updateWithKey f k t = k `seq`
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f k t = k `seq`
+updateLookupWithKey f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> (Nothing,t)
@@ -825,7 +823,7 @@ updateLookupWithKey f k t = k `seq`
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
-alter f k t = k `seq`
+alter f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> case f Nothing of
@@ -1579,10 +1577,10 @@ split k t =
   case t of
       Bin _ m l r
           | m < 0 -> if k >= 0 -- handle negative numbers.
-                     then case go k l of (lt :*: gt) -> let lt' = union r lt 
-                                                        in lt' `seq` (lt', gt)
-                     else case go k r of (lt :*: gt) -> let gt' = union gt l
-                                                        in gt' `seq` (lt, gt')
+                     then case go k l of (lt :*: gt) -> let !lt' = union r lt 
+                                                        in (lt', gt)
+                     else case go k r of (lt :*: gt) -> let !gt' = union gt l
+                                                        in (lt, gt')
       _ -> case go k t of
           (lt :*: gt) -> (lt, gt)
   where
@@ -1609,19 +1607,19 @@ splitLookup k t =
       Bin _ m l r
           | m < 0 -> if k >= 0 -- handle negative numbers.
                      then case go k l of
-                         (lt, fnd, gt) -> let lt' = union r lt
-                                          in lt' `seq` (lt', fnd, gt)
+                         (lt, fnd, gt) -> let !lt' = union r lt
+                                          in (lt', fnd, gt)
                      else case go k r of
-                         (lt, fnd, gt) -> let gt' = union gt l
-                                          in gt' `seq` (lt, fnd, gt')
+                         (lt, fnd, gt) -> let !gt' = union gt l
+                                          in (lt, fnd, gt')
       _ -> go k t
   where
     go k' t'@(Bin p m l r)
         | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
         | zero k' m      = case go k' l of
-            (lt, fnd, gt) -> let gt' = union gt r in gt' `seq` (lt, fnd, gt')
+            (lt, fnd, gt) -> let !gt' = union gt r in (lt, fnd, gt')
         | otherwise      = case go k' r of
-            (lt, fnd, gt) -> let lt' = union l lt in lt' `seq` (lt', fnd, gt)
+            (lt, fnd, gt) -> let !lt' = union l lt in (lt', fnd, gt)
     go k' t'@(Tip ky y) | k' > ky   = (t', Nothing, Nil)
                         | k' < ky   = (Nil, Nothing, t')
                         | otherwise = (Nil, Just y, Nil)
@@ -1659,8 +1657,7 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
                         | otherwise -> go (go z r) l
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil          = z'
     go z' (Tip _ x)     = f x z'
     go z' (Bin _ _ l r) = go (go z' r) l
 {-# INLINE foldr' #-}
@@ -1694,8 +1691,7 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
                         | otherwise -> go (go z l) r
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil          = z'
     go z' (Tip _ x)     = f z' x
     go z' (Bin _ _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
@@ -1730,8 +1726,7 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
                         | otherwise -> go (go z r) l
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil          = z'
     go z' (Tip kx x)    = f kx x z'
     go z' (Bin _ _ l r) = go (go z' r) l
 {-# INLINE foldrWithKey' #-}
@@ -1766,8 +1761,7 @@ foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
                         | otherwise -> go (go z l) r
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil          = z'
     go z' (Tip kx x)    = f z' kx x
     go z' (Bin _ _ l r) = go (go z' l) r
 {-# INLINE foldlWithKey' #-}
@@ -1827,8 +1821,7 @@ keysSet (Tip kx _) = IntSet.singleton kx
 keysSet (Bin p m l r)
   | m .&. IntSet.suffixBitMask == 0 = IntSet.Bin p m (keysSet l) (keysSet r)
   | otherwise = IntSet.Tip (p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
-  where STRICT_1_OF_2(computeBm)
-        computeBm acc (Bin _ _ l' r') = computeBm (computeBm acc l') r'
+  where computeBm !acc (Bin _ _ l' r') = computeBm (computeBm acc l') r'
         computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
         computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
 
@@ -1849,7 +1842,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
         -- We split bmask into halves corresponding to left and right subtree.
         -- If they are both nonempty, we create a Bin node, otherwise exactly
         -- one of them is nonempty and we construct the IntMap from that half.
-        buildTree g prefix bmask bits = prefix `seq` bmask `seq` case bits of
+        buildTree g !prefix !bmask bits = case bits of
           0 -> Tip prefix (g prefix)
           _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
                  bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
