@@ -2,6 +2,12 @@
 
 ## 0.5.8.1
 
+  * Remove all attempts to support nhc98 and any versions of GHC
+    before 7.0.
+
+  * Use `BangPatterns` throughout to reduce noise. This extension
+    is now *required* to compile `containers`.
+
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
   * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.

@@ -324,7 +324,7 @@ findWithDefault def k = k `seq` go
       LT -> go l
       GT -> go r
       EQ -> x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE findWithDefault #-}
 #else
 {-# INLINE findWithDefault #-}
@@ -366,7 +366,7 @@ insert = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
@@ -384,7 +384,7 @@ insert = go
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
 #else
 {-# INLINE insertWith #-}
@@ -416,7 +416,7 @@ insertWithKey = go
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !x' = f kx x y
                   in Bin sy kx x' l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey #-}
 #else
 {-# INLINE insertWithKey #-}
@@ -453,7 +453,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
                   in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
                   in x' `seq` (Just y :*: Bin sy kx x' l r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey #-}
 #else
 {-# INLINE insertLookupWithKey #-}
@@ -473,7 +473,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE adjust #-}
 #else
 {-# INLINE adjust #-}
@@ -489,7 +489,7 @@ adjust f = adjustWithKey (\_ x -> f x)
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE adjustWithKey #-}
 #else
 {-# INLINE adjustWithKey #-}
@@ -506,7 +506,7 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE update #-}
 #else
 {-# INLINE update #-}
@@ -535,7 +535,7 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> x' `seq` Bin sx kx x' l r
                    Nothing -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE updateWithKey #-}
 #else
 {-# INLINE updateWithKey #-}
@@ -565,7 +565,7 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
                EQ -> case f kx x of
                        Just x' -> x' `seq` (Just x' :*: Bin sx kx x' l r)
                        Nothing -> (Just x :*: glue l r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE updateLookupWithKey #-}
 #else
 {-# INLINE updateLookupWithKey #-}
@@ -598,7 +598,7 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> x' `seq` Bin sx kx x' l r
                        Nothing -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE alter #-}
 #else
 {-# INLINE alter #-}
@@ -693,7 +693,7 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionsWith #-}
 #endif
 
@@ -707,7 +707,7 @@ unionsWith f ts
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
 #endif
 
@@ -719,7 +719,7 @@ unionWith f m1 m2
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWithKey #-}
 #endif
 
@@ -741,7 +741,7 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
 #endif
 
@@ -757,7 +757,7 @@ differenceWith f m1 m2
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWithKey #-}
 #endif
 
@@ -774,7 +774,7 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
 #endif
 
@@ -787,7 +787,7 @@ intersectionWith f m1 m2
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
 #endif
 
@@ -1010,7 +1010,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE mapKeysWith #-}
 #endif
 
@@ -1080,7 +1080,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> y `seq` (link ky y l r, zs, ws)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromList #-}
 #endif
 
@@ -1092,7 +1092,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromListWith #-}
 #endif
 
@@ -1107,7 +1107,7 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromListWithKey #-}
 #endif
 
@@ -1129,7 +1129,7 @@ fromListWithKey f xs
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
 #endif
 
@@ -1143,7 +1143,7 @@ fromAscList xs
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWith #-}
 #endif
 
@@ -1171,7 +1171,7 @@ fromAscListWithKey f xs
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
     | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWithKey #-}
 #endif
 

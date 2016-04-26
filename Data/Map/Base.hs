@@ -316,14 +316,14 @@ infixl 9 !,\\ --
 
 (!) :: Ord k => Map k a -> k -> a
 (!) m k = find k m
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE (!) #-}
 #endif
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE (\\) #-}
 #endif
 
@@ -442,7 +442,7 @@ lookup = go
       LT -> go k l
       GT -> go k r
       EQ -> Just x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookup #-}
 #else
 {-# INLINE lookup #-}
@@ -460,7 +460,7 @@ member = go
       LT -> go k l
       GT -> go k r
       EQ -> True
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
 #else
 {-# INLINE member #-}
@@ -473,7 +473,7 @@ member = go
 
 notMember :: Ord k => k -> Map k a -> Bool
 notMember k m = not $ member k m
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE notMember #-}
 #else
 {-# INLINE notMember #-}
@@ -489,7 +489,7 @@ find = go
       LT -> go k l
       GT -> go k r
       EQ -> x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE find #-}
 #else
 {-# INLINE find #-}
@@ -509,7 +509,7 @@ findWithDefault = go
       LT -> go def k l
       GT -> go def k r
       EQ -> x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE findWithDefault #-}
 #else
 {-# INLINE findWithDefault #-}
@@ -530,7 +530,7 @@ lookupLT = goNothing
     goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k <= kx = goJust k kx' x' l
                                      | otherwise = goJust k kx x r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
 #else
 {-# INLINE lookupLT #-}
@@ -551,7 +551,7 @@ lookupGT = goNothing
     goJust !_ kx' x' Tip = Just (kx', x')
     goJust k kx' x' (Bin _ kx x l r) | k < kx = goJust k kx x l
                                      | otherwise = goJust k kx' x' r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
 #else
 {-# INLINE lookupGT #-}
@@ -575,7 +575,7 @@ lookupLE = goNothing
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx' x' l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx x r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
 #else
 {-# INLINE lookupLE #-}
@@ -599,7 +599,7 @@ lookupGE = goNothing
     goJust k kx' x' (Bin _ kx x l r) = case compare k kx of LT -> goJust k kx x l
                                                             EQ -> Just (kx, x)
                                                             GT -> goJust k kx' x' r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
 #else
 {-# INLINE lookupGE #-}
@@ -649,7 +649,7 @@ insert = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
@@ -669,7 +669,7 @@ insertR = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
 #else
 {-# INLINE insertR #-}
@@ -687,7 +687,7 @@ insertR = go
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith f = insertWithKey (\_ x' y' -> f x' y')
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
 #else
 {-# INLINE insertWith #-}
@@ -716,7 +716,7 @@ insertWithKey = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> Bin sy kx (f kx x y) l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey #-}
 #else
 {-# INLINE insertWithKey #-}
@@ -752,7 +752,7 @@ insertLookupWithKey = go
             GT -> let (found, r') = go f kx x r
                   in (found, balanceR ky y l r')
             EQ -> (Just y, Bin sy kx (f kx x y) l r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey #-}
 #else
 {-# INLINE insertLookupWithKey #-}
@@ -779,7 +779,7 @@ delete = go
             LT -> balanceR kx x (go k l) r
             GT -> balanceL kx x l (go k r)
             EQ -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE delete #-}
 #else
 {-# INLINE delete #-}
@@ -795,7 +795,7 @@ delete = go
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE adjust #-}
 #else
 {-# INLINE adjust #-}
@@ -811,7 +811,7 @@ adjust f = adjustWithKey (\_ x -> f x)
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
 adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE adjustWithKey #-}
 #else
 {-# INLINE adjustWithKey #-}
@@ -828,7 +828,7 @@ adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE update #-}
 #else
 {-# INLINE update #-}
@@ -857,7 +857,7 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> Bin sx kx x' l r
                    Nothing -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE updateWithKey #-}
 #else
 {-# INLINE updateWithKey #-}
@@ -885,7 +885,7 @@ updateLookupWithKey = go
                EQ -> case f kx x of
                        Just x' -> (Just x',Bin sx kx x' l r)
                        Nothing -> (Just x,glue l r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE updateLookupWithKey #-}
 #else
 {-# INLINE updateLookupWithKey #-}
@@ -918,7 +918,7 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> Bin sx kx x' l r
                        Nothing -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE alter #-}
 #else
 {-# INLINE alter #-}
@@ -947,7 +947,7 @@ findIndex = go 0
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
       EQ -> idx + size l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE findIndex #-}
 #endif
 
@@ -970,7 +970,7 @@ lookupIndex = go 0
       LT -> go idx k l
       GT -> go (idx + size l + 1) k r
       EQ -> Just $! idx + size l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupIndex #-}
 #endif
 
@@ -1185,7 +1185,7 @@ first f (x,y) = (f x, y)
 unions :: Ord k => [Map k a] -> Map k a
 unions ts
   = foldlStrict union empty ts
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unions #-}
 #endif
 
@@ -1198,7 +1198,7 @@ unions ts
 unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
 unionsWith f ts
   = foldlStrict (unionWith f) empty ts
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionsWith #-}
 #endif
 
@@ -1214,7 +1214,7 @@ union :: Ord k => Map k a -> Map k a -> Map k a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
 #endif
 
@@ -1227,7 +1227,7 @@ hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to b
 hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim blo bmi t2))
                                                    (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS kx
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeUnion #-}
 #endif
 
@@ -1241,7 +1241,7 @@ hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim b
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
 #endif
 
@@ -1253,7 +1253,7 @@ unionWith f m1 m2
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWithKey #-}
 #endif
 
@@ -1270,7 +1270,7 @@ difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
 #endif
 
@@ -1280,7 +1280,7 @@ hedgeDiff blo bhi (Bin _ kx x l r) Tip = link kx x (filterGt blo l) (filterLt bh
 hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                              (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS kx
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeDiff #-}
 #endif
 
@@ -1298,7 +1298,7 @@ hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t)
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
 #endif
 
@@ -1314,7 +1314,7 @@ differenceWith f m1 m2
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWithKey #-}
 #endif
 
@@ -1334,7 +1334,7 @@ intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
 intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
 #endif
 
@@ -1345,7 +1345,7 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
                                            r' = hedgeInt bmi bhi r (trim bmi bhi t2)
                                        in if kx `member` t2 then link kx x l' r' else merge l' r'
   where bmi = JustS kx
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeInt #-}
 #endif
 
@@ -1357,7 +1357,7 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
 #endif
 
@@ -1370,7 +1370,7 @@ intersectionWith f m1 m2
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
 #endif
 
@@ -1447,7 +1447,7 @@ mergeWithKey f g1 g2 = go
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubmapOf #-}
 #endif
 
@@ -1472,7 +1472,7 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
   = (size t1 <= size t2) && (submap' f t1 t2)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubmapOfBy #-}
 #endif
 
@@ -1485,7 +1485,7 @@ submap' f (Bin _ kx x l r) t
       Just y  -> f x y && submap' f l lt && submap' f r gt
   where
     (lt,found,gt) = splitLookup kx t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE submap' #-}
 #endif
 
@@ -1494,7 +1494,7 @@ submap' f (Bin _ kx x l r) t
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubmapOf #-}
 #endif
 
@@ -1519,7 +1519,7 @@ isProperSubmapOf m1 m2
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
   = (size t1 < size t2) && (submap' f t1 t2)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubmapOfBy #-}
 #endif
 
@@ -1741,7 +1741,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 
 mapKeys :: Ord k2 => (k1->k2) -> Map k1 a -> Map k2 a
 mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE mapKeys #-}
 #endif
 
@@ -1757,7 +1757,7 @@ mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE mapKeysWith #-}
 #endif
 
@@ -2018,7 +2018,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
                       (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
                                                | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link ky y l r, zs, ws)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromList #-}
 #endif
 
@@ -2030,7 +2030,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromListWith #-}
 #endif
 
@@ -2045,7 +2045,7 @@ fromListWithKey f xs
   = foldlStrict ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromListWithKey #-}
 #endif
 
@@ -2126,7 +2126,7 @@ foldlFB = foldlWithKey
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
 #endif
 
@@ -2140,7 +2140,7 @@ fromAscList xs
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWith #-}
 #endif
 
@@ -2168,7 +2168,7 @@ fromAscListWithKey f xs
   combineEq' z@(kz,zz) (x@(kx,xx):xs')
     | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
     | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWithKey #-}
 #endif
 
@@ -2233,7 +2233,7 @@ trim NothingS   (JustS hk) t = lesser hk t  where lesser  hi (Bin _ k _ l _) | k
 trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r) | k <= lo = middle lo hi r
                                                      middle lo hi (Bin _ k _ l _) | k >= hi = middle lo hi l
                                                      middle _  _  t' = t'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE trim #-}
 #endif
 
@@ -2263,7 +2263,7 @@ trimLookupLo lk0 mhk0 t0 = toPair $ go lk0 mhk0 t0
             lesser :: Ord k => k -> Map k a -> Map k a
             lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
             lesser _ t' = t'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE trimLookupLo #-}
 #endif
 
@@ -2280,7 +2280,7 @@ filterGt (JustS b) t = filter' b t
           case compare b' kx of LT -> link kx x (filter' b' l) r
                                 EQ -> r
                                 GT -> filter' b' r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE filterGt #-}
 #endif
 
@@ -2292,7 +2292,7 @@ filterLt (JustS b) t = filter' b t
           case compare kx b' of LT -> link kx x l (filter' b' r)
                                 EQ -> l
                                 GT -> filter' b' l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE filterLt #-}
 #endif
 
@@ -2319,7 +2319,7 @@ split !k0 t0 = toPair $ go k0 t0
           LT -> let (lt :*: gt) = go k l in lt :*: link kx x gt r
           GT -> let (lt :*: gt) = go k r in link kx x l lt :*: gt
           EQ -> (l :*: r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE split #-}
 #endif
 
@@ -2344,7 +2344,7 @@ splitLookup !k t =
                 !lt' = link kx x l lt
             in (lt',z,gt)
       EQ -> (l,Just x,r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE splitLookup #-}
 #endif
 
