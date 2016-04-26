@@ -432,11 +432,9 @@ null _   = False
 -- > size (singleton 1 'a')                       == 1
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
 size :: IntMap a -> Int
-size t
-  = case t of
-      Bin _ _ l r -> size l + size r
-      Tip _ _ -> 1
-      Nil     -> 0
+size (Bin _ _ l r) = size l + size r
+size (Tip _ _) = 1
+size Nil = 0
 
 -- | /O(min(n,W))/. Is the key a member of the map?
 --
@@ -635,16 +633,14 @@ singleton k x
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 insert :: Key -> a -> IntMap a -> IntMap a
-insert !k x t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> link k (Tip k x) p t
-      | zero k m      -> Bin p m (insert k x l) r
-      | otherwise     -> Bin p m l (insert k x r)
-    Tip ky _
-      | k==ky         -> Tip k x
-      | otherwise     -> link k (Tip k x) ky t
-    Nil -> Tip k x
+insert !k x t@(Bin p m l r)
+  | nomatch k p m = link k (Tip k x) p t
+  | zero k m      = Bin p m (insert k x l) r
+  | otherwise     = Bin p m l (insert k x r)
+insert k x t@(Tip ky _)
+  | k==ky         = Tip k x
+  | otherwise     = link k (Tip k x) ky t
+insert k x Nil = Tip k x
 
 -- right-biased insertion, used by 'union'
 -- | /O(min(n,W))/. Insert with a combining function.
@@ -673,16 +669,14 @@ insertWith f k x t
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f !k x t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> link k (Tip k x) p t
-      | zero k m      -> Bin p m (insertWithKey f k x l) r
-      | otherwise     -> Bin p m l (insertWithKey f k x r)
-    Tip ky y
-      | k==ky         -> Tip k (f k x y)
-      | otherwise     -> link k (Tip k x) ky t
-    Nil -> Tip k x
+insertWithKey f !k x t@(Bin p m l r)
+  | nomatch k p m = link k (Tip k x) p t
+  | zero k m      = Bin p m (insertWithKey f k x l) r
+  | otherwise     = Bin p m l (insertWithKey f k x r)
+insertWithKey f k x t@(Tip ky y)
+  | k == ky       = Tip k (f k x y)
+  | otherwise     = link k (Tip k x) ky t
+insertWithKey _ k x Nil = Tip k x
 
 -- | /O(min(n,W))/. The expression (@'insertLookupWithKey' f k x map@)
 -- is a pair where the first element is equal to (@'lookup' k map@)
@@ -700,16 +694,14 @@ insertWithKey f !k x t =
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f !k x t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> (Nothing,link k (Tip k x) p t)
-      | zero k m      -> let (found,l') = insertLookupWithKey f k x l in (found,Bin p m l' r)
-      | otherwise     -> let (found,r') = insertLookupWithKey f k x r in (found,Bin p m l r')
-    Tip ky y
-      | k==ky         -> (Just y,Tip k (f k x y))
-      | otherwise     -> (Nothing,link k (Tip k x) ky t)
-    Nil -> (Nothing,Tip k x)
+insertLookupWithKey f !k x t@(Bin p m l r)
+  | nomatch k p m = (Nothing,link k (Tip k x) p t)
+  | zero k m      = let (found,l') = insertLookupWithKey f k x l in (found,Bin p m l' r)
+  | otherwise     = let (found,r') = insertLookupWithKey f k x r in (found,Bin p m l r')
+insertLookupWithKey f k x t@(Tip ky y)
+  | k == ky       = (Just y,Tip k (f k x y))
+  | otherwise     = (Nothing,link k (Tip k x) ky t)
+insertLookupWithKey _ k x Nil = (Nothing,Tip k x)
 
 
 {--------------------------------------------------------------------
@@ -723,16 +715,14 @@ insertLookupWithKey f !k x t =
 -- > delete 5 empty                         == empty
 
 delete :: Key -> IntMap a -> IntMap a
-delete !k t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> t
-      | zero k m      -> bin p m (delete k l) r
-      | otherwise     -> bin p m l (delete k r)
-    Tip ky _
-      | k==ky         -> Nil
-      | otherwise     -> t
-    Nil -> Nil
+delete !k t@(Bin p m l r)
+  | nomatch k p m = t
+  | zero k m      = bin p m (delete k l) r
+  | otherwise     = bin p m l (delete k r)
+delete k t@(Tip ky _)
+  | k == ky       = Nil
+  | otherwise     = t
+delete _k Nil = Nil
 
 -- | /O(min(n,W))/. Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -780,18 +770,16 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f !k t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> t
-      | zero k m      -> bin p m (updateWithKey f k l) r
-      | otherwise     -> bin p m l (updateWithKey f k r)
-    Tip ky y
-      | k==ky         -> case (f k y) of
+updateWithKey f !k t@(Bin p m l r)
+  | nomatch k p m = t
+  | zero k m      = bin p m (updateWithKey f k l) r
+  | otherwise     = bin p m l (updateWithKey f k r)
+updateWithKey f k t@(Tip ky y)
+  | k == ky       = case (f k y) of
                            Just y' -> Tip ky y'
                            Nothing -> Nil
-      | otherwise     -> t
-    Nil -> Nil
+  | otherwise     = t
+updateWithKey _ _ Nil = Nil
 
 -- | /O(min(n,W))/. Lookup and update.
 -- The function returns original value, if it is updated.
@@ -804,18 +792,16 @@ updateWithKey f !k t =
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f !k t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> (Nothing,t)
-      | zero k m      -> let (found,l') = updateLookupWithKey f k l in (found,bin p m l' r)
-      | otherwise     -> let (found,r') = updateLookupWithKey f k r in (found,bin p m l r')
-    Tip ky y
-      | k==ky         -> case (f k y) of
-                           Just y' -> (Just y,Tip ky y')
-                           Nothing -> (Just y,Nil)
-      | otherwise     -> (Nothing,t)
-    Nil -> (Nothing,Nil)
+updateLookupWithKey f !k t@(Bin p m l r)
+  | nomatch k p m = (Nothing,t)
+  | zero k m      = let (found,l') = updateLookupWithKey f k l in (found,bin p m l' r)
+  | otherwise     = let (found,r') = updateLookupWithKey f k r in (found,bin p m l r')
+updateLookupWithKey f k t@(Tip ky y)
+  | k==ky         = case (f k y) of
+                      Just y' -> (Just y,Tip ky y')
+                      Nothing -> (Just y,Nil)
+  | otherwise     = (Nothing,t)
+updateLookupWithKey _ _ Nil = (Nothing,Nil)
 
 
 
@@ -823,24 +809,22 @@ updateLookupWithKey f !k t =
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
-alter f !k t =
-  case t of
-    Bin p m l r
-      | nomatch k p m -> case f Nothing of
-                           Nothing -> t
-                           Just x -> link k (Tip k x) p t
-      | zero k m      -> bin p m (alter f k l) r
-      | otherwise     -> bin p m l (alter f k r)
-    Tip ky y
-      | k==ky         -> case f (Just y) of
-                           Just x -> Tip ky x
-                           Nothing -> Nil
-      | otherwise     -> case f Nothing of
-                           Just x -> link k (Tip k x) ky t
-                           Nothing -> Tip ky y
-    Nil               -> case f Nothing of
-                           Just x -> Tip k x
-                           Nothing -> Nil
+alter f !k t@(Bin p m l r)
+  | nomatch k p m = case f Nothing of
+                      Nothing -> t
+                      Just x -> link k (Tip k x) p t
+  | zero k m      = bin p m (alter f k l) r
+  | otherwise     = bin p m l (alter f k r)
+alter f k t@(Tip ky y)
+  | k==ky         = case f (Just y) of
+                      Just x -> Tip ky x
+                      Nothing -> Nil
+  | otherwise     = case f Nothing of
+                      Just x -> link k (Tip k x) ky t
+                      Nothing -> Tip ky y
+alter f k Nil     = case f Nothing of
+                      Just x -> Tip k x
+                      Nothing -> Nil
 
 
 {--------------------------------------------------------------------
