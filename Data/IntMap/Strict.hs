@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
@@ -298,7 +299,7 @@ import Data.Coerce
 
 -- See IntMap.Base.Note: Local 'go' functions and capturing]
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def k = k `seq` go
+findWithDefault def !k = go
   where
     go (Bin p m l r) | nomatch k p m = def
                      | zero k m  = go l
@@ -316,8 +317,8 @@ findWithDefault def k = k `seq` go
 -- > size (singleton 1 'a') == 1
 
 singleton :: Key -> a -> IntMap a
-singleton k x
-  = x `seq` Tip k x
+singleton k !x
+  = Tip k x
 {-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
@@ -333,7 +334,7 @@ singleton k x
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 insert :: Key -> a -> IntMap a -> IntMap a
-insert k x t = k `seq` x `seq`
+insert !k !x t =
   case t of
     Bin p m l r
       | nomatch k p m -> link k (Tip k x) p t
@@ -374,7 +375,7 @@ insertWith f k x t
 -- in the result of @f@.
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey f k x t = k `seq`
+insertWithKey f !k x t =
   case t of
     Bin p m l r
       | nomatch k p m -> link k (singleton k x) p t
@@ -401,7 +402,7 @@ insertWithKey f k x t = k `seq`
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
-insertLookupWithKey f0 k0 x0 t0 = k0 `seq` toPair $ go f0 k0 x0 t0
+insertLookupWithKey f0 !k0 x0 t0 = toPair $ go f0 k0 x0 t0
   where
     go f k x t =
       case t of
@@ -464,7 +465,7 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f k t = k `seq`
+updateWithKey f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> t
@@ -472,7 +473,7 @@ updateWithKey f k t = k `seq`
       | otherwise     -> bin p m l (updateWithKey f k r)
     Tip ky y
       | k==ky         -> case f k y of
-                           Just y' -> y' `seq` Tip ky y'
+                           Just !y' -> Tip ky y'
                            Nothing -> Nil
       | otherwise     -> t
     Nil -> Nil
@@ -488,7 +489,7 @@ updateWithKey f k t = k `seq`
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f0 k0 t0 = k0 `seq` toPair $ go f0 k0 t0
+updateLookupWithKey f0 !k0 t0 = toPair $ go f0 k0 t0
   where
     go f k t =
       case t of
@@ -498,8 +499,8 @@ updateLookupWithKey f0 k0 t0 = k0 `seq` toPair $ go f0 k0 t0
           | otherwise     -> let (found :*: r') = go f k r in (found :*: bin p m l r')
         Tip ky y
           | k==ky         -> case f k y of
-                               Just y' -> y' `seq` (Just y :*: Tip ky y')
-                               Nothing -> (Just y :*: Nil)
+                               Just !y' -> (Just y :*: Tip ky y')
+                               Nothing  -> (Just y :*: Nil)
           | otherwise     -> (Nothing :*: t)
         Nil -> (Nothing :*: Nil)
 
@@ -509,23 +510,23 @@ updateLookupWithKey f0 k0 t0 = k0 `seq` toPair $ go f0 k0 t0
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
-alter f k t = k `seq`
+alter f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> case f Nothing of
                            Nothing -> t
-                           Just x  -> x `seq` link k (Tip k x) p t
+                           Just !x  -> link k (Tip k x) p t
       | zero k m      -> bin p m (alter f k l) r
       | otherwise     -> bin p m l (alter f k r)
     Tip ky y
       | k==ky         -> case f (Just y) of
-                           Just  x -> x `seq` Tip ky x
+                           Just !x -> Tip ky x
                            Nothing -> Nil
       | otherwise     -> case f Nothing of
-                           Just x  -> x `seq` link k (Tip k x) ky t
+                           Just !x -> link k (Tip k x) ky t
                            Nothing -> t
     Nil               -> case f Nothing of
-                           Just x  -> x `seq` Tip k x
+                           Just !x -> Tip k x
                            Nothing -> Nil
 
 
@@ -651,7 +652,7 @@ mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap 
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
   where -- We use the lambda form to avoid non-exhaustive pattern matches warning.
         combine = \(Tip k1 x1) (Tip _k2 x2) -> case f k1 x1 x2 of Nothing -> Nil
-                                                                  Just x -> x `seq` Tip k1 x
+                                                                  Just !x -> Tip k1 x
         {-# INLINE combine #-}
 {-# INLINE mergeWithKey #-}
 
@@ -671,7 +672,7 @@ updateMinWithKey f t =
   where
     go f' (Bin p m l r) = bin p m (go f' l) r
     go f' (Tip k y) = case f' k y of
-                        Just y' -> y' `seq` Tip k y'
+                        Just !y' -> Tip k y'
                         Nothing -> Nil
     go _ Nil = error "updateMinWithKey Nil"
 
@@ -687,7 +688,7 @@ updateMaxWithKey f t =
   where
     go f' (Bin p m l r) = bin p m l (go f' r)
     go f' (Tip k y) = case f' k y of
-                        Just y' -> y' `seq` Tip k y'
+                        Just !y' -> Tip k y'
                         Nothing -> Nil
     go _ Nil = error "updateMaxWithKey Nil"
 
@@ -789,7 +790,7 @@ mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
           Bin p m l r -> let (a1 :*: l') = go f a l
                              (a2 :*: r') = go f a1 r
                          in (a2 :*: Bin p m l' r')
-          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
 -- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
@@ -802,7 +803,7 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
           Bin p m l r -> let (a1 :*: r') = go f a r
                              (a2 :*: l') = go f a1 l
                          in (a2 :*: Bin p m l' r')
-          Tip k x     -> let (a',x') = f a k x in x' `seq` (a' :*: Tip k x')
+          Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
 -- | /O(n*log n)/.
@@ -838,7 +839,7 @@ mapMaybeWithKey :: (Key -> a -> Maybe b) -> IntMap a -> IntMap b
 mapMaybeWithKey f (Bin p m l r)
   = bin p m (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 mapMaybeWithKey f (Tip k x) = case f k x of
-  Just y  -> y `seq` Tip k y
+  Just !y  -> Tip k y
   Nothing -> Nil
 mapMaybeWithKey _ Nil = Nil
 
@@ -873,8 +874,8 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
         (l1 :*: l2) = go f l
         (r1 :*: r2) = go f r
     go f (Tip k x) = case f k x of
-      Left y  -> y `seq` (Tip k y :*: Nil)
-      Right z -> z `seq` (Nil :*: Tip k z)
+      Left !y  -> (Tip k y :*: Nil)
+      Right !z -> (Nil :*: Tip k z)
     go _ Nil = (Nil :*: Nil)
 
 {--------------------------------------------------------------------
@@ -898,7 +899,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
         -- We split bmask into halves corresponding to left and right subtree.
         -- If they are both nonempty, we create a Bin node, otherwise exactly
         -- one of them is nonempty and we construct the IntMap from that half.
-        buildTree g prefix bmask bits = prefix `seq` bmask `seq` case bits of
+        buildTree g !prefix !bmask bits = case bits of
           0 -> Tip prefix $! g prefix
           _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
                  bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
@@ -976,7 +977,7 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
     -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
     combineEq z [] = [z]
     combineEq z@(kz,zz) (x@(kx,xx):xs)
-      | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq (kx,yy) xs
+      | kx==kz    = let !yy = f kx xx zz in combineEq (kx,yy) xs
       | otherwise = z:combineEq x xs
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
@@ -989,8 +990,8 @@ fromDistinctAscList :: [(Key,a)] -> IntMap a
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
-    work (kx,vx) []            stk = vx `seq` finish kx (Tip kx vx) stk
-    work (kx,vx) (z@(kz,_):zs) stk = vx `seq` reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
+    work (kx,!vx) []            stk = finish kx (Tip kx vx) stk
+    work (kx,!vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
 
     reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
     reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
