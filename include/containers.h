@@ -36,19 +36,6 @@
 #endif
 
 /*
- * Use macros to define strictness of functions.
- * STRICT_x_OF_y denotes an y-ary function strict in the x-th parameter.
- * We do not use BangPatterns, because they are not in any standard and we
- * want the compilers to be compiled by as many compilers as possible.
- */
-#define STRICT_1_OF_2(fn) fn arg _ | arg `seq` False = undefined
-#define STRICT_2_OF_2(fn) fn _ arg | arg `seq` False = undefined
-#define STRICT_1_OF_3(fn) fn arg _ _ | arg `seq` False = undefined
-#define STRICT_2_OF_3(fn) fn _ arg _ | arg `seq` False = undefined
-#define STRICT_1_OF_4(fn) fn arg _ _ _ | arg `seq` False = undefined
-#define STRICT_2_OF_4(fn) fn _ arg _ _ | arg `seq` False = undefined
-
-/*
  * We use cabal-generated MIN_VERSION_base to adapt to changes of base.
  * Nevertheless, as a convenience, we also allow compiling without cabal by
  * defining an approximate MIN_VERSION_base if needed. The alternative version

@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE MagicHash, BangPatterns, DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -297,17 +298,15 @@ null _   = False
 
 -- | /O(n)/. Cardinality of the set.
 size :: IntSet -> Int
-size t
-  = case t of
-      Bin _ _ l r -> size l + size r
-      Tip _ bm -> bitcount 0 bm
-      Nil   -> 0
+size (Bin _ _ l r) = size l + size r
+size (Tip _ bm) = bitcount 0 bm
+size Nil = 0
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 
 -- See Note: Local 'go' functions and capturing]
 member :: Key -> IntSet -> Bool
-member x = x `seq` go
+member !x = go
   where
     go (Bin p m l r)
       | nomatch x p m = False
@@ -327,7 +326,7 @@ notMember k = not . member k
 
 -- See Note: Local 'go' functions and capturing.
 lookupLT :: Key -> IntSet -> Maybe Key
-lookupLT x t = x `seq` case t of
+lookupLT !x t = case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
@@ -348,7 +347,7 @@ lookupLT x t = x `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupGT :: Key -> IntSet -> Maybe Key
-lookupGT x t = x `seq` case t of
+lookupGT !x t = case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
@@ -370,7 +369,7 @@ lookupGT x t = x `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupLE :: Key -> IntSet -> Maybe Key
-lookupLE x t = x `seq` case t of
+lookupLE !x t = case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
@@ -392,7 +391,7 @@ lookupLE x t = x `seq` case t of
 
 -- See Note: Local 'go' functions and capturing.
 lookupGE :: Key -> IntSet -> Maybe Key
-lookupGE x t = x `seq` case t of
+lookupGE !x t = case t of
     Bin _ m l r | m < 0 -> if x >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
@@ -442,39 +441,35 @@ singleton x
 -- | /O(min(n,W))/. Add a value to the set. There is no left- or right bias for
 -- IntSets.
 insert :: Key -> IntSet -> IntSet
-insert x = x `seq` insertBM (prefixOf x) (bitmapOf x)
+insert !x = insertBM (prefixOf x) (bitmapOf x)
 
 -- Helper function for insert and union.
 insertBM :: Prefix -> BitMap -> IntSet -> IntSet
-insertBM kx bm t = kx `seq` bm `seq`
-  case t of
-    Bin p m l r
-      | nomatch kx p m -> link kx (Tip kx bm) p t
-      | zero kx m      -> Bin p m (insertBM kx bm l) r
-      | otherwise      -> Bin p m l (insertBM kx bm r)
-    Tip kx' bm'
-      | kx' == kx -> Tip kx' (bm .|. bm')
-      | otherwise -> link kx (Tip kx bm) kx' t
-    Nil -> Tip kx bm
+insertBM !kx !bm t@(Bin p m l r)
+  | nomatch kx p m = link kx (Tip kx bm) p t
+  | zero kx m      = Bin p m (insertBM kx bm l) r
+  | otherwise      = Bin p m l (insertBM kx bm r)
+insertBM kx bm t@(Tip kx' bm')
+  | kx' == kx = Tip kx' (bm .|. bm')
+  | otherwise = link kx (Tip kx bm) kx' t
+insertBM kx bm Nil = Tip kx bm
 
 -- | /O(min(n,W))/. Delete a value in the set. Returns the
 -- original set when the value was not present.
 delete :: Key -> IntSet -> IntSet
-delete x = x `seq` deleteBM (prefixOf x) (bitmapOf x)
+delete !x = deleteBM (prefixOf x) (bitmapOf x)
 
 -- Deletes all values mentioned in the BitMap from the set.
 -- Helper function for delete and difference.
 deleteBM :: Prefix -> BitMap -> IntSet -> IntSet
-deleteBM kx bm t = kx `seq` bm `seq`
-  case t of
-    Bin p m l r
-      | nomatch kx p m -> t
-      | zero kx m      -> bin p m (deleteBM kx bm l) r
-      | otherwise      -> bin p m l (deleteBM kx bm r)
-    Tip kx' bm'
-      | kx' == kx -> tip kx (bm' .&. complement bm)
-      | otherwise -> t
-    Nil -> Nil
+deleteBM !kx !bm t@(Bin p m l r)
+  | nomatch kx p m = t
+  | zero kx m      = bin p m (deleteBM kx bm l) r
+  | otherwise      = bin p m l (deleteBM kx bm r)
+deleteBM kx bm t@(Tip kx' bm')
+  | kx' == kx = tip kx (bm' .&. complement bm)
+  | otherwise = t
+deleteBM _ _ Nil = Nil
 
 
 {--------------------------------------------------------------------
@@ -687,10 +682,10 @@ split x t =
   case t of
       Bin _ m l r
           | m < 0 -> if x >= 0  -- handle negative numbers.
-                     then case go x l of (lt :*: gt) -> let lt' = union lt r
-                                                        in lt' `seq` (lt', gt)
-                     else case go x r of (lt :*: gt) -> let gt' = union gt l
-                                                        in gt' `seq` (lt, gt')
+                     then case go x l of (lt :*: gt) -> let !lt' = union lt r
+                                                        in (lt', gt)
+                     else case go x r of (lt :*: gt) -> let !gt' = union gt l
+                                                        in (lt, gt')
       _ -> case go x t of
           (lt :*: gt) -> (lt, gt)
   where
@@ -718,11 +713,11 @@ splitMember x t =
   case t of
       Bin _ m l r | m < 0 -> if x >= 0
                              then case go x l of
-                                 (lt, fnd, gt) -> let lt' = union lt r
-                                                  in lt' `seq` (lt', fnd, gt)
+                                 (lt, fnd, gt) -> let !lt' = union lt r
+                                                  in (lt', fnd, gt)
                              else case go x r of
-                                 (lt, fnd, gt) -> let gt' = union gt l
-                                                  in gt' `seq` (lt, fnd, gt')
+                                 (lt, fnd, gt) -> let !gt' = union gt l
+                                                  in (lt, fnd, gt')
       _ -> go x t
   where
     go x' t'@(Bin p m l r)
@@ -736,15 +731,14 @@ splitMember x t =
         | kx' > x'          = (Nil, False, t')
           -- equivalent to kx' > prefixOf x'
         | kx' < prefixOf x' = (t', False, Nil)
-        | otherwise = let lt = tip kx' (bm .&. lowerBitmap)
-                          found = (bm .&. bitmapOfx') /= 0
-                          gt = tip kx' (bm .&. higherBitmap)
-                      in lt `seq` found `seq` gt `seq` (lt, found, gt)
+        | otherwise = let !lt = tip kx' (bm .&. lowerBitmap)
+                          !found = (bm .&. bitmapOfx') /= 0
+                          !gt = tip kx' (bm .&. higherBitmap)
+                      in (lt, found, gt)
             where bitmapOfx' = bitmapOf x'
                   lowerBitmap = bitmapOfx' - 1
                   higherBitmap = complement (lowerBitmap + bitmapOfx')
     go _ Nil = (Nil, False, Nil)
-
 
 {----------------------------------------------------------------------
   Min/Max
@@ -875,8 +869,7 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
                         | otherwise -> go (go z r) l
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil           = z'
     go z' (Tip kx bm)   = foldr'Bits kx f z' bm
     go z' (Bin _ _ l r) = go (go z' r) l
 {-# INLINE foldr' #-}
@@ -907,8 +900,7 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
                         | otherwise -> go (go z l) r
             _ -> go z t
   where
-    STRICT_1_OF_2(go)
-    go z' Nil           = z'
+    go !z' Nil           = z'
     go z' (Tip kx bm)   = foldl'Bits kx f z' bm
     go z' (Bin _ _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
@@ -1152,10 +1144,8 @@ showWide wide bars
   | otherwise = id
 
 showsBars :: [String] -> ShowS
-showsBars bars
-  = case bars of
-      [] -> id
-      _  -> showString (concat (reverse (tail bars))) . showString node
+showsBars [] = id
+showsBars bars = showString (concat (reverse (tail bars))) . showString node
 
 showsBitMap :: Word -> ShowS
 showsBitMap = showString . showBitMap
@@ -1365,30 +1355,30 @@ lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
 highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
 
 foldlBits prefix f z bitmap = go bitmap z
-  where go bm acc | bm == 0 = acc
-                  | otherwise = case lowestBitMask bm of
-                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
-                                    bi -> bi `seq` go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
+  where go 0 acc = acc
+        go bm acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
+          where
+            !bitmask = lowestBitMask bm
+            !bi = indexOfTheOnlyBit bitmask
 
 foldl'Bits prefix f z bitmap = go bitmap z
-  where STRICT_2_OF_2(go)
-        go bm acc | bm == 0 = acc
-                  | otherwise = case lowestBitMask bm of
-                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
-                                    bi -> bi `seq` go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
+  where go 0 acc = acc
+        go bm !acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
+          where !bitmask = lowestBitMask bm
+                !bi = indexOfTheOnlyBit bitmask
 
 foldrBits prefix f z bitmap = go (revNat bitmap) z
-  where go bm acc | bm == 0 = acc
-                  | otherwise = case lowestBitMask bm of
-                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
-                                    bi -> bi `seq` go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
+  where go 0 acc = acc
+        go bm acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
+          where !bitmask = lowestBitMask bm
+                !bi = indexOfTheOnlyBit bitmask
+
 
 foldr'Bits prefix f z bitmap = go (revNat bitmap) z
-  where STRICT_2_OF_2(go)
-        go bm acc | bm == 0 = acc
-                  | otherwise = case lowestBitMask bm of
-                                  bitmask -> bitmask `seq` case indexOfTheOnlyBit bitmask of
-                                    bi -> bi `seq` go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
+  where go 0 acc = acc
+        go bm !acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
+          where !bitmask = lowestBitMask bm
+                !bi = indexOfTheOnlyBit bitmask
 
 #else
 {----------------------------------------------------------------------
@@ -1418,30 +1408,26 @@ highestBitSet n0 =
 
 foldlBits prefix f z bm = let lb = lowestBitSet bm
                           in  go (prefix+lb) z (bm `shiftRL` lb)
-  where STRICT_1_OF_3(go)
-        go _  acc 0 = acc
+  where go !_ acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldl'Bits prefix f z bm = let lb = lowestBitSet bm
                            in  go (prefix+lb) z (bm `shiftRL` lb)
-  where STRICT_1_OF_3(go)
-        STRICT_2_OF_3(go)
-        go _  acc 0 = acc
+  where go !_ !acc 0 = acc
         go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldrBits prefix f z bm = let lb = lowestBitSet bm
                           in  go (prefix+lb) (bm `shiftRL` lb)
-  where STRICT_1_OF_2(go)
-        go _  0 = z
+  where go !_ 0 = z
         go bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
                 | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
 foldr'Bits prefix f z bm = let lb = lowestBitSet bm
                            in  go (prefix+lb) (bm `shiftRL` lb)
-  where STRICT_1_OF_2(go)
-        go _  0 = z
+  where
+        go !_ 0 = z
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
 
@@ -1493,11 +1479,9 @@ bitcount a0 x0 = go a0 x0
 --  splitting all the way to individual singleton sets -- it stops at some
 --  point.
 splitRoot :: IntSet -> [IntSet]
-splitRoot orig =
-  case orig of
-    Nil -> []
-    -- NOTE: we don't currently split below Tip, but we could.
-    x@(Tip _ _) -> [x]
-    Bin _ m l r | m < 0 -> [r, l]
-                | otherwise -> [l, r]
+splitRoot Nil = []
+-- NOTE: we don't currently split below Tip, but we could.
+splitRoot x@(Tip _ _) = [x]
+splitRoot (Bin _ m l r) | m < 0 = [r, l]
+                        | otherwise = [l, r]
 {-# INLINE splitRoot #-}
