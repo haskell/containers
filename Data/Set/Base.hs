@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -290,8 +291,7 @@ instance Foldable.Foldable Set where
     toList = toList
     {-# INLINE toList #-}
     elem = go
-      where STRICT_1_OF_2(go)
-            go _ Tip = False
+      where go !_ Tip = False
             go x (Bin _ y l r) = x == y || go x l || go x r
     {-# INLINABLE elem #-}
     minimum = findMin
@@ -350,8 +350,7 @@ size (Bin sz _ _ _) = sz
 member :: Ord a => a -> Set a -> Bool
 member = go
   where
-    STRICT_1_OF_2(go)
-    go _ Tip = False
+    go !_ Tip = False
     go x (Bin _ y l r) = case compare x y of
       LT -> go x l
       GT -> go x r
@@ -378,13 +377,11 @@ notMember a t = not $ member a t
 lookupLT :: Ord a => a -> Set a -> Maybe a
 lookupLT = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing x (Bin _ y l r) | x <= y = goNothing x l
                               | otherwise = goJust x y r
 
-    STRICT_1_OF_3(goJust)
-    goJust _ best Tip = Just best
+    goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x <= y = goJust x best l
                                 | otherwise = goJust x y r
 #if __GLASGOW_HASKELL__ >= 700
@@ -400,13 +397,11 @@ lookupLT = goNothing
 lookupGT :: Ord a => a -> Set a -> Maybe a
 lookupGT = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing x (Bin _ y l r) | x < y = goJust x y l
                               | otherwise = goNothing x r
 
-    STRICT_1_OF_3(goJust)
-    goJust _ best Tip = Just best
+    goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x < y = goJust x y l
                                 | otherwise = goJust x best r
 #if __GLASGOW_HASKELL__ >= 700
@@ -423,14 +418,12 @@ lookupGT = goNothing
 lookupLE :: Ord a => a -> Set a -> Maybe a
 lookupLE = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing x (Bin _ y l r) = case compare x y of LT -> goNothing x l
                                                     EQ -> Just y
                                                     GT -> goJust x y r
 
-    STRICT_1_OF_3(goJust)
-    goJust _ best Tip = Just best
+    goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
                                                       EQ -> Just y
                                                       GT -> goJust x y r
@@ -448,14 +441,12 @@ lookupLE = goNothing
 lookupGE :: Ord a => a -> Set a -> Maybe a
 lookupGE = goNothing
   where
-    STRICT_1_OF_2(goNothing)
-    goNothing _ Tip = Nothing
+    goNothing !_ Tip = Nothing
     goNothing x (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                     EQ -> Just y
                                                     GT -> goNothing x r
 
-    STRICT_1_OF_3(goJust)
-    goJust _ best Tip = Just best
+    goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                       EQ -> Just y
                                                       GT -> goJust x best r
@@ -490,8 +481,7 @@ insert :: Ord a => a -> Set a -> Set a
 insert = go
   where
     go :: Ord a => a -> Set a -> Set a
-    STRICT_1_OF_2(go)
-    go x Tip = singleton x
+    go !x Tip = singleton x
     go x (Bin sz y l r) = case compare x y of
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
@@ -510,8 +500,7 @@ insertR :: Ord a => a -> Set a -> Set a
 insertR = go
   where
     go :: Ord a => a -> Set a -> Set a
-    STRICT_1_OF_2(go)
-    go x Tip = singleton x
+    go !x Tip = singleton x
     go x t@(Bin _ y l r) = case compare x y of
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
@@ -529,8 +518,7 @@ delete :: Ord a => a -> Set a -> Set a
 delete = go
   where
     go :: Ord a => a -> Set a -> Set a
-    STRICT_1_OF_2(go)
-    go _ Tip = Tip
+    go !_ Tip = Tip
     go x (Bin _ y l r) = case compare x y of
         LT -> balanceR y (go x l) r
         GT -> balanceL y l (go x r)
@@ -774,8 +762,7 @@ foldr f z = go z
 foldr' :: (a -> b -> b) -> b -> Set a -> b
 foldr' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip           = z'
+    go !z' Tip           = z'
     go z' (Bin _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr' #-}
 
@@ -798,8 +785,7 @@ foldl f z = go z
 foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
-    STRICT_1_OF_2(go)
-    go z' Tip           = z'
+    go !z' Tip           = z'
     go z' (Bin _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
 
@@ -883,8 +869,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
     fromList' t0 xs = foldlStrict ins t0 xs
       where ins t x = insert x t
 
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go _ t [x] = insertMax x t
     go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
                         | otherwise = case create s xss of
@@ -896,8 +881,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
     -- If ys is nonempty, the keys in ys are not ordered with respect to tree
     -- and must be inserted using fromList'. Otherwise the keys have been
     -- ordered so far.
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [], [])
+    create !_ [] = (Tip, [], [])
     create s xs@(x : xss)
       | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
                                       else (Bin 1 x Tip Tip, xss, [])
@@ -948,13 +932,11 @@ fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList [] = Tip
 fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
-    STRICT_1_OF_3(go)
-    go _ t [] = t
+    go !_ t [] = t
     go s l (x : xs) = case create s xs of
                         (r, ys) -> go (s `shiftL` 1) (link x l r) ys
 
-    STRICT_1_OF_2(create)
-    create _ [] = (Tip, [])
+    create !_ [] = (Tip, [])
     create s xs@(x : xs')
       | s == 1 = (Bin 1 x Tip Tip, xs')
       | otherwise = case create (s `shiftR` 1) xs of
@@ -1108,11 +1090,11 @@ splitMember _ Tip = (Tip, False, Tip)
 splitMember x (Bin _ y l r)
    = case compare x y of
        LT -> let (lt, found, gt) = splitMember x l
-                 gt' = link y gt r
-             in gt' `seq` (lt, found, gt')
+                 !gt' = link y gt r
+             in (lt, found, gt')
        GT -> let (lt, found, gt) = splitMember x r
-                 lt' = link y l lt
-             in lt' `seq` (lt', found, gt)
+                 !lt' = link y l lt
+             in (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__ >= 700
 {-# INLINABLE splitMember #-}
@@ -1137,9 +1119,7 @@ findIndex :: Ord a => a -> Set a -> Int
 findIndex = go 0
   where
     go :: Ord a => Int -> a -> Set a -> Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = error "Set.findIndex: element is not in the set"
+    go !_ !_ Tip  = error "Set.findIndex: element is not in the set"
     go idx x (Bin _ kx l r) = case compare x kx of
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
@@ -1162,9 +1142,7 @@ lookupIndex :: Ord a => a -> Set a -> Maybe Int
 lookupIndex = go 0
   where
     go :: Ord a => Int -> a -> Set a -> Maybe Int
-    STRICT_1_OF_3(go)
-    STRICT_2_OF_3(go)
-    go _   _ Tip  = Nothing
+    go !_ !_ Tip  = Nothing
     go idx x (Bin _ kx l r) = case compare x kx of
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
@@ -1182,8 +1160,7 @@ lookupIndex = go 0
 -- > elemAt 2 (fromList [5,3])    Error: index out of range
 
 elemAt :: Int -> Set a -> a
-STRICT_1_OF_2(elemAt)
-elemAt _ Tip = error "Set.elemAt: index out of range"
+elemAt !_ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ x l r)
   = case compare i sizeL of
       LT -> elemAt i l
@@ -1202,7 +1179,7 @@ elemAt i (Bin _ x l r)
 -- > deleteAt (-1) (fromList [5,3])    Error: index out of range
 
 deleteAt :: Int -> Set a -> Set a
-deleteAt i t = i `seq`
+deleteAt !i t =
   case t of
     Tip -> error "Set.deleteAt: index out of range"
     Bin _ x l r -> case compare i sizeL of
