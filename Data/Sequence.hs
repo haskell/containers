@@ -1758,7 +1758,8 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
  where
 -- We have to specialize these functions by hand, unfortunately, because
 -- GHC does not specialize until *all* instances are determined.
--- If we tried to used the Sized trick, it would likely leak to runtime.
+-- Although the Sized instance is known at compile time, the Applicative
+-- instance generally is not.
   traverseWithIndexTreeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
   traverseWithIndexTreeE _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
@@ -1784,33 +1785,23 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsprm = s + n - size sf
 
   traverseWithIndexDigitE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
-  traverseWithIndexDigitE f !s (One a) = One <$> f s a
-  traverseWithIndexDigitE f s (Two a b) = Two <$> f s a <*> f sPsa b
-    where
-      !sPsa = s + size a
-  traverseWithIndexDigitE f s (Three a b c) =
-                                      Three <$> f s a <*> f sPsa b <*> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  traverseWithIndexDigitE f s (Four a b c d) =
-                          Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
+  traverseWithIndexDigitE f i t = traverseWithIndexDigit f i t
 
   traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
-  traverseWithIndexDigitN f !s (One a) = One <$> f s a
-  traverseWithIndexDigitN f s (Two a b) = Two <$> f s a <*> f sPsa b
+  traverseWithIndexDigitN f i t = traverseWithIndexDigit f i t
+
+  {-# INLINE traverseWithIndexDigit #-}
+  traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
+  traverseWithIndexDigit f !s (One a) = One <$> f s a
+  traverseWithIndexDigit f s (Two a b) = Two <$> f s a <*> f sPsa b
     where
       !sPsa = s + size a
-  traverseWithIndexDigitN f s (Three a b c) =
+  traverseWithIndexDigit f s (Three a b c) =
                                       Three <$> f s a <*> f sPsa b <*> f sPsab c
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
-  traverseWithIndexDigitN f s (Four a b c d) =
+  traverseWithIndexDigit f s (Four a b c d) =
                           Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
     where
       !sPsa = s + size a
@@ -1818,24 +1809,22 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsabc = sPsab + size c
 
   traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
-  traverseWithIndexNodeE f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
+  traverseWithIndexNodeE f i t = traverseWithIndexNode f i t
+
+  traverseWithIndexNodeN :: Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
+  traverseWithIndexNodeN f i t = traverseWithIndexNode f i t
+
+  {-# INLINE traverseWithIndexNode #-}
+  traverseWithIndexNode :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Node a -> f (Node b)
+  traverseWithIndexNode f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
     where
       !sPsa = s + size a
-  traverseWithIndexNodeE f s (Node3 ns a b c) =
+  traverseWithIndexNode f s (Node3 ns a b c) =
                                      node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
 
-  traverseWithIndexNodeN :: Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
-  traverseWithIndexNodeN f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
-    where
-      !sPsa = s + size a
-  traverseWithIndexNodeN f s (Node3 ns a b c) =
-                                     node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
 
 {-# NOINLINE [1] traverseWithIndex #-}
 #ifdef __GLASGOW_HASKELL__
