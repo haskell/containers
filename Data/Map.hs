@@ -78,7 +78,7 @@ import qualified Data.Map.Strict as Strict
 
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' = Strict.insertWith
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith' #-}
 #else
 {-# INLINE insertWith' #-}
@@ -94,7 +94,7 @@ insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 -- We do not reuse Data.Map.Strict.insertWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
 insertWithKey' = Strict.insertWithKey
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey' #-}
 #else
 {-# INLINE insertWithKey' #-}
@@ -111,7 +111,7 @@ insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
 -- We do not reuse Data.Map.Strict.insertLookupWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
 insertLookupWithKey' = Strict.insertLookupWithKey
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey' #-}
 #else
 {-# INLINE insertLookupWithKey' #-}

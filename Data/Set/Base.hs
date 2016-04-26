@@ -228,7 +228,7 @@ infixl 9 \\ --
 -- | /O(n+m)/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE (\\) #-}
 #endif
 
@@ -355,7 +355,7 @@ member = go
       LT -> go x l
       GT -> go x r
       EQ -> True
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
 #else
 {-# INLINE member #-}
@@ -364,7 +364,7 @@ member = go
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE notMember #-}
 #else
 {-# INLINE notMember #-}
@@ -384,7 +384,7 @@ lookupLT = goNothing
     goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x <= y = goJust x best l
                                 | otherwise = goJust x y r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
 #else
 {-# INLINE lookupLT #-}
@@ -404,7 +404,7 @@ lookupGT = goNothing
     goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x < y = goJust x y l
                                 | otherwise = goJust x best r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
 #else
 {-# INLINE lookupGT #-}
@@ -427,7 +427,7 @@ lookupLE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
                                                       EQ -> Just y
                                                       GT -> goJust x y r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
 #else
 {-# INLINE lookupLE #-}
@@ -450,7 +450,7 @@ lookupGE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                       EQ -> Just y
                                                       GT -> goJust x best r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
 #else
 {-# INLINE lookupGE #-}
@@ -486,7 +486,7 @@ insert = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> Bin sz x l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
@@ -505,7 +505,7 @@ insertR = go
         LT -> balanceL y (go x l) r
         GT -> balanceR y l (go x r)
         EQ -> t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
 #else
 {-# INLINE insertR #-}
@@ -523,7 +523,7 @@ delete = go
         LT -> balanceR y (go x l) r
         GT -> balanceL y l (go x r)
         EQ -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE delete #-}
 #else
 {-# INLINE delete #-}
@@ -536,7 +536,7 @@ delete = go
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
     = (size s1 < size s2) && (isSubsetOf s1 s2)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
 #endif
 
@@ -546,7 +546,7 @@ isProperSubsetOf s1 s2
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = (size t1 <= size t2) && (isSubsetOfX t1 t2)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOf #-}
 #endif
 
@@ -557,7 +557,7 @@ isSubsetOfX (Bin _ x l r) t
   = found && isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOfX #-}
 #endif
 
@@ -595,7 +595,7 @@ deleteMax Tip             = Tip
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: Ord a => [Set a] -> Set a
 unions = foldlStrict union empty
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE unions #-}
 #endif
 
@@ -606,7 +606,7 @@ union :: Ord a => Set a -> Set a -> Set a
 union Tip t2  = t2
 union t1 Tip  = t1
 union t1 t2 = hedgeUnion NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
 #endif
 
@@ -618,7 +618,7 @@ hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchm
 hedgeUnion blo bhi (Bin _ x l r) t2 = link x (hedgeUnion blo bmi l (trim blo bmi t2))
                                              (hedgeUnion bmi bhi r (trim bmi bhi t2))
   where bmi = JustS x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeUnion #-}
 #endif
 
@@ -631,7 +631,7 @@ difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
 #endif
 
@@ -641,7 +641,7 @@ hedgeDiff blo bhi (Bin _ x l r) Tip = link x (filterGt blo l) (filterLt bhi r)
 hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
                                           (hedgeDiff bmi bhi (trim bmi bhi t) r)
   where bmi = JustS x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeDiff #-}
 #endif
 
@@ -664,7 +664,7 @@ intersection :: Ord a => Set a -> Set a -> Set a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
 intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
 #endif
 
@@ -675,7 +675,7 @@ hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2
                                         r' = hedgeInt bmi bhi r (trim bmi bhi t2)
                                     in if x `member` t2 then link x l' r' else merge l' r'
   where bmi = JustS x
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeInt #-}
 #endif
 
@@ -713,7 +713,7 @@ partition p0 t0 = toPair $ go p0 t0
 
 map :: Ord b => (a->b) -> Set a -> Set b
 map f = fromList . List.map f . toList
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE map #-}
 #endif
 
@@ -891,7 +891,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                       (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
                                          | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link y l r, zs, ws)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromList #-}
 #endif
 
@@ -918,7 +918,7 @@ fromAscList xs
   combineEq' z (x:xs')
     | z==x      =   combineEq' z xs'
     | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
 #endif
 
@@ -1032,7 +1032,7 @@ trim NothingS   (JustS hx) t = lesser hx t  where lesser  hi (Bin _ x l _) | x >
 trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lo hi (Bin _ x _ r) | x <= lo = middle lo hi r
                                                      middle lo hi (Bin _ x l _) | x >= hi = middle lo hi l
                                                      middle _  _  t' = t'
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE trim #-}
 #endif
 
@@ -1048,7 +1048,7 @@ filterGt (JustS b) t = filter' b t
           case compare b' x of LT -> link x (filter' b' l) r
                                EQ -> r
                                GT -> filter' b' r
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE filterGt #-}
 #endif
 
@@ -1060,7 +1060,7 @@ filterLt (JustS b) t = filter' b t
           case compare x b' of LT -> link x l (filter' b' r)
                                EQ -> l
                                GT -> filter' b' l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE filterLt #-}
 #endif
 
@@ -1079,7 +1079,7 @@ split x0 t0 = toPair $ go x0 t0
           LT -> let (lt :*: gt) = go x l in (lt :*: link y gt r)
           GT -> let (lt :*: gt) = go x r in (link y l lt :*: gt)
           EQ -> (l :*: r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE split #-}
 #endif
 
@@ -1096,7 +1096,7 @@ splitMember x (Bin _ y l r)
                  !lt' = link y l lt
              in (lt', found, gt)
        EQ -> (l, True, r)
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif
 
@@ -1124,7 +1124,7 @@ findIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> idx + size l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE findIndex #-}
 #endif
 
@@ -1147,7 +1147,7 @@ lookupIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> Just $! idx + size l
-#if __GLASGOW_HASKELL__ >= 700
+#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupIndex #-}
 #endif
 

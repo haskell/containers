@@ -1,8 +1,8 @@
 name: containers
-version: 0.5.7.1
+version: 0.5.8.0
 license: BSD3
 license-file: LICENSE
-maintainer: fox@ucw.cz
+maintainer: libraries@haskell.org
 bug-reports: https://github.com/haskell/containers/issues
 synopsis: Assorted concrete container types
 category: Data Structures
@@ -32,8 +32,8 @@ source-repository head
     location: http://github.com/haskell/containers.git
 
 Library
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5
-    if impl(ghc>=6.10)
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5
+    if impl(ghc)
         build-depends: ghc-prim
 
     ghc-options: -O2 -Wall
@@ -47,11 +47,9 @@ Library
         Data.Map.Lazy
         Data.Map.Strict
         Data.Set
-    if !impl(nhc98)
-        exposed-modules:
-            Data.Graph
-            Data.Sequence
-            Data.Tree
+        Data.Graph
+        Data.Sequence
+        Data.Tree
     other-modules:
         Data.IntMap.Base
         Data.IntSet.Base
@@ -62,9 +60,6 @@ Library
         Data.Utils.StrictPair
 
     include-dirs: include
-
-    if impl(ghc<7.0)
-        extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
 -------------------
 -- T E S T I N G --
@@ -84,7 +79,7 @@ Test-suite map-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -102,7 +97,7 @@ Test-suite map-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -120,7 +115,7 @@ Test-suite set-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -138,7 +133,7 @@ Test-suite intmap-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -156,7 +151,7 @@ Test-suite intmap-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -174,7 +169,7 @@ Test-suite intset-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -192,7 +187,7 @@ Test-suite deprecated-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -208,7 +203,7 @@ Test-suite seq-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
@@ -226,7 +221,7 @@ test-suite map-strictness-properties
 
   build-depends:
     array,
-    base >= 4.2 && < 5,
+    base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.4.0.1,
@@ -244,7 +239,7 @@ test-suite intmap-strictness-properties
 
   build-depends:
     array,
-    base >= 4.2 && < 5,
+    base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.4.0.1,
@@ -262,7 +257,7 @@ test-suite intset-strictness-properties
 
   build-depends:
     array,
-    base >= 4.2 && < 5,
+    base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.4.0.1,

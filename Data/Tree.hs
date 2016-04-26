@@ -172,9 +172,7 @@ unfoldTreeM f b = do
     return (Node a ts)
 
 -- | Monadic forest builder, in depth-first order
-#ifndef __NHC__
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
-#endif
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
 -- | Monadic tree builder, in breadth-first order,
