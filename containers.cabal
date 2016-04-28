@@ -32,7 +32,7 @@ source-repository head
     location: http://github.com/haskell/containers.git
 
 Library
-    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5
+    build-depends: base >= 4.2 && < 5, array, deepseq >= 1.2 && < 1.5, kan-extensions
     if impl(ghc>=6.10)
         build-depends: ghc-prim
 

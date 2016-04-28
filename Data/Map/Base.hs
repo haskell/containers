@@ -285,6 +285,7 @@ import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
+import Data.Functor.Yoneda (Yoneda, liftYoneda, lowerYoneda)
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
@@ -982,7 +983,15 @@ alter = go
 
 at :: (Functor f, Ord k) =>
       k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-at = go
+at k f m = lowerYoneda (atYoneda k (liftYoneda . f) m)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE at #-}
+#else
+{-# INLINE at #-}
+#endif
+
+atYoneda :: Ord k => k -> (Maybe a -> Yoneda f (Maybe a)) -> Map k a -> Yoneda f (Map k a)
+atYoneda = go
   where
     STRICT_1_OF_3(go)
     go k f Tip = (`fmap` f Nothing) $ \ mx -> case mx of
@@ -996,9 +1005,9 @@ at = go
                        Just x' -> Bin sx kx x' l r
                        Nothing -> glue l r
 #if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE at #-}
+{-# INLINABLE atYoneda #-}
 #else
-{-# INLINE at #-}
+{-# INLINE atYoneda #-}
 #endif
 
 {--------------------------------------------------------------------
