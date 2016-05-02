@@ -55,6 +55,7 @@ Library
         Data.IntSet.Base
         Data.Map.Base
         Data.Set.Base
+        Data.Utils.BitQueue
         Data.Utils.BitUtil
         Data.Utils.StrictFold
         Data.Utils.StrictPair
@@ -68,11 +69,6 @@ Library
 -- Every test-suite contains the build-depends and options of the library,
 -- plus the testing stuff.
 
--- Because the test-suites cannot contain conditionals in GHC 7.0, the extensions
--- are switched on for every compiler to allow GHC < 7.0 to compile the tests
--- (because GHC < 7.0 cannot handle conditional LANGUAGE pragmas).
--- When testing with GHC < 7.0 is not needed, the extensions should be removed.
-
 Test-suite map-lazy-properties
     hs-source-dirs: tests, .
     main-is: map-properties.hs
@@ -82,16 +78,16 @@ Test-suite map-lazy-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
-        -- only needed for base < 4.8 to get Identity
-        transformers,
         HUnit,
         QuickCheck,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2
+    if impl (ghc < 7.10)
+      -- only needed for base < 4.8 to get Identity
+      build-depends: transformers
 
 Test-suite map-strict-properties
     hs-source-dirs: tests, .
@@ -102,15 +98,31 @@ Test-suite map-strict-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         -- only needed for base < 4.8 to get Identity
-        transformers,
         HUnit,
         QuickCheck,
         test-framework,
         test-framework-hunit,
+        test-framework-quickcheck2
+    if impl (ghc < 7.10)
+      -- only needed for base < 4.8 to get Identity
+      build-depends: transformers
+
+Test-suite bitqueue-properties
+    hs-source-dirs: tests, .
+    main-is: bitqueue-properties.hs
+    type: exitcode-stdio-1.0
+    cpp-options: -DTESTING
+
+    build-depends: base >= 4.3 && < 5, ghc-prim
+    ghc-options: -O2
+    include-dirs: include
+
+    build-depends:
+        QuickCheck,
+        test-framework,
         test-framework-quickcheck2
 
 Test-suite set-properties
@@ -122,7 +134,6 @@ Test-suite set-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -140,7 +151,6 @@ Test-suite intmap-lazy-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -158,7 +168,6 @@ Test-suite intmap-strict-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -176,7 +185,6 @@ Test-suite intset-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         HUnit,
@@ -194,7 +202,6 @@ Test-suite deprecated-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         QuickCheck,
@@ -210,7 +217,6 @@ Test-suite seq-properties
     build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
     ghc-options: -O2
     include-dirs: include
-    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         QuickCheck,

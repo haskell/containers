@@ -9,9 +9,19 @@
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
+#define USE_MAGIC_PROXY 1
+#endif
+
+#if USE_MAGIC_PROXY
+{-# LANGUAGE MagicHash #-}
 #endif
 
 #include "containers.h"
+
+#if !(WORD_SIZE_IN_BITS >= 61)
+#define DEFINE_ALTERF_FALLBACK 1
+#endif
+
 
 -----------------------------------------------------------------------------
 -- |
@@ -137,7 +147,7 @@ module Data.Map.Base (
     , updateWithKey
     , updateLookupWithKey
     , alter
-    , at
+    , alterF
 
     -- * Combine
 
@@ -255,14 +265,19 @@ module Data.Map.Base (
     , valid
 
     -- Used by the strict version
+    , AreWeStrict (..)
+    , atKeyImpl
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+    , atKeyPlain
+#endif
     , bin
     , balance
     , balanced
     , balanceL
     , balanceR
     , delta
-    , link
     , insertMax
+    , link
     , merge
     , glue
     , trim
@@ -272,7 +287,9 @@ module Data.Map.Base (
     , filterLt
     ) where
 
-#if !(MIN_VERSION_base(4,8,0))
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#else
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
@@ -280,7 +297,7 @@ import Data.Traversable (Traversable(traverse))
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 #endif
-
+import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
@@ -290,9 +307,16 @@ import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 import qualified Data.Set.Base as Set
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
+import Data.Utils.BitQueue
+#if DEFINE_ALTERF_FALLBACK
+import Data.Utils.BitUtil (wordSize)
+#endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts ( build )
+import GHC.Exts (build)
+#if USE_MAGIC_PROXY
+import GHC.Exts (Proxy#, proxy# )
+#endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
@@ -933,25 +957,267 @@ alter = go
 {-# INLINE alter #-}
 #endif
 
-at :: (Functor f, Ord k) =>
-      k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-at = go
+-- Used to choose the appropriate alterF implementation.
+data AreWeStrict = Strict | Lazy
+
+-- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at
+-- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
+-- or update a value in a 'Map'.  In short : @'lookup' k <$> 'alterF' f k m = f
+-- ('lookup' k m)@.
+--
+-- Example:
+-- @
+-- interactiveAlter :: Int -> Map Int String -> IO (Map Int String)
+-- interactiveAlter k m = alterF f k m where
+--   f Nothing -> do
+--      putStrLn $ show k ++
+--          " was not found in the map. Would you like to add it?"
+--      getUserResponse1 :: IO (Maybe String)
+--   f (Just old) -> do
+--      putStrLn "The key is currently bound to " ++ show old ++
+--          ". Would you like to change or delete it?"
+--      getUserresponse2 :: IO (Maybe String)
+-- @
+--
+-- 'alterF' is the most general operation for working with an individual
+-- key that may or may not be in a given map. When used with trivial
+-- functors like 'Identity' and 'Const', it is often slightly slower than
+-- more specialized combinators like 'lookup' and 'insert'. However, when
+-- the functor is non-trivial and key comparison is not particularly cheap,
+-- it is the fastest way.
+--
+-- Note on rewrite rules:
+--
+-- This module includes GHC rewrite rules to optimize 'alterF' for
+-- the 'Const' and 'Identity' functors. In general, these rules
+-- improve performance. The sole exception is that when using
+-- 'Identity', deleting a key that is already absent takes longer
+-- than it would without the rules. If you expect this to occur
+-- a very large fraction of the time, you might consider using a
+-- private copy of the 'Identity' type.
+--
+-- Note: 'alterF' is a flipped version of the 'at' combinator from
+-- 'Control.Lens.At'.
+--
+-- @since 0.5.8
+alterF :: (Functor f, Ord k)
+       => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
+alterF f k m = atKeyImpl Lazy k f m
+
+#ifndef __GLASGOW_HASKELL__
+{-# INLINE alterF #-}
+#else
+{-# INLINABLE [2] alterF #-}
+
+-- We can save a little time by recognizing the special case of
+-- `Control.Applicative.Const` and just doing a lookup.
+{-# RULES
+"alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
+ #-}
+#if MIN_VERSION_base(4,8,0)
+-- base 4.8 and above include Data.Functor.Identity, so we can
+-- save a pretty decent amount of time by handling it specially.
+{-# RULES
+"alterF/Identity" forall k f . alterF f k = atKeyIdentity k f
+ #-}
+#endif
+#endif
+
+atKeyImpl :: (Functor f, Ord k) =>
+      AreWeStrict -> k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+#if DEFINE_ALTERF_FALLBACK
+atKeyImpl strict !k f m
+-- It doesn't seem sensible to worry about overflowing the queue
+-- if the word size is 61 or more. If I calculate it correctly,
+-- that would take a map with nearly a quadrillion entries.
+  | wordSize < 61 && size m >= alterFCutoff = alterFFallback strict k f m
+#endif
+atKeyImpl strict !k f m = case lookupTrace k m of
+  TraceResult mv q -> (<$> f mv) $ \ fres ->
+    case fres of
+      Nothing -> case mv of
+                   Nothing -> m
+                   Just old -> deleteAlong old q m
+      Just new -> case strict of
+         Strict -> new `seq` case mv of
+                      Nothing -> insertAlong q k new m
+                      Just _ -> replaceAlong q new m
+         Lazy -> case mv of
+                      Nothing -> insertAlong q k new m
+                      Just _ -> replaceAlong q new m
+
+{-# INLINE atKeyImpl #-}
+
+#if DEFINE_ALTERF_FALLBACK
+alterFCutoff :: Int
+#if WORD_SIZE_IN_BITS == 32
+alterFCutoff = 55744454
+#else
+alterFCutoff = case wordSize of
+      30 -> 17637893
+      31 -> 31356255
+      32 -> 55744454
+      x -> (4^(x*2-2)) `quot` (3^(x*2-2))  -- Unlikely
+#endif
+#endif
+
+data TraceResult a = TraceResult (Maybe a) {-# UNPACK #-} !BitQueue
+
+-- Look up a key and return a result indicating whether it was found
+-- and what path was taken.
+lookupTrace :: Ord k => k -> Map k a -> TraceResult a
+lookupTrace = go emptyQB
   where
-    STRICT_1_OF_3(go)
-    go k f Tip = (`fmap` f Nothing) $ \ mx -> case mx of
-               Nothing -> Tip
-               Just x  -> singleton k x
+    go :: Ord k => BitQueueB -> k -> Map k a -> TraceResult a
+    go !q !_ Tip = TraceResult Nothing (buildQ q)
+    go q k (Bin _ kx x l r) = case compare k kx of
+      LT -> (go $! q `snocQB` False) k l
+      GT -> (go $! q `snocQB` True) k r
+      EQ -> TraceResult (Just x) (buildQ q)
+
+-- GHC 7.8 doesn't manage to unbox the queue properly
+-- unless we explicitly inline this function. This stuff
+-- is a bit touchy, unfortunately.
+#if __GLASGOW_HASKELL__ >= 710
+{-# INLINABLE lookupTrace #-}
+#else
+{-# INLINE lookupTrace #-}
+#endif
+
+-- Insert at a location (which will always be a leaf)
+-- described by the path passed in.
+insertAlong :: BitQueue -> k -> a -> Map k a -> Map k a
+insertAlong !_ kx x Tip = singleton kx x
+insertAlong q kx x (Bin sz ky y l r) =
+  case unconsQ q of
+        Just (False, tl) -> balanceL ky y (insertAlong tl kx x l) r
+        Just (True,tl) -> balanceR ky y l (insertAlong tl kx x r)
+        Nothing -> Bin sz kx x l r  -- Shouldn't happen
+
+-- Delete from a location (which will always be a node)
+-- described by the path passed in.
+--
+-- This is fairly horrifying! We don't actually have any
+-- use for the old value we're deleting. But if GHC sees
+-- that, then it will allocate a thunk representing the
+-- Map with the key deleted before we have any reason to
+-- believe we'll actually want that. This transformation
+-- enhances sharing, but we don't care enough about that.
+-- So deleteAlong needs to take the old value, and we need
+-- to convince GHC somehow that it actually uses it. We
+-- can't NOINLINE deleteAlong, because that would prevent
+-- the BitQueue from being unboxed. So instead we pass the
+-- old value to a NOINLINE constant function and then
+-- convince GHC that we use the result throughout the
+-- computation. Doing the obvious thing and just passing
+-- the value itself through the recursion costs 3-4% time,
+-- so instead we convert the value to a magical zero-width
+-- proxy that's ultimately erased.
+deleteAlong :: any -> BitQueue -> Map k a -> Map k a
+deleteAlong old !q0 !m = go (bogus old) q0 m where
+#if USE_MAGIC_PROXY
+  go :: Proxy# () -> BitQueue -> Map k a -> Map k a
+#else
+  go :: any -> BitQueue -> Map k a -> Map k a
+#endif
+  go !_ !_ Tip = Tip
+  go foom q (Bin _ ky y l r) =
+      case unconsQ q of
+        Just (False, tl) -> balanceR ky y (go foom tl l) r
+        Just (True, tl) -> balanceL ky y l (go foom tl r)
+        Nothing -> glue l r
+
+#if USE_MAGIC_PROXY
+{-# NOINLINE bogus #-}
+bogus :: a -> Proxy# ()
+bogus _ = proxy#
+#else
+-- No point hiding in this case.
+{-# INLINE bogus #-}
+bogus :: a -> a
+bogus a = a
+#endif
+
+-- Replace the value found in the node described
+-- by the given path with a new one.
+replaceAlong :: BitQueue -> a -> Map k a -> Map k a
+replaceAlong !_ _ Tip = Tip -- Should not happen
+replaceAlong q  x (Bin sz ky y l r) =
+      case unconsQ q of
+        Just (False, tl) -> Bin sz ky y (replaceAlong tl x l) r
+        Just (True,tl) -> Bin sz ky y l (replaceAlong tl x r)
+        Nothing -> Bin sz ky x l r
+
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
+atKeyIdentity k f t = Identity $ atKeyPlain Lazy k (coerce f) t
+{-# INLINABLE atKeyIdentity #-}
+
+atKeyPlain :: Ord k => AreWeStrict -> k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
+atKeyPlain strict k0 f0 t = case go k0 f0 t of
+    AltSmaller t' -> t'
+    AltBigger t' -> t'
+    AltAdj t' -> t'
+    AltSame -> t
+  where
+    go :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Altered k a
+    go !k f Tip = case f Nothing of
+                   Nothing -> AltSame
+                   Just x  -> case strict of
+                     Lazy -> AltBigger $ singleton k x
+                     Strict -> x `seq` (AltBigger $ singleton k x)
 
     go k f (Bin sx kx x l r) = case compare k kx of
-               LT -> (\ m -> balance kx x m r) `fmap` go k f l
-               GT -> (\ m -> balance kx x l m) `fmap` go k f r
-               EQ -> (`fmap` f (Just x)) $ \ mx' -> case mx' of
-                       Just x' -> Bin sx kx x' l r
-                       Nothing -> glue l r
-#if __GLASGOW_HASKELL__ >= 700
-{-# INLINABLE at #-}
-#else
-{-# INLINE at #-}
+                   LT -> case go k f l of
+                           AltSmaller l' -> AltSmaller $ balanceR kx x l' r
+                           AltBigger l' -> AltBigger $ balanceL kx x l' r
+                           AltAdj l' -> AltAdj $ Bin sx kx x l' r
+                           AltSame -> AltSame
+                   GT -> case go k f r of
+                           AltSmaller r' -> AltSmaller $ balanceL kx x l r'
+                           AltBigger r' -> AltBigger $ balanceR kx x l r'
+                           AltAdj r' -> AltAdj $ Bin sx kx x l r'
+                           AltSame -> AltSame
+                   EQ -> case f (Just x) of
+                           Just x' -> case strict of
+                             Lazy -> AltAdj $ Bin sx kx x' l r
+                             Strict -> x' `seq` (AltAdj $ Bin sx kx x' l r)
+                           Nothing -> AltSmaller $ glue l r
+{-# INLINE atKeyPlain #-}
+
+data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
+#endif
+
+#if DEFINE_ALTERF_FALLBACK
+-- When the map is too large to use a bit queue, we fall back to
+-- this much slower version which uses a more "natural" implementation
+-- improved with Yoneda to avoid repeated fmaps. This works okayish for
+-- some operations, but it's pretty lousy for lookups.
+alterFFallback :: (Functor f, Ord k)
+   => AreWeStrict -> k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+alterFFallback Lazy k f t = alterFYoneda k (\m q -> q <$> f m) t id
+alterFFallback Strict k f t = alterFYoneda k (\m q -> q . forceMaybe <$> f m) t id
+  where
+    forceMaybe Nothing = Nothing
+    forceMaybe may@(Just !_) = may
+{-# NOINLINE alterFFallback #-}
+
+alterFYoneda :: Ord k =>
+      k -> (Maybe a -> (Maybe a -> b) -> f b) -> Map k a -> (Map k a -> b) -> f b
+alterFYoneda = go
+  where
+    go :: Ord k =>
+      k -> (Maybe a -> (Maybe a -> b) -> f b) -> Map k a -> (Map k a -> b) -> f b
+    go !k f Tip g = f Nothing $ \ mx -> case mx of
+      Nothing -> g Tip
+      Just x -> g (singleton k x)
+    go k f (Bin sx kx x l r) g = case compare k kx of
+               LT -> go k f l (\m -> g (balance kx x m r))
+               GT -> go k f r (\m -> g (balance kx x l m))
+               EQ -> f (Just x) $ \ mx' -> case mx' of
+                       Just x' -> g (Bin sx kx x' l r)
+                       Nothing -> g (glue l r)
+{-# INLINE alterFYoneda #-}
 #endif
 
 {--------------------------------------------------------------------

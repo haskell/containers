@@ -96,7 +96,7 @@ module Data.Map.Lazy (
     , updateWithKey
     , updateLookupWithKey
     , alter
-    , at
+    , alterF
 
     -- * Combine
 

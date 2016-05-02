@@ -104,7 +104,7 @@ module Data.Map.Strict
     , updateWithKey
     , updateLookupWithKey
     , alter
-    , at
+    , alterF
 
     -- * Combine
 
@@ -245,6 +245,7 @@ import Data.Map.Base hiding
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , alterF
     , unionWith
     , unionWithKey
     , unionsWith
@@ -277,6 +278,7 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
+import Control.Applicative (Const (..))
 import qualified Data.Set.Base as Set
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
@@ -284,6 +286,10 @@ import Data.Utils.StrictPair
 import Data.Bits (shiftL, shiftR)
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
+#endif
+
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
 #endif
 
 
@@ -612,6 +618,70 @@ alter = go
 {-# INLINABLE alter #-}
 #else
 {-# INLINE alter #-}
+#endif
+
+-- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at @k@, or absence thereof.
+-- 'alterF' can be used to inspect, insert, delete, or update a value in a 'Map'.
+-- In short : @'lookup' k <$> 'alterF' f k m = f ('lookup' k m)@.
+--
+-- Example:
+-- @
+-- interactiveAlter :: Int -> Map Int String -> IO (Map Int String)
+-- interactiveAlter k m = alterF f k m where
+--   f Nothing -> do
+--      putStrLn $ show k ++
+--          " was not found in the map. Would you like to add it?"
+--      getUserResponse1 :: IO (Maybe String)
+--   f (Just old) -> do
+--      putStrLn "The key is currently bound to " ++ show old ++
+--          ". Would you like to change or delete it?"
+--      getUserresponse2 :: IO (Maybe String)
+-- @
+--
+-- 'alterF' is the most general operation for working with an individual
+-- key that may or may not be in a given map. When used with trivial
+-- functors like 'Identity' and 'Const', it is often slightly slower than
+-- more specialized combinators like 'lookup' and 'insert'. However, when
+-- the functor is non-trivial and key comparison is not particularly cheap,
+-- it is the fastest way.
+--
+-- Note on rewrite rules:
+--
+-- This module includes GHC rewrite rules to optimize 'alterF' for
+-- the 'Const' and 'Identity' functors. In general, these rules
+-- improve performance. The sole exception is that when using
+-- 'Identity', deleting a key that is already absent takes longer
+-- than it would without the rules. If you expect this to occur
+-- a very large fraction of the time, you might consider using a
+-- private copy of the 'Identity' type.
+--
+-- Note: 'alterF' is a flipped version of the 'at' combinator from
+-- 'Control.Lens.At'.
+alterF :: (Functor f, Ord k)
+       => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
+alterF f k m = atKeyImpl Strict k f m
+
+#ifndef __GLASGOW_HASKELL__
+{-# INLINE alterF #-}
+#else
+{-# INLINABLE [2] alterF #-}
+
+-- We can save a little time by recognizing the special case of
+-- `Control.Applicative.Const` and just doing a lookup.
+{-# RULES
+"alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
+ #-}
+#if MIN_VERSION_base(4,8,0)
+-- base 4.8 and above include Data.Functor.Identity, so we can
+-- save a pretty decent amount of time by handling it specially.
+{-# RULES
+"alterF/Identity" forall k f . alterF f k = atKeyIdentity k f
+ #-}
+
+atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
+atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
+{-# INLINABLE atKeyIdentity #-}
+#endif
 #endif
 
 {--------------------------------------------------------------------
