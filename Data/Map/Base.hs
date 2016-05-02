@@ -810,7 +810,15 @@ adjust f = adjustWithKey (\_ x -> f x)
 -- > adjustWithKey f 7 empty                         == empty
 
 adjustWithKey :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
-adjustWithKey f = updateWithKey (\k' x' -> Just (f k' x'))
+adjustWithKey = go
+  where
+    go :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
+    go _ !_ Tip = Tip
+    go f k (Bin sx kx x l r) =
+        case compare k kx of
+           LT -> Bin sx kx x (go f k l) r
+           GT -> Bin sx kx x l (go f k r)
+           EQ -> Bin sx kx (f kx x) l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE adjustWithKey #-}
 #else
