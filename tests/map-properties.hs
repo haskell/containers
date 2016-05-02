@@ -164,6 +164,8 @@ main = defaultMain
          , testProperty "toAscList+toDescList" prop_ascDescList
          , testProperty "fromList"             prop_fromList
          , testProperty "alter"                prop_alter
+         , testProperty "alterF/alter"         prop_alterF_alter
+         , testProperty "alterF/lookup"        prop_alterF_lookup
          , testProperty "index"                prop_index
          , testProperty "null"                 prop_null
          , testProperty "member"               prop_member
@@ -417,8 +419,6 @@ test_at = do
     atAlter g 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "c")]
     atAlter g 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "c")]
   where
-    atAlter f k m = runIdentity (at k (pure . f) m)
-    atLookup k m = getConst (at k Const m)
     f _ = Nothing
     g _ = Just "c"
     employeeDept = fromList([("John","Sales"), ("Bob","IT")])
@@ -429,6 +429,12 @@ test_at = do
         dept <- atLookup name employeeDept
         country <- atLookup dept deptCountry
         atLookup country countryCurrency
+
+atAlter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+atAlter f k m = runIdentity (alterF (pure . f) k m)
+
+atLookup :: Ord k => k -> Map k a -> Maybe a
+atLookup k m = getConst (alterF Const k m)
 
 ----------------------------------------------------------------
 -- Combine
@@ -1040,6 +1046,13 @@ prop_alter t k = balanced t' && case lookup k t of
     t' = alter f k t
     f Nothing   = Just ()
     f (Just ()) = Nothing
+
+prop_alterF_alter :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
+prop_alterF_alter f k m = valid altered && altered == alter f k m
+  where altered = atAlter f k m
+
+prop_alterF_lookup :: Int -> IMap -> Bool
+prop_alterF_lookup k m = atLookup k m == lookup k m
 
 ------------------------------------------------------------------------
 -- Compare against the list model (after nub on keys)

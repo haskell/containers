@@ -55,6 +55,7 @@ Library
         Data.IntSet.Base
         Data.Map.Base
         Data.Set.Base
+        Data.Utils.BitQueue
         Data.Utils.BitUtil
         Data.Utils.StrictFold
         Data.Utils.StrictPair
@@ -103,6 +104,26 @@ Test-suite map-strict-properties
     ghc-options: -O2
     include-dirs: include
     extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
+
+    build-depends:
+        -- only needed for base < 4.8 to get Identity
+        transformers,
+        HUnit,
+        QuickCheck,
+        test-framework,
+        test-framework-hunit,
+        test-framework-quickcheck2
+
+Test-suite bitqueue-properties
+    hs-source-dirs: tests, .
+    main-is: bitqueue-properties.hs
+    type: exitcode-stdio-1.0
+    cpp-options: -DTESTING
+
+    build-depends: base >= 4.3 && < 5, array, ghc-prim
+    ghc-options: -O2
+    include-dirs: include
+--    extensions: MagicHash, DeriveDataTypeable, StandaloneDeriving, Rank2Types
 
     build-depends:
         -- only needed for base < 4.8 to get Identity

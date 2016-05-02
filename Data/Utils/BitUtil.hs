@@ -23,9 +23,16 @@ module Data.Utils.BitUtil
     ( highestBitMask
     , shiftLL
     , shiftRL
+    , wordSize
     ) where
 
 import Data.Bits ((.|.), xor)
+#if MIN_VERSION_base(4,7,0)
+import Data.Bits (finiteBitSize)
+#else
+import Data.Bits (bitSize)
+#endif
+
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (Word(..), Int(..))
@@ -61,9 +68,19 @@ shiftRL, shiftLL :: Word -> Int -> Word
 --------------------------------------------------------------------}
 shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
 shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
+{-# INLINE CONLIKE shiftRL #-}
+{-# INLINE CONLIKE shiftLL #-}
 #else
 shiftRL x i   = shiftR x i
 shiftLL x i   = shiftL x i
-#endif
 {-# INLINE shiftRL #-}
 {-# INLINE shiftLL #-}
+#endif
+
+{-# INLINE wordSize #-}
+wordSize :: Int
+#if MIN_VERSION_base(4,7,0)
+wordSize = finiteBitSize (0 :: Word)
+#else
+wordSize = bitSize (0 :: Word)
+#endif
