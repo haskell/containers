@@ -2,7 +2,7 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash #-}
 #endif
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703 && !MIN_VERSION_base(4,8,0)
 {-# LANGUAGE Trustworthy #-}
 #endif
 
