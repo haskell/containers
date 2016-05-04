@@ -27,7 +27,13 @@ module Data.Utils.BitUtil
 
 import Data.Bits ((.|.), xor)
 
-#if __GLASGOW_HASKELL__
+#if !MIN_VERSION_base(4,8,0)
+import Data.Word (Word)
+#endif
+
+#if MIN_VERSION_base(4,5,0)
+import Data.Bits (unsafeShiftL, unsafeShiftR)
+#elif __GLASGOW_HASKELL__
 import GHC.Exts (Word(..), Int(..))
 import GHC.Prim (uncheckedShiftL#, uncheckedShiftRL#)
 #else
@@ -55,7 +61,10 @@ highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
 
 -- Right and left logical shifts.
 shiftRL, shiftLL :: Word -> Int -> Word
-#if __GLASGOW_HASKELL__
+#if MIN_VERSION_base(4,5,0)
+shiftRL x i = unsafeShiftR x i
+shiftLL x i = unsafeShiftL x i
+#elif __GLASGOW_HASKELL__
 {--------------------------------------------------------------------
   GHC: use unboxing to get @shiftRL@ inlined.
 --------------------------------------------------------------------}
