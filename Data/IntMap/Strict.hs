@@ -439,8 +439,16 @@ adjust f k m
 -- > adjustWithKey f 7 empty                         == empty
 
 adjustWithKey ::  (Key -> a -> a) -> Key -> IntMap a -> IntMap a
-adjustWithKey f
-  = updateWithKey (\k' x -> Just (f k' x))
+adjustWithKey f !k t =
+  case t of
+    Bin p m l r
+      | nomatch k p m -> t
+      | zero k m      -> Bin p m (adjustWithKey f k l) r
+      | otherwise     -> Bin p m l (adjustWithKey f k r)
+    Tip ky y
+      | k==ky         -> Tip ky $! f k y
+      | otherwise     -> t
+    Nil -> Nil
 
 -- | /O(min(n,W))/. The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -469,8 +477,8 @@ updateWithKey f !k t =
   case t of
     Bin p m l r
       | nomatch k p m -> t
-      | zero k m      -> bin p m (updateWithKey f k l) r
-      | otherwise     -> bin p m l (updateWithKey f k r)
+      | zero k m      -> binCheckLeft p m (updateWithKey f k l) r
+      | otherwise     -> binCheckRight p m l (updateWithKey f k r)
     Tip ky y
       | k==ky         -> case f k y of
                            Just !y' -> Tip ky y'
@@ -495,8 +503,8 @@ updateLookupWithKey f0 !k0 t0 = toPair $ go f0 k0 t0
       case t of
         Bin p m l r
           | nomatch k p m -> (Nothing :*: t)
-          | zero k m      -> let (found :*: l') = go f k l in (found :*: bin p m l' r)
-          | otherwise     -> let (found :*: r') = go f k r in (found :*: bin p m l r')
+          | zero k m      -> let (found :*: l') = go f k l in (found :*: binCheckLeft p m l' r)
+          | otherwise     -> let (found :*: r') = go f k r in (found :*: binCheckRight p m l r')
         Tip ky y
           | k==ky         -> case f k y of
                                Just !y' -> (Just y :*: Tip ky y')
@@ -516,8 +524,8 @@ alter f !k t =
       | nomatch k p m -> case f Nothing of
                            Nothing -> t
                            Just !x  -> link k (Tip k x) p t
-      | zero k m      -> bin p m (alter f k l) r
-      | otherwise     -> bin p m l (alter f k r)
+      | zero k m      -> binCheckLeft p m (alter f k l) r
+      | otherwise     -> binCheckRight p m l (alter f k r)
     Tip ky y
       | k==ky         -> case f (Just y) of
                            Just !x -> Tip ky x
@@ -667,10 +675,10 @@ mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
 
 updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey f t =
-  case t of Bin p m l r | m < 0 -> bin p m l (go f r)
+  case t of Bin p m l r | m < 0 -> binCheckRight p m l (go f r)
             _ -> go f t
   where
-    go f' (Bin p m l r) = bin p m (go f' l) r
+    go f' (Bin p m l r) = binCheckLeft p m (go f' l) r
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil
@@ -683,10 +691,10 @@ updateMinWithKey f t =
 
 updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey f t =
-  case t of Bin p m l r | m < 0 -> bin p m (go f l) r
+  case t of Bin p m l r | m < 0 -> binCheckLeft p m (go f l) r
             _ -> go f t
   where
-    go f' (Bin p m l r) = bin p m l (go f' r)
+    go f' (Bin p m l r) = binCheckRight p m l (go f' r)
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil
