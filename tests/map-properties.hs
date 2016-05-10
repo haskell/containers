@@ -6,6 +6,8 @@ import Data.Map.Strict as Data.Map
 import Data.Map.Lazy as Data.Map
 #endif
 
+import Control.Applicative (Const(Const, getConst), pure)
+import Data.Functor.Identity (Identity(runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -54,6 +56,7 @@ main = defaultMain
          , testCase "updateWithKey" test_updateWithKey
          , testCase "updateLookupWithKey" test_updateLookupWithKey
          , testCase "alter" test_alter
+         , testCase "at" test_at
          , testCase "union" test_union
          , testCase "mappend" test_mappend
          , testCase "unionWith" test_unionWith
@@ -161,6 +164,8 @@ main = defaultMain
          , testProperty "toAscList+toDescList" prop_ascDescList
          , testProperty "fromList"             prop_fromList
          , testProperty "alter"                prop_alter
+         , testProperty "alterF/alter"         prop_alterF_alter
+         , testProperty "alterF/lookup"        prop_alterF_lookup
          , testProperty "index"                prop_index
          , testProperty "null"                 prop_null
          , testProperty "member"               prop_member
@@ -404,6 +409,32 @@ test_alter = do
   where
     f _ = Nothing
     g _ = Just "c"
+
+test_at :: Assertion
+test_at = do
+    employeeCurrency "John" @?= Just "Euro"
+    employeeCurrency "Pete" @?= Nothing
+    atAlter f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
+    atAlter f 5 (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
+    atAlter g 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "c")]
+    atAlter g 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "c")]
+  where
+    f _ = Nothing
+    g _ = Just "c"
+    employeeDept = fromList([("John","Sales"), ("Bob","IT")])
+    deptCountry = fromList([("IT","USA"), ("Sales","France")])
+    countryCurrency = fromList([("USA", "Dollar"), ("France", "Euro")])
+    employeeCurrency :: String -> Maybe String
+    employeeCurrency name = do
+        dept <- atLookup name employeeDept
+        country <- atLookup dept deptCountry
+        atLookup country countryCurrency
+
+atAlter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+atAlter f k m = runIdentity (alterF (pure . f) k m)
+
+atLookup :: Ord k => k -> Map k a -> Maybe a
+atLookup k m = getConst (alterF Const k m)
 
 ----------------------------------------------------------------
 -- Combine
@@ -1015,6 +1046,13 @@ prop_alter t k = balanced t' && case lookup k t of
     t' = alter f k t
     f Nothing   = Just ()
     f (Just ()) = Nothing
+
+prop_alterF_alter :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
+prop_alterF_alter f k m = valid altered && altered == alter f k m
+  where altered = atAlter f k m
+
+prop_alterF_lookup :: Int -> IMap -> Bool
+prop_alterF_lookup k m = atLookup k m == lookup k m
 
 ------------------------------------------------------------------------
 -- Compare against the list model (after nub on keys)

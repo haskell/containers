@@ -9,3 +9,8 @@ GNUmakefile
 dist-install
 ghc.mk
 .stack-work
+/benchmarks/bench-Map
+/benchmarks/bench-Set
+/benchmarks/bench-IntSet
+/benchmarks/bench-IntMap
+/benchmarks/bench-Sequence
