@@ -291,7 +291,9 @@ module Data.Map.Base (
     , filterLt
     ) where
 
-#if !(MIN_VERSION_base(4,8,0))
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#else
 import Control.Applicative (Applicative(..), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
@@ -1009,11 +1011,16 @@ alterF f !k m = case lookupTrace k m of
 {-# INLINE alterF #-}
 #else
 {-# INLINABLE [2] alterF #-}
--- We can save precious time by recognizing the special case of
+-- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
 "alterF/Const" forall (f :: Maybe a -> Const b (Maybe a)) . alterF f = \k m -> Const . getConst . f $ lookup k m
  #-}
+#if MIN_VERSION_base(4,8,0)
+{-# RULES
+"alterF/Identity" forall f k . alterF f k = alterFIdentity f k
+ #-}
+#endif
 #endif
 
 #if DEFINE_ALTERF_FALLBACK
@@ -1115,6 +1122,42 @@ replaceAlong q  x (Bin sz ky y l r) =
         Just (False, tl) -> Bin sz ky y (replaceAlong tl x l) r
         Just (True,tl) -> Bin sz ky y l (replaceAlong tl x r)
         Nothing -> Bin sz ky x l r
+
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+alterFIdentity :: Ord k => (Maybe a -> Identity (Maybe a)) -> k -> Map k a -> Identity (Map k a)
+alterFIdentity f k t = Identity $ alterFPlain (coerce f) k t
+{-# INLINABLE alterFIdentity #-}
+
+alterFPlain :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+alterFPlain f k t = case go f k t of
+    AltSmaller t' -> t'
+    AltBigger t' -> t'
+    AltAdj t' -> t'
+    AltSame -> t
+  where
+    go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Altered k a
+    go f !k Tip = case f Nothing of
+                   Nothing -> AltSame
+                   Just x  -> AltBigger $ singleton k x
+    
+    go f k (Bin sx kx x l r) = case compare k kx of
+                   LT -> case go f k l of
+                           AltSmaller l' -> AltSmaller $ balanceR kx x l' r
+                           AltBigger l' -> AltBigger $ balanceL kx x l' r
+                           AltAdj l' -> AltAdj $ Bin sx kx x l' r
+                           AltSame -> AltSame
+                   GT -> case go f k r of
+                           AltSmaller r' -> AltSmaller $ balanceL kx x l r'
+                           AltBigger r' -> AltBigger $ balanceR kx x l r'
+                           AltAdj r' -> AltAdj $ Bin sx kx x l r'
+                           AltSame -> AltSame
+                   EQ -> case f (Just x) of
+                           Just x' -> AltAdj $ Bin sx kx x' l r
+                           Nothing -> AltSmaller $ glue l r
+{-# INLINABLE alterFPlain #-}
+
+data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
+#endif
 
 #if DEFINE_ALTERF_FALLBACK
 -- When the map is too large to use a bit queue, we fall back to

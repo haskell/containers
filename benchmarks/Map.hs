@@ -28,6 +28,8 @@ main = do
         , bench "insert present" $ whnf (ins elems_even) m_even
         , bench "at insert absent" $ whnf (atIns elems_even) m_odd
         , bench "at insert present" $ whnf (atIns elems_even) m_even
+        , bench "atIdentity insert absent" $ whnf (atIdentityIns elems_even) m_odd
+        , bench "atIdentity insert present" $ whnf (atIdentityIns elems_even) m_even
         , bench "atLens insert absent" $ whnf (atLensIns elems_even) m_odd
         , bench "atLens insert present" $ whnf (atLensIns elems_even) m_even
         , bench "delete absent" $ whnf (del evens) m_odd
@@ -98,6 +100,9 @@ main = do
 at :: (Functor f, Ord k) => k -> (Maybe a -> f (Maybe a)) -> M.Map k a -> f (M.Map k a)
 at = flip M.alterF
 
+atIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> M.Map k a -> Identity (M.Map k a)
+atIdentity = flip M.alterFIdentity
+
 add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z
 {-# INLINE add3 #-}
@@ -119,6 +124,9 @@ ins xs m = foldl' (\m (k, v) -> M.insert k v m) m xs
 
 atIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 atIns xs m = foldl' (\m (k, v) -> runIdentity (at k (\_ -> pure (Just v)) m)) m xs
+
+atIdentityIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
+atIdentityIns xs m = foldl' (\m (k, v) -> runIdentity (atIdentity k (\_ -> pure (Just v)) m)) m xs
 
 atLensIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 atLensIns xs m = foldl' (\m (k, v) -> runIdentity (atLens k (\_ -> pure (Just v)) m)) m xs
