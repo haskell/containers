@@ -282,6 +282,9 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#endif
 import Control.Applicative (Const (..))
 import Data.Functor ((<$>))
 import qualified Data.Set.Base as Set
@@ -625,19 +628,14 @@ alter = go
 {-# INLINE alter #-}
 #endif
 
--- *********
--- ATTENTION: When modifying `alterF`, be sure to keep the version
--- here in sync with the lazy version!
--- *********
-
 -- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alterF' can be used to inspect, insert, delete, or update a value in a 'Map'.
--- In short : @'lookup' k <$> 'alterF' f k m = f ('lookup' k m)@.
+-- In short : @'lookup' k <$> 'alterF' k f m = f ('lookup' k m)@.
 --
 -- Example:
 -- @
 -- interactiveAlter :: Int -> Map Int String -> IO (Map Int String)
--- interactiveAlter k m = alterF f k m where
+-- interactiveAlter k m = alterF k f m where
 --   f Nothing -> do
 --      putStrLn $ show k ++
 --          " was not found in the map. Would you like to add it?"
@@ -655,18 +653,18 @@ alter = go
 -- the functor is non-trivial and key comparison is not particularly cheap,
 -- it is the fastest way.
 --
--- Note: 'alterF' is a flipped version of the 'at' combinator from
+-- Note: 'alterF' is an instance of the 'at' combinator from
 -- 'Control.Lens.At'.
 alterF :: (Functor f, Ord k) =>
-      (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
+      k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
 #if DEFINE_ALTERF_FALLBACK
-alterF f !k m
+alterF !k f m
 -- It doesn't seem sensible to worry about overflowing the queue
 -- if the word size is 61 or more. If I calculate it correctly,
 -- that would take a map with nearly a quadrillion entries.
-  | wordSize < 61 && size m >= alterFCutoff = alterFFallback f k m
+  | wordSize < 61 && size m >= alterFCutoff = alterFFallback k f m
 #endif
-alterF f !k m = case lookupTrace k m of
+alterF !k f m = case lookupTrace k m of
   TraceResult mv q -> (<$> f mv) $ \ fres ->
     case fres of
       Nothing -> case mv of
@@ -680,11 +678,54 @@ alterF f !k m = case lookupTrace k m of
 {-# INLINE alterF #-}
 #else
 {-# INLINABLE [2] alterF #-}
--- We can save precious time by recognizing the special case of
+-- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
-"alterF/Const" forall (f :: Maybe a -> Const b (Maybe a)) . alterF f = \k m -> Const . getConst . f $ lookup k m
+"alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF k f = \m -> Const . getConst . f $ lookup k m
  #-}
+#if MIN_VERSION_base(4,8,0)
+-- base 4.8 and above include Data.Functor.Identity, so we can
+-- save a pretty decent amount of time by handling it specially.
+{-# RULES
+"alterF/Identity" forall k f . alterF k f = alterFIdentity k f
+ #-}
+#endif
+#endif
+
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+alterFIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
+alterFIdentity k f t = Identity $ alterFPlain k (coerce f) t
+{-# INLINABLE alterFIdentity #-}
+
+alterFPlain :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
+alterFPlain k f t = case go k f t of
+    AltSmaller t' -> t'
+    AltBigger t' -> t'
+    AltAdj t' -> t'
+    AltSame -> t
+  where
+    go :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Altered k a
+    go !k f Tip = case f Nothing of
+                   Nothing -> AltSame
+                   Just !x  -> AltBigger $ singleton k x
+
+    go k f (Bin sx kx x l r) = case compare k kx of
+                   LT -> case go k f l of
+                           AltSmaller l' -> AltSmaller $ balanceR kx x l' r
+                           AltBigger l' -> AltBigger $ balanceL kx x l' r
+                           AltAdj l' -> AltAdj $ Bin sx kx x l' r
+                           AltSame -> AltSame
+                   GT -> case go k f r of
+                           AltSmaller r' -> AltSmaller $ balanceL kx x l r'
+                           AltBigger r' -> AltBigger $ balanceR kx x l r'
+                           AltAdj r' -> AltAdj $ Bin sx kx x l r'
+                           AltSame -> AltSame
+                   EQ -> case f (Just x) of
+                           Just !x' -> AltAdj $ Bin sx kx x' l r
+                           Nothing -> AltSmaller $ glue l r
+{-# INLINABLE alterFPlain #-}
+
+data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
 #endif
 
 #if DEFINE_ALTERF_FALLBACK
@@ -693,11 +734,11 @@ alterF f !k m = case lookupTrace k m of
 -- improved with Yoneda to avoid repeated fmaps. This works okayish for
 -- some operations, but it's pretty lousy for lookups.
 alterFFallback :: (Functor f, Ord k)
-   => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
-alterFFallback f k t = alterFYoneda (\m q -> q . forceMaybe <$> f m) k t id
+   => k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+alterFFallback k f t = alterFYoneda k (\m q -> q . forceMaybe <$> f m) t id
   where
     forceMaybe Nothing = Nothing
-    forceMaybe (Just !x) = Just x
+    forceMaybe m@(Just !_) = m
 {-# NOINLINE alterFFallback #-}
 #endif
 

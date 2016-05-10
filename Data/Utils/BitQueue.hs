@@ -67,7 +67,7 @@ newtype BitQueue = BQ BitQueueB deriving Show
 -- Intended for debugging.
 instance Show BitQueueB where
   show (BQB hi lo) = "BQ"++
-    show (map (testBit hi) [(wordSize - 1),(wordSize - 1)..0]
+    show (map (testBit hi) [(wordSize - 1),(wordSize - 2)..0]
             ++ map (testBit lo) [(wordSize - 1),(wordSize - 2)..0])
 
 -- | Create an empty bit queue builder. This is represented as a single guard

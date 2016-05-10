@@ -431,10 +431,10 @@ test_at = do
         atLookup country countryCurrency
 
 atAlter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
-atAlter f k m = runIdentity (alterF (pure . f) k m)
+atAlter f k m = runIdentity (alterF k (pure . f) m)
 
 atLookup :: Ord k => k -> Map k a -> Maybe a
-atLookup k m = getConst (alterF Const k m)
+atLookup k m = getConst (alterF k Const m)
 
 ----------------------------------------------------------------
 -- Combine
