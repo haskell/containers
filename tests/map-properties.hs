@@ -165,7 +165,9 @@ main = defaultMain
          , testProperty "fromList"             prop_fromList
          , testProperty "alter"                prop_alter
          , testProperty "alterF/alter"         prop_alterF_alter
+         , testProperty "alterF/alter/noRULES" prop_alterF_alter_noRULES
          , testProperty "alterF/lookup"        prop_alterF_lookup
+         , testProperty "alterF/lookup/noRULES" prop_alterF_lookup_noRULES
          , testProperty "index"                prop_index
          , testProperty "null"                 prop_null
          , testProperty "member"               prop_member
@@ -430,11 +432,30 @@ test_at = do
         country <- atLookup dept deptCountry
         atLookup country countryCurrency
 
+-- This version of atAlter will rewrite to alterFIdentity
+-- if the rules fire.
 atAlter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 atAlter f k m = runIdentity (alterF k (pure . f) m)
 
+-- A version of atAlter that uses a private copy of Identity
+-- to ensure that the adjustF/Identity rules don't fire and
+-- we use the basic implementation.
+atAlterNoRULES :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
+atAlterNoRULES f k m = runIdent (alterF k (Ident . f) m)
+
+newtype Ident a = Ident { runIdent :: a }
+instance Functor Ident where
+  fmap f (Ident a) = Ident (f a)
+
 atLookup :: Ord k => k -> Map k a -> Maybe a
 atLookup k m = getConst (alterF k Const m)
+
+atLookupNoRULES :: Ord k => k -> Map k a -> Maybe a
+atLookupNoRULES k m = getConsty (alterF k Consty m)
+
+newtype Consty a b = Consty { getConsty :: a}
+instance Functor (Consty a) where
+  fmap _ (Consty a) = Consty a
 
 ----------------------------------------------------------------
 -- Combine
@@ -1051,8 +1072,16 @@ prop_alterF_alter :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
 prop_alterF_alter f k m = valid altered && altered == alter f k m
   where altered = atAlter f k m
 
+prop_alterF_alter_noRULES :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
+prop_alterF_alter_noRULES f k m = valid altered &&
+                                  altered == alter f k m
+  where altered = atAlterNoRULES f k m
+
 prop_alterF_lookup :: Int -> IMap -> Bool
 prop_alterF_lookup k m = atLookup k m == lookup k m
+
+prop_alterF_lookup_noRULES :: Int -> IMap -> Bool
+prop_alterF_lookup_noRULES k m = atLookupNoRULES k m == lookup k m
 
 ------------------------------------------------------------------------
 -- Compare against the list model (after nub on keys)

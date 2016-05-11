@@ -265,9 +265,10 @@ module Data.Map.Base (
     , valid
 
     -- Used by the strict version
-#if DEFINE_ALTERF_FALLBACK
-    , alterFYoneda
-    , alterFCutoff
+    , AreWeStrict (..)
+    , alterFImpl
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+    , alterFPlain
 #endif
     , bin
     , balance
@@ -961,6 +962,9 @@ alter = go
 {-# INLINE alter #-}
 #endif
 
+-- Used to choose the appropriate alterF implementation.
+data AreWeStrict = Strict | Lazy
+
 -- | /O(log n)/. The expression (@'alterF' k f map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alterF' can be used to inspect, insert, delete, or update a value in a 'Map'.
 -- In short : @'lookup' k <$> 'alterF' k f m = f ('lookup' k m)@.
@@ -988,29 +992,17 @@ alter = go
 --
 -- Note: 'alterF' is an instance of the 'at' combinator from
 -- 'Control.Lens.At'.
+--
+-- @since 0.5.8
 alterF :: (Functor f, Ord k) =>
       k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-#if DEFINE_ALTERF_FALLBACK
-alterF !k f m
--- It doesn't seem sensible to worry about overflowing the queue
--- if the word size is 61 or more. If I calculate it correctly,
--- that would take a map with nearly a quadrillion entries.
-  | wordSize < 61 && size m >= alterFCutoff = alterFFallback k f m
-#endif
-alterF !k f m = case lookupTrace k m of
-  TraceResult mv q -> (<$> f mv) $ \ fres ->
-    case fres of
-      Nothing -> case mv of
-                   Nothing -> m
-                   Just old -> deleteAlong old q m
-      Just new -> case mv of
-                   Nothing -> insertAlong q k new m
-                   Just _ -> replaceAlong q new m
+alterF k f m = alterFImpl Lazy k f m
 
 #ifndef __GLASGOW_HASKELL__
 {-# INLINE alterF #-}
 #else
 {-# INLINABLE [2] alterF #-}
+
 -- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
@@ -1024,6 +1016,31 @@ alterF !k f m = case lookupTrace k m of
  #-}
 #endif
 #endif
+
+alterFImpl :: (Functor f, Ord k) =>
+      AreWeStrict -> k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+#if DEFINE_ALTERF_FALLBACK
+alterFImpl strict !k f m
+-- It doesn't seem sensible to worry about overflowing the queue
+-- if the word size is 61 or more. If I calculate it correctly,
+-- that would take a map with nearly a quadrillion entries.
+  | wordSize < 61 && size m >= alterFCutoff = alterFFallback strict k f m
+#endif
+alterFImpl strict !k f m = case lookupTrace k m of
+  TraceResult mv q -> (<$> f mv) $ \ fres ->
+    case fres of
+      Nothing -> case mv of
+                   Nothing -> m
+                   Just old -> deleteAlong old q m
+      Just new -> case strict of
+         Strict -> new `seq` case mv of
+                      Nothing -> insertAlong q k new m
+                      Just _ -> replaceAlong q new m
+         Lazy -> case mv of
+                      Nothing -> insertAlong q k new m
+                      Just _ -> replaceAlong q new m
+
+{-# INLINE alterFImpl #-}
 
 #if DEFINE_ALTERF_FALLBACK
 alterFCutoff :: Int
@@ -1127,11 +1144,11 @@ replaceAlong q  x (Bin sz ky y l r) =
 
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
 alterFIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
-alterFIdentity k f t = Identity $ alterFPlain k (coerce f) t
+alterFIdentity k f t = Identity $ alterFPlain Lazy k (coerce f) t
 {-# INLINABLE alterFIdentity #-}
 
-alterFPlain :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
-alterFPlain k f t = case go k f t of
+alterFPlain :: Ord k => AreWeStrict -> k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
+alterFPlain strict k0 f0 t = case go k0 f0 t of
     AltSmaller t' -> t'
     AltBigger t' -> t'
     AltAdj t' -> t'
@@ -1140,7 +1157,9 @@ alterFPlain k f t = case go k f t of
     go :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Altered k a
     go !k f Tip = case f Nothing of
                    Nothing -> AltSame
-                   Just x  -> AltBigger $ singleton k x
+                   Just x  -> case strict of
+                     Lazy -> AltBigger $ singleton k x
+                     Strict -> x `seq` (AltBigger $ singleton k x)
 
     go k f (Bin sx kx x l r) = case compare k kx of
                    LT -> case go k f l of
@@ -1154,9 +1173,11 @@ alterFPlain k f t = case go k f t of
                            AltAdj r' -> AltAdj $ Bin sx kx x l r'
                            AltSame -> AltSame
                    EQ -> case f (Just x) of
-                           Just x' -> AltAdj $ Bin sx kx x' l r
+                           Just x' -> case strict of
+                             Lazy -> AltAdj $ Bin sx kx x' l r
+                             Strict -> x' `seq` (AltAdj $ Bin sx kx x' l r)
                            Nothing -> AltSmaller $ glue l r
-{-# INLINABLE alterFPlain #-}
+{-# INLINE alterFPlain #-}
 
 data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
 #endif
@@ -1167,8 +1188,12 @@ data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k
 -- improved with Yoneda to avoid repeated fmaps. This works okayish for
 -- some operations, but it's pretty lousy for lookups.
 alterFFallback :: (Functor f, Ord k)
-   => k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-alterFFallback k f t = alterFYoneda k (\m q -> q <$> f m) t id
+   => AreWeStrict -> k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
+alterFFallback Lazy k f t = alterFYoneda k (\m q -> q <$> f m) t id
+alterFFallback Strict k f t = alterFYoneda k (\m q -> q . forceMaybe <$> f m) t id
+  where
+    forceMaybe Nothing = Nothing
+    forceMaybe may@(Just !_) = may
 {-# NOINLINE alterFFallback #-}
 
 alterFYoneda :: Ord k =>

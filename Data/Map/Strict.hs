@@ -6,10 +6,6 @@
 
 #include "containers.h"
 
-#if !(WORD_SIZE_IN_BITS >= 61)
-#define DEFINE_ALTERF_FALLBACK 1
-#endif
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map.Strict
@@ -282,22 +278,18 @@ import Data.Map.Base hiding
     , updateMinWithKey
     , updateMaxWithKey
     )
-#if MIN_VERSION_base(4,8,0)
-import Data.Functor.Identity (Identity (..))
-#endif
 import Control.Applicative (Const (..))
-import Data.Functor ((<$>))
 import qualified Data.Set.Base as Set
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
-#if DEFINE_ALTERF_FALLBACK
-import Data.Utils.BitUtil (wordSize)
-#endif
-
 
 import Data.Bits (shiftL, shiftR)
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
+#endif
+
+#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
 #endif
 
 
@@ -657,27 +649,13 @@ alter = go
 -- 'Control.Lens.At'.
 alterF :: (Functor f, Ord k) =>
       k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-#if DEFINE_ALTERF_FALLBACK
-alterF !k f m
--- It doesn't seem sensible to worry about overflowing the queue
--- if the word size is 61 or more. If I calculate it correctly,
--- that would take a map with nearly a quadrillion entries.
-  | wordSize < 61 && size m >= alterFCutoff = alterFFallback k f m
-#endif
-alterF !k f m = case lookupTrace k m of
-  TraceResult mv q -> (<$> f mv) $ \ fres ->
-    case fres of
-      Nothing -> case mv of
-                   Nothing -> m
-                   Just old -> deleteAlong old q m
-      Just !new -> case mv of
-                   Nothing -> insertAlong q k new m
-                   Just _ -> replaceAlong q new m
+alterF k f m = alterFImpl Strict k f m
 
 #ifndef __GLASGOW_HASKELL__
 {-# INLINE alterF #-}
 #else
 {-# INLINABLE [2] alterF #-}
+
 -- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
@@ -689,59 +667,12 @@ alterF !k f m = case lookupTrace k m of
 {-# RULES
 "alterF/Identity" forall k f . alterF k f = alterFIdentity k f
  #-}
-#endif
-#endif
 
-#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
 alterFIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
-alterFIdentity k f t = Identity $ alterFPlain k (coerce f) t
+alterFIdentity k f t = Identity $ alterFPlain Strict k (coerce f) t
 {-# INLINABLE alterFIdentity #-}
-
-alterFPlain :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
-alterFPlain k f t = case go k f t of
-    AltSmaller t' -> t'
-    AltBigger t' -> t'
-    AltAdj t' -> t'
-    AltSame -> t
-  where
-    go :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Altered k a
-    go !k f Tip = case f Nothing of
-                   Nothing -> AltSame
-                   Just !x  -> AltBigger $ singleton k x
-
-    go k f (Bin sx kx x l r) = case compare k kx of
-                   LT -> case go k f l of
-                           AltSmaller l' -> AltSmaller $ balanceR kx x l' r
-                           AltBigger l' -> AltBigger $ balanceL kx x l' r
-                           AltAdj l' -> AltAdj $ Bin sx kx x l' r
-                           AltSame -> AltSame
-                   GT -> case go k f r of
-                           AltSmaller r' -> AltSmaller $ balanceL kx x l r'
-                           AltBigger r' -> AltBigger $ balanceR kx x l r'
-                           AltAdj r' -> AltAdj $ Bin sx kx x l r'
-                           AltSame -> AltSame
-                   EQ -> case f (Just x) of
-                           Just !x' -> AltAdj $ Bin sx kx x' l r
-                           Nothing -> AltSmaller $ glue l r
-{-# INLINABLE alterFPlain #-}
-
-data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
 #endif
-
-#if DEFINE_ALTERF_FALLBACK
--- When the map is too large to use a bit queue, we fall back to
--- this much slower version which uses a more "natural" implementation
--- improved with Yoneda to avoid repeated fmaps. This works okayish for
--- some operations, but it's pretty lousy for lookups.
-alterFFallback :: (Functor f, Ord k)
-   => k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-alterFFallback k f t = alterFYoneda k (\m q -> q . forceMaybe <$> f m) t id
-  where
-    forceMaybe Nothing = Nothing
-    forceMaybe m@(Just !_) = m
-{-# NOINLINE alterFFallback #-}
 #endif
-
 
 {--------------------------------------------------------------------
   Indexing

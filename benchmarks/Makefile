@@ -1,7 +1,7 @@
 all:
 
 bench-%: %.hs force
-	stack ghc -- -O2 -DTESTING $< -I$(TOP)../include -i$(TOP).. -o $@ -outputdir tmp -rtsopts
+	ghc -O2 -DTESTING $< -I$(TOP)../include -i$(TOP).. -o $@ -outputdir tmp -rtsopts
 
 .PRECIOUS: bench-%
 

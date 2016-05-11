@@ -1,27 +1,24 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# OPTIONS_GHC -Wall #-}
 
-import Control.Applicative (Const(Const, getConst), pure, (<$>))
+import Control.Applicative ((<$>))
 import qualified Data.List as List
 import Test.Framework
-import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
-import Test.QuickCheck.Gen
-import Text.Show.Functions ()
+import Data.Utils.BitUtil (wordSize)
 import Data.Utils.BitQueue
     ( BitQueue
     , emptyQB
     , snocQB
     , buildQ
-    , unconsQ
     , toListQ )
 
 default (Int)
 
 main :: IO ()
-main = defaultMain $ map testNum [0..126]
+main = defaultMain $ map testNum [0..(wordSize - 2)]
 
 testNum :: Int -> Test
 testNum n = testProperty ("Size "++show n) (prop_n n)
@@ -32,4 +29,5 @@ prop_n n = checkList <$> vectorOf n (arbitrary :: Gen Bool)
     checkList :: [Bool] -> Bool
     checkList values = toListQ q == values
       where
+        q :: BitQueue
         !q = buildQ $ List.foldl' snocQB emptyQB values
