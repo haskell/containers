@@ -574,6 +574,8 @@ thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two1
 -- > intersperse a (singleton x) = singleton x
 -- > intersperse a (fromList [x,y]) = fromList [x,a,y]
 -- > intersperse a (fromList [x,y,z]) = fromList [x,a,y,a,z]
+--
+-- @since 0.5.8
 intersperse :: a -> Seq a -> Seq a
 intersperse y xs = drop 1 $ xs <**> (const y <| singleton id)
 
@@ -1752,7 +1754,9 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
 #endif
 
 -- | 'traverseWithIndex' is a version of 'traverse' that also offers
---   access to the index of each element.
+-- access to the index of each element.
+--
+-- @since 0.5.8
 traverseWithIndex :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
 traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> Elem <$> f' s a) 0 xs'
  where
