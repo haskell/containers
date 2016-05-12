@@ -22,6 +22,8 @@
 
   * Speed up `adjust` for `Data.Map`.
 
+  * Remove non-essential laziness in `Data.Map.Lazy` implementation.
+
   * Speed up deletion and alteration functions for `Data.IntMap`.
 
 ## 0.5.7.1  *Dec 2015*
