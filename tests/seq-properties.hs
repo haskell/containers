@@ -7,7 +7,7 @@ import Data.Array (listArray)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum)
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
-import Data.Monoid (Monoid(..), All (..))
+import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   null, length, take, drop, splitAt,
@@ -89,6 +89,8 @@ main = defaultMain
        , testProperty "foldlWithIndex" prop_foldlWithIndex
        , testProperty "foldrWithIndex" prop_foldrWithIndex
        , testProperty "mapWithIndex" prop_mapWithIndex
+       , testProperty "foldMapWithIndex/foldlWithIndex" prop_foldMapWithIndexL
+       , testProperty "foldMapWithIndex/foldrWithIndex" prop_foldMapWithIndexR
        , testProperty "traverseWithIndex" prop_traverseWithIndex
        , testProperty "reverse" prop_reverse
        , testProperty "zip" prop_zip
@@ -563,6 +565,16 @@ prop_foldrWithIndex :: [(Int, A)] -> Seq A -> Bool
 prop_foldrWithIndex z xs =
     foldrWithIndex f z xs == Data.List.foldr (uncurry f) z (Data.List.zip [0..] (toList xs))
   where f n y ys = (n,y):ys
+
+prop_foldMapWithIndexL :: (Fun (B, Int, A) B) -> B -> Seq A -> Bool
+prop_foldMapWithIndexL (Fun _ f) z t = foldlWithIndex f' z t ==
+  appEndo (getDual (foldMapWithIndex (\i -> Dual . Endo . flip (flip f' i)) t)) z
+  where f' b i a = f (b, i, a)
+
+prop_foldMapWithIndexR :: (Fun (Int, A, B) B) -> B -> Seq A -> Bool
+prop_foldMapWithIndexR (Fun _ f) z t = foldrWithIndex f' z t ==
+   appEndo (foldMapWithIndex (\i -> Endo . f' i) t) z
+  where f' i a b = f (i, a, b)
 
 -- * Transformations
 

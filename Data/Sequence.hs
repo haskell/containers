@@ -164,6 +164,7 @@ module Data.Sequence (
     findIndicesR,   -- :: (a -> Bool) -> Seq a -> [Int]
     -- * Folds
     -- | General folds are available via the 'Foldable' instance of 'Seq'.
+    foldMapWithIndex, -- :: Monoid m => (Int -> a -> m) -> Seq a -> m
     foldlWithIndex, -- :: (b -> Int -> a -> b) -> b -> Seq a -> b
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
     -- * Transformations
@@ -207,7 +208,7 @@ import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', t
 import Data.Foldable (foldr')
 #endif
 #if MIN_VERSION_base(4,9,0)
-import Data.Semigroup (Semigroup((<>)))
+import qualified Data.Semigroup as Semigroup
 #endif
 import Data.Traversable
 import Data.Typeable
@@ -247,6 +248,18 @@ import Data.Word (Word)
 import Data.Utils.StrictPair (StrictPair (..))
 
 default ()
+
+-- We define our own copy here, for Monoid only, even though this
+-- is now a Semigroup operator in base. The essential reason is that
+-- we have absolutely no use for semigroups in this module. Everything
+-- that needs to sum things up requires a Monoid constraint to deal
+-- with empty sequences. I'm not sure if there's a risk of walking
+-- through dictionaries to reach <> from Monoid, but I see no reason
+-- to risk it.
+infixr 6 <>
+(<>) :: Monoid m => m -> m -> m
+(<>) = mappend
+{-# INLINE (<>) #-}
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
@@ -632,12 +645,10 @@ instance Read a => Read (Seq a) where
 
 instance Monoid (Seq a) where
     mempty = empty
-#if !(MIN_VERSION_base(4,9,0))
     mappend = (><)
-#else
-    mappend = (<>)
 
-instance Semigroup (Seq a) where
+#if MIN_VERSION_base(4,9,0)
+instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
 #endif
 
@@ -691,7 +702,7 @@ instance Foldable FingerTree where
     foldMap _ EmptyT = mempty
     foldMap f (Single x) = f x
     foldMap f (Deep _ pr m sf) =
-        foldMap f pr `mappend` (foldMap (foldMap f) m `mappend` foldMap f sf)
+        foldMap f pr <> foldMap (foldMap f) m <> foldMap f sf
 
     foldr _ z EmptyT = z
     foldr f z (Single x) = x `f` z
@@ -760,9 +771,9 @@ data Digit a
 
 instance Foldable Digit where
     foldMap f (One a) = f a
-    foldMap f (Two a b) = f a `mappend` f b
-    foldMap f (Three a b c) = f a `mappend` (f b `mappend` f c)
-    foldMap f (Four a b c d) = f a `mappend` (f b `mappend` (f c `mappend` f d))
+    foldMap f (Two a b) = f a <> f b
+    foldMap f (Three a b c) = f a <> f b <> f c
+    foldMap f (Four a b c d) = f a <> f b <> f c <> f d
 
     foldr f z (One a) = a `f` z
     foldr f z (Two a b) = a `f` (b `f` z)
@@ -852,8 +863,8 @@ deep' :: Int -> Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
 deep' !s = \pr m sf -> Deep s pr m sf
 
 instance Foldable Node where
-    foldMap f (Node2 _ a b) = f a `mappend` f b
-    foldMap f (Node3 _ a b c) = f a `mappend` (f b `mappend` f c)
+    foldMap f (Node2 _ a b) = f a <> f b
+    foldMap f (Node3 _ a b c) = f a <> f b <> f c
 
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
@@ -1471,7 +1482,7 @@ instance Functor ViewR where
 
 instance Foldable ViewR where
     foldMap _ EmptyR = mempty
-    foldMap f (xs :> x) = foldMap f xs `mappend` f x
+    foldMap f (xs :> x) = foldMap f xs <> f x
 
     foldr _ z EmptyR = z
     foldr f z (xs :> x) = foldr f (f x z) xs
@@ -1755,6 +1766,93 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
  #-}
 #endif
 
+
+-- | /O(n)/. A generalization of 'foldMap', 'foldMapWithIndex' takes a folding
+-- function that also depends on the element's index, and applies it to every
+-- element in the sequence.
+--
+-- @since 0.5.8
+foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
+foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
+ where
+  lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
+#if __GLASGOW_HASKELL__ >= 708
+  lift_elem g = coerce g
+#else
+  lift_elem g = \s (Elem a) -> g s a
+#endif
+  {-# INLINE lift_elem #-}
+-- We have to specialize these functions by hand, unfortunately, because
+-- GHC does not specialize until *all* instances are determined.
+-- Although the Sized instance is known at compile time, the Monoid
+-- instance generally is not.
+  foldMapWithIndexTreeE :: Monoid m => (Int -> Elem a -> m) -> Int -> FingerTree (Elem a) -> m
+  foldMapWithIndexTreeE _ !_s EmptyT = mempty
+  foldMapWithIndexTreeE f s (Single xs) = f s xs
+  foldMapWithIndexTreeE f s (Deep _ pr m sf) =
+               foldMapWithIndexDigitE f s pr <>
+               foldMapWithIndexTreeN (foldMapWithIndexNodeE f) sPspr m <>
+               foldMapWithIndexDigitE f sPsprm sf
+    where
+      !sPspr = s + size pr
+      !sPsprm = sPspr + size m
+
+  foldMapWithIndexTreeN :: Monoid m => (Int -> Node a -> m) -> Int -> FingerTree (Node a) -> m
+  foldMapWithIndexTreeN _ !_s EmptyT = mempty
+  foldMapWithIndexTreeN f s (Single xs) = f s xs
+  foldMapWithIndexTreeN f s (Deep _ pr m sf) =
+               foldMapWithIndexDigitN f s pr <>
+               foldMapWithIndexTreeN (foldMapWithIndexNodeN f) sPspr m <>
+               foldMapWithIndexDigitN f sPsprm sf
+    where
+      !sPspr = s + size pr
+      !sPsprm = sPspr + size m
+
+  foldMapWithIndexDigitE :: Monoid m => (Int -> Elem a -> m) -> Int -> Digit (Elem a) -> m
+  foldMapWithIndexDigitE f i t = foldMapWithIndexDigit f i t
+
+  foldMapWithIndexDigitN :: Monoid m => (Int -> Node a -> m) -> Int -> Digit (Node a) -> m
+  foldMapWithIndexDigitN f i t = foldMapWithIndexDigit f i t
+
+  {-# INLINE foldMapWithIndexDigit #-}
+  foldMapWithIndexDigit :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Digit a -> m
+  foldMapWithIndexDigit f !s (One a) = f s a
+  foldMapWithIndexDigit f s (Two a b) = f s a <> f sPsa b
+    where
+      !sPsa = s + size a
+  foldMapWithIndexDigit f s (Three a b c) =
+                                      f s a <> f sPsa b <> f sPsab c
+    where
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+  foldMapWithIndexDigit f s (Four a b c d) =
+                          f s a <> f sPsa b <> f sPsab c <> f sPsabc d
+    where
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+      !sPsabc = sPsab + size c
+
+  foldMapWithIndexNodeE :: Monoid m => (Int -> Elem a -> m) -> Int -> Node (Elem a) -> m
+  foldMapWithIndexNodeE f i t = foldMapWithIndexNode f i t
+
+  foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
+  foldMapWithIndexNodeN f i t = foldMapWithIndexNode f i t
+
+  {-# INLINE foldMapWithIndexNode #-}
+  foldMapWithIndexNode :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Node a -> m
+  foldMapWithIndexNode f !s (Node2 _ a b) = f s a <> f sPsa b
+    where
+      !sPsa = s + size a
+  foldMapWithIndexNode f s (Node3 _ a b c) =
+                                     f s a <> f sPsa b <> f sPsab c
+    where
+      !sPsa = s + size a
+      !sPsab = sPsa + size b
+
+#if __GLASGOW_HASKELL__
+{-# INLINABLE foldMapWithIndex #-}
+#endif
+
 -- | 'traverseWithIndex' is a version of 'traverse' that also offers
 -- access to the index of each element.
 --
@@ -1776,7 +1874,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
                traverseWithIndexDigitE f sPsprm sf
     where
       !sPspr = s + size pr
-      !sPsprm = s + n - size sf
+      !sPsprm = sPspr + size m
 
   traverseWithIndexTreeN :: Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
   traverseWithIndexTreeN _ !_s EmptyT = pure EmptyT
@@ -1788,7 +1886,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
                traverseWithIndexDigitN f sPsprm sf
     where
       !sPspr = s + size pr
-      !sPsprm = s + n - size sf
+      !sPsprm = sPspr + size m
 
   traverseWithIndexDigitE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
   traverseWithIndexDigitE f i t = traverseWithIndexDigit f i t
