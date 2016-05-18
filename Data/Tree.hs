@@ -30,7 +30,7 @@ module Data.Tree(
     -- * Two-dimensional drawing
     drawTree, drawForest,
     -- * Extraction
-    flatten, levels,
+    flatten, levels, foldTree,
     -- * Building trees
     unfoldTree, unfoldForest,
     unfoldTreeM, unfoldForestM,
@@ -155,6 +155,11 @@ levels t =
     map (map rootLabel) $
         takeWhile (not . null) $
         iterate (concatMap subForest) [t]
+
+-- | Catamorphism on trees.
+foldTree :: (a -> [b] -> b) -> Tree a -> b
+foldTree f = go where
+    go (Node x ts) = f x (map go ts)
 
 -- | Build a tree from a seed value
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a
