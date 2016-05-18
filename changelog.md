@@ -8,13 +8,19 @@
   * Use `BangPatterns` throughout to reduce noise. This extension
     is now *required* to compile `containers`.
 
+  * Add `alterF` for `Data.Map`.
+
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
   * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.
 
+  * Derive `Generic` and `Generic1` for `Data.Tree`.
+
   * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
 
-  * Derive `Generic` and `Generic1` for `Data.Tree`.
+  * Speed up `adjust` for `Data.Map`.
+
+  * Speed up deletion and alteration functions for `Data.IntMap`.
 
 ## 0.5.7.1  *Dec 2015*
 

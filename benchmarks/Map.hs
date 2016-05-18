@@ -1,13 +1,20 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
+import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq
 import Control.Exception (evaluate)
-import Control.Monad.Trans (liftIO)
+import Control.Monad.IO.Class (liftIO)
 import Criterion.Main
+import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
+import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
+#if __GLASGOW_HASKELL__ >= 708
+import Data.Coerce
+#endif
 import Prelude hiding (lookup)
 
 main = do
@@ -18,8 +25,34 @@ main = do
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
+        , bench "alterF lookup present" $ whnf (atLookup evens) m_even
+        , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
+        , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
+        , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
+        , bench "alterF insert present" $ whnf (atIns elems_even) m_even
+        , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
+        , bench "alterF no rules insert present" $ whnf (atInsNoRules elems_even) m_even
+        , bench "delete absent" $ whnf (del evens) m_odd
+        , bench "delete present" $ whnf (del evens) m
+        , bench "alterF delete absent" $ whnf (atDel evens) m_odd
+        , bench "alterF delete present" $ whnf (atDel evens) m
+        , bench "alterF no rules delete absent" $ whnf (atDelNoRules evens) m_odd
+        , bench "alterF no rules delete present" $ whnf (atDelNoRules evens) m
+        , bench "alter absent"  $ whnf (alt id evens) m_odd
+        , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
+        , bench "alter update"  $ whnf (alt id evens) m_even
+        , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
+        , bench "alterF alter absent" $ whnf (atAlt id evens) m_odd
+        , bench "alterF alter insert" $ whnf (atAlt (const (Just 1)) evens) m_odd
+        , bench "alterF alter update" $ whnf (atAlt id evens) m_even
+        , bench "alterF alter delete" $ whnf (atAlt (const Nothing) evens) m
+        , bench "alterF no rules alter absent" $ whnf (atAltNoRules id evens) m_odd
+        , bench "alterF no rules alter insert" $ whnf (atAltNoRules (const (Just 1)) evens) m_odd
+        , bench "alterF no rules alter update" $ whnf (atAltNoRules id evens) m_even
+        , bench "alterF no rules alter delete" $ whnf (atAltNoRules (const Nothing) evens) m
         , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
         , bench "insertWith present" $ whnf (insWith elems_even) m_even
         , bench "insertWith' absent" $ whnf (insWith' elems_even) m_odd
@@ -37,18 +70,12 @@ main = do
         , bench "foldlWithKey" $ whnf (ins elems) m
 --         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
         , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
-        , bench "delete absent" $ whnf (del evens) m_odd
-        , bench "delete present" $ whnf (del evens) m
         , bench "update absent" $ whnf (upd Just evens) m_odd
         , bench "update present" $ whnf (upd Just evens) m_even
         , bench "update delete" $ whnf (upd (const Nothing) evens) m
         , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
         , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
         , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
-        , bench "alter absent"  $ whnf (alt id evens) m_odd
-        , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
-        , bench "alter update"  $ whnf (alt id evens) m_even
-        , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys) m
@@ -80,11 +107,35 @@ add3 x y z = x + y + z
 lookup :: [Int] -> M.Map Int Int -> Int
 lookup xs m = foldl' (\n k -> fromMaybe n (M.lookup k m)) 0 xs
 
+atLookup :: [Int] -> M.Map Int Int -> Int
+atLookup xs m = foldl' (\n k -> fromMaybe n (getConst (alterF Const k m))) 0 xs
+
+newtype Consty a b = Consty { getConsty :: a }
+instance Functor (Consty a) where
+  fmap _ (Consty a) = Consty a
+
+atLookupNoRules :: [Int] -> M.Map Int Int -> Int
+atLookupNoRules xs m = foldl' (\n k -> fromMaybe n (getConsty (alterF Consty k m))) 0 xs
+
 lookupIndex :: [Int] -> M.Map Int Int -> Int
 lookupIndex xs m = foldl' (\n k -> fromMaybe n (M.lookupIndex k m)) 0 xs
 
 ins :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 ins xs m = foldl' (\m (k, v) -> M.insert k v m) m xs
+
+atIns :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
+atIns xs m = foldl' (\m (k, v) -> runIdentity (alterF (\_ -> Identity (Just v)) k m)) m xs
+
+newtype Ident a = Ident { runIdent :: a }
+instance Functor Ident where
+#if __GLASGOW_HASKELL__ >= 708
+  fmap = coerce
+#else
+  fmap f (Ident a) = Ident (f a)
+#endif
+
+atInsNoRules :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
+atInsNoRules xs m = foldl' (\m (k, v) -> runIdent (alterF (\_ -> Ident (Just v)) k m)) m xs
 
 insWith :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 insWith xs m = foldl' (\m (k, v) -> M.insertWith (+) k v m) m xs
@@ -115,6 +166,12 @@ insLookupWithKey' xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
 del :: [Int] -> M.Map Int Int -> M.Map Int Int
 del xs m = foldl' (\m k -> M.delete k m) m xs
 
+atDel :: [Int] -> M.Map Int Int -> M.Map Int Int
+atDel xs m = foldl' (\m k -> runIdentity (alterF (\_ -> Identity Nothing) k m)) m xs
+
+atDelNoRules :: [Int] -> M.Map Int Int -> M.Map Int Int
+atDelNoRules xs m = foldl' (\m k -> runIdent (alterF (\_ -> Ident Nothing) k m)) m xs
+
 upd :: (Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 upd f xs m = foldl' (\m k -> M.update f k m) m xs
 
@@ -123,6 +180,12 @@ upd' f xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> f a) k m) m x
 
 alt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 alt f xs m = foldl' (\m k -> M.alter f k m) m xs
+
+atAlt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+atAlt f xs m = foldl' (\m k -> runIdentity (alterF (Identity . f) k m)) m xs
+
+atAltNoRules :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+atAltNoRules f xs m = foldl' (\m k -> runIdent (alterF (Ident . f) k m)) m xs
 
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
