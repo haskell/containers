@@ -16,6 +16,8 @@
 
   * Derive `Generic` and `Generic1` for `Data.Tree`.
 
+  * Add `foldTree` for `Data.Tree`.
+
   * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
 
   * Speed up `adjust` for `Data.Map`.
