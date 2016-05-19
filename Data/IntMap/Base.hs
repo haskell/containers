@@ -2,11 +2,11 @@
 {-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
-{-# LANGUAGE ScopedTypeVariables #-}
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
 #endif
@@ -1992,14 +1992,20 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
+#if __GLASGOW_HASKELL__
 fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
+#else
+fromDistinctAscList ::            [(Key,a)] -> IntMap a
+#endif
 fromDistinctAscList []         = Nil
 fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
   where
     work (kx,vx) []            stk = finish kx (Tip kx vx) stk
     work (kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
 
+#if __GLASGOW_HASKELL__
     reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
+#endif
     reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
     reduce z zs m px tx stk@(Push py ty stk') =
         let mxy = branchMask px py
