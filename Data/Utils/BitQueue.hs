@@ -31,7 +31,9 @@ module Data.Utils.BitQueue
     , toListQ
     ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Data.Word (Word)
+#endif
 import Data.Utils.BitUtil (shiftLL, shiftRL, wordSize)
 import Data.Bits ((.|.), (.&.), testBit)
 #if MIN_VERSION_base(4,8,0)
