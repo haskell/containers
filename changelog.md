@@ -14,6 +14,9 @@
 
   * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.
 
+  * Make `splitAt` in `Data.Sequence` strict in its arguments. Previously,
+    it returned a lazy pair.
+
   * Derive `Generic` and `Generic1` for `Data.Tree`.
 
   * Add `foldTree` for `Data.Tree`.

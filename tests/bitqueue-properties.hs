@@ -2,7 +2,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# OPTIONS_GHC -Wall #-}
 
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative ((<$>))
+#endif
 import qualified Data.List as List
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
