@@ -2632,14 +2632,37 @@ instance IsString (Seq Char) where
 
 -- | /O(n)/. The reverse of a sequence.
 reverse :: Seq a -> Seq a
-reverse (Seq xs) = Seq (reverseTree id xs)
+reverse (Seq xs) = Seq (fmapReverseTree id xs)
 
-reverseTree :: (a -> b) -> FingerTree a -> FingerTree b
-reverseTree _ EmptyT = EmptyT
-reverseTree f (Single x) = Single (f x)
-reverseTree f (Deep s pr m sf) =
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] reverse #-}
+
+-- | /O(n)/. Reverse a sequence while mapping over it. This is not
+-- currently experted, but is used in rewrite rules.
+fmapReverse :: (a -> b) -> Seq a -> Seq b
+fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
+  where
+    lift_elem :: (a -> b) -> (Elem a -> Elem b)
+#if __GLASGOW_HASKELL__ >= 708
+    lift_elem = coerce
+#else
+    lift_elem f (Elem a) = Elem (f a)
+#endif
+
+-- If we're mapping over a sequence, we can reverse it at the same time
+-- at no extra charge.
+{-# RULES
+"fmapSeq/reverse" forall f xs . fmapSeq f (reverse xs) = fmapReverse f xs
+"reverse/fmapSeq" forall f xs . reverse (fmapSeq f xs) = fmapReverse f xs
+ #-}
+#endif
+
+fmapReverseTree :: (a -> b) -> FingerTree a -> FingerTree b
+fmapReverseTree _ EmptyT = EmptyT
+fmapReverseTree f (Single x) = Single (f x)
+fmapReverseTree f (Deep s pr m sf) =
     Deep s (reverseDigit f sf)
-        (reverseTree (reverseNode f) m)
+        (fmapReverseTree (reverseNode f) m)
         (reverseDigit f pr)
 
 {-# INLINE reverseDigit #-}
