@@ -2638,7 +2638,7 @@ reverse (Seq xs) = Seq (fmapReverseTree id xs)
 {-# NOINLINE [1] reverse #-}
 
 -- | /O(n)/. Reverse a sequence while mapping over it. This is not
--- currently experted, but is used in rewrite rules.
+-- currently exported, but is used in rewrite rules.
 fmapReverse :: (a -> b) -> Seq a -> Seq b
 fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
   where
