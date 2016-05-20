@@ -22,6 +22,11 @@
   * Add `foldTree` for `Data.Tree`.
 
   * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
+  
+  * Substantially speed up `splitAt` and (consequently) `zipWith` for
+   `Data.Sequence` by building the result sequences eagerly. The improvements
+    are greatest for small sequences, but meaningful even for long ones.
+    Reimplement `take` and `drop` to avoid building and then discarding trees.
 
   * Speed up `adjust` for `Data.Map`.
 
