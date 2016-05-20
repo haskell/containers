@@ -272,6 +272,7 @@ import Data.Map.Base hiding
     , mapMaybeWithKey
     , mapEither
     , mapEitherWithKey
+    , traverseWithKey
     , updateAt
     , updateMin
     , updateMax
@@ -279,6 +280,9 @@ import Data.Map.Base hiding
     , updateMaxWithKey
     )
 import Control.Applicative (Const (..))
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative (..), (<$>))
+#endif
 import qualified Data.Set.Base as Set
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
@@ -1037,6 +1041,22 @@ mapWithKey f (Bin sx kx x l r) =
   mapWithKey (\k a -> f (g k a)) xs
  #-}
 #endif
+
+-- | /O(n)/.
+-- @'traverseWithKey' f m == 'fromList' <$> 'traverse' (\(k, v) -> (\v' -> v' `seq` (k,v')) <$> f k v) ('toList' m)@
+-- That is, it behaves much like a regular 'traverse' except that the traversing
+-- function also has access to the key associated with a value and the values are
+-- forced before they are installed in the result map.
+--
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
+traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
+traverseWithKey f = go
+  where
+    go Tip = pure Tip
+    go (Bin 1 k v _ _) = (\ !v' -> Bin 1 k v' Tip Tip) <$> f k v
+    go (Bin s k v l r) = (\ l' !v' r' -> Bin s k v' l' r') <$> go l <*> f k v <*> go r
+{-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.

@@ -10,6 +10,9 @@
 
   * Add `alterF` for `Data.Map`.
 
+  * Make `Data.Map.Strict.traverseWithKey` force result values before
+    installing them in the new map.
+
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
   * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.
