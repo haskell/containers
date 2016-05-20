@@ -31,6 +31,8 @@
     are greatest for small sequences, but meaningful even for long ones.
     Reimplement `take` and `drop` to avoid building and then discarding trees.
 
+  * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
+
   * Speed up `adjust` for `Data.Map`.
 
   * Remove non-essential laziness in `Data.Map.Lazy` implementation.
