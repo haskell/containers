@@ -9,6 +9,8 @@ GNUmakefile
 dist-install
 ghc.mk
 .stack-work
+.cabal-sandbox/
+cabal.sandbox.config
 /benchmarks/bench-Map
 /benchmarks/bench-Set
 /benchmarks/bench-IntSet
