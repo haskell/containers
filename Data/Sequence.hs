@@ -70,6 +70,12 @@ module Data.Sequence (
     Seq (.., Empty, (:<|), (:|>)),
 #else
     Seq (..),
+#if defined(DEFINE_PATTERN_SYNONYMS)
+    -- * Pattern synonyms
+    pattern Empty,  -- :: Seq a
+    pattern (:<|),  -- :: a -> Seq a -> Seq a
+    pattern (:|>),  -- :: Seq a -> a -> Seq a
+#endif
 #endif
 
 #elif __GLASGOW_HASKELL__ >= 800
@@ -236,6 +242,8 @@ import Data.Functor.Identity (Identity(..))
 #if !MIN_VERSION_base(4,8,0)
 import Data.Word (Word)
 #endif
+
+import Data.Utils.StrictPair (StrictPair (..))
 
 default ()
 
@@ -737,33 +745,6 @@ pullR :: Int -> Digit a -> FingerTree (Node a) -> FingerTree a
 pullR s pr m = case viewRTree m of
     EmptyRTree          -> digitToTree' s pr
     SnocRTree m' sf     -> Deep s pr m' (nodeToDigit sf)
-
-{-# SPECIALIZE deepL :: SMaybe (Digit (Node a)) -> FingerTree (Node (Node a)) -> Digit (Node a) -> FingerTree (Node a) #-}
-{-# SPECIALIZE deepL :: SMaybe (Digit (Elem a)) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a) #-}
-deepL :: Sized a => SMaybe (Digit a) -> FingerTree (Node a) -> Digit a -> FingerTree a
-deepL SNothing m sf      =
-  case viewLTree m of
-    EmptyLTree      -> digitToTree sf
-    ConsLTree pr m' -> Deep (size m + size sf) (nodeToDigit pr) m' sf
-deepL (SJust pr) m sf    = deep pr m sf
-
-consDeepL :: Elem a -> SMaybe (Digit (Elem a)) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a)
-consDeepL x SNothing m sf = deep (One x) m sf
-consDeepL x (SJust (One y)) m sf = deep (Two x y) m sf
-consDeepL x (SJust (Two y z)) m sf = deep (Three x y z) m sf
-consDeepL x (SJust (Three y z w)) m sf = deep (Four x y z w) m sf
-consDeepL x (SJust (Four y z w u)) m sf =
-  Deep (size x + size y + size down + size m + size sf)
-       (Two x y)
-       (consTree down m)
-       sf
-  where down = node3 z w u
-
-{-# SPECIALIZE deepR :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> SMaybe (Digit (Elem a)) -> FingerTree (Elem a) #-}
-{-# SPECIALIZE deepR :: Digit (Node a) -> FingerTree (Node (Node a)) -> SMaybe (Digit (Node a)) -> FingerTree (Node a) #-}
-deepR :: Sized a => Digit a -> FingerTree (Node a) -> SMaybe (Digit a) -> FingerTree a
-deepR pr m SNothing      = pullR (size m + size pr) pr m
-deepR pr m (SJust sf)    = deep pr m sf
 
 -- Digits
 
@@ -1951,109 +1932,155 @@ take i xs@(Seq t)
   | i <= 0 = empty
   | otherwise = xs
 
-data StrictLeftPair a b = !a :!*: b
-
 takeTreeE :: Int -> FingerTree (Elem a) -> FingerTree (Elem a)
 takeTreeE !_i EmptyT = EmptyT
 takeTreeE i t@(Single _)
-  | i <= 0 = EmptyT
-  | otherwise = t
-takeTreeE i (Deep _ pr m sf)
-  | i < spr = case takeDigitTree i pr of
-                l :!*: _ -> l
-  | i < spm = case takeTree im m of
-                ml :!*: xs -> case takeNode (im - size ml) xs of
-                    l :!*: _ -> deepR pr ml l
-  | otherwise = case takeDigit (i - spm) sf of
-                  l :!*: _ -> deepR pr m l
+   | i <= 0 = EmptyT
+   | otherwise = t
+takeTreeE i (Deep s pr m sf)
+  | i < spr     = takePrefixE i pr
+  | i < spm     = case takeTreeN im m of
+            ml :*: xs -> takeMiddleE (im - size ml) spr pr ml xs
+  | otherwise   = takeSuffixE (i - spm) s pr m sf
   where
     spr     = size pr
     spm     = spr + size m
     im      = i - spr
 
-takeTree :: Int -> FingerTree (Node a) -> StrictLeftPair (FingerTree (Node a)) (Node a)
-takeTree !_i EmptyT = error "takeTree of empty tree"
-takeTree _i (Single x) = EmptyT :!*: x
-takeTree i (Deep _ pr m sf)
-  | i < spr = takeDigitTree i pr
-  | i < spm = case takeTree im m of
-                ml :!*: xs -> case takeNode (im - size ml) xs of
-                    l :!*: x -> deepR pr ml l :!*: x
-  | otherwise = case takeDigit (i - spm) sf of
-                  l :!*: x -> deepR pr m l :!*: x
-  where
+takeTreeN :: Int -> FingerTree (Node a) -> StrictPair (FingerTree (Node a)) (Node a)
+takeTreeN !_i EmptyT = error "takeTreeN of empty tree"
+takeTreeN _i (Single x) = EmptyT :*: x
+takeTreeN i (Deep s pr m sf)
+  | i < spr     = takePrefixN i pr
+  | i < spm     = case takeTreeN im m of
+            ml :*: xs -> takeMiddleN (im - size ml) spr pr ml xs
+  | otherwise   = takeSuffixN (i - spm) s pr m sf  where
     spr     = size pr
     spm     = spr + size m
     im      = i - spr
 
-{-# SPECIALIZE takeNode :: Int -> Node (Elem a) -> StrictLeftPair (SMaybe (Digit (Elem a))) (Elem a) #-}
-{-# SPECIALIZE takeNode :: Int -> Node (Node a) -> StrictLeftPair (SMaybe (Digit (Node a))) (Node a) #-}
-takeNode :: Sized a => Int -> Node a -> StrictLeftPair (SMaybe (Digit a)) a
-takeNode i (Node2 _ a b)
-  | i < sa      = SNothing :!*: a
-  | otherwise   = SJust (One a) :!*: b
+takeMiddleN :: Int -> Int
+             -> Digit (Node a) -> FingerTree (Node (Node a)) -> Node (Node a)
+             -> StrictPair (FingerTree (Node a)) (Node a)
+takeMiddleN i spr pr ml (Node2 _ a b)
+  | i < sa      = pullR sprml pr ml :*: a
+  | otherwise   = Deep sprmla pr ml (One a) :*: b
   where
     sa      = size a
-takeNode i (Node3 _ a b c)
-  | i < sa      = SNothing :!*: a
-  | i < sab     = SJust (One a) :!*: b
-  | otherwise   = SJust (Two a b) :!*: c
+    sprml   = spr + size ml
+    sprmla  = sa + sprml
+takeMiddleN i spr pr ml (Node3 _ a b c)
+  | i < sa      = pullR sprml pr ml :*: a
+  | i < sab     = Deep sprmla pr ml (One a) :*: b
+  | otherwise   = Deep sprmlab pr ml (Two a b) :*: c
   where
     sa      = size a
     sab     = sa + size b
+    sprml   = spr + size ml
+    sprmla  = sa + sprml
+    sprmlab = sprmla + size b
 
-{-# SPECIALIZE takeDigit :: Int -> Digit (Elem a) -> StrictLeftPair (SMaybe (Digit (Elem a))) (Elem a) #-}
-{-# SPECIALIZE takeDigit :: Int -> Digit (Node a) -> StrictLeftPair (SMaybe (Digit (Node a))) (Node a) #-}
-takeDigit :: Sized a => Int -> Digit a -> StrictLeftPair (SMaybe (Digit a)) a
-takeDigit !_i (One a) = SNothing :!*: a
-takeDigit i (Two a b)
-  | i < sa      = SNothing :!*: a
-  | otherwise   = SJust (One a) :!*: b
+takeMiddleE :: Int -> Int
+             -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Node (Elem a)
+             -> FingerTree (Elem a)
+takeMiddleE i spr pr ml (Node2 _ a _)
+  | i < 1       = pullR sprml pr ml
+  | otherwise   = Deep sprmla pr ml (One a)
+  where
+    sprml   = spr + size ml
+    sprmla  = 1 + sprml
+takeMiddleE i spr pr ml (Node3 _ a b _)
+  | i < 1       = pullR sprml pr ml
+  | i < 2       = Deep sprmla pr ml (One a)
+  | otherwise   = Deep sprmlab pr ml (Two a b)
+  where
+    sprml   = spr + size ml
+    sprmla  = 1 + sprml
+    sprmlab = sprmla + 1
+
+takePrefixE :: Int -> Digit (Elem a) -> FingerTree (Elem a)
+takePrefixE !_i (One _) = EmptyT
+takePrefixE i (Two a _)
+  | i < 1       = EmptyT
+  | otherwise   = Single a
+takePrefixE i (Three a b _)
+  | i < 1       = EmptyT
+  | i < 2       = Single a
+  | otherwise   = Deep 2 (One a) EmptyT (One b)
+takePrefixE i (Four a b c _)
+  | i < 1       = EmptyT
+  | i < 2       = Single a
+  | i < 3       = Deep 2 (One a) EmptyT (One b)
+  | otherwise   = Deep 3 (Two a b) EmptyT (One c)
+
+takePrefixN :: Int -> Digit (Node a)
+                    -> StrictPair (FingerTree (Node a)) (Node a)
+takePrefixN !_i (One a) = EmptyT :*: a
+takePrefixN i (Two a b)
+  | i < sa      = EmptyT :*: a
+  | otherwise   = Single a :*: b
   where
     sa      = size a
-takeDigit i (Three a b c)
-  | i < sa      = SNothing :!*: a
-  | i < sab     = SJust (One a) :!*: b
-  | otherwise   = SJust (Two a b) :!*: c
+takePrefixN i (Three a b c)
+  | i < sa      = EmptyT :*: a
+  | i < sab     = Single a :*: b
+  | otherwise   = Deep sab (One a) EmptyT (One b) :*: c
   where
     sa      = size a
     sab     = sa + size b
-takeDigit i (Four a b c d)
-  | i < sa      = SNothing :!*: a
-  | i < sab     = SJust (One a) :!*: b
-  | i < sabc    = SJust (Two a b) :!*: c
-  | otherwise   = SJust (Three a b c) :!*: d
+takePrefixN i (Four a b c d)
+  | i < sa      = EmptyT :*: a
+  | i < sab     = Single a :*: b
+  | i < sabc    = Deep sab (One a) EmptyT (One b) :*: c
+  | otherwise   = Deep sabc (Two a b) EmptyT (One c) :*: d
   where
     sa      = size a
     sab     = sa + size b
     sabc    = sab + size c
 
-{-# SPECIALIZE takeDigitTree :: Int -> Digit (Elem a) -> StrictLeftPair (FingerTree (Elem a)) (Elem a) #-}
-{-# SPECIALIZE takeDigitTree :: Int -> Digit (Node a) -> StrictLeftPair (FingerTree (Node a)) (Node a) #-}
-takeDigitTree :: Sized a => Int -> Digit a -> StrictLeftPair (FingerTree a) a
-takeDigitTree !_i (One a) = EmptyT :!*: a
-takeDigitTree i (Two a b)
-  | i < sa      = EmptyT :!*: a
-  | otherwise   = Single a :!*: b
+takeSuffixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
+   FingerTree (Elem a)
+takeSuffixE !_i !s pr m (One _) = pullR (s - 1) pr m
+takeSuffixE i s pr m (Two a _)
+  | i < 1      = pullR (s - 2) pr m
+  | otherwise  = Deep (s - 1) pr m (One a)
+takeSuffixE i s pr m (Three a b _)
+  | i < 1      = pullR (s - 3) pr m
+  | i < 2      = Deep (s - 2) pr m (One a)
+  | otherwise  = Deep (s - 1) pr m (Two a b)
+takeSuffixE i s pr m (Four a b c _)
+  | i < 1      = pullR (s - 4) pr m
+  | i < 2      = Deep (s - 3) pr m (One a)
+  | i < 3      = Deep (s - 2) pr m (Two a b)
+  | otherwise  = Deep (s - 1) pr m (Three a b c)
+
+takeSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+   StrictPair (FingerTree (Node a)) (Node a)
+takeSuffixN !_i !s pr m (One a) = pullR (s - size a) pr m :*: a
+takeSuffixN i s pr m (Two a b)
+  | i < sa      = pullR (s - sa - size b) pr m :*: a
+  | otherwise   = Deep (s - size b) pr m (One a) :*: b
   where
     sa      = size a
-takeDigitTree i (Three a b c)
-  | i < sa      = EmptyT :!*: a
-  | i < sab     = Single a :!*: b
-  | otherwise   = deep (One a) EmptyT (One b) :!*: c
+takeSuffixN i s pr m (Three a b c)
+  | i < sa      = pullR (s - sab - size c) pr m :*: a
+  | i < sab     = Deep (s - size b - size c) pr m (One a) :*: b
+  | otherwise   = Deep (s - size c) pr m (Two a b) :*: c
   where
     sa      = size a
     sab     = sa + size b
-takeDigitTree i (Four a b c d)
-  | i < sa      = EmptyT :!*: a
-  | i < sab     = Single a :!*: b
-  | i < sabc    = deep (One a) EmptyT (One b) :!*: c
-  | otherwise   = deep (Two a b) EmptyT (One c) :!*: d
+takeSuffixN i s pr m (Four a b c d)
+  | i < sa      = pullR (s - sa - sbcd) pr m :*: a
+  | i < sab     = Deep (s - sbcd) pr m (One a) :*: b
+  | i < sabc    = Deep (s - scd) pr m (Two a b) :*: c
+  | otherwise   = Deep (s - sd) pr m (Three a b c) :*: d
   where
     sa      = size a
     sab     = sa + size b
     sabc    = sab + size c
-
+    sd      = size d
+    scd     = size c + sd
+    sbcd    = size b + scd
 
 -- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
 -- If @i@ is negative, @'drop' i s@ yields the whole sequence.
@@ -2067,106 +2094,155 @@ drop i xs@(Seq t)
   | i <= 0 = xs
   | otherwise = empty
 
-data StrictRightPair a b = a :*!: !b
-
 takeTreeER :: Int -> FingerTree (Elem a) -> FingerTree (Elem a)
 takeTreeER !_i EmptyT = EmptyT
 takeTreeER i t@(Single _)
-  | i <= 0 = EmptyT
-  | otherwise = t
-takeTreeER i (Deep _ pr m sf)
-  | i < ssf = case takeDigitTreeR i sf of
-                _ :*!: r -> r
-  | i < ssm = case takeTreeR im m of
-                xs :*!: mr -> case takeNodeR (im - size mr) xs of
-                    _ :*!: r -> deepL r mr sf
-  | otherwise = case takeDigitR (i - ssm) pr of
-                  _ :*!: r -> deepL r m sf
+   | i <= 0 = EmptyT
+   | otherwise = t
+takeTreeER i (Deep s pr m sf)
+  | i < ssf     = takeSuffixER i sf
+  | i < ssm     = case takeTreeNR im m of
+            xs :*: mr -> takeMiddleER (im - size mr) ssf xs mr sf
+  | otherwise   = takePrefixER (i - ssm) s pr m sf
   where
     ssf     = size sf
     ssm     = ssf + size m
     im      = i - ssf
 
-takeTreeR :: Int -> FingerTree (Node a) -> StrictRightPair (Node a) (FingerTree (Node a))
-takeTreeR !_i EmptyT = error "takeTreeR of empty tree"
-takeTreeR _i (Single x) = x :*!: EmptyT
-takeTreeR i (Deep _ pr m sf)
-  | i < ssf = takeDigitTreeR i sf
-  | i < ssm = case takeTreeR im m of
-                xs :*!: mr -> case takeNodeR (im - size mr) xs of
-                    x :*!: r -> x :*!: deepL r mr sf
-  | otherwise = case takeDigitR (i - ssm) pr of
-                  x :*!: r -> x :*!: deepL r m sf
-  where
+takeTreeNR :: Int -> FingerTree (Node a) -> StrictPair (Node a) (FingerTree (Node a))
+takeTreeNR !_i EmptyT = error "takeTreeNR of empty tree"
+takeTreeNR _i (Single x) = x :*: EmptyT
+takeTreeNR i (Deep s pr m sf)
+  | i < ssf     = takeSuffixNR i sf
+  | i < ssm     = case takeTreeNR im m of
+            xs :*: mr -> takeMiddleNR (im - size mr) ssf xs mr sf
+  | otherwise   = takePrefixNR (i - ssm) s pr m sf  where
     ssf     = size sf
     ssm     = ssf + size m
     im      = i - ssf
 
-{-# SPECIALIZE takeNodeR :: Int -> Node (Elem a) -> StrictRightPair (Elem a) (SMaybe (Digit (Elem a))) #-}
-{-# SPECIALIZE takeNodeR :: Int -> Node (Node a) -> StrictRightPair (Node a) (SMaybe (Digit (Node a))) #-}
-takeNodeR :: Sized a => Int -> Node a -> StrictRightPair a (SMaybe (Digit a))
-takeNodeR i (Node2 _ a b)
-  | i < sb      = b :*!: SNothing
-  | otherwise   = a :*!: SJust (One b)
+takeMiddleNR :: Int -> Int
+             -> Node (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a)
+             -> StrictPair (Node a) (FingerTree (Node a))
+takeMiddleNR i ssf (Node2 _ a b) mr sf
+  | i < sb      = b :*: pullL ssfmr mr sf
+  | otherwise   = a :*: Deep ssfmrb (One b) mr sf
   where
     sb      = size b
-takeNodeR i (Node3 _ a b c)
-  | i < sc      = c :*!: SNothing
-  | i < sbc     = b :*!: SJust (One c)
-  | otherwise   = a :*!: SJust (Two b c)
-  where
-    sc      = size c
-    sbc     = size b + sc
-
-{-# SPECIALIZE takeDigitR :: Int -> Digit (Elem a) -> StrictRightPair (Elem a) (SMaybe (Digit (Elem a))) #-}
-{-# SPECIALIZE takeDigitR :: Int -> Digit (Node a) -> StrictRightPair (Node a) (SMaybe (Digit (Node a))) #-}
-takeDigitR :: Sized a => Int -> Digit a -> StrictRightPair a (SMaybe (Digit a))
-takeDigitR !_i (One a) = a :*!: SNothing
-takeDigitR i (Two a b)
-  | i < sb      = b :*!: SNothing
-  | otherwise   = a :*!: SJust (One b)
-  where
-    sb      = size b
-takeDigitR i (Three a b c)
-  | i < sc      = c :*!: SNothing
-  | i < sbc     = b :*!: SJust (One c)
-  | otherwise   = a :*!: SJust (Two b c)
+    ssfmr   = ssf + size mr
+    ssfmrb  = sb + ssfmr
+takeMiddleNR i ssf (Node3 _ a b c) mr sf
+  | i < sc      = c :*: pullL ssfmr mr sf
+  | i < sbc     = b :*: Deep ssfmrc (One c) mr sf
+  | otherwise   = a :*: Deep ssfmrbc (Two b c) mr sf
   where
     sc      = size c
     sbc     = sc + size b
-takeDigitR i (Four a b c d)
-  | i < sd      = d :*!: SNothing
-  | i < scd     = c :*!: SJust (One d)
-  | i < sbcd    = b :*!: SJust (Two c d)
-  | otherwise   = a :*!: SJust (Three b c d)
+    ssfmr   = ssf + size mr
+    ssfmrc  = sc + ssfmr
+    ssfmrbc = ssfmrc + size b
+
+takeMiddleER :: Int -> Int
+             -> Node (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a)
+             -> FingerTree (Elem a)
+takeMiddleER i ssf (Node2 _ _ b) mr sf
+  | i < 1       = pullL ssfmr mr sf
+  | otherwise   = Deep ssfmrb (One b) mr sf
+  where
+    ssfmr   = ssf + size mr
+    ssfmrb  = 1 + ssfmr
+takeMiddleER i ssf (Node3 _ _ b c) mr sf
+  | i < 1       = pullL ssfmr mr sf
+  | i < 2       = Deep ssfmrc (One c) mr sf
+  | otherwise   = Deep ssfmrbc (Two b c) mr sf
+  where
+    ssfmr   = ssf + size mr
+    ssfmrc  = 1 + ssfmr
+    ssfmrbc = ssfmr + 2
+
+takeSuffixER :: Int -> Digit (Elem a) -> FingerTree (Elem a)
+takeSuffixER !_i (One _) = EmptyT
+takeSuffixER i (Two _ b)
+  | i < 1       = EmptyT
+  | otherwise   = Single b
+takeSuffixER i (Three _ b c)
+  | i < 1       = EmptyT
+  | i < 2       = Single c
+  | otherwise   = Deep 2 (One b) EmptyT (One c)
+takeSuffixER i (Four _ b c d)
+  | i < 1       = EmptyT
+  | i < 2       = Single d
+  | i < 3       = Deep 2 (One c) EmptyT (One d)
+  | otherwise   = Deep 3 (Two b c) EmptyT (One d)
+
+takeSuffixNR :: Int -> Digit (Node a)
+                    -> StrictPair (Node a) (FingerTree (Node a))
+takeSuffixNR !_i (One a) = a :*: EmptyT
+takeSuffixNR i (Two a b)
+  | i < sb      = b :*: EmptyT
+  | otherwise   = a :*: Single b
+  where
+    sb      = size b
+takeSuffixNR i (Three a b c)
+  | i < sc      = c :*: EmptyT
+  | i < sbc     = b :*: Single c
+  | otherwise   = a :*: Deep sbc (One b) EmptyT (One c)
+  where
+    sc      = size c
+    sbc     = sc + size b
+takeSuffixNR i (Four a b c d)
+  | i < sd      = d :*: EmptyT
+  | i < scd     = c :*: Single d
+  | i < sbcd    = b :*: Deep scd (One c) EmptyT (One d)
+  | otherwise   = a :*: Deep sbcd (Two b c) EmptyT (One d)
   where
     sd      = size d
     scd     = sd + size c
     sbcd    = scd + size b
 
-takeDigitTreeR :: Sized a => Int -> Digit a -> StrictRightPair a (FingerTree a)
-takeDigitTreeR !_i (One a) = a :*!: EmptyT
-takeDigitTreeR i (Two a b)
-  | i < sb      = b :*!: EmptyT
-  | otherwise   = a :*!: Single b
+takePrefixER :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
+   FingerTree (Elem a)
+takePrefixER !_i !s (One _) m sf = pullL (s - 1) m sf
+takePrefixER i s (Two _ b) m sf
+  | i < 1      = pullL (s - 2) m sf
+  | otherwise  = Deep (s - 1) (One b) m sf
+takePrefixER i s (Three _ b c) m sf
+  | i < 1      = pullL (s - 3) m sf
+  | i < 2      = Deep (s - 2) (One c) m sf
+  | otherwise  = Deep (s - 1) (Two b c) m sf
+takePrefixER i s (Four _ b c d) m sf
+  | i < 1      = pullL (s - 4) m sf
+  | i < 2      = Deep (s - 3) (One d) m sf
+  | i < 3      = Deep (s - 2) (Two c d) m sf
+  | otherwise  = Deep (s - 1) (Three b c d) m sf
+
+takePrefixNR :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+   StrictPair (Node a) (FingerTree (Node a))
+takePrefixNR !_i !s (One a) m sf = a :*: pullL (s - size a) m sf
+takePrefixNR i s (Two a b) m sf
+  | i < sb      = b :*: pullL (s - sb - size a) m sf
+  | otherwise   = a :*: Deep (s - size a) (One b) m sf
   where
     sb      = size b
-takeDigitTreeR i (Three a b c)
-  | i < sc      = c :*!: EmptyT
-  | i < sbc     = b :*!: Single c
-  | otherwise   = a :*!: deep (One b) EmptyT (One c)
+takePrefixNR i s (Three a b c) m sf
+  | i < sc      = c :*: pullL (s - sbc - size a) m sf
+  | i < sbc     = b :*: Deep (s - size b - size a) (One c) m sf
+  | otherwise   = a :*: Deep (s - size a) (Two b c) m sf
   where
     sc      = size c
     sbc     = sc + size b
-takeDigitTreeR i (Four a b c d)
-  | i < sd      = d :*!: EmptyT
-  | i < scd     = c :*!: Single d
-  | i < sbcd    = b :*!: deep (One c) EmptyT (One d)
-  | otherwise   = a :*!: deep (Two b c) EmptyT (One d)
+takePrefixNR i s (Four a b c d) m sf
+  | i < sd      = d :*: pullL (s - sd - sabc) m sf
+  | i < scd     = c :*: Deep (s - sabc) (One d) m sf
+  | i < sbcd    = b :*: Deep (s - sab) (Two c d) m sf
+  | otherwise   = a :*: Deep (s - sa) (Three b c d) m sf
   where
+    sa      = size a
+    sab     = sa + size b
+    sabc    = sab + size c
     sd      = size d
-    scd     = sd + size c
-    sbcd    = scd + size b
+    scd     = size c + sd
+    sbcd    = size b + scd
 
 -- | /O(log(min(i,n-i)))/. Split a sequence at a given position.
 -- @'splitAt' i s = ('take' i s, 'drop' i s)@.
@@ -2178,8 +2254,8 @@ splitAt i xs@(Seq t)
   -- with. Note also that there's no sharing to lose in the
   -- case that the length is 0.
   | fromIntegral i - 1 < (fromIntegral (length xs) - 1 :: Word) =
-      case split i t of
-        (l, r) -> (Seq l, Seq r)
+      case splitTreeE i t of
+        l :*: r -> (Seq l, Seq r)
   | i <= 0 = (empty, xs)
   | otherwise = (xs, empty)
 
@@ -2188,8 +2264,8 @@ splitAt i xs@(Seq t)
 -- Used to implement breakl and breakr, which very rarely hit that case.
 splitAt'                 :: Int -> Seq a -> (Seq a, Seq a)
 splitAt' i xs | i >= length xs = (xs, empty)
-splitAt' i (Seq xs)      = case split i xs of
-                             (l, r) -> (Seq l, Seq r)
+splitAt' i (Seq xs)      = case splitTreeE i xs of
+                             l :*: r -> (Seq l, Seq r)
 
 -- | /O(log(min(i,n-i))) A version of 'splitAt' that does not attempt to
 -- enhance sharing when the split point is less than or equal to 0, and that
@@ -2200,32 +2276,24 @@ splitAt' i (Seq xs)      = case split i xs of
 -- very short sequences. There is just enough of a speed increase to make this
 -- worth the trouble.
 uncheckedSplitAt :: Int -> Seq a -> (Seq a, Seq a)
-uncheckedSplitAt i (Seq xs) = case split i xs of
-  (l, r) -> (Seq l, Seq r)
+uncheckedSplitAt i (Seq xs) = case splitTreeE i xs of
+  l :*: r -> (Seq l, Seq r)
 
-data Split t a = Split !t a !t
+data Split t a = Split !t !a !t
 #if TESTING
     deriving Show
 #endif
 
-split :: Int -> FingerTree (Elem a) -> (FingerTree (Elem a), FingerTree (Elem a))
-split !_i EmptyT = (EmptyT, EmptyT)
-split i t@(Single _)
-   | i <= 0 = (EmptyT, t)
-   | otherwise = (t, EmptyT)
-split i (Deep _ pr m sf)
-  | i < spr     = case splitDigitTreeLeft i pr of
-            SplitDTL l x r -> (l, rights)
-              where !rights = consDeepL x r m sf
+splitTreeE :: Int -> FingerTree (Elem a) -> StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
+splitTreeE !_i EmptyT = EmptyT :*: EmptyT
+splitTreeE i t@(Single _)
+   | i <= 0 = EmptyT :*: t
+   | otherwise = t :*: EmptyT
+splitTreeE i (Deep s pr m sf)
+  | i < spr     = splitPrefixE i s pr m sf
   | i < spm     = case splitTreeN im m of
-            Split ml xs mr -> case splitNode (im - size ml) xs of
-                Split l x r -> (lefts, rights)
-                  where !lefts = deepR pr ml l
-                        !rights = consDeepL x r mr sf
-  | otherwise   = case splitDigitTreeRight (i - spm) sf of
-            SplitDTR l x r -> (lefts, rights)
-                  where !lefts = deepR pr m l
-                        !rights = consTree x r
+            Split ml xs mr -> splitMiddleE (im - size ml) s spr pr ml xs mr sf
+  | otherwise   = splitSuffixE (i - spm) s pr m sf
   where
     spr     = size pr
     spm     = spr + size m
@@ -2234,91 +2302,138 @@ split i (Deep _ pr m sf)
 splitTreeN :: Int -> FingerTree (Node a) -> Split (FingerTree (Node a)) (Node a)
 splitTreeN !_i EmptyT = error "splitTreeN of empty tree"
 splitTreeN _i (Single x) = Split EmptyT x EmptyT
-splitTreeN i (Deep _ pr m sf)
-  | i < spr     = case splitDigitTreeLeft i pr of
-            SplitDTL l x r -> Split l x (deepL r m sf)
+splitTreeN i (Deep s pr m sf)
+  | i < spr     = splitPrefixN i s pr m sf
   | i < spm     = case splitTreeN im m of
-            Split ml xs mr -> case splitNode (im - size ml) xs of
-                Split l x r -> Split (deepR pr ml l) x (deepL r mr sf)
-  | otherwise   = case splitDigitTreeRight (i - spm) sf of
-            SplitDTR l x r -> Split (deepR pr m l) x r
-  where
+            Split ml xs mr -> splitMiddleN (im - size ml) s spr pr ml xs mr sf
+  | otherwise   = splitSuffixN (i - spm) s pr m sf  where
     spr     = size pr
     spm     = spr + size m
     im      = i - spr
 
-{-# SPECIALIZE splitNode :: Int -> Node (Elem a) -> Split (SMaybe (Digit (Elem a))) (Elem a) #-}
-{-# SPECIALIZE splitNode :: Int -> Node (Node a) -> Split (SMaybe (Digit (Node a))) (Node a) #-}
-splitNode :: Sized a => Int -> Node a -> Split (SMaybe (Digit a)) a
-splitNode i (Node2 _ a b)
-  | i < sa      = Split SNothing a (SJust (One b))
-  | otherwise   = Split (SJust (One a)) b SNothing
+splitMiddleN :: Int -> Int -> Int
+             -> Digit (Node a) -> FingerTree (Node (Node a)) -> Node (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a)
+             -> Split (FingerTree (Node a)) (Node a)
+splitMiddleN i s spr pr ml (Node2 _ a b) mr sf
+  | i < sa      = Split (pullR sprml pr ml) a (Deep (s - sprmla) (One b) mr sf)
+  | otherwise   = Split (Deep sprmla pr ml (One a)) b (pullL (s - sprmla - size b) mr sf)
   where
     sa      = size a
-splitNode i (Node3 _ a b c)
-  | i < sa      = Split SNothing a (SJust (Two b c))
-  | i < sab     = Split (SJust (One a)) b (SJust (One c))
-  | otherwise   = Split (SJust (Two a b)) c SNothing
-  where
-    sa      = size a
-    sab     = sa + size b
-
-data SMaybe a = SJust !a | SNothing
-
-data SplitDTL a = SplitDTL !(FingerTree a) a !(SMaybe (Digit a))
-
-{-# SPECIALIZE splitDigitTreeLeft :: Int -> Digit (Elem a) -> SplitDTL (Elem a) #-}
-{-# SPECIALIZE splitDigitTreeLeft :: Int -> Digit (Node a) -> SplitDTL (Node a) #-}
-splitDigitTreeLeft :: Sized a => Int -> Digit a -> SplitDTL a
-splitDigitTreeLeft !_i (One a) = SplitDTL EmptyT a SNothing
-splitDigitTreeLeft i (Two a b)
-  | i < sa      = SplitDTL EmptyT a (SJust (One b))
-  | otherwise   = SplitDTL (Single a) b SNothing
-  where
-    sa      = size a
-splitDigitTreeLeft i (Three a b c)
-  | i < sa      = SplitDTL EmptyT a (SJust (Two b c))
-  | i < sab     = SplitDTL (Single a) b (SJust (One c))
-  | otherwise   = SplitDTL (deep (One a) EmptyT (One b)) c SNothing
+    sprml   = spr + size ml
+    sprmla  = sa + sprml
+splitMiddleN i s spr pr ml (Node3 _ a b c) mr sf
+  | i < sa      = Split (pullR sprml pr ml) a (Deep (s - sprmla) (Two b c) mr sf)
+  | i < sab     = Split (Deep sprmla pr ml (One a)) b (Deep (s - sprmlab) (One c) mr sf)
+  | otherwise   = Split (Deep sprmlab pr ml (Two a b)) c (pullL (s - sprmlab - size c) mr sf)
   where
     sa      = size a
     sab     = sa + size b
-splitDigitTreeLeft i (Four a b c d)
-  | i < sa      = SplitDTL EmptyT a (SJust (Three b c d))
-  | i < sab     = SplitDTL (Single a) b (SJust (Two c d))
-  | i < sabc    = SplitDTL (deep (One a) EmptyT (One b)) c (SJust (One d))
-  | otherwise   = SplitDTL (deep (Two a b) EmptyT (One c)) d SNothing
+    sprml   = spr + size ml
+    sprmla  = sa + sprml
+    sprmlab = sprmla + size b
+
+splitMiddleE :: Int -> Int -> Int
+             -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Node (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a)
+             -> StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
+splitMiddleE i s spr pr ml (Node2 _ a b) mr sf
+  | i < 1       = pullR sprml pr ml :*: Deep (s - sprml) (Two a b) mr sf
+  | otherwise   = Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (One b) mr sf
+  where
+    sprml   = spr + size ml
+    sprmla  = 1 + sprml
+splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf
+  | i < 1       = pullR sprml pr ml :*: Deep (s - sprml) (Three a b c) mr sf
+  | i < 2       = Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (Two b c) mr sf
+  | otherwise   = Deep sprmlab pr ml (Two a b) :*: Deep (s - sprmlab) (One c) mr sf
+  where
+    sprml   = spr + size ml
+    sprmla  = 1 + sprml
+    sprmlab = sprmla + 1
+
+splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> 
+                    StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
+splitPrefixE !_i !s (One a) m sf = EmptyT :*: Deep s (One a) m sf
+splitPrefixE i s (Two a b) m sf
+  | i < 1       = EmptyT :*: Deep s (Two a b) m sf
+  | otherwise   = Single a :*: Deep (s - 1) (One b) m sf
+splitPrefixE i s (Three a b c) m sf
+  | i < 1       = EmptyT :*: Deep s (Three a b c) m sf
+  | i < 2       = Single a :*: Deep (s - 1) (Two b c) m sf
+  | otherwise   = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (One c) m sf
+splitPrefixE i s (Four a b c d) m sf
+  | i < 1       = EmptyT :*: Deep s (Four a b c d) m sf
+  | i < 2       = Single a :*: Deep (s - 1) (Three b c d) m sf
+  | i < 3       = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
+  | otherwise   = Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
+
+splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
+                    Split (FingerTree (Node a)) (Node a)
+splitPrefixN !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
+splitPrefixN i s (Two a b) m sf
+  | i < sa      = Split EmptyT a (Deep (s - sa) (One b) m sf)
+  | otherwise   = Split (Single a) b (pullL (s - sa - size b) m sf)
+  where
+    sa      = size a
+splitPrefixN i s (Three a b c) m sf
+  | i < sa      = Split EmptyT a (Deep (s - sa) (Two b c) m sf)
+  | i < sab     = Split (Single a) b (Deep (s - sab) (One c) m sf)
+  | otherwise   = Split (Deep sab (One a) EmptyT (One b)) c (pullL (s - sab - size c) m sf)
+  where
+    sa      = size a
+    sab     = sa + size b
+splitPrefixN i s (Four a b c d) m sf
+  | i < sa      = Split EmptyT a $ Deep (s - sa) (Three b c d) m sf
+  | i < sab     = Split (Single a) b $ Deep (s - sab) (Two c d) m sf
+  | i < sabc    = Split (Deep sab (One a) EmptyT (One b)) c $ Deep (s - sabc) (One d) m sf
+  | otherwise   = Split (Deep sabc (Two a b) EmptyT (One c)) d $ pullL (s - sabc - size d) m sf
   where
     sa      = size a
     sab     = sa + size b
     sabc    = sab + size c
 
-data SplitDTR a = SplitDTR !(SMaybe (Digit a)) a !(FingerTree a)
-{-# SPECIALIZE splitDigitTreeRight :: Int -> Digit (Elem a) -> SplitDTR (Elem a) #-}
-{-# SPECIALIZE splitDigitTreeRight :: Int -> Digit (Node a) -> SplitDTR (Node a) #-}
-splitDigitTreeRight :: Sized a => Int -> Digit a -> SplitDTR a
-splitDigitTreeRight !_i (One a) = SplitDTR SNothing a EmptyT
-splitDigitTreeRight i (Two a b)
-  | i < sa      = SplitDTR SNothing a (Single b)
-  | otherwise   = SplitDTR (SJust (One a)) b EmptyT
+splitSuffixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
+   StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
+splitSuffixE !_i !s pr m (One a) = pullR (s - 1) pr m :*: Single a
+splitSuffixE i s pr m (Two a b)
+  | i < 1      = pullR (s - 2) pr m :*: Deep 2 (One a) EmptyT (One b)
+  | otherwise  = Deep (s - 1) pr m (One a) :*: Single b
+splitSuffixE i s pr m (Three a b c)
+  | i < 1      = pullR (s - 3) pr m :*: Deep 3 (Two a b) EmptyT (One c)
+  | i < 2      = Deep (s - 2) pr m (One a) :*: Deep 2 (One b) EmptyT (One c)
+  | otherwise  = Deep (s - 1) pr m (Two a b) :*: Single c
+splitSuffixE i s pr m (Four a b c d)
+  | i < 1      = pullR (s - 4) pr m :*: Deep 4 (Two a b) EmptyT (Two c d)
+  | i < 2      = Deep (s - 3) pr m (One a) :*: Deep 3 (Two b c) EmptyT (One d)
+  | i < 3      = Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
+  | otherwise  = Deep (s - 1) pr m (Three a b c) :*: Single d
+
+splitSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+   Split (FingerTree (Node a)) (Node a)
+splitSuffixN !_i !s pr m (One a) = Split (pullR (s - size a) pr m) a EmptyT
+splitSuffixN i s pr m (Two a b)
+  | i < sa      = Split (pullR (s - sa - size b) pr m) a (Single b)
+  | otherwise   = Split (Deep (s - size b) pr m (One a)) b EmptyT
   where
     sa      = size a
-splitDigitTreeRight i (Three a b c)
-  | i < sa      = SplitDTR SNothing a (deep (One b) EmptyT (One c))
-  | i < sab     = SplitDTR (SJust (One a)) b (Single c)
-  | otherwise   = SplitDTR (SJust (Two a b)) c EmptyT
+splitSuffixN i s pr m (Three a b c)
+  | i < sa      = Split (pullR (s - sab - size c) pr m) a (deep (One b) EmptyT (One c))
+  | i < sab     = Split (Deep (s - size b - size c) pr m (One a)) b (Single c)
+  | otherwise   = Split (Deep (s - size c) pr m (Two a b)) c EmptyT
   where
     sa      = size a
     sab     = sa + size b
-splitDigitTreeRight i (Four a b c d)
-  | i < sa      = SplitDTR SNothing a (deep (Two b c) EmptyT (One d))
-  | i < sab     = SplitDTR (SJust (One a)) b (deep (One c) EmptyT (One d))
-  | i < sabc    = SplitDTR (SJust (Two a b)) c (Single d)
-  | otherwise   = SplitDTR (SJust (Three a b c)) d EmptyT
+splitSuffixN i s pr m (Four a b c d)
+  | i < sa      = Split (pullR (s - sa - sbcd) pr m) a (Deep sbcd (Two b c) EmptyT (One d))
+  | i < sab     = Split (Deep (s - sbcd) pr m (One a)) b (Deep scd (One c) EmptyT (One d))
+  | i < sabc    = Split (Deep (s - scd) pr m (Two a b)) c (Single d)
+  | otherwise   = Split (Deep (s - sd) pr m (Three a b c)) d EmptyT
   where
     sa      = size a
     sab     = sa + size b
     sabc    = sab + size c
+    sd      = size d
+    scd     = size c + sd
+    sbcd    = size b + scd
 
 -- | /O(n)/.  Returns a sequence of all suffixes of this sequence,
 -- longest first.  For example,
@@ -2646,7 +2761,7 @@ fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
 #if __GLASGOW_HASKELL__ >= 708
     lift_elem = coerce
 #else
-    lift_elem f (Elem a) = Elem (f a)
+    lift_elem g (Elem a) = Elem (g a)
 #endif
 
 -- If we're mapping over a sequence, we can reverse it at the same time
