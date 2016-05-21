@@ -27,9 +27,10 @@
   * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
   
   * Substantially speed up `splitAt` and (consequently) `zipWith` for
-   `Data.Sequence` by building the result sequences eagerly. The improvements
-    are greatest for small sequences, but meaningful even for long ones.
-    Reimplement `take` and `drop` to avoid building and then discarding trees.
+    `Data.Sequence` by building the result sequences eagerly and rearranging
+    code to avoid allocating unnecessary intermediate structures. The
+    improvements are greatest for small sequences, but large even for long
+    ones. Reimplement `take` and `drop` to avoid building trees only to discard them.
 
   * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
 
