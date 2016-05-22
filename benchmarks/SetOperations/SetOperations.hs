@@ -2,7 +2,7 @@
 
 module SetOperations (benchmark) where
 
-import Criterion.Main
+import Criterion.Main (bench, defaultMain, whnf)
 import Data.List (partition)
 
 benchmark :: ([Int] -> container) -> Bool -> [(String, container -> container -> container)] -> IO ()

@@ -1,12 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
 
--- > ghc -DTESTING --make -O2 -fforce-recomp -i.. Set.hs
 module Main where
 
-import Control.DeepSeq
+import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Control.Monad.Trans (liftIO)
-import Criterion.Main
+import Criterion.Main (bench, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.Set as S
 
