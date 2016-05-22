@@ -15,7 +15,8 @@
 
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
-  * Add `intersperse` and `traverseWithIndex` for `Data.Sequence`.
+  * Add `chunksOf`, `intersperse`, `foldMapWithIndex`, and
+    `traverseWithIndex` for `Data.Sequence`.
 
   * Make `splitAt` in `Data.Sequence` strict in its arguments. Previously,
     it returned a lazy pair.
