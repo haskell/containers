@@ -142,6 +142,7 @@ module Data.Map.Base (
     -- ** Delete\/Update
     , delete
     , adjust
+    , adjustWithDefault
     , adjustWithKey
     , update
     , updateWithKey
@@ -303,6 +304,7 @@ import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+import Data.Maybe (fromMaybe)
 
 import qualified Data.Set.Base as Set
 import Data.Utils.StrictFold
@@ -826,6 +828,22 @@ adjust f = adjustWithKey (\_ x -> f x)
 {-# INLINABLE adjust #-}
 #else
 {-# INLINE adjust #-}
+#endif
+
+-- | /O(log n)/. Update a value at a specific key with the result of the provided function.
+-- When the key is not
+-- a member of the map, the default value is used as a function argument.
+--
+-- > adjustWithDefault "c" ("new " ++) 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "new a")]
+-- > adjustWithDefault "c" ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "new c")]
+-- > adjustWithDefault "c" ("new " ++) 7 empty                         == fromList [(7, "new c")]
+
+adjustWithDefault :: Ord k => a -> (a -> a) -> k -> Map k a -> Map k a
+adjustWithDefault d f = alter (pure . f . fromMaybe d)
+#if __GLASGOW_HASKELL__ >= 700
+{-# INLINABLE adjustWithDefault #-}
+#else
+{-# INLINE adjustWithDefault #-}
 #endif
 
 -- | /O(log n)/. Adjust a value at a specific key. When the key is not
