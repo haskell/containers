@@ -2,9 +2,6 @@
 module LookupGE_Map where
 
 import Data.Map.Base
-#ifdef TESTING
-import Test.QuickCheck
-#endif
 
 lookupGE1 :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupGE1 k m =

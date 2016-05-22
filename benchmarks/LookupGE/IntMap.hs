@@ -1,11 +1,9 @@
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
-import Control.DeepSeq
+import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Control.Monad.Trans (liftIO)
-import Criterion.Config
-import Criterion.Main
+import Criterion.Main (bench, defaultMain, nf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified LookupGE_IntMap as M
@@ -14,10 +12,8 @@ import Prelude hiding (lookup)
 
 main :: IO ()
 main = do
-    defaultMainWith
-        defaultConfig
-        (liftIO . evaluate $ rnf [m_even, m_odd, m_large])
-        [b f | b <- benches, f <- funs1]
+    evaluate $ rnf [m_even, m_odd, m_large]
+    defaultMain [b f | b <- benches, f <- funs1]
   where
     m_even = M.fromAscList elems_even :: M.IntMap Int
     m_odd  = M.fromAscList elems_odd :: M.IntMap Int

@@ -1,16 +1,15 @@
--- > ghc -DTESTING --make -O2 -fforce-recomp -i.. Sequence.hs
 module Main where
 
 import Control.Applicative
-import Control.DeepSeq
+import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
-import Criterion.Main
+import Criterion.Main (bench, bgroup, defaultMain, nf)
 import Data.List (foldl')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
 import Data.Traversable (traverse)
-import System.Random
+import System.Random (mkStdGen, randoms)
 
 main = do
     let s10 = S.fromList [1..10] :: S.Seq Int

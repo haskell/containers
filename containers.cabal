@@ -64,6 +64,137 @@ Library
 
     include-dirs: include
 
+-----------------------------
+-- B E N C H M A R K I N G --
+-----------------------------
+
+benchmark intmap-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: IntMap.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5
+
+benchmark intset-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: IntSet.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5
+
+benchmark map-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: Map.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5
+
+benchmark sequence-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: Sequence.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5,
+    random < 1.2,
+    transformers
+
+benchmark set-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: Set.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5
+
+benchmark set-operations-intmap
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is: SetOperations-IntMap.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2
+
+benchmark set-operations-intset
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is: SetOperations-IntSet.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2
+
+benchmark set-operations-map
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is: SetOperations-Map.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2
+
+benchmark set-operations-set
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is: SetOperations-Set.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2
+
+benchmark lookupge-intmap
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/LookupGE, .
+  main-is: IntMap.hs
+  ghc-options: -O2
+  cpp-options: -DTESTING
+  other-modules:
+    Data.IntMap.Base
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5,
+    ghc-prim
+
+benchmark lookupge-map
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/LookupGE, .
+  main-is: Map.hs
+  ghc-options: -O2
+  cpp-options: -DTESTING
+  other-modules:
+    Data.Map.Base
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    deepseq >= 1.1.0.0 && < 1.5,
+    ghc-prim
+
 -------------------
 -- T E S T I N G --
 -------------------
