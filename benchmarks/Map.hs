@@ -3,10 +3,9 @@
 module Main where
 
 import Control.Applicative (Const(Const, getConst), pure)
-import Control.DeepSeq
+import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Control.Monad.IO.Class (liftIO)
-import Criterion.Main
+import Criterion.Main (bench, defaultMain, whnf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
