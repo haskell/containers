@@ -24,6 +24,18 @@ main = do
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
+        , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
+        , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
+        , bench "alterF updateLookupWithKey absent" $ whnf (updlAlterF Just evens) m_odd
+        , bench "alterF updateLookupWithKey present" $ whnf (updlAlterF Just evens) m_even
+        , bench "alterF updateLookupWithKey delete" $ whnf (updlAlterF (const Nothing) evens) m
+        , bench "insertLookupWithKey absent" $ whnf (insLookupWithKey elems_even) m_odd
+        , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
+        , bench "insertLookupWithKeyAlterF absent" $ whnf (insLookupWithKeyAlterF elems_even) m_odd
+        , bench "insertLookupWithKeyAlterF present" $ whnf (insLookupWithKeyAlterF elems_even) m_even
+        , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
+        , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
         , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
         , bench "alterF lookup present" $ whnf (atLookup evens) m_even
         , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
@@ -60,10 +72,6 @@ main = do
         , bench "insertWithKey present" $ whnf (insWithKey elems_even) m_even
         , bench "insertWithKey' absent" $ whnf (insWithKey' elems_even) m_odd
         , bench "insertWithKey' present" $ whnf (insWithKey' elems_even) m_even
-        , bench "insertLookupWithKey absent" $ whnf (insLookupWithKey elems_even) m_odd
-        , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
-        , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
-        , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ whnf (ins elems) m
@@ -72,9 +80,6 @@ main = do
         , bench "update absent" $ whnf (upd Just evens) m_odd
         , bench "update present" $ whnf (upd Just evens) m_even
         , bench "update delete" $ whnf (upd (const Nothing) evens) m
-        , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
-        , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
-        , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys) m
@@ -156,6 +161,18 @@ insLookupWithKey xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
     f (PS n m) (k, v) = let !(n', m') = M.insertLookupWithKey add3 k v m
                         in PS (fromMaybe 0 n' + n) m'
 
+insLookupWithKeyAlterF :: [(Int, Int)] -> M.Map Int Int -> (Int, M.Map Int Int)
+insLookupWithKeyAlterF xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
+  where
+    f (PS n m) (k, v) = let !(n', m') = insertLookupWithKeyAlterF add3 k v m
+                        in PS (fromMaybe 0 n' + n) m'
+
+insertLookupWithKeyAlterF :: Ord k => (k -> a -> a -> a) -> k -> a -> M.Map k a
+                    -> (Maybe a, M.Map k a)
+insertLookupWithKeyAlterF f k y m = M.alterF go k m where
+  go Nothing = (Nothing, Just y)
+  go old@(Just x) = (old, Just (f k y x))
+
 insLookupWithKey' :: [(Int, Int)] -> M.Map Int Int -> (Int, M.Map Int Int)
 insLookupWithKey' xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
   where
@@ -176,6 +193,14 @@ upd f xs m = foldl' (\m k -> M.update f k m) m xs
 
 upd' :: (Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 upd' f xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> f a) k m) m xs
+
+updlAlterF :: (Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
+updlAlterF f xs m = foldl' (\m k -> snd $ updateLookupWithKeyAlterF (\_ a -> f a) k m) m xs
+
+updateLookupWithKeyAlterF :: Ord k => (k -> a -> Maybe a) -> k -> M.Map k a -> (Maybe a,M.Map k a)
+updateLookupWithKeyAlterF f k m = M.alterF go k m where
+  go Nothing = (Nothing, Nothing)
+  go o@(Just old) = (o, f k old)
 
 alt :: (Maybe Int -> Maybe Int) -> [Int] -> M.Map Int Int -> M.Map Int Int
 alt f xs m = foldl' (\m k -> M.alter f k m) m xs

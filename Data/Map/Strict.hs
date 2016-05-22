@@ -629,6 +629,7 @@ alter = go
 -- In short : @'lookup' k <$> 'alterF' f k m = f ('lookup' k m)@.
 --
 -- Example:
+--
 -- @
 -- interactiveAlter :: Int -> Map Int String -> IO (Map Int String)
 -- interactiveAlter k m = alterF f k m where
@@ -651,13 +652,12 @@ alter = go
 --
 -- Note on rewrite rules:
 --
--- This module includes GHC rewrite rules to optimize 'alterF' for
--- the 'Const' and 'Identity' functors. In general, these rules
--- improve performance. The sole exception is that when using
--- 'Identity', deleting a key that is already absent takes longer
--- than it would without the rules. If you expect this to occur
--- a very large fraction of the time, you might consider using a
--- private copy of the 'Identity' type.
+-- This module includes GHC rewrite rules to optimize 'alterF' for the 'Const',
+-- 'Identity', and @(,) b@ functors. In general, these rules improve
+-- performance. The main exception is that when using 'Identity', deleting a
+-- key that is already absent takes longer than it would without the rules. If
+-- you expect this to occur a very large fraction of the time, you might
+-- consider using a private copy of the 'Identity' type.
 --
 -- Note: 'alterF' is a flipped version of the 'at' combinator from
 -- 'Control.Lens.At'.
@@ -674,7 +674,13 @@ alterF f k m = atKeyImpl Strict k f m
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
 "alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
+"alterF/Pair" forall k (f :: Maybe a -> (b, Maybe a)) . alterF f k = atKeyPair k f
  #-}
+
+atKeyPair :: Ord k => k -> (Maybe a -> (b, Maybe a)) -> Map k a -> (b, Map k a)
+atKeyPair k f t = atKeyWithLookup Strict k f t
+{-# INLINABLE atKeyPair #-}
+
 #if MIN_VERSION_base(4,8,0)
 -- base 4.8 and above include Data.Functor.Identity, so we can
 -- save a pretty decent amount of time by handling it specially.
