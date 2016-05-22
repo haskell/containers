@@ -126,6 +126,7 @@ module Data.Sequence (
     -- * Sublists
     tails,          -- :: Seq a -> Seq (Seq a)
     inits,          -- :: Seq a -> Seq (Seq a)
+    chunksOf,       -- :: Int -> Seq a -> Seq (Seq a)
     -- ** Sequential searches
     takeWhileL,     -- :: (a -> Bool) -> Seq a -> Seq a
     takeWhileR,     -- :: (a -> Bool) -> Seq a -> Seq a
@@ -2271,10 +2272,9 @@ splitAt' i (Seq xs)      = case splitTreeE i xs of
 -- enhance sharing when the split point is less than or equal to 0, and that
 -- gives completely wrong answers when the split point is at least the length
 -- of the sequence, unless the sequence is a singleton. This is used to
--- implement zipWith, which hits the first case at most once, only hits the
--- second with singletons, and is extremely sensitive to the cost of splitting
--- very short sequences. There is just enough of a speed increase to make this
--- worth the trouble.
+-- implement zipWith and chunksOf, which are extremely sensitive to the cost of
+-- splitting very short sequences. There is just enough of a speed increase to
+-- make this worth the trouble.
 uncheckedSplitAt :: Int -> Seq a -> (Seq a, Seq a)
 uncheckedSplitAt i (Seq xs) = case splitTreeE i xs of
   l :*: r -> (Seq l, Seq r)
@@ -2434,6 +2434,18 @@ splitSuffixN i s pr m (Four a b c d)
     sd      = size d
     scd     = size c + sd
     sbcd    = size b + scd
+
+-- | /O(n)/. @chunksOf n xs@ splits @xs@ into chunks of size @n>0@.
+-- If @n@ does not divide the length of @xs@ evenly, then the last element
+-- of the result will be short.
+chunksOf :: Int -> Seq a -> Seq (Seq a)
+chunksOf n _ | n <= 0 = error "chunksOf takes a positive integer argument"
+chunksOf 1 s = fmap singleton s
+chunksOf n s = splitMap (uncheckedSplitAt . (*n)) const most (replicate numReps ())
+                 >< if null end then empty else singleton end
+  where
+    (numReps, endLength) = length s `quotRem` n
+    (most, end) = splitAt' (length s - endLength) s
 
 -- | /O(n)/.  Returns a sequence of all suffixes of this sequence,
 -- longest first.  For example,

@@ -4,10 +4,10 @@ import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), toList, all, sum)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum)
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
-import Data.Monoid (Monoid(..))
+import Data.Monoid (Monoid(..), All (..))
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   null, length, take, drop, splitAt,
@@ -77,6 +77,7 @@ main = defaultMain
        , testProperty "take" prop_take
        , testProperty "drop" prop_drop
        , testProperty "splitAt" prop_splitAt
+       , testProperty "chunksOf" prop_chunksOf
        , testProperty "elemIndexL" prop_elemIndexL
        , testProperty "elemIndicesL" prop_elemIndicesL
        , testProperty "elemIndexR" prop_elemIndexR
@@ -498,6 +499,14 @@ prop_drop n xs =
 prop_splitAt :: Int -> Seq A -> Bool
 prop_splitAt n xs =
     toListPair' (splitAt n xs) ~= Prelude.splitAt n (toList xs)
+
+prop_chunksOf :: Positive Int -> Seq A -> Bool
+prop_chunksOf (Positive n') xs =
+    valid chunks &&
+    getAll (foldMap (All . (\c -> valid c && length c <= n)) chunks) &&
+    fold chunks == xs
+  where chunks = chunksOf n xs
+        n = max 1 (n' `rem` (length xs + 3))
 
 adjustList :: (a -> a) -> Int -> [a] -> [a]
 adjustList f i xs =
