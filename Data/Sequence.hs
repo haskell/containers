@@ -2359,14 +2359,6 @@ splitAt i xs@(Seq t)
   | otherwise = (xs, empty)
 
 -- | /O(log(min(i,n-i))) A version of 'splitAt' that does not attempt to
--- enhance sharing when the split point is less than or equal to 0.
--- Used to implement breakl and breakr, which very rarely hit that case.
-splitAt'                 :: Int -> Seq a -> (Seq a, Seq a)
-splitAt' i xs | i >= length xs = (xs, empty)
-splitAt' i (Seq xs)      = case splitTreeE i xs of
-                             l :*: r -> (Seq l, Seq r)
-
--- | /O(log(min(i,n-i))) A version of 'splitAt' that does not attempt to
 -- enhance sharing when the split point is less than or equal to 0, and that
 -- gives completely wrong answers when the split point is at least the length
 -- of the sequence, unless the sequence is a singleton. This is used to
@@ -2543,7 +2535,7 @@ chunksOf n s = splitMap (uncheckedSplitAt . (*n)) const most (replicate numReps 
                  >< if null end then empty else singleton end
   where
     (numReps, endLength) = length s `quotRem` n
-    (most, end) = splitAt' (length s - endLength) s
+    (most, end) = splitAt (length s - endLength) s
 
 -- | /O(n)/.  Returns a sequence of all suffixes of this sequence,
 -- longest first.  For example,
@@ -2719,12 +2711,12 @@ spanr p = breakr (not . p)
 --
 -- @'breakl' p@ is equivalent to @'spanl' (not . p)@.
 breakl :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
-breakl p xs = foldr (\ i _ -> splitAt' i xs) (xs, empty) (findIndicesL p xs)
+breakl p xs = foldr (\ i _ -> splitAt i xs) (xs, empty) (findIndicesL p xs)
 
 {-# INLINE breakr #-}
 -- | @'breakr' p@ is equivalent to @'spanr' (not . p)@.
 breakr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
-breakr p xs = foldr (\ i _ -> flipPair (splitAt' (i + 1) xs)) (xs, empty) (findIndicesR p xs)
+breakr p xs = foldr (\ i _ -> flipPair (splitAt (i + 1) xs)) (xs, empty) (findIndicesR p xs)
   where flipPair (x, y) = (y, x)
 
 -- | /O(n)/.  The 'partition' function takes a predicate @p@ and a
