@@ -267,9 +267,6 @@ module Data.Map.Base (
     -- Used by the strict version
     , AreWeStrict (..)
     , atKeyImpl
-#if __GLASGOW_HASKELL__
-    , atKeyWithLookup
-#endif
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
     , atKeyPlain
 #endif
@@ -999,12 +996,13 @@ data AreWeStrict = Strict | Lazy
 --
 -- Note on rewrite rules:
 --
--- This module includes GHC rewrite rules to optimize 'alterF' for the 'Const',
--- 'Identity', and @(,) b@ functors. In general, these rules improve
--- performance. The main exception is that when using 'Identity', deleting a
--- key that is already absent takes longer than it would without the rules. If
--- you expect this to occur a very large fraction of the time, you might
--- consider using a private copy of the 'Identity' type.
+-- This module includes GHC rewrite rules to optimize 'alterF' for
+-- the 'Const' and 'Identity' functors. In general, these rules
+-- improve performance. The sole exception is that when using
+-- 'Identity', deleting a key that is already absent takes longer
+-- than it would without the rules. If you expect this to occur
+-- a very large fraction of the time, you might consider using a
+-- private copy of the 'Identity' type.
 --
 -- Note: 'alterF' is a flipped version of the 'at' combinator from
 -- 'Control.Lens.At'.
@@ -1020,12 +1018,9 @@ alterF f k m = atKeyImpl Lazy k f m
 {-# INLINABLE [2] alterF #-}
 
 -- We can save a little time by recognizing the special case of
--- `Control.Applicative.Const` and just doing a lookup. Similarly,
--- we recognize the special case of `(,) b` which, like `Identity`,
--- only needs to go down and up once.
+-- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
 "alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
-"alterF/Pair" forall k (f :: Maybe a -> (b, Maybe a)) . alterF f k = atKeyPair k f
  #-}
 
 #if MIN_VERSION_base(4,8,0)
@@ -1200,46 +1195,6 @@ atKeyPlain strict k0 f0 t = case go k0 f0 t of
 {-# INLINE atKeyPlain #-}
 
 data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
-#endif
-
-#if __GLASGOW_HASKELL__
-atKeyPair :: Ord k => k -> (Maybe a -> (b, Maybe a)) -> Map k a -> (b, Map k a)
-atKeyPair k f t = atKeyWithLookup Lazy k f t
-{-# INLINABLE atKeyPair #-}
-
-atKeyWithLookup :: Ord k => AreWeStrict -> k -> (Maybe a -> (b, Maybe a)) -> Map k a -> (b, Map k a)
-atKeyWithLookup strict k0 f0 t = case go k0 f0 t of
-    AltSmallerLook v t' -> (v, t')
-    AltBiggerLook v t' -> (v, t')
-    AltAdjLook v t' -> (v, t')
-    AltSameLook v -> (v, t)
-  where
-    go :: Ord k => k -> (Maybe a -> (b, Maybe a)) -> Map k a -> AlteredLookup k b a
-    go !k f Tip = case f Nothing of
-                   (b, Nothing) -> AltSameLook b
-                   (b, Just x)  -> case strict of
-                     Lazy -> AltBiggerLook b (singleton k x)
-                     Strict -> x `seq` (AltBiggerLook b $ singleton k x)
-
-    go k f (Bin sx kx x l r) = case compare k kx of
-                   LT -> case go k f l of
-                           AltSmallerLook b l' -> AltSmallerLook b $ balanceR kx x l' r
-                           AltBiggerLook b l' -> AltBiggerLook b $ balanceL kx x l' r
-                           AltAdjLook b l' -> AltAdjLook b $ Bin sx kx x l' r
-                           s@AltSameLook{} -> s
-                   GT -> case go k f r of
-                           AltSmallerLook b r' -> AltSmallerLook b $ balanceL kx x l r'
-                           AltBiggerLook b r' -> AltBiggerLook b $ balanceR kx x l r'
-                           AltAdjLook b r' -> AltAdjLook b $ Bin sx kx x l r'
-                           s@AltSameLook{} -> s
-                   EQ -> case f (Just x) of
-                           (b, Just x') -> case strict of
-                             Lazy -> AltAdjLook b $ Bin sx kx x' l r
-                             Strict -> x' `seq` (AltAdjLook b $ Bin sx kx x' l r)
-                           (b, Nothing) -> AltSmallerLook b $ glue l r
-{-# INLINE atKeyWithLookup #-}
-
-data AlteredLookup k b a = AltSmallerLook b !(Map k a) | AltBiggerLook b !(Map k a) | AltAdjLook b !(Map k a) | AltSameLook b
 #endif
 
 #if DEFINE_ALTERF_FALLBACK
