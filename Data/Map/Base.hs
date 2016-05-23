@@ -1219,7 +1219,7 @@ atKeyWithLookup strict k0 f0 t = case go k0 f0 t of
                    (b, Nothing) -> AltSameLook b
                    (b, Just x)  -> case strict of
                      Lazy -> AltBiggerLook b (singleton k x)
-                     Strict -> (AltBiggerLook b $ singleton k $! x)
+                     Strict -> x `seq` (AltBiggerLook b $ singleton k x)
 
     go k f (Bin sx kx x l r) = case compare k kx of
                    LT -> case go k f l of
@@ -1235,7 +1235,7 @@ atKeyWithLookup strict k0 f0 t = case go k0 f0 t of
                    EQ -> case f (Just x) of
                            (b, Just x') -> case strict of
                              Lazy -> AltAdjLook b $ Bin sx kx x' l r
-                             Strict -> AltAdjLook b (x' `seq` Bin sx kx x' l r)
+                             Strict -> x' `seq` (AltAdjLook b $ Bin sx kx x' l r)
                            (b, Nothing) -> AltSmallerLook b $ glue l r
 {-# INLINE atKeyWithLookup #-}
 
