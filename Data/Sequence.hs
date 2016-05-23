@@ -1584,14 +1584,14 @@ data Place a = Place {-# UNPACK #-} !Int a
 lookupTree :: Sized a => Int -> FingerTree a -> Place a
 lookupTree _ EmptyT = error "lookupTree of empty tree"
 lookupTree i (Single x) = Place i x
-lookupTree i (Deep totalSize pr m sf)
+lookupTree i (Deep _ pr m sf)
   | i < spr     =  lookupDigit i pr
   | i < spm     =  case lookupTree (i - spr) m of
                    Place i' xs -> lookupNode i' xs
   | otherwise   =  lookupDigit (i - spm) sf
   where
     spr     = size pr
-    spm     = totalSize - size sf
+    spm     = spr + size m
 
 {-# SPECIALIZE lookupNode :: Int -> Node (Elem a) -> Place (Elem a) #-}
 {-# SPECIALIZE lookupNode :: Int -> Node (Node a) -> Place (Node a) #-}
@@ -1721,7 +1721,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
                (mapWithIndexDigit f sPsprm sf)
     where
       !sPspr = s + size pr
-      !sPsprm = s + n - size sf
+      !sPsprm = sPspr + size m
 
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
