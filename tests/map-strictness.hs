@@ -11,7 +11,7 @@ import Test.QuickCheck (Arbitrary(arbitrary))
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 
-instance (Arbitrary k, Arbitrary v, Eq k, Ord k) =>
+instance (Arbitrary k, Arbitrary v, Ord k) =>
          Arbitrary (Map k v) where
     arbitrary = M.fromList `fmap` arbitrary
 
