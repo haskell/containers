@@ -1,6 +1,3 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
-
 module Main (main) where
 
 import Prelude hiding (foldl)
