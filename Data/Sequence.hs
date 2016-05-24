@@ -2431,10 +2431,10 @@ splitMiddleE i s spr pr ml (Node2 _ a b) mr sf
   where
     sprml   = spr + size ml
     sprmla  = 1 + sprml
-splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf
-  | i < 1       = pullR sprml pr ml :*: Deep (s - sprml) (Three a b c) mr sf
-  | i < 2       = Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (Two b c) mr sf
-  | otherwise   = Deep sprmlab pr ml (Two a b) :*: Deep (s - sprmlab) (One c) mr sf
+splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf = case i of
+  0 -> pullR sprml pr ml :*: Deep (s - sprml) (Three a b c) mr sf
+  1 -> Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (Two b c) mr sf
+  _ -> Deep sprmlab pr ml (Two a b) :*: Deep (s - sprmlab) (One c) mr sf
   where
     sprml   = spr + size ml
     sprmla  = 1 + sprml
@@ -2443,18 +2443,18 @@ splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf
 splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> 
                     StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitPrefixE !_i !s (One a) m sf = EmptyT :*: Deep s (One a) m sf
-splitPrefixE i s (Two a b) m sf
-  | i < 1       = EmptyT :*: Deep s (Two a b) m sf
-  | otherwise   = Single a :*: Deep (s - 1) (One b) m sf
-splitPrefixE i s (Three a b c) m sf
-  | i < 1       = EmptyT :*: Deep s (Three a b c) m sf
-  | i < 2       = Single a :*: Deep (s - 1) (Two b c) m sf
-  | otherwise   = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (One c) m sf
-splitPrefixE i s (Four a b c d) m sf
-  | i < 1       = EmptyT :*: Deep s (Four a b c d) m sf
-  | i < 2       = Single a :*: Deep (s - 1) (Three b c d) m sf
-  | i < 3       = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
-  | otherwise   = Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
+splitPrefixE i s (Two a b) m sf = case i of
+  0 -> EmptyT :*: Deep s (Two a b) m sf
+  _ -> Single a :*: Deep (s - 1) (One b) m sf
+splitPrefixE i s (Three a b c) m sf = case i of
+  0 -> EmptyT :*: Deep s (Three a b c) m sf
+  1 -> Single a :*: Deep (s - 1) (Two b c) m sf
+  _ -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (One c) m sf
+splitPrefixE i s (Four a b c d) m sf = case i of
+  0 -> EmptyT :*: Deep s (Four a b c d) m sf
+  1 -> Single a :*: Deep (s - 1) (Three b c d) m sf
+  2 -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
+  _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
 splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
                     Split (FingerTree (Node a)) (Node a)
@@ -2484,18 +2484,18 @@ splitPrefixN i s (Four a b c d) m sf
 splitSuffixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
    StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitSuffixE !_i !s pr m (One a) = pullR (s - 1) pr m :*: Single a
-splitSuffixE i s pr m (Two a b)
-  | i < 1      = pullR (s - 2) pr m :*: Deep 2 (One a) EmptyT (One b)
-  | otherwise  = Deep (s - 1) pr m (One a) :*: Single b
-splitSuffixE i s pr m (Three a b c)
-  | i < 1      = pullR (s - 3) pr m :*: Deep 3 (Two a b) EmptyT (One c)
-  | i < 2      = Deep (s - 2) pr m (One a) :*: Deep 2 (One b) EmptyT (One c)
-  | otherwise  = Deep (s - 1) pr m (Two a b) :*: Single c
-splitSuffixE i s pr m (Four a b c d)
-  | i < 1      = pullR (s - 4) pr m :*: Deep 4 (Two a b) EmptyT (Two c d)
-  | i < 2      = Deep (s - 3) pr m (One a) :*: Deep 3 (Two b c) EmptyT (One d)
-  | i < 3      = Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
-  | otherwise  = Deep (s - 1) pr m (Three a b c) :*: Single d
+splitSuffixE i s pr m (Two a b) = case i of
+  0 -> pullR (s - 2) pr m :*: Deep 2 (One a) EmptyT (One b)
+  _ -> Deep (s - 1) pr m (One a) :*: Single b
+splitSuffixE i s pr m (Three a b c) = case i of
+  0 -> pullR (s - 3) pr m :*: Deep 3 (Two a b) EmptyT (One c)
+  1 -> Deep (s - 2) pr m (One a) :*: Deep 2 (One b) EmptyT (One c)
+  _ -> Deep (s - 1) pr m (Two a b) :*: Single c
+splitSuffixE i s pr m (Four a b c d) = case i of
+  0 -> pullR (s - 4) pr m :*: Deep 4 (Two a b) EmptyT (Two c d)
+  1 -> Deep (s - 3) pr m (One a) :*: Deep 3 (Two b c) EmptyT (One d)
+  2 -> Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
+  _ -> Deep (s - 1) pr m (Three a b c) :*: Single d
 
 splitSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
    Split (FingerTree (Node a)) (Node a)
@@ -2966,50 +2966,59 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 --
 -- > mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 -- > mapWithIndex f = splitMap (\n i -> (i, n+i)) f 0
-splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
-splitMap splt' = go
- where
-  go f s (Seq xs) = Seq $ splitMapTree splt' (\s' (Elem a) -> Elem (f s' a)) s xs
-
-  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
-  {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
-  splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
-  splitMapTree _    _ _ EmptyT = EmptyT
-  splitMapTree _    f s (Single xs) = Single $ f s xs
-  splitMapTree splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTree splt (splitMapNode splt f) ms m) (splitMapDigit splt f sfs sf)
-    where
-      (prs, r) = splt (size pr) s
-      (ms, sfs) = splt (n - size pr - size sf) r
-
-  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Digit (Elem y) -> Digit b #-}
-  {-# SPECIALIZE splitMapDigit :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Digit (Node y) -> Digit b #-}
-  splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
-  splitMapDigit _    f s (One a) = One (f s a)
-  splitMapDigit splt f s (Two a b) = Two (f first a) (f second b)
-    where
-      (first, second) = splt (size a) s
-  splitMapDigit splt f s (Three a b c) = Three (f first a) (f second b) (f third c)
-    where
-      (first, r) = splt (size a) s
-      (second, third) = splt (size b) r
-  splitMapDigit splt f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
-    where
-      (first, s') = splt (size a) s
-      (middle, fourth) = splt (size b + size c) s'
-      (second, third) = splt (size b) middle
-
-  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> Node (Elem y) -> Node b #-}
-  {-# SPECIALIZE splitMapNode :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> Node (Node y) -> Node b #-}
-  splitMapNode :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Node a -> Node b
-  splitMapNode splt f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
-    where
-      (first, second) = splt (size a) s
-  splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
-    where
-      (first, r) = splt (size a) s
-      (second, third) = splt (size b) r
-
 {-# INLINE splitMap #-}
+splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
+splitMap splt' f0 s0 (Seq xs0) = Seq $ splitMapTreeE splt' (\s' (Elem a) -> Elem (f0 s' a)) s0 xs0
+
+-- Note: We end up boxing and unboxing Ints here.
+-- If we wanted, we could manually unbox them all.
+-- However, benchmarks indicate the performance gains
+-- are small, and maintaining an entirely separate copy of
+-- all the splitMap helpers specially for GHC seems
+-- an unreasonable maintenance burden.
+{-# INLINE splitMapTreeE #-}
+splitMapTreeE :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b
+splitMapTreeE _    _ _ EmptyT = EmptyT
+splitMapTreeE _    f s (Single xs) = Single $ f s xs
+splitMapTreeE splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTreeN splt (\eta1 eta2 -> splitMapNode splt f eta1 eta2) ms m) (splitMapDigit splt f sfs sf)
+      where
+        (prs, r) = splt (size pr) s
+        (ms, sfs) = splt (n - size pr - size sf) r
+
+splitMapTreeN :: (Int -> s -> (s,s)) -> (s -> Node a -> b) -> s -> FingerTree (Node a) -> FingerTree b
+splitMapTreeN _    _ _ EmptyT = EmptyT
+splitMapTreeN _    f s (Single xs) = Single $ f s xs
+splitMapTreeN splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTreeN splt (\eta1 eta2 -> splitMapNode splt f eta1 eta2) ms m) (splitMapDigit splt f sfs sf)
+      where
+        (prs, r) = splt (size pr) s
+        (ms, sfs) = splt (n - size pr - size sf) r
+
+{-# INLINE splitMapDigit #-}
+splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
+splitMapDigit _    f s (One a) = One (f s a)
+splitMapDigit splt f s (Two a b) = Two (f first a) (f second b)
+  where
+    (first, second) = splt (size a) s
+splitMapDigit splt f s (Three a b c) = Three (f first a) (f second b) (f third c)
+  where
+    (first, r) = splt (size a) s
+    (second, third) = splt (size b) r
+splitMapDigit splt f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
+  where
+    (first, s') = splt (size a) s
+    (middle, fourth) = splt (size b + size c) s'
+    (second, third) = splt (size b) middle
+
+{-# INLINE splitMapNode #-}
+splitMapNode :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Node a -> Node b
+splitMapNode splt f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
+  where
+    (first, second) = splt (size a) s
+splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
+  where
+    (first, r) = splt (size a) s
+    (second, third) = splt (size b) r
+
 
 getSingleton :: Seq a -> a
 getSingleton (Seq (Single (Elem a))) = a
