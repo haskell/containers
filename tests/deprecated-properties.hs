@@ -12,7 +12,7 @@ import qualified Data.IntMap.Strict as SIM
 
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
-import Text.Show.Functions ()
+import Test.QuickCheck.Function (Fun(..), apply)
 
 default (Int)
 
@@ -32,11 +32,16 @@ main = defaultMain
 
 
 ---------- Map properties ----------
+apply2 :: Fun (a, b) c -> a -> b -> c
+apply2 f a b = apply f (a, b)
 
-prop_mapInsertWith'Strict :: [(Int, Int)] -> (Int -> Int -> Int) -> [(Int, Int)] -> Bool
+apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
+apply3 f a b c = apply f (a, b, c)
+
+prop_mapInsertWith'Strict :: [(Int, Int)] -> Fun (Int, Int) Int -> [(Int, Int)] -> Bool
 prop_mapInsertWith'Strict xs f kxxs =
   let m = M.fromList xs
-      insertList ins = foldr (\(kx, x) -> ins f kx x) m kxxs
+      insertList ins = foldr (\(kx, x) -> ins (apply2 f) kx x) m kxxs
   in insertList M.insertWith' == insertList SM.insertWith
 
 prop_mapInsertWith'Undefined :: [(Int, Int)] -> Bool
@@ -46,10 +51,10 @@ prop_mapInsertWith'Undefined xs =
       insertList ins = foldr (\(kx, _) -> ins f kx undefined) m xs
   in insertList M.insertWith' == insertList M.insertWith
 
-prop_mapInsertWithKey'Strict :: [(Int, Int)] -> (Int -> Int -> Int -> Int) -> [(Int, Int)] -> Bool
+prop_mapInsertWithKey'Strict :: [(Int, Int)] -> Fun (Int, Int, Int) Int -> [(Int, Int)] -> Bool
 prop_mapInsertWithKey'Strict xs f kxxs =
   let m = M.fromList xs
-      insertList ins = foldr (\(kx, x) -> ins f kx x) m kxxs
+      insertList ins = foldr (\(kx, x) -> ins (apply3 f) kx x) m kxxs
   in insertList M.insertWithKey' == insertList SM.insertWithKey
 
 prop_mapInsertWithKey'Undefined :: [(Int, Int)] -> Bool
@@ -59,10 +64,10 @@ prop_mapInsertWithKey'Undefined xs =
       insertList ins = foldr (\(kx, _) -> ins f kx undefined) m xs
   in insertList M.insertWithKey' == insertList M.insertWithKey
 
-prop_mapInsertLookupWithKey'Strict :: [(Int, Int)] -> (Int -> Int -> Int -> Int) -> [(Int, Int)] -> Bool
+prop_mapInsertLookupWithKey'Strict :: [(Int, Int)] -> Fun (Int, Int, Int) Int -> [(Int, Int)] -> Bool
 prop_mapInsertLookupWithKey'Strict xs f kxxs =
   let m = M.fromList xs
-      insertLookupList insLkp = scanr (\(kx, x) (_, mp) -> insLkp f kx x mp) (Nothing, m) kxxs
+      insertLookupList insLkp = scanr (\(kx, x) (_, mp) -> insLkp (apply3 f) kx x mp) (Nothing, m) kxxs
   in insertLookupList M.insertLookupWithKey' == insertLookupList SM.insertLookupWithKey
 
 prop_mapInsertLookupWithKey'Undefined :: [(Int, Int)] -> Bool
@@ -75,10 +80,10 @@ prop_mapInsertLookupWithKey'Undefined xs =
 
 ---------- IntMap properties ----------
 
-prop_intmapInsertWith'Strict :: [(Int, Int)] -> (Int -> Int -> Int) -> [(Int, Int)] -> Bool
+prop_intmapInsertWith'Strict :: [(Int, Int)] -> Fun (Int, Int) Int -> [(Int, Int)] -> Bool
 prop_intmapInsertWith'Strict xs f kxxs =
   let m = IM.fromList xs
-      insertList ins = foldr (\(kx, x) -> ins f kx x) m kxxs
+      insertList ins = foldr (\(kx, x) -> ins (apply2 f) kx x) m kxxs
   in insertList IM.insertWith' == insertList SIM.insertWith
 
 prop_intmapInsertWith'Undefined :: [(Int, Int)] -> Bool
@@ -88,10 +93,10 @@ prop_intmapInsertWith'Undefined xs =
       insertList ins = foldr (\(kx, _) -> ins f kx undefined) m xs
   in insertList IM.insertWith' == insertList IM.insertWith
 
-prop_intmapInsertWithKey'Strict :: [(Int, Int)] -> (Int -> Int -> Int -> Int) -> [(Int, Int)] -> Bool
+prop_intmapInsertWithKey'Strict :: [(Int, Int)] -> Fun (Int, Int, Int) Int -> [(Int, Int)] -> Bool
 prop_intmapInsertWithKey'Strict xs f kxxs =
   let m = IM.fromList xs
-      insertList ins = foldr (\(kx, x) -> ins f kx x) m kxxs
+      insertList ins = foldr (\(kx, x) -> ins (apply3 f) kx x) m kxxs
   in insertList IM.insertWithKey' == insertList SIM.insertWithKey
 
 prop_intmapInsertWithKey'Undefined :: [(Int, Int)] -> Bool
