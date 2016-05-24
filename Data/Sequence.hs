@@ -2431,10 +2431,10 @@ splitMiddleE i s spr pr ml (Node2 _ a b) mr sf
   where
     sprml   = spr + size ml
     sprmla  = 1 + sprml
-splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf
-  | i < 1       = pullR sprml pr ml :*: Deep (s - sprml) (Three a b c) mr sf
-  | i < 2       = Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (Two b c) mr sf
-  | otherwise   = Deep sprmlab pr ml (Two a b) :*: Deep (s - sprmlab) (One c) mr sf
+splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf = case i of
+  0 -> pullR sprml pr ml :*: Deep (s - sprml) (Three a b c) mr sf
+  1 -> Deep sprmla pr ml (One a) :*: Deep (s - sprmla) (Two b c) mr sf
+  _ -> Deep sprmlab pr ml (Two a b) :*: Deep (s - sprmlab) (One c) mr sf
   where
     sprml   = spr + size ml
     sprmla  = 1 + sprml
@@ -2443,18 +2443,18 @@ splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf
 splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> 
                     StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitPrefixE !_i !s (One a) m sf = EmptyT :*: Deep s (One a) m sf
-splitPrefixE i s (Two a b) m sf
-  | i < 1       = EmptyT :*: Deep s (Two a b) m sf
-  | otherwise   = Single a :*: Deep (s - 1) (One b) m sf
-splitPrefixE i s (Three a b c) m sf
-  | i < 1       = EmptyT :*: Deep s (Three a b c) m sf
-  | i < 2       = Single a :*: Deep (s - 1) (Two b c) m sf
-  | otherwise   = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (One c) m sf
-splitPrefixE i s (Four a b c d) m sf
-  | i < 1       = EmptyT :*: Deep s (Four a b c d) m sf
-  | i < 2       = Single a :*: Deep (s - 1) (Three b c d) m sf
-  | i < 3       = Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
-  | otherwise   = Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
+splitPrefixE i s (Two a b) m sf = case i of
+  0 -> EmptyT :*: Deep s (Two a b) m sf
+  _ -> Single a :*: Deep (s - 1) (One b) m sf
+splitPrefixE i s (Three a b c) m sf = case i of
+  0 -> EmptyT :*: Deep s (Three a b c) m sf
+  1 -> Single a :*: Deep (s - 1) (Two b c) m sf
+  _ -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (One c) m sf
+splitPrefixE i s (Four a b c d) m sf = case i of
+  0 -> EmptyT :*: Deep s (Four a b c d) m sf
+  1 -> Single a :*: Deep (s - 1) (Three b c d) m sf
+  2 -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
+  _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
 splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
                     Split (FingerTree (Node a)) (Node a)
@@ -2484,18 +2484,18 @@ splitPrefixN i s (Four a b c d) m sf
 splitSuffixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
    StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitSuffixE !_i !s pr m (One a) = pullR (s - 1) pr m :*: Single a
-splitSuffixE i s pr m (Two a b)
-  | i < 1      = pullR (s - 2) pr m :*: Deep 2 (One a) EmptyT (One b)
-  | otherwise  = Deep (s - 1) pr m (One a) :*: Single b
-splitSuffixE i s pr m (Three a b c)
-  | i < 1      = pullR (s - 3) pr m :*: Deep 3 (Two a b) EmptyT (One c)
-  | i < 2      = Deep (s - 2) pr m (One a) :*: Deep 2 (One b) EmptyT (One c)
-  | otherwise  = Deep (s - 1) pr m (Two a b) :*: Single c
-splitSuffixE i s pr m (Four a b c d)
-  | i < 1      = pullR (s - 4) pr m :*: Deep 4 (Two a b) EmptyT (Two c d)
-  | i < 2      = Deep (s - 3) pr m (One a) :*: Deep 3 (Two b c) EmptyT (One d)
-  | i < 3      = Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
-  | otherwise  = Deep (s - 1) pr m (Three a b c) :*: Single d
+splitSuffixE i s pr m (Two a b) = case i of
+  0 -> pullR (s - 2) pr m :*: Deep 2 (One a) EmptyT (One b)
+  _ -> Deep (s - 1) pr m (One a) :*: Single b
+splitSuffixE i s pr m (Three a b c) = case i of
+  0 -> pullR (s - 3) pr m :*: Deep 3 (Two a b) EmptyT (One c)
+  1 -> Deep (s - 2) pr m (One a) :*: Deep 2 (One b) EmptyT (One c)
+  _ -> Deep (s - 1) pr m (Two a b) :*: Single c
+splitSuffixE i s pr m (Four a b c d) = case i of
+  0 -> pullR (s - 4) pr m :*: Deep 4 (Two a b) EmptyT (Two c d)
+  1 -> Deep (s - 3) pr m (One a) :*: Deep 3 (Two b c) EmptyT (One d)
+  2 -> Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
+  _ -> Deep (s - 1) pr m (Three a b c) :*: Single d
 
 splitSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
    Split (FingerTree (Node a)) (Node a)
@@ -2967,10 +2967,8 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 -- > mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 -- > mapWithIndex f = splitMap (\n i -> (i, n+i)) f 0
 splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
-splitMap splt' = go
+splitMap splt' f0 s0 (Seq xs0) = Seq $ splitMapTree splt' (\s' (Elem a) -> Elem (f0 s' a)) s0 xs0
  where
-  go f s (Seq xs) = Seq $ splitMapTree splt' (\s' (Elem a) -> Elem (f s' a)) s xs
-
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE splitMapTree :: (Int -> s -> (s,s)) -> (s -> Node y -> b) -> s -> FingerTree (Node y) -> FingerTree b #-}
   splitMapTree :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> FingerTree a -> FingerTree b
