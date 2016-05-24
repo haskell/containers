@@ -1033,15 +1033,17 @@ replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
 
--- | /O(log(n))/ incremental. @'cycleN' n xs@ forms a sequence of length @n@ by
+-- | /O(log(k))/ incremental. @'cycleN' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ must not be empty and
--- @n@ must not be negative.
+-- @k@ must not be negative.
 --
--- prop> cycleN n = fromList . take n . cycle . toList
+-- prop> cycleN k = fromList . take k . cycle . toList
 
 -- If you wish to concatenate a non-empty sequence @xs@ with itself precisely
 -- @k@ times, you can use @cycleN (k * length xs)@ or just
 -- @replicate k () *> xs@.
+--
+-- @since 0.5.8
 cycleN :: Int -> Seq a -> Seq a
 cycleN n !_xs | n < 0 = error "cycleN takes a non-negative argument"
 cycleN n xs   | null xs = error "cycleN takes a non-empty sequence"
