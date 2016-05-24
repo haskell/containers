@@ -5,6 +5,13 @@
   * Remove all attempts to support nhc98 and any versions of GHC
     before 7.0.
 
+  * Integrate benchmarks with Cabal. (Thanks, Gabriel Gonzalez!)
+  
+  * Make Cabal report required extensions properly, and stop using
+    default extensions. Note that we do *not* report extensions conditionally enabled
+    based on GHC version, as doing so would lead to a maintenance nightmare
+    with no obvious benefits.
+
   * Use `BangPatterns` throughout to reduce noise. This extension
     is now *required* to compile `containers`.
 
@@ -40,6 +47,10 @@
   * Remove non-essential laziness in `Data.Map.Lazy` implementation.
 
   * Speed up deletion and alteration functions for `Data.IntMap`.
+
+  * Improve QuickCheck properties taking arbitrary functions by using
+    `Test.QuickCheck.Function.Fun` instead of evil `Show` instances
+    for functions.
 
 ## 0.5.7.1  *Dec 2015*
 
