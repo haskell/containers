@@ -102,6 +102,7 @@ module Data.Sequence (
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
     replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
+    cycleN,         -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
     unfoldr,        -- :: (b -> Maybe (a, b)) -> b -> Seq a
@@ -367,7 +368,7 @@ instance Monad Seq where
 
 instance Applicative Seq where
     pure = singleton
-    xs *> ys = cycleN (length xs) ys
+    xs *> ys = cycleNTimes (length xs) ys
 
     fs <*> xs@(Seq xsFT) = case viewl fs of
       EmptyL -> empty
@@ -1032,13 +1033,30 @@ replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
 
--- | @'cycleN' n xs@ concatenates @n@ copies of @xs@.
+-- | /O(log(n))/ incremental. @'cycleN' n xs@ forms a sequence of length @n@ by
+-- repeatedly concatenating @xs@ with itself. @xs@ must not be empty and
+-- @n@ must not be negative.
+--
+-- prop> cycleN n = fromList . take n . cycle . toList
+
+-- If you wish to concatenate a non-empty sequence @xs@ with itself precisely
+-- @k@ times, you can use @cycleN (k * length xs)@ or just
+-- @replicate k () *> xs@.
 cycleN :: Int -> Seq a -> Seq a
-cycleN n xs
-  | n < 0     = error "cycleN takes a nonnegative integer argument"
-  | n == 0    = empty
+cycleN n !_xs | n < 0 = error "cycleN takes a non-negative argument"
+cycleN n xs   | null xs = error "cycleN takes a non-empty sequence"
+cycleN n xs = cycleNTimes reps xs >< take final xs
+  where
+    (reps, final) = n `quotRem` length xs
+
+-- | /O(log(kn))/. @'cycleNTimes' k xs@ concatenates @k@ copies of @xs@. This
+-- operation uses time and additional space logarithmic in the size of its
+-- result.
+cycleNTimes :: Int -> Seq a -> Seq a
+cycleNTimes n !xs
+  | n <= 0    = empty
   | n == 1    = xs
-cycleN n (Seq xsFT) = case rigidify xsFT of
+cycleNTimes n (Seq xsFT) = case rigidify xsFT of
              RigidEmpty -> empty
              RigidOne (Elem x) -> replicate n x
              RigidTwo x1 x2 -> Seq $
