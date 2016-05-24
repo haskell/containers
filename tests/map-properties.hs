@@ -24,9 +24,15 @@ import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
-import Text.Show.Functions ()
+import Test.QuickCheck.Function (Fun (..), apply)
 
 default (Int)
+
+apply3 :: Fun (a,b,c) d -> a -> b -> c -> d
+apply3 f a b c = apply f (a, b, c)
+
+apply2 :: Fun (a,b) c -> a -> b -> c
+apply2 f a b = apply f (a, b)
 
 main :: IO ()
 main = defaultMain
@@ -204,7 +210,7 @@ main = defaultMain
 --------------------------------------------------------------------}
 instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
   arbitrary = sized (arbtree 0 maxkey)
-    where maxkey = 10^5
+    where maxkey = 10^(5 :: Int)
 
           arbtree :: (Enum k, Arbitrary a) => Int -> Int -> Int -> Gen (Map k a)
           arbtree lo hi n = do t <- gentree lo hi n
@@ -973,8 +979,8 @@ prop_intersectionModel xs ys
   = sort (keys (intersection (fromListWith (+) xs) (fromListWith (+) ys)))
     == sort (nub ((List.intersect) (Prelude.map fst xs) (Prelude.map fst ys)))
 
-prop_intersectionWith :: (Int -> Int -> Maybe Int) -> IMap -> IMap -> Bool
-prop_intersectionWith f t1 t2 = valid (intersectionWith f t1 t2)
+prop_intersectionWith :: Fun (Int, Int) (Maybe Int) -> IMap -> IMap -> Bool
+prop_intersectionWith f t1 t2 = valid (intersectionWith (apply2 f) t1 t2)
 
 prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_intersectionWithModel xs ys
@@ -984,8 +990,8 @@ prop_intersectionWithModel xs ys
           ys' = List.nubBy ((==) `on` fst) ys
           f l r = l + 2 * r
 
-prop_intersectionWithKey :: (Int -> Int -> Int -> Maybe Int) -> IMap -> IMap -> Bool
-prop_intersectionWithKey f t1 t2 = valid (intersectionWithKey f t1 t2)
+prop_intersectionWithKey :: Fun (Int, Int, Int) (Maybe Int) -> IMap -> IMap -> Bool
+prop_intersectionWithKey f t1 t2 = valid (intersectionWithKey (apply3 f) t1 t2)
 
 prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_intersectionWithKeyModel xs ys
@@ -1068,14 +1074,14 @@ prop_alter t k = balanced t' && case lookup k t of
     f Nothing   = Just ()
     f (Just ()) = Nothing
 
-prop_alterF_alter :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
-prop_alterF_alter f k m = valid altered && altered == alter f k m
-  where altered = atAlter f k m
+prop_alterF_alter :: Fun (Maybe Int) (Maybe Int) -> Int -> IMap -> Bool
+prop_alterF_alter f k m = valid altered && altered == alter (apply f) k m
+  where altered = atAlter (apply f) k m
 
-prop_alterF_alter_noRULES :: (Maybe Int -> Maybe Int) -> Int -> IMap -> Bool
+prop_alterF_alter_noRULES :: Fun (Maybe Int) (Maybe Int) -> Int -> IMap -> Bool
 prop_alterF_alter_noRULES f k m = valid altered &&
-                                  altered == alter f k m
-  where altered = atAlterNoRULES f k m
+                                  altered == alter (apply f) k m
+  where altered = atAlterNoRULES (apply f) k m
 
 prop_alterF_lookup :: Int -> IMap -> Bool
 prop_alterF_lookup k m = atLookup k m == lookup k m
@@ -1182,35 +1188,35 @@ prop_deleteMaxModel ys = length ys > 0 ==>
       m  = fromList xs
   in  toAscList (deleteMax m) == init (sort xs)
 
-prop_filter :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  filter p m == fromList (List.filter (p . snd) xs)
+  in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
 
-prop_partition :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
+  in  partition (apply p) m == let (a,b) = (List.partition (apply p . snd) xs) in (fromList a, fromList b)
 
-prop_map :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_map :: Fun Int Int -> [(Int, Int)] -> Property
 prop_map f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  map f m == fromList [ (a, f b) | (a,b) <- xs ]
+  in  map (apply f) m == fromList [ (a, apply f b) | (a,b) <- xs ]
 
-prop_fmap :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_fmap :: Fun Int Int -> [(Int, Int)] -> Property
 prop_fmap f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  fmap f m == fromList [ (a, f b) | (a,b) <- xs ]
+  in  fmap (apply f) m == fromList [ (a, (apply f) b) | (a,b) <- xs ]
 
-prop_mapkeys :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_mapkeys :: Fun Int Int -> [(Int, Int)] -> Property
 prop_mapkeys f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
+  in  mapKeys (apply f) m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>

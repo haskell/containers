@@ -22,7 +22,7 @@ import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
-import Text.Show.Functions ()
+import Test.QuickCheck.Function (Fun(..), apply)
 
 default (Int)
 
@@ -168,6 +168,13 @@ main = defaultMain
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              ]
+
+apply2 :: Fun (a, b) c -> a -> b -> c
+apply2 f a b = apply f (a, b)
+
+apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
+apply3 f a b c = apply f (a, b, c)
+
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
@@ -958,35 +965,35 @@ prop_deleteMaxModel ys = length ys > 0 ==>
       m  = fromList xs
   in  toAscList (deleteMax m) == init (sort xs)
 
-prop_filter :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  filter p m == fromList (List.filter (p . snd) xs)
+  in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
 
-prop_partition :: (Int -> Bool) -> [(Int, Int)] -> Property
+prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  partition p m == let (a,b) = (List.partition (p . snd) xs) in (fromList a, fromList b)
+  in  partition (apply p) m == let (a,b) = (List.partition (apply p . snd) xs) in (fromList a, fromList b)
 
-prop_map :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_map :: Fun Int Int -> [(Int, Int)] -> Property
 prop_map f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  map f m == fromList [ (a, f b) | (a,b) <- xs ]
+  in  map (apply f) m == fromList [ (a, apply f b) | (a,b) <- xs ]
 
-prop_fmap :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_fmap :: Fun Int Int -> [(Int, Int)] -> Property
 prop_fmap f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  fmap f m == fromList [ (a, f b) | (a,b) <- xs ]
+  in  fmap (apply f) m == fromList [ (a, apply f b) | (a,b) <- xs ]
 
-prop_mapkeys :: (Int -> Int) -> [(Int, Int)] -> Property
+prop_mapkeys :: Fun Int Int -> [(Int, Int)] -> Property
 prop_mapkeys f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  mapKeys f m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (f a, b) | (a,b) <- sort xs])
+  in  mapKeys (apply f) m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>
