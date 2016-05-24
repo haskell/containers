@@ -1,4 +1,3 @@
-{-# LANGUAGE FlexibleInstances, GeneralizedNewtypeDeriving #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
@@ -8,21 +7,14 @@ import Test.Framework (Test, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Arbitrary(arbitrary))
 
+import Text.Show.Functions ()
+
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 
 instance (Arbitrary k, Arbitrary v, Ord k) =>
          Arbitrary (Map k v) where
     arbitrary = M.fromList `fmap` arbitrary
-
-instance Show (Int -> Int) where
-    show _ = "<function>"
-
-instance Show (Int -> Int -> Int) where
-    show _ = "<function>"
-
-instance Show (Int -> Int -> Int -> Int) where
-    show _ = "<function>"
 
 ------------------------------------------------------------------------
 -- * Properties
