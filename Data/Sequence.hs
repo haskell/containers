@@ -1590,7 +1590,8 @@ scanr1 f xs = case viewr xs of
 -- If the position is out of range, 'index' fails with an error.
 index           :: Seq a -> Int -> a
 index (Seq xs) i
-  | 0 <= i && i < size xs = case lookupTree i xs of
+  -- See note on unsigned arithmetic in splitAt
+  | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
                 Place _ (Elem x) -> x
   | otherwise   = error "index out of bounds"
 
@@ -1602,7 +1603,7 @@ data Place a = Place {-# UNPACK #-} !Int a
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Elem a) -> Place (Elem a) #-}
 {-# SPECIALIZE lookupTree :: Int -> FingerTree (Node a) -> Place (Node a) #-}
 lookupTree :: Sized a => Int -> FingerTree a -> Place a
-lookupTree _ EmptyT = error "lookupTree of empty tree"
+lookupTree !_ EmptyT = error "lookupTree of empty tree"
 lookupTree i (Single x) = Place i x
 lookupTree i (Deep _ pr m sf)
   | i < spr     =  lookupDigit i pr
@@ -1664,14 +1665,15 @@ update i x      = adjust (const x) i
 -- If the position is out of range, the original sequence is returned.
 adjust          :: (a -> a) -> Int -> Seq a -> Seq a
 adjust f i (Seq xs)
-  | 0 <= i && i < size xs = Seq (adjustTree (const (fmap f)) i xs)
+  -- See note on unsigned arithmetic in splitAt
+  | fromIntegral i < (fromIntegral (size xs) :: Word) = Seq (adjustTree (`seq` fmap f) i xs)
   | otherwise   = Seq xs
 
 {-# SPECIALIZE adjustTree :: (Int -> Elem a -> Elem a) -> Int -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE adjustTree :: (Int -> Node a -> Node a) -> Int -> FingerTree (Node a) -> FingerTree (Node a) #-}
 adjustTree      :: Sized a => (Int -> a -> a) ->
-            Int -> FingerTree a -> FingerTree a
-adjustTree _ _ EmptyT = error "adjustTree of empty tree"
+             Int -> FingerTree a -> FingerTree a
+adjustTree _ !_ EmptyT = EmptyT -- Unreachable
 adjustTree f i (Single x) = Single (f i x)
 adjustTree f i (Deep s pr m sf)
   | i < spr     = Deep s (adjustDigit f i pr) m sf
@@ -1700,7 +1702,7 @@ adjustNode f i (Node3 s a b c)
 {-# SPECIALIZE adjustDigit :: (Int -> Elem a -> Elem a) -> Int -> Digit (Elem a) -> Digit (Elem a) #-}
 {-# SPECIALIZE adjustDigit :: (Int -> Node a -> Node a) -> Int -> Digit (Node a) -> Digit (Node a) #-}
 adjustDigit     :: Sized a => (Int -> a -> a) -> Int -> Digit a -> Digit a
-adjustDigit f i (One a) = One (f i a)
+adjustDigit f !i (One a) = One (f i a)
 adjustDigit f i (Two a b)
   | i < sa      = Two (f i a) b
   | otherwise   = Two a (f (i - sa) b)
