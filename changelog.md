@@ -15,7 +15,7 @@
   * Use `BangPatterns` throughout to reduce noise. This extension
     is now *required* to compile `containers`.
 
-  * Add `alterF` for `Data.Map`.
+  * Add `alterF` for `Data.Map` and `Data.IntMap`.
 
   * Make `Data.Map.Strict.traverseWithKey` force result values before
     installing them in the new map.

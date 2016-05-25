@@ -228,6 +228,7 @@ import Data.IntMap.Base hiding
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , alterF
     , unionsWith
     , unionWith
     , unionWithKey
@@ -266,6 +267,9 @@ import Data.Utils.StrictFold
 import Data.Utils.StrictPair
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
+#endif
+#if !MIN_VERSION_base(4,8,0)
+import Data.Functor((<$>))
 #endif
 
 -- $strictness
@@ -536,6 +540,43 @@ alter f !k t =
     Nil               -> case f Nothing of
                            Just !x -> Tip k x
                            Nothing -> Nil
+
+-- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at
+-- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
+-- or update a value in an 'IntMap'.  In short : @'lookup' k <$> 'alterF' f k m = f
+-- ('lookup' k m)@.
+--
+-- Example:
+--
+-- @
+-- interactiveAlter :: Int -> IntMap String -> IO (IntMap String)
+-- interactiveAlter k m = alterF f k m where
+--   f Nothing -> do
+--      putStrLn $ show k ++
+--          " was not found in the map. Would you like to add it?"
+--      getUserResponse1 :: IO (Maybe String)
+--   f (Just old) -> do
+--      putStrLn "The key is currently bound to " ++ show old ++
+--          ". Would you like to change or delete it?"
+--      getUserresponse2 :: IO (Maybe String)
+-- @
+--
+-- 'alterF' is the most general operation for working with an individual
+-- key that may or may not be in a given map.
+
+-- Note: 'alterF' is a flipped version of the 'at' combinator from
+-- 'Control.Lens.At'.
+--
+-- @since 0.5.8
+
+alterF :: Functor f
+       => (Maybe a -> f (Maybe a)) -> Key -> IntMap a -> f (IntMap a)
+-- This implementation was modified from 'Control.Lens.At'.
+alterF f k m = (<$> f mv) $ \fres ->
+  case fres of
+    Nothing -> maybe m (const (delete k m)) mv
+    Just !v' -> insert k v' m
+  where mv = lookup k m
 
 
 {--------------------------------------------------------------------
