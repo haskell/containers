@@ -96,6 +96,7 @@ module Data.IntMap.Lazy (
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , alterF
 
     -- * Combine
 

@@ -1047,7 +1047,7 @@ replicateM n x
 -- @since 0.5.8
 cycleN :: Int -> Seq a -> Seq a
 cycleN n !_xs | n < 0 = error "cycleN takes a non-negative argument"
-cycleN n xs   | null xs = error "cycleN takes a non-empty sequence"
+cycleN _n xs  | null xs = error "cycleN takes a non-empty sequence"
 cycleN n xs = cycleNTimes reps xs >< take final xs
   where
     (reps, final) = n `quotRem` length xs
