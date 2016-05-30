@@ -145,6 +145,8 @@ module Data.Sequence (
     unstableSort,   -- :: Ord a => Seq a -> Seq a
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     -- * Indexing
+    lookup,         -- :: Int -> Seq a -> Maybe a
+    (!?),           -- :: Seq a -> Int -> Maybe a
     index,          -- :: Seq a -> Int -> a
     adjust,         -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
@@ -194,7 +196,7 @@ import Prelude hiding (
 #if MIN_VERSION_base(4,8,0)
     Applicative, (<$>), foldMap, Monoid,
 #endif
-    null, length, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
+    null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
@@ -282,8 +284,11 @@ infixl 5 :|>
 -- Unfortunately, there's some extra noise here because
 -- pattern synonyms could not have signatures until 7.10,
 -- but 8.0 at least will warn if they're missing.
+
+-- | A pattern synonym matching an empty sequence.
 #if __GLASGOW_HASKELL__ >= 710
 pattern Empty :: Seq a
+#else
 #endif
 pattern Empty = Seq EmptyT
 
@@ -291,6 +296,8 @@ pattern Empty = Seq EmptyT
 -- available in GHC >= 7.10. In earlier versions, these
 -- can be used to match, but not to construct.
 
+-- | A pattern synonym viewing the front of a non-empty
+-- sequence.
 #if __GLASGOW_HASKELL__ >= 710
 pattern (:<|) :: a -> Seq a -> Seq a
 #endif
@@ -300,6 +307,8 @@ pattern x :<| xs <- (viewl -> x :< xs)
     x :<| xs = x <| xs
 #endif
 
+-- | A pattern synonym viewing the rear of a non-empty
+-- sequence.
 #if __GLASGOW_HASKELL__ >= 710
 pattern (:|>) :: Seq a -> a -> Seq a
 #endif
@@ -1589,12 +1598,39 @@ scanr1 f xs = case viewr xs of
 -- counting from 0.  The argument should thus be a non-negative
 -- integer less than the size of the sequence.
 -- If the position is out of range, 'index' fails with an error.
+--
+-- prop> xs `index` i = toList xs !! i
 index           :: Seq a -> Int -> a
 index (Seq xs) i
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
                 Place _ (Elem x) -> x
   | otherwise   = error "index out of bounds"
+
+-- | /O(log(min(i,n-i)))/. The element at the specified position,
+-- counting from 0. If the specified position is negative or at
+-- least the length of the sequence, 'lookup' returns 'Nothing'.
+--
+-- prop> 0 <= i < length xs ==> lookup i xs == Just (toList xs !! i)
+-- prop> i < 0 || i >= length xs ==> lookup i xs = Nothing
+--
+-- @since 0.5.8
+lookup            :: Int -> Seq a -> Maybe a
+lookup i (Seq xs)
+  -- Note: we perform the lookup *before* applying the Just constructor
+  -- to ensure that we don't hold a reference to the whole sequence in
+  -- a thunk. If we applied the Just constructor around the case, the
+  -- actual lookup wouldn't be performed unless and until the value was
+  -- forced.
+  | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
+                Place _ (Elem x) -> Just x
+  | otherwise = Nothing
+
+-- | /O(log(min(i,n-i)))/. A flipped, infix version of `lookup`.
+--
+-- @since 0.5.8
+(!?) ::           Seq a -> Int -> Maybe a
+(!?) = flip lookup
 
 data Place a = Place {-# UNPACK #-} !Int a
 #if TESTING

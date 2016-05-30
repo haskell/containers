@@ -10,7 +10,7 @@ import Data.Maybe
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
-  null, length, take, drop, splitAt,
+  lookup, null, length, take, drop, splitAt,
   foldl, foldl1, foldr, foldr1, scanl, scanl1, scanr, scanr1,
   filter, reverse, replicate, zip, zipWith, zip3, zipWith3,
   all, sum)
@@ -72,6 +72,7 @@ main = defaultMain
        , testProperty "unstableSort" prop_unstableSort
        , testProperty "unstableSortBy" prop_unstableSortBy
        , testProperty "index" prop_index
+       , testProperty "(!?)" prop_safeIndex
        , testProperty "adjust" prop_adjust
        , testProperty "insertAt" prop_insertAt
        , testProperty "update" prop_update
@@ -482,14 +483,17 @@ prop_index xs =
     not (null xs) ==> forAll (choose (0, length xs-1)) $ \ i ->
     index xs i == toList xs !! i
 
--- We take an element and a sequence, and make sure we can insert
--- the element anywhere in or near the sequence.
+prop_safeIndex :: Seq A -> Property
+prop_safeIndex xs =
+    forAll (choose (-3, length xs + 3)) $ \i ->
+    ((i < 0 || i >= length xs) .&&. lookup i xs === Nothing) .||.
+    lookup i xs === Just (toList xs !! i)
+
 prop_insertAt :: A -> Seq A -> Property
-prop_insertAt x xs = conjoin [insertAt_index i | i <- [(-3)..(length xs + 3)]]
-  where
-    insertAt_index i =
-      valid res .&&. res === case splitAt i xs of (front, back) -> front >< x <| back
-         where res = insertAt i x xs
+prop_insertAt x xs =
+  forAll (choose (-3, length xs + 3)) $ \i ->
+      let res = insertAt i x xs
+      in valid res .&&. res === case splitAt i xs of (front, back) -> front >< x <| back
 
 prop_adjust :: Int -> Int -> Seq Int -> Bool
 prop_adjust n i xs =
@@ -512,13 +516,13 @@ prop_splitAt :: Int -> Seq A -> Bool
 prop_splitAt n xs =
     toListPair' (splitAt n xs) ~= Prelude.splitAt n (toList xs)
 
-prop_chunksOf :: Positive Int -> Seq A -> Bool
-prop_chunksOf (Positive n') xs =
-    valid chunks &&
-    getAll (foldMap (All . (\c -> valid c && length c <= n)) chunks) &&
-    fold chunks == xs
-  where chunks = chunksOf n xs
-        n = max 1 (n' `rem` (length xs + 3))
+prop_chunksOf :: Seq A -> Property
+prop_chunksOf xs =
+  forAll (choose (1, length xs + 3)) $ \n ->
+    let chunks = chunksOf n xs
+    in valid chunks .&&.
+       conjoin [valid c .&&. 1 <= length c && length c <= n | c <- toList chunks] .&&.
+       fold chunks === xs
 
 adjustList :: (a -> a) -> Int -> [a] -> [a]
 adjustList f i xs =
