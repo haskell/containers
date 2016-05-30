@@ -22,8 +22,8 @@
 
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
-  * Add `chunksOf`, `cycleN`, `insertAt`, `intersperse`, `foldMapWithIndex`, and
-    `traverseWithIndex` for `Data.Sequence`.
+  * Add (!?), `lookup`, `chunksOf`, `cycleN`, `insertAt`, `intersperse`,
+    `foldMapWithIndex`, and `traverseWithIndex` for `Data.Sequence`.
 
   * Make `splitAt` in `Data.Sequence` strict in its arguments. Previously,
     it returned a lazy pair.
