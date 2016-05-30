@@ -1788,8 +1788,9 @@ insTree f i (Single x) = case f i x of
 insTree f i (Deep s pr m sf)
   | i < spr     = case insLeftDigit f i pr of
      InsLeftDig pr' -> Deep (s + 1) pr' m sf
-     InsDigNode pr' n -> Deep (s + 1) pr' (consTree n m) sf
-  | i < spm     = Deep (s + 1) pr (insTree (insNode f) (i - spr) m) sf
+     InsDigNode pr' n -> Deep (s + 1) pr' (n `consTree` m) sf
+  | i < spm     = let !m' = insTree (insNode f) (i - spr) m
+                  in Deep (s + 1) pr m' sf
   | otherwise   = case insRightDigit f (i - spm) sf of
      InsRightDig sf' -> Deep (s + 1) pr m sf'
      InsNodeDig n sf' -> Deep (s + 1) pr (m `snocTree` n) sf'
