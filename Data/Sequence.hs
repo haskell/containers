@@ -150,6 +150,7 @@ module Data.Sequence (
     update,         -- :: Int -> a -> Seq a -> Seq a
     take,           -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
+    insertAt,       -- :: Int -> a -> Seq a -> Seq a
     splitAt,        -- :: Int -> Seq a -> (Seq a, Seq a)
     -- ** Indexing with predicates
     -- | These functions perform sequential searches from the left
@@ -1724,6 +1725,155 @@ adjustDigit f i (Four a b c d)
     sa      = size a
     sab     = sa + size b
     sabc    = sab + size c
+
+-- | /O(log(min(i,n-i)))/. @'insertAt' i x xs@ inserts @x@ into @xs@
+-- at the index @i@, shifting the rest of the sequence over.
+-- 
+-- prop> insertAt i x xs = take i xs >< singleton x >< drop i xs
+--
+-- @since 0.5.8
+insertAt :: Int -> a -> Seq a -> Seq a
+insertAt i a s@(Seq xs)
+  | fromIntegral i < (fromIntegral (size xs) :: Word)
+      = Seq (insTree (`seq` InsTwo (Elem a)) i xs)
+  | i <= 0 = a <| s
+  | otherwise = s |> a
+
+data Ins a = InsOne a | InsTwo a a
+
+{-# SPECIALIZE insTree :: (Int -> Elem a -> Ins (Elem a)) -> Int -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE insTree :: (Int -> Node a -> Ins (Node a)) -> Int -> FingerTree (Node a) -> FingerTree (Node a) #-}
+insTree      :: Sized a => (Int -> a -> Ins a) ->
+             Int -> FingerTree a -> FingerTree a
+insTree _ !_ EmptyT = EmptyT -- Unreachable
+insTree f i (Single x) = case f i x of
+  InsOne x' -> Single x'
+  InsTwo m n -> deep (One m) EmptyT (One n)
+insTree f i (Deep s pr m sf)
+  | i < spr     = case insLeftDigit f i pr of
+     InsLeftDig pr' -> Deep (s + 1) pr' m sf
+     InsDigNode pr' n -> Deep (s + 1) pr' (consTree n m) sf
+  | i < spm     = Deep (s + 1) pr (insTree (insNode f) (i - spr) m) sf
+  | otherwise   = case insRightDigit f (i - spm) sf of
+     InsRightDig sf' -> Deep (s + 1) pr m sf'
+     InsNodeDig n sf' -> Deep (s + 1) pr (m `snocTree` n) sf'
+  where
+    spr     = size pr
+    spm     = spr + size m
+
+{-# SPECIALIZE insNode :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Node (Elem a) -> Ins (Node (Elem a)) #-}
+{-# SPECIALIZE insNode :: (Int -> Node a -> Ins (Node a)) -> Int -> Node (Node a) -> Ins (Node (Node a)) #-}
+insNode :: Sized a => (Int -> a -> Ins a) -> Int -> Node a -> Ins (Node a)
+insNode f i (Node2 s a b)
+  | i < sa = case f i a of
+      InsOne n -> InsOne $ Node2 (s + 1) n b
+      InsTwo m n -> InsOne $ Node3 (s + 1) m n b
+  | otherwise = case f (i - sa) b of
+      InsOne n -> InsOne $ Node2 (s + 1) a n
+      InsTwo m n -> InsOne $ Node3 (s + 1) a m n
+  where sa = size a
+insNode f i (Node3 s a b c)
+  | i < sa = case f i a of
+      InsOne n -> InsOne $ Node3 (s + 1) n b c
+      InsTwo m n -> InsTwo (Node2 (sa + 1) m n) (Node2 (s - sa) b c)
+  | i < sab = case f (i - sa) b of
+      InsOne n -> InsOne $ Node3 (s + 1) a n c
+      InsTwo m n -> InsTwo am nc
+        where !am = node2 a m
+              !nc = node2 n c
+  | otherwise = case f (i - sab) c of
+      InsOne n -> InsOne $ Node3 (s + 1) a b n
+      InsTwo m n -> InsTwo (Node2 sab a b) (Node2 (s - sab + 1) m n)
+  where sa = size a
+        sab = sa + size b
+
+data InsDigNode a = InsLeftDig !(Digit a) | InsDigNode !(Digit a) !(Node a)
+{-# SPECIALIZE insLeftDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsDigNode (Elem a) #-}
+{-# SPECIALIZE insLeftDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsDigNode (Node a) #-}
+insLeftDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsDigNode a
+insLeftDigit f !i (One a) = case f i a of
+  InsOne a' -> InsLeftDig $ One a'
+  InsTwo a1 a2 -> InsLeftDig $ Two a1 a2
+insLeftDigit f i (Two a b)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Two a' b
+     InsTwo a1 a2 -> InsLeftDig $ Three a1 a2 b
+  | otherwise = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Two a b'
+     InsTwo b1 b2 -> InsLeftDig $ Three a b1 b2
+  where sa = size a
+insLeftDigit f i (Three a b c)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Three a' b c
+     InsTwo a1 a2 -> InsLeftDig $ Four a1 a2 b c
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Three a b' c
+     InsTwo b1 b2 -> InsLeftDig $ Four a b1 b2 c
+  | otherwise = case f (i - sab) c of
+     InsOne c' -> InsLeftDig $ Three a b c'
+     InsTwo c1 c2 -> InsLeftDig $ Four a b c1 c2
+  where sa = size a
+        sab = sa + size b
+insLeftDigit f i (Four a b c d)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Four a' b c d
+     InsTwo a1 a2 -> InsDigNode (Two a1 a2) (node3 b c d)
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Four a b' c d
+     InsTwo b1 b2 -> InsDigNode (Two a b1) (node3 b2 c d)
+  | i < sabc = case f (i - sab) c of
+     InsOne c' -> InsLeftDig $ Four a b c' d
+     InsTwo c1 c2 -> InsDigNode (Two a b) (node3 c1 c2 d)
+  | otherwise = case f (i - sabc) d of
+     InsOne d' -> InsLeftDig $ Four a b c d'
+     InsTwo d1 d2 -> InsDigNode (Two a b) (node3 c d1 d2)
+  where sa = size a
+        sab = sa + size b
+        sabc = sab + size c
+
+data InsNodeDig a = InsRightDig !(Digit a) | InsNodeDig !(Node a) !(Digit a)
+{-# SPECIALIZE insRightDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsNodeDig (Elem a) #-}
+{-# SPECIALIZE insRightDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsNodeDig (Node a) #-}
+insRightDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsNodeDig a
+insRightDigit f !i (One a) = case f i a of
+  InsOne a' -> InsRightDig $ One a'
+  InsTwo a1 a2 -> InsRightDig $ Two a1 a2
+insRightDigit f i (Two a b)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Two a' b
+     InsTwo a1 a2 -> InsRightDig $ Three a1 a2 b
+  | otherwise = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Two a b'
+     InsTwo b1 b2 -> InsRightDig $ Three a b1 b2
+  where sa = size a
+insRightDigit f i (Three a b c)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Three a' b c
+     InsTwo a1 a2 -> InsRightDig $ Four a1 a2 b c
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Three a b' c
+     InsTwo b1 b2 -> InsRightDig $ Four a b1 b2 c
+  | otherwise = case f (i - sab) c of
+     InsOne c' -> InsRightDig $ Three a b c'
+     InsTwo c1 c2 -> InsRightDig $ Four a b c1 c2
+  where sa = size a
+        sab = sa + size b
+insRightDigit f i (Four a b c d)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Four a' b c d
+     InsTwo a1 a2 -> InsNodeDig (node3 a1 a2 b) (Two c d)
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Four a b' c d
+     InsTwo b1 b2 -> InsNodeDig (node3 a b1 b2) (Two c d)
+  | i < sabc = case f (i - sab) c of
+     InsOne c' -> InsRightDig $ Four a b c' d
+     InsTwo c1 c2 -> InsNodeDig (node3 a b c1) (Two c2 d)
+  | otherwise = case f (i - sabc) d of
+     InsOne d' -> InsRightDig $ Four a b c d'
+     InsTwo d1 d2 -> InsNodeDig (node3 a b c) (Two d1 d2)
+  where sa = size a
+        sab = sa + size b
+        sabc = sab + size c
 
 -- | /O(n)/. A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every

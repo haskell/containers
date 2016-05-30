@@ -73,6 +73,7 @@ main = defaultMain
        , testProperty "unstableSortBy" prop_unstableSortBy
        , testProperty "index" prop_index
        , testProperty "adjust" prop_adjust
+       , testProperty "insertAt" prop_insertAt
        , testProperty "update" prop_update
        , testProperty "take" prop_take
        , testProperty "drop" prop_drop
@@ -480,6 +481,15 @@ prop_index :: Seq A -> Property
 prop_index xs =
     not (null xs) ==> forAll (choose (0, length xs-1)) $ \ i ->
     index xs i == toList xs !! i
+
+-- We take an element and a sequence, and make sure we can insert
+-- the element anywhere in or near the sequence.
+prop_insertAt :: A -> Seq A -> Property
+prop_insertAt x xs = conjoin [insertAt_index i | i <- [(-3)..(length xs + 3)]]
+  where
+    insertAt_index i =
+      valid res .&&. res === case splitAt i xs of (front, back) -> front >< x <| back
+         where res = insertAt i x xs
 
 prop_adjust :: Int -> Int -> Seq Int -> Bool
 prop_adjust n i xs =
