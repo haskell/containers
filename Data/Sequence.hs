@@ -102,7 +102,7 @@ module Data.Sequence (
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
     replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
-    cycleN,         -- :: Int -> Seq a -> Seq a
+    cycleTaking,    -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
     unfoldr,        -- :: (b -> Maybe (a, b)) -> b -> Seq a
@@ -1043,21 +1043,21 @@ replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
 
--- | /O(log(k))/ incremental. @'cycleN' k xs@ forms a sequence of length @k@ by
--- repeatedly concatenating @xs@ with itself. @xs@ must not be empty and
--- @k@ must not be negative.
+-- | /O(log(k))/ incremental. @'cycleTaking' k xs@ forms a sequence of length @k@ by
+-- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
+-- @k@ is 0.
 --
--- prop> cycleN k = fromList . take k . cycle . toList
+-- prop> cycleTaking k = fromList . take k . cycle . toList
 
 -- If you wish to concatenate a non-empty sequence @xs@ with itself precisely
--- @k@ times, you can use @cycleN (k * length xs)@ or just
+-- @k@ times, you can use @cycleTaking (k * length xs)@ or just
 -- @replicate k () *> xs@.
 --
 -- @since 0.5.8
-cycleN :: Int -> Seq a -> Seq a
-cycleN n !_xs | n < 0 = error "cycleN takes a non-negative argument"
-cycleN _n xs  | null xs = error "cycleN takes a non-empty sequence"
-cycleN n xs = cycleNTimes reps xs >< take final xs
+cycleTaking :: Int -> Seq a -> Seq a
+cycleTaking n !_xs | n <= 0 = empty
+cycleTaking _n xs  | null xs = error "cycleTaking cannot take a positive number of elements from an empty cycle."
+cycleTaking n xs = cycleNTimes reps xs >< take final xs
   where
     (reps, final) = n `quotRem` length xs
 
