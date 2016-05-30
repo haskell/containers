@@ -35,6 +35,11 @@ main = do
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
          ]
+      , bgroup "insertAt"
+         [ bench "10" $ nf (insertAtPoints r10 10) s10
+         , bench "100" $ nf (insertAtPoints r100 10) s100
+         , bench "1000" $ nf (insertAtPoints r1000 10) s1000
+         ]
       , bgroup "traverseWithIndex/State"
          [ bench "10" $ nf multiplyDown s10
          , bench "100" $ nf multiplyDown s100
@@ -84,6 +89,17 @@ main = do
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (2500,100)
          ]
       ]
+
+{-
+-- This is around 4.6 times as slow as insertAt
+fakeInsertAt :: Int -> a -> S.Seq a -> S.Seq a
+fakeInsertAt i x xs = case S.splitAt i xs of
+  (before, after) -> before S.>< x S.<| after
+-}
+
+insertAtPoints :: [Int] -> a -> S.Seq a -> S.Seq a
+insertAtPoints points x xs =
+  foldl' (\acc k -> S.insertAt k x acc) xs points
 
 -- splitAt+append: repeatedly cut the sequence at a random point
 -- and rejoin the pieces in the opposite order.
