@@ -75,6 +75,7 @@ main = defaultMain
        , testProperty "(!?)" prop_safeIndex
        , testProperty "adjust" prop_adjust
        , testProperty "insertAt" prop_insertAt
+       , testProperty "deleteAt" prop_deleteAt
        , testProperty "update" prop_update
        , testProperty "take" prop_take
        , testProperty "drop" prop_drop
@@ -495,6 +496,14 @@ prop_insertAt x xs =
   forAll (choose (-3, length xs + 3)) $ \i ->
       let res = insertAt i x xs
       in valid res .&&. res === case splitAt i xs of (front, back) -> front >< x <| back
+
+prop_deleteAt :: Seq A -> Property
+prop_deleteAt xs =
+  forAll (choose (-3, length xs + 3)) $ \i ->
+      let res = deleteAt i xs
+      in valid res .&&.
+          (((0 <= i && i < length xs) .&&. res === case splitAt i xs of (front, back) -> front >< drop 1 back)
+            .||. ((i < 0 || i >= length xs) .&&. res === xs))
 
 prop_adjust :: Int -> Int -> Seq Int -> Bool
 prop_adjust n i xs =
