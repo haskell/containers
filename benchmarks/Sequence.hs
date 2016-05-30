@@ -35,6 +35,11 @@ main = do
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
          ]
+      , bgroup "deleteAt"
+         [ bench "10" $ nf (deleteAtPoints r10) s10
+         , bench "100" $ nf (deleteAtPoints r100) s100
+         , bench "1000" $ nf (deleteAtPoints r1000) s1000
+         ]
       , bgroup "insertAt"
          [ bench "10" $ nf (insertAtPoints r10 10) s10
          , bench "100" $ nf (insertAtPoints r100 10) s100
@@ -100,6 +105,20 @@ fakeInsertAt i x xs = case S.splitAt i xs of
 insertAtPoints :: [Int] -> a -> S.Seq a -> S.Seq a
 insertAtPoints points x xs =
   foldl' (\acc k -> S.insertAt k x acc) xs points
+
+deleteAtPoints :: [Int] -> S.Seq a -> S.Seq a
+deleteAtPoints points xs =
+  foldl' (\acc k -> S.deleteAt k acc) xs points
+
+{-
+-- For comparison with deleteAt. deleteAt is several
+-- times faster for long sequences.
+fakeDeleteAt :: Int -> S.Seq a -> S.Seq a
+fakeDeleteAt i xs
+  | 0 < i && i < S.length xs = case S.splitAt i xs of
+                               (before, after) -> before S.>< S.drop 1 after
+  | otherwise = xs
+-}
 
 -- splitAt+append: repeatedly cut the sequence at a random point
 -- and rejoin the pieces in the opposite order.
