@@ -103,6 +103,7 @@ main = defaultMain
        , testProperty "zipWith4" prop_zipWith4
        , testProperty "<*>" prop_ap
        , testProperty "*>" prop_then
+       , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
        ]
@@ -648,6 +649,10 @@ prop_then xs ys =
 prop_intersperse :: A -> Seq A -> Bool
 prop_intersperse x xs =
     toList' (intersperse x xs) ~= Data.List.intersperse x (toList xs)
+
+prop_cycleTaking :: Int -> Seq A -> Property
+prop_cycleTaking n xs =
+    (n <= 0 || not (null xs)) ==> toList' (cycleTaking n xs) ~= Data.List.take n (Data.List.cycle (toList xs))
 
 -- Monad operations
 
