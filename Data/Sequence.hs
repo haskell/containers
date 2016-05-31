@@ -640,7 +640,18 @@ thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two1
 --
 -- @since 0.5.8
 intersperse :: a -> Seq a -> Seq a
-intersperse y xs = drop 1 $ xs <**> (const y <| singleton id)
+intersperse y xs = case viewl xs of
+  EmptyL -> empty
+  p :< ps -> p <| (ps <**> (const y <| singleton id))
+-- We used to use
+--
+-- intersperse y xs = drop 1 $ xs <**> (const y <| singleton id)
+--
+-- but if length xs = ((maxBound :: Int) `quot` 2) + 1 then
+--
+-- length (xs <**> (const y <| singleton id)) will wrap around to negative
+-- and the drop won't work. The new implementation can produce a result
+-- right up to maxBound :: Int
 
 instance MonadPlus Seq where
     mzero = empty
