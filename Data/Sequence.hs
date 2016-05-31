@@ -1080,7 +1080,7 @@ replicateM n x
   | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
 
--- | /O(log(k))/ incremental. @'cycleTaking' k xs@ forms a sequence of length @k@ by
+-- | /O(log(k))/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
 -- @k@ is 0.
 --
@@ -1217,11 +1217,10 @@ appendTree0 (Single x) xs =
 appendTree0 xs (Single x) =
     xs `snocTree` x
 appendTree0 (Deep s1 pr1 m1 sf1) (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + s2) pr1 (addDigits0 m1 sf1 pr2 m2) sf2
+    Deep (s1 + s2) pr1 m sf2
+  where !m = addDigits0 m1 sf1 pr2 m2
 
-{-# SPECIALIZE addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a)) #-}
-{-# SPECIALIZE addDigits0 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a)) #-}
-addDigits0 :: Sized a => FingerTree (Node a) -> Digit a -> Digit a -> FingerTree (Node a) -> FingerTree (Node a)
+addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a))
 addDigits0 m1 (One a) (One b) m2 =
     appendTree1 m1 (node2 a b) m2
 addDigits0 m1 (One a) (Two b c) m2 =
@@ -1256,16 +1255,17 @@ addDigits0 m1 (Four a b c d) (Four e f g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 
 appendTree1 :: FingerTree (Node a) -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree1 EmptyT a xs =
+appendTree1 EmptyT !a xs =
     a `consTree` xs
-appendTree1 xs a EmptyT =
+appendTree1 xs !a EmptyT =
     xs `snocTree` a
-appendTree1 (Single x) a xs =
+appendTree1 (Single x) !a xs =
     x `consTree` a `consTree` xs
-appendTree1 xs a (Single x) =
+appendTree1 xs !a (Single x) =
     xs `snocTree` a `snocTree` x
 appendTree1 (Deep s1 pr1 m1 sf1) a (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + size a + s2) pr1 (addDigits1 m1 sf1 a pr2 m2) sf2
+    Deep (s1 + size a + s2) pr1 m sf2
+  where !m = addDigits1 m1 sf1 a pr2 m2
 
 addDigits1 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Node a -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a))
 addDigits1 m1 (One a) b (One c) m2 =
@@ -1302,16 +1302,17 @@ addDigits1 m1 (Four a b c d) e (Four f g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
 
 appendTree2 :: FingerTree (Node a) -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree2 EmptyT a b xs =
+appendTree2 EmptyT !a !b xs =
     a `consTree` b `consTree` xs
-appendTree2 xs a b EmptyT =
+appendTree2 xs !a !b EmptyT =
     xs `snocTree` a `snocTree` b
 appendTree2 (Single x) a b xs =
     x `consTree` a `consTree` b `consTree` xs
 appendTree2 xs a b (Single x) =
     xs `snocTree` a `snocTree` b `snocTree` x
 appendTree2 (Deep s1 pr1 m1 sf1) a b (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + size a + size b + s2) pr1 (addDigits2 m1 sf1 a b pr2 m2) sf2
+    Deep (s1 + size a + size b + s2) pr1 m sf2
+  where !m = addDigits2 m1 sf1 a b pr2 m2
 
 addDigits2 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Node a -> Node a -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a))
 addDigits2 m1 (One a) b c (One d) m2 =
@@ -1348,19 +1349,20 @@ addDigits2 m1 (Four a b c d) e f (Four g h i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
 
 appendTree3 :: FingerTree (Node a) -> Node a -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree3 EmptyT a b c xs =
+appendTree3 EmptyT !a !b !c xs =
     a `consTree` b `consTree` c `consTree` xs
-appendTree3 xs a b c EmptyT =
+appendTree3 xs !a !b !c EmptyT =
     xs `snocTree` a `snocTree` b `snocTree` c
 appendTree3 (Single x) a b c xs =
     x `consTree` a `consTree` b `consTree` c `consTree` xs
 appendTree3 xs a b c (Single x) =
     xs `snocTree` a `snocTree` b `snocTree` c `snocTree` x
 appendTree3 (Deep s1 pr1 m1 sf1) a b c (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + size a + size b + size c + s2) pr1 (addDigits3 m1 sf1 a b c pr2 m2) sf2
+    Deep (s1 + size a + size b + size c + s2) pr1 m sf2
+  where !m = addDigits3 m1 sf1 a b c pr2 m2
 
 addDigits3 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Node a -> Node a -> Node a -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a))
-addDigits3 m1 (One a) b c d (One e) m2 =
+addDigits3 m1 (One a) !b !c !d (One e) m2 =
     appendTree2 m1 (node3 a b c) (node2 d e) m2
 addDigits3 m1 (One a) b c d (Two e f) m2 =
     appendTree2 m1 (node3 a b c) (node3 d e f) m2
@@ -1368,7 +1370,7 @@ addDigits3 m1 (One a) b c d (Three e f g) m2 =
     appendTree3 m1 (node3 a b c) (node2 d e) (node2 f g) m2
 addDigits3 m1 (One a) b c d (Four e f g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
-addDigits3 m1 (Two a b) c d e (One f) m2 =
+addDigits3 m1 (Two a b) !c !d !e (One f) m2 =
     appendTree2 m1 (node3 a b c) (node3 d e f) m2
 addDigits3 m1 (Two a b) c d e (Two f g) m2 =
     appendTree3 m1 (node3 a b c) (node2 d e) (node2 f g) m2
@@ -1376,7 +1378,7 @@ addDigits3 m1 (Two a b) c d e (Three f g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 addDigits3 m1 (Two a b) c d e (Four f g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
-addDigits3 m1 (Three a b c) d e f (One g) m2 =
+addDigits3 m1 (Three a b c) !d !e !f (One g) m2 =
     appendTree3 m1 (node3 a b c) (node2 d e) (node2 f g) m2
 addDigits3 m1 (Three a b c) d e f (Two g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
@@ -1384,7 +1386,7 @@ addDigits3 m1 (Three a b c) d e f (Three g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
 addDigits3 m1 (Three a b c) d e f (Four g h i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
-addDigits3 m1 (Four a b c d) e f g (One h) m2 =
+addDigits3 m1 (Four a b c d) !e !f !g (One h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 addDigits3 m1 (Four a b c d) e f g (Two h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
@@ -1394,19 +1396,20 @@ addDigits3 m1 (Four a b c d) e f g (Four h i j k) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node2 j k) m2
 
 appendTree4 :: FingerTree (Node a) -> Node a -> Node a -> Node a -> Node a -> FingerTree (Node a) -> FingerTree (Node a)
-appendTree4 EmptyT a b c d xs =
+appendTree4 EmptyT !a !b !c !d xs =
     a `consTree` b `consTree` c `consTree` d `consTree` xs
-appendTree4 xs a b c d EmptyT =
+appendTree4 xs !a !b !c !d EmptyT =
     xs `snocTree` a `snocTree` b `snocTree` c `snocTree` d
 appendTree4 (Single x) a b c d xs =
     x `consTree` a `consTree` b `consTree` c `consTree` d `consTree` xs
 appendTree4 xs a b c d (Single x) =
     xs `snocTree` a `snocTree` b `snocTree` c `snocTree` d `snocTree` x
 appendTree4 (Deep s1 pr1 m1 sf1) a b c d (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + size a + size b + size c + size d + s2) pr1 (addDigits4 m1 sf1 a b c d pr2 m2) sf2
+    Deep (s1 + size a + size b + size c + size d + s2) pr1 m sf2
+  where !m = addDigits4 m1 sf1 a b c d pr2 m2
 
 addDigits4 :: FingerTree (Node (Node a)) -> Digit (Node a) -> Node a -> Node a -> Node a -> Node a -> Digit (Node a) -> FingerTree (Node (Node a)) -> FingerTree (Node (Node a))
-addDigits4 m1 (One a) b c d e (One f) m2 =
+addDigits4 m1 (One a) !b !c !d !e (One f) m2 =
     appendTree2 m1 (node3 a b c) (node3 d e f) m2
 addDigits4 m1 (One a) b c d e (Two f g) m2 =
     appendTree3 m1 (node3 a b c) (node2 d e) (node2 f g) m2
@@ -1414,7 +1417,7 @@ addDigits4 m1 (One a) b c d e (Three f g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 addDigits4 m1 (One a) b c d e (Four f g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
-addDigits4 m1 (Two a b) c d e f (One g) m2 =
+addDigits4 m1 (Two a b) !c !d !e !f (One g) m2 =
     appendTree3 m1 (node3 a b c) (node2 d e) (node2 f g) m2
 addDigits4 m1 (Two a b) c d e f (Two g h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
@@ -1422,7 +1425,7 @@ addDigits4 m1 (Two a b) c d e f (Three g h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
 addDigits4 m1 (Two a b) c d e f (Four g h i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
-addDigits4 m1 (Three a b c) d e f g (One h) m2 =
+addDigits4 m1 (Three a b c) !d !e !f !g (One h) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node2 g h) m2
 addDigits4 m1 (Three a b c) d e f g (Two h i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
@@ -1430,13 +1433,13 @@ addDigits4 m1 (Three a b c) d e f g (Three h i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
 addDigits4 m1 (Three a b c) d e f g (Four h i j k) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node2 j k) m2
-addDigits4 m1 (Four a b c d) e f g h (One i) m2 =
+addDigits4 m1 (Four a b c d) !e !f !g !h (One i) m2 =
     appendTree3 m1 (node3 a b c) (node3 d e f) (node3 g h i) m2
-addDigits4 m1 (Four a b c d) e f g h (Two i j) m2 =
+addDigits4 m1 (Four a b c d) !e !f !g !h (Two i j) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node2 g h) (node2 i j) m2
-addDigits4 m1 (Four a b c d) e f g h (Three i j k) m2 =
+addDigits4 m1 (Four a b c d) !e !f !g !h (Three i j k) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node2 j k) m2
-addDigits4 m1 (Four a b c d) e f g h (Four i j k l) m2 =
+addDigits4 m1 (Four a b c d) !e !f !g !h (Four i j k l) m2 =
     appendTree4 m1 (node3 a b c) (node3 d e f) (node3 g h i) (node3 j k l) m2
 
 -- | Builds a sequence from a seed value.  Takes time linear in the
