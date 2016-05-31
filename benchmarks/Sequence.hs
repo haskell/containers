@@ -111,6 +111,10 @@ deleteAtPoints points xs =
   foldl' (\acc k -> S.deleteAt k acc) xs points
 
 {-
+fakedeleteAtPoints :: [Int] -> S.Seq a -> S.Seq a
+fakedeleteAtPoints points xs =
+  foldl' (\acc k -> fakeDeleteAt k acc) xs points
+
 -- For comparison with deleteAt. deleteAt is several
 -- times faster for long sequences.
 fakeDeleteAt :: Int -> S.Seq a -> S.Seq a
