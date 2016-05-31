@@ -103,6 +103,7 @@ module Data.IntMap.Strict (
     , updateWithKey
     , updateLookupWithKey
     , alter
+    , alterF
 
     -- * Combine
 

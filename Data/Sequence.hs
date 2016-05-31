@@ -323,6 +323,31 @@ pattern xs :|> x <- (viewr -> xs :> x)
 class Sized a where
     size :: a -> Int
 
+-- In much the same way that Sized lets us handle the
+-- sizes of elements and nodes uniformly, MaybeForce lets
+-- us handle their strictness (or lack thereof) uniformly.
+-- We can `mseq` something and not have to worry about
+-- whether it's an element or a node.
+class MaybeForce a where
+  maybeRwhnf :: a -> ()
+
+mseq :: MaybeForce a => a -> b -> b
+mseq a b = case maybeRwhnf a of () -> b
+{-# INLINE mseq #-}
+
+infixr 0 $!?
+($!?) :: MaybeForce a => (a -> b) -> a -> b
+f $!? a = case maybeRwhnf a of () -> f a
+{-# INLINE ($!?) #-}
+
+instance MaybeForce (Elem a) where
+  maybeRwhnf _ = ()
+  {-# INLINE maybeRwhnf #-}
+
+instance MaybeForce (Node a) where
+  maybeRwhnf !_ = ()
+  {-# INLINE maybeRwhnf #-}
+
 -- | General-purpose finite sequences.
 newtype Seq a = Seq (FingerTree (Elem a))
 
@@ -1697,7 +1722,66 @@ lookupDigit i (Four a b c d)
 -- | /O(log(min(i,n-i)))/. Replace the element at the specified position.
 -- If the position is out of range, the original sequence is returned.
 update          :: Int -> a -> Seq a -> Seq a
-update i x      = adjust (const x) i
+update i x (Seq xs)
+  -- See note on unsigned arithmetic in splitAt
+  | fromIntegral i < (fromIntegral (size xs) :: Word) = Seq (updateTree (Elem x) i xs)
+  | otherwise   = Seq xs
+
+-- It seems a shame to copy the implementation of the top layer of
+-- `adjust` instead of just using `update i x = adjust (const x) i`.
+-- With the latter implementation, updating the same position many
+-- times could lead to silly thunks building up around that position.
+-- The thunks will each look like @const v a@, where @v@ is the new
+-- value and @a@ the old.
+updateTree      :: Elem a -> Int -> FingerTree (Elem a) -> FingerTree (Elem a)
+updateTree _ !_ EmptyT = EmptyT -- Unreachable
+updateTree v _i (Single _) = Single v
+updateTree v i (Deep s pr m sf)
+  | i < spr     = Deep s (updateDigit v i pr) m sf
+  | i < spm     = let !m' = adjustTree (updateNode v) (i - spr) m
+                  in Deep s pr m' sf
+  | otherwise   = Deep s pr m (updateDigit v (i - spm) sf)
+  where
+    spr     = size pr
+    spm     = spr + size m
+
+updateNode      :: Elem a -> Int -> Node (Elem a) -> Node (Elem a)
+updateNode v i (Node2 s a b)
+  | i < sa      = Node2 s v b
+  | otherwise   = Node2 s a v
+  where
+    sa      = size a
+updateNode v i (Node3 s a b c)
+  | i < sa      = Node3 s v b c
+  | i < sab     = Node3 s a v c
+  | otherwise   = Node3 s a b v
+  where
+    sa      = size a
+    sab     = sa + size b
+
+updateDigit     :: Elem a -> Int -> Digit (Elem a) -> Digit (Elem a)
+updateDigit v !_i (One _) = One v
+updateDigit v i (Two a b)
+  | i < sa      = Two v b
+  | otherwise   = Two a v
+  where
+    sa      = size a
+updateDigit v i (Three a b c)
+  | i < sa      = Three v b c
+  | i < sab     = Three a v c
+  | otherwise   = Three a b v
+  where
+    sa      = size a
+    sab     = sa + size b
+updateDigit v i (Four a b c d)
+  | i < sa      = Four v b c d
+  | i < sab     = Four a v c d
+  | i < sabc    = Four a b v d
+  | otherwise   = Four a b c v
+  where
+    sa      = size a
+    sab     = sa + size b
+    sabc    = sab + size c
 
 -- | /O(log(min(i,n-i)))/. Update the element at the specified position.
 -- If the position is out of range, the original sequence is returned.
@@ -1709,13 +1793,14 @@ adjust f i (Seq xs)
 
 {-# SPECIALIZE adjustTree :: (Int -> Elem a -> Elem a) -> Int -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE adjustTree :: (Int -> Node a -> Node a) -> Int -> FingerTree (Node a) -> FingerTree (Node a) #-}
-adjustTree      :: Sized a => (Int -> a -> a) ->
+adjustTree      :: (Sized a, MaybeForce a) => (Int -> a -> a) ->
              Int -> FingerTree a -> FingerTree a
 adjustTree _ !_ EmptyT = EmptyT -- Unreachable
-adjustTree f i (Single x) = Single (f i x)
+adjustTree f i (Single x) = Single $!? f i x
 adjustTree f i (Deep s pr m sf)
   | i < spr     = Deep s (adjustDigit f i pr) m sf
-  | i < spm     = Deep s pr (adjustTree (adjustNode f) (i - spr) m) sf
+  | i < spm     = let !m' = adjustTree (adjustNode f) (i - spr) m
+                  in Deep s pr m' sf
   | otherwise   = Deep s pr m (adjustDigit f (i - spm) sf)
   where
     spr     = size pr
@@ -1723,41 +1808,41 @@ adjustTree f i (Deep s pr m sf)
 
 {-# SPECIALIZE adjustNode :: (Int -> Elem a -> Elem a) -> Int -> Node (Elem a) -> Node (Elem a) #-}
 {-# SPECIALIZE adjustNode :: (Int -> Node a -> Node a) -> Int -> Node (Node a) -> Node (Node a) #-}
-adjustNode      :: Sized a => (Int -> a -> a) -> Int -> Node a -> Node a
+adjustNode      :: (Sized a, MaybeForce a) => (Int -> a -> a) -> Int -> Node a -> Node a
 adjustNode f i (Node2 s a b)
-  | i < sa      = Node2 s (f i a) b
-  | otherwise   = Node2 s a (f (i - sa) b)
+  | i < sa      = let fia = f i a in fia `mseq` Node2 s fia b
+  | otherwise   = let fisab = f (i - sa) b in fisab `mseq` Node2 s a fisab
   where
     sa      = size a
 adjustNode f i (Node3 s a b c)
-  | i < sa      = Node3 s (f i a) b c
-  | i < sab     = Node3 s a (f (i - sa) b) c
-  | otherwise   = Node3 s a b (f (i - sab) c)
+  | i < sa      = let fia = f i a in fia `mseq` Node3 s fia b c
+  | i < sab     = let fisab = f (i - sa) b in fisab `mseq` Node3 s a fisab c
+  | otherwise   = let fisabc = f (i - sab) c in fisabc `mseq` Node3 s a b fisabc
   where
     sa      = size a
     sab     = sa + size b
 
 {-# SPECIALIZE adjustDigit :: (Int -> Elem a -> Elem a) -> Int -> Digit (Elem a) -> Digit (Elem a) #-}
 {-# SPECIALIZE adjustDigit :: (Int -> Node a -> Node a) -> Int -> Digit (Node a) -> Digit (Node a) #-}
-adjustDigit     :: Sized a => (Int -> a -> a) -> Int -> Digit a -> Digit a
-adjustDigit f !i (One a) = One (f i a)
+adjustDigit     :: (Sized a, MaybeForce a) => (Int -> a -> a) -> Int -> Digit a -> Digit a
+adjustDigit f !i (One a) = One $!? f i a
 adjustDigit f i (Two a b)
-  | i < sa      = Two (f i a) b
-  | otherwise   = Two a (f (i - sa) b)
+  | i < sa      = let fia = f i a in fia `mseq` Two fia b
+  | otherwise   = let fisab = f (i - sa) b in fisab `mseq` Two a fisab
   where
     sa      = size a
 adjustDigit f i (Three a b c)
-  | i < sa      = Three (f i a) b c
-  | i < sab     = Three a (f (i - sa) b) c
-  | otherwise   = Three a b (f (i - sab) c)
+  | i < sa      = let fia = f i a in fia `mseq` Three fia b c
+  | i < sab     = let fisab = f (i - sa) b in fisab `mseq` Three a fisab c
+  | otherwise   = let fisabc = f (i - sab) c in fisabc `mseq` Three a b fisabc
   where
     sa      = size a
     sab     = sa + size b
 adjustDigit f i (Four a b c d)
-  | i < sa      = Four (f i a) b c d
-  | i < sab     = Four a (f (i - sa) b) c d
-  | i < sabc    = Four a b (f (i - sab) c) d
-  | otherwise   = Four a b c (f (i- sabc) d)
+  | i < sa      = let fia = f i a in fia `mseq` Four fia b c d
+  | i < sab     = let fisab = f (i - sa) b in fisab `mseq` Four a fisab c d
+  | i < sabc    = let fisabc = f (i - sab) c in fisabc `mseq` Four a b fisabc d
+  | otherwise   = let fisabcd = f (i - sabc) d in fisabcd `mseq` Four a b c fisabcd
   where
     sa      = size a
     sab     = sa + size b
@@ -1830,6 +1915,94 @@ insNode f i (Node3 s a b c)
   where sa = size a
         sab = sa + size b
 
+data InsDigNode a = InsLeftDig !(Digit a) | InsDigNode !(Digit a) !(Node a)
+{-# SPECIALIZE insLeftDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsDigNode (Elem a) #-}
+{-# SPECIALIZE insLeftDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsDigNode (Node a) #-}
+insLeftDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsDigNode a
+insLeftDigit f !i (One a) = case f i a of
+  InsOne a' -> InsLeftDig $ One a'
+  InsTwo a1 a2 -> InsLeftDig $ Two a1 a2
+insLeftDigit f i (Two a b)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Two a' b
+     InsTwo a1 a2 -> InsLeftDig $ Three a1 a2 b
+  | otherwise = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Two a b'
+     InsTwo b1 b2 -> InsLeftDig $ Three a b1 b2
+  where sa = size a
+insLeftDigit f i (Three a b c)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Three a' b c
+     InsTwo a1 a2 -> InsLeftDig $ Four a1 a2 b c
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Three a b' c
+     InsTwo b1 b2 -> InsLeftDig $ Four a b1 b2 c
+  | otherwise = case f (i - sab) c of
+     InsOne c' -> InsLeftDig $ Three a b c'
+     InsTwo c1 c2 -> InsLeftDig $ Four a b c1 c2
+  where sa = size a
+        sab = sa + size b
+insLeftDigit f i (Four a b c d)
+  | i < sa = case f i a of
+     InsOne a' -> InsLeftDig $ Four a' b c d
+     InsTwo a1 a2 -> InsDigNode (Two a1 a2) (node3 b c d)
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsLeftDig $ Four a b' c d
+     InsTwo b1 b2 -> InsDigNode (Two a b1) (node3 b2 c d)
+  | i < sabc = case f (i - sab) c of
+     InsOne c' -> InsLeftDig $ Four a b c' d
+     InsTwo c1 c2 -> InsDigNode (Two a b) (node3 c1 c2 d)
+  | otherwise = case f (i - sabc) d of
+     InsOne d' -> InsLeftDig $ Four a b c d'
+     InsTwo d1 d2 -> InsDigNode (Two a b) (node3 c d1 d2)
+  where sa = size a
+        sab = sa + size b
+        sabc = sab + size c
+
+data InsNodeDig a = InsRightDig !(Digit a) | InsNodeDig !(Node a) !(Digit a)
+{-# SPECIALIZE insRightDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsNodeDig (Elem a) #-}
+{-# SPECIALIZE insRightDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsNodeDig (Node a) #-}
+insRightDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsNodeDig a
+insRightDigit f !i (One a) = case f i a of
+  InsOne a' -> InsRightDig $ One a'
+  InsTwo a1 a2 -> InsRightDig $ Two a1 a2
+insRightDigit f i (Two a b)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Two a' b
+     InsTwo a1 a2 -> InsRightDig $ Three a1 a2 b
+  | otherwise = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Two a b'
+     InsTwo b1 b2 -> InsRightDig $ Three a b1 b2
+  where sa = size a
+insRightDigit f i (Three a b c)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Three a' b c
+     InsTwo a1 a2 -> InsRightDig $ Four a1 a2 b c
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Three a b' c
+     InsTwo b1 b2 -> InsRightDig $ Four a b1 b2 c
+  | otherwise = case f (i - sab) c of
+     InsOne c' -> InsRightDig $ Three a b c'
+     InsTwo c1 c2 -> InsRightDig $ Four a b c1 c2
+  where sa = size a
+        sab = sa + size b
+insRightDigit f i (Four a b c d)
+  | i < sa = case f i a of
+     InsOne a' -> InsRightDig $ Four a' b c d
+     InsTwo a1 a2 -> InsNodeDig (node3 a1 a2 b) (Two c d)
+  | i < sab = case f (i - sa) b of
+     InsOne b' -> InsRightDig $ Four a b' c d
+     InsTwo b1 b2 -> InsNodeDig (node3 a b1 b2) (Two c d)
+  | i < sabc = case f (i - sab) c of
+     InsOne c' -> InsRightDig $ Four a b c' d
+     InsTwo c1 c2 -> InsNodeDig (node3 a b c1) (Two c2 d)
+  | otherwise = case f (i - sabc) d of
+     InsOne d' -> InsRightDig $ Four a b c d'
+     InsTwo d1 d2 -> InsNodeDig (node3 a b c) (Two d1 d2)
+  where sa = size a
+        sab = sa + size b
+        sabc = sab + size c
+
 -- | /O(log(min(i,n-i)))/. Delete the element of a sequence at a given
 -- index. Return the original sequence if the index is out of range.
 --
@@ -1882,7 +2055,7 @@ delLeftDigitE i s (Four a b c d) m sf
   | otherwise = Deep (s - 1) (Three a b c) m sf
 
 delRightDigitE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> FingerTree (Elem a)
-delRightDigitE !_i s pr m One{} = pullR (size pr + size m) pr m
+delRightDigitE !_i s pr m One{} = pullR (s - 1) pr m
 delRightDigitE i s pr m (Two a b)
   | i == 0 = Deep (s - 1) pr m (One b)
   | otherwise = Deep (s - 1) pr m (One a)
@@ -2107,94 +2280,6 @@ delDigit f i (Four a b c d)
         sab = sa + size b
         sabc = sab + size c
 
-
-data InsDigNode a = InsLeftDig !(Digit a) | InsDigNode !(Digit a) !(Node a)
-{-# SPECIALIZE insLeftDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsDigNode (Elem a) #-}
-{-# SPECIALIZE insLeftDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsDigNode (Node a) #-}
-insLeftDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsDigNode a
-insLeftDigit f !i (One a) = case f i a of
-  InsOne a' -> InsLeftDig $ One a'
-  InsTwo a1 a2 -> InsLeftDig $ Two a1 a2
-insLeftDigit f i (Two a b)
-  | i < sa = case f i a of
-     InsOne a' -> InsLeftDig $ Two a' b
-     InsTwo a1 a2 -> InsLeftDig $ Three a1 a2 b
-  | otherwise = case f (i - sa) b of
-     InsOne b' -> InsLeftDig $ Two a b'
-     InsTwo b1 b2 -> InsLeftDig $ Three a b1 b2
-  where sa = size a
-insLeftDigit f i (Three a b c)
-  | i < sa = case f i a of
-     InsOne a' -> InsLeftDig $ Three a' b c
-     InsTwo a1 a2 -> InsLeftDig $ Four a1 a2 b c
-  | i < sab = case f (i - sa) b of
-     InsOne b' -> InsLeftDig $ Three a b' c
-     InsTwo b1 b2 -> InsLeftDig $ Four a b1 b2 c
-  | otherwise = case f (i - sab) c of
-     InsOne c' -> InsLeftDig $ Three a b c'
-     InsTwo c1 c2 -> InsLeftDig $ Four a b c1 c2
-  where sa = size a
-        sab = sa + size b
-insLeftDigit f i (Four a b c d)
-  | i < sa = case f i a of
-     InsOne a' -> InsLeftDig $ Four a' b c d
-     InsTwo a1 a2 -> InsDigNode (Two a1 a2) (node3 b c d)
-  | i < sab = case f (i - sa) b of
-     InsOne b' -> InsLeftDig $ Four a b' c d
-     InsTwo b1 b2 -> InsDigNode (Two a b1) (node3 b2 c d)
-  | i < sabc = case f (i - sab) c of
-     InsOne c' -> InsLeftDig $ Four a b c' d
-     InsTwo c1 c2 -> InsDigNode (Two a b) (node3 c1 c2 d)
-  | otherwise = case f (i - sabc) d of
-     InsOne d' -> InsLeftDig $ Four a b c d'
-     InsTwo d1 d2 -> InsDigNode (Two a b) (node3 c d1 d2)
-  where sa = size a
-        sab = sa + size b
-        sabc = sab + size c
-
-data InsNodeDig a = InsRightDig !(Digit a) | InsNodeDig !(Node a) !(Digit a)
-{-# SPECIALIZE insRightDigit :: (Int -> Elem a -> Ins (Elem a)) -> Int -> Digit (Elem a) -> InsNodeDig (Elem a) #-}
-{-# SPECIALIZE insRightDigit :: (Int -> Node a -> Ins (Node a)) -> Int -> Digit (Node a) -> InsNodeDig (Node a) #-}
-insRightDigit :: Sized a => (Int -> a -> Ins a) -> Int -> Digit a -> InsNodeDig a
-insRightDigit f !i (One a) = case f i a of
-  InsOne a' -> InsRightDig $ One a'
-  InsTwo a1 a2 -> InsRightDig $ Two a1 a2
-insRightDigit f i (Two a b)
-  | i < sa = case f i a of
-     InsOne a' -> InsRightDig $ Two a' b
-     InsTwo a1 a2 -> InsRightDig $ Three a1 a2 b
-  | otherwise = case f (i - sa) b of
-     InsOne b' -> InsRightDig $ Two a b'
-     InsTwo b1 b2 -> InsRightDig $ Three a b1 b2
-  where sa = size a
-insRightDigit f i (Three a b c)
-  | i < sa = case f i a of
-     InsOne a' -> InsRightDig $ Three a' b c
-     InsTwo a1 a2 -> InsRightDig $ Four a1 a2 b c
-  | i < sab = case f (i - sa) b of
-     InsOne b' -> InsRightDig $ Three a b' c
-     InsTwo b1 b2 -> InsRightDig $ Four a b1 b2 c
-  | otherwise = case f (i - sab) c of
-     InsOne c' -> InsRightDig $ Three a b c'
-     InsTwo c1 c2 -> InsRightDig $ Four a b c1 c2
-  where sa = size a
-        sab = sa + size b
-insRightDigit f i (Four a b c d)
-  | i < sa = case f i a of
-     InsOne a' -> InsRightDig $ Four a' b c d
-     InsTwo a1 a2 -> InsNodeDig (node3 a1 a2 b) (Two c d)
-  | i < sab = case f (i - sa) b of
-     InsOne b' -> InsRightDig $ Four a b' c d
-     InsTwo b1 b2 -> InsNodeDig (node3 a b1 b2) (Two c d)
-  | i < sabc = case f (i - sab) c of
-     InsOne c' -> InsRightDig $ Four a b c' d
-     InsTwo c1 c2 -> InsNodeDig (node3 a b c1) (Two c2 d)
-  | otherwise = case f (i - sabc) d of
-     InsOne d' -> InsRightDig $ Four a b c d'
-     InsTwo d1 d2 -> InsNodeDig (node3 a b c) (Two d1 d2)
-  where sa = size a
-        sab = sa + size b
-        sabc = sab + size c
 
 -- | /O(n)/. A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every
