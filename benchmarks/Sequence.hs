@@ -35,6 +35,16 @@ main = do
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
          ]
+      , bgroup "update"
+         [ bench "10" $ nf (updatePoints r10 10) s10
+         , bench "100" $ nf (updatePoints r100 10) s100
+         , bench "1000" $ nf (updatePoints r1000 10) s1000
+         ]
+      , bgroup "adjust"
+         [ bench "10" $ nf (adjustPoints r10 (+10)) s10
+         , bench "100" $ nf (adjustPoints r100 (+10)) s100
+         , bench "1000" $ nf (adjustPoints r1000 (+10)) s1000
+         ]
       , bgroup "deleteAt"
          [ bench "10" $ nf (deleteAtPoints r10) s10
          , bench "100" $ nf (deleteAtPoints r100) s100
@@ -102,9 +112,25 @@ fakeInsertAt i x xs = case S.splitAt i xs of
   (before, after) -> before S.>< x S.<| after
 -}
 
+adjustPoints :: [Int] -> (a -> a) -> S.Seq a -> S.Seq a
+adjustPoints points f xs =
+  foldl' (\acc k -> S.adjust f k acc) xs points
+
 insertAtPoints :: [Int] -> a -> S.Seq a -> S.Seq a
 insertAtPoints points x xs =
   foldl' (\acc k -> S.insertAt k x acc) xs points
+
+updatePoints :: [Int] -> a -> S.Seq a -> S.Seq a
+updatePoints points x xs =
+  foldl' (\acc k -> S.update k x acc) xs points
+
+{-
+-- For comparison. Using the old implementation of update,
+-- which this simulates, can cause thunks to build up in the leaves.
+fakeupdatePoints :: [Int] -> a -> S.Seq a -> S.Seq a
+fakeupdatePoints points x xs =
+  foldl' (\acc k -> S.adjust (const x) k acc) xs points
+-}
 
 deleteAtPoints :: [Int] -> S.Seq a -> S.Seq a
 deleteAtPoints points xs =
