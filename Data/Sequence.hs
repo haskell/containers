@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -1866,8 +1867,9 @@ adjustDigit f i (Four a b c d)
 -- at the index @i@, shifting the rest of the sequence over.
 --
 -- @
--- insertAt 2 x [a,b,c,d] = [a,b,x,c,d]
--- insertAt 4 x [a,b,c,d] = insertAt 10 x [a,b,c,d] = [a,b,c,d,x]
+-- insertAt 2 x (fromList [a,b,c,d]) = fromList [a,b,x,c,d]
+-- insertAt 4 x (fromList [a,b,c,d]) = insertAt 10 x (fromList [a,b,c,d])
+--                                   = fromList [a,b,c,d,x]
 -- @
 -- 
 -- prop> insertAt i x xs = take i xs >< singleton x >< drop i xs
@@ -2785,6 +2787,10 @@ drop i xs@(Seq t)
   | i <= 0 = xs
   | otherwise = empty
 
+-- We implement `drop` using a "take from the rear" strategy.  There's no
+-- particular technical reason for this; it just lets us reuse the arithmetic
+-- from `take` (which itself reuses the arithmetic from `splitAt`) instead of
+-- figuring it out from scratch and ending up with lots of off-by-one errors.
 takeTreeER :: Int -> FingerTree (Elem a) -> FingerTree (Elem a)
 takeTreeER !_i EmptyT = EmptyT
 takeTreeER i t@(Single _)
@@ -2961,7 +2967,7 @@ uncheckedSplitAt :: Int -> Seq a -> (Seq a, Seq a)
 uncheckedSplitAt i (Seq xs) = case splitTreeE i xs of
   l :*: r -> (Seq l, Seq r)
 
-data Split t a = Split !t !a !t
+data Split a = Split !(FingerTree (Node a)) !(Node a) !(FingerTree (Node a))
 #if TESTING
     deriving Show
 #endif
@@ -2981,7 +2987,7 @@ splitTreeE i (Deep s pr m sf)
     spm     = spr + size m
     im      = i - spr
 
-splitTreeN :: Int -> FingerTree (Node a) -> Split (FingerTree (Node a)) (Node a)
+splitTreeN :: Int -> FingerTree (Node a) -> Split a
 splitTreeN !_i EmptyT = error "splitTreeN of empty tree"
 splitTreeN _i (Single x) = Split EmptyT x EmptyT
 splitTreeN i (Deep s pr m sf)
@@ -2995,7 +3001,7 @@ splitTreeN i (Deep s pr m sf)
 
 splitMiddleN :: Int -> Int -> Int
              -> Digit (Node a) -> FingerTree (Node (Node a)) -> Node (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a)
-             -> Split (FingerTree (Node a)) (Node a)
+             -> Split a
 splitMiddleN i s spr pr ml (Node2 _ a b) mr sf
   | i < sa      = Split (pullR sprml pr ml) a (Deep (s - sprmla) (One b) mr sf)
   | otherwise   = Split (Deep sprmla pr ml (One a)) b (pullL (s - sprmla - size b) mr sf)
@@ -3049,7 +3055,7 @@ splitPrefixE i s (Four a b c d) m sf = case i of
   _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
 splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
-                    Split (FingerTree (Node a)) (Node a)
+                    Split a
 splitPrefixN !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
 splitPrefixN i s (Two a b) m sf
   | i < sa      = Split EmptyT a (Deep (s - sa) (One b) m sf)
@@ -3090,7 +3096,7 @@ splitSuffixE i s pr m (Four a b c d) = case i of
   _ -> Deep (s - 1) pr m (Three a b c) :*: Single d
 
 splitSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
-   Split (FingerTree (Node a)) (Node a)
+   Split a
 splitSuffixN !_i !s pr m (One a) = Split (pullR (s - size a) pr m) a EmptyT
 splitSuffixN i s pr m (Two a b)
   | i < sa      = Split (pullR (s - sa - size b) pr m) a (Single b)
@@ -3121,7 +3127,10 @@ splitSuffixN i s pr m (Four a b c d)
 -- If @n@ does not divide the length of @xs@ evenly, then the last element
 -- of the result will be short.
 chunksOf :: Int -> Seq a -> Seq (Seq a)
-chunksOf n _ | n <= 0 = error "chunksOf takes a positive integer argument"
+chunksOf n xs | n <= 0 =
+  if null xs
+    then empty
+    else error "chunksOf: A non-empty sequence can only be broken up into positively-sized chunks."
 chunksOf 1 s = fmap singleton s
 chunksOf n s = splitMap (uncheckedSplitAt . (*n)) const most (replicate numReps ())
                  >< if null end then empty else singleton end
@@ -3558,24 +3567,79 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 --
 -- > mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 -- > mapWithIndex f = splitMap (\n i -> (i, n+i)) f 0
+#ifdef __GLASGOW_HASKELL__
+-- We use ScopedTypeVariables to improve performance and make
+-- performance less sensitive to minor changes.
+
+-- We INLINE this so GHC can see that the function passed in is
+-- strict in its Int argument.
+{-# INLINE splitMap #-}
+splitMap :: forall s a' b' . (Int -> s -> (s,s)) -> (s -> a' -> b') -> s -> Seq a' -> Seq b'
+splitMap splt f0 s0 (Seq xs0) = Seq $ splitMapTreeE (\s' (Elem a) -> Elem (f0 s' a)) s0 xs0
+  where
+    {-# INLINE splitMapTreeE #-}
+    splitMapTreeE :: (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b
+    splitMapTreeE  _ _ EmptyT = EmptyT
+    splitMapTreeE  f s (Single xs) = Single $ f s xs
+    splitMapTreeE  f s (Deep n pr m sf) = Deep n (splitMapDigit f prs pr) (splitMapTreeN (\eta1 eta2 -> splitMapNode f eta1 eta2) ms m) (splitMapDigit f sfs sf)
+          where
+            !spr = size pr
+            !sm = n - spr - size sf
+            (prs, r) = splt spr s
+            (ms, sfs) = splt sm r
+
+    splitMapTreeN :: (s -> Node a -> b) -> s -> FingerTree (Node a) -> FingerTree b
+    splitMapTreeN _ _ EmptyT = EmptyT
+    splitMapTreeN f s (Single xs) = Single $ f s xs
+    splitMapTreeN f s (Deep n pr m sf) = Deep n (splitMapDigit f prs pr) (splitMapTreeN (\eta1 eta2 -> splitMapNode f eta1 eta2) ms m) (splitMapDigit f sfs sf)
+          where
+            (prs, r) = splt (size pr) s
+            (ms, sfs) = splt (size m) r
+
+    {-# INLINE splitMapDigit #-}
+    splitMapDigit :: Sized a => (s -> a -> b) -> s -> Digit a -> Digit b
+    splitMapDigit f s (One a) = One (f s a)
+    splitMapDigit f s (Two a b) = Two (f first a) (f second b)
+      where
+        (first, second) = splt (size a) s
+    splitMapDigit f s (Three a b c) = Three (f first a) (f second b) (f third c)
+      where
+        (first, r) = splt (size a) s
+        (second, third) = splt (size b) r
+    splitMapDigit f s (Four a b c d) = Four (f first a) (f second b) (f third c) (f fourth d)
+      where
+        (first, s') = splt (size a) s
+        (middle, fourth) = splt (size b + size c) s'
+        (second, third) = splt (size b) middle
+
+    {-# INLINE splitMapNode #-}
+    splitMapNode :: Sized a => (s -> a -> b) -> s -> Node a -> Node b
+    splitMapNode f s (Node2 ns a b) = Node2 ns (f first a) (f second b)
+      where
+        (first, second) = splt (size a) s
+    splitMapNode f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f third c)
+      where
+        (first, r) = splt (size a) s
+        (second, third) = splt (size b) r
+
+#else
+-- Implementation without ScopedTypeVariables--somewhat slower,
+-- and much more sensitive to minor changes in various places.
+
 {-# INLINE splitMap #-}
 splitMap :: (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Seq a -> Seq b
 splitMap splt' f0 s0 (Seq xs0) = Seq $ splitMapTreeE splt' (\s' (Elem a) -> Elem (f0 s' a)) s0 xs0
 
--- Note: We end up boxing and unboxing Ints here.
--- If we wanted, we could manually unbox them all.
--- However, benchmarks indicate the performance gains
--- are small, and maintaining an entirely separate copy of
--- all the splitMap helpers specially for GHC seems
--- an unreasonable maintenance burden.
 {-# INLINE splitMapTreeE #-}
 splitMapTreeE :: (Int -> s -> (s,s)) -> (s -> Elem y -> b) -> s -> FingerTree (Elem y) -> FingerTree b
 splitMapTreeE _    _ _ EmptyT = EmptyT
 splitMapTreeE _    f s (Single xs) = Single $ f s xs
 splitMapTreeE splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTreeN splt (\eta1 eta2 -> splitMapNode splt f eta1 eta2) ms m) (splitMapDigit splt f sfs sf)
       where
-        (prs, r) = splt (size pr) s
-        (ms, sfs) = splt (n - size pr - size sf) r
+        !spr = size pr
+        sm = n - spr - size sf
+        (prs, r) = splt spr s
+        (ms, sfs) = splt sm r
 
 splitMapTreeN :: (Int -> s -> (s,s)) -> (s -> Node a -> b) -> s -> FingerTree (Node a) -> FingerTree b
 splitMapTreeN _    _ _ EmptyT = EmptyT
@@ -3583,7 +3647,7 @@ splitMapTreeN _    f s (Single xs) = Single $ f s xs
 splitMapTreeN splt f s (Deep n pr m sf) = Deep n (splitMapDigit splt f prs pr) (splitMapTreeN splt (\eta1 eta2 -> splitMapNode splt f eta1 eta2) ms m) (splitMapDigit splt f sfs sf)
       where
         (prs, r) = splt (size pr) s
-        (ms, sfs) = splt (n - size pr - size sf) r
+        (ms, sfs) = splt (size m) r
 
 {-# INLINE splitMapDigit #-}
 splitMapDigit :: Sized a => (Int -> s -> (s,s)) -> (s -> a -> b) -> s -> Digit a -> Digit b
@@ -3610,11 +3674,10 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
   where
     (first, r) = splt (size a) s
     (second, third) = splt (size b) r
-
+#endif
 
 getSingleton :: Seq a -> a
 getSingleton (Seq (Single (Elem a))) = a
-getSingleton (Seq EmptyT) = error "getSingleton: EmptyT"
 getSingleton _ = error "getSingleton: Not a singleton."
 
 ------------------------------------------------------------------------
