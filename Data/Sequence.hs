@@ -209,10 +209,12 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
+#if MIN_VERSION_base(4,6,0)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
+#else
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', toList)
-#if MIN_VERSION_base(4,8,0)
-import Data.Foldable (foldr')
 #endif
+
 #if MIN_VERSION_base(4,9,0)
 import qualified Data.Semigroup as Semigroup
 #endif
@@ -375,8 +377,19 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 
 instance Foldable Seq where
     foldMap f (Seq xs) = foldMap (foldMap f) xs
+#if __GLASGOW_HASKELL__ >= 708
+    foldr f z (Seq xs) = foldr (coerce f) z xs
+    foldr' f z (Seq xs) = foldr' (coerce f) z xs
+#else
     foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (Seq xs) = foldr' (flip (foldr' f)) z xs
+#endif
+#endif
     foldl f z (Seq xs) = foldl (foldl f) z xs
+#if MIN_VERSION_base(4,6,0)
+    foldl' f z (Seq xs) = foldl' (foldl' f) z xs
+#endif
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
@@ -763,6 +776,20 @@ instance Foldable FingerTree where
     foldl f z (Deep _ pr m sf) =
         foldl f (foldl (foldl f) (foldl f z pr) m) sf
 
+#if MIN_VERSION_base(4,6,0)
+    foldr' _ z EmptyT = z
+    foldr' f z (Single x) = f x z
+    foldr' f z (Deep _ pr m sf) = foldr' f mres pr
+        where !sfRes = foldr' f z sf
+              !mres = foldr' (flip (foldr' f)) sfRes m
+
+    foldl' _ z EmptyT = z
+    foldl' f z (Single x) = z `f` x
+    foldl' f z (Deep _ pr m sf) = foldl' f mres sf
+        where !prRes = foldl' f z pr
+              !mres = foldl' (foldl' f) prRes m
+#endif
+
     foldr1 _ EmptyT = error "foldr1: empty sequence"
     foldr1 _ (Single x) = x
     foldr1 f (Deep _ pr m sf) =
@@ -833,6 +860,18 @@ instance Foldable Digit where
     foldl f z (Two a b) = (z `f` a) `f` b
     foldl f z (Three a b c) = ((z `f` a) `f` b) `f` c
     foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
+
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (One a) = a `f` z
+    foldr' f z (Two a b) = f a $! f b z
+    foldr' f z (Three a b c) = f a $! f b $! f c z
+    foldr' f z (Four a b c d) = f a $! f b $! f c $! f d z
+
+    foldl' f z (One a) = f z a
+    foldl' f z (Two a b) = (f $! f z a) b
+    foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
+    foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
+#endif
 
     foldr1 _ (One a) = a
     foldr1 f (Two a b) = a `f` b
@@ -921,6 +960,14 @@ instance Foldable Node where
     foldl f z (Node2 _ a b) = (z `f` a) `f` b
     foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
 
+#if MIN_VERSION_base(4,6,0)
+    foldr' f z (Node2 _ a b) = f a $! f b z
+    foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
+
+    foldl' f z (Node2 _ a b) = (f $! f z a) b
+    foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
+#endif
+
 instance Functor Node where
     {-# INLINE fmap #-}
     fmap f (Node2 v a b) = Node2 v (f a) (f b)
@@ -970,9 +1017,18 @@ instance Functor Elem where
 #endif
 
 instance Foldable Elem where
-    foldMap f (Elem x) = f x
     foldr f z (Elem x) = f x z
+#if __GLASGOW_HASKELL__ >= 708
+    foldMap = coerce
+    foldl = coerce
+    foldl' = coerce
+#else
+    foldMap f (Elem x) = f x
     foldl f z (Elem x) = f z x
+#if MIN_VERSION_base(4,6,0)
+    foldl' f z (Elem x) = f z x
+#endif
+#endif
 
 instance Traversable Elem where
     traverse f (Elem x) = Elem <$> f x
@@ -1510,6 +1566,14 @@ instance Foldable ViewL where
     foldl1 _ EmptyL = error "foldl1: empty view"
     foldl1 f (x :< xs) = foldl f x xs
 
+#if MIN_VERSION_base(4,8,0)
+    null EmptyL = True
+    null (_ :< _) = False
+
+    length EmptyL = 0
+    length (_ :< xs) = 1 + length xs
+#endif
+
 instance Traversable ViewL where
     traverse _ EmptyL       = pure EmptyL
     traverse f (x :< xs)    = (:<) <$> f x <*> traverse f xs
@@ -1564,12 +1628,11 @@ instance Foldable ViewR where
     foldr1 _ EmptyR = error "foldr1: empty view"
     foldr1 f (xs :> x) = foldr f x xs
 #if MIN_VERSION_base(4,8,0)
-    -- The default definitions are sensible for ViewL, but not so much for
-    -- ViewR.
     null EmptyR = True
     null (_ :> _) = False
 
-    length = foldr' (\_ k -> k+1) 0
+    length EmptyR = 0
+    length (xs :> _) = length xs + 1
 #endif
 
 instance Traversable ViewR where

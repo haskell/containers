@@ -5,7 +5,7 @@ import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
 import Criterion.Main (bench, bgroup, defaultMain, nf)
-import Data.List (foldl')
+import Data.Foldable (foldl', foldr')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
 import Data.Traversable (traverse)
@@ -34,6 +34,18 @@ main = do
          [ bench "10" $ nf (shuffle r10) s10
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
+         ]
+      , bgroup "foldl'"
+         [ bench "10" $ nf (foldl' (+) 0) s10
+         , bench "100" $ nf (foldl' (+) 0) s100
+         , bench "1000" $ nf (foldl' (+) 0) s1000
+         , bench "10000" $ nf (foldl' (+) 0) s10000
+         ]
+      , bgroup "foldr'"
+         [ bench "10" $ nf (foldr' (+) 0) s10
+         , bench "100" $ nf (foldr' (+) 0) s100
+         , bench "1000" $ nf (foldr' (+) 0) s1000
+         , bench "10000" $ nf (foldr' (+) 0) s10000
          ]
       , bgroup "update"
          [ bench "10" $ nf (updatePoints r10 10) s10
