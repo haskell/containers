@@ -28,6 +28,8 @@
   * Make `splitAt` in `Data.Sequence` strict in its arguments. Previously,
     it returned a lazy pair.
 
+  * Fix completely erroneous definition of `length` for `ViewR`.
+
   * Derive `Generic` and `Generic1` for `Data.Tree`.
 
   * Add `foldTree` for `Data.Tree`.
@@ -39,6 +41,9 @@
     code to avoid allocating unnecessary intermediate structures. The
     improvements are greatest for small sequences, but large even for long
     ones. Reimplement `take` and `drop` to avoid building trees only to discard them.
+
+  * Roughly double the speeds of `foldl'` and `foldr'` for `Data.Sequence`
+    by writing custom definitions instead of using the defaults.
 
   * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
 

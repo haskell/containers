@@ -4,7 +4,7 @@ import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum)
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
@@ -28,8 +28,10 @@ main = defaultMain
        [ testProperty "fmap" prop_fmap
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
+       , testProperty "foldr'" prop_foldr'
        , testProperty "foldr1" prop_foldr1
        , testProperty "foldl" prop_foldl
+       , testProperty "foldl'" prop_foldl'
        , testProperty "foldl1" prop_foldl1
        , testProperty "(==)" prop_equals
        , testProperty "compare" prop_compare
@@ -233,9 +235,16 @@ prop_constmap :: A -> Seq A -> Bool
 prop_constmap x xs =
     toList' (x <$ xs) ~= map (const x) (toList xs)
 
-prop_foldr :: Seq A -> Bool
+prop_foldr :: Seq A -> Property
 prop_foldr xs =
-    foldr f z xs == Prelude.foldr f z (toList xs)
+    foldr f z xs === Prelude.foldr f z (toList xs)
+  where
+    f = (:)
+    z = []
+
+prop_foldr' :: Seq A -> Property
+prop_foldr' xs =
+    foldr' f z xs === foldr' f z (toList xs)
   where
     f = (:)
     z = []
@@ -245,9 +254,16 @@ prop_foldr1 xs =
     not (null xs) ==> foldr1 f xs == Data.List.foldr1 f (toList xs)
   where f = (-)
 
-prop_foldl :: Seq A -> Bool
+prop_foldl :: Seq A -> Property
 prop_foldl xs =
-    foldl f z xs == Prelude.foldl f z (toList xs)
+    foldl f z xs === Prelude.foldl f z (toList xs)
+  where
+    f = flip (:)
+    z = []
+
+prop_foldl' :: Seq A -> Property
+prop_foldl' xs =
+    foldl' f z xs === foldl' f z (toList xs)
   where
     f = flip (:)
     z = []
