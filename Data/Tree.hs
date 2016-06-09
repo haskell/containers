@@ -134,7 +134,7 @@ drawForest :: Forest String -> String
 drawForest  = unlines . map drawTree
 
 draw :: Tree String -> [String]
-draw (Node x ts0) = x : drawSubTrees ts0
+draw (Node x ts0) = lines x ++ drawSubTrees ts0
   where
     drawSubTrees [] = []
     drawSubTrees [t] =
