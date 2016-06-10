@@ -404,8 +404,29 @@ instance Foldable Seq where
     {-# INLINE null #-}
 #endif
 
+#if __GLASGOW_HASKELL__ >= 708
+-- The natural definition of traverse, used for implementations that don't
+-- support coercions, `fmap`s into each `Elem`, then `fmap`s again over the
+-- result to turn it from a `FingerTree` to a `Seq`. None of this mapping is
+-- necessary! We could avoid it without coercions, I believe, by writing a
+-- bunch of traversal functions to deal with the `Elem` stuff specially (for
+-- FingerTrees, Digits, and Nodes), but using coercions we only need to
+-- duplicate code at the FingerTree level. We coerce the `Seq a` to a
+-- `FingerTree a`, stripping off all the Elem junk, then use a weird FingerTree
+-- traversing function that coerces back to Seq within the functor.
+instance Traversable Seq where
+    traverse f (Seq xs) = traverseFTE f (coerce xs)
+
+traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
+traverseFTE _f EmptyT = pure empty
+traverseFTE f (Single x) = Seq . Single . Elem <$> f x
+traverseFTE f (Deep s pr m sf) =
+  (\pr' m' sf' -> coerce $ Deep s pr' m' sf') <$>
+     traverse f pr <*> traverse (traverse f) m <*> traverse f sf
+#else
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
+#endif
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
