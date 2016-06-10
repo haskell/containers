@@ -35,6 +35,12 @@ main = do
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
          ]
+      , bgroup "partition"
+         [ bench "10" $ nf (S.partition even) s10
+         , bench "100" $ nf (S.partition even) s100
+         , bench "1000" $ nf (S.partition even) s1000
+         , bench "10000" $ nf (S.partition even) s10000
+         ]
       , bgroup "foldl'"
          [ bench "10" $ nf (foldl' (+) 0) s10
          , bench "100" $ nf (foldl' (+) 0) s100

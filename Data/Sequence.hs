@@ -253,7 +253,7 @@ import Data.Functor.Identity (Identity(..))
 import Data.Word (Word)
 #endif
 
-import Data.Utils.StrictPair (StrictPair (..))
+import Data.Utils.StrictPair (StrictPair (..), toPair)
 
 default ()
 
@@ -1259,6 +1259,32 @@ consTree a (Deep s (Two b c) m sf) =
 consTree a (Deep s (One b) m sf) =
     Deep (size a + s) (Two a b) m sf
 
+cons' :: a -> Seq a -> Seq a
+cons' x (Seq xs) = Seq (Elem x `consTree'` xs)
+
+snoc' :: Seq a -> a -> Seq a
+snoc' (Seq xs) x = Seq (xs `snocTree'` Elem x)
+
+{-# SPECIALIZE consTree' :: Elem a -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
+{-# SPECIALIZE consTree' :: Node a -> FingerTree (Node a) -> FingerTree (Node a) #-}
+consTree'        :: Sized a => a -> FingerTree a -> FingerTree a
+consTree' a EmptyT       = Single a
+consTree' a (Single b)   = deep (One a) EmptyT (One b)
+-- As described in the paper, we force the middle of a tree
+-- *before* consing onto it; this preserves the amortized
+-- bounds but prevents repeated consing from building up
+-- gigantic suspensions.
+consTree' a (Deep s (Four b c d e) m sf) =
+    Deep (size a + s) (Two a b) m' sf
+  where !m' = abc `consTree'` m
+        !abc = node3 c d e
+consTree' a (Deep s (Three b c d) m sf) =
+    Deep (size a + s) (Four a b c d) m sf
+consTree' a (Deep s (Two b c) m sf) =
+    Deep (size a + s) (Three a b c) m sf
+consTree' a (Deep s (One b) m sf) =
+    Deep (size a + s) (Two a b) m sf
+
 -- | /O(1)/. Add an element to the right end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
 (|>)            :: Seq a -> a -> Seq a
@@ -1277,6 +1303,23 @@ snocTree (Deep s pr m (Three a b c)) d =
 snocTree (Deep s pr m (Two a b)) c =
     Deep (s + size c) pr m (Three a b c)
 snocTree (Deep s pr m (One a)) b =
+    Deep (s + size b) pr m (Two a b)
+
+{-# SPECIALIZE snocTree' :: FingerTree (Elem a) -> Elem a -> FingerTree (Elem a) #-}
+{-# SPECIALIZE snocTree' :: FingerTree (Node a) -> Node a -> FingerTree (Node a) #-}
+snocTree'        :: Sized a => FingerTree a -> a -> FingerTree a
+snocTree' EmptyT a       =  Single a
+snocTree' (Single a) b   =  deep (One a) EmptyT (One b)
+-- See note on `seq` in `consTree`.
+snocTree' (Deep s pr m (Four a b c d)) e =
+    Deep (s + size e) pr m' (Two d e)
+  where !m' = m `snocTree'` abc
+        !abc = node3 a b c
+snocTree' (Deep s pr m (Three a b c)) d =
+    Deep (s + size d) pr m (Four a b c d)
+snocTree' (Deep s pr m (Two a b)) c =
+    Deep (s + size c) pr m (Three a b c)
+snocTree' (Deep s pr m (One a)) b =
     Deep (s + size b) pr m (Two a b)
 
 -- | /O(log(min(n1,n2)))/. Concatenate two sequences.
@@ -1526,12 +1569,12 @@ addDigits4 m1 (Four a b c d) !e !f !g !h (Four i j k l) m2 =
 unfoldr :: (b -> Maybe (a, b)) -> b -> Seq a
 unfoldr f = unfoldr' empty
   -- uses tail recursion rather than, for instance, the List implementation.
-  where unfoldr' as b = maybe as (\ (a, b') -> unfoldr' (as |> a) b') (f b)
+  where unfoldr' !as b = maybe as (\ (a, b') -> unfoldr' (as `snoc'` a) b') (f b)
 
 -- | @'unfoldl' f x@ is equivalent to @'reverse' ('unfoldr' ('fmap' swap . f) x)@.
 unfoldl :: (b -> Maybe (b, a)) -> b -> Seq a
 unfoldl f = unfoldl' empty
-  where unfoldl' as b = maybe as (\ (b', a) -> unfoldl' (a <| as) b') (f b)
+  where unfoldl' !as b = maybe as (\ (b', a) -> unfoldl' (a `cons'` as) b') (f b)
 
 -- | /O(n)/.  Constructs a sequence by repeated application of a function
 -- to a seed value.
@@ -3408,17 +3451,17 @@ breakr p xs = foldr (\ i _ -> flipPair (splitAt (i + 1) xs)) (xs, empty) (findIn
 -- sequence @xs@ and returns sequences of those elements which do and
 -- do not satisfy the predicate.
 partition :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
-partition p = foldl part (empty, empty)
+partition p = toPair . foldl' part (empty :*: empty)
   where
-    part (xs, ys) x
-      | p x         = (xs |> x, ys)
-      | otherwise   = (xs, ys |> x)
+    part (xs :*: ys) x
+      | p x         = (xs `snoc'` x) :*: ys
+      | otherwise   = xs :*: (ys `snoc'` x)
 
 -- | /O(n)/.  The 'filter' function takes a predicate @p@ and a sequence
 -- @xs@ and returns a sequence of those elements which satisfy the
 -- predicate.
 filter :: (a -> Bool) -> Seq a -> Seq a
-filter p = foldl' (\ xs x -> if p x then xs |> x else xs) empty
+filter p = foldl' (\ xs x -> if p x then xs `snoc'` x else xs) empty
 
 -- Indexing sequences
 
