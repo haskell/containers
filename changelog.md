@@ -30,7 +30,8 @@
   * Add `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
     `foldMapWithIndex`, and `traverseWithIndex` for `Data.Sequence`.
 
-  * Derive `Generic` and `Generic1` for `Data.Tree`.
+  * Derive `Generic` and `Generic1` for `Data.Tree.Tree`, `Data.Sequence.ViewL`,
+    and `Data.Sequence.ViewR`.
 
   * Add `foldTree` for `Data.Tree`. (Thanks, Daniel Wagner!)
 

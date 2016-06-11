@@ -2126,7 +2126,7 @@ instance (Read e) => Read (IntMap e) where
   Typeable
 --------------------------------------------------------------------}
 
-INSTANCE_TYPEABLE1(IntMap,intMapTc,"IntMap")
+INSTANCE_TYPEABLE1(IntMap)
 
 {--------------------------------------------------------------------
   Helpers

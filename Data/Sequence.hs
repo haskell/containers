@@ -12,6 +12,9 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+#if __GLASGOW_HASKELL__ >= 702
+{-# LANGUAGE DeriveGeneric #-}
+#endif
 #if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
 #endif
@@ -228,6 +231,11 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 import Data.String (IsString(..))
+#endif
+#if __GLASGOW_HASKELL__ >= 706
+import GHC.Generics (Generic, Generic1)
+#elif __GLASGOW_HASKELL__ >= 702
+import GHC.Generics (Generic)
 #endif
 
 -- Array stuff, with GHC.Arr on GHC
@@ -735,7 +743,7 @@ instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
 #endif
 
-INSTANCE_TYPEABLE1(Seq,seqTc,"Seq")
+INSTANCE_TYPEABLE1(Seq)
 
 #if __GLASGOW_HASKELL__
 instance Data a => Data (Seq a) where
@@ -1607,13 +1615,19 @@ data ViewRTree a = SnocRTree (FingerTree a) a | EmptyRTree
 data ViewL a
     = EmptyL        -- ^ empty sequence
     | a :< Seq a    -- ^ leftmost element and the rest of the sequence
-#if __GLASGOW_HASKELL__
-    deriving (Eq, Ord, Show, Read, Data)
-#else
     deriving (Eq, Ord, Show, Read)
+
+#if __GLASGOW_HASKELL__
+deriving instance Data a => Data (ViewL a)
+#endif
+#if __GLASGOW_HASKELL__ >= 706
+deriving instance Generic1 ViewL
+#endif
+#if __GLASGOW_HASKELL__ >= 702
+deriving instance Generic (ViewL a)
 #endif
 
-INSTANCE_TYPEABLE1(ViewL,viewLTc,"ViewL")
+INSTANCE_TYPEABLE1(ViewL)
 
 instance Functor ViewL where
     {-# INLINE fmap #-}
@@ -1666,13 +1680,19 @@ data ViewR a
     = EmptyR        -- ^ empty sequence
     | Seq a :> a    -- ^ the sequence minus the rightmost element,
             -- and the rightmost element
-#if __GLASGOW_HASKELL__
-    deriving (Eq, Ord, Show, Read, Data)
-#else
     deriving (Eq, Ord, Show, Read)
+
+#if __GLASGOW_HASKELL__
+deriving instance Data a => Data (ViewR a)
+#endif
+#if __GLASGOW_HASKELL__ >= 706
+deriving instance Generic1 ViewR
+#endif
+#if __GLASGOW_HASKELL__ >= 702
+deriving instance Generic (ViewR a)
 #endif
 
-INSTANCE_TYPEABLE1(ViewR,viewRTc,"ViewR")
+INSTANCE_TYPEABLE1(ViewR)
 
 instance Functor ViewR where
     {-# INLINE fmap #-}
