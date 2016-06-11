@@ -3530,25 +3530,42 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
-fromList = Seq . mkTree 1 . map_elem
+-- Note: we can avoid map_elem if we wish by scattering
+-- Elem applications throughout mkTreeE and getNodesE, but
+-- it gets a bit hard to read.
+fromList = Seq . mkTreeE 1 . map_elem
   where
-    {-# SPECIALIZE mkTree :: Int -> [Elem a] -> FingerTree (Elem a) #-}
-    {-# SPECIALIZE mkTree :: Int -> [Node a] -> FingerTree (Node a) #-}
-    mkTree :: (Sized a) => Int -> [a] -> FingerTree a
-    mkTree !_ [] = EmptyT
-    mkTree _ [x1] = Single x1
-    mkTree s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
-    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
-    mkTree s (x1:x2:x3:x4:xs) = case getNodes (3*s) x4 xs of
-      (ns, sf) -> case mkTree (3*s) ns of
+    mkTreeE :: Int -> [Elem a] -> FingerTree (Elem a)
+    mkTreeE !_ [] = EmptyT
+    mkTreeE _ [x1] = Single x1
+    mkTreeE s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
+    mkTreeE s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
+    mkTreeE s (x1:x2:x3:x4:xs) = case getNodesE (3*s) x4 xs of
+      ns :*: sf -> case mkTreeN (3*s) ns of
         !m -> Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
 
-    getNodes :: Int -> a -> [a] -> ([Node a], Digit a)
-    getNodes !_ x1 [] = ([], One x1)
-    getNodes _ x1 [x2] = ([], Two x1 x2)
-    getNodes _ x1 [x2, x3] = ([], Three x1 x2 x3)
-    getNodes s x1 (x2:x3:x4:xs) = (Node3 s x1 x2 x3:ns, d)
-       where (ns, d) = getNodes s x4 xs
+    mkTreeN :: Int -> SList (Node a) -> FingerTree (Node a)
+    mkTreeN !_ SNil = EmptyT
+    mkTreeN _ (SCons x1 SNil) = Single x1
+    mkTreeN s (SCons x1 (SCons x2 SNil)) = Deep (2*s) (One x1) EmptyT (One x2)
+    mkTreeN s (SCons x1 (SCons x2 (SCons x3 SNil))) = Deep (3*s) (One x1) EmptyT (Two x2 x3)
+    mkTreeN s (SCons x1 (SCons x2 (SCons x3 (SCons x4 xs)))) = case getNodesN (3*s) x4 xs of
+      ns :*: sf -> case mkTreeN (3*s) ns of
+        !m -> Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
+
+    getNodesE :: Int -> a -> [a] -> StrictPair (SList (Node a)) (Digit a)
+    getNodesE !_ x1 [] = SNil :*: One x1
+    getNodesE _ x1 [x2] = SNil :*: Two x1 x2
+    getNodesE _ x1 [x2, x3] = SNil :*: Three x1 x2 x3
+    getNodesE s x1 (x2:x3:x4:xs) = SCons (Node3 s x1 x2 x3) ns :*: d
+       where !(ns :*: d) = getNodesE s x4 xs
+
+    getNodesN :: Int -> Node a -> SList (Node a) -> StrictPair (SList (Node (Node a))) (Digit (Node a))
+    getNodesN !_ x1 SNil = SNil :*: One x1
+    getNodesN _ x1 (SCons x2 SNil) = SNil :*: Two x1 x2
+    getNodesN _ x1 (SCons x2 (SCons x3 SNil)) = SNil :*: Three x1 x2 x3
+    getNodesN s x1 (SCons x2 (SCons x3 (SCons x4 xs))) = SCons (Node3 s x1 x2 x3) ns :*: d
+       where !(ns :*: d) = getNodesN s x4 xs
 
     map_elem :: [a] -> [Elem a]
 #if __GLASGOW_HASKELL__ >= 708
@@ -3557,6 +3574,10 @@ fromList = Seq . mkTree 1 . map_elem
     map_elem xs = Data.List.map Elem xs
 #endif
     {-# INLINE map_elem #-}
+
+-- A list strict in both its spine and elements. This seems to help
+-- GHC avoid forcing things that are already forced in fromList.
+data SList a = SNil | SCons !a !(SList a)
 
 #if __GLASGOW_HASKELL__ >= 708
 instance GHC.Exts.IsList (Seq a) where
