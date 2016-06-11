@@ -32,15 +32,23 @@
 
   * Derive `Generic` and `Generic1` for `Data.Tree`.
 
-  * Add `foldTree` for `Data.Tree`.
+  * Add `foldTree` for `Data.Tree`. (Thanks, Daniel Wagner!)
+
+  * Make `drawTree` handle newlines better. (Thanks, recursion-ninja!)
 
   * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
   
-  * Substantially speed up `splitAt` and (consequently) `zipWith` for
-    `Data.Sequence` by building the result sequences eagerly and rearranging
-    code to avoid allocating unnecessary intermediate structures. The
-    improvements are greatest for small sequences, but large even for long
-    ones. Reimplement `take` and `drop` to avoid building trees only to discard them.
+  * Substantially speed up `splitAt`, `zipWith`, `take`, `drop`,
+    `fromList`, and `partition` in `Data.Sequence`.
+
+  * Most operations in `Data.Sequence` advertised as taking logarithmic
+    time (including `><` and `adjust`) now use their full allotted time
+    to avoid potentially building up chains of thunks in the tree. In general,
+    the only remaining operations that avoid doing more than they
+    really need are bulk creation and transformation functions that
+    really benefit from the extra laziness. There are some situations
+    where this change may slow programs down, but I think having more
+    predictable and usually better performance more than makes up for that.
 
   * Roughly double the speeds of `foldl'` and `foldr'` for `Data.Sequence`
     by writing custom definitions instead of using the defaults.

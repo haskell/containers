@@ -35,6 +35,12 @@ main = do
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
          ]
+      , bgroup "fromList"
+         [ bench "10" $ nf S.fromList [(0 :: Int)..9]
+         , bench "100" $ nf S.fromList [(0 :: Int)..99]
+         , bench "1000" $ nf S.fromList [(0 :: Int)..999]
+         , bench "10000" $ nf S.fromList [(0 :: Int)..9999]
+         ]
       , bgroup "partition"
          [ bench "10" $ nf (S.partition even) s10
          , bench "100" $ nf (S.partition even) s100
