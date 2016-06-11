@@ -2,6 +2,8 @@
 
 ## 0.5.8.1
 
+### General package changes
+
   * Remove all attempts to support nhc98 and any versions of GHC
     before 7.0.
 
@@ -15,31 +17,41 @@
   * Use `BangPatterns` throughout to reduce noise. This extension
     is now *required* to compile `containers`.
 
-  * Add `alterF` for `Data.Map` and `Data.IntMap`.
+  * Improve QuickCheck properties taking arbitrary functions by using
+    `Test.QuickCheck.Function.Fun` instead of evil `Show` instances
+    for functions.
 
-  * Make `Data.Map.Strict.traverseWithKey` force result values before
-    installing them in the new map.
+### New exports and instances
+
+  * Add `alterF` for `Data.Map` and `Data.IntMap`.
 
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
-  * Add (!?), `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
+  * Add `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
     `foldMapWithIndex`, and `traverseWithIndex` for `Data.Sequence`.
-
-  * Make `splitAt` in `Data.Sequence` strict in its arguments. Previously,
-    it returned a lazy pair.
-
-  * Fix completely erroneous definition of `length` for `ViewR`.
 
   * Derive `Generic` and `Generic1` for `Data.Tree`.
 
   * Add `foldTree` for `Data.Tree`. (Thanks, Daniel Wagner!)
 
+### Semantic changes
+
+  * Make `Data.Sequence.splitAt` strict in its arguments. Previously,
+    it returned a lazy pair.
+
+  * Fix completely erroneous definition of `length` for `Data.Sequence.ViewR`.
+  
+  * Make `Data.Map.Strict.traverseWithKey` force result values before
+    installing them in the new map.
+
   * Make `drawTree` handle newlines better. (Thanks, recursion-ninja!)
 
-  * Slightly optimize `replicateA` and `traverse` for `Data.Sequence`.
-  
+### Performance changes
+
   * Substantially speed up `splitAt`, `zipWith`, `take`, `drop`,
-    `fromList`, and `partition` in `Data.Sequence`.
+    `fromList`, `partition`, `foldl'`, and `foldr'` for `Data.Sequence`.
+    Slightly optimize `replicateA`. Stop `traverse` from performing many
+    unnecessary `fmap` operations.
 
   * Most operations in `Data.Sequence` advertised as taking logarithmic
     time (including `><` and `adjust`) now use their full allotted time
@@ -50,9 +62,6 @@
     where this change may slow programs down, but I think having more
     predictable and usually better performance more than makes up for that.
 
-  * Roughly double the speeds of `foldl'` and `foldr'` for `Data.Sequence`
-    by writing custom definitions instead of using the defaults.
-
   * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
 
   * Speed up `adjust` for `Data.Map`.
@@ -61,9 +70,6 @@
 
   * Speed up deletion and alteration functions for `Data.IntMap`.
 
-  * Improve QuickCheck properties taking arbitrary functions by using
-    `Test.QuickCheck.Function.Fun` instead of evil `Show` instances
-    for functions.
 
 ## 0.5.7.1  *Dec 2015*
 
