@@ -83,7 +83,7 @@ data Tree a = Node {
 #endif
 type Forest a = [Tree a]
 
-INSTANCE_TYPEABLE1(Tree,treeTc,"Tree")
+INSTANCE_TYPEABLE1(Tree)
 
 instance Functor Tree where
     fmap = fmapTree

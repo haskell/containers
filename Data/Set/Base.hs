@@ -988,7 +988,7 @@ instance (Read a, Ord a) => Read (Set a) where
   Typeable/Data
 --------------------------------------------------------------------}
 
-INSTANCE_TYPEABLE1(Set,setTc,"Set")
+INSTANCE_TYPEABLE1(Set)
 
 {--------------------------------------------------------------------
   NFData

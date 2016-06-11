@@ -3124,7 +3124,7 @@ withEmpty bars = "   ":bars
   Typeable
 --------------------------------------------------------------------}
 
-INSTANCE_TYPEABLE2(Map,mapTc,"Map")
+INSTANCE_TYPEABLE2(Map)
 
 {--------------------------------------------------------------------
   Assertions

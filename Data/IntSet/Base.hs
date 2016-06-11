@@ -1075,7 +1075,7 @@ instance Read IntSet where
   Typeable
 --------------------------------------------------------------------}
 
-INSTANCE_TYPEABLE0(IntSet,intSetTc,"IntSet")
+INSTANCE_TYPEABLE0(IntSet)
 
 {--------------------------------------------------------------------
   NFData
