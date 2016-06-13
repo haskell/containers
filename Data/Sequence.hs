@@ -3553,39 +3553,49 @@ fromList        :: [a] -> Seq a
 -- Note: we can avoid map_elem if we wish by scattering
 -- Elem applications throughout mkTreeE and getNodesE, but
 -- it gets a bit hard to read.
-fromList = Seq . mkTreeE 1 . map_elem
+fromList = Seq . mkTree 1 . map_elem
   where
-    mkTreeE :: Int -> [Elem a] -> FingerTree (Elem a)
-    mkTreeE !_ [] = EmptyT
-    mkTreeE _ [x1] = Single x1
-    mkTreeE s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
-    mkTreeE s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
-    mkTreeE s (x1:x2:x3:x4:xs) = case getNodesE (3*s) x4 xs of
-      ns :*: sf -> case mkTreeN (3*s) ns of
-        !m -> Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
+    mkTree :: Int -> [Elem a] -> FingerTree (Elem a)
+    mkTree !_ [] = EmptyT
+    mkTree _ [x1] = Single x1
+    mkTree s [x1, x2] = Deep (2*s) (One x1) EmptyT (One x2)
+    mkTree s [x1, x2, x3] = Deep (3*s) (One x1) EmptyT (Two x2 x3)
+    mkTree s (x1:x2:x3:x4:xs) = mkTreeC cont (3*s) (getNodes (3*s) x4 xs)
+      where
+        -- cont :: Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Elem a)
+        cont d sub = Deep (3*size x1 + size d + size sub) (Three x1 x2 x3) sub d
 
-    mkTreeN :: Int -> SList (Node a) -> FingerTree (Node a)
-    mkTreeN !_ SNil = EmptyT
-    mkTreeN _ (SCons x1 SNil) = Single x1
-    mkTreeN s (SCons x1 (SCons x2 SNil)) = Deep (2*s) (One x1) EmptyT (One x2)
-    mkTreeN s (SCons x1 (SCons x2 (SCons x3 SNil))) = Deep (3*s) (One x1) EmptyT (Two x2 x3)
-    mkTreeN s (SCons x1 (SCons x2 (SCons x3 (SCons x4 xs)))) = case getNodesN (3*s) x4 xs of
-      ns :*: sf -> case mkTreeN (3*s) ns of
-        !m -> Deep (3*size x1 + size m + size sf) (Three x1 x2 x3) m sf
+    getNodes :: Int
+             -> a
+             -> [a]
+             -> ListFinal (Node a) (Digit a)
+    getNodes !_ x1 [] = LFinal (One x1)
+    getNodes _ x1 [x2] = LFinal (Two x1 x2)
+    getNodes _ x1 [x2, x3] = LFinal (Three x1 x2 x3)
+    getNodes s x1 (x2:x3:x4:xs) = LCons (Node3 s x1 x2 x3) (getNodes s x4 xs)
 
-    getNodesE :: Int -> a -> [a] -> StrictPair (SList (Node a)) (Digit a)
-    getNodesE !_ x1 [] = SNil :*: One x1
-    getNodesE _ x1 [x2] = SNil :*: Two x1 x2
-    getNodesE _ x1 [x2, x3] = SNil :*: Three x1 x2 x3
-    getNodesE s x1 (x2:x3:x4:xs) = SCons (Node3 s x1 x2 x3) ns :*: d
-       where !(ns :*: d) = getNodesE s x4 xs
+    mkTreeC :: (b -> FingerTree (Node a) -> c)
+            -> Int
+            -> ListFinal (Node a) b
+            -> c
+    mkTreeC cont !_ (LFinal b) = cont b EmptyT
+    mkTreeC cont _  (LCons x1 (LFinal b)) = cont b (Single x1)
+    mkTreeC cont s  (LCons x1 (LCons x2 (LFinal b))) = cont b (Deep (2*s) (One x1) EmptyT (One x2))
+    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LFinal b)))) = cont b (Deep (3*s) (One x1) EmptyT (Two x2 x3))
+    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 xs)))) = mkTreeC cont2 (3*s) (getNodesC (3*s) x4 xs)
+      where
+        d1 = Three x1 x2 x3
+        -- cont2 :: (b, Digit (Node a)) -> FingerTree (Node (Node a)) -> c
+        cont2 (b, !d) !sub = cont b $ Deep (3*size x1 + size d + size sub) d1 sub d
 
-    getNodesN :: Int -> Node a -> SList (Node a) -> StrictPair (SList (Node (Node a))) (Digit (Node a))
-    getNodesN !_ x1 SNil = SNil :*: One x1
-    getNodesN _ x1 (SCons x2 SNil) = SNil :*: Two x1 x2
-    getNodesN _ x1 (SCons x2 (SCons x3 SNil)) = SNil :*: Three x1 x2 x3
-    getNodesN s x1 (SCons x2 (SCons x3 (SCons x4 xs))) = SCons (Node3 s x1 x2 x3) ns :*: d
-       where !(ns :*: d) = getNodesN s x4 xs
+    getNodesC :: Int
+              -> a
+              -> ListFinal a b
+              -> ListFinal (Node a) (b, Digit a)
+    getNodesC !_ x1 (LFinal b) = LFinal (b, (One x1))
+    getNodesC _ x1 (LCons x2 (LFinal b)) = LFinal (b, (Two x1 x2))
+    getNodesC _ x1 (LCons x2 (LCons x3 (LFinal b))) = LFinal (b, (Three x1 x2 x3))
+    getNodesC s x1 (LCons x2 (LCons x3 (LCons x4 xs))) = LCons (Node3 s x1 x2 x3) (getNodesC s x4 xs)
 
     map_elem :: [a] -> [Elem a]
 #if __GLASGOW_HASKELL__ >= 708
@@ -3595,9 +3605,7 @@ fromList = Seq . mkTreeE 1 . map_elem
 #endif
     {-# INLINE map_elem #-}
 
--- A list strict in both its spine and elements. This seems to help
--- GHC avoid forcing things that are already forced in fromList.
-data SList a = SNil | SCons !a !(SList a)
+data ListFinal a cont = LFinal !cont | LCons !a (ListFinal a cont)
 
 #if __GLASGOW_HASKELL__ >= 708
 instance GHC.Exts.IsList (Seq a) where
