@@ -40,6 +40,7 @@ main = do
          , bench "100" $ nf S.fromList [(0 :: Int)..99]
          , bench "1000" $ nf S.fromList [(0 :: Int)..999]
          , bench "10000" $ nf S.fromList [(0 :: Int)..9999]
+         , bench "100000" $ nf S.fromList [(0 :: Int)..99999]
          ]
       , bgroup "partition"
          [ bench "10" $ nf (S.partition even) s10
