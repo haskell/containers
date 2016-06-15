@@ -3543,8 +3543,53 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- Lists
 ------------------------------------------------------------------------
 
--- The implementation below, by Ross Paterson, avoids the rebuilding
--- the previous (|>)-based implementation suffered from.
+-- The implementation below is based on an idea by Ross Paterson and
+-- implemented by Lennart Spitzner. It avoids the rebuilding the original
+-- (|>)-based implementation suffered from. It also avoids the excessive pair
+-- allocations Paterson's implementation suffered from.
+--
+-- David Feuer suggested building in nine-element chunks, which reduces
+-- intermediate conses from around (1/2)*n to around (1/8)*n with a concomitant
+-- improvement in benchmark constant factors. In fact, it should be even
+-- better to work in chunks of 27 `Elem`s and chunks of three `Node`s, rather
+-- than nine of each, but it seems hard to avoid a code explosion with
+-- such large chunks.
+--
+-- Paterson's code can be seen, for example, in
+-- https://github.com/haskell/containers/blob/74034b3244fa4817c7bef1202e639b887a975d9e/Data/Sequence.hs#L3532
+--
+-- Given a list
+--
+-- [1..302]
+--
+-- the original code forms Three 1 2 3 | [node3 4 5 6, node3 7 8 9, node3 10 11
+-- 12, ...] | Two 301 302
+--
+-- Then it recurses on the middle list. The middle lists become successively
+-- shorter as their elements become successively deeper nodes.
+--
+-- The original implementation of the list shortener, getNodes, included the
+-- recursive step
+
+--     getNodes s x1 (x2:x3:x4:xs) = (Node3 s x1 x2 x3:ns, d)
+--            where (ns, d) = getNodes s x4 xs
+
+-- This allocates a cons and a lazy pair at each 3-element step. It relies on
+-- the Haskell implementation using Wadler's technique, described in "Fixing
+-- some space leaks with a garbage collector"
+-- http://homepages.inf.ed.ac.uk/wadler/papers/leak/leak.ps.gz, to repeatedly
+-- simplify the `d` thunk. Although GHC uses this GC trick, heap profiling at
+-- least appears to indicate that the pair constructors and conses build up
+-- with this implementation.
+--
+-- Spitzner's implementation uses a similar approach, but replaces the middle
+-- list, in each level, with a customized stream type that finishes off with
+-- the final digit in that level and (since it works in nines) in the one
+-- above. To work around the nested tree structure, the overall computation is
+-- structured using continuation-passing style, with a function that, at the
+-- bottom of the tree, deals with a stream that terminates in a nested-pair
+-- representation of the entire right side of the tree. Perhaps someone will
+-- eventually find a less mind-bending way to accomplish this.
 
 -- | /O(n)/. Create a sequence from a finite list of elements.
 -- There is a function 'toList' in the opposite direction for all
@@ -3553,100 +3598,163 @@ fromList        :: [a] -> Seq a
 -- Note: we can avoid map_elem if we wish by scattering
 -- Elem applications throughout mkTreeE and getNodesE, but
 -- it gets a bit hard to read.
-fromList = Seq . mkTree 1 . map_elem
+fromList = Seq . mkTree . map_elem
   where
-    mkTree :: Int -> [Elem a] -> FingerTree (Elem a)
-    mkTree !_ [] = EmptyT
-    mkTree _ [x1]                                                                     = Single x1
-    mkTree s [x1, x2]                                                                 = Deep (2*s)  (One x1)         EmptyT (One x2)
-    mkTree s [x1, x2, x3]                                                             = Deep (3*s)  (One x1)         EmptyT (Two x2 x3)
-    mkTree s [x1, x2, x3, x4]                                                         = Deep (4*s)  (Three x1 x2 x3) EmptyT (One x4)
-    mkTree s [x1, x2, x3, x4, x5]                                                     = Deep (5*s)  (Three x1 x2 x3) EmptyT (Two x4 x5)
-    mkTree s [x1, x2, x3, x4, x5, x6]                                                 = Deep (6*s)  (Three x1 x2 x3) EmptyT (Three x4 x5 x6)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7]                                             = Deep (7*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (One x7)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8]                                         = Deep (8*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Two x7 x8)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9]                                     = Deep (9*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Three x7 x8 x9)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0]                                 = Deep (10*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (One y0)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1]                             = Deep (11*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Two y0 y1)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2]                         = Deep (12*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Three y0 y1 y2)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2, y3]                     = Deep (13*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (One y3)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2, y3, y4]                 = Deep (14*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (Two y3 y4)
-    mkTree s [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2, y3, y4, y5]             = Deep (15*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (Three y3 y4 y5)
-    mkTree s (x1:x2:x3:x4:x5:x6:x7:x8:x9:y0:y1:y2:y3:y4:y5:y6:xs) =
-        mkTreeC cont (9*s) (getNodes (3*s) (Node3 (3*s) y3 y4 y5) y6 xs)
+#ifdef __GLASGOW_HASKELL__
+    mkTree :: forall a' . [Elem a'] -> FingerTree (Elem a')
+#else
+    mkTree :: [Elem a] -> FingerTree (Elem a)
+#endif
+    mkTree [] = EmptyT
+    mkTree [x1] = Single x1
+    mkTree [x1, x2] = Deep 2 (One x1) EmptyT (One x2)
+    mkTree [x1, x2, x3] = Deep 3 (Two x1 x2) EmptyT (One x3)
+    mkTree [x1, x2, x3, x4] = Deep 4 (Two x1 x2) EmptyT (Two x3 x4)
+    mkTree [x1, x2, x3, x4, x5] = Deep 5 (Three x1 x2 x3) EmptyT (Two x4 x5)
+    mkTree [x1, x2, x3, x4, x5, x6] =
+      Deep 6 (Three x1 x2 x3) EmptyT (Three x4 x5 x6)
+    mkTree [x1, x2, x3, x4, x5, x6, x7] =
+      Deep 7 (Two x1 x2) (Single (Node3 3 x3 x4 x5)) (Two x6 x7)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8] =
+      Deep 8 (Three x1 x2 x3) (Single (Node3 3 x4 x5 x6)) (Two x7 x8)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, x9] =
+      Deep 9 (Three x1 x2 x3) (Single (Node3 3 x4 x5 x6)) (Three x7 x8 x9)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, y0, y1] =
+      Deep 10 (Two x1 x2)
+              (Deep 6 (One (Node3 3 x3 x4 x5)) EmptyT (One (Node3 3 x6 x7 x8)))
+              (Two y0 y1)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1] =
+      Deep 11 (Three x1 x2 x3)
+              (Deep 6 (One (Node3 3 x4 x5 x6)) EmptyT (One (Node3 3 x7 x8 x9)))
+              (Two y0 y1)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2] =
+      Deep 12 (Three x1 x2 x3)
+              (Deep 6 (One (Node3 3 x4 x5 x6)) EmptyT (One (Node3 3 x7 x8 x9)))
+              (Three y0 y1 y2)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, y0, y1, y2, y3, y4] =
+      Deep 13 (Two x1 x2)
+              (Deep 9 (Two (Node3 3 x3 x4 x5) (Node3 3 x6 x7 x8)) EmptyT (One (Node3 3 y0 y1 y2)))
+              (Two y3 y4)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2, y3, y4] =
+      Deep 14 (Three x1 x2 x3)
+              (Deep 9 (Two (Node3 3 x4 x5 x6) (Node3 3 x7 x8 x9)) EmptyT (One (Node3 3 y0 y1 y2)))
+              (Two y3 y4)
+    mkTree [x1, x2, x3, x4, x5, x6, x7, x8, x9, y0, y1, y2, y3, y4, y5] =
+      Deep 15 (Three x1 x2 x3)
+              (Deep 9 (Two (Node3 3 x4 x5 x6) (Node3 3 x7 x8 x9)) EmptyT (One (Node3 3 y0 y1 y2)))
+              (Three y3 y4 y5)
+    mkTree (x1:x2:x3:x4:x5:x6:x7:x8:x9:y0:y1:y2:y3:y4:y5:y6:xs) =
+        mkTreeC cont 9 (getNodes 3 (Node3 3 y3 y4 y5) y6 xs)
       where
         d2 = Three x1 x2 x3
-        d1 = Three (Node3 (3*s) x4 x5 x6) (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2)
-        -- cont :: (Digit (Node (Elem a)), Digit (Elem a)) -> FingerTree (Node (Node (Elem a))) -> FingerTree (Elem a1)
+        d1 = Three (Node3 3 x4 x5 x6) (Node3 3 x7 x8 x9) (Node3 3 y0 y1 y2)
+#ifdef __GLASGOW_HASKELL__
+        cont :: (Digit (Node (Elem a')), Digit (Elem a')) -> FingerTree (Node (Node (Elem a'))) -> FingerTree (Elem a')
+#endif
         cont (!r1, !r2) !sub =
-          let sub2 = Deep (3*s + size r2 + size sub1) d2 sub1 r2
-              sub1 = Deep (9*s + size r1 + size sub) d1 sub r1
-          in sub2
+          let !sub1 = Deep (9 + size r1 + size sub) d1 sub r1
+          in Deep (3 + size r2 + size sub1) d2 sub1 r2
 
-    getNodes :: Int
+    getNodes :: forall a . Int
              -> Node a
              -> a
              -> [a]
              -> ListFinal (Node (Node a)) (Digit (Node a), Digit a)
-    getNodes !_ n1 x1 []                              = LFinal (One n1, One x1)
-    getNodes _ n1 x1 [x2]                             = LFinal (One n1, Two x1 x2)
-    getNodes _ n1 x1 [x2, x3]                         = LFinal (One n1, Three x1 x2 x3)
-    getNodes s n1 x1 [x2, x3, x4]                     = let !n2 = Node3 s x1 x2 x3 in LFinal (Two n1 n2, One x4)
-    getNodes s n1 x1 [x2, x3, x4, x5]                 = let !n2 = Node3 s x1 x2 x3 in LFinal (Two n1 n2, Two x4 x5)
-    getNodes s n1 x1 [x2, x3, x4, x5, x6]             = let !n2 = Node3 s x1 x2 x3 in LFinal (Two n1 n2, Three x4 x5 x6)
-    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7]         = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal (Three n1 n2 n3, One x7)
-    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7, x8]     = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal (Three n1 n2 n3, Two x7 x8)
-    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7, x8, x9] = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal (Three n1 n2 n3, Three x7 x8 x9)
-    getNodes s !n1 x1 (x2:x3:x4:x5:x6:x7:x8:x9:x10:xs) = LCons n10 (getNodes s (Node3 s x7 x8 x9) x10 xs)
+    getNodes !_ n1 x1 [] = LFinal (One n1, One x1)
+    getNodes _ n1 x1 [x2] = LFinal (One n1, Two x1 x2)
+    getNodes _ n1 x1 [x2, x3] = LFinal (One n1, Three x1 x2 x3)
+    getNodes s n1 x1 [x2, x3, x4] = LFinal (Two n1 (Node3 s x1 x2 x3), One x4)
+    getNodes s n1 x1 [x2, x3, x4, x5] = LFinal (Two n1 (Node3 s x1 x2 x3), Two x4 x5)
+    getNodes s n1 x1 [x2, x3, x4, x5, x6] = LFinal (Two n1 (Node3 s x1 x2 x3), Three x4 x5 x6)
+    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7] = LFinal (Three n1 (Node3 s x1 x2 x3) (Node3 s x4 x5 x6), One x7)
+    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7, x8] = LFinal (Three n1 (Node3 s x1 x2 x3) (Node3 s x4 x5 x6), Two x7 x8)
+    getNodes s n1 x1 [x2, x3, x4, x5, x6, x7, x8, x9] = LFinal (Three n1 (Node3 s x1 x2 x3) (Node3 s x4 x5 x6), Three x7 x8 x9)
+    getNodes s n1 x1 (x2:x3:x4:x5:x6:x7:x8:x9:x10:xs) = LCons n10 (getNodes s (Node3 s x7 x8 x9) x10 xs)
       where !n2 = Node3 s x1 x2 x3
             !n3 = Node3 s x4 x5 x6
             !n10 = Node3 (3*s) n1 n2 n3
 
-    mkTreeC :: (b -> FingerTree (Node a) -> c)
+    mkTreeC ::
+#ifdef __GLASGOW_HASKELL__
+               forall a b c .
+#endif
+               (b -> FingerTree (Node a) -> c)
             -> Int
             -> ListFinal (Node a) b
             -> c
-    mkTreeC cont !_ (LFinal b)                                                                                                                                                                      = cont b EmptyT
-    mkTreeC cont _  (LCons x1 (LFinal b))                                                                                                                                                           = cont b (Single x1)
-    mkTreeC cont s  (LCons x1 (LCons x2 (LFinal b)))                                                                                                                                                = cont b (Deep (2*s)  (One x1) EmptyT (One x2))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LFinal b))))                                                                                                                                     = cont b (Deep (3*s)  (One x1) EmptyT (Two x2 x3))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LFinal b)))))                                                                                                                          = cont b (Deep (4*s)  (Three x1 x2 x3) EmptyT (One x4))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LFinal b))))))                                                                                                               = cont b (Deep (5*s)  (Three x1 x2 x3) EmptyT (Two x4 x5))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LFinal b)))))))                                                                                                    = cont b (Deep (6*s)  (Three x1 x2 x3) EmptyT (Three x4 x5 x6))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LFinal b))))))))                                                                                         = cont b (Deep (7*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (One x7))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LFinal b)))))))))                                                                              = cont b (Deep (8*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Two x7 x8))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LFinal b))))))))))                                                                   = cont b (Deep (9*s)  (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Three x7 x8 x9))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LFinal b)))))))))))                                                        = cont b (Deep (10*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (One y0))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LFinal b))))))))))))                                             = cont b (Deep (11*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Two y0 y1))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LFinal b)))))))))))))                                  = cont b (Deep (12*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Three y0 y1 y2))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LFinal b))))))))))))))                       = cont b (Deep (13*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (One y3))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LFinal b)))))))))))))))            = cont b (Deep (14*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (Two y3 y4))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LFinal b)))))))))))))))) = cont b (Deep (15*s) (Three x1 x2 x3) (Deep (9*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (Two (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2))) (Three y3 y4 y5))
-    mkTreeC cont s  (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LCons y6 xs)))))))))))))))) =
-        mkTreeC cont2 (9*s) (getNodesC (3*s) (Node3 (3*s) y3 y4 y5) y6 xs)
+    mkTreeC cont !_ (LFinal b) =
+      cont b EmptyT
+    mkTreeC cont _ (LCons x1 (LFinal b)) =
+      cont b (Single x1)
+    mkTreeC cont s (LCons x1 (LCons x2 (LFinal b))) =
+      cont b (Deep (2*s) (One x1) EmptyT (One x2))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LFinal b)))) =
+      cont b (Deep (3*s) (Two x1 x2) EmptyT (One x3))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LFinal b))))) =
+      cont b (Deep (4*s) (Two x1 x2) EmptyT (Two x3 x4))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LFinal b)))))) =
+      cont b (Deep (5*s) (Three x1 x2 x3) EmptyT (Two x4 x5))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LFinal b))))))) =
+      cont b (Deep (6*s) (Three x1 x2 x3) EmptyT (Three x4 x5 x6))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LFinal b)))))))) =
+      cont b (Deep (7*s) (Two x1 x2) (Single (Node3 (3*s) x3 x4 x5)) (Two x6 x7))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LFinal b))))))))) =
+      cont b (Deep (8*s) (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Two x7 x8))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LFinal b)))))))))) =
+      cont b (Deep (9*s) (Three x1 x2 x3) (Single (Node3 (3*s) x4 x5 x6)) (Three x7 x8 x9))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons y0 (LCons y1 (LFinal b))))))))))) =
+      cont b (Deep (10*s) (Two x1 x2) (Deep (6*s) (One (Node3 (3*s) x3 x4 x5)) EmptyT (One (Node3 (3*s) x6 x7 x8))) (Two y0 y1))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LFinal b)))))))))))) =
+      cont b (Deep (11*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Two y0 y1))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LFinal b))))))))))))) =
+      cont b (Deep (12*s) (Three x1 x2 x3) (Deep (6*s) (One (Node3 (3*s) x4 x5 x6)) EmptyT (One (Node3 (3*s) x7 x8 x9))) (Three y0 y1 y2))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LFinal b)))))))))))))) =
+      cont b (Deep (13*s) (Two x1 x2) (Deep (9*s) (Two (Node3 (3*s) x3 x4 x5) (Node3 (3*s) x6 x7 x8)) EmptyT (One (Node3 (3*s) y0 y1 y2))) (Two y3 y4))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LFinal b))))))))))))))) =
+      cont b (Deep (14*s) (Three x1 x2 x3) (Deep (9*s) (Two (Node3 (3*s) x4 x5 x6) (Node3 (3*s) x7 x8 x9)) EmptyT (One (Node3 (3*s) y0 y1 y2))) (Two y3 y4))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LFinal b)))))))))))))))) =
+      cont b (Deep (15*s) (Three x1 x2 x3) (Deep (9*s) (Two (Node3 (3*s) x4 x5 x6) (Node3 (3*s) x7 x8 x9)) EmptyT (One (Node3 (3*s) y0 y1 y2))) (Three y3 y4 y5))
+    mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LCons y6 xs)))))))))))))))) =
+      mkTreeC cont2 (9*s) (getNodesC (3*s) (Node3 (3*s) y3 y4 y5) y6 xs)
       where
-        -- cont2 :: (b, Digit (Node (Node a)), Digit (Node a)) -> FingerTree (Node (Node (Node a))) -> c
-        cont2 (b, !r1, !r2) !sub =
+#ifdef __GLASGOW_HASKELL__
+        cont2 :: (b, Digit (Node (Node a)), Digit (Node a)) -> FingerTree (Node (Node (Node a))) -> c
+#endif
+        cont2 (b, r1, r2) !sub =
           let d2 = Three x1 x2 x3
               d1 = Three (Node3 (3*s) x4 x5 x6) (Node3 (3*s) x7 x8 x9) (Node3 (3*s) y0 y1 y2)
-              sub2 = Deep (3*s + size r2 + size sub1) d2 sub1 r2
-              sub1 = Deep (9*s + size r1 + size sub) d1 sub r1
-          in cont b $ sub2
+              !sub1 = Deep (9*s + size r1 + size sub) d1 sub r1
+          in cont b $! Deep (3*s + size r2 + size sub1) d2 sub1 r2
 
     getNodesC :: Int
               -> Node a
               -> a
               -> ListFinal a b
               -> ListFinal (Node (Node a)) (b, Digit (Node a), Digit a)
-    getNodesC !_ !n1 x1 (LFinal b)                                                                                              = LFinal $ (b, One n1, One x1)
-    getNodesC _  n1  x1 (LCons x2 (LFinal b))                                                                                   = LFinal $ (b, One n1, Two x1 x2)
-    getNodesC _  n1  x1 (LCons x2 (LCons x3 (LFinal b)))                                                                        = LFinal $ (b, One n1, Three x1 x2 x3)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LFinal b))))                                                             = let !n2 = Node3 s x1 x2 x3 in LFinal $ (b, Two n1 n2, One x4)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LFinal b)))))                                                  = let !n2 = Node3 s x1 x2 x3 in LFinal $ (b, Two n1 n2, Two x4 x5)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LFinal b))))))                                       = let !n2 = Node3 s x1 x2 x3 in LFinal $ (b, Two n1 n2, Three x4 x5 x6)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LFinal b)))))))                            = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal $ (b, Three n1 n2 n3, One x7)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LFinal b))))))))                 = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal $ (b, Three n1 n2 n3, Two x7 x8)
-    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LFinal b)))))))))      = let !n2 = Node3 s x1 x2 x3; !n3 = Node3 s x4 x5 x6 in LFinal $ (b, Three n1 n2 n3, Three x7 x8 x9)
+    getNodesC !_ n1 x1 (LFinal b) = LFinal $ (b, One n1, One x1)
+    getNodesC _  n1  x1 (LCons x2 (LFinal b)) = LFinal $ (b, One n1, Two x1 x2)
+    getNodesC _  n1  x1 (LCons x2 (LCons x3 (LFinal b))) = LFinal $ (b, One n1, Three x1 x2 x3)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LFinal b)))) =
+      let !n2 = Node3 s x1 x2 x3
+      in LFinal $ (b, Two n1 n2, One x4)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LFinal b))))) =
+      let !n2 = Node3 s x1 x2 x3
+      in LFinal $ (b, Two n1 n2, Two x4 x5)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LFinal b)))))) =
+      let !n2 = Node3 s x1 x2 x3
+      in LFinal $ (b, Two n1 n2, Three x4 x5 x6)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LFinal b))))))) =
+      let !n2 = Node3 s x1 x2 x3
+          !n3 = Node3 s x4 x5 x6
+      in LFinal $ (b, Three n1 n2 n3, One x7)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LFinal b)))))))) =
+      let !n2 = Node3 s x1 x2 x3
+          !n3 = Node3 s x4 x5 x6
+      in LFinal $ (b, Three n1 n2 n3, Two x7 x8)
+    getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LFinal b))))))))) =
+      let !n2 = Node3 s x1 x2 x3
+          !n3 = Node3 s x4 x5 x6
+      in LFinal $ (b, Three n1 n2 n3, Three x7 x8 x9)
     getNodesC s  n1  x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons x10 xs))))))))) =
         LCons n10 $ getNodesC s (Node3 s x7 x8 x9) x10 xs
       where !n2 = Node3 s x1 x2 x3
