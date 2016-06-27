@@ -114,6 +114,7 @@ module Data.Set.Base (
             , size
             , member
             , notMember
+            , lookup
             , lookupLT
             , lookupGT
             , lookupLE
@@ -194,7 +195,7 @@ module Data.Set.Base (
             , merge
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map)
+import Prelude hiding (filter,foldl,foldr,null,map,lookup)
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 #if !MIN_VERSION_base(4,8,0)
@@ -368,6 +369,21 @@ notMember a t = not $ member a t
 {-# INLINABLE notMember #-}
 #else
 {-# INLINE notMember #-}
+#endif
+
+-- | /O(log n)/. Find the given element and return the copy contained in the set.
+lookup :: Ord a => a -> Set a -> Maybe a
+lookup = go
+  where
+    go !_ Tip = Nothing
+    go x (Bin _ y l r) = case compare x y of
+      LT -> go x l
+      GT -> go x r
+      EQ -> Just y
+#if __GLASGOW_HASKELL__
+{-# INLINABLE lookup #-}
+#else
+{-# INLINE lookup #-}
 #endif
 
 -- | /O(log n)/. Find largest element smaller than the given one.
