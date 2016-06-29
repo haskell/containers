@@ -51,15 +51,17 @@
 
   * Substantially speed up `splitAt`, `zipWith`, `take`, `drop`,
     `fromList`, `partition`, `foldl'`, and `foldr'` for `Data.Sequence`.
-    Slightly optimize `replicateA`. Stop `traverse` from performing many
-    unnecessary `fmap` operations.
+    Special thanks to Lennart Spitzner for digging into the performance
+    problems with previous versions of `fromList` and finding a way to
+    make it really fast. Slightly optimize `replicateA`. Stop `traverse`
+    from performing many unnecessary `fmap` operations.
 
   * Most operations in `Data.Sequence` advertised as taking logarithmic
     time (including `><` and `adjust`) now use their full allotted time
     to avoid potentially building up chains of thunks in the tree. In general,
     the only remaining operations that avoid doing more than they
-    really need are bulk creation and transformation functions that
-    really benefit from the extra laziness. There are some situations
+    really need are the particular bulk creation and transformation functions
+    that really benefit from the extra laziness. There are some situations
     where this change may slow programs down, but I think having more
     predictable and usually better performance more than makes up for that.
 
