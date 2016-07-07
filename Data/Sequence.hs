@@ -153,6 +153,7 @@ module Data.Sequence (
     (!?),           -- :: Seq a -> Int -> Maybe a
     index,          -- :: Seq a -> Int -> a
     adjust,         -- :: (a -> a) -> Int -> Seq a -> Seq a
+    adjust',        -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
     take,           -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
@@ -359,6 +360,13 @@ instance MaybeForce (Node a) where
   maybeRwhnf !_ = ()
   {-# INLINE maybeRwhnf #-}
 
+-- A wrapper making mseq = seq
+newtype ForceBox a = ForceBox a
+instance MaybeForce (ForceBox a) where
+  maybeRwhnf !_ = ()
+instance Sized (ForceBox a) where
+  size _ = 1
+
 -- | General-purpose finite sequences.
 newtype Seq a = Seq (FingerTree (Elem a))
 
@@ -423,7 +431,7 @@ instance Foldable Seq where
 -- `FingerTree a`, stripping off all the Elem junk, then use a weird FingerTree
 -- traversing function that coerces back to Seq within the functor.
 instance Traversable Seq where
-    traverse f (Seq xs) = traverseFTE f (coerce xs)
+    traverse f xs = traverseFTE f (coerce xs)
 
 traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
 traverseFTE _f EmptyT = pure empty
@@ -1788,6 +1796,11 @@ scanr1 f xs = case viewr xs of
 -- If the position is out of range, 'index' fails with an error.
 --
 -- prop> xs `index` i = toList xs !! i
+--
+-- Caution: 'index' necessarily delays retrieving the requested
+-- element until the result is forced. It can therefore lead to a space
+-- leak if the result is stored, unforced, in another structure. To retrieve
+-- an element immediately without forcing it, use 'lookup' or '(!?)'.
 index           :: Seq a -> Int -> a
 index (Seq xs) i
   -- See note on unsigned arithmetic in splitAt
@@ -1801,6 +1814,16 @@ index (Seq xs) i
 --
 -- prop> 0 <= i < length xs ==> lookup i xs == Just (toList xs !! i)
 -- prop> i < 0 || i >= length xs ==> lookup i xs = Nothing
+--
+-- Unlike 'index', this can be used to retrieve an element without
+-- forcing it. For example, to insert the fifth element of a sequence
+-- @xs@ into a 'Data.Map.Lazy.Map' @m@ at key @k@, you could use
+--
+-- @
+-- case lookup 5 xs of
+--   Nothing -> m
+--   Just x -> 'Data.Map.Lazy.insert' k x m
+-- @
 --
 -- @since 0.5.8
 lookup            :: Int -> Seq a -> Maybe a
@@ -1945,14 +1968,49 @@ updateDigit v i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | /O(log(min(i,n-i)))/. Update the element at the specified position.
--- If the position is out of range, the original sequence is returned.
+-- | /O(log(min(i,n-i)))/. Update the element at the specified position.  If
+-- the position is out of range, the original sequence is returned.  'adjust'
+-- can lead to poor performance and even memory leaks, because it does not
+-- force the new value before installing it in the sequence. 'adjust'' should
+-- usually be preferred.
 adjust          :: (a -> a) -> Int -> Seq a -> Seq a
 adjust f i (Seq xs)
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = Seq (adjustTree (`seq` fmap f) i xs)
   | otherwise   = Seq xs
 
+-- | /O(log(min(i,n-i)))/. Update the element at the specified position.
+-- If the position is out of range, the original sequence is returned.
+-- The new value is forced before it is installed in the sequence.
+--
+-- @
+-- adjust' f i xs =
+--  case xs !? i of
+--    Nothing -> xs
+--    Just x -> let !x' = f x
+--              in update i x' xs
+-- @
+--
+-- @since 0.5.8
+adjust'          :: forall a . (a -> a) -> Int -> Seq a -> Seq a
+#if __GLASGOW_HASKELL__ >= 708
+adjust' f i xs
+  -- See note on unsigned arithmetic in splitAt
+  | fromIntegral i < (fromIntegral (length xs) :: Word) =
+      coerce $ adjustTree (\ !_k (ForceBox a) -> ForceBox (f a)) i (coerce xs)
+  | otherwise   = xs
+#else
+-- This is inefficient, but fixing it would take a lot of fuss and bother
+-- for little immediate gain. We can deal with that when we have another
+-- Haskell implementation to worry about.
+adjust' f i xs =
+  case xs !? i of
+    Nothing -> xs
+    Just x -> let !x' = f x
+              in update i x' xs
+#endif
+
+{-# SPECIALIZE adjustTree :: (Int -> ForceBox a -> ForceBox a) -> Int -> FingerTree (ForceBox a) -> FingerTree (ForceBox a) #-}
 {-# SPECIALIZE adjustTree :: (Int -> Elem a -> Elem a) -> Int -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE adjustTree :: (Int -> Node a -> Node a) -> Int -> FingerTree (Node a) -> FingerTree (Node a) #-}
 adjustTree      :: (Sized a, MaybeForce a) => (Int -> a -> a) ->

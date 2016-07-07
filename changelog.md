@@ -27,7 +27,7 @@
 
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
-  * Add `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
+  * Add `adjust'`, `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
     `foldMapWithIndex`, and `traverseWithIndex` for `Data.Sequence`.
 
   * Derive `Generic` and `Generic1` for `Data.Tree.Tree`, `Data.Sequence.ViewL`,
