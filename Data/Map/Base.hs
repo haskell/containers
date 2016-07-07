@@ -216,6 +216,10 @@ module Data.Map.Base (
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Filter
     , filter
@@ -2436,6 +2440,21 @@ fromAscList xs
 {-# INLINABLE fromAscList #-}
 #endif
 
+-- | /O(n)/. Build a map from a descending list in linear time.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3, "b"), (5, "a")]
+-- > fromDescList [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "b")]
+-- > valid (fromDescList [(5,"a"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescList [(5,"a"), (3,"b"), (5,"b")]) == False
+
+fromDescList :: Eq k => [(k,a)] -> Map k a
+fromDescList xs
+  = fromDescListWithKey (\_ x _ -> x) xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescList #-}
+#endif
+
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
 --
@@ -2448,6 +2467,20 @@ fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWith #-}
+#endif
+
+-- | /O(n)/. Build a map from a descending list in linear time with a combining function for equal keys.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "ba")]
+-- > valid (fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
+
+fromDescListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
+fromDescListWith f xs
+  = fromDescListWithKey (\_ x y -> f x y) xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescListWith #-}
 #endif
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
@@ -2478,6 +2511,33 @@ fromAscListWithKey f xs
 {-# INLINABLE fromAscListWithKey #-}
 #endif
 
+-- | /O(n)/. Build a map from a descending list in linear time with a
+-- combining function for equal keys.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
+-- > fromDescListWithKey f [(5,"a"), (5,"b"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
+-- > valid (fromDescListWithKey f [(5,"a"), (5,"b"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
+fromDescListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
+fromDescListWithKey f xs
+  = fromDistinctDescList (combineEq f xs)
+  where
+  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
+  combineEq _ xs'
+    = case xs' of
+        []     -> []
+        [x]    -> [x]
+        (x:xx) -> combineEq' x xx
+
+  combineEq' z [] = [z]
+  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+    | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
+    | otherwise = z:combineEq' x xs'
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescListWithKey #-}
+#endif
+
 
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
 -- /The precondition is not checked./
@@ -2504,6 +2564,30 @@ fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
                       (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
                         (r, zs) -> (link ky y l r, zs)
 
+-- | /O(n)/. Build a map from a descending list of distinct elements in linear time.
+-- /The precondition is not checked./
+--
+-- > fromDistinctDescList [(5,"a"), (3,"b")] == fromList [(3, "b"), (5, "a")]
+-- > valid (fromDistinctDescList [(5,"a"), (3,"b")])          == True
+-- > valid (fromDistinctDescList [(5,"a"), (5,"b"), (3,"b")]) == False
+
+-- For some reason, when 'singleton' is used in fromDistinctDescList or in
+-- create, it is not inlined, so we inline it manually.
+fromDistinctDescList :: [(k,a)] -> Map k a
+fromDistinctDescList [] = Tip
+fromDistinctDescList ((kx0, x0) : xs0) = go (1 :: Int) (Bin 1 kx0 x0 Tip Tip) xs0
+  where
+     go !_ t [] = t
+     go s r ((kx, x) : xs) = case create s xs of
+                               (l, ys) -> go (s `shiftL` 1) (link kx x l r) ys
+
+     create !_ [] = (Tip, [])
+     create s xs@(x' : xs')
+       | s == 1 = case x' of (kx, x) -> (Bin 1 kx x Tip Tip, xs')
+       | otherwise = case create (s `shiftR` 1) xs of
+                       res@(_, []) -> res
+                       (r, (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                         (l, zs) -> (link ky y l r, zs)
 
 {--------------------------------------------------------------------
   Utility functions that return sub-ranges of the original
