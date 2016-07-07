@@ -165,6 +165,10 @@ module Data.Map.Lazy (
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Filter
     , M.filter

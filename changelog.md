@@ -25,6 +25,9 @@
 
   * Add `alterF` for `Data.Map` and `Data.IntMap`.
 
+  * Add `fromDescList`, `fromDescListWith`, `fromDescListWithKey`,
+    and `fromDistinctDescList` to `Data.Map`.
+
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
   * Add `adjust'`, `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,

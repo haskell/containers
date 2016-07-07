@@ -173,6 +173,10 @@ module Data.Map.Strict
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Filter
     , filter
@@ -268,6 +272,10 @@ import Data.Map.Base hiding
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -1215,10 +1223,15 @@ fromListWithKey f xs
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
 
-  Note that if [xs] is ascending that:
+  Note that if [xs] is ascending then:
     fromAscList xs       == fromList xs
     fromAscListWith f xs == fromListWith f xs
+
+  If [xs] is descending then:
+    fromDescList xs       == fromList xs
+    fromDescListWith f xs == fromListWith f xs
 --------------------------------------------------------------------}
+
 -- | /O(n)/. Build a map from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
 --
@@ -1226,12 +1239,25 @@ fromListWithKey f xs
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 -- > valid (fromAscList [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
-
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
   = fromAscListWithKey (\_ x _ -> x) xs
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
+#endif
+
+-- | /O(n)/. Build a map from a descending list in linear time.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3, "b"), (5, "a")]
+-- > fromDescList [(5,"a"), (5,"b"), (3,"a")] == fromList [(3, "b"), (5, "b")]
+-- > valid (fromDescList [(5,"a"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescList [(5,"a"), (3,"b"), (5,"b")]) == False
+fromDescList :: Eq k => [(k,a)] -> Map k a
+fromDescList xs
+  = fromDescListWithKey (\_ x _ -> x) xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescList #-}
 #endif
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a combining function for equal keys.
@@ -1246,6 +1272,20 @@ fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWith #-}
+#endif
+
+-- | /O(n)/. Build a map from a descending list in linear time with a combining function for equal keys.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "ba")]
+-- > valid (fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
+
+fromDescListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
+fromDescListWith f xs
+  = fromDescListWithKey (\_ x y -> f x y) xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescListWith #-}
 #endif
 
 -- | /O(n)/. Build a map from an ascending list in linear time with a
@@ -1276,6 +1316,34 @@ fromAscListWithKey f xs
 {-# INLINABLE fromAscListWithKey #-}
 #endif
 
+-- | /O(n)/. Build a map from a descending list in linear time with a
+-- combining function for equal keys.
+-- /The precondition (input list is descending) is not checked./
+--
+-- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
+-- > fromDescListWithKey f [(5,"a"), (5,"b"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
+-- > valid (fromDescListWithKey f [(5,"a"), (5,"b"), (5,"b"), (3,"b")]) == True
+-- > valid (fromDescListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
+
+fromDescListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
+fromDescListWithKey f xs
+  = fromDistinctDescList (combineEq f xs)
+  where
+  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
+  combineEq _ xs'
+    = case xs' of
+        []     -> []
+        [x]    -> [x]
+        (x:xx) -> combineEq' x xx
+
+  combineEq' z [] = [z]
+  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+    | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
+    | otherwise = z:combineEq' x xs'
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescListWithKey #-}
+#endif
+
 -- | /O(n)/. Build a map from an ascending list of distinct elements in linear time.
 -- /The precondition is not checked./
 --
@@ -1300,3 +1368,28 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip T
                       res@(_, []) -> res
                       (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
                         (r, zs) -> y `seq` (link ky y l r, zs)
+
+-- | /O(n)/. Build a map from a descending list of distinct elements in linear time.
+-- /The precondition is not checked./
+--
+-- > fromDistinctDescList [(5,"a"), (3,"b")] == fromList [(3, "b"), (5, "a")]
+-- > valid (fromDistinctDescList [(5,"a"), (3,"b")])          == True
+-- > valid (fromDistinctDescList [(5,"a"), (3,"b"), (3,"a")]) == False
+
+-- For some reason, when 'singleton' is used in fromDistinctDescList or in
+-- create, it is not inlined, so we inline it manually.
+fromDistinctDescList :: [(k,a)] -> Map k a
+fromDistinctDescList [] = Tip
+fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
+  where
+    go !_ t [] = t
+    go s r ((kx, x) : xs) = case create s xs of
+                              (l, ys) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
+
+    create !_ [] = (Tip, [])
+    create s xs@(x' : xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip, xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, []) -> res
+                      (r, (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (l, zs) -> y `seq` (link ky y l r, zs)

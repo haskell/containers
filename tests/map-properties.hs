@@ -25,6 +25,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun (..), apply)
+import Test.QuickCheck.Poly (A)
 
 default (Int)
 
@@ -101,6 +102,7 @@ main = defaultMain
          , testCase "fromAscListWith" test_fromAscListWith
          , testCase "fromAscListWithKey" test_fromAscListWithKey
          , testCase "fromDistinctAscList" test_fromDistinctAscList
+         , testCase "fromDistinctDescList" test_fromDistinctDescList
          , testCase "filter" test_filter
          , testCase "filterWithKey" test_filteWithKey
          , testCase "partition" test_partition
@@ -165,6 +167,8 @@ main = defaultMain
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromDescList"         prop_rev_ordered
+         , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
          , testProperty "toAscList+toDescList" prop_ascDescList
@@ -674,6 +678,12 @@ test_fromDistinctAscList = do
     valid (fromDistinctAscList [(3,"b"), (5,"a")])          @?= True
     valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) @?= False
 
+test_fromDistinctDescList :: Assertion
+test_fromDistinctDescList = do
+    fromDistinctDescList [(5,"a"), (3,"b")] @?= fromList [(3, "b"), (5, "a")]
+    valid (fromDistinctDescList [(5,"a"), (3,"b")])          @?= True
+    valid (fromDistinctDescList [(3,"b"), (5,"a"), (5,"b")]) @?= False
+
 ----------------------------------------------------------------
 -- Filter
 
@@ -1044,11 +1054,22 @@ prop_ordered
     let xs = [(x,()) | x <- [0..n::Int]]
     in fromAscList xs == fromList xs
 
+prop_rev_ordered :: Property
+prop_rev_ordered
+  = forAll (choose (5,100)) $ \n ->
+    let xs = [(x,()) | x <- [0..n::Int]]
+    in fromDescList (reverse xs) == fromList xs
+
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
+
+prop_fromDistinctDescList :: Int -> [A] -> Property
+prop_fromDistinctDescList top lst = valid converted .&&. (toList converted === reverse original) where
+  original = zip [top, (top-1)..0] lst
+  converted = fromDistinctDescList original
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
