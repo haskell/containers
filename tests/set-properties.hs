@@ -42,10 +42,12 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_IntValid" prop_IntValid
                    , testProperty "prop_Int" prop_Int
                    , testProperty "prop_Ordered" prop_Ordered
+                   , testProperty "prop_DescendingOrdered" prop_DescendingOrdered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
+                   , testProperty "prop_fromListDesc" prop_fromListDesc
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
@@ -268,7 +270,12 @@ prop_Int xs ys = toAscList (intersection (fromList xs) (fromList ys))
 prop_Ordered :: Property
 prop_Ordered = forAll (choose (5,100)) $ \n ->
     let xs = [0..n::Int]
-    in fromAscList xs == fromList xs
+    in fromAscList xs === fromList xs
+
+prop_DescendingOrdered :: Property
+prop_DescendingOrdered = forAll (choose (5,100)) $ \n ->
+    let xs = [n,n-1..0::Int]
+    in fromDescList xs === fromList xs
 
 prop_List :: [Int] -> Bool
 prop_List xs = (sort (nub xs) == toList (fromList xs))
@@ -280,13 +287,22 @@ prop_AscDescList :: [Int] -> Bool
 prop_AscDescList xs = toAscList s == reverse (toDescList s)
   where s = fromList xs
 
-prop_fromList :: [Int] -> Bool
-prop_fromList xs
-  = case fromList xs of
-      t -> t == fromAscList sort_xs &&
-           t == fromDistinctAscList nub_sort_xs &&
-           t == List.foldr insert empty xs
-  where sort_xs = sort xs
+prop_fromList :: [Int] -> Property
+prop_fromList xs =
+           t === fromAscList sort_xs .&&.
+           t === fromDistinctAscList nub_sort_xs .&&.
+           t === List.foldr insert empty xs
+  where t = fromList xs
+        sort_xs = sort xs
+        nub_sort_xs = List.map List.head $ List.group sort_xs
+
+prop_fromListDesc :: [Int] -> Property
+prop_fromListDesc xs =
+           t === fromDescList sort_xs .&&.
+           t === fromDistinctDescList nub_sort_xs .&&.
+           t === List.foldr insert empty xs
+  where t = fromList xs
+        sort_xs = reverse (sort xs)
         nub_sort_xs = List.map List.head $ List.group sort_xs
 
 {--------------------------------------------------------------------

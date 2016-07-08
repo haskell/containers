@@ -28,6 +28,8 @@
   * Add `fromDescList`, `fromDescListWith`, `fromDescListWithKey`,
     and `fromDistinctDescList` to `Data.Map`.
 
+  * Add `fromDescList` and `fromDistinctDescList` to `Data.Set`.
+
   * Add `Empty`, `:<|`, and `:|>` pattern synonyms for `Data.Sequence`.
 
   * Add `adjust'`, `(!?)`, `lookup`, `chunksOf`, `cycleTaking`, `insertAt`, `deleteAt`, `intersperse`,
