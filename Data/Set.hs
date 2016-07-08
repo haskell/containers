@@ -129,7 +129,9 @@ module Data.Set (
             , toAscList
             , toDescList
             , fromAscList
+            , fromDescList
             , fromDistinctAscList
+            , fromDistinctDescList
 
             -- * Debugging
             , showTree

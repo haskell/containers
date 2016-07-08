@@ -181,6 +181,8 @@ module Data.Set.Base (
             , toDescList
             , fromAscList
             , fromDistinctAscList
+            , fromDescList
+            , fromDistinctDescList
 
             -- * Debugging
             , showTree
@@ -719,7 +721,7 @@ map f = fromList . List.map f . toList
 
 -- | /O(n)/. The
 --
--- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is monotonic.
+-- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
 -- /The precondition is not checked./
 -- Semi-formally, we have:
 --
@@ -904,24 +906,32 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
 -- | /O(n)/. Build a set from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: Eq a => [a] -> Set a
-fromAscList xs
-  = fromDistinctAscList (combineEq xs)
-  where
-  -- [combineEq xs] combines equal elements with [const] in an ordered list [xs]
-  combineEq xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
-
-  combineEq' z [] = [z]
-  combineEq' z (x:xs')
-    | z==x      =   combineEq' z xs'
-    | otherwise = z:combineEq' x xs'
+fromAscList xs = fromDistinctAscList (combineEq xs)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
 #endif
 
+-- | /O(n)/. Build a set from a descending list in linear time.
+-- /The precondition (input list is descending) is not checked./
+fromDescList :: Eq a => [a] -> Set a
+fromDescList xs = fromDistinctDescList (combineEq xs)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromDescList #-}
+#endif
+
+-- [combineEq xs] combines equal elements with [const] in an ordered list [xs]
+--
+-- TODO: combineEq allocates an intermediate list. It *should* be better to
+-- make fromAscListBy and fromDescListBy the fundamental operations, and to
+-- implement the rest using those.
+combineEq :: Eq a => [a] -> [a]
+combineEq [] = []
+combineEq (x : xs) = combineEq' x xs
+  where
+    combineEq' z [] = [z]
+    combineEq' z (y:ys)
+      | z == y = combineEq' z ys
+      | otherwise = z : combineEq' y ys
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
@@ -934,15 +944,36 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s l (x : xs) = case create s xs of
-                        (r, ys) -> go (s `shiftL` 1) (link x l r) ys
+                        (r :*: ys) -> go (s `shiftL` 1) (link x l r) ys
 
-    create !_ [] = (Tip, [])
+    create !_ [] = (Tip :*: [])
     create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip, xs')
+      | s == 1 = (Bin 1 x Tip Tip :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_, []) -> res
-                      (l, y:ys) -> case create (s `shiftR` 1) ys of
-                        (r, zs) -> (link y l r, zs)
+                      res@(_ :*: []) -> res
+                      (l :*: (y:ys)) -> case create (s `shiftR` 1) ys of
+                        (r :*: zs) -> (link y l r :*: zs)
+
+-- | /O(n)/. Build a set from a descending list of distinct elements in linear time.
+-- /The precondition (input list is strictly descending) is not checked./
+
+-- For some reason, when 'singleton' is used in fromDistinctDescList or in
+-- create, it is not inlined, so we inline it manually.
+fromDistinctDescList :: [a] -> Set a
+fromDistinctDescList [] = Tip
+fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+  where
+    go !_ t [] = t
+    go s r (x : xs) = case create s xs of
+                        (l :*: ys) -> go (s `shiftL` 1) (link x l r) ys
+
+    create !_ [] = (Tip :*: [])
+    create s xs@(x : xs')
+      | s == 1 = (Bin 1 x Tip Tip :*: xs')
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_ :*: []) -> res
+                      (r :*: (y:ys)) -> case create (s `shiftR` 1) ys of
+                        (l :*: zs) -> (link y l r :*: zs)
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
