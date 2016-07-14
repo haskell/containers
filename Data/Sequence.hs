@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-#if __GLASGOW_HASKELL__ >= 708
+#if __GLASGOW_HASKELL__ >= 800
 #define DEFINE_PATTERN_SYNONYMS 1
 #endif
 #if __GLASGOW_HASKELL__
@@ -70,28 +70,16 @@
 module Data.Sequence (
 #if defined(TESTING)
     Elem(..), FingerTree(..), Node(..), Digit(..),
-#if __GLASGOW_HASKELL__ >= 800
+#if defined(DEFINE_PATTERN_SYNONYMS)
     Seq (.., Empty, (:<|), (:|>)),
 #else
     Seq (..),
-#if defined(DEFINE_PATTERN_SYNONYMS)
-    -- * Pattern synonyms
-    pattern Empty,  -- :: Seq a
-    pattern (:<|),  -- :: a -> Seq a -> Seq a
-    pattern (:|>),  -- :: Seq a -> a -> Seq a
-#endif
 #endif
 
-#elif __GLASGOW_HASKELL__ >= 800
+#elif defined(DEFINE_PATTERN_SYNONYMS)
     Seq (Empty, (:<|), (:|>)),
 #else
     Seq,
-#if defined(DEFINE_PATTERN_SYNONYMS)
-    -- * Pattern synonyms
-    pattern Empty,  -- :: Seq a
-    pattern (:<|),  -- :: a -> Seq a -> Seq a
-    pattern (:|>),  -- :: Seq a -> a -> Seq a
-#endif
 #endif
     -- * Construction
     empty,          -- :: Seq a
@@ -294,42 +282,23 @@ infixl 5 :|>
 -- pattern match warnings for pattern synonyms, we should be
 -- sure to take advantage of that.
 
--- Unfortunately, there's some extra noise here because
--- pattern synonyms could not have signatures until 7.10,
--- but 8.0 at least will warn if they're missing.
-
 -- | A pattern synonym matching an empty sequence.
-#if __GLASGOW_HASKELL__ >= 710
 pattern Empty :: Seq a
-#else
-#endif
 pattern Empty = Seq EmptyT
-
--- Non-trivial bidirectional pattern synonyms are only
--- available in GHC >= 7.10. In earlier versions, these
--- can be used to match, but not to construct.
 
 -- | A pattern synonym viewing the front of a non-empty
 -- sequence.
-#if __GLASGOW_HASKELL__ >= 710
 pattern (:<|) :: a -> Seq a -> Seq a
-#endif
 pattern x :<| xs <- (viewl -> x :< xs)
-#if __GLASGOW_HASKELL__ >= 710
   where
     x :<| xs = x <| xs
-#endif
 
 -- | A pattern synonym viewing the rear of a non-empty
 -- sequence.
-#if __GLASGOW_HASKELL__ >= 710
 pattern (:|>) :: Seq a -> a -> Seq a
-#endif
 pattern xs :|> x <- (viewr -> xs :> x)
-#if __GLASGOW_HASKELL__ >= 710
   where
     xs :|> x = xs |> x
-#endif
 #endif
 
 class Sized a where
