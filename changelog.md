@@ -72,7 +72,9 @@
 
   * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
 
-  * Speed up `adjust` for `Data.Map`.
+  * Speed up `adjust` for `Data.Map`. Allow `map` to inline, and
+    define a custom `(<$)`. This considerably improves mapping with
+    a constant function.
 
   * Remove non-essential laziness in `Data.Map.Lazy` implementation.
 

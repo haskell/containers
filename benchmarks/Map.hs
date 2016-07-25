@@ -5,12 +5,13 @@ module Main where
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Criterion.Main (bench, defaultMain, whnf)
+import Criterion.Main (bench, defaultMain, whnf, nf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
 import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
+import Data.Functor ((<$))
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 #endif
@@ -24,6 +25,10 @@ main = do
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "map" $ whnf (M.map (+ 1)) m
+        , bench "map really" $ nf (M.map (+ 2)) m
+        , bench "<$" $ whnf ((1 :: Int) <$) m
+        , bench "<$ really" $ nf ((2 :: Int) <$) m
         , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
         , bench "alterF lookup present" $ whnf (atLookup evens) m_even
         , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
@@ -64,7 +69,6 @@ main = do
         , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
         , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
         , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
-        , bench "map" $ whnf (M.map (+ 1)) m
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ whnf (ins elems) m
 --         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
