@@ -1013,8 +1013,13 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map _ Tip = Tip
-map f (Bin sx kx x l r) = let x' = f x in x' `seq` Bin sx kx x' (map f l) (map f r)
+map f = go
+  where
+    go Tip = Tip
+    go (Bin sx kx x l r) = let !x' = f x in Bin sx kx x' (go l) (go r)
+-- We use `go` to let `map` inline. This is important if `f` is a constant
+-- function.
+
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
 {-# RULES

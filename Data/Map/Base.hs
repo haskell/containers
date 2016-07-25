@@ -1947,8 +1947,13 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map _ Tip = Tip
-map f (Bin sx kx x l r) = Bin sx kx (f x) (map f l) (map f r)
+map f = go where
+  go Tip = Tip
+  go (Bin sx kx x l r) = Bin sx kx (f x) (go l) (go r)
+-- We use a `go` function to allow `map` to inline. This makes
+-- a big difference if someone uses `map (const x) m` instead
+-- of `x <$ m`; it doesn't seem to do any harm.
+
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
 {-# RULES
@@ -3023,6 +3028,10 @@ instance (Ord k, Ord v) => Ord (Map k v) where
 --------------------------------------------------------------------}
 instance Functor (Map k) where
   fmap f m  = map f m
+#if __GLASGOW_HASKELL__
+a <$ Tip = Tip
+a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
+#endif
 
 instance Traversable (Map k) where
   traverse f = traverseWithKey (\_ -> f)
