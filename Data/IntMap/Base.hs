@@ -248,6 +248,7 @@ import Data.Utils.StrictPair
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
 import GHC.Exts (build)
+import Data.Functor ((<$))
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
@@ -1330,11 +1331,11 @@ isSubmapOfBy _         Nil _           = True
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> IntMap a -> IntMap b
-map f t
-  = case t of
-      Bin p m l r -> Bin p m (map f l) (map f r)
-      Tip k x     -> Tip k (f x)
-      Nil         -> Nil
+map f = go
+  where
+    go (Bin p m l r) = Bin p m (go l) (go r)
+    go (Tip k x)     = Tip k (f x)
+    go Nil           = Nil
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
@@ -2095,6 +2096,12 @@ instance Ord a => Ord (IntMap a) where
 
 instance Functor IntMap where
     fmap = map
+
+#ifdef __GLASGOW_HASKELL__
+    a <$ Bin p m l r = Bin p m (a <$ l) (a <$ r)
+    a <$ Tip k _     = Tip k a
+    a <$ Nil         = Nil
+#endif
 
 {--------------------------------------------------------------------
   Show

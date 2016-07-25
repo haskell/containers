@@ -767,11 +767,11 @@ updateMin f = updateMinWithKey (const f)
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> IntMap a -> IntMap b
-map f t
-  = case t of
-      Bin p m l r -> Bin p m (map f l) (map f r)
-      Tip k x     -> Tip k $! f x
-      Nil         -> Nil
+map f = go
+  where
+    go (Bin p m l r) = Bin p m (go l) (go r)
+    go (Tip k x)     = Tip k $! f x
+    go Nil           = Nil
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
