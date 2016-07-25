@@ -318,6 +318,7 @@ import Data.Utils.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build)
+import Data.Functor ((<$))
 #if USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #endif
@@ -3028,9 +3029,9 @@ instance (Ord k, Ord v) => Ord (Map k v) where
 --------------------------------------------------------------------}
 instance Functor (Map k) where
   fmap f m  = map f m
-#if __GLASGOW_HASKELL__
-a <$ Tip = Tip
-a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
+#ifdef __GLASGOW_HASKELL__
+  _ <$ Tip = Tip
+  a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
 #endif
 
 instance Traversable (Map k) where
