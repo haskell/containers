@@ -2100,7 +2100,7 @@ instance Functor IntMap where
 #ifdef __GLASGOW_HASKELL__
     a <$ Bin p m l r = Bin p m (a <$ l) (a <$ r)
     a <$ Tip k _     = Tip k a
-    a <$ Nil         = Nil
+    _ <$ Nil         = Nil
 #endif
 
 {--------------------------------------------------------------------
