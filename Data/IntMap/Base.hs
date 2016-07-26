@@ -164,6 +164,8 @@ module Data.IntMap.Base (
     -- * Filter
     , filter
     , filterWithKey
+    , restrictKeys
+    , withoutKeys
     , partition
     , partitionWithKey
 
@@ -958,6 +960,49 @@ differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMa
 differenceWithKey f m1 m2
   = mergeWithKey f id (const Nil) m1 m2
 
+-- | Remove all the keys in a given set from a map.
+--
+-- @
+-- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'IntSet.notMember'` s) m
+-- @
+--
+-- @since 0.5.8
+withoutKeys :: IntMap a -> IntSet.IntSet -> IntMap a
+withoutKeys = go
+  where
+    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+      | shorter m1 m2  = merge1
+      | shorter m2 m1  = merge2
+      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
+      | otherwise      = t1
+      where
+        merge1 | nomatch p2 p1 m1  = t1
+               | zero p2 m1        = binCheckLeft p1 m1 (go l1 t2) r1
+               | otherwise         = binCheckRight p1 m1 l1 (go r1 t2)
+        merge2 | nomatch p1 p2 m2  = t1
+               | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
+               | otherwise         = bin p2 m2 Nil (go t1 r2)
+
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
+      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = t1
+                                             | zero k2 m1 = binCheckLeft p1 m1 (merge t2 k2 l1) r1
+                                             | otherwise  = binCheckRight p1 m1 l1 (merge t2 k2 r1)
+            merge _ k2 t1@(Tip k1 _) | k1 == k2 = Nil
+                                     | otherwise = t1
+            merge _ _  Nil = Nil
+
+    go t1@(Bin _ _ _ _) IntSet.Nil = t1
+
+    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
+      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = t1
+                                                 | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
+                                                 | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
+            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = Nil
+                                          | otherwise = t1
+            merge t1 _  IntSet.Nil = t1
+
+    go Nil _ = Nil
+
 
 {--------------------------------------------------------------------
   Intersection
@@ -969,6 +1014,50 @@ differenceWithKey f m1 m2
 intersection :: IntMap a -> IntMap b -> IntMap a
 intersection m1 m2
   = mergeWithKey' bin const (const Nil) (const Nil) m1 m2
+
+-- | /O(n+m)/. The restriction of a map to the keys in a set.
+--
+-- @
+-- m `restrictKeys` s = 'filterWithKey' (\k _ -> k `'IntSet.member'` s) m
+-- @
+--
+-- @since 0.5.8
+restrictKeys :: IntMap a -> IntSet.IntSet -> IntMap a
+restrictKeys = go
+  where
+    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+      | shorter m1 m2  = merge1
+      | shorter m2 m1  = merge2
+      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
+      | otherwise      = Nil
+      where
+        merge1 | nomatch p2 p1 m1  = Nil
+               | zero p2 m1        = bin p1 m1 (go l1 t2) Nil
+               | otherwise         = bin p1 m1 Nil (go r1 t2)
+        merge2 | nomatch p1 p2 m2  = Nil
+               | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
+               | otherwise         = bin p2 m2 Nil (go t1 r2)
+
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
+      where merge t2 k2 (Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = Nil
+                                          | zero k2 m1 = bin p1 m1 (merge t2 k2 l1) Nil
+                                          | otherwise  = bin p1 m1 Nil (merge t2 k2 r1)
+            merge _ k2 t1@(Tip k1 _) | k1 == k2 = t1
+                                     | otherwise = Nil
+            merge _ _  Nil = Nil
+
+    go (Bin _ _ _ _) IntSet.Nil = Nil
+
+    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
+      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2)
+              | nomatch k1 p2 m2 = Nil
+              | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
+              | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
+            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = t1
+                                          | otherwise = Nil
+            merge _ _  IntSet.Nil = Nil
+
+    go Nil _ = Nil
 
 -- | /O(n+m)/. The intersection with a combining function.
 --

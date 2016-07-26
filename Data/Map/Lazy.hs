@@ -173,6 +173,8 @@ module Data.Map.Lazy (
     -- * Filter
     , M.filter
     , filterWithKey
+    , restrictKeys
+    , withoutKeys
     , partition
     , partitionWithKey
 

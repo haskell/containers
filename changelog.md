@@ -23,7 +23,8 @@
 
 ### New exports and instances
 
-  * Add `alterF` for `Data.Map` and `Data.IntMap`.
+  * Add `alterF`, `restrictKeys`, and `withoutKeys` to `Data.Map`
+    and `Data.IntMap`.
 
   * Add `fromDescList`, `fromDescListWith`, `fromDescListWithKey`,
     and `fromDistinctDescList` to `Data.Map`.

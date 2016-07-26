@@ -194,6 +194,9 @@ module Data.Set.Base (
             , balanced
             , link
             , merge
+
+            -- Used by Data.Map.Base
+            , trim
             ) where
 
 import Prelude hiding (filter,foldl,foldr,null,map)
@@ -211,6 +214,7 @@ import Control.DeepSeq (NFData(rnf))
 
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
+import Data.Utils.StrictMaybe
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
@@ -1046,8 +1050,6 @@ instance NFData a => NFData (Set a) where
   [splitMember k t]     Just like [split] but also returns whether [k]
                         was found in the tree.
 --------------------------------------------------------------------}
-
-data MaybeS a = NothingS | JustS !a
 
 {--------------------------------------------------------------------
   [trim blo bhi t] trims away all subtrees that surely contain no

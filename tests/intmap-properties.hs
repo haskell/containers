@@ -16,7 +16,7 @@ import qualified Prelude (map)
 
 import Data.List (nub,sort)
 import qualified Data.List as List
-import qualified Data.IntSet
+import qualified Data.IntSet as IntSet
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -506,13 +506,13 @@ test_assocs = do
 
 test_keysSet :: Assertion
 test_keysSet = do
-    keysSet (fromList [(5,"a"), (3,"b")]) @?= Data.IntSet.fromList [3,5]
-    keysSet (empty :: UMap) @?= Data.IntSet.empty
+    keysSet (fromList [(5,"a"), (3,"b")]) @?= IntSet.fromList [3,5]
+    keysSet (empty :: UMap) @?= IntSet.empty
 
 test_fromSet :: Assertion
 test_fromSet = do
-   fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
-   fromSet undefined Data.IntSet.empty @?= (empty :: IMap)
+   fromSet (\k -> replicate k 'a') (IntSet.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
+   fromSet undefined IntSet.empty @?= (empty :: IMap)
 
 ----------------------------------------------------------------
 -- Lists
@@ -803,6 +803,18 @@ prop_intersectionWithKeyModel xs ys
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
 
+prop_restrictKeys :: IMap -> IMap -> Property
+prop_restrictKeys m s0 = m `restrictKeys` s === filterWithKey (\k _ -> k `IntSet.member` s) m
+  where
+    s = keysSet s0
+    restricted = restrictKeys m s
+
+prop_withoutKeys :: IMap -> IMap -> Property
+prop_withoutKeys m s0 = m `withoutKeys` s === filterWithKey (\k _ -> k `IntSet.notMember` s) m
+  where
+    s = keysSet s0
+    reduced = withoutKeys m s
+
 prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_mergeWithKeyModel xs ys
   = and [ testMergeWithKey f keep_x keep_y
@@ -1055,9 +1067,9 @@ prop_foldl' n ys = length ys > 0 ==>
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
-  keysSet (fromList xs) == Data.IntSet.fromList (List.map fst xs)
+  keysSet (fromList xs) == IntSet.fromList (List.map fst xs)
 
 prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (Data.IntSet.fromList $ List.map fst xs) == fromList xs
+  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
