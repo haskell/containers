@@ -169,6 +169,8 @@ module Data.IntMap.Lazy (
     -- * Filter
     , IM.filter
     , filterWithKey
+    , restrictKeys
+    , withoutKeys
     , partition
     , partitionWithKey
 

@@ -224,6 +224,8 @@ module Data.Map.Base (
     -- * Filter
     , filter
     , filterWithKey
+    , restrictKeys
+    , withoutKeys
     , partition
     , partitionWithKey
 
@@ -309,8 +311,10 @@ import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import qualified Data.Set.Base as Set
+import Data.Set.Base (Set)
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
+import Data.Utils.StrictMaybe
 import Data.Utils.BitQueue
 #if DEFINE_ALTERF_FALLBACK
 import Data.Utils.BitUtil (wordSize)
@@ -1578,7 +1582,7 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
 difference :: Ord k => Map k a -> Map k b -> Map k a
-difference Tip _   = Tip
+difference Tip !_   = Tip
 difference t1 Tip  = t1
 difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
 #if __GLASGOW_HASKELL__
@@ -1593,6 +1597,32 @@ hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t)
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeDiff #-}
+#endif
+
+-- | Remove all keys in a 'Set' from a 'Map'.
+--
+-- @
+-- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'Set.notMember'` s) m
+-- @
+--
+-- @since 0.5.8
+withoutKeys :: Ord k => Map k a -> Set k -> Map k a
+withoutKeys Tip !_ = Tip
+withoutKeys m Set.Tip = m
+withoutKeys m s = hedgeWithout NothingS NothingS m s
+#if __GLASGOW_HASKELL__
+{-# INLINABLE withoutKeys #-}
+#endif
+
+hedgeWithout :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Set a -> Map a b
+hedgeWithout _ _ Tip _ = Tip
+hedgeWithout blo bhi (Bin _ kx x l r) Set.Tip = link kx x (filterGt blo l) (filterLt bhi r)
+hedgeWithout blo bhi t (Set.Bin _ kx l r) =
+  merge (hedgeWithout blo bmi (trim blo bmi t) l)
+        (hedgeWithout bmi bhi (trim bmi bhi t) r)
+  where bmi = JustS kx
+#if __GLASGOW_HASKELL__
+{-# INLINABLE hedgeWithout #-}
 #endif
 
 -- | /O(n+m)/. Difference with a combining function.
@@ -1658,6 +1688,32 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
   where bmi = JustS kx
 #if __GLASGOW_HASKELL__
 {-# INLINABLE hedgeInt #-}
+#endif
+
+-- | Restrict a 'Map' to only those keys found in a 'Set'.
+--
+-- @
+-- m `restrictKeys` s = 'filterWithKey' (\k _ -> k `'Set.member'` s) m
+-- @
+--
+-- @since 0.5.8
+restrictKeys :: Ord k => Map k a -> Set k -> Map k a
+restrictKeys Tip _ = Tip
+restrictKeys _ Set.Tip = Tip
+restrictKeys t1 t2 = hedgeRestr NothingS NothingS t1 t2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE restrictKeys #-}
+#endif
+
+hedgeRestr :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Set k -> Map k a
+hedgeRestr _ _ _   Set.Tip = Tip
+hedgeRestr _ _ Tip _ = Tip
+hedgeRestr blo bhi (Bin _ kx x l r) t2 = let l' = hedgeRestr blo bmi l (Set.trim blo bmi t2)
+                                             r' = hedgeRestr bmi bhi r (Set.trim bmi bhi t2)
+                                       in if kx `Set.member` t2 then link kx x l' r' else merge l' r'
+  where bmi = JustS kx
+#if __GLASGOW_HASKELL__
+{-# INLINABLE hedgeRestr #-}
 #endif
 
 -- | /O(n+m)/. Intersection with a combining function.  The implementation uses
@@ -2612,8 +2668,6 @@ fromDistinctDescList ((kx0, x0) : xs0) = go (1 :: Int) (Bin 1 kx0 x0 Tip Tip) xs
   [splitLookup k t]     Just like [split] but also returns whether [k]
                         was found in the tree.
 --------------------------------------------------------------------}
-
-data MaybeS a = NothingS | JustS !a
 
 {--------------------------------------------------------------------
   [trim blo bhi t] trims away all subtrees that surely contain no

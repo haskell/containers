@@ -18,7 +18,7 @@ import qualified Prelude (map)
 
 import Data.List (nub,sort)
 import qualified Data.List as List
-import qualified Data.Set
+import qualified Data.Set as Set
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -159,7 +159,9 @@ main = defaultMain
          , testProperty "union sum"            prop_unionSum
          , testProperty "difference"           prop_difference
          , testProperty "difference model"     prop_differenceModel
+         , testProperty "withoutKeys"          prop_withoutKeys
          , testProperty "intersection"         prop_intersection
+         , testProperty "restrictKeys"         prop_restrictKeys
          , testProperty "intersection model"   prop_intersectionModel
          , testProperty "intersectionWith"     prop_intersectionWith
          , testProperty "intersectionWithModel" prop_intersectionWithModel
@@ -593,13 +595,13 @@ test_assocs = do
 
 test_keysSet :: Assertion
 test_keysSet = do
-    keysSet (fromList [(5,"a"), (3,"b")]) @?= Data.Set.fromList [3,5]
-    keysSet (empty :: UMap) @?= Data.Set.empty
+    keysSet (fromList [(5,"a"), (3,"b")]) @?= Set.fromList [3,5]
+    keysSet (empty :: UMap) @?= Set.empty
 
 test_fromSet :: Assertion
 test_fromSet = do
-   fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
-   fromSet undefined Data.Set.empty @?= (empty :: IMap)
+   fromSet (\k -> replicate k 'a') (Set.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
+   fromSet undefined Set.empty @?= (empty :: IMap)
 
 ----------------------------------------------------------------
 -- Lists
@@ -981,6 +983,18 @@ prop_differenceModel xs ys
   = sort (keys (difference (fromListWith (+) xs) (fromListWith (+) ys)))
     == sort ((List.\\) (nub (Prelude.map fst xs)) (nub (Prelude.map fst ys)))
 
+prop_restrictKeys :: IMap -> IMap -> Property
+prop_restrictKeys m s0 = valid restricted .&&. (m `restrictKeys` s === filterWithKey (\k _ -> k `Set.member` s) m)
+  where
+    s = keysSet s0
+    restricted = restrictKeys m s
+
+prop_withoutKeys :: IMap -> IMap -> Property
+prop_withoutKeys m s0 = valid reduced .&&. (m `withoutKeys` s === filterWithKey (\k _ -> k `Set.notMember` s) m)
+  where
+    s = keysSet s0
+    reduced = withoutKeys m s
+
 prop_intersection :: IMap -> IMap -> Bool
 prop_intersection t1 t2 = valid (intersection t1 t2)
 
@@ -1289,9 +1303,9 @@ prop_foldl' n ys = length ys > 0 ==>
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
-  keysSet (fromList xs) == Data.Set.fromList (List.map fst xs)
+  keysSet (fromList xs) == Set.fromList (List.map fst xs)
 
 prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (Data.Set.fromList $ List.map fst xs) == fromList xs
+  in fromSet (\k -> fromJust $ List.lookup k xs) (Set.fromList $ List.map fst xs) == fromList xs
