@@ -41,6 +41,11 @@
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
 --
+-- with some bounds given by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun, "Just Join for
+--      Parallel Ordered Sets", https://arxiv.org/abs/1602.02120
+--
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.  Of course, left-biasing can only be observed
@@ -48,8 +53,8 @@
 -- equality.
 --
 -- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
+-- this condition is not detected and if the size limit is exceeded, the
+-- behavior of the set is completely undefined.
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
@@ -88,10 +93,6 @@
 -- floats out of its enclosing function and then it heap-allocates the
 -- dictionary and the argument. Maybe it floats out too late and strictness
 -- analyzer cannot see that these could be passed on stack.
---
--- For example, change 'member' so that its local 'go' function is not passing
--- argument x and then look at the resulting code for hedgeInt.
-
 
 -- [Note: Order of constructors]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -194,9 +195,6 @@ module Data.Set.Base (
             , balanced
             , link
             , merge
-
-            -- Used by Data.Map.Base
-            , trim
             ) where
 
 import Prelude hiding (filter,foldl,foldr,null,map)
@@ -214,7 +212,6 @@ import Control.DeepSeq (NFData(rnf))
 
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
-import Data.Utils.StrictMaybe
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )
@@ -605,58 +602,37 @@ unions = foldlStrict union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | /O(n+m)/. The union of two sets, preferring the first set when
+-- | /O(m*log(n/m + 1)), m <= n/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
--- The implementation uses the efficient /hedge-union/ algorithm.
 union :: Ord a => Set a -> Set a -> Set a
-union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnion NothingS NothingS t1 t2
+union t1 (Bin _ x Tip Tip) = insertR x t1
+union (Bin _ x Tip Tip) t2 = insert x t2
+union Tip t2  = t2
+union (Bin _ x l r) t2 = case splitS x t2 of
+  (l2 :*: r2) -> link x (union l l2) (union r r2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
-#endif
-
-hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeUnion _   _   t1  Tip = t1
-hedgeUnion blo bhi Tip (Bin _ x l r) = link x (filterGt blo l) (filterLt bhi r)
-hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchmarks, this special case increases
-                                                          -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ x l r) t2 = link x (hedgeUnion blo bmi l (trim blo bmi t2))
-                                             (hedgeUnion bmi bhi r (trim bmi bhi t2))
-  where bmi = JustS x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeUnion #-}
 #endif
 
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(n+m)/. Difference of two sets.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
+-- | /O(m*log(n/m + 1)), m <= n/. Difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
+difference t1 (Bin _ x l2 r2) = case splitS x t1 of
+   (l1 :*: r1) -> merge (difference l1 l2) (difference r1 r2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
-#endif
-
-hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeDiff _   _   Tip           _ = Tip
-hedgeDiff blo bhi (Bin _ x l r) Tip = link x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
-                                          (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where bmi = JustS x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeDiff #-}
 #endif
 
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. The intersection of two sets.  The implementation uses an
--- efficient /hedge/ algorithm comparable with /hedge-union/.  Elements of the
--- result come from the first set, so for example
+-- | /O(m*log(n/m + 1)), m <= n/. The intersection of two sets.
+-- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
 -- > data AB = A | B deriving Show
@@ -669,20 +645,15 @@ hedgeDiff blo bhi t (Bin _ x l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
 intersection :: Ord a => Set a -> Set a -> Set a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
+intersection (Bin _ x l1 r1) t2
+  | b = link x l1l2 r1r2
+  | otherwise = merge l1l2 r1r2
+  where
+    !(l2, b, r2) = splitMember x t2
+    !l1l2 = intersection l1 l2
+    !r1r2 = intersection r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
-#endif
-
-hedgeInt :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeInt _ _ _   Tip = Tip
-hedgeInt _ _ Tip _   = Tip
-hedgeInt blo bhi (Bin _ x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
-                                        r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                    in if x `member` t2 then link x l' r' else merge l' r'
-  where bmi = JustS x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeInt #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1034,87 +1005,23 @@ instance NFData a => NFData (Set a) where
     rnf (Bin _ y l r) = rnf y `seq` rnf l `seq` rnf r
 
 {--------------------------------------------------------------------
-  Utility functions that return sub-ranges of the original
-  tree. Some functions take a `Maybe value` as an argument to
-  allow comparisons against infinite values. These are called `blow`
-  (Nothing is -\infty) and `bhigh` (here Nothing is +\infty).
-  We use MaybeS value, which is a Maybe strict in the Just case.
-
-  [trim blow bhigh t]   A tree that is either empty or where [x > blow]
-                        and [x < bhigh] for the value [x] of the root.
-  [filterGt blow t]     A tree where for all values [k]. [k > blow]
-  [filterLt bhigh t]    A tree where for all values [k]. [k < bhigh]
-
-  [split k t]           Returns two trees [l] and [r] where all values
-                        in [l] are <[k] and all keys in [r] are >[k].
-  [splitMember k t]     Just like [split] but also returns whether [k]
-                        was found in the tree.
---------------------------------------------------------------------}
-
-{--------------------------------------------------------------------
-  [trim blo bhi t] trims away all subtrees that surely contain no
-  values between the range [blo] to [bhi]. The returned tree is either
-  empty or the key of the root is between @blo@ and @bhi@.
---------------------------------------------------------------------}
-trim :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a
-trim NothingS   NothingS   t = t
-trim (JustS lx) NothingS   t = greater lx t where greater lo (Bin _ x _ r) | x <= lo = greater lo r
-                                                  greater _  t' = t'
-trim NothingS   (JustS hx) t = lesser hx t  where lesser  hi (Bin _ x l _) | x >= hi = lesser  hi l
-                                                  lesser  _  t' = t'
-trim (JustS lx) (JustS hx) t = middle lx hx t  where middle lo hi (Bin _ x _ r) | x <= lo = middle lo hi r
-                                                     middle lo hi (Bin _ x l _) | x >= hi = middle lo hi l
-                                                     middle _  _  t' = t'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE trim #-}
-#endif
-
-{--------------------------------------------------------------------
-  [filterGt b t] filter all values >[b] from tree [t]
-  [filterLt b t] filter all values <[b] from tree [t]
---------------------------------------------------------------------}
-filterGt :: Ord a => MaybeS a -> Set a -> Set a
-filterGt NothingS t = t
-filterGt (JustS b) t = filter' b t
-  where filter' _   Tip = Tip
-        filter' b' (Bin _ x l r) =
-          case compare b' x of LT -> link x (filter' b' l) r
-                               EQ -> r
-                               GT -> filter' b' r
-#if __GLASGOW_HASKELL__
-{-# INLINABLE filterGt #-}
-#endif
-
-filterLt :: Ord a => MaybeS a -> Set a -> Set a
-filterLt NothingS t = t
-filterLt (JustS b) t = filter' b t
-  where filter' _   Tip = Tip
-        filter' b' (Bin _ x l r) =
-          case compare x b' of LT -> link x l (filter' b' r)
-                               EQ -> l
-                               GT -> filter' b' l
-#if __GLASGOW_HASKELL__
-{-# INLINABLE filterLt #-}
-#endif
-
-{--------------------------------------------------------------------
   Split
 --------------------------------------------------------------------}
 -- | /O(log n)/. The expression (@'split' x set@) is a pair @(set1,set2)@
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split x0 t0 = toPair $ go x0 t0
-  where
-    go _ Tip = (Tip :*: Tip)
-    go x (Bin _ y l r)
-      = case compare x y of
-          LT -> let (lt :*: gt) = go x l in (lt :*: link y gt r)
-          GT -> let (lt :*: gt) = go x r in (link y l lt :*: gt)
-          EQ -> (l :*: r)
-#if __GLASGOW_HASKELL__
+split x t = toPair $ splitS x t
 {-# INLINABLE split #-}
-#endif
+
+splitS :: Ord a => a -> Set a -> StrictPair (Set a) (Set a)
+splitS _ Tip = (Tip :*: Tip)
+splitS x (Bin _ y l r)
+      = case compare x y of
+          LT -> let (lt :*: gt) = splitS x l in (lt :*: link y gt r)
+          GT -> let (lt :*: gt) = splitS x r in (link y l lt :*: gt)
+          EQ -> (l :*: r)
+{-# INLINABLE splitS #-}
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.

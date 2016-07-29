@@ -73,6 +73,11 @@
 
   * Add rewrite rules to fuse `fmap` with `reverse` for `Data.Sequence`.
 
+  * Switch from *hedge* algorithms to *divide-and-conquer* algorithms
+    for union, intersection, difference, and merge in both `Data.Map`
+    and `Data.Set`. These algorithms are simpler, are known to be
+    asymptotically optimal, and are faster according to our benchmarks.
+
   * Speed up `adjust` for `Data.Map`. Allow `map` to inline, and
     define a custom `(<$)`. This considerably improves mapping with
     a constant function.
