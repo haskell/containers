@@ -41,6 +41,11 @@
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
 --
+-- with some bounds given by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun, "Just Join for
+--      Parallel Ordered Sets", https://arxiv.org/abs/1602.02120
+--
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
 -- 'union' or 'insert'.  Of course, left-biasing can only be observed
@@ -48,8 +53,8 @@
 -- equality.
 --
 -- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
+-- this condition is not detected and if the size limit is exceeded, the
+-- behavior of the set is completely undefined.
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
@@ -88,10 +93,6 @@
 -- floats out of its enclosing function and then it heap-allocates the
 -- dictionary and the argument. Maybe it floats out too late and strictness
 -- analyzer cannot see that these could be passed on stack.
---
--- For example, change 'member' so that its local 'go' function is not passing
--- argument x and then look at the resulting code for hedgeInt.
-
 
 -- [Note: Order of constructors]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -605,27 +606,17 @@ unions = foldlStrict union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | /O(n+m)/. The union of two sets, preferring the first set when
+-- | /O(m*log(n/m + 1)), m <= n/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
--- The implementation uses the efficient /hedge-union/ algorithm.
 union :: Ord a => Set a -> Set a -> Set a
-union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnion NothingS NothingS t1 t2
+union t1 (Bin _ x Tip Tip) = insertR x t1
+union (Bin _ x Tip Tip) t2 = insert x t2
+union Tip t2  = t2
+union (Bin _ x l r) t2 = case splitS x t2 of
+  (l2 :*: r2) -> link x (union l l2) (union r r2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
-#endif
-
-hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Set a -> Set a -> Set a
-hedgeUnion _   _   t1  Tip = t1
-hedgeUnion blo bhi Tip (Bin _ x l r) = link x (filterGt blo l) (filterLt bhi r)
-hedgeUnion _   _   t1  (Bin _ x Tip Tip) = insertR x t1   -- According to benchmarks, this special case increases
-                                                          -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ x l r) t2 = link x (hedgeUnion blo bmi l (trim blo bmi t2))
-                                             (hedgeUnion bmi bhi r (trim bmi bhi t2))
-  where bmi = JustS x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeUnion #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1104,17 +1095,17 @@ filterLt (JustS b) t = filter' b t
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
-split x0 t0 = toPair $ go x0 t0
-  where
-    go _ Tip = (Tip :*: Tip)
-    go x (Bin _ y l r)
-      = case compare x y of
-          LT -> let (lt :*: gt) = go x l in (lt :*: link y gt r)
-          GT -> let (lt :*: gt) = go x r in (link y l lt :*: gt)
-          EQ -> (l :*: r)
-#if __GLASGOW_HASKELL__
+split x t = toPair $ splitS x t
 {-# INLINABLE split #-}
-#endif
+
+splitS :: Ord a => a -> Set a -> StrictPair (Set a) (Set a)
+splitS x Tip = (Tip :*: Tip)
+splitS x (Bin _ y l r)
+      = case compare x y of
+          LT -> let (lt :*: gt) = splitS x l in (lt :*: link y gt r)
+          GT -> let (lt :*: gt) = splitS x r in (link y l lt :*: gt)
+          EQ -> (l :*: r)
+{-# INLINABLE splitS #-}
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
