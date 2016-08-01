@@ -97,9 +97,6 @@
 -- dictionary and the argument. Maybe it floats out too late and strictness
 -- analyzer cannot see that these could be passed on stack.
 --
--- For example, change 'member' so that its local 'go' function is not passing
--- argument k and then look at the resulting code for hedgeInt.
-
 
 -- [Note: Order of constructors]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -286,11 +283,7 @@ module Data.Map.Base (
     , link
     , merge
     , glue
-    , trim
-    , trimLookupLo
     , MaybeS(..)
-    , filterGt
-    , filterLt
     ) where
 
 #if MIN_VERSION_base(4,8,0)
@@ -322,7 +315,9 @@ import Data.Utils.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build)
+#if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
+#endif
 #if USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #endif
@@ -1517,51 +1512,40 @@ unionsWith f ts
 {-# INLINABLE unionsWith #-}
 #endif
 
--- | /O(n+m)/.
+-- | /O(m*log(n/m + 1)), m <= n/.
 -- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@.
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
--- The implementation uses the efficient /hedge-union/ algorithm.
 --
 -- > union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "a"), (7, "C")]
 
 union :: Ord k => Map k a -> Map k a -> Map k a
-union Tip t2  = t2
 union t1 Tip  = t1
-union t1 t2 = hedgeUnion NothingS NothingS t1 t2
+union t1 (Bin _ k x Tip Tip) = insertR k x t1
+union (Bin _ k x Tip Tip) t2 = insert k x t2
+union Tip t2 = t2
+union (Bin _ k1 x1 l1 r1) t2 = case split k1 t2 of
+  (l2, r2) -> link k1 x1 (union l1 l2) (union r1 r2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
-#endif
-
--- left-biased hedge union
-hedgeUnion :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a b -> Map a b
-hedgeUnion _   _   t1  Tip = t1
-hedgeUnion blo bhi Tip (Bin _ kx x l r) = link kx x (filterGt blo l) (filterLt bhi r)
-hedgeUnion _   _   t1  (Bin _ kx x Tip Tip) = insertR kx x t1  -- According to benchmarks, this special case increases
-                                                              -- performance up to 30%. It does not help in difference or intersection.
-hedgeUnion blo bhi (Bin _ kx x l r) t2 = link kx x (hedgeUnion blo bmi l (trim blo bmi t2))
-                                                   (hedgeUnion bmi bhi r (trim bmi bhi t2))
-  where bmi = JustS kx
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeUnion #-}
 #endif
 
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
--- | /O(n+m)/. Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
+-- | /O(m*log(n/m + 1)), m <= n/. Union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWith f m1 m2
-  = unionWithKey (\_ x y -> f x y) m1 m2
+unionWith f t1 t2
+  = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) id id t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
 #endif
 
--- | /O(n+m)/.
--- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
+-- | /O(m*log(n/m + 1)), m <= n/.
+-- Union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -1575,54 +1559,35 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(n+m)/. Difference of two maps.
+-- | /O(m*log(n/m + 1)), m <= n/. Difference of two maps.
 -- Return elements of the first map not existing in the second map.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
 difference :: Ord k => Map k a -> Map k b -> Map k a
-difference Tip !_   = Tip
+difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 t2   = hedgeDiff NothingS NothingS t1 t2
+difference t1 (Bin _ k _ l2 r2) = case split k t1 of
+  (l1, r1) -> merge (difference l1 l2) (difference r1 r2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
 #endif
 
-hedgeDiff :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Map a c -> Map a b
-hedgeDiff _   _   Tip              _ = Tip
-hedgeDiff blo bhi (Bin _ kx x l r) Tip = link kx x (filterGt blo l) (filterLt bhi r)
-hedgeDiff blo bhi t (Bin _ kx _ l r) = merge (hedgeDiff blo bmi (trim blo bmi t) l)
-                                             (hedgeDiff bmi bhi (trim bmi bhi t) r)
-  where bmi = JustS kx
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeDiff #-}
-#endif
-
--- | Remove all keys in a 'Set' from a 'Map'.
+-- | /O(m*log(n/m + 1)), m <= n/. Remove all keys in a 'Set' from a 'Map'.
 --
 -- @
 -- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'Set.notMember'` s) m
 -- @
 --
 -- @since 0.5.8
+
 withoutKeys :: Ord k => Map k a -> Set k -> Map k a
-withoutKeys Tip !_ = Tip
+withoutKeys Tip _ = Tip
 withoutKeys m Set.Tip = m
-withoutKeys m s = hedgeWithout NothingS NothingS m s
+withoutKeys m (Set.Bin _ k ls rs) = case split k m of
+  (lm, rm) -> merge (withoutKeys lm ls) (withoutKeys rm rs)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE withoutKeys #-}
-#endif
-
-hedgeWithout :: Ord a => MaybeS a -> MaybeS a -> Map a b -> Set a -> Map a b
-hedgeWithout _ _ Tip _ = Tip
-hedgeWithout blo bhi (Bin _ kx x l r) Set.Tip = link kx x (filterGt blo l) (filterLt bhi r)
-hedgeWithout blo bhi t (Set.Bin _ kx l r) =
-  merge (hedgeWithout blo bmi (trim blo bmi t) l)
-        (hedgeWithout bmi bhi (trim bmi bhi t) r)
-  where bmi = JustS kx
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeWithout #-}
 #endif
 
 -- | /O(n+m)/. Difference with a combining function.
@@ -1630,15 +1595,12 @@ hedgeWithout blo bhi t (Set.Bin _ kx l r) =
 -- encountered, the combining function is applied to the values of these keys.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
 -- it returns (@'Just' y@), the element is updated with a new value @y@.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
 -- >     == singleton 3 "b:B"
-
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWith f m1 m2
-  = differenceWithKey (\_ x y -> f x y) m1 m2
+differenceWith f t1 t2 = mergeWithKey (\_ x y -> f x y) id (const Tip) t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
 #endif
@@ -1647,7 +1609,6 @@ differenceWith f m1 m2
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
 -- it returns (@'Just' y@), the element is updated with a new value @y@.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
 -- > differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
@@ -1663,34 +1624,28 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(n+m)/. Intersection of two maps.
+-- | /O(m*log(n/m + 1)), m <= n/. Intersection of two maps.
 -- Return data in the first map for the keys existing in both maps.
 -- (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
--- The implementation uses an efficient /hedge/ algorithm comparable with
--- /hedge-union/.
 --
 -- > intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "a"
 
 intersection :: Ord k => Map k a -> Map k b -> Map k a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1 t2 = hedgeInt NothingS NothingS t1 t2
+intersection (Bin _ k x l1 r1) t2 = case mb of
+  Nothing -> merge l1l2 r1r2
+  Just _ -> link k x l1l2 r1r2
+  where
+    !(l2, mb, r2) = splitLookup k t2
+    !l1l2 = intersection l1 l2
+    !r1r2 = intersection r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
 #endif
 
-hedgeInt :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k b -> Map k a
-hedgeInt _ _ _   Tip = Tip
-hedgeInt _ _ Tip _   = Tip
-hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi t2)
-                                           r' = hedgeInt bmi bhi r (trim bmi bhi t2)
-                                       in if kx `member` t2 then link kx x l' r' else merge l' r'
-  where bmi = JustS kx
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeInt #-}
-#endif
-
--- | Restrict a 'Map' to only those keys found in a 'Set'.
+-- | /O(m*log(n/m + 1)), m <= n/. Restrict a 'Map' to only those keys
+-- found in a 'Set'.
 --
 -- @
 -- m `restrictKeys` s = 'filterWithKey' (\k _ -> k `'Set.member'` s) m
@@ -1700,43 +1655,36 @@ hedgeInt blo bhi (Bin _ kx x l r) t2 = let l' = hedgeInt blo bmi l (trim blo bmi
 restrictKeys :: Ord k => Map k a -> Set k -> Map k a
 restrictKeys Tip _ = Tip
 restrictKeys _ Set.Tip = Tip
-restrictKeys t1 t2 = hedgeRestr NothingS NothingS t1 t2
+restrictKeys (Bin _ k x l1 r1) s
+  | b = link k x l1l2 r1r2
+  | otherwise = merge l1l2 r1r2
+  where
+    !(l2, b, r2) = Set.splitMember k s
+    !l1l2 = restrictKeys l1 l2
+    !r1r2 = restrictKeys r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE restrictKeys #-}
 #endif
 
-hedgeRestr :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Set k -> Map k a
-hedgeRestr _ _ _   Set.Tip = Tip
-hedgeRestr _ _ Tip _ = Tip
-hedgeRestr blo bhi (Bin _ kx x l r) t2 = let l' = hedgeRestr blo bmi l (Set.trim blo bmi t2)
-                                             r' = hedgeRestr bmi bhi r (Set.trim bmi bhi t2)
-                                       in if kx `Set.member` t2 then link kx x l' r' else merge l' r'
-  where bmi = JustS kx
-#if __GLASGOW_HASKELL__
-{-# INLINABLE hedgeRestr #-}
-#endif
-
--- | /O(n+m)/. Intersection with a combining function.  The implementation uses
--- an efficient /hedge/ algorithm comparable with /hedge-union/.
+-- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWith f m1 m2
-  = intersectionWithKey (\_ x y -> f x y) m1 m2
+intersectionWith f t1 t2 =
+  mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) (const Tip) (const Tip) t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.  The implementation uses
--- an efficient /hedge/ algorithm comparable with /hedge-union/.
+-- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
-
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
+intersectionWithKey f t1 t2 =
+  mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
 #endif
@@ -1788,28 +1736,25 @@ mergeWithKey f g1 g2 = go
   where
     go Tip t2 = g2 t2
     go t1 Tip = g1 t1
-    go t1 t2 = hedgeMerge NothingS NothingS t1 t2
-
-    hedgeMerge _   _   t1  Tip = g1 t1
-    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ link kx x (filterGt blo l) (filterLt bhi r)
-    hedgeMerge blo bhi (Bin _ kx x l r) t2 = let l' = hedgeMerge blo bmi l (trim blo bmi t2)
-                                                 (found, trim_t2) = trimLookupLo kx bhi t2
-                                                 r' = hedgeMerge bmi bhi r trim_t2
-                                             in case found of
-                                                  Nothing -> case g1 (singleton kx x) of
-                                                               Tip -> merge l' r'
-                                                               (Bin _ _ x' Tip Tip) -> link kx x' l' r'
-                                                               _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
-                                                  Just x2 -> case f kx x x2 of
-                                                               Nothing -> merge l' r'
-                                                               Just x' -> link kx x' l' r'
-      where bmi = JustS kx
+    go (Bin _ kx x l1 r1) t2 =
+      case found of
+        Nothing -> case g1 (singleton kx x) of
+                     Tip -> merge l' r'
+                     (Bin _ _ x' Tip Tip) -> link kx x' l' r'
+                     _ -> error "mergeWithKey: Given function only1 does not fulfill required conditions (see documentation)"
+        Just x2 -> case f kx x x2 of
+                     Nothing -> merge l' r'
+                     Just x' -> link kx x' l' r'
+      where
+        (l2, found, r2) = splitLookup kx t2
+        l' = go l1 l2
+        r' = go r1 r2
 {-# INLINE mergeWithKey #-}
 
 {--------------------------------------------------------------------
   Submap
 --------------------------------------------------------------------}
--- | /O(n+m)/.
+-- | /O(m*log(n/m + 1)), m <= n/.
 -- This function is defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
@@ -1818,7 +1763,7 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 {-# INLINABLE isSubmapOf #-}
 #endif
 
-{- | /O(n+m)/.
+{- | /O(m*log(n/m + 1)), m <= n/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
  all keys in @t1@ are in tree @t2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following
@@ -1856,7 +1801,7 @@ submap' f (Bin _ kx x l r) t
 {-# INLINABLE submap' #-}
 #endif
 
--- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
+-- | /O(m*log(n/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
@@ -1865,7 +1810,7 @@ isProperSubmapOf m1 m2
 {-# INLINABLE isProperSubmapOf #-}
 #endif
 
-{- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
+{- | /O(m*log(n/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
  @m1@ and @m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
@@ -2651,100 +2596,37 @@ fromDistinctDescList ((kx0, x0) : xs0) = go (1 :: Int) (Bin 1 kx0 x0 Tip Tip) xs
                        (r, (ky, y):ys) -> case create (s `shiftR` 1) ys of
                          (l, zs) -> (link ky y l r, zs)
 
-{--------------------------------------------------------------------
-  Utility functions that return sub-ranges of the original
-  tree. Some functions take a `Maybe value` as an argument to
-  allow comparisons against infinite values. These are called `blow`
-  (Nothing is -\infty) and `bhigh` (here Nothing is +\infty).
-  We use MaybeS value, which is a Maybe strict in the Just case.
-
-  [trim blow bhigh t]   A tree that is either empty or where [x > blow]
-                        and [x < bhigh] for the value [x] of the root.
-  [filterGt blow t]     A tree where for all values [k]. [k > blow]
-  [filterLt bhigh t]    A tree where for all values [k]. [k < bhigh]
-
-  [split k t]           Returns two trees [l] and [r] where all keys
-                        in [l] are <[k] and all keys in [r] are >[k].
-  [splitLookup k t]     Just like [split] but also returns whether [k]
-                        was found in the tree.
---------------------------------------------------------------------}
-
-{--------------------------------------------------------------------
-  [trim blo bhi t] trims away all subtrees that surely contain no
-  values between the range [blo] to [bhi]. The returned tree is either
-  empty or the key of the root is between @blo@ and @bhi@.
---------------------------------------------------------------------}
-trim :: Ord k => MaybeS k -> MaybeS k -> Map k a -> Map k a
-trim NothingS   NothingS   t = t
-trim (JustS lk) NothingS   t = greater lk t where greater lo (Bin _ k _ _ r) | k <= lo = greater lo r
-                                                  greater _  t' = t'
-trim NothingS   (JustS hk) t = lesser hk t  where lesser  hi (Bin _ k _ l _) | k >= hi = lesser  hi l
-                                                  lesser  _  t' = t'
-trim (JustS lk) (JustS hk) t = middle lk hk t  where middle lo hi (Bin _ k _ _ r) | k <= lo = middle lo hi r
-                                                     middle lo hi (Bin _ k _ l _) | k >= hi = middle lo hi l
-                                                     middle _  _  t' = t'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE trim #-}
-#endif
-
--- Helper function for 'mergeWithKey'. The @'trimLookupLo' lk hk t@ performs both
--- @'trim' (JustS lk) hk t@ and @'lookup' lk t@.
-
--- See Note: Type of local 'go' function
-trimLookupLo :: Ord k => k -> MaybeS k -> Map k a -> (Maybe a, Map k a)
-trimLookupLo lk0 mhk0 t0 = toPair $ go lk0 mhk0 t0
-  where
-    go lk NothingS t = greater lk t
-      where greater :: Ord k => k -> Map k a -> StrictPair (Maybe a) (Map k a)
-            greater lo t'@(Bin _ kx x l r) = case compare lo kx of
-                LT -> lookup lo l :*: t'
-                EQ -> (Just x :*: r)
-                GT -> greater lo r
-            greater _ Tip = (Nothing :*: Tip)
-    go lk (JustS hk) t = middle lk hk t
-      where middle :: Ord k => k -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
-            middle lo hi t'@(Bin _ kx x l r) = case compare lo kx of
-                LT | kx < hi -> lookup lo l :*: t'
-                   | otherwise -> middle lo hi l
-                EQ -> Just x :*: lesser hi r
-                GT -> middle lo hi r
-            middle _ _ Tip = (Nothing :*: Tip)
-
-            lesser :: Ord k => k -> Map k a -> Map k a
-            lesser hi (Bin _ k _ l _) | k >= hi = lesser hi l
-            lesser _ t' = t'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE trimLookupLo #-}
-#endif
-
+{-
+-- Functions very similar to these were used to implement
+-- hedge union, intersection, and difference algorithms that we no
+-- longer use. These functions, however, seem likely to be useful
+-- in their own right, so I'm leaving them here in case we end up
+-- exporting them.
 
 {--------------------------------------------------------------------
   [filterGt b t] filter all keys >[b] from tree [t]
   [filterLt b t] filter all keys <[b] from tree [t]
 --------------------------------------------------------------------}
-filterGt :: Ord k => MaybeS k -> Map k v -> Map k v
-filterGt NothingS t = t
-filterGt (JustS b) t = filter' b t
-  where filter' _   Tip = Tip
-        filter' b' (Bin _ kx x l r) =
-          case compare b' kx of LT -> link kx x (filter' b' l) r
-                                EQ -> r
-                                GT -> filter' b' r
+filterGt :: Ord k => k -> Map k v -> Map k v
+filterGt !_ Tip = Tip
+filterGt !b (Bin _ kx x l r) =
+  case compare b kx of LT -> link kx x (filterGt b l) r
+                       EQ -> r
+                       GT -> filterGt b r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE filterGt #-}
 #endif
 
-filterLt :: Ord k => MaybeS k -> Map k v -> Map k v
-filterLt NothingS t = t
-filterLt (JustS b) t = filter' b t
-  where filter' _   Tip = Tip
-        filter' b' (Bin _ kx x l r) =
-          case compare kx b' of LT -> link kx x l (filter' b' r)
-                                EQ -> l
-                                GT -> filter' b' l
+filterLt :: Ord k => k -> Map k v -> Map k v
+filterLt !_ Tip = Tip
+filterLt !b (Bin _ kx x l r) =
+  case compare kx b of LT -> link kx x l (filterLt b r)
+                       EQ -> l
+                       GT -> filterLt b l
 #if __GLASGOW_HASKELL__
 {-# INLINABLE filterLt #-}
 #endif
+-}
 
 {--------------------------------------------------------------------
   Split
@@ -2783,20 +2665,29 @@ split !k0 t0 = toPair $ go k0 t0
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup !k t =
-  case t of
-    Tip            -> (Tip,Nothing,Tip)
-    Bin _ kx x l r -> case compare k kx of
-      LT -> let (lt,z,gt) = splitLookup k l
-                !gt' = link kx x gt r
-            in (lt,z,gt')
-      GT -> let (lt,z,gt) = splitLookup k r
-                !lt' = link kx x l lt
-            in (lt',z,gt)
-      EQ -> (l,Just x,r)
+splitLookup k m = case splitLookupS k m of
+  StrictTriple l mv r -> (l, mv, r)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitLookup #-}
 #endif
+
+splitLookupS :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
+splitLookupS !k t =
+  case t of
+    Tip            -> StrictTriple Tip Nothing Tip
+    Bin _ kx x l r -> case compare k kx of
+      LT -> let StrictTriple lt z gt = splitLookupS k l
+                !gt' = link kx x gt r
+            in StrictTriple lt z gt'
+      GT -> let StrictTriple lt z gt = splitLookupS k r
+                !lt' = link kx x l lt
+            in StrictTriple lt' z gt
+      EQ -> StrictTriple l (Just x) r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE splitLookupS #-}
+#endif
+
+data StrictTriple a b c = StrictTriple !a !b !c
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.

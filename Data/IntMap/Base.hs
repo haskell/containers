@@ -250,7 +250,9 @@ import Data.Utils.StrictPair
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
 import GHC.Exts (build)
+#if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
+#endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif

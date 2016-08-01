@@ -795,19 +795,18 @@ unionsWith f ts
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
--- | /O(n+m)/. Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
+-- | /O(m*log(n/m + 1)), m <= n/. Union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWith f m1 m2
-  = unionWithKey (\_ x y -> f x y) m1 m2
+unionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) id id t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
 #endif
 
--- | /O(n+m)/.
--- Union with a combining function. The implementation uses the efficient /hedge-union/ algorithm.
+-- | /O(m*log(n/m + 1)), m <= n/.
+-- Union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -827,15 +826,13 @@ unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
 -- encountered, the combining function is applied to the values of these keys.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
 -- it returns (@'Just' y@), the element is updated with a new value @y@.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
 -- >     == singleton 3 "b:B"
 
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWith f m1 m2
-  = differenceWithKey (\_ x y -> f x y) m1 m2
+differenceWith f t1 t2 = mergeWithKey (\_ x1 x2 -> f x1 x2) id (const Tip) t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
 #endif
@@ -844,7 +841,6 @@ differenceWith f m1 m2
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference). If
 -- it returns (@'Just' y@), the element is updated with a new value @y@.
--- The implementation uses an efficient /hedge/ algorithm comparable with /hedge-union/.
 --
 -- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
 -- > differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
@@ -861,24 +857,20 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
   Intersection
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. Intersection with a combining function.  The implementation uses
--- an efficient /hedge/ algorithm comparable with /hedge-union/.
+-- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWith f m1 m2
-  = intersectionWithKey (\_ x y -> f x y) m1 m2
+intersectionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) (const Tip) (const Tip) t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(n+m)/. Intersection with a combining function.  The implementation uses
--- an efficient /hedge/ algorithm comparable with /hedge-union/.
+-- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
-
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
@@ -933,22 +925,19 @@ mergeWithKey f g1 g2 = go
   where
     go Tip t2 = g2 t2
     go t1 Tip = g1 t1
-    go t1 t2 = hedgeMerge NothingS NothingS t1 t2
-
-    hedgeMerge _   _   t1  Tip = g1 t1
-    hedgeMerge blo bhi Tip (Bin _ kx x l r) = g2 $ link kx x (filterGt blo l) (filterLt bhi r)
-    hedgeMerge blo bhi (Bin _ kx x l r) t2 = let l' = hedgeMerge blo bmi l (trim blo bmi t2)
-                                                 (found, trim_t2) = trimLookupLo kx bhi t2
-                                                 r' = hedgeMerge bmi bhi r trim_t2
-                                             in case found of
-                                                  Nothing -> case g1 (singleton kx x) of
-                                                               Tip -> merge l' r'
-                                                               (Bin _ _ x' Tip Tip) -> link kx x' l' r'
-                                                               _ -> error "mergeWithKey: Given function only1 does not fulfil required conditions (see documentation)"
-                                                  Just x2 -> case f kx x x2 of
-                                                               Nothing -> merge l' r'
-                                                               Just x' -> x' `seq` link kx x' l' r'
-      where bmi = JustS kx
+    go (Bin _ kx x l1 r1) t2 =
+      case found of
+        Nothing -> case g1 (singleton kx x) of
+                     Tip -> merge l' r'
+                     (Bin _ _ x' Tip Tip) -> link kx x' l' r'
+                     _ -> error "mergeWithKey: Given function only1 does not fulfill required conditions (see documentation)"
+        Just x2 -> case f kx x x2 of
+                     Nothing -> merge l' r'
+                     Just x' -> link kx x' l' r'
+      where
+        (l2, found, r2) = splitLookup kx t2
+        l' = go l1 l2
+        r' = go r1 r2
 {-# INLINE mergeWithKey #-}
 
 {--------------------------------------------------------------------

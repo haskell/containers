@@ -16,3 +16,4 @@ cabal.sandbox.config
 /benchmarks/bench-IntSet
 /benchmarks/bench-IntMap
 /benchmarks/bench-Sequence
+/benchmarks/SetOperations/bench-*
