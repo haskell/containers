@@ -325,6 +325,17 @@ import Data.Functor.Identity (Identity (..))
 -- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
 -- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
 
+-- [Note: Pointer equality for sharing]
+--
+-- We use pointer equality to enhance sharing between the arguments
+-- of some functions and their results. Notably, we use it
+-- for insert, delete, union, intersection, and difference. We do
+-- *not* use it for functions, like insertWith, unionWithKey,
+-- intersectionWith, etc., that allow the user to modify the elements.
+-- While we *could* do so, we would only get sharing under fairly
+-- narrow conditions and at a relatively high cost. It does not seem
+-- worth the price.
+
 {--------------------------------------------------------------------
   Query
 --------------------------------------------------------------------}
@@ -404,11 +415,35 @@ insert = go
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith f = insertWithKey (\_ x' y' -> f x' y')
+insertWith = go
+  where
+    go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+    go _ !kx x Tip = singleton kx x
+    go f !kx x (Bin sy ky y l r) =
+        case compare kx ky of
+            LT -> balanceL ky y (go f kx x l) r
+            GT -> balanceR ky y l (go f kx x r)
+            EQ -> let !y' = f x y in Bin sy kx y' l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
 #else
 {-# INLINE insertWith #-}
+#endif
+
+insertWithR :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWithR = go
+  where
+    go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+    go _ !kx x Tip = singleton kx x
+    go f !kx x (Bin sy ky y l r) =
+        case compare kx ky of
+            LT -> balanceL ky y (go f kx x l) r
+            GT -> balanceR ky y l (go f kx x r)
+            EQ -> let !y' = f y x in Bin sy ky y' l r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE insertWithR #-}
+#else
+{-# INLINE insertWithR #-}
 #endif
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
@@ -441,6 +476,25 @@ insertWithKey = go
 {-# INLINABLE insertWithKey #-}
 #else
 {-# INLINE insertWithKey #-}
+#endif
+
+insertWithKeyR :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWithKeyR = go
+  where
+    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+    -- Forcing `kx` may look redundant, but it's possible `compare` will
+    -- be lazy.
+    go _ !kx x Tip = singleton kx x
+    go f kx x (Bin sy ky y l r) =
+        case compare kx ky of
+            LT -> balanceL ky y (go f kx x l) r
+            GT -> balanceR ky y l (go f kx x r)
+            EQ -> let !y' = f ky y x
+                  in Bin sy ky y' l r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE insertWithKeyR #-}
+#else
+{-# INLINE insertWithKeyR #-}
 #endif
 
 -- | /O(log n)/. Combines insert operation with old value retrieval.
@@ -800,7 +854,13 @@ unionsWith f ts
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) id id t1 t2
+unionWith _f t1 Tip = t1
+unionWith f t1 (Bin _ k x Tip Tip) = insertWithR f k x t1
+unionWith f (Bin _ k x Tip Tip) t2 = insertWith f k x t2
+unionWith _f Tip t2 = t2
+unionWith f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
+  (l2, mb, r2) -> link k1 x1' (unionWith f l1 l2) (unionWith f r1 r2)
+    where !x1' = maybe x1 (f x1) mb
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
 #endif
@@ -812,7 +872,13 @@ unionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) id id t1 t2
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
-unionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) id id t1 t2
+unionWithKey _f t1 Tip = t1
+unionWithKey f t1 (Bin _ k x Tip Tip) = insertWithKeyR f k x t1
+unionWithKey f (Bin _ k x Tip Tip) t2 = insertWithKey f k x t2
+unionWithKey _f Tip t2 = t2
+unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
+  (l2, mb, r2) -> link k1 x1' (unionWithKey f l1 l2) (unionWithKey f r1 r2)
+    where !x1' = maybe x1 (f k1 x1) mb
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionWithKey #-}
 #endif
@@ -862,7 +928,15 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) (const Tip) (const Tip) t1 t2
+intersectionWith f Tip _ = Tip
+intersectionWith f _ Tip = Tip
+intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+    Just x2 -> let !x1' = f x1 x2 in link k x1' l1l2 r1r2
+    Nothing -> merge l1l2 r1r2
+  where
+    !(l2, mb, r2) = splitLookup k t2
+    !l1l2 = intersectionWith f l1 l2
+    !r1r2 = intersectionWith f r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
 #endif
@@ -873,7 +947,15 @@ intersectionWith f t1 t2 = mergeWithKey (\_ x1 x2 -> Just $ f x1 x2) (const Tip)
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f t1 t2 = mergeWithKey (\k x1 x2 -> Just $ f k x1 x2) (const Tip) (const Tip) t1 t2
+intersectionWithKey f Tip _ = Tip
+intersectionWithKey f _ Tip = Tip
+intersectionWithKey f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+    Just x2 -> let !x1' = f k x1 x2 in link k x1' l1l2 r1r2
+    Nothing -> merge l1l2 r1r2
+  where
+    !(l2, mb, r2) = splitLookup k t2
+    !l1l2 = intersectionWithKey f l1 l2
+    !r1r2 = intersectionWithKey f r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
 #endif

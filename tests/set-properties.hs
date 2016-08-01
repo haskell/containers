@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 import qualified Data.IntSet as IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -10,6 +11,11 @@ import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
+import Test.QuickCheck.Function
+import Test.QuickCheck.Poly
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative (..), (<$>))
+#endif
 
 main :: IO ()
 main = defaultMain [ testCase "lookupLT" test_lookupLT
@@ -62,6 +68,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_foldL" prop_foldL
                    , testProperty "prop_foldL'" prop_foldL'
                    , testProperty "prop_map" prop_map
+                   , testProperty "prop_map2" prop_map2
+                   , testProperty "prop_mapMonotonic" prop_mapMonotonic
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
@@ -70,6 +78,19 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
                    ]
+
+-- A type with a peculiar Eq instance designed to make sure keys
+-- come from where they're supposed to.
+data OddEq a = OddEq Bool a deriving (Show)
+
+getOddEq :: OddEq a -> (Bool, a)
+getOddEq (OddEq b a) = (b, a)
+instance Arbitrary a => Arbitrary (OddEq a) where
+  arbitrary = OddEq <$> arbitrary <*> arbitrary
+instance Eq a => Eq (OddEq a) where
+  OddEq _ x == OddEq _ y = x == y
+instance Ord a => Ord (OddEq a) where
+  OddEq _ x `compare` OddEq _ y = x `compare` y
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -357,6 +378,12 @@ prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
 
 prop_map :: Set Int -> Bool
 prop_map s = map id s == s
+
+prop_map2 :: Fun Int Int -> Fun Int Int -> Set Int -> Property
+prop_map2 f g s = map (apply f) (map (apply g) s) === map (apply f . apply g) s
+
+prop_mapMonotonic :: Set Int -> Property
+prop_mapMonotonic s = mapMonotonic id s === s
 
 prop_maxView :: Set Int -> Bool
 prop_maxView s = case maxView s of
