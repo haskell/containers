@@ -62,6 +62,7 @@ Library
         Data.Utils.StrictFold
         Data.Utils.StrictPair
         Data.Utils.StrictMaybe
+        Data.Utils.PtrEquality
 
     include-dirs: include
 
