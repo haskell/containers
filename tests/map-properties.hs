@@ -138,7 +138,6 @@ main = defaultMain
          , testCase "minViewWithKey" test_minViewWithKey
          , testCase "maxViewWithKey" test_maxViewWithKey
          , testCase "valid" test_valid
-         , testProperty "unionWith3"           prop_unionWith3
          , testProperty "valid"                prop_valid
          , testProperty "insert to singleton"  prop_singleton
          , testProperty "insert"               prop_insert
@@ -214,7 +213,7 @@ main = defaultMain
          ]
 
 {--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
+  Arbitrary trees
 --------------------------------------------------------------------}
 instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
   arbitrary = sized (arbtree 0 maxkey)
@@ -240,15 +239,15 @@ instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
-data OddEq a = OddEq Bool a deriving (Show)
-getOddEq :: OddEq a -> (Bool, a)
-getOddEq (OddEq b a) = (b, a)
+data OddEq a = OddEq a Bool deriving (Show)
+getOddEq :: OddEq a -> (a, Bool)
+getOddEq (OddEq a b) = (a, b)
 instance Arbitrary a => Arbitrary (OddEq a) where
   arbitrary = OddEq <$> arbitrary <*> arbitrary
 instance Eq a => Eq (OddEq a) where
-  OddEq _ x == OddEq _ y = x == y
+  OddEq x _ == OddEq y _ = x == y
 instance Ord a => Ord (OddEq a) where
-  OddEq _ x `compare` OddEq _ y = x `compare` y
+  OddEq x _ `compare` OddEq y _ = x `compare` y
 
 ------------------------------------------------------------------------
 
@@ -983,22 +982,6 @@ prop_unionWith t1 t2 = (union t1 t2 == unionWith (\_ y -> y) t2 t1)
 
 prop_unionWith2 :: IMap -> IMap -> Bool
 prop_unionWith2 t1 t2 = valid (unionWithKey (\_ x y -> x+y) t1 t2)
-
-prop_unionWith3 :: Fun (Int,Int) Int -> IMap -> IMap -> Property
-prop_unionWith3 f t1 t2 = valid uw .&&. uwUndone === uwEasyUndone
-  where
-    t1' :: Map (OddEq Int) Int
-    t1' = mapKeysMonotonic (OddEq False) t1
-    t2' :: Map (OddEq Int) Int
-    t2' = mapKeysMonotonic (OddEq True) t2
-    uw :: Map (OddEq Int) Int
-    uw = unionWith (apply2 f) t1' t2'
-    uwUndone :: [((Bool, Int), Int)]
-    uwUndone = first getOddEq <$> toList uw
-    uwEasy :: Map (OddEq Int) Int
-    uwEasy = List.foldl' (\t (k1, v1) -> insertWith (apply2 f) k1 v1 t) t2' (toList t1')
-    uwEasyUndone :: [((Bool, Int), Int)]
-    uwEasyUndone = first getOddEq <$> toList uwEasy
 
 prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_unionSum xs ys
