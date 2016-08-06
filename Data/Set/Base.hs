@@ -702,10 +702,15 @@ partition :: (a -> Bool) -> Set a -> (Set a,Set a)
 partition p0 t0 = toPair $ go p0 t0
   where
     go _ Tip = (Tip :*: Tip)
-    go p (Bin _ x l r) = case (go p l, go p r) of
+    go p t@(Bin _ x l r) = case (go p l, go p r) of
       ((l1 :*: l2), (r1 :*: r2))
-        | p x       -> link x l1 r1 :*: merge l2 r2
-        | otherwise -> merge l1 r1 :*: link x l2 r2
+        | p x       -> (if l1 `ptrEq` l && r1 `ptrEq` r
+                        then t
+                        else link x l1 r1) :*: merge l2 r2
+        | otherwise -> merge l1 r1 :*:
+                       (if l2 `ptrEq` l && r2 `ptrEq` r
+                        then t
+                        else link x l2 r2)
 
 {----------------------------------------------------------------------
   Map

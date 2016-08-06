@@ -1,15 +1,26 @@
+{-# LANGUAGE CPP #-}
 import qualified Data.IntSet as IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
 import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
-import Prelude hiding (lookup, null, map, filter, foldr, foldl)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, all)
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
+import Test.QuickCheck.Function
+import Test.QuickCheck.Poly
+import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Class
+import Control.Monad (liftM, liftM3)
+import Data.Functor.Identity
+import Data.Foldable (all)
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative (..), (<$>))
+#endif
 
 main :: IO ()
 main = defaultMain [ testCase "lookupLT" test_lookupLT
@@ -30,6 +41,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_LookupGE" prop_LookupGE
                    , testProperty "prop_InsertValid" prop_InsertValid
                    , testProperty "prop_InsertDelete" prop_InsertDelete
+                   , testProperty "prop_InsertBiased" prop_InsertBiased
                    , testProperty "prop_DeleteValid" prop_DeleteValid
                    , testProperty "prop_Link" prop_Link
                    , testProperty "prop_Merge" prop_Merge
@@ -37,10 +49,12 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
                    , testProperty "prop_UnionComm" prop_UnionComm
+                   , testProperty "prop_UnionBiased" prop_UnionBiased
                    , testProperty "prop_DiffValid" prop_DiffValid
                    , testProperty "prop_Diff" prop_Diff
                    , testProperty "prop_IntValid" prop_IntValid
                    , testProperty "prop_Int" prop_Int
+                   , testProperty "prop_IntBiased" prop_IntBiased
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_DescendingOrdered" prop_DescendingOrdered
                    , testProperty "prop_List" prop_List
@@ -62,6 +76,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_foldL" prop_foldL
                    , testProperty "prop_foldL'" prop_foldL'
                    , testProperty "prop_map" prop_map
+                   , testProperty "prop_map2" prop_map2
+                   , testProperty "prop_mapMonotonic" prop_mapMonotonic
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
@@ -70,6 +86,19 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
                    ]
+
+-- A type with a peculiar Eq instance designed to make sure keys
+-- come from where they're supposed to.
+data OddEq a = OddEq a Bool deriving (Show)
+
+getOddEq :: OddEq a -> (a, Bool)
+getOddEq (OddEq b a) = (b, a)
+instance Arbitrary a => Arbitrary (OddEq a) where
+  arbitrary = OddEq <$> arbitrary <*> arbitrary
+instance Eq a => Eq (OddEq a) where
+  OddEq x _ == OddEq y _ = x == y
+instance Ord a => Ord (OddEq a) where
+  OddEq x _ `compare` OddEq y _ = x `compare` y
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -126,37 +155,138 @@ test_deleteAt = do
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
-instance (Enum a) => Arbitrary (Set a) where
-    arbitrary = sized (arbtree 0 maxkey)
-      where maxkey = 10000
 
-            arbtree :: (Enum a) => Int -> Int -> Int -> Gen (Set a)
-            arbtree lo hi n = do t <- gentree lo hi n
-                                 if balanced t then return t else arbtree lo hi n
-              where gentree lo hi n
-                      | n <= 0    = return Tip
-                      | lo >= hi  = return Tip
-                      | otherwise = do  i  <- choose (lo,hi)
-                                        m  <- choose (1,70)
-                                        let (ml,mr) | m==(1::Int) = (1,2)
-                                                    | m==2        = (2,1)
-                                                    | m==3        = (1,1)
-                                                    | otherwise   = (2,2)
-                                        l  <- gentree lo (i-1) (n `div` ml)
-                                        r  <- gentree (i+1) hi (n `div` mr)
-                                        return (bin (toEnum i) l r)
+-- | The IsInt class lets us constrain a type variable to be Int in an entirely
+-- standard way. The constraint @ IsInt a @ is essentially equivalent to the
+-- GHC-only constraint @ a ~ Int @, but @ IsInt @ requires manual intervention
+-- to use. If ~ is ever standardized, we should certainly use it instead.
+-- Earlier versions used an Enum constraint, but this is confusing because
+-- not all Enum instances will work properly for the Arbitrary instance here.
+class (Show a, Read a, Integral a, Arbitrary a) => IsInt a where
+  fromIntF :: f Int -> f a
+
+instance IsInt Int where
+  fromIntF = id
+
+-- | Convert an Int to any instance of IsInt
+fromInt :: IsInt a => Int -> a
+fromInt = runIdentity . fromIntF . Identity
+
+{- We don't actually need this, but we can add it if we ever do
+toIntF :: IsInt a => g a -> g Int
+toIntF = unf . fromIntF . F $ id
+
+newtype F g a b = F {unf :: g b -> a}
+
+toInt :: IsInt a => a -> Int
+toInt = runIdentity . toIntF . Identity -}
+
+
+-- How much the minimum value of an arbitrary set should vary
+positionFactor :: Int
+positionFactor = 1
+
+-- How much the gap between consecutive elements in an arbitrary
+-- set should vary
+gapRange :: Int
+gapRange = 5
+
+instance IsInt a => Arbitrary (Set a) where
+  arbitrary = sized (\sz0 -> do
+        sz <- choose (0, sz0)
+        middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
+        let shift = (sz * (gapRange) + 1) `quot` 2
+            start = middle - shift
+        t <- evalStateT (mkArb step sz) start
+        if valid t then pure t else error "Test generated invalid tree!")
+    where
+      step = do
+        i <- get
+        diff <- lift $ choose (1, gapRange)
+        let i' = i + diff
+        put i'
+        pure (fromInt i')
+
+class Monad m => MonadGen m where
+  liftGen :: Gen a -> m a
+instance MonadGen Gen where
+  liftGen = id
+instance MonadGen m => MonadGen (StateT s m) where
+  liftGen = lift . liftGen
+
+-- | Given an action that produces successively larger elements and
+-- a size, produce a set of arbitrary shape with exactly that size.
+mkArb :: MonadGen m => m a -> Int -> m (Set a)
+mkArb step n
+  | n <= 0 = return Tip
+  | n == 1 = singleton `liftM` step
+  | n == 2 = do
+     dir <- liftGen arbitrary
+     p <- step
+     q <- step
+     if dir
+       then return (Bin 2 q (singleton p) Tip)
+       else return (Bin 2 p Tip (singleton q))
+  | otherwise = do
+      -- This assumes a balance factor of delta = 3
+      let upper = (3*(n - 1)) `quot` 4
+      let lower = (n + 2) `quot` 4
+      ln <- liftGen $ choose (lower, upper)
+      let rn = n - ln - 1
+      liftM3 (\lt x rt -> Bin n x lt rt) (mkArb step ln) step (mkArb step rn)
+
+-- | Given a strictly increasing list of elements, produce an arbitrarily
+-- shaped set with exactly those elements.
+setFromList :: [a] -> Gen (Set a)
+setFromList xs = flip evalStateT xs $ mkArb step (length xs)
+  where
+    step = do
+      x : xs <- get
+      put xs
+      pure x
+
+data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
+
+data TwoLists a = TwoLists [a] [a]
+
+data Options2 = One2 | Two2 | Both2 deriving (Bounded, Enum)
+instance Arbitrary Options2 where
+  arbitrary = arbitraryBoundedEnum
+
+-- We produce two lists from a simple "universe". This instance
+-- is intended to give good results when the two lists are then
+-- combined with each other; if other elements are used with them,
+-- they may or may not behave particularly well.
+instance IsInt a => Arbitrary (TwoLists a) where
+  arbitrary = sized $ \sz0 -> do
+    sz <- choose (0, sz0)
+    let universe = [0,3..3*(fromInt sz - 1)]
+    divide2Gen universe
+
+instance Arbitrary TwoSets where
+  arbitrary = do
+    TwoLists l r <- arbitrary
+    TwoSets <$> setFromList l <*> setFromList r
+
+divide2Gen :: [a] -> Gen (TwoLists a)
+divide2Gen [] = pure (TwoLists [] [])
+divide2Gen (x : xs) = do
+  way <- arbitrary
+  TwoLists ls rs <- divide2Gen xs
+  case way of
+    One2 -> pure (TwoLists (x : ls) rs)
+    Two2 -> pure (TwoLists ls (x : rs))
+    Both2 -> pure (TwoLists (x : ls) (x : rs))
 
 {--------------------------------------------------------------------
-  Valid tree's
+  Valid trees
 --------------------------------------------------------------------}
-forValid :: (Enum a,Show a,Testable b) => (Set a -> b) -> Property
+forValid :: (IsInt a,Testable b) => (Set a -> b) -> Property
 forValid f = forAll arbitrary $ \t ->
---    classify (balanced t) "balanced" $
     classify (size t == 0) "empty" $
     classify (size t > 0  && size t <= 10) "small" $
     classify (size t > 10 && size t <= 64) "medium" $
-    classify (size t > 64) "large" $
-    balanced t ==> f t
+    classify (size t > 64) "large" $ f t
 
 forValidUnitTree :: Testable a => (Set Int -> a) -> Property
 forValidUnitTree f = forValid f
@@ -212,6 +342,13 @@ prop_InsertValid k = forValidUnitTree $ \t -> valid (insert k t)
 prop_InsertDelete :: Int -> Set Int -> Property
 prop_InsertDelete k t = not (member k t) ==> delete k (insert k t) == t
 
+prop_InsertBiased :: Int -> Set Int -> Bool
+prop_InsertBiased k t = (k, True) `member` kt
+  where
+    t' = mapMonotonic (`OddEq` False) t
+    kt' = insert (OddEq k True) t'
+    kt = mapMonotonic getOddEq kt'
+
 prop_DeleteValid :: Int -> Property
 prop_DeleteValid k = forValidUnitTree $ \t -> valid (delete k (insert k t))
 
@@ -243,8 +380,21 @@ prop_UnionInsert x t = union t (singleton x) == insert x t
 prop_UnionAssoc :: Set Int -> Set Int -> Set Int -> Bool
 prop_UnionAssoc t1 t2 t3 = union t1 (union t2 t3) == union (union t1 t2) t3
 
-prop_UnionComm :: Set Int -> Set Int -> Bool
-prop_UnionComm t1 t2 = (union t1 t2 == union t2 t1)
+prop_UnionComm :: TwoSets -> Bool
+prop_UnionComm (TwoSets t1 t2) = (union t1 t2 == union t2 t1)
+
+prop_UnionBiased :: TwoSets -> Property
+prop_UnionBiased (TwoSets l r) = union l' r' === union l' (difference r' l')
+  where
+    l' = mapMonotonic (`OddEq` False) l
+    r' = mapMonotonic (`OddEq` True) r
+
+prop_IntBiased :: TwoSets -> Bool
+prop_IntBiased (TwoSets l r) = all (\(OddEq _ b) -> not b) l'r'
+  where
+    l' = mapMonotonic (`OddEq` False) l
+    r' = mapMonotonic (`OddEq` True) r
+    l'r' = intersection l' r'
 
 prop_DiffValid :: Property
 prop_DiffValid = forValidUnitTree $ \t1 ->
@@ -312,21 +462,21 @@ toIntSet :: Set Int -> IntSet.IntSet
 toIntSet = IntSet.fromList . toList
 
 -- Check that Set Int.isProperSubsetOf is the same as Set.isProperSubsetOf.
-prop_isProperSubsetOf :: Set Int -> Set Int -> Bool
-prop_isProperSubsetOf a b = isProperSubsetOf a b == IntSet.isProperSubsetOf (toIntSet a) (toIntSet b)
+prop_isProperSubsetOf :: TwoSets -> Bool
+prop_isProperSubsetOf (TwoSets a b) = isProperSubsetOf a b == IntSet.isProperSubsetOf (toIntSet a) (toIntSet b)
 
 -- In the above test, isProperSubsetOf almost always returns False (since a
 -- random set is almost never a subset of another random set).  So this second
 -- test checks the True case.
-prop_isProperSubsetOf2 :: Set Int -> Set Int -> Bool
-prop_isProperSubsetOf2 a b = isProperSubsetOf a c == (a /= c) where
+prop_isProperSubsetOf2 :: TwoSets -> Bool
+prop_isProperSubsetOf2 (TwoSets a b) = isProperSubsetOf a c == (a /= c) where
   c = union a b
 
-prop_isSubsetOf :: Set Int -> Set Int -> Bool
-prop_isSubsetOf a b = isSubsetOf a b == IntSet.isSubsetOf (toIntSet a) (toIntSet b)
+prop_isSubsetOf :: TwoSets -> Bool
+prop_isSubsetOf (TwoSets a b) = isSubsetOf a b == IntSet.isSubsetOf (toIntSet a) (toIntSet b)
 
-prop_isSubsetOf2 :: Set Int -> Set Int -> Bool
-prop_isSubsetOf2 a b = isSubsetOf a (union a b)
+prop_isSubsetOf2 :: TwoSets -> Bool
+prop_isSubsetOf2 (TwoSets a b) = isSubsetOf a (union a b)
 
 prop_size :: Set Int -> Bool
 prop_size s = size s == List.length (toList s)
@@ -337,8 +487,8 @@ prop_findMax s = not (null s) ==> findMax s == maximum (toList s)
 prop_findMin :: Set Int -> Property
 prop_findMin s = not (null s) ==> findMin s == minimum (toList s)
 
-prop_ord :: Set Int -> Set Int -> Bool
-prop_ord s1 s2 = s1 `compare` s2 == toList s1 `compare` toList s2
+prop_ord :: TwoSets -> Bool
+prop_ord (TwoSets s1 s2) = s1 `compare` s2 == toList s1 `compare` toList s2
 
 prop_readShow :: Set Int -> Bool
 prop_readShow s = s == read (show s)
@@ -357,6 +507,12 @@ prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
 
 prop_map :: Set Int -> Bool
 prop_map s = map id s == s
+
+prop_map2 :: Fun Int Int -> Fun Int Int -> Set Int -> Property
+prop_map2 f g s = map (apply f) (map (apply g) s) === map (apply f . apply g) s
+
+prop_mapMonotonic :: Set Int -> Property
+prop_mapMonotonic s = mapMonotonic id s === s
 
 prop_maxView :: Set Int -> Bool
 prop_maxView s = case maxView s of

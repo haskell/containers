@@ -220,10 +220,8 @@ Test-suite map-lazy-properties
         QuickCheck,
         test-framework,
         test-framework-hunit,
-        test-framework-quickcheck2
-    if impl (ghc < 7.10)
-      -- only needed for base < 4.8 to get Identity
-      build-depends: transformers
+        test-framework-quickcheck2,
+        transformers
 
 Test-suite map-strict-properties
     hs-source-dirs: tests, .
@@ -237,15 +235,12 @@ Test-suite map-strict-properties
     include-dirs: include
 
     build-depends:
-        -- only needed for base < 4.8 to get Identity
         HUnit,
         QuickCheck,
         test-framework,
         test-framework-hunit,
-        test-framework-quickcheck2
-    if impl (ghc < 7.10)
-      -- only needed for base < 4.8 to get Identity
-      build-depends: transformers
+        test-framework-quickcheck2,
+        transformers
 
 Test-suite bitqueue-properties
     hs-source-dirs: tests, .
@@ -279,7 +274,8 @@ Test-suite set-properties
         QuickCheck,
         test-framework,
         test-framework-hunit,
-        test-framework-quickcheck2
+        test-framework-quickcheck2,
+        transformers
 
 Test-suite intmap-lazy-properties
     hs-source-dirs: tests, .

@@ -6,7 +6,7 @@ import Data.Map.Strict as Data.Map
 import Data.Map.Lazy as Data.Map
 #endif
 
-import Control.Applicative (Const(Const, getConst), pure)
+import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Data.Functor.Identity (Identity(runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
@@ -26,6 +26,7 @@ import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun (..), apply)
 import Test.QuickCheck.Poly (A)
+import Control.Arrow (first)
 
 default (Int)
 
@@ -212,7 +213,7 @@ main = defaultMain
          ]
 
 {--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
+  Arbitrary trees
 --------------------------------------------------------------------}
 instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
   arbitrary = sized (arbtree 0 maxkey)
@@ -235,6 +236,18 @@ instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
                                         ; r  <- gentree (i+1) hi (n `div` mr)
                                         ; return (bin (toEnum i) x l r)
                                         }
+
+-- A type with a peculiar Eq instance designed to make sure keys
+-- come from where they're supposed to.
+data OddEq a = OddEq a Bool deriving (Show)
+getOddEq :: OddEq a -> (a, Bool)
+getOddEq (OddEq a b) = (a, b)
+instance Arbitrary a => Arbitrary (OddEq a) where
+  arbitrary = OddEq <$> arbitrary <*> arbitrary
+instance Eq a => Eq (OddEq a) where
+  OddEq x _ == OddEq y _ = x == y
+instance Ord a => Ord (OddEq a) where
+  OddEq x _ `compare` OddEq y _ = x `compare` y
 
 ------------------------------------------------------------------------
 
