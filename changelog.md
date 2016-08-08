@@ -21,10 +21,17 @@
     `Test.QuickCheck.Function.Fun` instead of evil `Show` instances
     for functions.
 
+  * Expose several internal modules through Cabal (as requested by
+    Edward Kmett). These remain completely unsupported.
+
 ### New exports and instances
 
   * Add `alterF`, `restrictKeys`, and `withoutKeys` to `Data.Map`
     and `Data.IntMap`.
+
+  * Add `merge`, `mergeA`, and associated merge tactics for `Data.Map`.
+    Many thanks to Cale Gibbard, Ryan Trinkle, and Dan Doel for
+    inspiring the merge idea and helping refine the interface.
 
   * Add `fromDescList`, `fromDescListWith`, `fromDescListWithKey`,
     and `fromDistinctDescList` to `Data.Map`.

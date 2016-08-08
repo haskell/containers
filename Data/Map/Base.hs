@@ -22,6 +22,7 @@
 #define DEFINE_ALTERF_FALLBACK 1
 #endif
 
+{-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -32,6 +33,20 @@
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  portable
+--
+-- = WARNING
+--
+-- This module is considered __internal__.
+--
+-- The Package Versioning Policy __does not apply__.
+--
+-- This contents of this module may change __in any way whatsoever__
+-- and __without any warning__ between minor versions of this package.
+--
+-- Authors importing this module are expected to track development
+-- closely.
+--
+-- = Description
 --
 -- An efficient implementation of maps from keys to values (dictionaries).
 --
@@ -47,10 +62,16 @@
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --     Journal of Functional Programming 3(4):553-562, October 1993,
 --     <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
+--
+--  Bounds for 'union', 'intersection', and 'difference' are as given
+--  by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
+--      \"/Just Join for Parallel Ordered Sets/\",
+--      <https://arxiv.org/abs/1602.02120v3>.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
@@ -165,7 +186,44 @@ module Data.Map.Base (
     , intersectionWith
     , intersectionWithKey
 
-    -- ** Universal combining function
+    -- ** General combining function
+    , SimpleWhenMissing
+    , SimpleWhenMatched
+    , runWhenMatched
+    , runWhenMissing
+    , merge
+    -- *** @WhenMatched@ tactics
+    , zipWithMaybeMatched
+    , zipWithMatched
+    -- *** @WhenMissing@ tactics
+    , mapMaybeMissing
+    , dropMissing
+    , preserveMissing
+    , mapMissing
+    , filterMissing
+
+    -- ** Applicative general combining function
+    , WhenMissing (..)
+    , WhenMatched (..)
+    , mergeA
+
+    -- *** @WhenMatched@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , zipWithMaybeAMatched
+    , zipWithAMatched
+
+    -- *** @WhenMissing@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , traverseMaybeMissing
+    , traverseMissing
+    , filterAMissing
+
+    -- ** Deprecated general combining function
+
     , mergeWithKey
 
     -- * Traversal
@@ -173,6 +231,7 @@ module Data.Map.Base (
     , map
     , mapWithKey
     , traverseWithKey
+    , traverseMaybeWithKey
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
@@ -281,9 +340,19 @@ module Data.Map.Base (
     , delta
     , insertMax
     , link
-    , merge
+    , link2
     , glue
     , MaybeS(..)
+    , Identity(..)
+
+    -- Used by Map.Lazy.Merge
+    , mapWhenMissing
+    , mapWhenMatched
+    , lmapWhenMissing
+    , contramapFirstWhenMatched
+    , contramapSecondWhenMatched
+    , mapGentlyWhenMissing
+    , mapGentlyWhenMatched
     ) where
 
 #if MIN_VERSION_base(4,8,0)
@@ -325,10 +394,11 @@ import GHC.Exts (Proxy#, proxy# )
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
-import Text.Read
+import Text.Read hiding (lift)
 import Data.Data
+import qualified Control.Category as Category
 #endif
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 #endif
 
@@ -1585,7 +1655,7 @@ unionsWith f ts
 {-# INLINABLE unionsWith #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/.
+-- | /O(m*log(n\/m + 1)), m <= n/.
 -- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@.
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
@@ -1609,7 +1679,7 @@ union t1@(Bin _ k1 x1 l1 r1) t2 = case split k1 t2 of
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/. Union with a combining function.
+-- | /O(m*log(n\/m + 1)), m <= n/. Union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
@@ -1629,7 +1699,7 @@ unionWith f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 {-# INLINABLE unionWith #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/.
+-- | /O(m*log(n\/m + 1)), m <= n/.
 -- Union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
@@ -1653,7 +1723,8 @@ unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/. Difference of two maps.
+
+-- | /O(m*log(n\/m + 1)), m <= n/. Difference of two maps.
 -- Return elements of the first map not existing in the second map.
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
@@ -1661,13 +1732,13 @@ unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (Bin _ k _ l2 r2) = case splitMember k t1 of
-  (l1, b, r1)
-     | not b && l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
-     | otherwise -> merge l1l2 r1r2
-     where
-       !l1l2 = difference l1 l2
-       !r1r2 = difference r1 r2
+difference t1 (Bin _ k _ l2 r2) = case split k t1 of
+  (l1, r1)
+    | size l1l2 + size r1r2 == size t1 -> t1
+    | otherwise -> link2 l1l2 r1r2
+    where
+      !l1l2 = difference l1 l2
+      !r1r2 = difference r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
 #endif
@@ -1686,7 +1757,7 @@ withoutKeys m Set.Tip = m
 withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
   (lm, b, rm)
      | not b && lm' `ptrEq` lm && rm' `ptrEq` rm -> m
-     | otherwise -> merge lm' rm'
+     | otherwise -> link2 lm' rm'
      where
        !lm' = withoutKeys lm ls
        !rm' = withoutKeys rm rs
@@ -1704,7 +1775,8 @@ withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
 -- >     == singleton 3 "b:B"
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWith f t1 t2 = mergeWithKey (\_ x y -> f x y) id (const Tip) t1 t2
+differenceWith f = merge preserveMissing dropMissing $
+       zipWithMaybeMatched (\_ x y -> f x y)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
 #endif
@@ -1719,7 +1791,8 @@ differenceWith f t1 t2 = mergeWithKey (\_ x y -> f x y) id (const Tip) t1 t2
 -- >     == singleton 3 "3:b|B"
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
-differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
+differenceWithKey f =
+  merge preserveMissing dropMissing (zipWithMaybeMatched f)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWithKey #-}
 #endif
@@ -1728,7 +1801,7 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/. Intersection of two maps.
+-- | /O(m*log(n\/m + 1)), m <= n/. Intersection of two maps.
 -- Return data in the first map for the keys existing in both maps.
 -- (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
 --
@@ -1741,7 +1814,7 @@ intersection t1@(Bin _ k x l1 r1) t2
   | mb = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
          then t1
          else link k x l1l2 r1r2
-  | otherwise = merge l1l2 r1r2
+  | otherwise = link2 l1l2 r1r2
   where
     !(l2, mb, r2) = splitMember k t2
     !l1l2 = intersection l1 l2
@@ -1765,7 +1838,7 @@ restrictKeys m@(Bin _ k x l1 r1) s
   | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
         then m
         else link k x l1l2 r1r2
-  | otherwise = merge l1l2 r1r2
+  | otherwise = link2 l1l2 r1r2
   where
     !(l2, b, r2) = Set.splitMember k s
     !l1l2 = restrictKeys l1 l2
@@ -1774,7 +1847,7 @@ restrictKeys m@(Bin _ k x l1 r1) s
 {-# INLINABLE restrictKeys #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
+-- | /O(m*log(n\/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -1785,7 +1858,7 @@ intersectionWith _f Tip _ = Tip
 intersectionWith _f _ Tip = Tip
 intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f x1 x2) l1l2 r1r2
-    Nothing -> merge l1l2 r1r2
+    Nothing -> link2 l1l2 r1r2
   where
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWith f l1 l2
@@ -1794,7 +1867,7 @@ intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. Intersection with a combining function.
+-- | /O(m*log(n\/m + 1)), m <= n/. Intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -1804,7 +1877,7 @@ intersectionWithKey _f Tip _ = Tip
 intersectionWithKey _f _ Tip = Tip
 intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f k x1 x2) l1l2 r1r2
-    Nothing -> merge l1l2 r1r2
+    Nothing -> link2 l1l2 r1r2
   where
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWithKey f l1 l2
@@ -1813,22 +1886,545 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 {-# INLINABLE intersectionWithKey #-}
 #endif
 
+#if !MIN_VERSION_base (4,8,0)
+-- | The identity type.
+newtype Identity a = Identity { runIdentity :: a }
+#if __GLASGOW_HASKELL__ == 708
+instance Functor Identity where
+  fmap = coerce
+instance Applicative Identity where
+  (<*>) = coerce
+  pure = Identity
+#else
+instance Functor Identity where
+  fmap f (Identity a) = Identity (f a)
+instance Applicative Identity where
+  Identity f <*> Identity x = Identity (f x)
+  pure = Identity
+#endif
+#endif
+
+-- | A tactic for dealing with keys present in one map but not the other in
+-- 'merge' or 'mergeA'.
+--
+-- A tactic of type @ WhenMissing f k x z @ is an abstract representation
+-- of a function of type @ k -> x -> f (Maybe z) @.
+
+data WhenMissing f k x y = WhenMissing
+  { missingSubtree :: Map k x -> f (Map k y)
+  , missingKey :: k -> x -> f (Maybe y)}
+
+instance (Applicative f, Monad f) => Functor (WhenMissing f k x) where
+  fmap = mapWhenMissing
+  {-# INLINE fmap #-}
+
+instance (Applicative f, Monad f)
+         => Category.Category (WhenMissing f k) where
+  id = preserveMissing
+  f . g = traverseMaybeMissing $
+    \ k x -> missingKey g k x >>= \y ->
+         case y of
+           Nothing -> pure Nothing
+           Just q -> missingKey f k q
+  {-# INLINE id #-}
+  {-# INLINE (.) #-}
+
+-- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
+instance (Applicative f, Monad f) => Applicative (WhenMissing f k x) where
+  pure x = mapMissing (\ _ _ -> x)
+  f <*> g = traverseMaybeMissing $ \k x -> do
+         res1 <- missingKey f k x
+         case res1 of
+           Nothing -> pure Nothing
+           Just r -> (pure $!) . fmap r =<< missingKey g k x
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+-- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
+instance (Applicative f, Monad f) => Monad (WhenMissing f k x) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f = traverseMaybeMissing $ \k x -> do
+         res1 <- missingKey m k x
+         case res1 of
+           Nothing -> pure Nothing
+           Just r -> missingKey (f r) k x
+  {-# INLINE (>>=) #-}
+
+-- | Map covariantly over a @'WhenMissing' f k x@.
+mapWhenMissing :: (Applicative f, Monad f)
+               => (a -> b)
+               -> WhenMissing f k x a -> WhenMissing f k x b
+mapWhenMissing f t = WhenMissing
+    { missingSubtree = \m -> missingSubtree t m >>= \m' -> pure $! fmap f m'
+    , missingKey = \k x -> missingKey t k x >>= \q -> (pure $! fmap f q) }
+{-# INLINE mapWhenMissing #-}
+
+-- | Map covariantly over a @'WhenMissing' f k x@, using only a 'Functor f'
+-- constraint.
+mapGentlyWhenMissing :: Functor f
+               => (a -> b)
+               -> WhenMissing f k x a -> WhenMissing f k x b
+mapGentlyWhenMissing f t = WhenMissing
+    { missingSubtree = \m -> fmap f <$> missingSubtree t m
+    , missingKey = \k x -> fmap f <$> missingKey t k x }
+{-# INLINE mapGentlyWhenMissing #-}
+
+-- | Map covariantly over a @'WhenMatched' f k x@, using only a 'Functor f'
+-- constraint.
+mapGentlyWhenMatched :: Functor f
+               => (a -> b)
+               -> WhenMatched f k x y a -> WhenMatched f k x y b
+mapGentlyWhenMatched f t = zipWithMaybeAMatched $
+  \k x y -> fmap f <$> runWhenMatched t k x y
+{-# INLINE mapGentlyWhenMatched #-}
+
+-- | Map contravariantly over a @'WhenMissing' f k _ x@.
+lmapWhenMissing :: (b -> a) -> WhenMissing f k a x -> WhenMissing f k b x
+lmapWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> missingSubtree t (fmap f m)
+  , missingKey = \k x -> missingKey t k (f x) }
+{-# INLINE lmapWhenMissing #-}
+
+-- | Map contravariantly over a @'WhenMatched' f k _ y z@.
+contramapFirstWhenMatched :: (b -> a)
+                          -> WhenMatched f k a y z
+                          -> WhenMatched f k b y z
+contramapFirstWhenMatched f t = WhenMatched $
+  \k x y -> runWhenMatched t k (f x) y
+{-# INLINE contramapFirstWhenMatched #-}
+
+-- | Map contravariantly over a @'WhenMatched' f k x _ z@.
+contramapSecondWhenMatched :: (b -> a)
+                           -> WhenMatched f k x a z
+                           -> WhenMatched f k x b z
+contramapSecondWhenMatched f t = WhenMatched $
+  \k x y -> runWhenMatched t k x (f y)
+{-# INLINE contramapSecondWhenMatched #-}
+
+-- | A tactic for dealing with keys present in one map but not the other in
+-- 'merge'.
+--
+-- A tactic of type @ SimpleWhenMissing k x z @ is an abstract representation
+-- of a function of type @ k -> x -> Maybe z @.
+type SimpleWhenMissing = WhenMissing Identity
+
+-- | A tactic for dealing with keys present in both
+-- maps in 'merge' or 'mergeA'.
+--
+-- A tactic of type @ WhenMatched f k x y z @ is an abstract representation
+-- of a function of type @ k -> x -> y -> f (Maybe z) @.
+newtype WhenMatched f k x y z = WhenMatched
+  { matchedKey :: k -> x -> y -> f (Maybe z) }
+
+-- | Along with zipWithMaybeAMatched, witnesses the isomorphism between
+-- @WhenMatched f k x y z@ and @k -> x -> y -> f (Maybe z)@.
+runWhenMatched :: WhenMatched f k x y z -> k -> x -> y -> f (Maybe z)
+runWhenMatched = matchedKey
+{-# INLINE runWhenMatched #-}
+
+-- | Along with traverseMaybeMissing, witnesses the isomorphism between
+-- @WhenMissing f k x y@ and @k -> x -> f (Maybe y)@.
+runWhenMissing :: WhenMissing f k x y -> k -> x -> f (Maybe y)
+runWhenMissing = missingKey
+{-# INLINE runWhenMissing #-}
+
+instance Functor f => Functor (WhenMatched f k x y) where
+  fmap = mapWhenMatched
+  {-# INLINE fmap #-}
+
+instance (Monad f, Applicative f) => Category.Category (WhenMatched f k x) where
+  id = zipWithMatched (\_ _ y -> y)
+  f . g = zipWithMaybeAMatched $
+            \k x y -> do
+              res <- runWhenMatched g k x y
+              case res of
+                Nothing -> pure Nothing
+                Just r -> runWhenMatched f k x r
+  {-# INLINE id #-}
+  {-# INLINE (.) #-}
+
+-- | Equivalent to @ ReaderT k (ReaderT x (ReaderT y (MaybeT f))) @
+instance (Monad f, Applicative f) => Applicative (WhenMatched f k x y) where
+  pure x = zipWithMatched (\_ _ _ -> x)
+  fs <*> xs = zipWithMaybeAMatched $ \k x y -> do
+    res <- runWhenMatched fs k x y
+    case res of
+      Nothing -> pure Nothing
+      Just r -> (pure $!) . fmap r =<< runWhenMatched xs k x y
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+-- | Equivalent to @ ReaderT k (ReaderT x (ReaderT y (MaybeT f))) @
+instance (Monad f, Applicative f) => Monad (WhenMatched f k x y) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f = zipWithMaybeAMatched $ \k x y -> do
+    res <- runWhenMatched m k x y
+    case res of
+      Nothing -> pure Nothing
+      Just r -> runWhenMatched (f r) k x y
+  {-# INLINE (>>=) #-}
+
+-- | Map covariantly over a @'WhenMatched' f k x y@.
+mapWhenMatched :: Functor f
+               => (a -> b)
+               -> WhenMatched f k x y a
+               -> WhenMatched f k x y b
+mapWhenMatched f (WhenMatched g) = WhenMatched $ \k x y -> fmap (fmap f) (g k x y)
+{-# INLINE mapWhenMatched #-}
+
+-- | A tactic for dealing with keys present in both maps in 'merge'.
+--
+-- A tactic of type @ SimpleWhenMatched k x y z @ is an abstract representation
+-- of a function of type @ k -> x -> y -> Maybe z @.
+type SimpleWhenMatched = WhenMatched Identity
+
+-- | When a key is found in both maps, apply a function to the
+-- key and values and use the result in the merged map.
+--
+-- @
+-- zipWithMatched :: (k -> x -> y -> z)
+--                -> SimpleWhenMatched k x y z
+-- @
+zipWithMatched :: Applicative f
+               => (k -> x -> y -> z)
+               -> WhenMatched f k x y z
+zipWithMatched f = WhenMatched $ \ k x y -> pure . Just $ f k x y
+{-# INLINE zipWithMatched #-}
+
+-- | When a key is found in both maps, apply a function to the
+-- key and values to produce an action and use its result in the merged map.
+zipWithAMatched :: Applicative f
+                => (k -> x -> y -> f z)
+                -> WhenMatched f k x y z
+zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
+{-# INLINE zipWithAMatched #-}
+
+-- | When a key is found in both maps, apply a function to the
+-- key and values and maybe use the result in the merged map.
+--
+-- @
+-- zipWithMaybeMatched :: (k -> x -> y -> Maybe z)
+--                     -> SimpleWhenMatched k x y z
+-- @
+zipWithMaybeMatched :: Applicative f
+                    => (k -> x -> y -> Maybe z)
+                    -> WhenMatched f k x y z
+zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
+{-# INLINE zipWithMaybeMatched #-}
+
+-- | When a key is found in both maps, apply a function to the
+-- key and values, perform the resulting action, and maybe use
+-- the result in the merged map.
+-- 
+-- This is the fundamental 'WhenMatched' tactic.
+zipWithMaybeAMatched :: (k -> x -> y -> f (Maybe z))
+                     -> WhenMatched f k x y z
+zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
+{-# INLINE zipWithMaybeAMatched #-}
+
+-- | Drop all the entries whose keys are missing from the other
+-- map.
+--
+-- @
+-- dropMissing :: SimpleWhenMissing k x y
+-- @
+--
+-- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
+--
+-- but @dropMissing@ is much faster.
+dropMissing :: Applicative f => WhenMissing f k x y
+dropMissing = WhenMissing
+  { missingSubtree = const (pure Tip)
+  , missingKey = \_ _ -> pure Nothing }
+{-# INLINE dropMissing #-}
+
+-- | Preserve, unchanged, the entries whose keys are missing from
+-- the other map.
+--
+-- @
+-- preserveMissing :: SimpleWhenMissing k x x
+-- @
+--
+-- prop> preserveMissing = Lazy.Merge.mapMaybeMissing (\_ x -> Just x)
+--
+-- but @preserveMissing@ is much faster.
+preserveMissing :: Applicative f => WhenMissing f k x x
+preserveMissing = WhenMissing
+  { missingSubtree = pure
+  , missingKey = \_ v -> pure (Just v) }
+{-# INLINE preserveMissing #-}
+
+-- | Map over the entries whose keys are missing from the other map.
+--
+-- @
+-- mapMissing :: (k -> x -> y) -> SimpleWhenMissing k x y
+-- @
+--
+-- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
+--
+-- but @mapMissing@ is somewhat faster.
+mapMissing :: Applicative f => (k -> x -> y) -> WhenMissing f k x y
+mapMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapWithKey f m
+  , missingKey = \ k x -> pure $ Just (f k x) }
+{-# INLINE mapMissing #-}
+
+-- | Map over the entries whose keys are missing from the other map,
+-- optionally removing some. This is the most powerful 'SimpleWhenMissing'
+-- tactic, but others are usually more efficient.
+--
+-- @
+-- mapMaybeMissing :: (k -> x -> Maybe y) -> SimpleWhenMissing k x y
+-- @
+--
+-- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
+--
+-- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
+mapMaybeMissing :: Applicative f => (k -> x -> Maybe y) -> WhenMissing f k x y
+mapMaybeMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapMaybeWithKey f m
+  , missingKey = \k x -> pure $! f k x }
+{-# INLINE mapMaybeMissing #-}
+
+-- | Filter the entries whose keys are missing from the other map.
+--
+-- @
+-- filterMissing :: (k -> x -> Bool) -> SimpleWhenMissing k x x
+-- @
+--
+-- prop> filterMissing f = Lazy.Merge.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
+--
+-- but this should be a little faster.
+filterMissing :: Applicative f
+              => (k -> x -> Bool) -> WhenMissing f k x x
+filterMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! filterWithKey f m
+  , missingKey = \k x -> pure $! if f k x then Just x else Nothing }
+{-# INLINE filterMissing #-}
+
+-- | Filter the entries whose keys are missing from the other map
+-- using some 'Applicative' action.
+--
+-- @
+-- filterAMissing f = Lazy.Merge.traverseMaybeMissing $
+--   \k x -> (\b -> guard b *> Just x) <$> f k x
+-- @
+--
+-- but this should be a little faster.
+filterAMissing :: Applicative f
+              => (k -> x -> f Bool) -> WhenMissing f k x x
+filterAMissing f = WhenMissing
+  { missingSubtree = \m -> filterWithKeyA f m
+  , missingKey = \k x -> bool Nothing (Just x) <$> f k x }
+{-# INLINE filterAMissing #-}
+
+-- | This wasn't in Data.Bool until 4.7.0, so we define it here
+bool :: a -> a -> Bool -> a
+bool f _ False = f
+bool _ t True  = t
+
+-- | Traverse over the entries whose keys are missing from the other map.
+traverseMissing :: Applicative f
+                    => (k -> x -> f y) -> WhenMissing f k x y
+traverseMissing f = WhenMissing
+  { missingSubtree = traverseWithKey f
+  , missingKey = \k x -> Just <$> f k x }
+{-# INLINE traverseMissing #-}
+
+-- | Traverse over the entries whose keys are missing from the other map,
+-- optionally producing values to put in the result.
+-- This is the most powerful 'WhenMissing' tactic, but others are usually
+-- more efficient.
+traverseMaybeMissing :: Applicative f
+                      => (k -> x -> f (Maybe y)) -> WhenMissing f k x y
+traverseMaybeMissing f = WhenMissing
+  { missingSubtree = traverseMaybeWithKey f
+  , missingKey = f }
+{-# INLINE traverseMaybeMissing #-}
+
+-- | Merge two maps.
+--
+-- @merge@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- tactic and two maps. It uses the tactics to merge the maps.
+-- Its behavior is best understood via its fundamental tactics,
+-- 'mapMaybeMissing' and 'zipWithMaybeMatched'.
+--
+-- Consider
+--
+-- @
+-- merge (mapMaybeMissing g1)
+--              (mapMaybeMissing g2)
+--              (zipWithMaybeMatched f)
+--              m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @merge@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- maybes = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- This produces a 'Maybe' for each key:
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'mapMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+--
+-- When 'merge' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should typically use 'merge'
+-- to define your custom combining functions.
+--
+--
+-- Examples:
+--
+-- prop> unionWithKey f = merge preserveMissing preserveMissing (zipWithMatched f)
+-- prop> intersectionWithKey f = merge dropMissing dropMissing (zipWithMatched f)
+-- prop> differenceWith f = merge diffPreserve diffDrop f
+-- prop> symmetricDifference = merge diffPreserve diffPreserve (\ _ _ _ -> Nothing)
+-- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g)
+--
+-- @since 0.5.8
+merge :: Ord k
+             => SimpleWhenMissing k a c -- ^ What to do with keys in @m1@ but not @m2@
+             -> SimpleWhenMissing k b c -- ^ What to do with keys in @m2@ but not @m1@
+             -> SimpleWhenMatched k a b c -- ^ What to do with keys in both @m1@ and @m2@
+             -> Map k a -- ^ Map @m1@
+             -> Map k b -- ^ Map @m2@
+             -> Map k c
+merge g1 g2 f m1 m2 = runIdentity $
+  mergeA g1 g2 f m1 m2
+{-# INLINE merge #-}
+
+-- | An applicative version of 'merge'.
+--
+-- @mergeA@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- tactic and two maps. It uses the tactics to merge the maps.
+-- Its behavior is best understood via its fundamental tactics,
+-- 'traverseMaybeMissing' and 'zipWithMaybeAMatched'.
+--
+-- Consider
+--
+-- @
+-- mergeA (traverseMaybeMissing g1)
+--               (traverseMaybeMissing g2)
+--               (zipWithMaybeAMatched f)
+--               m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @mergeA@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- actions = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- Next, it will perform the actions in the @actions@ list in order from
+-- left to right.
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'traverseMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+-- * 'mapMaybeMissing' does not use the 'Applicative' context.
+--
+-- When 'mergeA' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should generally only use
+-- 'mergeA' to define custom combining functions.
+--
+-- @since 0.5.8
+mergeA :: (Applicative f, Ord k)
+              => WhenMissing f k a c -- ^ What to do with keys in @m1@ but not @m2@
+              -> WhenMissing f k b c -- ^ What to do with keys in @m2@ but not @m1@
+              -> WhenMatched f k a b c -- ^ What to do with keys in both @m1@ and @m2@
+              -> Map k a -- ^ Map @m1@
+              -> Map k b -- ^ Map @m2@
+              -> f (Map k c)
+mergeA g1 WhenMissing{missingSubtree = g2} (WhenMatched f) = go
+  where
+    go t1 Tip = missingSubtree g1 t1
+    go Tip t2 = g2 t2
+    go (Bin _ kx x1 l1 r1) t2 = case splitLookup kx t2 of
+      (l2, mx2, r2) -> case mx2 of
+          Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        <$> l1l2 <*> missingKey g1 kx x1 <*> r1r2
+          Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        <$> l1l2 <*> f kx x1 x2 <*> r1r2
+        where
+          !l1l2 = go l1 l2
+          !r1r2 = go r1 r2
+{-# INLINE mergeA #-}
+
 
 {--------------------------------------------------------------------
   MergeWithKey
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. A high-performance universal combining function. This function
--- is used to define 'unionWith', 'unionWithKey', 'differenceWith',
--- 'differenceWithKey', 'intersectionWith', 'intersectionWithKey' and can be
--- used to define other custom combine functions.
+-- | /O(n+m)/. An unsafe general combining function.
 --
--- Please make sure you know what is going on when using 'mergeWithKey',
--- otherwise you can be surprised by unexpected code growth or even
--- corruption of the data structure.
+-- WARNING: This function can produce corrupt maps and its results
+-- may depend on the internal structures of its inputs. Users should
+-- prefer 'merge' or 'mergeA'.
 --
 -- When 'mergeWithKey' is given three arguments, it is inlined to the call
--- site. You should therefore use 'mergeWithKey' only to define your custom
+-- site. You should therefore use 'mergeWithKey' only to define custom
 -- combining functions. For example, you could define 'unionWithKey',
 -- 'differenceWithKey' and 'intersectionWithKey' as
 --
@@ -1851,10 +2447,13 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 --
 -- The @only1@ and @only2@ methods /must return a map with a subset (possibly empty) of the keys of the given map/.
 -- The values can be modified arbitrarily. Most common variants of @only1@ and
--- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
--- @'filterWithKey' f@ could be used for any @f@.
+-- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@,
+-- @'filterWithKey' f@, or @'mapMaybeWithKey' f@ could be used for any @f@.
 
-mergeWithKey :: Ord k => (k -> a -> b -> Maybe c) -> (Map k a -> Map k c) -> (Map k b -> Map k c)
+mergeWithKey :: Ord k
+             => (k -> a -> b -> Maybe c)
+             -> (Map k a -> Map k c)
+             -> (Map k b -> Map k c)
              -> Map k a -> Map k b -> Map k c
 mergeWithKey f g1 g2 = go
   where
@@ -1863,11 +2462,11 @@ mergeWithKey f g1 g2 = go
     go (Bin _ kx x l1 r1) t2 =
       case found of
         Nothing -> case g1 (singleton kx x) of
-                     Tip -> merge l' r'
+                     Tip -> link2 l' r'
                      (Bin _ _ x' Tip Tip) -> link kx x' l' r'
                      _ -> error "mergeWithKey: Given function only1 does not fulfill required conditions (see documentation)"
         Just x2 -> case f kx x x2 of
-                     Nothing -> merge l' r'
+                     Nothing -> link2 l' r'
                      Just x' -> link kx x' l' r'
       where
         (l2, found, r2) = splitLookup kx t2
@@ -1982,9 +2581,21 @@ filterWithKey p t@(Bin _ kx x l r)
   | p kx x    = if pl `ptrEq` l && pr `ptrEq` r
                 then t
                 else link kx x pl pr
-  | otherwise = merge pl pr
+  | otherwise = link2 pl pr
   where !pl = filterWithKey p l
         !pr = filterWithKey p r
+
+-- | /O(n)/. Filter keys and values using an 'Applicative'
+-- predicate.
+filterWithKeyA :: Applicative f => (k -> a -> f Bool) -> Map k a -> f (Map k a)
+filterWithKeyA _ Tip = pure Tip
+filterWithKeyA p t@(Bin _ kx x l r) =
+  combine <$> p kx x <*> filterWithKeyA p l <*> filterWithKeyA p r
+  where
+    combine True pl pr
+      | pl `ptrEq` l && pr `ptrEq` r = t
+      | otherwise = link kx x pl pr
+    combine False pl pr = link2 pl pr
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -2013,8 +2624,8 @@ partitionWithKey p0 t0 = toPair $ go p0 t0
     go p t@(Bin _ kx x l r)
       | p kx x    = (if l1 `ptrEq` l && r1 `ptrEq` r
                      then t
-                     else link kx x l1 r1) :*: merge l2 r2
-      | otherwise = merge l1 r1 :*:
+                     else link kx x l1 r1) :*: link2 l2 r2
+      | otherwise = link2 l1 r1 :*:
                     (if l2 `ptrEq` l && r2 `ptrEq` r
                      then t
                      else link kx x l2 r2)
@@ -2039,7 +2650,21 @@ mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-  Nothing -> merge (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+  Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+
+-- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
+
+traverseMaybeWithKey :: Applicative f
+                     => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
+traverseMaybeWithKey = go
+  where
+    go _ Tip = pure Tip
+    go f (Bin _ kx x Tip Tip) = maybe Tip (\x' -> Bin 1 kx x' Tip Tip) <$> f kx x
+    go f (Bin _ kx x l r) = combine <$> go f l <*> f kx x <*> go f r
+      where
+        combine !l' mx !r' = case mx of
+          Nothing -> link2 l' r'
+          Just x' -> link kx x' l' r'
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
@@ -2068,8 +2693,8 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
     go _ Tip = (Tip :*: Tip)
     go f (Bin _ kx x l r) = case f kx x of
-      Left y  -> link kx y l1 r1 :*: merge l2 r2
-      Right z -> merge l1 r1 :*: link kx z l2 r2
+      Left y  -> link kx y l1 r1 :*: link2 l2 r2
+      Right z -> link2 l1 r1 :*: link kx z l2 r2
      where
         (l1 :*: l2) = go f l
         (r1 :*: r2) = go f r
@@ -2861,7 +3486,7 @@ data StrictTriple a b c = StrictTriple !a !b !c
   are valid:
     [glue l r]        Glues [l] and [r] together. Assumes that [l] and
                       [r] are already balanced with respect to each other.
-    [merge l r]       Merges two trees and restores balance.
+    [link2 l r]       Merges two trees and restores balance.
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
@@ -2891,14 +3516,14 @@ insertMin kx x t
           -> balanceL ky y (insertMin kx x l) r
 
 {--------------------------------------------------------------------
-  [merge l r]: merges two trees.
+  [link2 l r]: merges two trees.
 --------------------------------------------------------------------}
-merge :: Map k a -> Map k a -> Map k a
-merge Tip r   = r
-merge l Tip   = l
-merge l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
-  | delta*sizeL < sizeR = balanceL ky y (merge l ly) ry
-  | delta*sizeR < sizeL = balanceR kx x lx (merge rx r)
+link2 :: Map k a -> Map k a -> Map k a
+link2 Tip r   = r
+link2 l Tip   = l
+link2 l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
+  | delta*sizeL < sizeR = balanceL ky y (link2 l ly) ry
+  | delta*sizeR < sizeL = balanceR kx x lx (link2 rx r)
   | otherwise           = glue l r
 
 {--------------------------------------------------------------------

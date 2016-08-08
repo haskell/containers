@@ -13,6 +13,8 @@
 
 #include "containers.h"
 
+{-# OPTIONS_HADDOCK hide #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Set.Base
@@ -36,15 +38,16 @@
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --      Journal of Functional Programming 3(4):553-562, October 1993,
 --      <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
 --
--- with some bounds given by
+--  Bounds for 'union', 'intersection', and 'difference' are as given
+--  by
 --
---    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun, "Just Join for
---      Parallel Ordered Sets", https://arxiv.org/abs/1602.02120
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
+--      \"/Just Join for Parallel Ordered Sets/\",
+--      <https://arxiv.org/abs/1602.02120v3>.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
@@ -229,7 +232,7 @@ import Data.Data
 --------------------------------------------------------------------}
 infixl 9 \\ --
 
--- | /O(n+m)/. See 'difference'.
+-- | /O(m*log(n\/m+1)), m <= n/. See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__
@@ -640,9 +643,9 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (Bin _ x l2 r2) = case splitMember x t1 of
-   (l1, b, r1)
-     | not b && l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
+difference t1 (Bin _ x l2 r2) = case split x t1 of
+   (l1, r1)
+     | size l1l2 + size r1r2 == size t1 -> t1
      | otherwise -> merge l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2

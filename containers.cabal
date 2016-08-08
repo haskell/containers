@@ -44,21 +44,24 @@ Library
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
+        Data.IntMap.Base
+        Data.IntSet.Base
         Data.IntSet
         Data.Map
         Data.Map.Lazy
+        Data.Map.Lazy.Merge
+        Data.Map.Strict.Internal
         Data.Map.Strict
+        Data.Map.Strict.Merge
+        Data.Map.Base
+        Data.Set.Base
         Data.Set
         Data.Graph
         Data.Sequence
+        Data.Sequence.Base
         Data.Tree
-    other-modules:
-        Data.IntMap.Base
-        Data.IntSet.Base
-        Data.Map.Base
-        Data.Set.Base
-        Data.Utils.BitQueue
         Data.Utils.BitUtil
+        Data.Utils.BitQueue
         Data.Utils.StrictFold
         Data.Utils.StrictPair
         Data.Utils.StrictMaybe
