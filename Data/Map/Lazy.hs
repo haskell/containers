@@ -117,7 +117,13 @@ module Data.Map.Lazy (
     , intersectionWith
     , intersectionWithKey
 
-    -- ** Universal combining function
+    -- ** General combining functions
+#ifdef __GLASGOW_HASKELL__
+    , MergeTactic (..)
+    , SimpleMergeTactic
+    , generalMerge
+    , generalMergeA
+#endif
     , mergeWithKey
 
     -- * Traversal

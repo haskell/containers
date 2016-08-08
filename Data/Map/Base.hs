@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE GADTs #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -165,7 +166,13 @@ module Data.Map.Base (
     , intersectionWith
     , intersectionWithKey
 
-    -- ** Universal combining function
+    -- ** General combining functions
+#ifdef __GLASGOW_HASKELL__
+    , MergeTactic (..)
+    , SimpleMergeTactic
+    , generalMerge
+    , generalMergeA
+#endif
     , mergeWithKey
 
     -- * Traversal
@@ -273,6 +280,9 @@ module Data.Map.Base (
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
     , atKeyPlain
 #endif
+#if !MIN_VERSION_base(4,8,0)
+    , Identity (..)
+#endif
     , bin
     , balance
     , balanced
@@ -328,7 +338,7 @@ import qualified GHC.Exts as GHCExts
 import Text.Read
 import Data.Data
 #endif
-#if __GLASGOW_HASKELL__ >= 709
+#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 #endif
 
@@ -704,7 +714,7 @@ insertR = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
     go !kx x Tip = singleton kx x
-    go kx x t@(Bin sz ky y l r) =
+    go kx x t@(Bin _ ky y l r) =
         case compare kx ky of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL ky y l' r
@@ -1781,9 +1791,9 @@ restrictKeys m@(Bin _ k x l1 r1) s
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 -- We have no hope of pointer equality tricks here because every single
 -- element in the result will be a thunk.
-intersectionWith f Tip _ = Tip
-intersectionWith f _ Tip = Tip
-intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWith _f Tip _ = Tip
+intersectionWith _f _ Tip = Tip
+intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f x1 x2) l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where
@@ -1800,9 +1810,9 @@ intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f Tip _ = Tip
-intersectionWithKey f _ Tip = Tip
-intersectionWithKey f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWithKey _f Tip _ = Tip
+intersectionWithKey _f _ Tip = Tip
+intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f k x1 x2) l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where
@@ -1818,10 +1828,7 @@ intersectionWithKey f t1@(Bin _ k x1 l1 r1) t2 = case mb of
   MergeWithKey
 --------------------------------------------------------------------}
 
--- | /O(n+m)/. A high-performance universal combining function. This function
--- is used to define 'unionWith', 'unionWithKey', 'differenceWith',
--- 'differenceWithKey', 'intersectionWith', 'intersectionWithKey' and can be
--- used to define other custom combine functions.
+-- | /O(n+m)/. A high-performance universal combining function.
 --
 -- Please make sure you know what is going on when using 'mergeWithKey',
 -- otherwise you can be surprised by unexpected code growth or even
@@ -1871,9 +1878,120 @@ mergeWithKey f g1 g2 = go
                      Just x' -> link kx x' l' r'
       where
         (l2, found, r2) = splitLookup kx t2
+        !l' = go l1 l2
+        !r' = go r1 r2
+{-# INLINE mergeWithKey #-}
+
+#ifdef __GLASGOW_HASKELL__
+
+#if !MIN_VERSION_base (4,8,0)
+newtype Identity a = Identity { runIdentity :: a }
+#if __GLASGOW_HASKELL__ == 708
+instance Functor Identity where
+  fmap = coerce  
+instance Applicative Identity where
+  (<*>) = coerce
+  pure = Identity
+#else
+instance Functor Identity where
+  fmap f (Identity a) = Identity (f a)
+instance Applicative Identity where
+  Identity f <*> Identity x = Identity (f x)
+  pure = Identity
+#endif
+#endif
+
+-- | Describes what 'generalMerge' or 'generalMergeA' should
+-- do with the entries in a map whose keys are not present in
+-- the other map.
+
+#if __GLASGOW_HASKELL__ >= 800
+data MergeTactic f k x y where
+
+  -- | Drop the entries.
+
+  Drop :: MergeTactic f k x y
+
+  -- | Preserve the entries as they are--this option is only available if the
+  -- result map has the same type.
+
+  Preserve :: MergeTactic f k x x
+
+  -- | Map over the entries, optionally removing some.
+  --
+  -- prop> MapFilter (\_ _ -> Nothing) = Drop
+  -- prop> MapFilter (\_ x -> Just x) = Preserve
+
+  MapFilter :: (k -> x -> Maybe y) -> MergeTactic f k x y
+
+  -- | Traverse over the entries from left to right, optionally removing some.
+  -- This does the same thing as 'MapFilter' when working in 'Identity', so it
+  -- should never be needed when calling 'generalMerge'.
+  --
+  -- Note: 'generalMergeA' performs all actions in ''key order''.
+  -- Traversals associated with the first and second maps, and actions
+  -- associated with the intersection, will all be interleaved with
+  -- each other so as to occur in key order.
+
+  TraverseFilter :: (k -> x -> f (Maybe y)) -> MergeTactic f k x y
+#else
+data MergeTactic f k x y where
+  Drop :: MergeTactic f k x y
+  Preserve :: MergeTactic f k x x
+  MapFilter :: (k -> x -> Maybe y) -> MergeTactic f k x y
+  TraverseFilter :: (k -> x -> f (Maybe y)) -> MergeTactic f k x y
+#endif
+
+
+type SimpleMergeTactic k x y = MergeTactic Identity k x y
+
+-- | Merge two maps efficiently in a general fashion.
+generalMerge :: Ord k
+             => SimpleMergeTactic k a c -- ^ What to do with entries in @ m1 @ but not @ m2 @
+             -> SimpleMergeTactic k b c -- ^ What to do with entries in @ m2 @ but not @ m1 @
+             -> (k -> a -> b -> Maybe c) -- ^ What to do with entries in both maps
+             -> Map k a -- ^ @ m1 @
+             -> Map k b -- ^ @ m2 @
+             -> Map k c
+generalMerge g1 g2 f m1 m2 = runIdentity $
+  generalMergeA g1 g2 (\k a b -> Identity $ f k a b) m1 m2
+{-# INLINE generalMerge #-}
+
+-- | Merge two maps in some 'Applicative'
+generalMergeA :: (Ord k, Applicative f)
+              => MergeTactic f k a c -- ^ What to do with entries in @ m1 @ but not @ m2 @
+              -> MergeTactic f k b c -- ^ What to do with entries in @ m2 @ but not @ m1 @
+              -> (k -> a -> b -> f (Maybe c)) -- ^ What to do with entries in both maps
+              -> Map k a -> Map k b -> f (Map k c)
+generalMergeA g1 g2 f = go
+  where
+    go Tip t2 = case g2 of
+                  Drop -> pure Tip
+                  Preserve -> pure t2
+                  MapFilter p -> pure $ mapMaybeWithKey p t2
+                  TraverseFilter p -> traverseMaybeWithKey p t2
+    go t1 Tip = case g1 of
+                  Drop -> pure Tip
+                  Preserve -> pure t1
+                  MapFilter p -> pure $ mapMaybeWithKey p t1
+                  TraverseFilter p -> traverseMaybeWithKey p t1
+    go (Bin _ kx x l1 r1) t2 =
+      case found of
+        Nothing -> case g1 of
+              Drop -> merge <$> l' <*> r'
+              Preserve -> link kx x <$> l' <*> r'
+              MapFilter p -> case p kx x of
+                               Nothing -> merge <$> l' <*> r'
+                               Just x' -> link kx x' <$> l' <*> r'
+              TraverseFilter p -> (\ !lt mx !rt -> maybe merge (link kx) mx lt rt)
+                                   <$> l' <*> p kx x <*> r'
+        Just x2 -> (\lt mx rt -> maybe merge (link kx) mx lt rt) <$> l' <*> f kx x x2 <*> r'
+      where
+        (l2, found, r2) = splitLookup kx t2
         l' = go l1 l2
         r' = go r1 r2
-{-# INLINE mergeWithKey #-}
+{-# INLINE generalMergeA #-}
+#endif
 
 {--------------------------------------------------------------------
   Submap
@@ -1985,6 +2103,13 @@ filterWithKey p t@(Bin _ kx x l r)
   | otherwise = merge pl pr
   where !pl = filterWithKey p l
         !pr = filterWithKey p r
+
+traverseMaybeWithKey :: Applicative f => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
+traverseMaybeWithKey = go
+  where
+    go _ Tip = pure Tip
+    go f (Bin _ kx x Tip Tip) = maybe Tip (\x' -> Bin 1 kx x' Tip Tip) <$> f kx x
+    go f (Bin _ kx x l r) = maybe merge (link kx) <$> f kx x <*> go f l <*> go f r
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -2797,7 +2922,7 @@ split !k0 t0 = toPair $ go k0 t0
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k m = case go k m of
+splitLookup k0 m = case go k0 m of
      StrictTriple l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
@@ -2821,7 +2946,7 @@ splitLookup k m = case go k m of
 -- implement 'intersection' to avoid allocating unnecessary 'Just'
 -- constructors.
 splitMember :: Ord k => k -> Map k a -> (Map k a,Bool,Map k a)
-splitMember k m = case go k m of
+splitMember k0 m = case go k0 m of
      StrictTriple l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) Bool (Map k a)
