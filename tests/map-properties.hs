@@ -25,7 +25,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun (..), apply)
-import Test.QuickCheck.Poly (A)
+import Test.QuickCheck.Poly (A,B)
 import Control.Arrow (first)
 
 default (Int)
@@ -138,6 +138,7 @@ main = defaultMain
          , testCase "minViewWithKey" test_minViewWithKey
          , testCase "maxViewWithKey" test_maxViewWithKey
          , testCase "valid" test_valid
+         , testProperty "differenceGenMerge"   prop_differenceGenMerge
          , testProperty "valid"                prop_valid
          , testProperty "insert to singleton"  prop_singleton
          , testProperty "insert"               prop_insert
@@ -168,6 +169,7 @@ main = defaultMain
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "unionWithKeyGeneralMerge"   prop_unionWithKeyGeneralMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromDescList"         prop_rev_ordered
@@ -909,6 +911,18 @@ test_valid = do
 ----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
+
+prop_differenceGenMerge :: Fun (Int, A, B) (Maybe A) -> Map Int A -> Map Int B -> Property
+prop_differenceGenMerge f m1 m2 =
+  differenceWithKey (apply3 f) m1 m2 === generalMerge Preserve Drop (apply3 f) m1 m2
+
+prop_unionWithKeyGeneralMerge :: Fun (Int, A, A) A -> Map Int A -> Map Int A -> Property
+prop_unionWithKeyGeneralMerge f m1 m2 =
+  unionWithKey (apply3 f) m1 m2 === unionWithKey' (apply3 f) m1 m2
+
+unionWithKey' :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
+unionWithKey' f = generalMerge Preserve Preserve (\k a b -> Just (f k a b))
+
 
 prop_valid :: UMap -> Bool
 prop_valid t = valid t
