@@ -928,9 +928,9 @@ differenceWithKey f t1 t2 = mergeWithKey f id (const Tip) t1 t2
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWith f Tip _ = Tip
-intersectionWith f _ Tip = Tip
-intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWith _f Tip _ = Tip
+intersectionWith _f _ Tip = Tip
+intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> let !x1' = f x1 x2 in link k x1' l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where
@@ -947,9 +947,9 @@ intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f Tip _ = Tip
-intersectionWithKey f _ Tip = Tip
-intersectionWithKey f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWithKey _f Tip _ = Tip
+intersectionWithKey _f _ Tip = Tip
+intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> let !x1' = f k x1 x2 in link k x1' l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where

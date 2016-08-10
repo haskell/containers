@@ -704,7 +704,7 @@ insertR = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
     go !kx x Tip = singleton kx x
-    go kx x t@(Bin sz ky y l r) =
+    go kx x t@(Bin _ ky y l r) =
         case compare kx ky of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL ky y l' r
@@ -1781,9 +1781,9 @@ restrictKeys m@(Bin _ k x l1 r1) s
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 -- We have no hope of pointer equality tricks here because every single
 -- element in the result will be a thunk.
-intersectionWith f Tip _ = Tip
-intersectionWith f _ Tip = Tip
-intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWith _f Tip _ = Tip
+intersectionWith _f _ Tip = Tip
+intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f x1 x2) l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where
@@ -1800,9 +1800,9 @@ intersectionWith f t1@(Bin _ k x1 l1 r1) t2 = case mb of
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
 
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
-intersectionWithKey f Tip _ = Tip
-intersectionWithKey f _ Tip = Tip
-intersectionWithKey f t1@(Bin _ k x1 l1 r1) t2 = case mb of
+intersectionWithKey _f Tip _ = Tip
+intersectionWithKey _f _ Tip = Tip
+intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f k x1 x2) l1l2 r1r2
     Nothing -> merge l1l2 r1r2
   where
@@ -2797,7 +2797,7 @@ split !k0 t0 = toPair $ go k0 t0
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k m = case go k m of
+splitLookup k0 m = case go k0 m of
      StrictTriple l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
@@ -2821,7 +2821,7 @@ splitLookup k m = case go k m of
 -- implement 'intersection' to avoid allocating unnecessary 'Just'
 -- constructors.
 splitMember :: Ord k => k -> Map k a -> (Map k a,Bool,Map k a)
-splitMember k m = case go k m of
+splitMember k0 m = case go k0 m of
      StrictTriple l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) Bool (Map k a)
