@@ -7,7 +7,6 @@ module Data.Utils.PtrEquality (ptrEq) where
 
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts ( reallyUnsafePtrEquality# )
-import Unsafe.Coerce (unsafeCoerce)
 #if __GLASGOW_HASKELL__ < 707
 import GHC.Exts ( (==#) )
 #else
