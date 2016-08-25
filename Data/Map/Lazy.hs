@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -63,11 +63,7 @@ module Data.Map.Lazy (
     -- $strictness
 
     -- * Map type
-#if !defined(TESTING)
     Map              -- instance Eq,Show,Read
-#else
-    Map(..)          -- instance Eq,Show,Read
-#endif
 
     -- * Operators
     , (!), (\\)
@@ -126,7 +122,7 @@ module Data.Map.Lazy (
     -- ** General combining functions
     -- | See "Data.Map.Lazy.Merge"
 
-    -- ** Deprecated general combining function
+    -- ** Unsafe general combining function
 
     , mergeWithKey
 
@@ -188,6 +184,9 @@ module Data.Map.Lazy (
     , withoutKeys
     , partition
     , partitionWithKey
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
 
     , mapMaybe
     , mapMaybeWithKey
@@ -208,6 +207,9 @@ module Data.Map.Lazy (
     , elemAt
     , updateAt
     , deleteAt
+    , take
+    , drop
+    , splitAt
 
     -- * Min\/Max
     , findMin
@@ -229,18 +231,10 @@ module Data.Map.Lazy (
     , showTree
     , showTreeWith
     , valid
-
-#if defined(TESTING)
-    -- * Internals
-    , bin
-    , balanced
-    , link
-    , link2
-#endif
-
     ) where
 
 import Data.Map.Base as M
+import Prelude ()
 
 -- $strictness
 --

@@ -3,7 +3,7 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 708
@@ -280,6 +280,11 @@ module Data.Map.Base (
     -- * Filter
     , filter
     , filterWithKey
+
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , restrictKeys
     , withoutKeys
     , partition
@@ -304,6 +309,9 @@ module Data.Map.Base (
     , elemAt
     , updateAt
     , deleteAt
+    , take
+    , drop
+    , splitAt
 
     -- * Min\/Max
     , findMin
@@ -370,7 +378,7 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
 import Data.Typeable
-import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
 import qualified Data.Set.Base as Set
 import Data.Set.Base (Set)
@@ -1443,6 +1451,66 @@ elemAt i (Bin _ kx x l r)
       EQ -> (kx,x)
   where
     sizeL = size l
+
+-- | Take a given number of entries in key order, beginning
+-- with the smallest keys.
+--
+-- @
+-- take n = 'fromDistinctAscList' . 'Prelude.take' n . 'toAscList'
+-- @
+
+take :: Int -> Map k a -> Map k a
+take i m | i >= size m = m
+take i0 m0 = go i0 m0
+  where
+    go i !_ | i <= 0 = Tip
+    go !_ Tip = Tip
+    go i (Bin _ kx x l r) =
+      case compare i sizeL of
+        LT -> go i l
+        GT -> link kx x l (go (i - sizeL - 1) r)
+        EQ -> l
+      where sizeL = size l
+
+-- | Drop a given number of entries in key order, beginning
+-- with the smallest keys.
+--
+-- @
+-- drop n = 'fromDistinctAscList' . 'Prelude.drop' n . 'toAscList'
+-- @
+drop :: Int -> Map k a -> Map k a
+drop i m | i >= size m = Tip
+drop i0 m0 = go i0 m0
+  where
+    go i m | i <= 0 = m
+    go !_ Tip = Tip
+    go i (Bin _ kx x l r) =
+      case compare i sizeL of
+        LT -> link kx x (go i l) r
+        GT -> go (i - sizeL - 1) r
+        EQ -> insertMin kx x r
+      where sizeL = size l
+
+-- | /O(log n)/. Split a map at a particular index.
+--
+-- @
+-- splitAt !n !xs = ('take' n xs, 'drop' n xs)
+-- @
+splitAt :: Int -> Map k a -> (Map k a, Map k a)
+splitAt i0 m0
+  | i0 >= size m0 = (m0, Tip)
+  | otherwise = toPair $ go i0 m0
+  where
+    go i m | i <= 0 = Tip :*: m
+    go !_ Tip = Tip :*: Tip
+    go i (Bin _ kx x l r)
+      = case compare i sizeL of
+          LT -> case go i l of
+                  ll :*: lr -> ll :*: link kx x lr r
+          GT -> case go (i - sizeL - 1) r of
+                  rl :*: rr -> link kx x l rl :*: rr
+          EQ -> l :*: insertMin kx x r
+      where sizeL = size l
 
 -- | /O(log n)/. Update the element at /index/, i.e. by its zero-based index in
 -- the sequence sorted by keys. If the /index/ is out of range (less than zero,
@@ -2596,6 +2664,58 @@ filterWithKeyA p t@(Bin _ kx x l r) =
       | pl `ptrEq` l && pr `ptrEq` r = t
       | otherwise = link kx x pl pr
     combine False pl pr = link2 pl pr
+
+-- | /O(log n)/. Take while a predicate on the keys holds.
+-- The user is responsible for ensuring that for all keys @j@ and @k@ in the map,
+-- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
+--
+-- @
+-- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' (p . fst) . 'toList'
+-- takeWhileAntitone p = 'filterWithKey' (\k _ -> p k)
+-- @
+
+takeWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
+takeWhileAntitone _ Tip = Tip
+takeWhileAntitone p (Bin _ kx x l r)
+  | p kx = link kx x l (takeWhileAntitone p r)
+  | otherwise = takeWhileAntitone p l
+
+-- | /O(log n)/. Drop while a predicate on the keys holds.
+-- The user is responsible for ensuring that for all keys @j@ and @k@ in the map,
+-- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
+--
+-- @
+-- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' (p . fst) . 'toList'
+-- dropWhileAntitone p = 'filterWithKey' (\k -> not (p k))
+-- @
+
+dropWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
+dropWhileAntitone _ Tip = Tip
+dropWhileAntitone p (Bin _ kx x l r)
+  | p kx = dropWhileAntitone p r
+  | otherwise = link kx x (dropWhileAntitone p l) r
+
+-- | /O(log n)/. Divide a map at the point where a predicate on the keys stops holding.
+-- The user is responsible for ensuring that for all keys @j@ and @k@ in the map,
+-- @j \< k ==\> p j \>= p k@.
+--
+-- @
+-- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
+-- spanAntitone p xs = partition p xs
+-- @
+--
+-- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the map
+-- at some /unspecified/ point where the predicate switches from holding to not
+-- holding (where the predicate is seen to hold before the first key and to fail
+-- after the last key).
+
+spanAntitone :: (k -> Bool) -> Map k a -> (Map k a, Map k a)
+spanAntitone p0 m = toPair (go p0 m)
+  where
+    go _ Tip = Tip :*: Tip
+    go p (Bin _ kx x l r)
+      | p kx = let u :*: v = go p r in link kx x l u :*: v
+      | otherwise = let u :*: v = go p l in u :*: link kx x v r
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all

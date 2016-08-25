@@ -247,6 +247,9 @@ module Data.Map.Strict.Internal
     , withoutKeys
     , partition
     , partitionWithKey
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
 
     , mapMaybe
     , mapMaybeWithKey
@@ -267,6 +270,9 @@ module Data.Map.Strict.Internal
     , elemAt
     , updateAt
     , deleteAt
+    , take
+    , drop
+    , splitAt
 
     -- * Min\/Max
     , findMin
@@ -295,7 +301,7 @@ module Data.Map.Strict.Internal
     , link2
     ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Prelude hiding (lookup,map,filter,foldr,foldl,null,take,drop,splitAt)
 
 import Data.Map.Base
   ( Map (..)
@@ -332,6 +338,8 @@ import Data.Map.Base
   , deleteMin
   , deleteMax
   , difference
+  , drop
+  , dropWhileAntitone
   , filter
   , filterWithKey
   , findIndex
@@ -378,9 +386,13 @@ import Data.Map.Base
   , showTree
   , showTreeWith
   , size
+  , spanAntitone
   , split
+  , splitAt
   , splitLookup
   , splitRoot
+  , take
+  , takeWhileAntitone
   , toList
   , toAscList
   , toDescList

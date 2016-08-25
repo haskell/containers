@@ -193,6 +193,10 @@ module Data.Map.Strict
     , partition
     , partitionWithKey
 
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -212,6 +216,9 @@ module Data.Map.Strict
     , elemAt
     , updateAt
     , deleteAt
+    , take
+    , drop
+    , splitAt
 
     -- * Min\/Max
     , findMin
