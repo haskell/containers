@@ -1,9 +1,10 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.Map.Strict as Data.Map
+import Data.Map.Strict.Internal as Data.Map
 #else
 import Data.Map.Lazy as Data.Map
+import Data.Map.Lazy.Merge
 #endif
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
@@ -25,7 +26,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun (..), apply)
-import Test.QuickCheck.Poly (A)
+import Test.QuickCheck.Poly (A, B)
 import Control.Arrow (first)
 
 default (Int)
@@ -150,7 +151,7 @@ main = defaultMain
          , testProperty "split"                prop_split
          , testProperty "splitRoot"            prop_splitRoot
          , testProperty "split then link"      prop_link
-         , testProperty "split then merge"     prop_merge
+         , testProperty "split then link2"     prop_link2
          , testProperty "union"                prop_union
          , testProperty "union model"          prop_unionModel
          , testProperty "union singleton"      prop_unionSingleton
@@ -168,6 +169,8 @@ main = defaultMain
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "differenceMerge"   prop_differenceMerge
+         , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromDescList"         prop_rev_ordered
@@ -910,6 +913,18 @@ test_valid = do
 -- QuickCheck
 ----------------------------------------------------------------
 
+prop_differenceMerge :: Fun (Int, A, B) (Maybe A) -> Map Int A -> Map Int B -> Property
+prop_differenceMerge f m1 m2 =
+  differenceWithKey (apply3 f) m1 m2 === merge preserveMissing dropMissing (zipWithMaybeMatched (apply3 f)) m1 m2
+
+prop_unionWithKeyMerge :: Fun (Int, A, A) A -> Map Int A -> Map Int A -> Property
+prop_unionWithKeyMerge f m1 m2 =
+  unionWithKey (apply3 f) m1 m2 === unionWithKey' (apply3 f) m1 m2
+
+unionWithKey' :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
+unionWithKey' f = merge preserveMissing preserveMissing $
+  zipWithMatched (\k a b -> f k a b)
+
 prop_valid :: UMap -> Bool
 prop_valid t = valid t
 
@@ -957,9 +972,9 @@ prop_link :: Int -> UMap -> Bool
 prop_link k t = let (l,r) = split k t
                 in valid (link k () l r)
 
-prop_merge :: Int -> UMap -> Bool
-prop_merge k t = let (l,r) = split k t
-                 in valid (merge l r)
+prop_link2 :: Int -> UMap -> Bool
+prop_link2 k t = let (l,r) = split k t
+                 in valid (link2 l r)
 
 ----------------------------------------------------------------
 

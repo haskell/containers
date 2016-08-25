@@ -1,4 +1,4 @@
-import Data.Sequence    -- needs to be compiled with -DTESTING for use here
+import Data.Sequence.Base
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))

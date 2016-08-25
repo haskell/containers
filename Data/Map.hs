@@ -36,10 +36,16 @@
 --    * Stephen Adams, \"/Efficient sets: a balancing act/\",
 --     Journal of Functional Programming 3(4):553-562, October 1993,
 --     <http://www.swiss.ai.mit.edu/~adams/BB/>.
---
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
+--
+--  Bounds for 'union', 'intersection', and 'difference' are as given
+--  by
+--
+--    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
+--      \"/Just Join for Parallel Ordered Sets/\",
+--      <https://arxiv.org/abs/1602.02120v3>.
 --
 -- Note that the implementation is /left-biased/ -- the elements of a
 -- first argument are always preferred to the second, for example in
