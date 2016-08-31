@@ -804,7 +804,7 @@ alter = go
 
 -- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alterF' can be used to inspect, insert, delete, or update a value in a 'Map'.
--- In short : @'lookup' k <$> 'alterF' f k m = f ('lookup' k m)@.
+-- In short: @'lookup' k \<$\> 'alterF' f k m = f ('lookup' k m)@.
 --
 -- Example:
 --

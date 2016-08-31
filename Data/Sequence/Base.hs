@@ -663,10 +663,13 @@ thin12 s pr m (Three a b c) = DeepTh s pr (thin $ m `snocTree` node2 a b) (One12
 thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two12 c d)
 
 -- | Intersperse an element between the elements of a sequence.
--- > intersperse a empty = empty
--- > intersperse a (singleton x) = singleton x
--- > intersperse a (fromList [x,y]) = fromList [x,a,y]
--- > intersperse a (fromList [x,y,z]) = fromList [x,a,y,a,z]
+--
+-- @
+-- intersperse a empty = empty
+-- intersperse a (singleton x) = singleton x
+-- intersperse a (fromList [x,y]) = fromList [x,a,y]
+-- intersperse a (fromList [x,y,z]) = fromList [x,a,y,a,z]
+-- @
 --
 -- @since 0.5.8
 intersperse :: a -> Seq a -> Seq a
