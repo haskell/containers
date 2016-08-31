@@ -69,6 +69,7 @@ module Data.Set (
             , size
             , member
             , notMember
+            , lookup
             , lookupLT
             , lookupGT
             , lookupLE
@@ -154,6 +155,7 @@ module Data.Set (
             ) where
 
 import Data.Set.Base as S
+import Prelude ()
 
 -- $strictness
 --

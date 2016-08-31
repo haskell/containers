@@ -23,7 +23,8 @@ import Control.Applicative (Applicative (..), (<$>))
 #endif
 
 main :: IO ()
-main = defaultMain [ testCase "lookupLT" test_lookupLT
+main = defaultMain [ testCase "lookup" test_lookup
+                   , testCase "lookupLT" test_lookupLT
                    , testCase "lookupGT" test_lookupGT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
@@ -35,6 +36,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_Single" prop_Single
                    , testProperty "prop_Member" prop_Member
                    , testProperty "prop_NotMember" prop_NotMember
+                   , testProperty "prop_Lookup" prop_Lookup
                    , testProperty "prop_LookupLT" prop_LookupLT
                    , testProperty "prop_LookupGT" prop_LookupGT
                    , testProperty "prop_LookupLE" prop_LookupLE
@@ -103,6 +105,11 @@ instance Ord a => Ord (OddEq a) where
 ----------------------------------------------------------------
 -- Unit tests
 ----------------------------------------------------------------
+
+test_lookup :: Assertion
+test_lookup = do
+    lookup 3 (fromList [3, 5]) @?= Just 3
+    lookup 4 (fromList [3, 5]) @?= Nothing
 
 test_lookupLT :: Assertion
 test_lookupLT = do
@@ -323,6 +330,9 @@ test_LookupSomething lookup' cmp xs =
   where filter_odd [] = []
         filter_odd [_] = []
         filter_odd (_ : o : xs) = o : filter_odd xs
+
+prop_Lookup :: [Int] -> Bool
+prop_Lookup = test_LookupSomething lookup (==)
 
 prop_LookupLT :: [Int] -> Bool
 prop_LookupLT = test_LookupSomething lookupLT (<)
