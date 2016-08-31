@@ -30,8 +30,8 @@
     and `Data.IntMap`.
 
   * Add `take`, `drop`, `splitAt`, `takeWhileAntitone`, `dropWhileAntitone`,
-    and `spanAntitone` for `Data.Map`. Thanks to Cale Gibbard for suggesting
-    these.
+    and `spanAntitone` for `Data.Map` and `Data.Set`. Thanks to Cale Gibbard
+    for suggesting these.
 
   * Add `merge`, `mergeA`, and associated merge tactics for `Data.Map`.
     Many thanks to Cale Gibbard, Ryan Trinkle, and Dan Doel for

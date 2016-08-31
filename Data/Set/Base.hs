@@ -139,6 +139,9 @@ module Data.Set.Base (
 
             -- * Filter
             , filter
+            , takeWhileAntitone
+            , dropWhileAntitone
+            , spanAntitone
             , partition
             , split
             , splitMember
@@ -149,6 +152,9 @@ module Data.Set.Base (
             , findIndex
             , elemAt
             , deleteAt
+            , take
+            , drop
+            , splitAt
 
             -- * Map
             , map
@@ -200,7 +206,7 @@ module Data.Set.Base (
             , merge
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map)
+import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 #if !MIN_VERSION_base(4,8,0)
@@ -1165,6 +1171,117 @@ deleteAt !i t =
       EQ -> glue l r
       where
         sizeL = size l
+
+-- | Take a given number of elements in order, beginning
+-- with the smallest ones.
+--
+-- @
+-- take n = 'fromDistinctAscList' . 'Prelude.take' n . 'toAscList'
+-- @
+take :: Int -> Set a -> Set a
+take i m | i >= size m = m
+take i0 m0 = go i0 m0
+  where
+    go i !_ | i <= 0 = Tip
+    go !_ Tip = Tip
+    go i (Bin _ x l r) =
+      case compare i sizeL of
+        LT -> go i l
+        GT -> link x l (go (i - sizeL - 1) r)
+        EQ -> l
+      where sizeL = size l
+
+-- | Drop a given number of elements in order, beginning
+-- with the smallest ones.
+--
+-- @
+-- drop n = 'fromDistinctAscList' . 'Prelude.drop' n . 'toAscList'
+-- @
+drop :: Int -> Set a -> Set a
+drop i m | i >= size m = Tip
+drop i0 m0 = go i0 m0
+  where
+    go i m | i <= 0 = m
+    go !_ Tip = Tip
+    go i (Bin _ x l r) =
+      case compare i sizeL of
+        LT -> link x (go i l) r
+        GT -> go (i - sizeL - 1) r
+        EQ -> insertMin x r
+      where sizeL = size l
+
+-- | /O(log n)/. Split a set at a particular index.
+--
+-- @
+-- splitAt !n !xs = ('take' n xs, 'drop' n xs)
+-- @
+splitAt :: Int -> Set a -> (Set a, Set a)
+splitAt i0 m0
+  | i0 >= size m0 = (m0, Tip)
+  | otherwise = toPair $ go i0 m0
+  where
+    go i m | i <= 0 = Tip :*: m
+    go !_ Tip = Tip :*: Tip
+    go i (Bin _ x l r)
+      = case compare i sizeL of
+          LT -> case go i l of
+                  ll :*: lr -> ll :*: link x lr r
+          GT -> case go (i - sizeL - 1) r of
+                  rl :*: rr -> link x l rl :*: rr
+          EQ -> l :*: insertMin x r
+      where sizeL = size l
+
+-- | /O(log n)/. Take while a predicate on the elements holds.
+-- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
+-- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
+--
+-- @
+-- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' p . 'toList'
+-- takeWhileAntitone p = 'filter' p
+-- @
+
+takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
+takeWhileAntitone _ Tip = Tip
+takeWhileAntitone p (Bin _ x l r)
+  | p x = link x l (takeWhileAntitone p r)
+  | otherwise = takeWhileAntitone p l
+
+-- | /O(log n)/. Drop while a predicate on the elements holds.
+-- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
+-- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
+--
+-- @
+-- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' p . 'toList'
+-- dropWhileAntitone p = 'filter' (not . p)
+-- @
+
+dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
+dropWhileAntitone _ Tip = Tip
+dropWhileAntitone p (Bin _ x l r)
+  | p x = dropWhileAntitone p r
+  | otherwise = link x (dropWhileAntitone p l) r
+
+-- | /O(log n)/. Divide a set at the point where a predicate on the elements stops holding.
+-- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
+-- @j \< k ==\> p j \>= p k@.
+--
+-- @
+-- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
+-- spanAntitone p xs = partition p xs
+-- @
+--
+-- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the set
+-- at some /unspecified/ point where the predicate switches from holding to not
+-- holding (where the predicate is seen to hold before the first element and to fail
+-- after the last element).
+
+spanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
+spanAntitone p0 m = toPair (go p0 m)
+  where
+    go _ Tip = Tip :*: Tip
+    go p (Bin _ x l r)
+      | p x = let u :*: v = go p r in link x l u :*: v
+      | otherwise = let u :*: v = go p l in u :*: link x v r
 
 
 {--------------------------------------------------------------------

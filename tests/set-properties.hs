@@ -5,7 +5,7 @@ import qualified Data.List as List
 import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, all)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, all, take, drop, splitAt)
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -85,6 +85,12 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
+                   , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
+                   , testProperty "spanAntitone"         prop_spanAntitone
+                   , testProperty "take"                 prop_take
+                   , testProperty "drop"                 prop_drop
+                   , testProperty "splitAt"              prop_splitAt
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -548,3 +554,47 @@ prop_partition s i = case partition odd s of
 
 prop_filter :: Set Int -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)
+
+prop_take :: Int -> Set Int -> Property
+prop_take n xs = valid taken .&&.
+                 taken === fromDistinctAscList (List.take n (toList xs))
+  where
+    taken = take n xs
+
+prop_drop :: Int -> Set Int -> Property
+prop_drop n xs = valid dropped .&&.
+                 dropped === fromDistinctAscList (List.drop n (toList xs))
+  where
+    dropped = drop n xs
+
+prop_splitAt :: Int -> Set Int -> Property
+prop_splitAt n xs = valid taken .&&.
+                    valid dropped .&&.
+                    taken === take n xs .&&.
+                    dropped === drop n xs
+  where
+    (taken, dropped) = splitAt n xs
+
+prop_takeWhileAntitone :: [Either Int Int] -> Property
+prop_takeWhileAntitone xs' = valid tw .&&. tw === filter isLeft xs
+  where
+    xs = fromList xs'
+    tw = takeWhileAntitone isLeft xs
+
+prop_dropWhileAntitone :: [Either Int Int] -> Property
+prop_dropWhileAntitone xs' = valid tw .&&. tw === filter (not . isLeft) xs
+  where
+    xs = fromList xs'
+    tw = dropWhileAntitone isLeft xs
+
+prop_spanAntitone :: [Either Int Int] -> Property
+prop_spanAntitone xs' = valid tw .&&. valid dw
+                        .&&. tw === takeWhileAntitone isLeft xs
+                        .&&. dw === dropWhileAntitone isLeft xs
+  where
+    xs = fromList xs'
+    (tw, dw) = spanAntitone isLeft xs
+
+isLeft :: Either a b -> Bool
+isLeft (Left _) = True
+isLeft _ = False
