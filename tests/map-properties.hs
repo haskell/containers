@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.Map.Strict.Internal as Data.Map
+import Data.Map.Strict as Data.Map
+import Data.Map.Strict.Merge
 #else
 import Data.Map.Lazy as Data.Map
 import Data.Map.Lazy.Merge
 #endif
+import Data.Map.Base (Map (..), balanced, link2, link, bin)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Data.Functor.Identity (Identity(runIdentity))
@@ -14,8 +16,8 @@ import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Function
-import Prelude hiding (lookup, null, map, filter, foldr, foldl)
-import qualified Prelude (map)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, take, drop, splitAt)
+import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -213,6 +215,12 @@ main = defaultMain
          , testProperty "foldl'"               prop_foldl'
          , testProperty "keysSet"              prop_keysSet
          , testProperty "fromSet"              prop_fromSet
+         , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
+         , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
+         , testProperty "spanAntitone"         prop_spanAntitone
+         , testProperty "take"                 prop_take
+         , testProperty "drop"                 prop_drop
+         , testProperty "splitAt"              prop_splitAt
          ]
 
 {--------------------------------------------------------------------
@@ -1256,6 +1264,50 @@ prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
+
+prop_take :: Int -> Map Int Int -> Property
+prop_take n xs = valid taken .&&.
+                 taken === fromDistinctAscList (List.take n (toList xs))
+  where
+    taken = take n xs
+
+prop_drop :: Int -> Map Int Int -> Property
+prop_drop n xs = valid dropped .&&.
+                 dropped === fromDistinctAscList (List.drop n (toList xs))
+  where
+    dropped = drop n xs
+
+prop_splitAt :: Int -> Map Int Int -> Property
+prop_splitAt n xs = valid taken .&&.
+                    valid dropped .&&.
+                    taken === take n xs .&&.
+                    dropped === drop n xs
+  where
+    (taken, dropped) = splitAt n xs
+
+prop_takeWhileAntitone :: [(Either Int Int, Int)] -> Property
+prop_takeWhileAntitone xs' = valid tw .&&. (tw === filterWithKey (\k _ -> isLeft k) xs)
+  where
+    xs = fromList xs'
+    tw = takeWhileAntitone isLeft xs
+
+prop_dropWhileAntitone :: [(Either Int Int, Int)] -> Property
+prop_dropWhileAntitone xs' = valid tw .&&. (tw === filterWithKey (\k _ -> not (isLeft k)) xs)
+  where
+    xs = fromList xs'
+    tw = dropWhileAntitone isLeft xs
+
+prop_spanAntitone :: [(Either Int Int, Int)] -> Property
+prop_spanAntitone xs' = valid tw .&&. valid dw
+                        .&&. (tw === takeWhileAntitone isLeft xs)
+                        .&&. (dw === dropWhileAntitone isLeft xs)
+  where
+    xs = fromList xs'
+    (tw, dw) = spanAntitone isLeft xs
+
+isLeft :: Either a b -> Bool
+isLeft (Left _) = True
+isLeft _ = False
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
