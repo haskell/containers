@@ -90,6 +90,9 @@ module Data.Set (
 
             -- * Filter
             , S.filter
+            , takeWhileAntitone
+            , dropWhileAntitone
+            , spanAntitone
             , partition
             , split
             , splitMember
@@ -100,6 +103,9 @@ module Data.Set (
             , findIndex
             , elemAt
             , deleteAt
+            , S.take
+            , S.drop
+            , S.splitAt
 
             -- * Map
             , S.map
