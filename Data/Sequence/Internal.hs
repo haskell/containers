@@ -25,8 +25,6 @@
 
 #include "containers.h"
 
-{-# OPTIONS_HADDOCK hide #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence.Internal

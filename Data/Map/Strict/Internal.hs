@@ -4,8 +4,6 @@
 {-# LANGUAGE Trustworthy #-}
 #endif
 
-{-# OPTIONS_HADDOCK hide #-}
-
 #include "containers.h"
 
 -----------------------------------------------------------------------------

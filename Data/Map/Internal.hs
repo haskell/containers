@@ -22,8 +22,6 @@
 #define DEFINE_ALTERF_FALLBACK 1
 #endif
 
-{-# OPTIONS_HADDOCK hide #-}
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map.Internal
