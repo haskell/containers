@@ -79,7 +79,7 @@
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
--- See the notes at the beginning of Data.Map.Base.
+-- See the notes at the beginning of Data.Map.Internal.
 
 module Data.Map.Strict.Internal
     (
@@ -303,7 +303,7 @@ module Data.Map.Strict.Internal
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null,take,drop,splitAt)
 
-import Data.Map.Base
+import Data.Map.Internal
   ( Map (..)
   , AreWeStrict (..)
   , WhenMissing (..)
@@ -401,13 +401,13 @@ import Data.Map.Base
   , valid
   , withoutKeys )
 
-import Data.Map.Base (bin, balanced)
+import Data.Map.Internal (bin, balanced)
 
 import Control.Applicative (Const (..))
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative (..), (<$>))
 #endif
-import qualified Data.Set.Base as Set
+import qualified Data.Set.Internal as Set
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
 
@@ -461,7 +461,7 @@ import Data.Functor.Identity (Identity (..))
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
--- See Map.Base.Note: Local 'go' functions and capturing
+-- See Map.Internal.Note: Local 'go' functions and capturing
 findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault def k = k `seq` go
   where
@@ -501,7 +501,7 @@ singleton k x = x `seq` Bin 1 k x Tip Tip
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 insert :: Ord k => k -> a -> Map k a -> Map k a
 insert = go
   where
@@ -572,7 +572,7 @@ insertWithR = go
 -- > insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKey = go
   where
@@ -627,7 +627,7 @@ insertWithKeyR = go
 -- > insertLookup 5 "x" (fromList [(5,"a"), (3,"b")]) == (Just "a", fromList [(3, "b"), (5, "x")])
 -- > insertLookup 7 "x" (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a"), (7, "x")])
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
 insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
@@ -720,7 +720,7 @@ update f = updateWithKey (\_ x -> f x)
 -- > updateWithKey f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 updateWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
 updateWithKey = go
   where
@@ -748,7 +748,7 @@ updateWithKey = go
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)
 updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
  where
@@ -781,7 +781,7 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
 -- > alter f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "c")]
 -- > alter f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "c")]
 
--- See Map.Base.Note: Type of local 'go' function
+-- See Map.Internal.Note: Type of local 'go' function
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
 alter = go
   where

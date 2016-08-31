@@ -1,4 +1,4 @@
-import Data.Sequence.Base
+import Data.Sequence.Internal
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))

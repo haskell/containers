@@ -100,4 +100,4 @@ module Data.Map.Lazy.Merge (
     , runWhenMissing
     ) where
 
-import Data.Map.Base
+import Data.Map.Internal

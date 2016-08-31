@@ -57,7 +57,7 @@
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
--- See the notes at the beginning of Data.IntMap.Base.
+-- See the notes at the beginning of Data.IntMap.Internal.
 
 module Data.IntMap.Strict (
     -- * Strictness properties
@@ -218,7 +218,7 @@ module Data.IntMap.Strict (
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
 import Data.Bits
-import Data.IntMap.Base hiding
+import Data.IntMap.Internal hiding
     ( findWithDefault
     , singleton
     , insert
@@ -264,7 +264,7 @@ import Data.IntMap.Base hiding
     , fromDistinctAscList
     )
 
-import qualified Data.IntSet.Base as IntSet
+import qualified Data.IntSet.Internal as IntSet
 import Data.Utils.BitUtil
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
@@ -304,7 +304,7 @@ import Data.Functor((<$>))
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 
--- See IntMap.Base.Note: Local 'go' functions and capturing]
+-- See IntMap.Internal.Note: Local 'go' functions and capturing]
 findWithDefault :: a -> Key -> IntMap a -> a
 findWithDefault def !k = go
   where

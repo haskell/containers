@@ -16,7 +16,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.IntMap.Base
+-- Module      :  Data.IntMap.Internal
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
@@ -68,7 +68,7 @@
 -- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
 -- improves the benchmark by circa 10%.
 
-module Data.IntMap.Base (
+module Data.IntMap.Internal (
     -- * Map type
       IntMap(..), Key          -- instance Eq,Show
 
@@ -255,8 +255,8 @@ import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
-import Data.IntSet.Base (Key)
-import qualified Data.IntSet.Base as IntSet
+import Data.IntSet.Internal (Key)
+import qualified Data.IntSet.Internal as IntSet
 import Data.Utils.BitUtil
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
@@ -432,7 +432,7 @@ fromListConstr :: Constr
 fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
 
 intMapDataType :: DataType
-intMapDataType = mkDataType "Data.IntMap.Base.IntMap" [fromListConstr]
+intMapDataType = mkDataType "Data.IntMap.Internal.IntMap" [fromListConstr]
 
 #endif
 

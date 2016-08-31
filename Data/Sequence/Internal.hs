@@ -29,7 +29,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Sequence.Base
+-- Module      :  Data.Sequence.Internal
 -- Copyright   :  (c) Ross Paterson 2005
 --                (c) Louis Wasserman 2009
 --                (c) Bertram Felgenhauer, David Feuer, Ross Paterson, and
@@ -84,7 +84,7 @@
 --
 -----------------------------------------------------------------------------
 
-module Data.Sequence.Base (
+module Data.Sequence.Internal (
     Elem(..), FingerTree(..), Node(..), Digit(..), Sized(..), MaybeForce,
 #if defined(DEFINE_PATTERN_SYNONYMS)
     Seq (.., Empty, (:<|), (:|>)),

@@ -26,7 +26,7 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Map.Base
+-- Module      :  Data.Map.Internal
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
 -- License     :  BSD-style
@@ -128,7 +128,7 @@
 -- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
 -- improves the benchmark by up to 10% on x86.
 
-module Data.Map.Base (
+module Data.Map.Internal (
     -- * Map type
       Map(..)          -- instance Eq,Show,Read
 
@@ -380,8 +380,8 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
-import qualified Data.Set.Base as Set
-import Data.Set.Base (Set)
+import qualified Data.Set.Internal as Set
+import Data.Set.Internal (Set)
 import Data.Utils.PtrEquality (ptrEq)
 import Data.Utils.StrictFold
 import Data.Utils.StrictPair
@@ -485,7 +485,7 @@ fromListConstr :: Constr
 fromListConstr = mkConstr mapDataType "fromList" [] Prefix
 
 mapDataType :: DataType
-mapDataType = mkDataType "Data.Map.Base.Map" [fromListConstr]
+mapDataType = mkDataType "Data.Map.Internal.Map" [fromListConstr]
 
 #endif
 

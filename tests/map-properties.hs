@@ -7,7 +7,7 @@ import Data.Map.Strict.Merge
 import Data.Map.Lazy as Data.Map
 import Data.Map.Lazy.Merge
 #endif
-import Data.Map.Base (Map (..), balanced, link2, link, bin)
+import Data.Map.Internal (Map (..), balanced, link2, link, bin)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Data.Functor.Identity (Identity(runIdentity))
