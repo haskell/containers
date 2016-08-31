@@ -1,6 +1,6 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.5.8.1
+## 0.5.8.1 *Aug 2016*
 
 ### General package changes
 
