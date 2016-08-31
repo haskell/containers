@@ -60,10 +60,10 @@ Library
         Data.Sequence
         Data.Sequence.Internal
         Data.Tree
-
-    other-modules:
         Data.Utils.BitUtil
         Data.Utils.BitQueue
+
+    other-modules:
         Data.Utils.StrictFold
         Data.Utils.StrictPair
         Data.Utils.StrictMaybe
