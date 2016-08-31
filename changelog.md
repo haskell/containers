@@ -29,6 +29,10 @@
   * Add `alterF`, `restrictKeys`, and `withoutKeys` to `Data.Map`
     and `Data.IntMap`.
 
+  * Add `take`, `drop`, `splitAt`, `takeWhileAntitone`, `dropWhileAntitone`,
+    and `spanAntitone` for `Data.Map`. Thanks to Cale Gibbard for suggesting
+    these.
+
   * Add `merge`, `mergeA`, and associated merge tactics for `Data.Map`.
     Many thanks to Cale Gibbard, Ryan Trinkle, and Dan Doel for
     inspiring the merge idea and helping refine the interface.
