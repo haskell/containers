@@ -64,6 +64,16 @@
 
   * Make `drawTree` handle newlines better. (Thanks, recursion-ninja!)
 
+### Deprecations
+
+  * All functions in `Data.Map` proper that have been documented as deprecated since
+    version 0.5 or before now have `DEPRECATED` pragmas and will actually be
+    removed after another cycle or two.
+
+  * Tree printing functions in `Data.Map` intended for library debugging are now
+    deprecated. They will continue to be available for the foreseeable future in
+    an internal module.
+
 ### Performance changes
 
   * Substantially speed up `splitAt`, `zipWith`, `take`, `drop`,

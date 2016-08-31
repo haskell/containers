@@ -3965,6 +3965,7 @@ instance (Show k, Show a) => Show (Map k a) where
 
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format. See 'showTreeWith'.
+{-# DEPRECATED showTree "This function is being removed from the public API." #-}
 showTree :: (Show k,Show a) => Map k a -> String
 showTree m
   = showTreeWith showElem True False m
@@ -4008,6 +4009,7 @@ showTree m
 >     +--(1,())
 
 -}
+{-# DEPRECATED showTreeWith "This function is being removed from the public API." #-}
 showTreeWith :: (k -> a -> String) -> Bool -> Bool -> Map k a -> String
 showTreeWith showelem hang wide t
   | hang      = (showsTreeHang showelem wide [] t) ""
