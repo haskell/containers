@@ -1,4 +1,5 @@
 *.hi
+*.nix
 *.o
 *.p_hi
 *.prof
@@ -17,3 +18,5 @@ cabal.sandbox.config
 /benchmarks/bench-IntMap
 /benchmarks/bench-Sequence
 /benchmarks/SetOperations/bench-*
+/result
+/TAGS

@@ -1,7 +1,7 @@
 {-# LANGUAGE BangPatterns, CPP #-}
 module LookupGE_Map where
 
-import Data.Map.Base
+import Data.Map.Internal
 
 lookupGE1 :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupGE1 k m =

@@ -159,7 +159,7 @@ module Data.Set (
 #endif
             ) where
 
-import Data.Set.Base as S
+import Data.Set.Internal as S
 
 -- $strictness
 --

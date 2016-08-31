@@ -44,8 +44,8 @@ Library
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
-        Data.IntMap.Base
-        Data.IntSet.Base
+        Data.IntMap.Internal
+        Data.IntSet.Internal
         Data.IntSet
         Data.Map
         Data.Map.Lazy
@@ -53,15 +53,17 @@ Library
         Data.Map.Strict.Internal
         Data.Map.Strict
         Data.Map.Strict.Merge
-        Data.Map.Base
-        Data.Set.Base
+        Data.Map.Internal
+        Data.Set.Internal
         Data.Set
         Data.Graph
         Data.Sequence
-        Data.Sequence.Base
+        Data.Sequence.Internal
         Data.Tree
         Data.Utils.BitUtil
         Data.Utils.BitQueue
+
+    other-modules:
         Data.Utils.StrictFold
         Data.Utils.StrictPair
         Data.Utils.StrictMaybe
@@ -177,7 +179,7 @@ benchmark lookupge-intmap
   ghc-options: -O2
   cpp-options: -DTESTING
   other-modules:
-    Data.IntMap.Base
+    Data.IntMap.Internal
   build-depends:
     base >= 4.2 && < 5,
     containers,
@@ -192,7 +194,7 @@ benchmark lookupge-map
   ghc-options: -O2
   cpp-options: -DTESTING
   other-modules:
-    Data.Map.Base
+    Data.Map.Internal
   build-depends:
     base >= 4.2 && < 5,
     containers,

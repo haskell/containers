@@ -140,7 +140,7 @@ module Data.IntSet (
 #endif
             ) where
 
-import Data.IntSet.Base as IS
+import Data.IntSet.Internal as IS
 
 -- $strictness
 --

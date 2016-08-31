@@ -11,11 +11,10 @@
 #endif
 
 #include "containers.h"
-{-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.IntSet.Base
+-- Module      :  Data.IntSet.Internal
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Joachim Breitner 2011
 -- License     :  BSD-style
@@ -97,7 +96,7 @@
 -- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
 -- improves the benchmark by circa 10%.
 
-module Data.IntSet.Base (
+module Data.IntSet.Internal (
     -- * Set type
       IntSet(..), Key -- instance Eq,Show
 
@@ -298,7 +297,7 @@ fromListConstr :: Constr
 fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
 
 intSetDataType :: DataType
-intSetDataType = mkDataType "Data.IntSet.Base.IntSet" [fromListConstr]
+intSetDataType = mkDataType "Data.IntSet.Internal.IntSet" [fromListConstr]
 
 #endif
 

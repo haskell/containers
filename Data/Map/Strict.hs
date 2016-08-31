@@ -63,7 +63,7 @@
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
--- See the notes at the beginning of Data.Map.Base.
+-- See the notes at the beginning of Data.Map.Internal.
 
 module Data.Map.Strict
     (

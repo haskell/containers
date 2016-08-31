@@ -149,5 +149,5 @@ module Data.Sequence (
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
     ) where
 
-import Data.Sequence.Base
+import Data.Sequence.Internal
 import Prelude ()

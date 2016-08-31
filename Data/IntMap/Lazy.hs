@@ -208,7 +208,7 @@ module Data.IntMap.Lazy (
     , showTreeWith
     ) where
 
-import Data.IntMap.Base as IM
+import Data.IntMap.Internal as IM
 
 -- $strictness
 --

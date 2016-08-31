@@ -233,7 +233,7 @@ module Data.Map.Lazy (
     , valid
     ) where
 
-import Data.Map.Base as M
+import Data.Map.Internal as M
 import Prelude ()
 
 -- $strictness

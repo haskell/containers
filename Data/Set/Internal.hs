@@ -13,16 +13,28 @@
 
 #include "containers.h"
 
-{-# OPTIONS_HADDOCK hide #-}
-
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Set.Base
+-- Module      :  Data.Set.Internal
 -- Copyright   :  (c) Daan Leijen 2002
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
 -- Portability :  portable
+--
+-- = WARNING
+--
+-- This module is considered __internal__.
+--
+-- The Package Versioning Policy __does not apply__.
+--
+-- This contents of this module may change __in any way whatsoever__
+-- and __without any warning__ between minor versions of this package.
+--
+-- Authors importing this module are expected to track development
+-- closely.
+--
+-- = Description
 --
 -- An efficient implementation of sets.
 --
@@ -106,7 +118,7 @@
 -- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
 -- improves the benchmark by up to 10% on x86.
 
-module Data.Set.Base (
+module Data.Set.Internal (
             -- * Set type
               Set(..)       -- instance Eq,Ord,Show,Read,Data,Typeable
 
@@ -340,7 +352,7 @@ fromListConstr :: Constr
 fromListConstr = mkConstr setDataType "fromList" [] Prefix
 
 setDataType :: DataType
-setDataType = mkDataType "Data.Set.Base.Set" [fromListConstr]
+setDataType = mkDataType "Data.Set.Internal.Set" [fromListConstr]
 
 #endif
 
