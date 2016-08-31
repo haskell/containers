@@ -72,16 +72,14 @@ import Prelude hiding (foldr)
 import Data.Map.Lazy
 import qualified Data.Map.Strict as Strict
 
--- | /Deprecated./ As of version 0.5, replaced by 'Data.Map.Strict.insertWith'.
---
--- /O(log n)/. Same as 'insertWith', but the value being inserted to the map is
+-- | /O(log n)/. Same as 'insertWith', but the value being inserted to the map is
 -- evaluated to WHNF beforehand.
 --
 -- For example, to update a counter:
 --
 -- > insertWith' (+) k 1 m
 --
-
+{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.Map.Strict.insertWith'." #-}
 insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWith' = Strict.insertWith
 #if __GLASGOW_HASKELL__
@@ -90,12 +88,9 @@ insertWith' = Strict.insertWith
 {-# INLINE insertWith' #-}
 #endif
 
--- | /Deprecated./ As of version 0.5, replaced by
--- 'Data.Map.Strict.insertWithKey'.
---
--- /O(log n)/. Same as 'insertWithKey', but the value being inserted to the map is
+-- | /O(log n)/. Same as 'insertWithKey', but the value being inserted to the map is
 -- evaluated to WHNF beforehand.
-
+{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.Map.Strict.insertWithKey'." #-}
 insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 -- We do not reuse Data.Map.Strict.insertWithKey, because it is stricter -- it
 -- forces evaluation of the given value.
@@ -106,12 +101,9 @@ insertWithKey' = Strict.insertWithKey
 {-# INLINE insertWithKey' #-}
 #endif
 
--- | /Deprecated./ As of version 0.5, replaced by
--- 'Data.Map.Strict.insertLookupWithKey'.
---
--- /O(log n)/. Same as 'insertLookupWithKey', but the value being inserted to
+-- | /O(log n)/. Same as 'insertLookupWithKey', but the value being inserted to
 -- the map is evaluated to WHNF beforehand.
-
+{-# DEPRECATED insertLookupWithKey' "As of version 0.5, replaced by 'Data.Map.Strict.insertLookupWithKey'." #-}
 insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
 -- We do not reuse Data.Map.Strict.insertLookupWithKey, because it is stricter -- it
@@ -123,20 +115,18 @@ insertLookupWithKey' = Strict.insertLookupWithKey
 {-# INLINE insertLookupWithKey' #-}
 #endif
 
--- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
---
--- /O(n)/. Fold the values in the map using the given right-associative
+-- | /O(n)/. Fold the values in the map using the given right-associative
 -- binary operator. This function is an equivalent of 'foldr' and is present
 -- for compatibility only.
+{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
 fold :: (a -> b -> b) -> b -> Map k a -> b
 fold = foldr
 {-# INLINE fold #-}
 
--- | /Deprecated./ As of version 0.4, replaced by 'foldrWithKey'.
---
--- /O(n)/. Fold the keys and values in the map using the given right-associative
+-- | /O(n)/. Fold the keys and values in the map using the given right-associative
 -- binary operator. This function is an equivalent of 'foldrWithKey' and is present
 -- for compatibility only.
+{-# DEPRECATED foldWithKey "As of version 0.4, replaced by 'foldrWithKey'." #-}
 foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}
