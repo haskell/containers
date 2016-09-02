@@ -9,6 +9,7 @@ import Criterion.Main (bench, defaultMain, whnf, nf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
+import qualified Data.Map.Strict as MS
 import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
@@ -147,10 +148,10 @@ insWithKey :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 insWithKey xs m = foldl' (\m (k, v) -> M.insertWithKey add3 k v m) m xs
 
 insWith' :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
-insWith' xs m = foldl' (\m (k, v) -> M.insertWith' (+) k v m) m xs
+insWith' xs m = foldl' (\m (k, v) -> MS.insertWith (+) k v m) m xs
 
 insWithKey' :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
-insWithKey' xs m = foldl' (\m (k, v) -> M.insertWithKey' add3 k v m) m xs
+insWithKey' xs m = foldl' (\m (k, v) -> MS.insertWithKey add3 k v m) m xs
 
 data PairS a b = PS !a !b
 
@@ -163,7 +164,7 @@ insLookupWithKey xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
 insLookupWithKey' :: [(Int, Int)] -> M.Map Int Int -> (Int, M.Map Int Int)
 insLookupWithKey' xs m = let !(PS a b) = foldl' f (PS 0 m) xs in (a, b)
   where
-    f (PS n m) (k, v) = let !(n', m') = M.insertLookupWithKey' add3 k v m
+    f (PS n m) (k, v) = let !(n', m') = MS.insertLookupWithKey add3 k v m
                         in PS (fromMaybe 0 n' + n) m'
 
 del :: [Int] -> M.Map Int Int -> M.Map Int Int

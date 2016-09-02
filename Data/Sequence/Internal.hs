@@ -258,7 +258,7 @@ import Data.Functor.Identity (Identity(..))
 import Data.Word (Word)
 #endif
 
-import Data.Utils.StrictPair (StrictPair (..), toPair)
+import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 
 default ()
 

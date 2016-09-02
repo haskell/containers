@@ -28,9 +28,11 @@ before_install:
 install:
  - travis_retry cabal update
  - cabal install --only-dependencies
- # we need to install the test-suite deps manually as the cabal solver would
- # otherwise complaing about cyclic deps
+ # we need to install the test-suite and benchmark deps manually as the cabal
+ # solver would otherwise complain about cyclic deps
  - cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
+
+ # If we enable benchmarks, we'll need 'criterion >= 0.4.0 && < 1.2'
 
 # Here starts the actual work to be performed for the package under
 # test; any command which exits with a non-zero exit code causes the
@@ -38,6 +40,10 @@ install:
 script:
  # -v2 provides useful information for debugging
  - cabal configure -v2 --enable-tests
+
+ # We'd like to
+ # --enable-benchmarks
+ # but CI time goes through the roof. Maybe there's a way to limit it to just one GHC version?
 
  # this builds all libraries and executables
  # (including tests/benchmarks)

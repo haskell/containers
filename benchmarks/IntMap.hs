@@ -6,6 +6,7 @@ import Control.Exception (evaluate)
 import Criterion.Main (bench, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
+import qualified Data.IntMap.Strict as MS
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
@@ -64,10 +65,10 @@ insWithKey :: [(Int, Int)] -> M.IntMap Int -> M.IntMap Int
 insWithKey xs m = foldl' (\m (k, v) -> M.insertWithKey add3 k v m) m xs
 
 insWith' :: [(Int, Int)] -> M.IntMap Int -> M.IntMap Int
-insWith' xs m = foldl' (\m (k, v) -> M.insertWith' (+) k v m) m xs
+insWith' xs m = foldl' (\m (k, v) -> MS.insertWith (+) k v m) m xs
 
 insWithKey' :: [(Int, Int)] -> M.IntMap Int -> M.IntMap Int
-insWithKey' xs m = foldl' (\m (k, v) -> M.insertWithKey' add3 k v m) m xs
+insWithKey' xs m = foldl' (\m (k, v) -> MS.insertWithKey add3 k v m) m xs
 
 data PairS a b = PS !a !b
 

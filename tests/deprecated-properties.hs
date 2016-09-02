@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# OPTIONS_GHC -fno-warn-warnings-deprecations #-}
 
 -- This module tests the deprecated properties of Data.Map and Data.IntMap,
 -- because these cannot be tested in either map-properties or

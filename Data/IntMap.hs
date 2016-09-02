@@ -65,38 +65,33 @@ import Prelude ()  -- hide foldr
 import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
--- | /Deprecated./ As of version 0.5, replaced by
--- 'Data.IntMap.Strict.insertWith'.
---
--- /O(log n)/. Same as 'insertWith', but the result of the combining function
+-- | /O(log n)/. Same as 'insertWith', but the result of the combining function
 -- is evaluated to WHNF before inserted to the map.
 
+{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWith'." #-}
 insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith' = Strict.insertWith
 
--- | /Deprecated./ As of version 0.5, replaced by
--- 'Data.IntMap.Strict.insertWithKey'.
---
--- /O(log n)/. Same as 'insertWithKey', but the result of the combining
+-- | /O(log n)/. Same as 'insertWithKey', but the result of the combining
 -- function is evaluated to WHNF before inserted to the map.
 
+{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWithKey'." #-}
 insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWithKey' = Strict.insertWithKey
 
--- | /Deprecated./ As of version 0.5, replaced by 'foldr'.
---
--- /O(n)/. Fold the values in the map using the given
+-- | /O(n)/. Fold the values in the map using the given
 -- right-associative binary operator. This function is an equivalent
 -- of 'foldr' and is present for compatibility only.
+{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
 fold :: (a -> b -> b) -> b -> IntMap a -> b
 fold = foldr
 {-# INLINE fold #-}
 
--- | /Deprecated./ As of version 0.5, replaced by 'foldrWithKey'.
---
--- /O(n)/. Fold the keys and values in the map using the given
+-- | /O(n)/. Fold the keys and values in the map using the given
 -- right-associative binary operator. This function is an equivalent
 -- of 'foldrWithKey' and is present for compatibility only.
+
+{-# DEPRECATED foldWithKey "As of version 0.5, replaced by 'foldrWithKey'." #-}
 foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldWithKey = foldrWithKey
 {-# INLINE foldWithKey #-}

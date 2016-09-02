@@ -1,13 +1,14 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.Map.Strict as Data.Map
+import Data.Map.Strict as Data.Map hiding (showTree, showTreeWith)
 import Data.Map.Strict.Merge
 #else
-import Data.Map.Lazy as Data.Map
+import Data.Map.Lazy as Data.Map hiding (showTree, showTreeWith)
 import Data.Map.Lazy.Merge
 #endif
-import Data.Map.Internal (Map (..), balanced, link2, link, bin)
+import Data.Map.Internal (Map (..), link2, link, bin)
+import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Data.Functor.Identity (Identity(runIdentity))

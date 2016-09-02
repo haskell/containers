@@ -54,20 +54,22 @@ Library
         Data.Map.Strict
         Data.Map.Strict.Merge
         Data.Map.Internal
+        Data.Map.Internal.Debug
         Data.Set.Internal
         Data.Set
         Data.Graph
         Data.Sequence
         Data.Sequence.Internal
         Data.Tree
-        Data.Utils.BitUtil
-        Data.Utils.BitQueue
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.StrictPair
 
     other-modules:
-        Data.Utils.StrictFold
-        Data.Utils.StrictPair
-        Data.Utils.StrictMaybe
-        Data.Utils.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.PtrEquality
+        Data.Map.Internal.DeprecatedShowTree
 
     include-dirs: include
 
@@ -106,7 +108,8 @@ benchmark map-benchmarks
     base >= 4.2 && < 5,
     containers,
     criterion >= 0.4.0 && < 1.2,
-    deepseq >= 1.1.0.0 && < 1.5
+    deepseq >= 1.1.0.0 && < 1.5,
+    transformers
 
 benchmark sequence-benchmarks
   type: exitcode-stdio-1.0
