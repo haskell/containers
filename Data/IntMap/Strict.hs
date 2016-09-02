@@ -265,9 +265,9 @@ import Data.IntMap.Internal hiding
     )
 
 import qualified Data.IntSet.Internal as IntSet
-import Data.Utils.BitUtil
-import Data.Utils.StrictFold
-import Data.Utils.StrictPair
+import Utils.Containers.Internal.BitUtil
+import Utils.Containers.Internal.StrictFold
+import Utils.Containers.Internal.StrictPair
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif

@@ -8,10 +8,9 @@
 
 #include "containers.h"
 
-{-# OPTIONS_HADDOCK hide #-}
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Utils.BitUtil
+-- Module      :  Utils.Containers.Internal.BitUtil
 -- Copyright   :  (c) Clark Gaebel 2012
 --                (c) Johan Tibel 2012
 -- License     :  BSD-style
@@ -32,7 +31,7 @@
 -- Authors importing this module are expected to track development
 -- closely.
 
-module Data.Utils.BitUtil
+module Utils.Containers.Internal.BitUtil
     ( highestBitMask
     , shiftLL
     , shiftRL

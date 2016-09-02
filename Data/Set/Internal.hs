@@ -231,9 +231,9 @@ import qualified Data.Foldable as Foldable
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
-import Data.Utils.StrictFold
-import Data.Utils.StrictPair
-import Data.Utils.PtrEquality
+import Utils.Containers.Internal.StrictFold
+import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build )

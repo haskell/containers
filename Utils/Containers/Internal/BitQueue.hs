@@ -3,11 +3,9 @@
 
 #include "containers.h"
 
-{-# OPTIONS_HADDOCK hide #-}
-
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Utils.BitQueue
+-- Module      :  Utils.Containers.Internal.BitQueue
 -- Copyright   :  (c) David Feuer 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
@@ -37,7 +35,7 @@
 -- exceeded, further operations will silently produce nonsense.
 -----------------------------------------------------------------------------
 
-module Data.Utils.BitQueue
+module Utils.Containers.Internal.BitQueue
     ( BitQueue
     , BitQueueB
     , emptyQB
@@ -50,7 +48,7 @@ module Data.Utils.BitQueue
 #if !MIN_VERSION_base(4,8,0)
 import Data.Word (Word)
 #endif
-import Data.Utils.BitUtil (shiftLL, shiftRL, wordSize)
+import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, wordSize)
 import Data.Bits ((.|.), (.&.), testBit)
 #if MIN_VERSION_base(4,8,0)
 import Data.Bits (countTrailingZeros)

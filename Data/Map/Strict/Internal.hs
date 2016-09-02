@@ -292,11 +292,6 @@ module Data.Map.Strict.Internal
     , showTree
     , showTreeWith
     , valid
-
-    , bin
-    , balanced
-    , link
-    , link2
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null,take,drop,splitAt)
@@ -381,8 +376,6 @@ import Data.Map.Internal
   , partition
   , partitionWithKey
   , restrictKeys
-  , showTree
-  , showTreeWith
   , size
   , spanAntitone
   , split
@@ -396,18 +389,18 @@ import Data.Map.Internal
   , toDescList
   , union
   , unions
-  , valid
   , withoutKeys )
 
-import Data.Map.Internal (bin, balanced)
+import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
+import Data.Map.Internal.Debug (valid)
 
 import Control.Applicative (Const (..))
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative (..), (<$>))
 #endif
 import qualified Data.Set.Internal as Set
-import Data.Utils.StrictFold
-import Data.Utils.StrictPair
+import Utils.Containers.Internal.StrictFold
+import Utils.Containers.Internal.StrictPair
 
 import Data.Bits (shiftL, shiftR)
 #if __GLASGOW_HASKELL__ >= 709

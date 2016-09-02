@@ -8,8 +8,8 @@ import qualified Data.List as List
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
 import Test.QuickCheck
-import Data.Utils.BitUtil (wordSize)
-import Data.Utils.BitQueue
+import Utils.Containers.Internal.BitUtil (wordSize)
+import Utils.Containers.Internal.BitQueue
     ( BitQueue
     , emptyQB
     , snocQB

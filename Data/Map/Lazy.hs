@@ -69,11 +69,11 @@ module Data.Map.Lazy (
     , (!), (\\)
 
     -- * Query
-    , M.null
+    , null
     , size
     , member
     , notMember
-    , M.lookup
+    , lookup
     , findWithDefault
     , lookupLT
     , lookupGT
@@ -128,7 +128,7 @@ module Data.Map.Lazy (
 
     -- * Traversal
     -- ** Map
-    , M.map
+    , map
     , mapWithKey
     , traverseWithKey
     , traverseMaybeWithKey
@@ -140,8 +140,8 @@ module Data.Map.Lazy (
     , mapKeysMonotonic
 
     -- * Folds
-    , M.foldr
-    , M.foldl
+    , foldr
+    , foldl
     , foldrWithKey
     , foldlWithKey
     , foldMapWithKey
@@ -178,7 +178,7 @@ module Data.Map.Lazy (
     , fromDistinctDescList
 
     -- * Filter
-    , M.filter
+    , filter
     , filterWithKey
     , restrictKeys
     , withoutKeys
@@ -233,7 +233,9 @@ module Data.Map.Lazy (
     , valid
     ) where
 
-import Data.Map.Internal as M
+import Data.Map.Internal
+import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
+import Data.Map.Internal.Debug (valid)
 import Prelude ()
 
 -- $strictness

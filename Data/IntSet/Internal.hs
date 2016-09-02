@@ -194,9 +194,9 @@ import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 import Data.Typeable
 import Prelude hiding (filter, foldr, foldl, null, map)
 
-import Data.Utils.BitUtil
-import Data.Utils.StrictFold
-import Data.Utils.StrictPair
+import Utils.Containers.Internal.BitUtil
+import Utils.Containers.Internal.StrictFold
+import Utils.Containers.Internal.StrictPair
 
 #if __GLASGOW_HASKELL__
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)

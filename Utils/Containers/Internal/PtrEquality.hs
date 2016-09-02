@@ -6,20 +6,7 @@
 {-# OPTIONS_HADDOCK hide #-}
 
 -- | Really unsafe pointer equality
---
--- = WARNING
---
--- This module is considered __internal__.
---
--- The Package Versioning Policy __does not apply__.
---
--- This contents of this module may change __in any way whatsoever__
--- and __without any warning__ between minor versions of this package.
---
--- Authors importing this module are expected to track development
--- closely.
-
-module Data.Utils.PtrEquality (ptrEq, hetPtrEq) where
+module Utils.Containers.Internal.PtrEquality (ptrEq, hetPtrEq) where
 
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts ( reallyUnsafePtrEquality# )
