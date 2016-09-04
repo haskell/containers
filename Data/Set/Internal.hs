@@ -974,7 +974,8 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s l (x : xs) = case create s xs of
-                        (r :*: ys) -> go (s `shiftL` 1) (link x l r) ys
+                        (r :*: ys) -> let !t' = link x l r
+                                      in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
     create s xs@(x : xs')
@@ -995,7 +996,8 @@ fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s r (x : xs) = case create s xs of
-                        (l :*: ys) -> go (s `shiftL` 1) (link x l r) ys
+                        (l :*: ys) -> let !t' = link x l r
+                                      in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
     create s xs@(x : xs')

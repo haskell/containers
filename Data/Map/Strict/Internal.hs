@@ -1670,16 +1670,18 @@ fromDistinctAscList [] = Tip
 fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
     go !_ t [] = t
-    go s l ((kx, x) : xs) = case create s xs of
-                              (r, ys) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
+    go s l ((kx, x) : xs) =
+      case create s xs of
+        (r :*: ys) -> x `seq` let !t' = link kx x l r
+                           in go (s `shiftL` 1) t' ys
 
-    create !_ [] = (Tip, [])
+    create !_ [] = (Tip :*: [])
     create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip, xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_, []) -> res
-                      (l, (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (r, zs) -> y `seq` (link ky y l r, zs)
+                      res@(_ :*: []) -> res
+                      (l :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (r :*: zs) -> y `seq` (link ky y l r :*: zs)
 
 -- | /O(n)/. Build a map from a descending list of distinct elements in linear time.
 -- /The precondition is not checked./
@@ -1695,13 +1697,15 @@ fromDistinctDescList [] = Tip
 fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
   where
     go !_ t [] = t
-    go s r ((kx, x) : xs) = case create s xs of
-                              (l, ys) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
+    go s r ((kx, x) : xs) =
+      case create s xs of
+        (l :*: ys) -> x `seq` let !t' = link kx x l r
+                              in go (s `shiftL` 1) t' ys
 
-    create !_ [] = (Tip, [])
+    create !_ [] = (Tip :*: [])
     create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip, xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_, []) -> res
-                      (r, (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (l, zs) -> y `seq` (link ky y l r, zs)
+                      res@(_ :*: []) -> res
+                      (r :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
+                        (l :*: zs) -> y `seq` (link ky y l r :*: zs)

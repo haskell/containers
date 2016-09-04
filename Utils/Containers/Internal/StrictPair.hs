@@ -16,6 +16,8 @@ module Utils.Containers.Internal.StrictPair (StrictPair(..), toPair) where
 -- @
 data StrictPair a b = !a :*: !b
 
+infixr 1 :*:
+
 -- | Convert a strict pair to a standard pair.
 toPair :: StrictPair a b -> (a, b)
 toPair (x :*: y) = (x, y)
