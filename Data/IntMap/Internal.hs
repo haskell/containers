@@ -1538,7 +1538,7 @@ preserveMissing = WhenMissing
 mapMissing :: Applicative f => (Key -> x -> y) -> WhenMissing f x y
 mapMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapWithKey f m
-  , missingKey     = \ k x -> pure $ Just (f k x) }
+  , missingKey     = \k x -> pure $ Just (f k x) }
 {-# INLINE mapMissing #-}
 
 
@@ -1594,16 +1594,29 @@ filterAMissing f = WhenMissing
 filterWithKeyA
   :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
 filterWithKeyA _ Nil             = pure Nil
-filterWithKeyA f (Tip k x)       = error "TODO: filterWithKeyA"
+filterWithKeyA f t@(Tip k x)     = (\b -> if b then t else Nil) <$> f k x
 filterWithKeyA f t@(Bin p m l r) = error "TODO: filterWithKeyA"
-  {-
+{-
+-- Implementation Idea 1:
   combine <$> f p m <*> filterWithKeyA f l <*> filterWithKeyA f r
   where
     combine True l' r'
       | l' `ptrEq` l && r' `ptrEq` r = t
       | otherwise                    = link p m l' r'
     combine False l' r'              = link2 l' r'
-  -}
+
+-- Implementation Idea 2:
+  combine p m <$> filterWithKeyA f l <*> filterWithKeyA f r
+  where
+    combine _ _ Nil r' = r'
+    combine _ _ l' Nil = l'
+    combine p m l' r'
+      | l' `ptrEq` l && r' `ptrEq` r = t
+      | otherwise                    = link pl l' pr r'
+    combine p m l' r'                = link2 l' r'
+
+link k (Tip k x) p t@(Bin p m _ _ \/ Tip p _) | nomatch k p m \/ k/=p
+-}
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1816,7 +1829,7 @@ mergeA
     go (Bin p m l1 r1) t2  = error "TODO: mergeA"
       {-
       case splitLookup kx t2 of
-      (l2, mx2, r2) -> 
+      (l2, mx2, r2) ->
           case mx2 of
           Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
                         <$> l1l2 <*> g1k kx x1 <*> r1r2
@@ -2361,7 +2374,7 @@ split k t =
         then
           case go k l of
             (lt :*: gt) ->
-              let !lt' = union r lt 
+              let !lt' = union r lt
               in (lt', gt)
         else
           case go k r of
