@@ -1,22 +1,11 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Safe #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE RoleAnnotations #-}
-{-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
-#endif
-
-#if USE_MAGIC_PROXY
-{-# LANGUAGE MagicHash #-}
-#endif
 
 #include "containers.h"
+
+{-# OPTIONS_HADDOCK hide #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -45,59 +34,7 @@
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
 
-module Data.Map.Lazy.Merge (
-    -- ** Simple merge tactic types
-      SimpleWhenMissing
-    , SimpleWhenMatched
+module Data.Map.Lazy.Merge {-# DEPRECATED "Use \"Data.Map.Merge.Lazy\"." #-}
+    ( module Data.Map.Merge.Lazy ) where
 
-    -- ** General combining function
-    , merge
-
-    -- *** @WhenMatched@ tactics
-    , zipWithMaybeMatched
-    , zipWithMatched
-
-    -- *** @WhenMissing@ tactics
-    , mapMaybeMissing
-    , dropMissing
-    , preserveMissing
-    , mapMissing
-    , filterMissing
-
-    -- ** Applicative merge tactic types
-    , WhenMissing
-    , WhenMatched
-
-    -- ** Applicative general combining function
-    , mergeA
-
-    -- *** @WhenMatched@ tactics
-    -- | The tactics described for 'merge' work for
-    -- 'mergeA' as well. Furthermore, the following
-    -- are available.
-    , zipWithMaybeAMatched
-    , zipWithAMatched
-
-    -- *** @WhenMissing@ tactics
-    -- | The tactics described for 'merge' work for
-    -- 'mergeA' as well. Furthermore, the following
-    -- are available.
-    , traverseMaybeMissing
-    , traverseMissing
-    , filterAMissing
-
-    -- *** Covariant maps for tactics
-    , mapWhenMissing
-    , mapWhenMatched
-
-    -- *** Contravariant maps for tactics
-    , lmapWhenMissing
-    , contramapFirstWhenMatched
-    , contramapSecondWhenMatched
-
-    -- *** Miscellaneous tactic functions
-    , runWhenMatched
-    , runWhenMissing
-    ) where
-
-import Data.Map.Internal
+import Data.Map.Merge.Lazy
