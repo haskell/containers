@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP #-}
+#include "containers.h"
 {-# LANGUAGE BangPatterns #-}
-#if __GLASGOW_HASKELL__ >= 800
-#define DEFINE_PATTERN_SYNONYMS 1
-#endif
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -22,8 +20,6 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |

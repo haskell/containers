@@ -29,6 +29,10 @@
 #define INSTANCE_TYPEABLE2(tycon)
 #endif
 
+#if __GLASGOW_HASKELL__ >= 800
+#define DEFINE_PATTERN_SYNONYMS 1
+#endif
+
 /*
  * We use cabal-generated MIN_VERSION_base to adapt to changes of base.
  * Nevertheless, as a convenience, we also allow compiling without cabal by
