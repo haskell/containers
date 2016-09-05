@@ -1,4 +1,18 @@
+{-# LANGUAGE CPP #-}
+{-# LANGUAGE PatternGuards #-}
+
 import Data.Sequence.Internal
+  ( Sized (..)
+  , Seq (Seq)
+  , FingerTree(..)
+  , Node(..)
+  , Elem(..)
+  , Digit (..)
+  , node2
+  , node3
+  , deep )
+
+import Data.Sequence
 
 import Control.Applicative (Applicative(..))
 import Control.Arrow ((***))
@@ -18,6 +32,9 @@ import qualified Prelude
 import qualified Data.List
 import Test.QuickCheck hiding ((><))
 import Test.QuickCheck.Poly
+#if __GLASGOW_HASKELL__ >= 800
+import Test.QuickCheck.Property
+#endif
 import Test.QuickCheck.Function
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
@@ -109,6 +126,14 @@ main = defaultMain
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
+#if __GLASGOW_HASKELL__ >= 800
+       , testProperty "Empty pattern" prop_empty_pat
+       , testProperty "Empty constructor" prop_empty_con
+       , testProperty "Left view pattern" prop_viewl_pat
+       , testProperty "Left view constructor" prop_viewl_con
+       , testProperty "Right view pattern" prop_viewr_pat
+       , testProperty "Right view constructor" prop_viewr_con
+#endif
        ]
 
 ------------------------------------------------------------------------
@@ -678,6 +703,33 @@ prop_intersperse x xs =
 prop_cycleTaking :: Int -> Seq A -> Property
 prop_cycleTaking n xs =
     (n <= 0 || not (null xs)) ==> toList' (cycleTaking n xs) ~= Data.List.take n (Data.List.cycle (toList xs))
+
+#if __GLASGOW_HASKELL__ >= 800
+prop_empty_pat :: Seq A -> Bool
+prop_empty_pat xs@Empty = null xs
+prop_empty_pat xs = not (null xs)
+
+prop_empty_con :: Bool
+prop_empty_con = null Empty
+
+prop_viewl_pat :: Seq A -> Property
+prop_viewl_pat xs@(y :<| ys)
+  | z :< zs <- viewl xs = y === z .&&. ys === zs
+  | otherwise = property failed
+prop_viewl_pat xs = property . liftBool $ null xs
+
+prop_viewl_con :: A -> Seq A -> Property
+prop_viewl_con x xs = x :<| xs === x <| xs
+
+prop_viewr_pat :: Seq A -> Property
+prop_viewr_pat xs@(ys :|> y)
+  | zs :> z <- viewr xs = y === z .&&. ys === zs
+  | otherwise = property failed
+prop_viewr_pat xs = property . liftBool $ null xs
+
+prop_viewr_con :: Seq A -> A -> Property
+prop_viewr_con xs x = xs :|> x === xs |> x
+#endif
 
 -- Monad operations
 

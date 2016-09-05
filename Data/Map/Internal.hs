@@ -3322,7 +3322,7 @@ fromAscList xs
         (x:xx) -> combineEq' x xx
 
   combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+  combineEq' z@(kz,_) (x@(kx,xx):xs')
     | kx==kz    = combineEq' (kx,xx) xs'
     | otherwise = z:combineEq' x xs'
 #if __GLASGOW_HASKELL__
@@ -3348,7 +3348,7 @@ fromDescList xs = fromDistinctDescList (combineEq xs)
         (x:xx) -> combineEq' x xx
 
   combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+  combineEq' z@(kz,_) (x@(kx,xx):xs')
     | kx==kz    = combineEq' (kx,xx) xs'
     | otherwise = z:combineEq' x xs'
 #if __GLASGOW_HASKELL__
