@@ -236,7 +236,9 @@ module Data.IntMap.Internal (
     , highestBitMask
     ) where
 
-#if !(MIN_VERSION_base(4,8,0))
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
@@ -272,6 +274,7 @@ import qualified GHC.Exts as GHCExts
 #endif
 import Text.Read
 #endif
+import qualified Control.Category as Category
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
@@ -1011,29 +1014,29 @@ withoutKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge0 t2' k2' t1'
       where
-        merge t2 k2 t1@(Bin p1 m1 l1 r1)
+        merge0 t2 k2 t1@(Bin p1 m1 l1 r1)
           | nomatch k2 p1 m1 = t1
-          | zero k2 m1 = binCheckLeft p1 m1 (merge t2 k2 l1) r1
-          | otherwise  = binCheckRight p1 m1 l1 (merge t2 k2 r1)
-        merge _ k2 t1@(Tip k1 _)
+          | zero k2 m1 = binCheckLeft p1 m1 (merge0 t2 k2 l1) r1
+          | otherwise  = binCheckRight p1 m1 l1 (merge0 t2 k2 r1)
+        merge0 _ k2 t1@(Tip k1 _)
           | k1 == k2 = Nil
           | otherwise = t1
-        merge _ _  Nil = Nil
+        merge0 _ _  Nil = Nil
 
     go t1@(Bin _ _ _ _) IntSet.Nil = t1
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
       where
-        merge t1 k1 (IntSet.Bin p2 m2 l2 r2)
+        merge0 t1 k1 (IntSet.Bin p2 m2 l2 r2)
           | nomatch k1 p2 m2 = t1
-          | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-          | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-        merge t1 k1 (IntSet.Tip k2 _)
+          | zero k1 m2 = bin p2 m2 (merge0 t1 k1 l2) Nil
+          | otherwise  = bin p2 m2 Nil (merge0 t1 k1 r2)
+        merge0 t1 k1 (IntSet.Tip k2 _)
           | k1 == k2 = Nil
           | otherwise = t1
-        merge t1 _  IntSet.Nil = t1
+        merge0 t1 _  IntSet.Nil = t1
 
     go Nil _ = Nil
 
@@ -1072,29 +1075,29 @@ restrictKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge0 t2' k2' t1'
       where
-        merge t2 k2 (Bin p1 m1 l1 r1)
+        merge0 t2 k2 (Bin p1 m1 l1 r1)
           | nomatch k2 p1 m1 = Nil
-          | zero k2 m1 = bin p1 m1 (merge t2 k2 l1) Nil
-          | otherwise  = bin p1 m1 Nil (merge t2 k2 r1)
-        merge _ k2 t1@(Tip k1 _)
+          | zero k2 m1 = bin p1 m1 (merge0 t2 k2 l1) Nil
+          | otherwise  = bin p1 m1 Nil (merge0 t2 k2 r1)
+        merge0 _ k2 t1@(Tip k1 _)
           | k1 == k2 = t1
           | otherwise = Nil
-        merge _ _  Nil = Nil
+        merge0 _ _  Nil = Nil
 
     go (Bin _ _ _ _) IntSet.Nil = Nil
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
       where
-        merge t1 k1 (IntSet.Bin p2 m2 l2 r2)
+        merge0 t1 k1 (IntSet.Bin p2 m2 l2 r2)
           | nomatch k1 p2 m2 = Nil
-          | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-          | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-        merge t1 k1 (IntSet.Tip k2 _)
+          | zero k1 m2 = bin p2 m2 (merge0 t1 k1 l2) Nil
+          | otherwise  = bin p2 m2 Nil (merge0 t1 k1 r2)
+        merge0 t1 k1 (IntSet.Tip k2 _)
           | k1 == k2 = t1
           | otherwise = Nil
-        merge _ _  IntSet.Nil = Nil
+        merge0 _ _  IntSet.Nil = Nil
 
     go Nil _ = Nil
 
@@ -1192,29 +1195,29 @@ mergeWithKey' bin' f g1 g2 = go
                | zero p1 m2        = bin' p2 m2 (go t1 l2) (g2 r2)
                | otherwise         = bin' p2 m2 (g2 l2) (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(Tip k2' _) = merge t2' k2' t1'
+    go t1'@(Bin _ _ _ _) t2'@(Tip k2' _) = merge0 t2' k2' t1'
       where
-        merge t2 k2 t1@(Bin p1 m1 l1 r1)
+        merge0 t2 k2 t1@(Bin p1 m1 l1 r1)
           | nomatch k2 p1 m1 = maybe_link p1 (g1 t1) k2 (g2 t2)
-          | zero k2 m1 = bin' p1 m1 (merge t2 k2 l1) (g1 r1)
-          | otherwise  = bin' p1 m1 (g1 l1) (merge t2 k2 r1)
-        merge t2 k2 t1@(Tip k1 _)
+          | zero k2 m1 = bin' p1 m1 (merge0 t2 k2 l1) (g1 r1)
+          | otherwise  = bin' p1 m1 (g1 l1) (merge0 t2 k2 r1)
+        merge0 t2 k2 t1@(Tip k1 _)
           | k1 == k2 = f t1 t2
           | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
-        merge t2 _  Nil = g2 t2
+        merge0 t2 _  Nil = g2 t2
 
     go t1@(Bin _ _ _ _) Nil = g1 t1
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
       where
-        merge t1 k1 t2@(Bin p2 m2 l2 r2)
+        merge0 t1 k1 t2@(Bin p2 m2 l2 r2)
           | nomatch k1 p2 m2 = maybe_link k1 (g1 t1) p2 (g2 t2)
-          | zero k1 m2 = bin' p2 m2 (merge t1 k1 l2) (g2 r2)
-          | otherwise  = bin' p2 m2 (g2 l2) (merge t1 k1 r2)
-        merge t1 k1 t2@(Tip k2 _)
+          | zero k1 m2 = bin' p2 m2 (merge0 t1 k1 l2) (g2 r2)
+          | otherwise  = bin' p2 m2 (g2 l2) (merge0 t1 k1 r2)
+        merge0 t1 k1 t2@(Tip k2 _)
           | k1 == k2 = f t1 t2
           | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
-        merge t1 _  Nil = g1 t1
+        merge0 t1 _  Nil = g1 t1
 
     go Nil t2 = g2 t2
 
@@ -1473,13 +1476,13 @@ zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
 -- and values and maybe use the result in the merged map.
 --
 -- > zipWithMaybeMatched
--- >   :: (k -> x -> y -> Maybe z)
+-- >   :: (Key -> x -> y -> Maybe z)
 -- >   -> SimpleWhenMatched x y z
 zipWithMaybeMatched
   :: Applicative f
   => (Key -> x -> y -> Maybe z)
   -> WhenMatched f x y z
-zipWithMaybeMatched f = WhenMatched $ \ x y -> pure $ f k x y
+zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
 {-# INLINE zipWithMaybeMatched #-}
 
 
@@ -1505,8 +1508,8 @@ zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
 -- but @dropMissing@ is much faster.
 dropMissing :: Applicative f => WhenMissing f x y
 dropMissing = WhenMissing
-  { missingSubtree = const (pure Tip)
-  , missingKey = \_ _ -> pure Nothing }
+  { missingSubtree = const (pure Nil)
+  , missingKey     = \_ _ -> pure Nothing }
 {-# INLINE dropMissing #-}
 
 
@@ -1521,7 +1524,7 @@ dropMissing = WhenMissing
 preserveMissing :: Applicative f => WhenMissing f x x
 preserveMissing = WhenMissing
   { missingSubtree = pure
-  , missingKey = \_ v -> pure (Just v) }
+  , missingKey     = \_ v -> pure (Just v) }
 {-# INLINE preserveMissing #-}
 
 
@@ -1535,7 +1538,7 @@ preserveMissing = WhenMissing
 mapMissing :: Applicative f => (Key -> x -> y) -> WhenMissing f x y
 mapMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapWithKey f m
-  , missingKey = \ k x -> pure $ Just (f k x) }
+  , missingKey     = \ k x -> pure $ Just (f k x) }
 {-# INLINE mapMissing #-}
 
 
@@ -1553,7 +1556,7 @@ mapMaybeMissing
   :: Applicative f => (Key -> x -> Maybe y) -> WhenMissing f x y
 mapMaybeMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapMaybeWithKey f m
-  , missingKey = \k x -> pure $! f k x }
+  , missingKey     = \k x -> pure $! f k x }
 {-# INLINE mapMaybeMissing #-}
 
 
@@ -1568,7 +1571,7 @@ filterMissing
   :: Applicative f => (Key -> x -> Bool) -> WhenMissing f x x
 filterMissing f = WhenMissing
   { missingSubtree = \m -> pure $! filterWithKey f m
-  , missingKey = \k x -> pure $! if f k x then Just x else Nothing }
+  , missingKey     = \k x -> pure $! if f k x then Just x else Nothing }
 {-# INLINE filterMissing #-}
 
 
@@ -1583,9 +1586,24 @@ filterAMissing
   :: Applicative f => (Key -> x -> f Bool) -> WhenMissing f x x
 filterAMissing f = WhenMissing
   { missingSubtree = \m -> filterWithKeyA f m
-  , missingKey = \k x -> bool Nothing (Just x) <$> f k x }
+  , missingKey     = \k x -> bool Nothing (Just x) <$> f k x }
 {-# INLINE filterAMissing #-}
 
+
+-- | /O(n)/. Filter keys and values using an 'Applicative' predicate.
+filterWithKeyA
+  :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
+filterWithKeyA _ Nil             = pure Nil
+filterWithKeyA f (Tip k x)       = error "TODO: filterWithKeyA"
+filterWithKeyA f t@(Bin p m l r) = error "TODO: filterWithKeyA"
+  {-
+  combine <$> f p m <*> filterWithKeyA f l <*> filterWithKeyA f r
+  where
+    combine True l' r'
+      | l' `ptrEq` l && r' `ptrEq` r = t
+      | otherwise                    = link p m l' r'
+    combine False l' r'              = link2 l' r'
+  -}
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1613,6 +1631,25 @@ traverseMaybeMissing f = WhenMissing
   { missingSubtree = traverseMaybeWithKey f
   , missingKey = f }
 {-# INLINE traverseMaybeMissing #-}
+
+
+-- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
+traverseMaybeWithKey
+  :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
+traverseMaybeWithKey = error "TODO: traverseMaybeWithKey"
+  {-
+  where
+    go _ Nil = pure Nil
+    go f (Bin _ kx x Nil Nil) =
+      maybe Tip (\x' -> Bin 1 kx x' Nil Nil) <$> f kx x
+    go f (Bin _ kx x l r) =
+      combine <$> go f l <*> f kx x <*> go f r
+      where
+      combine !l' mx !r' =
+        case mx of
+          Nothing -> link2 l' r'
+          Just x' -> link kx x' l' r'
+  -}
 
 
 -- | Merge two maps.
@@ -1773,17 +1810,22 @@ mergeA
     WhenMissing{missingSubtree = g2t}
     (WhenMatched f) = go
   where
-    go t1 Tip = g1t t1
-    go Tip t2 = g2t t2
-    go (Bin _ kx x1 l1 r1) t2 = case splitLookup kx t2 of
-      (l2, mx2, r2) -> case mx2 of
+    go t1              Nil = g1t t1
+    go Nil             t2  = g2t t2
+    go (Tip k x)       t2  = error "TODO: mergeA"
+    go (Bin p m l1 r1) t2  = error "TODO: mergeA"
+      {-
+      case splitLookup kx t2 of
+      (l2, mx2, r2) -> 
+          case mx2 of
           Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
                         <$> l1l2 <*> g1k kx x1 <*> r1r2
           Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
                         <$> l1l2 <*> f kx x1 x2 <*> r1r2
-        where
-          !l1l2 = go l1 l2
-          !r1r2 = go r1 r2
+      where
+      !l1l2 = go l1 l2
+      !r1r2 = go r1 r2
+      -}
 {-# INLINE mergeA #-}
 
 
