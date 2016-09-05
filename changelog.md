@@ -1,5 +1,20 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.5.9.1
+
+* Planned for GHC 8.2.
+
+* Properly deprecate functions in `Data.IntMap` long documented as deprecated.
+
+* Rename several internal modules for clarity. Thanks to esoeylemez for starting
+  this process.
+
+* Make `Data.Map.fromDistinctAscList` and `Data.Map.fromDistinctDescList` more
+  eager, improving performance.
+
+* Plug space leaks in `Data.Map.Lazy.fromAscList` and
+ `Data.Map.Lazy.fromDescList` by manually inlining constant functions.
+
 ## 0.5.8.1 *Aug 2016*
 
 ### General package changes
