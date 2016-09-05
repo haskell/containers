@@ -50,9 +50,11 @@ Library
         Data.Map
         Data.Map.Lazy
         Data.Map.Lazy.Merge
+        Data.Map.Merge.Lazy
         Data.Map.Strict.Internal
         Data.Map.Strict
         Data.Map.Strict.Merge
+        Data.Map.Merge.Strict
         Data.Map.Internal
         Data.Map.Internal.Debug
         Data.Set.Internal
