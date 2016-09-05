@@ -3312,7 +3312,19 @@ foldlFB = foldlWithKey
 
 fromAscList :: Eq k => [(k,a)] -> Map k a
 fromAscList xs
-  = fromAscListWithKey (\_ x _ -> x) xs
+  = fromDistinctAscList (combineEq xs)
+  where
+  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
+  combineEq xs'
+    = case xs' of
+        []     -> []
+        [x]    -> [x]
+        (x:xx) -> combineEq' x xx
+
+  combineEq' z [] = [z]
+  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+    | kx==kz    = combineEq' (kx,xx) xs'
+    | otherwise = z:combineEq' x xs'
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscList #-}
 #endif
@@ -3326,8 +3338,19 @@ fromAscList xs
 -- > valid (fromDescList [(5,"a"), (3,"b"), (5,"b")]) == False
 
 fromDescList :: Eq k => [(k,a)] -> Map k a
-fromDescList xs
-  = fromDescListWithKey (\_ x _ -> x) xs
+fromDescList xs = fromDistinctDescList (combineEq xs)
+  where
+  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
+  combineEq xs'
+    = case xs' of
+        []     -> []
+        [x]    -> [x]
+        (x:xx) -> combineEq' x xx
+
+  combineEq' z [] = [z]
+  combineEq' z@(kz,zz) (x@(kx,xx):xs')
+    | kx==kz    = combineEq' (kx,xx) xs'
+    | otherwise = z:combineEq' x xs'
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromDescList #-}
 #endif
