@@ -1224,6 +1224,569 @@ mergeWithKey' bin' f g1 g2 = go
     {-# INLINE maybe_link #-}
 {-# INLINE mergeWithKey' #-}
 
+
+{--------------------------------------------------------------------
+  mergeA
+--------------------------------------------------------------------}
+
+-- | A tactic for dealing with keys present in one map but not the
+-- other in 'merge' or 'mergeA'.
+--
+-- A tactic of type @WhenMissing f k x z@ is an abstract representation
+-- of a function of type @Key -> x -> f (Maybe z)@.
+
+data WhenMissing f x y = WhenMissing
+  { missingSubtree :: IntMap x -> f (IntMap y)
+  , missingKey :: Key -> x -> f (Maybe y)}
+
+
+instance (Applicative f, Monad f) => Functor (WhenMissing f x) where
+  fmap = mapWhenMissing
+  {-# INLINE fmap #-}
+
+
+instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
+  where
+    id = preserveMissing
+    f . g =
+      traverseMaybeMissing $ \ k x -> do
+        y <- missingKey g k x
+        case y of
+          Nothing -> pure Nothing
+          Just q  -> missingKey f k q
+    {-# INLINE id #-}
+    {-# INLINE (.) #-}
+
+
+-- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
+  pure x = mapMissing (\ _ _ -> x)
+  f <*> g =
+    traverseMaybeMissing $ \k x -> do
+      res1 <- missingKey f k x
+      case res1 of
+        Nothing -> pure Nothing
+        Just r  -> (pure $!) . fmap r =<< missingKey g k x
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+
+-- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f =
+    traverseMaybeMissing $ \k x -> do
+      res1 <- missingKey m k x
+      case res1 of
+        Nothing -> pure Nothing
+        Just r  -> missingKey (f r) k x
+  {-# INLINE (>>=) #-}
+
+
+-- | Map covariantly over a @'WhenMissing' f x@.
+mapWhenMissing
+  :: (Applicative f, Monad f)
+  => (a -> b)
+  -> WhenMissing f x a
+  -> WhenMissing f x b
+mapWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> missingSubtree t m >>= \m' -> pure $! fmap f m'
+  , missingKey     = \k x -> missingKey t k x >>= \q -> (pure $! fmap f q) }
+{-# INLINE mapWhenMissing #-}
+
+
+-- | Map covariantly over a @'WhenMissing' f x@, using only a
+-- 'Functor f' constraint.
+mapGentlyWhenMissing
+  :: Functor f
+  => (a -> b)
+  -> WhenMissing f x a
+  -> WhenMissing f x b
+mapGentlyWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> fmap f <$> missingSubtree t m
+  , missingKey     = \k x -> fmap f <$> missingKey t k x }
+{-# INLINE mapGentlyWhenMissing #-}
+
+
+-- | Map covariantly over a @'WhenMatched' f k x@, using only a
+-- 'Functor f' constraint.
+mapGentlyWhenMatched
+  :: Functor f
+  => (a -> b)
+  -> WhenMatched f x y a
+  -> WhenMatched f x y b
+mapGentlyWhenMatched f t =
+  zipWithMaybeAMatched $ \k x y -> fmap f <$> runWhenMatched t k x y
+{-# INLINE mapGentlyWhenMatched #-}
+
+
+-- | Map contravariantly over a @'WhenMissing' f _ x@.
+lmapWhenMissing :: (b -> a) -> WhenMissing f a x -> WhenMissing f b x
+lmapWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> missingSubtree t (fmap f m)
+  , missingKey     = \k x -> missingKey t k (f x) }
+{-# INLINE lmapWhenMissing #-}
+
+
+-- | Map contravariantly over a @'WhenMatched' f _ y z@.
+contramapFirstWhenMatched
+  :: (b -> a)
+  -> WhenMatched f a y z
+  -> WhenMatched f b y z
+contramapFirstWhenMatched f t =
+  WhenMatched $ \k x y -> runWhenMatched t k (f x) y
+{-# INLINE contramapFirstWhenMatched #-}
+
+
+-- | Map contravariantly over a @'WhenMatched' f x _ z@.
+contramapSecondWhenMatched
+  :: (b -> a)
+  -> WhenMatched f x a z
+  -> WhenMatched f x b z
+contramapSecondWhenMatched f t =
+  WhenMatched $ \k x y -> runWhenMatched t k x (f y)
+{-# INLINE contramapSecondWhenMatched #-}
+
+
+-- | A tactic for dealing with keys present in one map but not the
+-- other in 'merge'.
+--
+-- A tactic of type @SimpleWhenMissing x z@ is an abstract
+-- representation of a function of type @Key -> x -> Maybe z@.
+type SimpleWhenMissing = WhenMissing Identity
+
+
+-- | A tactic for dealing with keys present in both maps in 'merge'
+-- or 'mergeA'.
+--
+-- A tactic of type @WhenMatched f x y z@ is an abstract representation
+-- of a function of type @Key -> x -> y -> f (Maybe z)@.
+newtype WhenMatched f x y z = WhenMatched
+  { matchedKey :: Key -> x -> y -> f (Maybe z) }
+
+
+-- | Along with zipWithMaybeAMatched, witnesses the isomorphism
+-- between @WhenMatched f x y z@ and @Key -> x -> y -> f (Maybe z)@.
+runWhenMatched :: WhenMatched f x y z -> Key -> x -> y -> f (Maybe z)
+runWhenMatched = matchedKey
+{-# INLINE runWhenMatched #-}
+
+
+-- | Along with traverseMaybeMissing, witnesses the isomorphism
+-- between @WhenMissing f x y@ and @Key -> x -> f (Maybe y)@.
+runWhenMissing :: WhenMissing f x y -> Key-> x -> f (Maybe y)
+runWhenMissing = missingKey
+{-# INLINE runWhenMissing #-}
+
+
+instance Functor f => Functor (WhenMatched f x y) where
+  fmap = mapWhenMatched
+  {-# INLINE fmap #-}
+
+
+instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
+  where
+    id = zipWithMatched (\_ _ y -> y)
+    f . g =
+      zipWithMaybeAMatched $ \k x y -> do
+        res <- runWhenMatched g k x y
+        case res of
+          Nothing -> pure Nothing
+          Just r  -> runWhenMatched f k x r
+    {-# INLINE id #-}
+    {-# INLINE (.) #-}
+
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
+  pure x = zipWithMatched (\_ _ _ -> x)
+  fs <*> xs =
+    zipWithMaybeAMatched $ \k x y -> do
+      res <- runWhenMatched fs k x y
+      case res of
+        Nothing -> pure Nothing
+        Just r  -> (pure $!) . fmap r =<< runWhenMatched xs k x y
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f =
+    zipWithMaybeAMatched $ \k x y -> do
+      res <- runWhenMatched m k x y
+      case res of
+        Nothing -> pure Nothing
+        Just r  -> runWhenMatched (f r) k x y
+  {-# INLINE (>>=) #-}
+
+
+-- | Map covariantly over a @'WhenMatched' f x y@.
+mapWhenMatched
+  :: Functor f
+  => (a -> b)
+  -> WhenMatched f x y a
+  -> WhenMatched f x y b
+mapWhenMatched f (WhenMatched g) =
+  WhenMatched $ \k x y -> fmap (fmap f) (g k x y)
+{-# INLINE mapWhenMatched #-}
+
+
+-- | A tactic for dealing with keys present in both maps in 'merge'.
+--
+-- A tactic of type @SimpleWhenMatched x y z@ is an abstract
+-- representation of a function of type @Key -> x -> y -> Maybe z@.
+type SimpleWhenMatched = WhenMatched Identity
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values and use the result in the merged map.
+--
+-- > zipWithMatched
+-- >   :: (Key -> x -> y -> z)
+-- >   -> SimpleWhenMatched x y z
+zipWithMatched
+  :: Applicative f
+  => (Key -> x -> y -> z)
+  -> WhenMatched f x y z
+zipWithMatched f = WhenMatched $ \ k x y -> pure . Just $ f k x y
+{-# INLINE zipWithMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values to produce an action and use its result in the merged
+-- map.
+zipWithAMatched
+  :: Applicative f
+  => (Key -> x -> y -> f z)
+  -> WhenMatched f x y z
+zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
+{-# INLINE zipWithAMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values and maybe use the result in the merged map.
+--
+-- > zipWithMaybeMatched
+-- >   :: (k -> x -> y -> Maybe z)
+-- >   -> SimpleWhenMatched x y z
+zipWithMaybeMatched
+  :: Applicative f
+  => (Key -> x -> y -> Maybe z)
+  -> WhenMatched f x y z
+zipWithMaybeMatched f = WhenMatched $ \ x y -> pure $ f k x y
+{-# INLINE zipWithMaybeMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values, perform the resulting action, and maybe use the
+-- result in the merged map.
+--
+-- This is the fundamental 'WhenMatched' tactic.
+zipWithMaybeAMatched
+  :: (Key -> x -> y -> f (Maybe z))
+  -> WhenMatched f x y z
+zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
+{-# INLINE zipWithMaybeAMatched #-}
+
+
+-- | Drop all the entries whose keys are missing from the other
+-- map.
+--
+-- > dropMissing :: SimpleWhenMissing x y
+--
+-- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
+--
+-- but @dropMissing@ is much faster.
+dropMissing :: Applicative f => WhenMissing f x y
+dropMissing = WhenMissing
+  { missingSubtree = const (pure Tip)
+  , missingKey = \_ _ -> pure Nothing }
+{-# INLINE dropMissing #-}
+
+
+-- | Preserve, unchanged, the entries whose keys are missing from
+-- the other map.
+--
+-- > preserveMissing :: SimpleWhenMissing x x
+--
+-- prop> preserveMissing = Lazy.Merge.mapMaybeMissing (\_ x -> Just x)
+--
+-- but @preserveMissing@ is much faster.
+preserveMissing :: Applicative f => WhenMissing f x x
+preserveMissing = WhenMissing
+  { missingSubtree = pure
+  , missingKey = \_ v -> pure (Just v) }
+{-# INLINE preserveMissing #-}
+
+
+-- | Map over the entries whose keys are missing from the other map.
+--
+-- > mapMissing :: (k -> x -> y) -> SimpleWhenMissing x y
+--
+-- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
+--
+-- but @mapMissing@ is somewhat faster.
+mapMissing :: Applicative f => (Key -> x -> y) -> WhenMissing f x y
+mapMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapWithKey f m
+  , missingKey = \ k x -> pure $ Just (f k x) }
+{-# INLINE mapMissing #-}
+
+
+-- | Map over the entries whose keys are missing from the other
+-- map, optionally removing some. This is the most powerful
+-- 'SimpleWhenMissing' tactic, but others are usually more efficient.
+--
+-- > mapMaybeMissing :: (Key -> x -> Maybe y) -> SimpleWhenMissing x y
+--
+-- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
+--
+-- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative'
+-- operations.
+mapMaybeMissing
+  :: Applicative f => (Key -> x -> Maybe y) -> WhenMissing f x y
+mapMaybeMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapMaybeWithKey f m
+  , missingKey = \k x -> pure $! f k x }
+{-# INLINE mapMaybeMissing #-}
+
+
+-- | Filter the entries whose keys are missing from the other map.
+--
+-- > filterMissing :: (k -> x -> Bool) -> SimpleWhenMissing x x
+--
+-- prop> filterMissing f = Lazy.Merge.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
+--
+-- but this should be a little faster.
+filterMissing
+  :: Applicative f => (Key -> x -> Bool) -> WhenMissing f x x
+filterMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! filterWithKey f m
+  , missingKey = \k x -> pure $! if f k x then Just x else Nothing }
+{-# INLINE filterMissing #-}
+
+
+-- | Filter the entries whose keys are missing from the other map
+-- using some 'Applicative' action.
+--
+-- > filterAMissing f = Lazy.Merge.traverseMaybeMissing $
+-- >   \k x -> (\b -> guard b *> Just x) <$> f k x
+--
+-- but this should be a little faster.
+filterAMissing
+  :: Applicative f => (Key -> x -> f Bool) -> WhenMissing f x x
+filterAMissing f = WhenMissing
+  { missingSubtree = \m -> filterWithKeyA f m
+  , missingKey = \k x -> bool Nothing (Just x) <$> f k x }
+{-# INLINE filterAMissing #-}
+
+
+-- | This wasn't in Data.Bool until 4.7.0, so we define it here
+bool :: a -> a -> Bool -> a
+bool f _ False = f
+bool _ t True  = t
+
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map.
+traverseMissing
+  :: Applicative f => (Key -> x -> f y) -> WhenMissing f x y
+traverseMissing f = WhenMissing
+  { missingSubtree = traverseWithKey f
+  , missingKey = \k x -> Just <$> f k x }
+{-# INLINE traverseMissing #-}
+
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map, optionally producing values to put in the result. This is
+-- the most powerful 'WhenMissing' tactic, but others are usually
+-- more efficient.
+traverseMaybeMissing
+  :: Applicative f => (Key -> x -> f (Maybe y)) -> WhenMissing f x y
+traverseMaybeMissing f = WhenMissing
+  { missingSubtree = traverseMaybeWithKey f
+  , missingKey = f }
+{-# INLINE traverseMaybeMissing #-}
+
+
+-- | Merge two maps.
+--
+-- @merge@ takes two 'WhenMissing' tactics, a 'WhenMatched' tactic
+-- and two maps. It uses the tactics to merge the maps. Its behavior
+-- is best understood via its fundamental tactics, 'mapMaybeMissing'
+-- and 'zipWithMaybeMatched'.
+--
+-- Consider
+--
+-- @
+-- merge (mapMaybeMissing g1)
+--              (mapMaybeMissing g2)
+--              (zipWithMaybeMatched f)
+--              m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @merge@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- maybes = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- This produces a 'Maybe' for each key:
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'mapMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+--
+-- When 'merge' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should typically use
+-- 'merge' to define your custom combining functions.
+--
+--
+-- Examples:
+--
+-- prop> unionWithKey f = merge preserveMissing preserveMissing (zipWithMatched f)
+-- prop> intersectionWithKey f = merge dropMissing dropMissing (zipWithMatched f)
+-- prop> differenceWith f = merge diffPreserve diffDrop f
+-- prop> symmetricDifference = merge diffPreserve diffPreserve (\ _ _ _ -> Nothing)
+-- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g)
+--
+-- @since 0.5.8
+merge
+  :: SimpleWhenMissing a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> SimpleWhenMissing b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> SimpleWhenMatched a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> IntMap a -- ^ Map @m1@
+  -> IntMap b -- ^ Map @m2@
+  -> IntMap c
+merge g1 g2 f m1 m2 =
+  runIdentity $ mergeA g1 g2 f m1 m2
+{-# INLINE merge #-}
+
+
+-- | An applicative version of 'merge'.
+--
+-- @mergeA@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- tactic and two maps. It uses the tactics to merge the maps.
+-- Its behavior is best understood via its fundamental tactics,
+-- 'traverseMaybeMissing' and 'zipWithMaybeAMatched'.
+--
+-- Consider
+--
+-- @
+-- mergeA (traverseMaybeMissing g1)
+--               (traverseMaybeMissing g2)
+--               (zipWithMaybeAMatched f)
+--               m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @mergeA@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- actions = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- Next, it will perform the actions in the @actions@ list in order from
+-- left to right.
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'traverseMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+-- * 'mapMaybeMissing' does not use the 'Applicative' context.
+--
+-- When 'mergeA' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should generally only use
+-- 'mergeA' to define custom combining functions.
+--
+-- @since 0.5.8
+mergeA
+  :: (Applicative f)
+  => WhenMissing f a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> WhenMissing f b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> WhenMatched f a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> IntMap a -- ^ Map @m1@
+  -> IntMap b -- ^ Map @m2@
+  -> f (IntMap c)
+mergeA
+    WhenMissing{missingSubtree = g1t, missingKey = g1k}
+    WhenMissing{missingSubtree = g2t}
+    (WhenMatched f) = go
+  where
+    go t1 Tip = g1t t1
+    go Tip t2 = g2t t2
+    go (Bin _ kx x1 l1 r1) t2 = case splitLookup kx t2 of
+      (l2, mx2, r2) -> case mx2 of
+          Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        <$> l1l2 <*> g1k kx x1 <*> r1r2
+          Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        <$> l1l2 <*> f kx x1 x2 <*> r1r2
+        where
+          !l1l2 = go l1 l2
+          !r1r2 = go r1 r2
+{-# INLINE mergeA #-}
+
+
 {--------------------------------------------------------------------
   Min\/Max
 --------------------------------------------------------------------}
