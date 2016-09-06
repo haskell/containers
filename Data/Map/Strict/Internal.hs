@@ -88,7 +88,7 @@ module Data.Map.Strict.Internal
     Map(..)          -- instance Eq,Show,Read
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -273,6 +273,8 @@ module Data.Map.Strict.Internal
     , splitAt
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -312,6 +314,7 @@ import Data.Map.Internal
   , merge
   , mergeA
   , (!)
+  , (!?)
   , (\\)
   , assocs
   , atKeyImpl
@@ -363,6 +366,8 @@ import Data.Map.Internal
   , lookupIndex
   , lookupLE
   , lookupLT
+  , lookupMin
+  , lookupMax
   , mapKeys
   , mapKeysMonotonic
   , maxView

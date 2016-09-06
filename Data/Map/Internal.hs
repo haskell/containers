@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -131,7 +132,7 @@ module Data.Map.Internal (
       Map(..)          -- instance Eq,Show,Read
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -312,6 +313,8 @@ module Data.Map.Internal (
     , splitAt
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -406,7 +409,7 @@ import Data.Coerce
 {--------------------------------------------------------------------
   Operators
 --------------------------------------------------------------------}
-infixl 9 !,\\ --
+infixl 9 !,!?,\\ --
 
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
@@ -417,14 +420,26 @@ infixl 9 !,\\ --
 (!) :: Ord k => Map k a -> k -> a
 (!) m k = find k m
 #if __GLASGOW_HASKELL__
-{-# INLINABLE (!) #-}
+{-# INLINE (!) #-}
+#endif
+
+-- | /O(log n)/. Find the value at a key.
+-- Returns 'Nothing' when the element can not be found.
+--
+-- prop> fromList [(5, 'a'), (3, 'b')] !? 1 == Nothing
+-- prop> fromList [(5, 'a'), (3, 'b')] !? 5 == Just 'a'
+
+(!?) :: Ord k => Map k a -> k -> Maybe a
+(!?) m k = lookup k m
+#if __GLASGOW_HASKELL__
+{-# INLINE (!?) #-}
 #endif
 
 -- | Same as 'difference'.
 (\\) :: Ord k => Map k a -> Map k b -> Map k a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__
-{-# INLINABLE (\\) #-}
+{-# INLINE (\\) #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1554,25 +1569,56 @@ deleteAt !i t =
 {--------------------------------------------------------------------
   Minimal, Maximal
 --------------------------------------------------------------------}
+
+lookupMinSure :: k -> a -> Map k a -> (k, a)
+lookupMinSure k a Tip = (k, a)
+lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
+
+-- | /O(log n)/. The minimal key of the map. Returns 'Nothing' if the map is empty.
+--
+-- > lookupMin (fromList [(5,"a"), (3,"b")]) == Just (3,"b")
+-- > findMin empty = Nothing
+--
+-- @since 0.5.9
+
+lookupMin :: Map k a -> Maybe (k,a)
+lookupMin Tip = Nothing
+lookupMin (Bin _ k x l _) = Just $! lookupMinSure k x l
+
 -- | /O(log n)/. The minimal key of the map. Calls 'error' if the map is empty.
 --
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
 findMin :: Map k a -> (k,a)
-findMin (Bin _ kx x Tip _)  = (kx,x)
-findMin (Bin _ _  _ l _)    = findMin l
-findMin Tip                 = error "Map.findMin: empty map has no minimal element"
+findMin t
+  | Just r <- lookupMin t = r
+  | otherwise = error "Map.findMin: empty map has no minimal element"
 
 -- | /O(log n)/. The maximal key of the map. Calls 'error' if the map is empty.
 --
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
 
+lookupMaxSure :: k -> a -> Map k a -> (k, a)
+lookupMaxSure k a Tip = (k, a)
+lookupMaxSure _ _ (Bin _ k a _ r) = lookupMaxSure k a r
+
+-- | /O(log n)/. The maximal key of the map. Returns 'Nothing' if the map is empty.
+--
+-- > lookupMax (fromList [(5,"a"), (3,"b")]) == Just (5,"a")
+-- > lookupMax empty = Nothing
+--
+-- @since 0.5.9
+
+lookupMax :: Map k a -> Maybe (k, a)
+lookupMax Tip = Nothing
+lookupMax (Bin _ k x _ r) = Just $! lookupMaxSure k x r
+
 findMax :: Map k a -> (k,a)
-findMax (Bin _ kx x _ Tip)  = (kx,x)
-findMax (Bin _ _  _ _ r)    = findMax r
-findMax Tip                 = error "Map.findMax: empty map has no maximal element"
+findMax t
+  | Just r <- lookupMax t = r
+  | otherwise = error "Map.findMax: empty map has no maximal element"
 
 -- | /O(log n)/. Delete the minimal key. Returns an empty map if the map is empty.
 --
@@ -1645,7 +1691,9 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 
 minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 minViewWithKey Tip = Nothing
-minViewWithKey x   = Just $! deleteFindMin x
+minViewWithKey (Bin _ k x l r) =
+  case minViewSure k x l r of
+    MinView km xm t -> Just ((km, xm), t)
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -1655,7 +1703,9 @@ minViewWithKey x   = Just $! deleteFindMin x
 
 maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 maxViewWithKey Tip = Nothing
-maxViewWithKey x   = Just $! deleteFindMax x
+maxViewWithKey (Bin _ k x l r) =
+  case maxViewSure k x l r of
+    MaxView km xm t -> Just ((km, xm), t)
 
 -- | /O(log n)/. Retrieves the value associated with minimal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1665,8 +1715,9 @@ maxViewWithKey x   = Just $! deleteFindMax x
 -- > minView empty == Nothing
 
 minView :: Map k a -> Maybe (a, Map k a)
-minView Tip = Nothing
-minView x   = Just $! (first snd $ deleteFindMin x)
+minView t = case minViewWithKey t of
+              Nothing -> Nothing
+              Just ((_, x), t') -> Just (x, t')
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1676,13 +1727,9 @@ minView x   = Just $! (first snd $ deleteFindMin x)
 -- > maxView empty == Nothing
 
 maxView :: Map k a -> Maybe (a, Map k a)
-maxView Tip = Nothing
-maxView x   = Just $! (first snd $ deleteFindMax x)
-
--- Update the 1st component of a tuple (stricter version of
--- Control.Arrow.first)
-first :: (a -> b) -> (a,c) -> (b,c)
-first f (x,y) = (f x, y)
+maxView t = case maxViewWithKey t of
+              Nothing -> Nothing
+              Just ((_, x), t') -> Just (x, t')
 
 {--------------------------------------------------------------------
   Union.
@@ -3670,10 +3717,28 @@ link2 l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
 glue :: Map k a -> Map k a -> Map k a
 glue Tip r = r
 glue l Tip = l
-glue l r
-  | size l > size r = let ((km,m),l') = deleteFindMax l in balanceR km m l' r
-  | otherwise       = let ((km,m),r') = deleteFindMin r in balanceL km m l r'
+glue l@(Bin sl kl xl ll lr) r@(Bin sr kr xr rl rr)
+  | sl > sr = let !(MaxView km m l') = maxViewSure kl xl ll lr in balanceR km m l' r
+  | otherwise = let !(MinView km m r') = minViewSure kr xr rl rr in balanceL km m l r'
 
+data MinView k a = MinView !k a !(Map k a)
+data MaxView k a = MaxView !k a !(Map k a)
+
+minViewSure :: k -> a -> Map k a -> Map k a -> MinView k a
+minViewSure = go
+  where
+    go k x Tip r = MinView k x r
+    go k x (Bin _ kl xl ll lr) r =
+      case go kl xl ll lr of
+        MinView km xm l' -> MinView km xm (balanceR k x l' r)
+
+maxViewSure :: k -> a -> Map k a -> Map k a -> MaxView k a
+maxViewSure = go
+  where
+    go k x l Tip = MaxView k x l
+    go k x l (Bin _ kr xr rl rr) =
+      case go kr xr rl rr of
+        MaxView km xm r' -> MaxView km xm (balanceL k x l r')
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
@@ -3681,13 +3746,9 @@ glue l r
 -- > deleteFindMin                                            Error: can not return the minimal element of an empty map
 
 deleteFindMin :: Map k a -> ((k,a),Map k a)
-deleteFindMin t
-  = case t of
-      Bin _ k x Tip r -> ((k,x),r)
-      Bin _ k x l r   -> let !(km,l') = deleteFindMin l
-                             !t' = balanceR k x l' r
-                         in (km, t')
-      Tip             -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
+deleteFindMin t = case minViewWithKey t of
+  Nothing -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
+  Just res -> res
 
 -- | /O(log n)/. Delete and find the maximal element.
 --
@@ -3695,14 +3756,9 @@ deleteFindMin t
 -- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
 
 deleteFindMax :: Map k a -> ((k,a),Map k a)
-deleteFindMax t
-  = case t of
-      Bin _ k x l Tip -> ((k,x),l)
-      Bin _ k x l r   -> let !(km,r') = deleteFindMax r
-                             !t' = balanceL k x l r'
-                         in (km, t')
-      Tip             -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
-
+deleteFindMax t = case maxViewWithKey t of
+  Nothing -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
+  Just res -> res
 
 {--------------------------------------------------------------------
   [balance l x r] balances two trees with value x.

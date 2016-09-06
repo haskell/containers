@@ -222,6 +222,8 @@ main = defaultMain
          , testProperty "take"                 prop_take
          , testProperty "drop"                 prop_drop
          , testProperty "splitAt"              prop_splitAt
+         , testProperty "lookupMin"            prop_lookupMin
+         , testProperty "lookupMax"            prop_lookupMax
          ]
 
 {--------------------------------------------------------------------
@@ -960,6 +962,12 @@ prop_deleteMin t = valid $ deleteMin $ deleteMin t
 
 prop_deleteMax :: UMap -> Bool
 prop_deleteMax t = valid $ deleteMax $ deleteMax t
+
+prop_lookupMin :: IMap -> Property
+prop_lookupMin m = lookupMin m === (fst <$> minViewWithKey m)
+
+prop_lookupMax :: IMap -> Property
+prop_lookupMax m = lookupMax m === (fst <$> maxViewWithKey m)
 
 ----------------------------------------------------------------
 
