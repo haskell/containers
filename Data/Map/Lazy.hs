@@ -66,7 +66,7 @@ module Data.Map.Lazy (
     Map              -- instance Eq,Show,Read
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -212,6 +212,8 @@ module Data.Map.Lazy (
     , splitAt
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin

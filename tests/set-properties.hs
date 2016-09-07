@@ -67,6 +67,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
                    , testProperty "prop_size" prop_size
+                   , testProperty "prop_lookupMax" prop_lookupMax
+                   , testProperty "prop_lookupMin" prop_lookupMin
                    , testProperty "prop_findMax" prop_findMax
                    , testProperty "prop_findMin" prop_findMin
                    , testProperty "prop_ord" prop_ord
@@ -492,6 +494,12 @@ prop_findMax s = not (null s) ==> findMax s == maximum (toList s)
 
 prop_findMin :: Set Int -> Property
 prop_findMin s = not (null s) ==> findMin s == minimum (toList s)
+
+prop_lookupMin :: Set Int -> Property
+prop_lookupMin m = lookupMin m === (fst <$> minView m)
+
+prop_lookupMax :: Set Int -> Property
+prop_lookupMax m = lookupMax m === (fst <$> maxView m)
 
 prop_ord :: TwoSets -> Bool
 prop_ord (TwoSets s1 s2) = s1 `compare` s2 == toList s1 `compare` toList s2
