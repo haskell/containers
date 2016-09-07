@@ -72,7 +72,7 @@ module Data.IntMap.Internal (
       IntMap(..), Key          -- instance Eq,Show
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -197,6 +197,8 @@ module Data.IntMap.Internal (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -311,7 +313,7 @@ type Mask   = Int
 --------------------------------------------------------------------}
 
 -- | /O(min(n,W))/. Find the value at a key.
--- Calls 'error' when the element can not be found.
+-- Calls 'error' when the element cannot be found.
 --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
@@ -319,11 +321,22 @@ type Mask   = Int
 (!) :: IntMap a -> Key -> a
 (!) m k = find k m
 
+-- | /O(min(n,W))/. Find the value at a key.
+-- Returns 'Nothing' when the element cannot be found.
+--
+-- > fromList [(5,'a'), (3,'b')] !? 1 == Nothing
+-- > fromList [(5,'a'), (3,'b')] !? 5 == Just 'a'
+--
+-- @since 0.5.9
+
+(!?) :: IntMap a -> Key -> Maybe a
+(!?) m k = lookup k m
+
 -- | Same as 'difference'.
 (\\) :: IntMap a -> IntMap b -> IntMap a
 m1 \\ m2 = difference m1 m2
 
-infixl 9 \\{-This comment teaches CPP correct behaviour -}
+infixl 9 !,!?,\\{-This comment teaches CPP correct behaviour -}
 
 {--------------------------------------------------------------------
   Types
@@ -1200,7 +1213,8 @@ mergeWithKey' bin' f g1 g2 = go
 -- | /O(min(n,W))/. Update the value at the minimal key.
 --
 -- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
--- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > updateMinWithKey (\ _ _ -> Nothing) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > updateMinWithKey f Nil == Nil
 
 updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey f t =
@@ -1211,12 +1225,13 @@ updateMinWithKey f t =
     go f' (Tip k y) = case f' k y of
                         Just y' -> Tip k y'
                         Nothing -> Nil
-    go _ Nil = error "updateMinWithKey Nil"
+    go _ Nil = Nil
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
 --
 -- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
--- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > updateMaxWithKey (\ _ _ -> Nothing) (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > updateMaxWithKey f Nil = Nil
 
 updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey f t =
@@ -1227,7 +1242,11 @@ updateMaxWithKey f t =
     go f' (Tip k y) = case f' k y of
                         Just y' -> Tip k y'
                         Nothing -> Nil
-    go _ Nil = error "updateMaxWithKey Nil"
+    go _ Nil = Nil
+
+data MaxView a = MaxView !Int a !(IntMap a)
+data MinView a = MinView !Int a !(IntMap a)
+
 
 -- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -1238,11 +1257,22 @@ updateMaxWithKey f t =
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey t =
   case t of Nil -> Nothing
-            Bin p m l r | m < 0 -> case go l of (result, l') -> Just (result, binCheckLeft p m l' r)
-            _ -> Just (go t)
+            Tip k y -> Just ((k, y), Nil)
+            Bin p m l r -> case maxViewWithKeyBin p m l r of
+                             MaxView km xm t' -> Just ((km, xm), t')
+
+-- See note on inlining at minViewWithKey
+{-# INLINE maxViewWithKey #-}
+
+maxViewWithKeyBin :: Prefix -> Mask -> IntMap a -> IntMap a -> MaxView a
+maxViewWithKeyBin !p !m !l !r
+  | m < 0 = case go l of
+              MaxView km xm l' -> MaxView km xm (binCheckLeft p m l' r)
+  | otherwise = case go r of
+              MaxView km xm r' -> MaxView km xm (binCheckRight p m l r')
   where
-    go (Bin p m l r) = case go r of (result, r') -> (result, binCheckRight p m l r')
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) = case go r of MaxView km xm r' -> MaxView km xm (binCheckRight p m l r')
+    go (Tip k y) = MaxView k y Nil
     go Nil = error "maxViewWithKey Nil"
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
@@ -1254,11 +1284,24 @@ maxViewWithKey t =
 minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey t =
   case t of Nil -> Nothing
-            Bin p m l r | m < 0 -> case go r of (result, r') -> Just (result, binCheckRight p m l r')
-            _ -> Just (go t)
+            Tip k y -> Just ((k, y), Nil)
+            Bin p m l r -> case minViewWithKeyBin p m l r of
+                                     MinView km xm t' -> Just ((km, xm), t')
+-- We inline this explicitly to avoid unnecessarily allocating
+-- Just and (,) constructors that will most likely be stripped off
+-- immediately. Unfortunately, GHC doesn't seem willing to make that call
+-- itself.
+{-# INLINE minViewWithKey #-}
+
+minViewWithKeyBin :: Prefix -> Mask -> IntMap a -> IntMap a -> MinView a
+minViewWithKeyBin !p !m !l !r
+  | m < 0 = case go r of
+              MinView km xm r' -> MinView km xm (binCheckRight p m l r')
+  | otherwise = case go l of
+              MinView km xm l' -> MinView km xm (binCheckLeft p m l' r)
   where
-    go (Bin p m l r) = case go l of (result, l') -> (result, binCheckLeft p m l' r)
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) = case go l of MinView km xm l' -> MinView km xm (binCheckLeft p m l' r)
+    go (Tip k y) = MinView k y Nil
     go Nil = error "minViewWithKey Nil"
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
@@ -1284,12 +1327,16 @@ first f (x,y) = (f x,y)
 -- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
-maxView t = liftM (first snd) (maxViewWithKey t)
+maxView t = case maxViewWithKey t of
+  Nothing -> Nothing
+  Just ((_, x), t') -> Just (x, t')
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
-minView t = liftM (first snd) (minViewWithKey t)
+minView t = case minViewWithKey t of
+  Nothing -> Nothing
+  Just ((_, x), t') -> Just (x, t')
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
@@ -1299,27 +1346,58 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
+data Keyed a = Keyed !Key a
+
 -- | /O(min(n,W))/. The minimal key of the map.
+--
+-- @since 0.5.9
+lookupMin :: IntMap a -> Maybe (Key, a)
+lookupMin Nil = Nothing
+lookupMin (Tip k v) = Just (k, v)
+lookupMin (Bin _ m l r) =
+  -- This funny-looking form seems to make GHC more willing to
+  -- inline lookupMin in, e.g., findMin.
+  case lookupMinSure $! (if m < 0 then r else l) of
+    Keyed k v -> Just (k, v)
+
+lookupMinSure :: IntMap a -> Keyed a
+lookupMinSure (Tip k v) = Keyed k v
+lookupMinSure (Bin _ _ l _) = lookupMinSure l
+lookupMinSure Nil = error "lookupMin Nil"
+
+-- | /O(min(n,W))/. The minimal key of the map.
+--
+-- This function throws an error if the map is empty. Use 'lookupMin' instead.
 findMin :: IntMap a -> (Key, a)
-findMin Nil = error $ "findMin: empty map has no minimal element"
-findMin (Tip k v) = (k,v)
-findMin (Bin _ m l r)
-  |   m < 0   = go r
-  | otherwise = go l
-    where go (Tip k v)      = (k,v)
-          go (Bin _ _ l' _) = go l'
-          go Nil            = error "findMax Nil"
+findMin m = case lookupMin m of
+              Just (k,v) -> (k,v)
+              Nothing -> error $ "findMin: empty map has no minimal element"
+
 
 -- | /O(min(n,W))/. The maximal key of the map.
+--
+-- @since 0.5.9
+lookupMax :: IntMap a -> Maybe (Key, a)
+lookupMax Nil = Nothing
+lookupMax (Tip k v) = Just (k, v)
+lookupMax (Bin _ m l r) =
+  -- This funny-looking form seems to make GHC more willing to
+  -- inline lookupMax in, e.g., findMax.
+  case lookupMaxSure $! (if m < 0 then l else r) of
+    Keyed k v -> Just (k, v)
+
+lookupMaxSure :: IntMap a -> Keyed a
+lookupMaxSure (Tip k v) = Keyed k v
+lookupMaxSure (Bin _ _ _ r) = lookupMaxSure r
+lookupMaxSure Nil = error "lookupMax Nil"
+
+-- | /O(min(n,W))/. The maximal key of the map.
+--
+-- This function throws an error if the map is empty. Use 'lookupMax' instead.
 findMax :: IntMap a -> (Key, a)
-findMax Nil = error $ "findMax: empty map has no maximal element"
-findMax (Tip k v) = (k,v)
-findMax (Bin _ m l r)
-  |   m < 0   = go l
-  | otherwise = go r
-    where go (Tip k v)      = (k,v)
-          go (Bin _ _ _ r') = go r'
-          go Nil            = error "findMax Nil"
+findMax m = case lookupMax m of
+              Just (k,v) -> (k,v)
+              Nothing -> error $ "findMax: empty map has no maximal element"
 
 -- | /O(min(n,W))/. Delete the minimal key. Returns an empty map if the map is empty.
 --

@@ -71,7 +71,7 @@ module Data.IntMap.Strict (
 #endif
 
     -- * Operators
-    , (!), (\\)
+    , (!?), (!), (\\)
 
     -- * Query
     , null
@@ -195,6 +195,8 @@ module Data.IntMap.Strict (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin

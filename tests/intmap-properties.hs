@@ -167,6 +167,8 @@ main = defaultMain
              , testProperty "foldl'"               prop_foldl'
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
+             , testProperty "minViewWithKey"       prop_minViewWithKey
+             , testProperty "maxViewWithKey"       prop_maxViewWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -755,6 +757,16 @@ prop_insertDelete k t = (lookup k t == Nothing) ==> (delete k (insert k () t) ==
 
 prop_deleteNonMember :: Int -> UMap -> Property
 prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
+
+prop_minViewWithKey :: IMap -> Property
+prop_minViewWithKey t = case minViewWithKey t of
+  Nothing -> null t === True
+  Just ((k,x), t') -> size t === size t' + 1 .&&. t === insert k x t' .&&. all ((>k) . fst) (toList t')
+
+prop_maxViewWithKey :: IMap -> Property
+prop_maxViewWithKey t = case maxViewWithKey t of
+  Nothing -> null t === True
+  Just ((k,x), t') -> size t === size t' + 1 .&&. t === insert k x t' .&&. all ((<k) . fst) (toList t')
 
 ----------------------------------------------------------------
 

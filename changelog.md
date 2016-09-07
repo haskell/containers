@@ -15,14 +15,19 @@
 * Plug space leaks in `Data.Map.Lazy.fromAscList` and
  `Data.Map.Lazy.fromDescList` by manually inlining constant functions.
 
-* Add `lookupMin` and `lookupMax` to `Data.Set` and `Data.Map` as total
-alternatives to `findMin` and `findMax`.
+* Add `lookupMin` and `lookupMax` to `Data.Set`, `Data.Map`, and `Data.IntMap`
+as total alternatives to `findMin` and `findMax`.
 
-* Add `!?` to `Data.Map` as a total alternative to `!`.
+* Add `!?` to `Data.Map` and `Data.IntMap` as a total alternative to `!`.
 
-* Avoid using `deleteFindMin` and `deleteFindMax` internally, preferring
-total functions instead. New implementations of said functions lead to slight
-performance improvements overall.
+* Set the fixity of `Data.IntMap.!` to match that of `Data.Map.!`.
+
+* Avoid using `deleteFindMin` and `deleteFindMax` internally in `Data.Map`,
+preferring total functions instead. New implementations of said functions lead
+to slight performance improvements overall.
+
+* Make more update functions total. Historically, many have thrown errors
+when given missing keys. Now, we prefer to return the structures unchanged.
 
 ## 0.5.8.1 *Aug 2016*
 

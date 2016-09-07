@@ -64,7 +64,7 @@ module Data.IntMap.Lazy (
 #endif
 
     -- * Operators
-    , (!), (\\)
+    , (!?), (!), (\\)
 
     -- * Query
     , IM.null
@@ -188,6 +188,8 @@ module Data.IntMap.Lazy (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin

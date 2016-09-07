@@ -428,6 +428,8 @@ infixl 9 !,!?,\\ --
 --
 -- prop> fromList [(5, 'a'), (3, 'b')] !? 1 == Nothing
 -- prop> fromList [(5, 'a'), (3, 'b')] !? 5 == Just 'a'
+--
+-- @since 0.5.9
 
 (!?) :: Ord k => Map k a -> k -> Maybe a
 (!?) m k = lookup k m
