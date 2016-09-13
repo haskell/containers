@@ -16,6 +16,7 @@
 -- Module      :  Data.IntMap
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
+--                (c) Jonathan S. 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
@@ -35,20 +36,6 @@
 --
 -- >  import Data.IntMap (IntMap)
 -- >  import qualified Data.IntMap as IntMap
---
--- The implementation is based on /big-endian patricia trees/.  This data
--- structure performs especially well on binary operations like 'union'
--- and 'intersection'.  However, my benchmarks show that it is also
--- (much) faster on insertions and deletions when compared to a generic
--- size-balanced map implementation (see "Data.Map").
---
---    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
---      Workshop on ML, September 1998, pages 77-86,
---      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
---
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
---      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
---      October 1968, pages 514-534.
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
@@ -70,32 +57,36 @@ module Data.IntMap
 #endif
     ) where
 
+import Prelude hiding (foldr)
+import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
-#ifdef __GLASGOW_HASKELL__
-import Utils.Containers.Internal.TypeError
+-- | /O(log n)/. Same as 'insertWith', but the result of the combining function
+-- is evaluated to WHNF before inserted to the map.
+{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWith'." #-}
+{-# INLINE insertWith' #-}
+insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWith' = Strict.insertWith
 
--- | This function is being removed and is no longer usable.
--- Use 'Data.IntMap.Strict.insertWith'
-insertWith' :: Whoops "Data.IntMap.insertWith' is gone. Use Data.IntMap.Strict.insertWith."
-            => (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith' _ _ _ _ = undefined
+-- | /O(log n)/. Same as 'insertWithKey', but the result of the combining
+-- function is evaluated to WHNF before inserted to the map.
+{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWithKey'." #-}
+{-# INLINE insertWithKey' #-}
+insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWithKey' = Strict.insertWithKey
 
--- | This function is being removed and is no longer usable.
--- Use 'Data.IntMap.Strict.insertWithKey'.
-insertWithKey' :: Whoops "Data.IntMap.insertWithKey' is gone. Use Data.IntMap.Strict.insertWithKey."
-               => (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey' _ _ _ _ = undefined
+-- | /O(n)/. Fold the values in the map using the given
+-- right-associative binary operator. This function is an equivalent
+-- of 'foldr' and is present for compatibility only.
+{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
+{-# INLINE fold #-}
+fold :: (a -> b -> b) -> b -> IntMap a -> b
+fold = foldr
 
--- | This function is being removed and is no longer usable.
--- Use 'Data.IntMap.Lazy.foldr'.
-fold :: Whoops "Data.IntMap.fold' is gone. Use Data.IntMap.foldr or Prelude.foldr."
-     => (a -> b -> b) -> b -> IntMap a -> b
-fold _ _ _ = undefined
-
--- | This function is being removed and is no longer usable.
--- Use 'foldrWithKey'.
-foldWithKey :: Whoops "Data.IntMap.foldWithKey is gone. Use foldrWithKey."
-            => (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldWithKey _ _ _ = undefined
-#endif
+-- | /O(n)/. Fold the keys and values in the map using the given
+-- right-associative binary operator. This function is an equivalent
+-- of 'foldrWithKey' and is present for compatibility only.
+{-# DEPRECATED foldWithKey "As of version 0.5, replaced by 'foldrWithKey'." #-}
+{-# INLINE foldWithKey #-}
+foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey = foldrWithKey
