@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP, BangPatterns #-}
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+{-# LANGUAGE Safe #-}
+#endif
 
 #include "containers.h"
 
