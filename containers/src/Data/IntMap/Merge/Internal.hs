@@ -1,9 +1,14 @@
 {-# LANGUAGE CPP, BangPatterns #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Safe #-}
-#endif
 
 #include "containers.h"
+
+#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if MIN_VERSION_base(4,8,0) || __GLASGOW_HASKELL__ < 708
+{-# LANGUAGE Safe #-}
+#else
+{-# LANGUAGE Trustworthy #-}
+#endif
+#endif
 
 -----------------------------------------------------------------------------
 -- |
@@ -41,10 +46,8 @@ import Data.IntMap.Internal
 
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
-#else
-#if __GLASGOW_HASKELL__ >= 708
+#elif __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
-#endif
 #endif
 
 
