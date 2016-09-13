@@ -798,20 +798,20 @@ intersection = start
            | max1 < max2 -> r2lMap $ goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2)
            | otherwise -> r2lMap $ NonEmpty max1 maxV1 (goRFused max1 r1 (Bin min2 dummyV l2 r2))
 
-    goLFused min = loop
-      where
-        loop Tip !_ = Tip
-        loop !_ Tip = Tip
-        loop n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 _ l2 r2) = case compareMSB (xor min max1) (xor min max2) of
-            LT -> loop n1 l2
+    goLFused !_ Tip !_ = Tip
+    goLFused !_ !_ Tip = Tip
+    goLFused !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 _ l2 r2) = case compareMSB (xor min max1) (xor min max2) of
+            LT -> goLFused min n1 l2
             EQ | max1 > max2 -> case goR2 max1 r1 max2 r2 of
-                    Empty -> loop l1 l2
-                    NonEmpty max' maxV' r' -> Bin max' maxV' (loop l1 l2) r'
+                    Empty -> l'
+                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
                | max1 < max2 -> case goR1 maxV1 max1 r1 max2 r2 of
-                    Empty -> loop l1 l2
-                    NonEmpty max' maxV' r' -> Bin max' maxV' (loop l1 l2) r'
-               | otherwise -> Bin max1 maxV1 (loop l1 l2) (goRFused max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
-            GT -> loop l1 n2
+                    Empty -> l'
+                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
+               | otherwise -> Bin max1 maxV1 l' (goRFused max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
+             where
+               l' = goLFused min l1 l2
+            GT -> goLFused min l1 n2
 
     goR1 _     !_   !_  !_   Tip = Empty
     goR1 maxV1 max1 Tip max2 n2  = goLookupR1 max1 maxV1 (xor max1 max2) n2
@@ -843,20 +843,20 @@ intersection = start
            | min1 > min2 -> l2rMap $ goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2)
            | otherwise -> l2rMap $ NonEmpty min1 minV1 (goLFused min1 l1 (Bin max2 dummyV l2 r2))
 
-    goRFused max = loop
-      where
-        loop Tip !_ = Tip
-        loop !_ Tip = Tip
-        loop n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max) (xor min2 max) of
-            LT -> loop n1 r2
+    goRFused !_ Tip !_ = Tip
+    goRFused !_ !_ Tip = Tip
+    goRFused !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max) (xor min2 max) of
+            LT -> goRFused max n1 r2
             EQ | min1 < min2 -> case goL2 min1 l1 min2 l2 of
-                    Empty -> loop r1 r2
-                    NonEmpty min' minV' l' -> Bin min' minV' l' (loop r1 r2)
+                    Empty -> r'
+                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
                | min1 > min2 -> case goL1 minV1 min1 l1 min2 l2 of
-                    Empty -> loop r1 r2
-                    NonEmpty min' minV' l' -> Bin min' minV' l' (loop r1 r2)
-               | otherwise -> Bin min1 minV1 (goLFused min1 l1 l2) (loop r1 r2) -- we choose max1 arbitrarily, as max1 == max2
-            GT -> loop r1 n2
+                    Empty -> r'
+                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
+               | otherwise -> Bin min1 minV1 (goLFused min1 l1 l2) r' -- we choose max1 arbitrarily, as max1 == max2
+             where
+               r' = goRFused max r1 r2
+            GT -> goRFused max r1 n2
 
     goLookupL1 !_ _ !_ Tip = Empty
     goLookupL1 k v !xorCache (Bin max _ l r)
