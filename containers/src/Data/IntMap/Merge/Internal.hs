@@ -1,4 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns #-}
+
+#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
@@ -30,9 +32,38 @@
 module Data.IntMap.Merge.Internal where
 
 import Prelude hiding (min, max)
-import Data.Functor.Identity (Identity, runIdentity)
 
 import Data.IntMap.Internal
+
+#if MIN_VERSION_base (4,8,0)
+import Data.Functor.Identity (Identity, runIdentity)
+#else
+import Control.Applicative (Applicative(..))
+#if __GLASGOW_HASKELL__ >= 708
+import Data.Coerce
+#endif
+#endif
+
+
+#if !MIN_VERSION_base (4,8,0)
+-- | The identity type.
+newtype Identity a = Identity { runIdentity :: a }
+
+#if __GLASGOW_HASKELL__ >= 708
+instance Functor Identity where
+  fmap = coerce
+instance Applicative Identity where
+  (<*>) = coerce
+  pure = Identity
+#else
+instance Functor Identity where
+  fmap f (Identity a) = Identity (f a)
+instance Applicative Identity where
+  Identity f <*> Identity x = Identity (f x)
+  pure = Identity
+#endif
+#endif
+
 
 -- | A tactic for dealing with keys present in one map but not the other in
 -- 'merge' or 'mergeA'.
