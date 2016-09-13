@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -61,14 +61,16 @@ import Data.IntMap.Merge.Internal
 -- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
 --
 -- but @mapMissing@ is somewhat faster.
-mapMissing :: forall f a b. Applicative f => (Key -> a -> b) -> WhenMissing f a b
-mapMissing f = WhenMissing (\k v -> Just (f k v)) go go (pure . start) where
+mapMissing :: Applicative f => (Key -> a -> b) -> WhenMissing f a b
+mapMissing f = WhenMissing (\k v -> Just (f k v)) goL goR (pure . start) where
     start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min (f min minV) (go root))
+    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min (f min minV) (goL root))
 
-    go :: Node t a -> Node t b
-    go Tip = Tip
-    go (Bin k v l r) = Bin k (f k v) (go l) (go r)
+    goL Tip = Tip
+    goL (Bin k v l r) = Bin k (f k v) (goL l) (goR r)
+
+    goR Tip = Tip
+    goR (Bin k v l r) = Bin k (f k v) (goL l) (goR r)
 
 -- | Map over the entries whose keys are missing from the other map,
 -- optionally removing some. This is the most powerful 'SimpleWhenMissing'

@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, ScopedTypeVariables #-}
+{-# LANGUAGE BangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -1183,29 +1183,33 @@ mergeWithKey matched miss1 miss2 = Merge.merge (Merge.mapMaybeMissing (single mi
 -- | /O(n)/. Map a function over all values in the map.
 --
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
-map :: forall a b. (a -> b) -> IntMap a -> IntMap b
+map :: (a -> b) -> IntMap a -> IntMap b
 map f = start
   where
     start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min #! f minV # go root)
+    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min #! f minV # goL root)
 
-    go :: Node t a -> Node t b
-    go Tip = Tip
-    go (Bin k v l r) = Bin k #! f v # go l # go r
+    goL Tip = Tip
+    goL (Bin k v l r) = Bin k #! f v # goL l # goR r
+
+    goR Tip = Tip
+    goR (Bin k v l r) = Bin k #! f v # goL l # goR r
 
 -- | /O(n)/. Map a function over all values in the map.
 --
 -- > let f key x = (show key) ++ ":" ++ x
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
-mapWithKey :: forall a b. (Key -> a -> b) -> IntMap a -> IntMap b
+mapWithKey :: (Key -> a -> b) -> IntMap a -> IntMap b
 mapWithKey f = start
   where
     start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min #! f min minV # go root)
+    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min #! f min minV # goL root)
 
-    go :: Node t a -> Node t b
-    go Tip = Tip
-    go (Bin k v l r) = Bin k #! f k v # go l # go r
+    goL Tip = Tip
+    goL (Bin k v l r) = Bin k #! f k v # goL l # goR r
+
+    goR Tip = Tip
+    goR (Bin k v l r) = Bin k #! f k v # goL l # goR r
 
 
 -- | /O(n)/.
