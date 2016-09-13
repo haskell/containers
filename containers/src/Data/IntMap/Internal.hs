@@ -1,4 +1,6 @@
-{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns #-}
+
+#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
@@ -99,9 +101,11 @@ instance Data.Foldable.Foldable IntMap where
         goR (Bin _ minV l r) = f minV `mappend` goL l `mappend` goR r
 
     foldr = foldr
-    foldr' = foldr'
     foldl = foldl
+#if MIN_VERSION_base(4,6,0)
+    foldr' = foldr'
     foldl' = foldl'
+#endif
 
 instance Traversable IntMap where
     traverse f = start
