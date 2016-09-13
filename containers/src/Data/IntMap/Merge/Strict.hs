@@ -47,6 +47,7 @@ module Data.IntMap.Merge.Strict (
     , filterMissing
 ) where
 
+import Control.Applicative (Applicative(..))
 import Prelude hiding (min, max)
 
 import Data.IntMap.Internal

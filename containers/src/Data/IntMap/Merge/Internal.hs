@@ -31,6 +31,7 @@
 
 module Data.IntMap.Merge.Internal where
 
+import Control.Applicative (Applicative(..))
 import Prelude hiding (min, max)
 
 import Data.IntMap.Internal
@@ -38,7 +39,6 @@ import Data.IntMap.Internal
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
 #else
-import Control.Applicative (Applicative(..))
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 #endif
