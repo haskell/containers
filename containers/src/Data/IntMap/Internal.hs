@@ -46,6 +46,7 @@ import Control.DeepSeq (NFData(..))
 import Control.Applicative (Applicative(..))
 
 import Data.Monoid (Monoid(..))
+import qualified Data.List (foldl')
 import qualified Data.Foldable (Foldable(..))
 import Data.Traversable (Traversable(..))
 
@@ -622,7 +623,7 @@ union = start
 -- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
 -- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
 unions :: [IntMap a] -> IntMap a
-unions = Data.Foldable.foldl' union empty
+unions = Data.List.foldl' union empty
 
 -- | /O(n+m)/. Difference between two maps (based on keys).
 --
