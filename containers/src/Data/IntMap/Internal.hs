@@ -1,4 +1,4 @@
-{-# LANGUAGE BangPatterns, EmptyDataDecls #-}
+{-# LANGUAGE BangPatterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -65,8 +65,8 @@ i2w = fromIntegral
 xor :: Key -> Key -> Word
 xor a b = Data.Bits.xor (i2w a) (i2w b)
 
-data L
-data R
+newtype L = L L
+newtype R = R R
 
 newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 data IntMap_ t a = NonEmpty {-# UNPACK #-} !Key a !(Node t a) | Empty deriving (Eq)
