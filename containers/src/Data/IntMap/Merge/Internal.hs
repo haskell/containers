@@ -80,7 +80,7 @@ data WhenMissing f a b = WhenMissing {
     missingSingle :: Key -> a -> Maybe b,
     missingLeft :: Node L a -> Node L b,
     missingRight :: Node R a -> Node R b,
-    missingAll :: IntMap a -> f (IntMap b)
+    missingAll :: IntMap_ L a -> f (IntMap_ L b)
 }
 
 -- | A tactic for dealing with keys present in one map but not the other in
@@ -102,7 +102,7 @@ type SimpleWhenMissing = WhenMissing Identity
 -- but @dropMissing@ is much faster.
 {-# INLINE dropMissing #-}
 dropMissing :: Applicative f => WhenMissing f a b
-dropMissing = WhenMissing (\_ _ -> Nothing) (const Tip) (const Tip) (const (pure (IntMap Empty)))
+dropMissing = WhenMissing (\_ _ -> Nothing) (const Tip) (const Tip) (const (pure Empty))
 
 -- | Preserve, unchanged, the entries whose keys are missing from
 -- the other map.
@@ -129,10 +129,10 @@ preserveMissing = WhenMissing (\_ v -> Just v) id id pure
 -- but this should be a little faster.
 filterMissing :: Applicative f => (Key -> a -> Bool) -> WhenMissing f a a
 filterMissing p = WhenMissing (\k v -> if p k v then Just v else Nothing) goLKeep goRKeep (pure . start) where
-    start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root))
-        | p min minV = IntMap (NonEmpty min minV (goLKeep root))
-        | otherwise = IntMap (goL root)
+    start Empty = Empty
+    start (NonEmpty min minV root)
+        | p min minV = NonEmpty min minV (goLKeep root)
+        | otherwise = goL root
 
     goLKeep Tip = Tip
     goLKeep (Bin max maxV l r)
@@ -253,8 +253,8 @@ type SimpleWhenMatched = WhenMatched Identity
 merge :: SimpleWhenMissing a c -> SimpleWhenMissing b c -> SimpleWhenMatched a b c -> IntMap a -> IntMap b -> IntMap c
 merge miss1 miss2 match = start where
     start (IntMap Empty) (IntMap Empty) = IntMap Empty
-    start (IntMap Empty) !m2 = runIdentity (missingAll miss2 m2)
-    start !m1 (IntMap Empty) = runIdentity (missingAll miss1 m1)
+    start (IntMap Empty) (IntMap !m2) = IntMap (runIdentity (missingAll miss2 m2))
+    start (IntMap !m1) (IntMap Empty) = IntMap (runIdentity (missingAll miss1 m1))
     start (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
         | min1 < min2 = case missingSingle miss1 min1 minV1 of
             Nothing -> IntMap (goL2 minV2 min1 root1 min2 root2)
@@ -272,13 +272,17 @@ merge miss1 miss2 match = start where
     goL1Keep minV1 !min1 Tip !_ Tip = case missingSingle miss1 min1 minV1 of
         Nothing -> Tip
         Just minV' -> Bin min1 minV' Tip Tip
-    goL1Keep minV1 !min1 Tip !min2 n2 = goInsertL1 min1 minV1 (xor min1 min2) min2 n2
     goL1Keep minV1 !min1 n1 !min2 Tip = case missingSingle miss1 min1 minV1 of
         Nothing -> missingLeft miss1 n1
         Just minV' -> insertMinL (xor min1 min2) min1 minV' (missingLeft miss1 n1)
+    goL1Keep minV1 !min1 !n1 !min2 n2@(Bin max2 _ _ _) | min1 > max2 = case runIdentity (missingAll miss1 (NonEmpty min1 minV1 n1)) of
+        Empty -> missingLeft miss2 n2
+        NonEmpty min1' minV1' n1' -> case missingLeft miss2 n2 of
+            Tip -> insertMinL (xor min1' min2) min1' minV1' n1'
+            n2'@(Bin _ _ _ _) -> unionDisjointL1 minV1' min1' n1' min2 n2'
+    goL1Keep minV1 !min1 Tip !min2 n2 = goInsertL1 min1 minV1 (xor min1 min2) min2 n2
     goL1Keep minV1 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
-        LT | xor min2 max2 `ltMSB` xor min1 min2 -> disjoint
-           | xor min1 min2 < xor min1 max2 -> binL2 max2 maxV2 (goL1Keep minV1 min1 n1 min2 l2) (missingRight miss2 r2)
+        LT | xor min1 min2 < xor min1 max2 -> binL2 max2 maxV2 (goL1Keep minV1 min1 n1 min2 l2) (missingRight miss2 r2)
            | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
                Nothing -> case goR2 maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2 of
                    Empty -> l'
@@ -297,8 +301,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = missingLeft miss2 l2
-        EQ | max2 < min1 -> disjoint
-           | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
+        EQ | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
                Nothing -> case goR2 maxV2 max1 r1 max2 r2 of
                    Empty -> l'
                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
@@ -316,10 +319,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = goL1Keep minV1 min1 l1 min2 l2
-        GT | xor min1 max1 `ltMSB` xor min1 min2 -> disjoint
-           | otherwise -> binL1 max1 maxV1 (goL1Keep minV1 min1 l1 min2 n2) (missingRight miss1 r1)
-      where
-        disjoint = binL1 max1 maxV1 (missingLeft miss2 n2) (missingRight miss1 (Bin min1 minV1 l1 r1))
+        GT -> binL1 max1 maxV1 (goL1Keep minV1 min1 l1 min2 n2) (missingRight miss1 r1)
 
     -- Merge two left nodes and a minimum value for the second node into a new left node
     -- Precondition: min2 > min1
@@ -330,10 +330,14 @@ merge miss1 miss2 match = start where
     goL2Keep minV2 !min1 Tip !min2 n2 = case missingSingle miss2 min2 minV2 of
         Nothing -> missingLeft miss2 n2
         Just minV' -> insertMinL (xor min1 min2) min2 minV' (missingLeft miss2 n2)
-    goL2Keep minV2 !min1 n1 !min2 Tip = goInsertL2 min2 minV2 (xor min1 min2) min1 n1
+    goL2Keep minV2 !min1 n1@(Bin max1 _ _ _) !min2 !n2 | min2 > max1 = case runIdentity (missingAll miss2 (NonEmpty min2 minV2 n2)) of
+        Empty -> missingLeft miss1 n1
+        NonEmpty min2' minV2' n2' -> case missingLeft miss1 n1 of
+            Tip -> insertMinL (xor min1 min2') min2' minV2' n2'
+            n1'@(Bin _ _ _ _) -> unionDisjointL2 minV2' min1 n1' min2' n2'
+    goL2Keep minV2 !min1 !n1 !min2 Tip = goInsertL2 min2 minV2 (xor min1 min2) min1 n1
     goL2Keep minV2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
-        GT | xor min1 max1 `ltMSB` xor min1 min2 -> disjoint
-           | xor min1 min2 < xor min2 max1 -> binL1 max1 maxV1 (goL2Keep minV2 min1 l1 min2 n2) (missingRight miss1 r1)
+        GT | xor min1 min2 < xor min2 max1 -> binL1 max1 maxV1 (goL2Keep minV2 min1 l1 min2 n2) (missingRight miss1 r1)
            | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
                Nothing -> case goR2 maxV2 max1 r1 max2 (Bin min2 minV2 l2 r2) of
                    Empty -> l'
@@ -352,8 +356,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = missingLeft miss1 l1
-        EQ | max1 < min2 -> disjoint
-           | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
+        EQ | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
                Nothing -> case goR2 maxV2 max1 r1 max2 r2 of
                    Empty -> l'
                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
@@ -371,10 +374,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = goL2Keep minV2 min1 l1 min2 l2
-        LT | xor min2 max2 `ltMSB` xor min1 min2 -> disjoint
-           | otherwise -> binL2 max2 maxV2 (goL2Keep minV2 min1 n1 min2 l2) (missingRight miss2 r2)
-      where
-        disjoint = binL2 max2 maxV2 (missingLeft miss1 n1) (missingRight miss2 (Bin min2 minV2 l2 r2))
+        LT -> binL2 max2 maxV2 (goL2Keep minV2 min1 n1 min2 l2) (missingRight miss2 r2)
 
 --    goLFusedKeep !_ Tip Tip = Tip
     goLFusedKeep !_ Tip n2 = missingLeft miss2 n2
@@ -407,13 +407,17 @@ merge miss1 miss2 match = start where
     goR1Keep maxV1 !max1 Tip !_ Tip = case missingSingle miss1 max1 maxV1 of
         Nothing -> Tip
         Just maxV' -> Bin max1 maxV' Tip Tip
-    goR1Keep maxV1 !max1 Tip !max2 n2 = goInsertR1 max1 maxV1 (xor max1 max2) max2 n2
-    goR1Keep maxV1 !max1 n1 !max2 Tip = case missingSingle miss1 max1 maxV1 of
+    goR1Keep maxV1 !max1 !n1 !max2 Tip = case missingSingle miss1 max1 maxV1 of
         Nothing -> missingRight miss1 n1
         Just maxV' -> insertMaxR (xor max1 max2) max1 maxV' (missingRight miss1 n1)
+    goR1Keep maxV1 !max1 !n1 !max2 n2@(Bin min2 _ _ _) | min2 > max1 = case l2rMap (runIdentity (missingAll miss1 (r2lMap (NonEmpty max1 maxV1 n1)))) of
+        Empty -> missingRight miss2 n2
+        NonEmpty max1' maxV1' n1' -> case missingRight miss2 n2 of
+            Tip -> insertMaxR (xor max1' max2) max1' maxV1' n1'
+            n2'@(Bin _ _ _ _) -> unionDisjointR1 maxV1' max1' n1' max2 n2'
+    goR1Keep maxV1 !max1 Tip !max2 n2 = goInsertR1 max1 maxV1 (xor max1 max2) max2 n2
     goR1Keep maxV1 !max1 n1@(Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
-        LT | xor min2 max2 `ltMSB` xor max1 max2 -> disjoint
-           | xor min2 max1 > xor max1 max2 -> binR2 min2 minV2 (missingLeft miss2 l2) (goR1Keep maxV1 max1 n1 max2 r2)
+        LT | xor min2 max1 > xor max1 max2 -> binR2 min2 minV2 (missingLeft miss2 l2) (goR1Keep maxV1 max1 n1 max2 r2)
            | min1 < min2 -> case missingSingle miss1 min1 minV1 of
                Nothing -> case goL2 minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2 of
                    Empty -> r'
@@ -432,8 +436,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE r' #-}
            r' = missingRight miss2 r2
-        EQ | max1 < min2 -> disjoint
-           | min1 < min2 -> case missingSingle miss1 min1 minV1 of
+        EQ | min1 < min2 -> case missingSingle miss1 min1 minV1 of
                Nothing -> case goL2 minV2 min1 l1 min2 l2 of
                    Empty -> r'
                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
@@ -451,10 +454,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE r' #-}
            r' = goR1Keep maxV1 max1 r1 max2 r2
-        GT | xor min1 max1 `ltMSB` xor max1 max2 -> disjoint
-           | otherwise -> binR1 min1 minV1 (missingLeft miss1 l1) (goR1Keep maxV1 max1 r1 max2 n2)
-      where
-        disjoint = binR1 min1 minV1 (missingLeft miss1 (Bin max1 maxV1 l1 r1)) (missingRight miss2 n2)
+        GT -> binR1 min1 minV1 (missingLeft miss1 l1) (goR1Keep maxV1 max1 r1 max2 n2)
 
     -- Merge two left nodes and a minimum value for the second node into a new left node
     -- Precondition: max2 < max1
@@ -465,10 +465,14 @@ merge miss1 miss2 match = start where
     goR2Keep maxV2 !max1 Tip !max2 n2 = case missingSingle miss2 max2 maxV2 of
         Nothing -> missingRight miss2 n2
         Just maxV' -> insertMaxR (xor max1 max2) max2 maxV' (missingRight miss2 n2)
-    goR2Keep maxV2 !max1 n1 !max2 Tip = goInsertR2 max2 maxV2 (xor max1 max2) max1 n1
+    goR2Keep maxV2 !max1 n1@(Bin min1 _ _ _) !max2 !n2 | min1 > max2 = case l2rMap (runIdentity (missingAll miss2 (r2lMap (NonEmpty max2 maxV2 n2)))) of
+        Empty -> missingRight miss1 n1
+        NonEmpty max2' maxV2' n2' -> case missingRight miss1 n1 of
+            Tip -> insertMaxR (xor max1 max2') max2' maxV2' n2'
+            n1'@(Bin _ _ _ _) -> unionDisjointR2 maxV2' max1 n1' max2' n2'
+    goR2Keep maxV2 !max1 !n1 !max2 Tip = goInsertR2 max2 maxV2 (xor max1 max2) max1 n1
     goR2Keep maxV2 !max1 n1@(Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
-        GT | xor min1 max1 `ltMSB` xor max1 max2 -> disjoint
-           | xor min1 max2 > xor max2 max1 -> binR1 min1 minV1 (missingLeft miss1 l1) (goR2Keep maxV2 max1 r1 max2 n2)
+        GT | xor min1 max2 > xor max2 max1 -> binR1 min1 minV1 (missingLeft miss1 l1) (goR2Keep maxV2 max1 r1 max2 n2)
            | min1 < min2 -> case missingSingle miss1 min1 minV1 of
                Nothing -> case goL2 minV2 min1 l1 min2 (Bin max2 maxV2 l2 r2) of
                    Empty -> r'
@@ -487,8 +491,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE r' #-}
            r' = missingRight miss1 r1
-        EQ | max2 < min1 -> disjoint
-           | min1 < min2 -> case missingSingle miss1 min1 minV1 of
+        EQ | min1 < min2 -> case missingSingle miss1 min1 minV1 of
                Nothing -> case goL2 minV2 min1 l1 min2 l2 of
                    Empty -> r'
                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
@@ -506,10 +509,7 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE r' #-}
            r' = goR2Keep maxV2 max1 r1 max2 r2
-        LT | xor min2 max2 `ltMSB` xor max1 max2 -> disjoint
-           | otherwise -> binR2 min2 minV2 (missingLeft miss2 l2) (goR2Keep maxV2 max1 n1 max2 r2)
-      where
-        disjoint = binR2 min2 minV2 (missingLeft miss2 (Bin max2 maxV2 l2 r2)) (missingRight miss1 n1)
+        LT -> binR2 min2 minV2 (missingLeft miss2 l2) (goR2Keep maxV2 max1 n1 max2 r2)
 
 --    goRFusedKeep !_ Tip Tip = Tip
     goRFusedKeep !_ Tip n2 = missingRight miss2 n2
