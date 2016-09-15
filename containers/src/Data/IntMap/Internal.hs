@@ -592,6 +592,7 @@ union = start
         | otherwise = Bin min minV l r
       where xorCacheMin = xor min k
 
+unionDisjointL1 :: a -> Key -> Node L a -> Key -> Node L a -> Node L a
 unionDisjointL1 _ !_ !_ !_ Tip = error "Data.IntMap.unionDisjoint: impossible"
 unionDisjointL1 minV1 !min1 Tip !min2 n2@(Bin max2 maxV2 l2 r2)
     | xor min2 max2 < xor min1 max2 = Bin min1 minV1 n2 Tip
@@ -601,6 +602,7 @@ unionDisjointL1 minV1 !min1 (Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r
     | not (xor min1 max1 `ltMSB` xor min2 max1) = Bin max1 maxV1 (unionDisjointL1 minV1 min1 l1 min2 n2) r1
     | otherwise = Bin max1 maxV1 n2 (Bin min1 minV1 l1 r1)
 
+unionDisjointL2 :: a -> Key -> Node L a -> Key -> Node L a -> Node L a
 unionDisjointL2 _ !_ Tip !_ !_ = error "Data.IntMap.unionDisjoint: impossible"
 unionDisjointL2 minV2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 Tip
     | xor min1 max1 < xor min2 max1 = Bin min2 minV2 n1 Tip
@@ -610,6 +612,7 @@ unionDisjointL2 minV2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 (Bin max2 maxV2 l2 r
     | not (xor min2 max2 `ltMSB` xor min1 max2) = Bin max2 maxV2 (unionDisjointL2 minV2 min1 n1 min2 l2) r2
     | otherwise = Bin max2 maxV2 n1 (Bin min2 minV2 l2 r2)
 
+unionDisjointR1 :: a -> Key -> Node R a -> Key -> Node R a -> Node R a
 unionDisjointR1 _ !_ !_ !_ Tip = error "Data.IntMap.unionDisjoint: impossible"
 unionDisjointR1 maxV1 !max1 Tip !max2 n2@(Bin min2 minV2 l2 r2)
     | xor min2 max2 < xor min2 max1 = Bin max1 maxV1 Tip n2
@@ -619,6 +622,7 @@ unionDisjointR1 maxV1 !max1 (Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r
     | not (xor min1 max1 `ltMSB` xor min1 max2) = Bin min1 minV1 l1 (unionDisjointR1 maxV1 max1 r1 max2 n2)
     | otherwise = Bin min1 minV1 (Bin max1 maxV1 l1 r1) n2
 
+unionDisjointR2 :: a -> Key -> Node R a -> Key -> Node R a -> Node R a
 unionDisjointR2 _ !_ Tip !_ !_ = error "Data.IntMap.unionDisjoint: impossible"
 unionDisjointR2 maxV2 !max1 n1@(Bin min1 minV1 l1 r1) !max2 Tip
     | xor min1 max1 < xor min1 max2 = Bin max2 maxV2 Tip n1
