@@ -1258,8 +1258,8 @@ maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey t =
   case t of Nil -> Nothing
             Tip k y -> Just ((k, y), Nil)
-            Bin p m l r -> case maxViewWithKeyBin p m l r of
-                             MaxView km xm t' -> Just ((km, xm), t')
+            Bin p m l r -> Just $ case maxViewWithKeyBin p m l r of
+                                    MaxView km xm t' -> ((km, xm), t')
 
 -- See note on inlining at minViewWithKey
 {-# INLINE maxViewWithKey #-}
@@ -1285,8 +1285,8 @@ minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey t =
   case t of Nil -> Nothing
             Tip k y -> Just ((k, y), Nil)
-            Bin p m l r -> case minViewWithKeyBin p m l r of
-                                     MinView km xm t' -> Just ((km, xm), t')
+            Bin p m l r -> Just $ case minViewWithKeyBin p m l r of
+                                    MinView km xm t' -> ((km, xm), t')
 -- We inline this explicitly to avoid unnecessarily allocating
 -- Just and (,) constructors that will most likely be stripped off
 -- immediately. Unfortunately, GHC doesn't seem willing to make that call
@@ -1320,23 +1320,24 @@ updateMax f = updateMaxWithKey (const f)
 updateMin :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
 
--- Similar to the Arrow instance.
-first :: (a -> c) -> (a, b) -> (c, b)
-first f (x,y) = (f x,y)
+infixl 1 <&>
+(<&>) :: Functor f => f a -> (a -> b) -> f b
+as <&> f = fmap f as
+{-# INLINE (<&>) #-}
 
 -- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
-maxView t = case maxViewWithKey t of
-  Nothing -> Nothing
-  Just ((_, x), t') -> Just (x, t')
+maxView t = maxViewWithKey t <&>
+  \((_, x), t') -> (x, t')
+{-# INLINE maxView #-}
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
-minView t = case minViewWithKey t of
-  Nothing -> Nothing
-  Just ((_, x), t') -> Just (x, t')
+minView t = minViewWithKey t <&>
+  \((_, x), t') -> (x, t')
+{-# INLINE minView #-}
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
@@ -1404,14 +1405,14 @@ findMax m = case lookupMax m of
 -- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
 -- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMin :: IntMap a -> IntMap a
-deleteMin = maybe Nil snd . minView
+deleteMin = maybe Nil snd . minViewWithKey
 
 -- | /O(min(n,W))/. Delete the maximal key. Returns an empty map if the map is empty.
 --
 -- Note that this is a change of behaviour for consistency with 'Data.Map.Map' &#8211;
 -- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMax :: IntMap a -> IntMap a
-deleteMax = maybe Nil snd . maxView
+deleteMax = maybe Nil snd . maxViewWithKey
 
 
 {--------------------------------------------------------------------

@@ -1585,6 +1585,8 @@ lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
 
 lookupMin :: Map k a -> Maybe (k,a)
 lookupMin Tip = Nothing
+-- We need to force the result to avoid holding the whole map
+-- in a result thunk.
 lookupMin (Bin _ k x l _) = Just $! lookupMinSure k x l
 
 -- | /O(log n)/. The minimal key of the map. Calls 'error' if the map is empty.
@@ -1693,9 +1695,9 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 
 minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 minViewWithKey Tip = Nothing
-minViewWithKey (Bin _ k x l r) =
+minViewWithKey (Bin _ k x l r) = Just $
   case minViewSure k x l r of
-    MinView km xm t -> Just ((km, xm), t)
+    MinView km xm t -> ((km, xm), t)
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -1705,9 +1707,14 @@ minViewWithKey (Bin _ k x l r) =
 
 maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 maxViewWithKey Tip = Nothing
-maxViewWithKey (Bin _ k x l r) =
+maxViewWithKey (Bin _ k x l r) = Just $
   case maxViewSure k x l r of
-    MaxView km xm t -> Just ((km, xm), t)
+    MaxView km xm t -> ((km, xm), t)
+
+infixl 1 <&>
+(<&>) :: Functor f => f a -> (a -> b) -> f b
+as <&> f = fmap f as
+{-# INLINE (<&>) #-}
 
 -- | /O(log n)/. Retrieves the value associated with minimal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1717,9 +1724,7 @@ maxViewWithKey (Bin _ k x l r) =
 -- > minView empty == Nothing
 
 minView :: Map k a -> Maybe (a, Map k a)
-minView t = case minViewWithKey t of
-              Nothing -> Nothing
-              Just ((_, x), t') -> Just (x, t')
+minView t = minViewWithKey t <&> \((_, x), t') -> (x, t')
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1729,9 +1734,7 @@ minView t = case minViewWithKey t of
 -- > maxView empty == Nothing
 
 maxView :: Map k a -> Maybe (a, Map k a)
-maxView t = case maxViewWithKey t of
-              Nothing -> Nothing
-              Just ((_, x), t') -> Just (x, t')
+maxView t = maxViewWithKey t <&> \((_, x), t') -> (x, t')
 
 {--------------------------------------------------------------------
   Union.
