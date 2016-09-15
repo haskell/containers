@@ -59,6 +59,7 @@ import Data.Word (Word)
 import qualified Data.Bits (xor)
 
 import qualified Data.IntSet (IntSet, fromDistinctAscList, member, notMember)
+import Utils.Containers.Internal.StrictPair (StrictPair(..))
 
 import Prelude hiding (foldr, foldl, lookup, null, map, min, max)
 
@@ -1212,72 +1213,70 @@ partitionWithKey p = start
   where
     start (IntMap Empty) = (IntMap Empty, IntMap Empty)
     start (IntMap (NonEmpty min minV root))
-        | p min minV = let SP t f = goTrueL root
+        | p min minV = let t :*: f = goTrueL root
                        in (IntMap (NonEmpty min minV t), IntMap f)
-        | otherwise  = let SP t f = goFalseL root
+        | otherwise  = let t :*: f = goFalseL root
                        in (IntMap t, IntMap (NonEmpty min minV f))
 
-    goTrueL Tip = SP Tip Empty
+    goTrueL Tip = Tip :*: Empty
     goTrueL (Bin max maxV l r)
-        | p max maxV = let SP tl fl = goTrueL l
-                           SP tr fr = goTrueR r
-                       in SP (Bin max maxV tl tr) (binL fl fr)
-        | otherwise = let SP tl fl = goTrueL l
-                          SP tr fr = goFalseR r
+        | p max maxV = let tl :*: fl = goTrueL l
+                           tr :*: fr = goTrueR r
+                       in Bin max maxV tl tr :*: binL fl fr
+        | otherwise = let tl :*: fl = goTrueL l
+                          tr :*: fr = goFalseR r
                           t = case tr of
                             Empty -> tl
                             NonEmpty max' maxV' r' -> Bin max' maxV' tl r'
                           f = case fl of
                             Empty -> r2lMap $ NonEmpty max maxV fr
                             NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' fr)
-                      in SP t f
+                      in t :*: f
 
-    goTrueR Tip = SP Tip Empty
+    goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r)
-        | p min minV = let SP tl fl = goTrueL l
-                           SP tr fr = goTrueR r
-                       in SP (Bin min minV tl tr) (binR fl fr)
-        | otherwise = let SP tl fl = goFalseL l
-                          SP tr fr = goTrueR r
+        | p min minV = let tl :*: fl = goTrueL l
+                           tr :*: fr = goTrueR r
+                       in Bin min minV tl tr :*: binR fl fr
+        | otherwise = let tl :*: fl = goFalseL l
+                          tr :*: fr = goTrueR r
                           t = case tl of
                             Empty -> tr
                             NonEmpty min' minV' l' -> Bin min' minV' l' tr
                           f = case fr of
                             Empty -> l2rMap $ NonEmpty min minV fl
                             NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV fl r')
-                      in SP t f
+                      in t :*: f
 
-    goFalseL Tip = SP Empty Tip
+    goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r)
-        | p max maxV = let SP tl fl = goFalseL l
-                           SP tr fr = goTrueR r
+        | p max maxV = let tl :*: fl = goFalseL l
+                           tr :*: fr = goTrueR r
                            t = case tl of
                              Empty -> r2lMap $ NonEmpty max maxV tr
                              NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' tr)
                            f = case fr of
                              Empty -> fl
                              NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
-                       in SP t f
-        | otherwise = let SP tl fl = goFalseL l
-                          SP tr fr = goFalseR r
-                      in SP (binL tl tr) (Bin max maxV fl fr)
+                       in t :*: f
+        | otherwise = let tl :*: fl = goFalseL l
+                          tr :*: fr = goFalseR r
+                      in binL tl tr :*: Bin max maxV fl fr
 
-    goFalseR Tip = SP Empty Tip
+    goFalseR Tip = Empty :*: Tip
     goFalseR (Bin min minV l r)
-        | p min minV = let SP tl fl = goTrueL l
-                           SP tr fr = goFalseR r
+        | p min minV = let tl :*: fl = goTrueL l
+                           tr :*: fr = goFalseR r
                            t = case tr of
                              Empty -> l2rMap $ NonEmpty min minV tl
                              NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV tl r')
                            f = case fl of
                              Empty -> fr
                              NonEmpty min' minV' l' -> Bin min' minV' l' fr
-                       in SP t f
-        | otherwise = let SP tl fl = goFalseL l
-                          SP tr fr = goFalseR r
-                      in SP (binR tl tr) (Bin min minV fl fr)
-
-data SP a b = SP !a !b
+                       in t :*: f
+        | otherwise = let tl :*: fl = goFalseL l
+                          tr :*: fr = goFalseR r
+                      in binR tl tr :*: Bin min minV fl fr
 
 -- | /O(min(n,W))/. The expression (@'split' k map@) is a pair @(map1,map2)@
 -- where all keys in @map1@ are lower than @k@ and all keys in

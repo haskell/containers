@@ -1475,70 +1475,70 @@ mapEitherWithKey func = start
   where
     start (IntMap Empty) = (IntMap Empty, IntMap Empty)
     start (IntMap (NonEmpty min minV root)) = case func min minV of
-        Left !v  -> let SP t f = goTrueL root
+        Left !v  -> let t :*: f = goTrueL root
                     in (IntMap (NonEmpty min v t), IntMap f)
-        Right !v -> let SP t f = goFalseL root
+        Right !v -> let t :*: f = goFalseL root
                     in (IntMap t, IntMap (NonEmpty min v f))
 
-    goTrueL Tip = SP Tip Empty
+    goTrueL Tip = Tip :*: Empty
     goTrueL (Bin max maxV l r) = case func max maxV of
-        Left !v  -> let SP tl fl = goTrueL l
-                        SP tr fr = goTrueR r
-                    in SP (Bin max v tl tr) (binL fl fr)
-        Right !v -> let SP tl fl = goTrueL l
-                        SP tr fr = goFalseR r
+        Left !v  -> let tl :*: fl = goTrueL l
+                        tr :*: fr = goTrueR r
+                    in Bin max v tl tr :*: binL fl fr
+        Right !v -> let tl :*: fl = goTrueL l
+                        tr :*: fr = goFalseR r
                         t = case tr of
                             Empty -> tl
                             NonEmpty max' maxV' r' -> Bin max' maxV' tl r'
                         f = case fl of
                             Empty -> r2lMap $ NonEmpty max v fr
                             NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max v l' fr)
-                    in SP t f
+                    in t :*: f
 
-    goTrueR Tip = SP Tip Empty
+    goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r) = case func min minV of
-        Left !v  -> let SP tl fl = goTrueL l
-                        SP tr fr = goTrueR r
-                    in SP (Bin min v tl tr) (binR fl fr)
-        Right !v -> let SP tl fl = goFalseL l
-                        SP tr fr = goTrueR r
+        Left !v  -> let tl :*: fl = goTrueL l
+                        tr :*: fr = goTrueR r
+                    in Bin min v tl tr :*: binR fl fr
+        Right !v -> let tl :*: fl = goFalseL l
+                        tr :*: fr = goTrueR r
                         t = case tl of
                             Empty -> tr
                             NonEmpty min' minV' l' -> Bin min' minV' l' tr
                         f = case fr of
                             Empty -> l2rMap $ NonEmpty min v fl
                             NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min v fl r')
-                    in SP t f
+                    in t :*: f
 
-    goFalseL Tip = SP Empty Tip
+    goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r) = case func max maxV of
-        Left !v  -> let SP tl fl = goFalseL l
-                        SP tr fr = goTrueR r
+        Left !v  -> let tl :*: fl = goFalseL l
+                        tr :*: fr = goTrueR r
                         t = case tl of
                             Empty -> r2lMap $ NonEmpty max v tr
                             NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max v l' tr)
                         f = case fr of
                             Empty -> fl
                             NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
-                    in SP t f
-        Right !v -> let SP tl fl = goFalseL l
-                        SP tr fr = goFalseR r
-                    in SP (binL tl tr) (Bin max v fl fr)
+                    in t :*: f
+        Right !v -> let tl :*: fl = goFalseL l
+                        tr :*: fr = goFalseR r
+                    in binL tl tr :*: Bin max v fl fr
 
-    goFalseR Tip = SP Empty Tip
+    goFalseR Tip = Empty :*: Tip
     goFalseR (Bin min minV l r) = case func min minV of
-        Left !v  -> let SP tl fl = goTrueL l
-                        SP tr fr = goFalseR r
+        Left !v  -> let tl :*: fl = goTrueL l
+                        tr :*: fr = goFalseR r
                         t = case tr of
                             Empty -> l2rMap $ NonEmpty min v tl
                             NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min v tl r')
                         f = case fl of
                             Empty -> fr
                             NonEmpty min' minV' l' -> Bin min' minV' l' fr
-                    in SP t f
-        Right !v -> let SP tl fl = goFalseL l
-                        SP tr fr = goFalseR r
-                    in SP (binR tl tr) (Bin min v fl fr)
+                    in t :*: f
+        Right !v -> let tl :*: fl = goFalseL l
+                        tr :*: fr = goFalseR r
+                    in binR tl tr :*: Bin min v fl fr
 
 -- | /O(min(n,W))/. Update the value at the minimal key.
 --
