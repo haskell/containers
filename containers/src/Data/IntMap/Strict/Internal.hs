@@ -5,10 +5,10 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.IntMap.Strict.Internal
--- Copyright   :  (c) Daan Leijen 2002
---                (c) Andriy Palamarchuk 2008
---                (c) Jonathan S. 2016
+-- Module      :  Data.IntMap.Strict
+-- Copyright   :  Documentation & Interface (c) Daan Leijen 2002
+--                Documentation (c) Andriy Palamarchuk 2008
+--                Documentation & Implementation (c) Jonathan S. 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
