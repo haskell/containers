@@ -1124,6 +1124,19 @@ toAscList = foldrWithKey (\k v l -> (k, v) : l) []
 toDescList :: IntMap a -> [(Key, a)]
 toDescList = foldlWithKey (\l k v -> (k, v) : l) []
 
+-- | A stack used in the in-order building of IntMaps.
+data BuildStack a = Push {-# UNPACK #-} !Key a !(Node L a) !(BuildStack a) | StackBase
+
+pushBuildStack :: Word -> Key -> a -> Node R a -> BuildStack a -> BuildStack a
+pushBuildStack !xorCache !k v !r (Push min minV l stk)
+    | xor min k < xorCache = pushBuildStack xorCache k v (Bin min minV l r) stk
+pushBuildStack !_ !k v Tip !stk = Push k v Tip stk
+pushBuildStack !_ !k v (Bin min minV l r) !stk = Push min minV (Bin k v l r) stk
+
+completeBuildStack :: Key -> a -> Node R a -> BuildStack a -> IntMap_ L a
+completeBuildStack !max maxV !r StackBase = r2lMap (NonEmpty max maxV r)
+completeBuildStack !max maxV !r (Push min minV l stk) = completeBuildStack max maxV (Bin min minV l r) stk
+
 -- | /O(n)/. Filter all values that satisfy some predicate.
 --
 -- > filter (> "a") (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"

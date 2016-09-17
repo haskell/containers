@@ -1311,7 +1311,14 @@ fromListWithKey f = Data.List.foldl' (\t (k, a) -> insertWithKey f k a t) empty
 -- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 fromAscList :: [(Key, a)] -> IntMap a
-fromAscList = fromList
+fromAscList = start where
+    start [] = IntMap Empty
+    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+
+    go !k v [] !stk = completeBuildStack k v Tip stk
+    go !k v ((!next, nextV) : rest) !stk
+        | next == k = go k nextV rest stk
+        | otherwise = go next nextV rest (pushBuildStack (xor k next) k v Tip stk)
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
@@ -1319,7 +1326,7 @@ fromAscList = fromList
 -- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 fromAscListWith :: (a -> a -> a) -> [(Key, a)] -> IntMap a
-fromAscListWith = fromListWith
+fromAscListWith f = fromAscListWithKey (const f)
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -1328,7 +1335,14 @@ fromAscListWith = fromListWith
 -- > let f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 -- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "5:b|a")]
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key, a)] -> IntMap a
-fromAscListWithKey = fromListWithKey
+fromAscListWithKey f = start where
+    start [] = IntMap Empty
+    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+
+    go !k v [] !stk = completeBuildStack k v Tip stk
+    go !k v ((!next, nextV) : rest) !stk
+        | next == k = go k (f k nextV v) rest stk
+        | otherwise = go next nextV rest (pushBuildStack (xor k next) k v Tip stk)
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
@@ -1336,7 +1350,12 @@ fromAscListWithKey = fromListWithKey
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 fromDistinctAscList :: [(Key, a)] -> IntMap a
-fromDistinctAscList = fromList
+fromDistinctAscList = start where
+    start [] = IntMap Empty
+    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+
+    go !k v [] !stk = completeBuildStack k v Tip stk
+    go !k v ((!next, nextV) : rest) !stk = go next nextV rest (pushBuildStack (xor k next) k v Tip stk)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
