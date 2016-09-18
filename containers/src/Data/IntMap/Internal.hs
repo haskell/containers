@@ -52,6 +52,9 @@ import Data.Monoid (Monoid(..))
 import qualified Data.List (foldl')
 import qualified Data.Foldable (Foldable(..))
 import Data.Traversable (Traversable(..))
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid)
+#endif
 
 import Data.Functor ((<$>))
 
@@ -127,6 +130,11 @@ instance Traversable IntMap where
 instance Monoid (IntMap a) where
     mempty = empty
     mappend = union
+
+#if MIN_VERSION_base(4,9,0)
+instance Semigroup (IntMap a) where
+    stimes = stimesIdempotentMonoid
+#endif
 
 instance NFData a => NFData (IntMap a) where
     rnf (IntMap Empty) = ()
