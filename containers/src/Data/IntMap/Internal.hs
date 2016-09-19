@@ -75,9 +75,12 @@ i2w = fromIntegral
 xor :: Key -> Key -> Word
 xor a b = Data.Bits.xor (i2w a) (i2w b)
 
+-- Phantom types used to separate the types of left and right nodes.
+-- They are uninhabited simply to ensure that they are only used as type parameters.
 newtype L = L L
 newtype R = R R
 
+-- | A map of integers to values @a@.
 newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 data IntMap_ t a = NonEmpty {-# UNPACK #-} !Key a !(Node t a) | Empty deriving (Eq)
 data Node t a = Bin {-# UNPACK #-} !Key a !(Node L a) !(Node R a) | Tip deriving (Eq, Show)
