@@ -266,24 +266,66 @@ merge miss1 miss2 match = start where
             Nothing -> IntMap (goLFused min1 root1 root2)
             Just minV' -> IntMap (NonEmpty min1 minV' (goLFusedKeep min1 root1 root2))
 
-    -- Merge two left nodes and a minimum value for the first node into a new left node
+    -- The merge code is structured as 12 very repetitive methods that merge nodes and a value associated with
+    -- the bound of one of those nodes. These vary on 3 axes:
+    --
+    -- * The functions ending in L take and produce left nodes/maps, while those ending in R take and produce right nodes/maps
+    -- * The functions ending with a 1 have the first argument "inside" the second, i.e., the L1 functions assume that min1 > min2
+    --   and take minV1 and the R1 functions assume that max1 < max2 and take maxV1. The functions ending with a 2 are symmetrical,
+    --   and the functions ending with Fused assume that the two maps are aligned: LFused assumes that min1 = min2 and RFused assumes that max1 = max2. 
+    -- * The functions ending in Keep produce a Node, while the functions without Keep produce an IntMap_
+    --
+    -- See goL1Keep and goLFusedKeep for detailed description of the merging process.
+
+
+    -- | Merge two left nodes and a minimum value for the first node into a new left node
     -- Precondition: min1 > min2
     -- goL1Keep :: a -> Key -> Node a -> Key -> Node b -> Node c
+
+    -- We special case merging two empty nodes because the last time I checked it was faster than falling through to the next case
     goL1Keep minV1 !min1 Tip !_ Tip = case missingSingle miss1 min1 minV1 of
         Nothing -> Tip
         Just minV' -> Bin min1 minV' Tip Tip
+
+    -- If the second node is empty, then we basically need a copy of the first node. However, the presence of minV1 complicates things,
+    -- so we need to insert it
     goL1Keep minV1 !min1 n1 !min2 Tip = case missingSingle miss1 min1 minV1 of
         Nothing -> missingLeft miss1 n1
         Just minV' -> insertMinL (xor min1 min2) min1 minV' (missingLeft miss1 n1)
+
+    -- We handle the case of nodes that cover disjoint ranges separately. The property of being disjoint, unlike a lot of things, remains
+    -- constant as we recurse into subnodes, and this representation is particularly good at efficiently detecting it. By assumption,
+    -- min1 > min2, so we don't need to handle the case of min2 > max1.
     goL1Keep minV1 !min1 !n1 !min2 n2@(Bin max2 _ _ _) | min1 > max2 = case runIdentity (missingAll miss1 (NonEmpty min1 minV1 n1)) of
         Empty -> missingLeft miss2 n2
         NonEmpty min1' minV1' n1' -> case missingLeft miss2 n2 of
             Tip -> insertMinL (xor min1' min2) min1' minV1' n1'
             n2'@(Bin _ _ _ _) -> unionDisjointL minV1' min2 n2' min1' n1'
+
+    -- If the first node is empty, we still need to insert minV1
     goL1Keep minV1 !min1 Tip !min2 n2 = goInsertL1 min1 minV1 (xor min1 min2) min2 n2
+
+    -- This is the meat of the method. Since we already know that the two nodes cover overlapping ranges, there are three possibilities:
+    -- * Node 2 splits first, so we need to merge n1 with either l2 or r2
+    -- * Both nodes split at the same time, so we need to merge l1 with l2 and r1 with r2
+    -- * Node 1 splits first, so we need to merge n2 with either l1 or r1
     goL1Keep minV1 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
+        -- Node 2 splits first. Knowing that min1 < min2 doesn't really help here, so our first job is to determine if we need
+        -- to merge n1 with l2 or with r2. We do this with the same navigational test used in, e.g., lookup, using an arbirary key
+        -- from node 1 (in this case we chose min1). If that key would be on the left side of node 2, then (since node 1 covers a smaller
+        -- binary range) the whole node 1 must fit in on the left side of node 2.
+        --
+        -- In the specific case of merging n1 with l2, we don't have to do any more comparisons: we already know that min1 > min2,
+        -- so we should be calling an L1 function
         LT | xor min1 min2 < xor min1 max2 -> binL2 max2 maxV2 (goL1Keep minV1 min1 n1 min2 l2) (missingRight miss2 r2)
+           -- At this point, we know that we need to merge n1 with r2. There are two things needed to do this:
+           -- * n1 needs to be converted to a right node to match r2.
+           -- * We need to compare max1 and max2 to figure out which will be the maximum of the combined node and to
+           --   decide which (R1, R2, or RFused) function to recurse to.
            | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
+               -- If we had an optimized goR2 (no keep), then calling using it is more efficient than
+               -- calling goR2Keep and having to extract a new maximum from the result. Therefore, we
+               -- first check if we can keep our existing maximum, and if not, call goR2.
                Nothing -> case goR2 maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2 of
                    Empty -> l'
                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
@@ -301,6 +343,10 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = missingLeft miss2 l2
+
+        -- The two nodes split at the same time. In this case we need to merge l1 and l2 and r1 and r2. We already know that
+        -- min1 > min2, so merging the left nodes is easy, but we need to branch to figure out which right merging function to call
+        -- and which maximum to keep.
         EQ | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
                Nothing -> case goR2 maxV2 max1 r1 max2 r2 of
                    Empty -> l'
@@ -319,7 +365,11 @@ merge miss1 miss2 match = start where
          where
            {-# INLINE l' #-}
            l' = goL1Keep minV1 min1 l1 min2 l2
+
+        -- The simplest case is when node 1 splits first, meaning that we need to merge n2 and l1 or r1. However, since we already know
+        -- that min1 > min2, n2 must be merged with l1 instead of r1, and we already know the correct method to call.
         GT -> binL1 max1 maxV1 (goL1Keep minV1 min1 l1 min2 n2) (missingRight miss1 r1)
+
 
     -- Merge two left nodes and a minimum value for the second node into a new left node
     -- Precondition: min2 > min1
@@ -376,9 +426,21 @@ merge miss1 miss2 match = start where
            l' = goL2Keep minV2 min1 l1 min2 l2
         LT -> binL2 max2 maxV2 (goL2Keep minV2 min1 n1 min2 l2) (missingRight miss2 r2)
 
+
+    -- | Merge two left nodes that share a minimum bound.
+
+    -- We can special case the merging of two empty nodes. This is currently commented out in an attempt to
+    -- match union as closely as possible
 --    goLFusedKeep !_ Tip Tip = Tip
+
+    -- If one of the nodes is empty, we can just use the other one. Unlike the case of misaligned nodes, we don't have an
+    -- extra value to insert
     goLFusedKeep !_ Tip n2 = missingLeft miss2 n2
     goLFusedKeep !_ n1 Tip = missingLeft miss1 n1
+
+    -- Since the two nodes are joined at the left, the choices are considerable limited in comparison to the misaligned case.
+    -- If node 1 splits first, n2 must be merged with l1 and if node 2 splits first, n1 must be merged with l2. The equal case
+    -- is still the same as in the misaligned case, since we need to determine which maximum to use and which goR to call.
     goLFusedKeep !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xor min max1) (xor min max2) of
         LT -> binL2 max2 maxV2 (goLFusedKeep min n1 l2) (missingRight miss2 r2)
         EQ | max1 > max2 -> case missingSingle miss1 max1 maxV1 of
@@ -536,6 +598,8 @@ merge miss1 miss2 match = start where
            r' = goRFusedKeep max r1 r2
         GT -> binR1 min1 minV1 (missingLeft miss1 l1) (goRFusedKeep max r1 n2)
 
+    -- TODO: These are inefficient, obviously correct implementations. See intersection
+    -- and difference for examples of specialized implementations
     goL1 minV1 !min1 !n1 !min2 !n2 = nodeToMapL (goL1Keep minV1 min1 n1 min2 n2)
     goL2 minV2 !min1 !n1 !min2 !n2 = nodeToMapL (goL2Keep minV2 min1 n1 min2 n2)
     goLFused !min !n1 !n2 = nodeToMapL (goLFusedKeep min n1 n2)
