@@ -28,7 +28,7 @@
 module Data.Tree(
     Tree(..), Forest,
     -- * Two-dimensional drawing
-    drawTree, drawForest,
+    drawTree, drawForest, drawTreeU, drawForestU,
     -- * Extraction
     flatten, levels, foldTree,
     -- * Building trees
@@ -144,6 +144,24 @@ draw (Node x ts0) = lines x ++ drawSubTrees ts0
 
     shift first other = zipWith (++) (first : repeat other)
 
+-- | Neat 2-dimensional drawing of a tree. Unicode paths
+drawTreeU :: Tree String -> String
+drawTreeU  = unlines . drawU
+
+-- | Neat 2-dimensional drawing of a forest.  Unicode paths
+drawForestU :: Forest String -> String
+drawForestU  = unlines . map drawTreeU
+
+drawU :: Tree String -> [String]
+drawU (Node x ts0) = x : drawSubTrees ts0
+  where
+    drawSubTrees [] = []
+    drawSubTrees [t] =
+        shift "\x2514\x2500" "  " (draw t)
+    drawSubTrees (t:ts) =
+        shift "\x251c\x2500" "\x2502 " (draw t) ++ drawSubTrees ts
+
+    shift first other = zipWith (++) (first : repeat other)
 -- | The elements of a tree in pre-order.
 flatten :: Tree a -> [a]
 flatten t = squish t []
