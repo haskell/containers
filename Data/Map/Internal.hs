@@ -3988,14 +3988,14 @@ instance Foldable.Foldable (Map k) where
           go x (Bin _ _ v l r) = x == v || go x l || go x r
   {-# INLINABLE elem #-}
   maximum = start
-    where start Tip = error "Map.Foldable.maximum: called with empty map"
+    where start Tip = error "Data.Map.maximum: empty structure"
           start (Bin _ _ v l r) = go (go v l) r
 
           go !m Tip = m
           go m (Bin _ _ v l r) = go (go (max m v) l) r
   {-# INLINABLE maximum #-}
   minimum = start
-    where start Tip = error "Map.Foldable.minimum: called with empty map"
+    where start Tip = error "Data.Map.minimum: empty structure"
           start (Bin _ _ v l r) = go (go v l) r
 
           go !m Tip = m
