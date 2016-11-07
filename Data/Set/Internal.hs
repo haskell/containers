@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -182,6 +183,8 @@ module Data.Set.Internal (
             , fold
 
             -- * Min\/Max
+            , lookupMin
+            , lookupMax
             , findMin
             , findMax
             , deleteMin
@@ -603,17 +606,46 @@ isSubsetOfX (Bin _ x l r) t
 {--------------------------------------------------------------------
   Minimal, Maximal
 --------------------------------------------------------------------}
+
+-- We perform call-pattern specialization manually on lookupMin
+-- and lookupMax. Otherwise, GHC doesn't seem to do it, which is
+-- unfortunate if, for example, someone uses findMin or findMax.
+
+lookupMinSure :: a -> Set a -> a
+lookupMinSure x Tip = x
+lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
+
+-- | /O(log n)/. The minimal element of a set.
+--
+-- @since 0.5.9
+
+lookupMin :: Set a -> Maybe a
+lookupMin Tip = Nothing
+lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
+
 -- | /O(log n)/. The minimal element of a set.
 findMin :: Set a -> a
-findMin (Bin _ x Tip _) = x
-findMin (Bin _ _ l _)   = findMin l
-findMin Tip             = error "Set.findMin: empty set has no minimal element"
+findMin t
+  | Just r <- lookupMin t = r
+  | otherwise = error "Set.findMin: empty set has no minimal element"
+
+lookupMaxSure :: a -> Set a -> a
+lookupMaxSure x Tip = x
+lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
+
+-- | /O(log n)/. The maximal element of a set.
+--
+-- @since 0.5.9
+
+lookupMax :: Set a -> Maybe a
+lookupMax Tip = Nothing
+lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
 
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
-findMax (Bin _ x _ Tip)  = x
-findMax (Bin _ _ _ r)    = findMax r
-findMax Tip              = error "Set.findMax: empty set has no maximal element"
+findMax t
+  | Just r <- lookupMax t = r
+  | otherwise = error "Set.findMax: empty set has no maximal element"
 
 -- | /O(log n)/. Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
@@ -1364,9 +1396,9 @@ merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
-glue l r
-  | size l > size r = let (m,l') = deleteFindMax l in balanceR m l' r
-  | otherwise       = let (m,r') = deleteFindMin r in balanceL m l r'
+glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
+  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceR m l' r
+  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceL m l r'
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
@@ -1374,32 +1406,44 @@ glue l r
 
 deleteFindMin :: Set a -> (a,Set a)
 deleteFindMin t
-  = case t of
-      Bin _ x Tip r -> (x,r)
-      Bin _ x l r   -> let (xm,l') = deleteFindMin l in (xm,balanceR x l' r)
-      Tip           -> (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
+  | Just r <- minView t = r
+  | otherwise = (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
 
 -- | /O(log n)/. Delete and find the maximal element.
 --
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: Set a -> (a,Set a)
 deleteFindMax t
-  = case t of
-      Bin _ x l Tip -> (x,l)
-      Bin _ x l r   -> let (xm,r') = deleteFindMax r in (xm,balanceL x l r')
-      Tip           -> (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
+  | Just r <- maxView t = r
+  | otherwise = (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)
+
+minViewSure :: a -> Set a -> Set a -> StrictPair a (Set a)
+minViewSure = go
+  where
+    go x Tip r = x :*: r
+    go x (Bin _ xl ll lr) r =
+      case go xl ll lr of
+        xm :*: l' -> xm :*: balanceR x l' r
 
 -- | /O(log n)/. Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
-minView x = Just (deleteFindMin x)
+minView (Bin _ x l r) = Just $! toPair $ minViewSure x l r
+
+maxViewSure :: a -> Set a -> Set a -> StrictPair a (Set a)
+maxViewSure = go
+  where
+    go x l Tip = x :*: l
+    go x l (Bin _ xr rl rr) =
+      case go xr rl rr of
+        xm :*: r' -> xm :*: balanceL x l r'
 
 -- | /O(log n)/. Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
-maxView x = Just (deleteFindMax x)
+maxView (Bin _ x l r) = Just $! toPair $ maxViewSure x l r
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.

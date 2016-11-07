@@ -74,7 +74,7 @@ module Data.Map.Strict
     Map              -- instance Eq,Show,Read
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -221,6 +221,8 @@ module Data.Map.Strict
     , splitAt
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin

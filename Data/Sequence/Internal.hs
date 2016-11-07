@@ -182,7 +182,7 @@ module Data.Sequence.Internal (
     zipWith3,       -- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
-#if TESTING
+#ifdef TESTING
     deep,
     node2,
     node3,
@@ -694,7 +694,7 @@ instance Eq a => Eq (Seq a) where
 instance Ord a => Ord (Seq a) where
     compare xs ys = compare (toList xs) (toList ys)
 
-#if TESTING
+#ifdef TESTING
 instance Show a => Show (Seq a) where
     showsPrec p (Seq x) = showsPrec p x
 #else
@@ -762,7 +762,7 @@ data FingerTree a
     = EmptyT
     | Single a
     | Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -854,7 +854,7 @@ data Digit a
     | Two a a
     | Three a a a
     | Four a a a a
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -941,7 +941,7 @@ digitToTree' !_n (One a) = Single a
 data Node a
     = Node2 {-# UNPACK #-} !Int a a
     | Node3 {-# UNPACK #-} !Int a a a
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -1014,7 +1014,7 @@ nodeToDigit (Node3 _ a b c) = Three a b c
 -- Elements
 
 newtype Elem a  =  Elem { getElem :: a }
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -1820,7 +1820,7 @@ lookup i (Seq xs)
 (!?) = flip lookup
 
 data Place a = Place {-# UNPACK #-} !Int a
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -3149,7 +3149,7 @@ uncheckedSplitAt i (Seq xs) = case splitTreeE i xs of
   l :*: r -> (Seq l, Seq r)
 
 data Split a = Split !(FingerTree (Node a)) !(Node a) !(FingerTree (Node a))
-#if TESTING
+#ifdef TESTING
     deriving Show
 #endif
 
@@ -4208,7 +4208,7 @@ data PQL e = Nil | {-# UNPACK #-} !(PQueue e) :& PQL e
 
 infixr 8 :&
 
-#if TESTING
+#ifdef TESTING
 
 instance Functor PQueue where
     fmap f (PQueue x ts) = PQueue (f x) (fmap f ts)

@@ -121,6 +121,8 @@ module Data.Set (
             , fold
 
             -- * Min\/Max
+            , lookupMin
+            , lookupMax
             , findMin
             , findMax
             , deleteMin
