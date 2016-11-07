@@ -1595,28 +1595,8 @@ filterWithKeyA
   :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
 filterWithKeyA _ Nil             = pure Nil
 filterWithKeyA f t@(Tip k x)     = (\b -> if b then t else Nil) <$> f k x
-filterWithKeyA f t@(Bin p m l r) = error "TODO: filterWithKeyA"
-{-
--- Implementation Idea 1:
-  combine <$> f p m <*> filterWithKeyA f l <*> filterWithKeyA f r
-  where
-    combine True l' r'
-      | l' `ptrEq` l && r' `ptrEq` r = t
-      | otherwise                    = link p m l' r'
-    combine False l' r'              = link2 l' r'
-
--- Implementation Idea 2:
-  combine p m <$> filterWithKeyA f l <*> filterWithKeyA f r
-  where
-    combine _ _ Nil r' = r'
-    combine _ _ l' Nil = l'
-    combine p m l' r'
-      | l' `ptrEq` l && r' `ptrEq` r = t
-      | otherwise                    = link pl l' pr r'
-    combine p m l' r'                = link2 l' r'
-
-link k (Tip k x) p t@(Bin p m _ _ \/ Tip p _) | nomatch k p m \/ k/=p
--}
+filterWithKeyA f t@(Bin p m l r) =
+    bin p m <$> filterWithKeyA f l <*> filterWithKeyA f r
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1649,20 +1629,11 @@ traverseMaybeMissing f = WhenMissing
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
 traverseMaybeWithKey
   :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
-traverseMaybeWithKey = error "TODO: traverseMaybeWithKey"
-  {-
-  where
-    go _ Nil = pure Nil
-    go f (Bin _ kx x Nil Nil) =
-      maybe Tip (\x' -> Bin 1 kx x' Nil Nil) <$> f kx x
-    go f (Bin _ kx x l r) =
-      combine <$> go f l <*> f kx x <*> go f r
-      where
-      combine !l' mx !r' =
-        case mx of
-          Nothing -> link2 l' r'
-          Just x' -> link kx x' l' r'
-  -}
+traverseMaybeWithKey f = go
+    where
+    go Nil           = pure Nil
+    go (Tip k x)     = maybe Nil (Tip k) <$> f k x
+    go (Bin p m l r) = bin p m <$> go l <*> go r
 
 
 -- | Merge two maps.
@@ -1820,25 +1791,68 @@ mergeA
   -> f (IntMap c)
 mergeA
     WhenMissing{missingSubtree = g1t, missingKey = g1k}
-    WhenMissing{missingSubtree = g2t}
-    (WhenMatched f) = go
+    WhenMissing{missingSubtree = g2t, missingKey = g2k}
+    WhenMatched{matchedKey = f}
+    = go
   where
-    go t1              Nil = g1t t1
-    go Nil             t2  = g2t t2
-    go (Tip k x)       t2  = error "TODO: mergeA"
-    go (Bin p m l1 r1) t2  = error "TODO: mergeA"
-      {-
-      case splitLookup kx t2 of
-      (l2, mx2, r2) ->
-          case mx2 of
-          Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
-                        <$> l1l2 <*> g1k kx x1 <*> r1r2
-          Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
-                        <$> l1l2 <*> f kx x1 x2 <*> r1r2
+    go t1  Nil = g1t t1
+    go Nil t2  = g2t t2
+
+    -- This case is already covered below.
+    -- go (Tip k1 x1) (Tip k2 x2) = mergeTips k1 x1 k2 x2
+
+    go (Tip k1 x1) t2' = merge2 t2'
       where
-      !l1l2 = go l1 l2
-      !r1r2 = go r1 r2
-      -}
+        merge2 t2@(Bin p2 m2 l2 r2)
+          | nomatch k1 p2 m2 = link_ k1 p2 <$> subsingletonBy g1k k1 x1 <*> g2t t2
+          | zero k1 m2       = bin p2 m2 <$> merge2 l2 <*> g2t r2
+          | otherwise        = bin p2 m2 <$> g2t l2 <*> merge2 r2
+        merge2 (Tip k2 x2)   = mergeTips k1 x1 k2 x2
+        merge2 Nil           = subsingletonBy g1k k1 x1
+
+    go t1' (Tip k2 x2) = merge1 t1'
+      where
+        merge1 t1@(Bin p1 m1 l1 r1)
+          | nomatch k2 p1 m1 = link_ p1 k2 <$> g1t t1 <*> subsingletonBy g2k k2 x2
+          | zero k2 m1       = bin p1 m1 <$> merge1 l1 <*> g1t r1
+          | otherwise        = bin p1 m1 <$> g1t l1 <*> merge1 r1
+        merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
+        merge1 Nil           = subsingletonBy g2k k2 x2
+
+    go t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+      | shorter m1 m2  = merge1
+      | shorter m2 m1  = merge2
+      | p1 == p2       = bin p1 m1   <$> go  l1 l2 <*> go r1 r2
+      | otherwise      = link_ p1 p2 <$> g1t t1    <*> g2t   t2
+      where
+        merge1 | nomatch p2 p1 m1  = link_ p1 p2 <$> g1t t1    <*> g2t t2
+               | zero p2 m1        = bin p1 m1   <$> go  l1 t2 <*> g1t r1
+               | otherwise         = bin p1 m1   <$> g1t l1    <*> go  r1 t2
+        merge2 | nomatch p1 p2 m2  = link_ p1 p2 <$> g1t t1    <*> g2t    t2
+               | zero p1 m2        = bin p2 m2   <$> go  t1 l2 <*> g2t    r2
+               | otherwise         = bin p2 m2   <$> g2t    l2 <*> go  t1 r2
+
+    subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
+    {-# INLINE subsingletonBy #-}
+
+    mergeTips k1 x1 k2 x2
+      | k1 == k2  = maybe Nil (Tip k1) <$> f k1 x1 x2
+      | otherwise = subdoubleton k1 k2 <$> g1k k1 x1 <*> g2k k2 x2
+        {-
+        = link_ k1 k2 <$> subsingletonBy g1k k1 x1 <*> subsingletonBy g2k k2 x2
+        -}
+    {-# INLINE mergeTips #-}
+
+    subdoubleton _ _   Nothing Nothing     = Nil
+    subdoubleton _ k2  Nothing (Just y2)   = Tip k2 y2
+    subdoubleton k1 _  (Just y1) Nothing   = Tip k1 y1
+    subdoubleton k1 k2 (Just y1) (Just y2) = link k1 (Tip k1 y1) k2 (Tip k2 y2)
+    {-# INLINE subdoubleton #-}
+
+    link_ _  _  Nil t2  = t2
+    link_ _  _  t1  Nil = t1
+    link_ p1 p2 t1  t2  = link p1 t1 p2 t2
+    {-# INLINE link_ #-}
 {-# INLINE mergeA #-}
 
 
@@ -2256,14 +2270,11 @@ filter p m
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
-filterWithKey predicate t
-  = case t of
-      Bin p m l r
-        -> bin p m (filterWithKey predicate l) (filterWithKey predicate r)
-      Tip k x
-        | predicate k x -> t
-        | otherwise     -> Nil
-      Nil -> Nil
+filterWithKey predicate = go
+    where
+    go Nil           = Nil
+    go t@(Tip k x)   = if predicate k x then t else Nil
+    go (Bin p m l r) = bin p m (go l) (go r)
 
 -- | /O(n)/. Partition the map according to some predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
