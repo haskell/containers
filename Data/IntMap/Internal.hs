@@ -1804,15 +1804,7 @@ mergeA
     go (Tip k1 x1) t2' = merge2 t2'
       where
         merge2 t2@(Bin p2 m2 l2 r2)
-          | nomatch k1 p2 m2 =
-              -- The obvious implementation, but wrong order of effects.
-              -- > link_ k1 p2 <$> subsingletonBy g1k k1 x1 <*> g2t t2
-              -- The right order of effects, but needs optimizing:
-              let (lts2, gts2) = split k1 t2 in
-              (\lt' t' gt' -> lt' `union` t' `union` gt')
-                <$> g2t lts2
-                <*> subsingletonBy g1k k1 x1
-                <*> g2t gts2
+          | nomatch k1 p2 m2 = linkA k1 (subsingletonBy g1k k1 x1) p2 (g2t t2)
           | zero k1 m2       = bin p2 m2 <$> merge2 l2 <*> g2t r2
           | otherwise        = bin p2 m2 <$> g2t l2 <*> merge2 r2
         merge2 (Tip k2 x2)   = mergeTips k1 x1 k2 x2
@@ -1821,15 +1813,7 @@ mergeA
     go t1' (Tip k2 x2) = merge1 t1'
       where
         merge1 t1@(Bin p1 m1 l1 r1)
-          | nomatch k2 p1 m1 =
-              -- The obvious implementation, but wrong order of effects.
-              -- > link_ p1 k2 <$> g1t t1 <*> subsingletonBy g2k k2 x2
-              -- The right order of effects, but needs optimizing:
-              let (lts1, gts1) = split k2 t1 in
-              (\lt' t' gt' -> lt' `union` t' `union` gt')
-                <$> g1t lts1
-                <*> subsingletonBy g2k k2 x2
-                <*> g1t gts1
+          | nomatch k2 p1 m1 = linkA p1 (g1t t1) k2 (subsingletonBy g2k k2 x2)
           | zero k2 m1       = bin p1 m1 <$> merge1 l1 <*> g1t r1
           | otherwise        = bin p1 m1 <$> g1t l1 <*> merge1 r1
         merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
@@ -1870,6 +1854,21 @@ mergeA
     link_ _  _  t1  Nil = t1
     link_ p1 p2 t1  t2  = link p1 t1 p2 t2
     {-# INLINE link_ #-}
+
+    -- | A variant of 'link_' which makes sure to execute side-effects
+    -- in the right order.
+    linkA
+        :: Applicative f
+        => Prefix -> f (IntMap a)
+        -> Prefix -> f (IntMap a)
+        -> f (IntMap a)
+    linkA p1 t1 p2 t2
+      | zero p1 m = bin p m <$> t1 <*> t2
+      | otherwise = bin p m <$> t2 <*> t1
+      where
+        m = branchMask p1 p2
+        p = mask p1 m
+    {-# INLINE linkA #-}
 {-# INLINE mergeA #-}
 
 
