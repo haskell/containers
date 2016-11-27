@@ -3094,6 +3094,10 @@ splitRoot orig =
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
+{-# DEPRECATED showTree, showTreeWith
+    "These debugging functions will be moved to a separate module in future versions"
+    #-}
+
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => IntMap a -> String
