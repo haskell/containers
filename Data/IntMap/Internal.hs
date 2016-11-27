@@ -1353,6 +1353,17 @@ contramapSecondWhenMatched f t =
 {-# INLINE contramapSecondWhenMatched #-}
 
 
+#if !MIN_VERSION_base(4,8,0)
+newtype Identity a = Identity {runIdentity :: a}
+
+instance Functor Identity where
+    fmap f (Identity x) = Identity (f x)
+
+instance Applicative Identity where
+    pure = Identity
+    Identity f <*> Identity x = Identity (f x)
+#endif
+
 -- | A tactic for dealing with keys present in one map but not the
 -- other in 'merge'.
 --
@@ -1908,6 +1919,9 @@ updateMaxWithKey f t =
                         Nothing -> Nil
     go _ Nil = error "updateMaxWithKey Nil"
 
+
+data View a = View {-# UNPACK #-} !Key a !(IntMap a)
+
 -- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
@@ -1919,11 +1933,12 @@ maxViewWithKey t =
   case t of
     Nil -> Nothing
     Bin p m l r | m < 0 ->
-      case go l of (result, l') -> Just (result, binCheckLeft p m l' r)
-    _ -> Just (go t)
+      Just $ case go l of View k a l' -> ((k, a), binCheckLeft p m l' r)
+    _ -> Just $ case go t of View k a t' -> ((k, a), t')
   where
-    go (Bin p m l r) = case go r of (result, r') -> (result, binCheckRight p m l r')
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) =
+        case go r of View k a r' -> View k a (binCheckRight p m l r')
+    go (Tip k y) = View k y Nil
     go Nil = error "maxViewWithKey Nil"
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
@@ -1937,11 +1952,12 @@ minViewWithKey t =
   case t of
     Nil -> Nothing
     Bin p m l r | m < 0 ->
-      case go r of (result, r') -> Just (result, binCheckRight p m l r')
-    _ -> Just (go t)
+      Just $ case go r of View k a r' -> ((k, a), binCheckRight p m l r')
+    _ -> Just $ case go t of View k a t' -> ((k, a), t')
   where
-    go (Bin p m l r) = case go l of (result, l') -> (result, binCheckLeft p m l' r)
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) =
+        case go l of View k a l' -> View k a (binCheckLeft p m l' r)
+    go (Tip k y) = View k y Nil
     go Nil = error "minViewWithKey Nil"
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
@@ -2421,6 +2437,17 @@ split k t =
       | otherwise = (Nil :*: Nil)
     go _ Nil = (Nil :*: Nil)
 
+
+data SplitLookup a = SplitLookup !(IntMap a) !(Maybe a) !(IntMap a)
+
+mapLT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
+mapLT f (SplitLookup lt fnd gt) = SplitLookup (f lt) fnd gt
+{-# INLINE mapLT #-}
+
+mapGT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
+mapGT f (SplitLookup lt fnd gt) = SplitLookup lt fnd (f gt)
+{-# INLINE mapGT #-}
+
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
 --
@@ -2432,40 +2459,28 @@ split k t =
 
 splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
 splitLookup k t =
-  case t of
-    Bin _ m l r
-      | m < 0 ->
-        if k >= 0 -- handle negative numbers.
-        then
-          case go k l of
-            (lt, fnd, gt) ->
-              let !lt' = union r lt
-              in (lt', fnd, gt)
-        else
-          case go k r of
-            (lt, fnd, gt) ->
-              let !gt' = union gt l
-              in (lt, fnd, gt')
-    _ -> go k t
+  case
+    case t of
+      Bin _ m l r
+        | m < 0 ->
+          if k >= 0 -- handle negative numbers.
+          then mapLT (union r) (go k l)
+          else mapGT (`union` l) (go k r)
+      _ -> go k t
+  of SplitLookup lt fnd gt -> (lt, fnd, gt)
   where
     go k' t'@(Bin p m l r)
-        | nomatch k' p m =
-            if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
-        | zero k' m =
-            case go k' l of
-              (lt, fnd, gt) ->
-                let !gt' = union gt r
-                in (lt, fnd, gt')
-        | otherwise =
-            case go k' r of
-              (lt, fnd, gt) ->
-                let !lt' = union l lt
-                in (lt', fnd, gt)
+      | nomatch k' p m =
+          if k' > p
+          then SplitLookup t' Nothing Nil
+          else SplitLookup Nil Nothing t'
+      | zero k' m = mapGT (`union` r) (go k' l)
+      | otherwise = mapLT (union l) (go k' r)
     go k' t'@(Tip ky y)
-      | k' > ky   = (t', Nothing, Nil)
-      | k' < ky   = (Nil, Nothing, t')
-      | otherwise = (Nil, Just y, Nil)
-    go _ Nil = (Nil, Nothing, Nil)
+      | k' > ky   = SplitLookup t'  Nothing  Nil
+      | k' < ky   = SplitLookup Nil Nothing  t'
+      | otherwise = SplitLookup Nil (Just y) Nil
+    go _ Nil      = SplitLookup Nil Nothing  Nil
 
 {--------------------------------------------------------------------
   Fold
