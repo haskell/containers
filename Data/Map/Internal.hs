@@ -2497,21 +2497,25 @@ merge g1 g2 f m1 m2 = runIdentity $
 -- 'mergeA' to define custom combining functions.
 --
 -- @since 0.5.8
-mergeA :: (Applicative f, Ord k)
-              => WhenMissing f k a c -- ^ What to do with keys in @m1@ but not @m2@
-              -> WhenMissing f k b c -- ^ What to do with keys in @m2@ but not @m1@
-              -> WhenMatched f k a b c -- ^ What to do with keys in both @m1@ and @m2@
-              -> Map k a -- ^ Map @m1@
-              -> Map k b -- ^ Map @m2@
-              -> f (Map k c)
-mergeA g1 WhenMissing{missingSubtree = g2} (WhenMatched f) = go
+mergeA
+  :: (Applicative f, Ord k)
+  => WhenMissing f k a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> WhenMissing f k b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> WhenMatched f k a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> Map k a -- ^ Map @m1@
+  -> Map k b -- ^ Map @m2@
+  -> f (Map k c)
+mergeA
+    WhenMissing{missingSubtree = g1t, missingKey = g1k}
+    WhenMissing{missingSubtree = g2t}
+    (WhenMatched f) = go
   where
-    go t1 Tip = missingSubtree g1 t1
-    go Tip t2 = g2 t2
+    go t1 Tip = g1t t1
+    go Tip t2 = g2t t2
     go (Bin _ kx x1 l1 r1) t2 = case splitLookup kx t2 of
       (l2, mx2, r2) -> case mx2 of
           Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
-                        <$> l1l2 <*> missingKey g1 kx x1 <*> r1r2
+                        <$> l1l2 <*> g1k kx x1 <*> r1r2
           Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
                         <$> l1l2 <*> f kx x1 x2 <*> r1r2
         where

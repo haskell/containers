@@ -236,7 +236,9 @@ module Data.IntMap.Internal (
     , highestBitMask
     ) where
 
-#if !(MIN_VERSION_base(4,8,0))
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
@@ -272,6 +274,7 @@ import qualified GHC.Exts as GHCExts
 #endif
 import Text.Read
 #endif
+import qualified Control.Category as Category
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
@@ -538,11 +541,13 @@ lookupLT !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
-    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
-                         | zero k m  = go def l
-                         | otherwise = go l r
-    go def (Tip ky y) | k <= ky   = unsafeFindMax def
-                      | otherwise = Just (ky, y)
+    go def (Bin p m l r)
+      | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
+      | zero k m  = go def l
+      | otherwise = go l r
+    go def (Tip ky y)
+      | k <= ky   = unsafeFindMax def
+      | otherwise = Just (ky, y)
     go def Nil = unsafeFindMax def
 
 -- | /O(log n)/. Find smallest key greater than the given one and return the
@@ -557,11 +562,13 @@ lookupGT !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
-    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
-                         | zero k m  = go r l
-                         | otherwise = go def r
-    go def (Tip ky y) | k >= ky   = unsafeFindMin def
-                      | otherwise = Just (ky, y)
+    go def (Bin p m l r)
+      | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
+      | zero k m  = go r l
+      | otherwise = go def r
+    go def (Tip ky y)
+      | k >= ky   = unsafeFindMin def
+      | otherwise = Just (ky, y)
     go def Nil = unsafeFindMin def
 
 -- | /O(log n)/. Find largest key smaller or equal to the given one and return
@@ -577,11 +584,13 @@ lookupLE !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go r l else go Nil r
     _ -> go Nil t
   where
-    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
-                         | zero k m  = go def l
-                         | otherwise = go l r
-    go def (Tip ky y) | k < ky    = unsafeFindMax def
-                      | otherwise = Just (ky, y)
+    go def (Bin p m l r)
+      | nomatch k p m = if k < p then unsafeFindMax def else unsafeFindMax r
+      | zero k m  = go def l
+      | otherwise = go l r
+    go def (Tip ky y)
+      | k < ky    = unsafeFindMax def
+      | otherwise = Just (ky, y)
     go def Nil = unsafeFindMax def
 
 -- | /O(log n)/. Find smallest key greater or equal to the given one and return
@@ -597,11 +606,13 @@ lookupGE !k t = case t of
     Bin _ m l r | m < 0 -> if k >= 0 then go Nil l else go l r
     _ -> go Nil t
   where
-    go def (Bin p m l r) | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
-                         | zero k m  = go r l
-                         | otherwise = go def r
-    go def (Tip ky y) | k > ky    = unsafeFindMin def
-                      | otherwise = Just (ky, y)
+    go def (Bin p m l r)
+      | nomatch k p m = if k < p then unsafeFindMin l else unsafeFindMin def
+      | zero k m  = go r l
+      | otherwise = go def r
+    go def (Tip ky y)
+      | k > ky    = unsafeFindMin def
+      | otherwise = Just (ky, y)
     go def Nil = unsafeFindMin def
 
 
@@ -718,8 +729,10 @@ insertWithKey _ k x Nil = Tip k x
 insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a, IntMap a)
 insertLookupWithKey f !k x t@(Bin p m l r)
   | nomatch k p m = (Nothing,link k (Tip k x) p t)
-  | zero k m      = let (found,l') = insertLookupWithKey f k x l in (found,Bin p m l' r)
-  | otherwise     = let (found,r') = insertLookupWithKey f k x r in (found,Bin p m l r')
+  | zero k m      = let (found,l') = insertLookupWithKey f k x l
+                    in (found,Bin p m l' r)
+  | otherwise     = let (found,r') = insertLookupWithKey f k x r
+                    in (found,Bin p m l r')
 insertLookupWithKey f k x t@(Tip ky y)
   | k == ky       = (Just y,Tip k (f k x y))
   | otherwise     = (Nothing,link k (Tip k x) ky t)
@@ -805,8 +818,8 @@ updateWithKey f !k t@(Bin p m l r)
   | otherwise     = binCheckRight p m l (updateWithKey f k r)
 updateWithKey f k t@(Tip ky y)
   | k == ky       = case (f k y) of
-                           Just y' -> Tip ky y'
-                           Nothing -> Nil
+                      Just y' -> Tip ky y'
+                      Nothing -> Nil
   | otherwise     = t
 updateWithKey _ _ Nil = Nil
 
@@ -823,8 +836,10 @@ updateWithKey _ _ Nil = Nil
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
 updateLookupWithKey f !k t@(Bin p m l r)
   | nomatch k p m = (Nothing,t)
-  | zero k m      = let !(found,l') = updateLookupWithKey f k l in (found,binCheckLeft p m l' r)
-  | otherwise     = let !(found,r') = updateLookupWithKey f k r in (found,binCheckRight p m l r')
+  | zero k m      = let !(found,l') = updateLookupWithKey f k l
+                    in (found,binCheckLeft p m l' r)
+  | otherwise     = let !(found,r') = updateLookupWithKey f k r
+                    in (found,binCheckRight p m l r')
 updateLookupWithKey f k t@(Tip ky y)
   | k==ky         = case (f k y) of
                       Just y' -> (Just y,Tip ky y')
@@ -999,23 +1014,29 @@ withoutKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = t1
-                                             | zero k2 m1 = binCheckLeft p1 m1 (merge t2 k2 l1) r1
-                                             | otherwise  = binCheckRight p1 m1 l1 (merge t2 k2 r1)
-            merge _ k2 t1@(Tip k1 _) | k1 == k2 = Nil
-                                     | otherwise = t1
-            merge _ _  Nil = Nil
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge0 t2' k2' t1'
+      where
+        merge0 t2 k2 t1@(Bin p1 m1 l1 r1)
+          | nomatch k2 p1 m1 = t1
+          | zero k2 m1 = binCheckLeft p1 m1 (merge0 t2 k2 l1) r1
+          | otherwise  = binCheckRight p1 m1 l1 (merge0 t2 k2 r1)
+        merge0 _ k2 t1@(Tip k1 _)
+          | k1 == k2 = Nil
+          | otherwise = t1
+        merge0 _ _  Nil = Nil
 
     go t1@(Bin _ _ _ _) IntSet.Nil = t1
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = t1
-                                                 | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-                                                 | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = Nil
-                                          | otherwise = t1
-            merge t1 _  IntSet.Nil = t1
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
+      where
+        merge0 t1 k1 (IntSet.Bin p2 m2 l2 r2)
+          | nomatch k1 p2 m2 = t1
+          | zero k1 m2 = bin p2 m2 (merge0 t1 k1 l2) Nil
+          | otherwise  = bin p2 m2 Nil (merge0 t1 k1 r2)
+        merge0 t1 k1 (IntSet.Tip k2 _)
+          | k1 == k2 = Nil
+          | otherwise = t1
+        merge0 t1 _  IntSet.Nil = t1
 
     go Nil _ = Nil
 
@@ -1054,24 +1075,29 @@ restrictKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 (Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = Nil
-                                          | zero k2 m1 = bin p1 m1 (merge t2 k2 l1) Nil
-                                          | otherwise  = bin p1 m1 Nil (merge t2 k2 r1)
-            merge _ k2 t1@(Tip k1 _) | k1 == k2 = t1
-                                     | otherwise = Nil
-            merge _ _  Nil = Nil
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge0 t2' k2' t1'
+      where
+        merge0 t2 k2 (Bin p1 m1 l1 r1)
+          | nomatch k2 p1 m1 = Nil
+          | zero k2 m1 = bin p1 m1 (merge0 t2 k2 l1) Nil
+          | otherwise  = bin p1 m1 Nil (merge0 t2 k2 r1)
+        merge0 _ k2 t1@(Tip k1 _)
+          | k1 == k2 = t1
+          | otherwise = Nil
+        merge0 _ _  Nil = Nil
 
     go (Bin _ _ _ _) IntSet.Nil = Nil
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2)
-              | nomatch k1 p2 m2 = Nil
-              | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-              | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = t1
-                                          | otherwise = Nil
-            merge _ _  IntSet.Nil = Nil
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
+      where
+        merge0 t1 k1 (IntSet.Bin p2 m2 l2 r2)
+          | nomatch k1 p2 m2 = Nil
+          | zero k1 m2 = bin p2 m2 (merge0 t1 k1 l2) Nil
+          | otherwise  = bin p2 m2 Nil (merge0 t1 k1 r2)
+        merge0 t1 k1 (IntSet.Tip k2 _)
+          | k1 == k2 = t1
+          | otherwise = Nil
+        merge0 _ _  IntSet.Nil = Nil
 
     go Nil _ = Nil
 
@@ -1136,8 +1162,10 @@ mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap 
              -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
   where -- We use the lambda form to avoid non-exhaustive pattern matches warning.
-        combine = \(Tip k1 x1) (Tip _k2 x2) -> case f k1 x1 x2 of Nothing -> Nil
-                                                                  Just x -> Tip k1 x
+        combine = \(Tip k1 x1) (Tip _k2 x2) ->
+          case f k1 x1 x2 of
+            Nothing -> Nil
+            Just x -> Tip k1 x
         {-# INLINE combine #-}
 {-# INLINE mergeWithKey #-}
 
@@ -1167,23 +1195,29 @@ mergeWithKey' bin' f g1 g2 = go
                | zero p1 m2        = bin' p2 m2 (go t1 l2) (g2 r2)
                | otherwise         = bin' p2 m2 (g2 l2) (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = maybe_link p1 (g1 t1) k2 (g2 t2)
-                                             | zero k2 m1 = bin' p1 m1 (merge t2 k2 l1) (g1 r1)
-                                             | otherwise  = bin' p1 m1 (g1 l1) (merge t2 k2 r1)
-            merge t2 k2 t1@(Tip k1 _) | k1 == k2 = f t1 t2
-                                      | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
-            merge t2 _  Nil = g2 t2
+    go t1'@(Bin _ _ _ _) t2'@(Tip k2' _) = merge0 t2' k2' t1'
+      where
+        merge0 t2 k2 t1@(Bin p1 m1 l1 r1)
+          | nomatch k2 p1 m1 = maybe_link p1 (g1 t1) k2 (g2 t2)
+          | zero k2 m1 = bin' p1 m1 (merge0 t2 k2 l1) (g1 r1)
+          | otherwise  = bin' p1 m1 (g1 l1) (merge0 t2 k2 r1)
+        merge0 t2 k2 t1@(Tip k1 _)
+          | k1 == k2 = f t1 t2
+          | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
+        merge0 t2 _  Nil = g2 t2
 
     go t1@(Bin _ _ _ _) Nil = g1 t1
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 t2@(Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = maybe_link k1 (g1 t1) p2 (g2 t2)
-                                             | zero k1 m2 = bin' p2 m2 (merge t1 k1 l2) (g2 r2)
-                                             | otherwise  = bin' p2 m2 (g2 l2) (merge t1 k1 r2)
-            merge t1 k1 t2@(Tip k2 _) | k1 == k2 = f t1 t2
-                                      | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
-            merge t1 _  Nil = g1 t1
+    go t1'@(Tip k1' _) t2' = merge0 t1' k1' t2'
+      where
+        merge0 t1 k1 t2@(Bin p2 m2 l2 r2)
+          | nomatch k1 p2 m2 = maybe_link k1 (g1 t1) p2 (g2 t2)
+          | zero k1 m2 = bin' p2 m2 (merge0 t1 k1 l2) (g2 r2)
+          | otherwise  = bin' p2 m2 (g2 l2) (merge0 t1 k1 r2)
+        merge0 t1 k1 t2@(Tip k2 _)
+          | k1 == k2 = f t1 t2
+          | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
+        merge0 t1 _  Nil = g1 t1
 
     go Nil t2 = g2 t2
 
@@ -1192,6 +1226,662 @@ mergeWithKey' bin' f g1 g2 = go
     maybe_link p1 t1 p2 t2 = link p1 t1 p2 t2
     {-# INLINE maybe_link #-}
 {-# INLINE mergeWithKey' #-}
+
+
+{--------------------------------------------------------------------
+  mergeA
+--------------------------------------------------------------------}
+
+-- | A tactic for dealing with keys present in one map but not the
+-- other in 'merge' or 'mergeA'.
+--
+-- A tactic of type @WhenMissing f k x z@ is an abstract representation
+-- of a function of type @Key -> x -> f (Maybe z)@.
+
+data WhenMissing f x y = WhenMissing
+  { missingSubtree :: IntMap x -> f (IntMap y)
+  , missingKey :: Key -> x -> f (Maybe y)}
+
+
+instance (Applicative f, Monad f) => Functor (WhenMissing f x) where
+  fmap = mapWhenMissing
+  {-# INLINE fmap #-}
+
+
+instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
+  where
+    id = preserveMissing
+    f . g =
+      traverseMaybeMissing $ \ k x -> do
+        y <- missingKey g k x
+        case y of
+          Nothing -> pure Nothing
+          Just q  -> missingKey f k q
+    {-# INLINE id #-}
+    {-# INLINE (.) #-}
+
+
+-- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
+  pure x = mapMissing (\ _ _ -> x)
+  f <*> g =
+    traverseMaybeMissing $ \k x -> do
+      res1 <- missingKey f k x
+      case res1 of
+        Nothing -> pure Nothing
+        Just r  -> (pure $!) . fmap r =<< missingKey g k x
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+
+-- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f =
+    traverseMaybeMissing $ \k x -> do
+      res1 <- missingKey m k x
+      case res1 of
+        Nothing -> pure Nothing
+        Just r  -> missingKey (f r) k x
+  {-# INLINE (>>=) #-}
+
+
+-- | Map covariantly over a @'WhenMissing' f x@.
+mapWhenMissing
+  :: (Applicative f, Monad f)
+  => (a -> b)
+  -> WhenMissing f x a
+  -> WhenMissing f x b
+mapWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> missingSubtree t m >>= \m' -> pure $! fmap f m'
+  , missingKey     = \k x -> missingKey t k x >>= \q -> (pure $! fmap f q) }
+{-# INLINE mapWhenMissing #-}
+
+
+-- | Map covariantly over a @'WhenMissing' f x@, using only a
+-- 'Functor f' constraint.
+mapGentlyWhenMissing
+  :: Functor f
+  => (a -> b)
+  -> WhenMissing f x a
+  -> WhenMissing f x b
+mapGentlyWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> fmap f <$> missingSubtree t m
+  , missingKey     = \k x -> fmap f <$> missingKey t k x }
+{-# INLINE mapGentlyWhenMissing #-}
+
+
+-- | Map covariantly over a @'WhenMatched' f k x@, using only a
+-- 'Functor f' constraint.
+mapGentlyWhenMatched
+  :: Functor f
+  => (a -> b)
+  -> WhenMatched f x y a
+  -> WhenMatched f x y b
+mapGentlyWhenMatched f t =
+  zipWithMaybeAMatched $ \k x y -> fmap f <$> runWhenMatched t k x y
+{-# INLINE mapGentlyWhenMatched #-}
+
+
+-- | Map contravariantly over a @'WhenMissing' f _ x@.
+lmapWhenMissing :: (b -> a) -> WhenMissing f a x -> WhenMissing f b x
+lmapWhenMissing f t = WhenMissing
+  { missingSubtree = \m -> missingSubtree t (fmap f m)
+  , missingKey     = \k x -> missingKey t k (f x) }
+{-# INLINE lmapWhenMissing #-}
+
+
+-- | Map contravariantly over a @'WhenMatched' f _ y z@.
+contramapFirstWhenMatched
+  :: (b -> a)
+  -> WhenMatched f a y z
+  -> WhenMatched f b y z
+contramapFirstWhenMatched f t =
+  WhenMatched $ \k x y -> runWhenMatched t k (f x) y
+{-# INLINE contramapFirstWhenMatched #-}
+
+
+-- | Map contravariantly over a @'WhenMatched' f x _ z@.
+contramapSecondWhenMatched
+  :: (b -> a)
+  -> WhenMatched f x a z
+  -> WhenMatched f x b z
+contramapSecondWhenMatched f t =
+  WhenMatched $ \k x y -> runWhenMatched t k x (f y)
+{-# INLINE contramapSecondWhenMatched #-}
+
+
+#if !MIN_VERSION_base(4,8,0)
+newtype Identity a = Identity {runIdentity :: a}
+
+instance Functor Identity where
+    fmap f (Identity x) = Identity (f x)
+
+instance Applicative Identity where
+    pure = Identity
+    Identity f <*> Identity x = Identity (f x)
+#endif
+
+-- | A tactic for dealing with keys present in one map but not the
+-- other in 'merge'.
+--
+-- A tactic of type @SimpleWhenMissing x z@ is an abstract
+-- representation of a function of type @Key -> x -> Maybe z@.
+type SimpleWhenMissing = WhenMissing Identity
+
+
+-- | A tactic for dealing with keys present in both maps in 'merge'
+-- or 'mergeA'.
+--
+-- A tactic of type @WhenMatched f x y z@ is an abstract representation
+-- of a function of type @Key -> x -> y -> f (Maybe z)@.
+newtype WhenMatched f x y z = WhenMatched
+  { matchedKey :: Key -> x -> y -> f (Maybe z) }
+
+
+-- | Along with zipWithMaybeAMatched, witnesses the isomorphism
+-- between @WhenMatched f x y z@ and @Key -> x -> y -> f (Maybe z)@.
+runWhenMatched :: WhenMatched f x y z -> Key -> x -> y -> f (Maybe z)
+runWhenMatched = matchedKey
+{-# INLINE runWhenMatched #-}
+
+
+-- | Along with traverseMaybeMissing, witnesses the isomorphism
+-- between @WhenMissing f x y@ and @Key -> x -> f (Maybe y)@.
+runWhenMissing :: WhenMissing f x y -> Key-> x -> f (Maybe y)
+runWhenMissing = missingKey
+{-# INLINE runWhenMissing #-}
+
+
+instance Functor f => Functor (WhenMatched f x y) where
+  fmap = mapWhenMatched
+  {-# INLINE fmap #-}
+
+
+instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
+  where
+    id = zipWithMatched (\_ _ y -> y)
+    f . g =
+      zipWithMaybeAMatched $ \k x y -> do
+        res <- runWhenMatched g k x y
+        case res of
+          Nothing -> pure Nothing
+          Just r  -> runWhenMatched f k x r
+    {-# INLINE id #-}
+    {-# INLINE (.) #-}
+
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
+  pure x = zipWithMatched (\_ _ _ -> x)
+  fs <*> xs =
+    zipWithMaybeAMatched $ \k x y -> do
+      res <- runWhenMatched fs k x y
+      case res of
+        Nothing -> pure Nothing
+        Just r  -> (pure $!) . fmap r =<< runWhenMatched xs k x y
+  {-# INLINE pure #-}
+  {-# INLINE (<*>) #-}
+
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
+#if !MIN_VERSION_base(4,8,0)
+  return = pure
+#endif
+  m >>= f =
+    zipWithMaybeAMatched $ \k x y -> do
+      res <- runWhenMatched m k x y
+      case res of
+        Nothing -> pure Nothing
+        Just r  -> runWhenMatched (f r) k x y
+  {-# INLINE (>>=) #-}
+
+
+-- | Map covariantly over a @'WhenMatched' f x y@.
+mapWhenMatched
+  :: Functor f
+  => (a -> b)
+  -> WhenMatched f x y a
+  -> WhenMatched f x y b
+mapWhenMatched f (WhenMatched g) =
+  WhenMatched $ \k x y -> fmap (fmap f) (g k x y)
+{-# INLINE mapWhenMatched #-}
+
+
+-- | A tactic for dealing with keys present in both maps in 'merge'.
+--
+-- A tactic of type @SimpleWhenMatched x y z@ is an abstract
+-- representation of a function of type @Key -> x -> y -> Maybe z@.
+type SimpleWhenMatched = WhenMatched Identity
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values and use the result in the merged map.
+--
+-- > zipWithMatched
+-- >   :: (Key -> x -> y -> z)
+-- >   -> SimpleWhenMatched x y z
+zipWithMatched
+  :: Applicative f
+  => (Key -> x -> y -> z)
+  -> WhenMatched f x y z
+zipWithMatched f = WhenMatched $ \ k x y -> pure . Just $ f k x y
+{-# INLINE zipWithMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values to produce an action and use its result in the merged
+-- map.
+zipWithAMatched
+  :: Applicative f
+  => (Key -> x -> y -> f z)
+  -> WhenMatched f x y z
+zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
+{-# INLINE zipWithAMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values and maybe use the result in the merged map.
+--
+-- > zipWithMaybeMatched
+-- >   :: (Key -> x -> y -> Maybe z)
+-- >   -> SimpleWhenMatched x y z
+zipWithMaybeMatched
+  :: Applicative f
+  => (Key -> x -> y -> Maybe z)
+  -> WhenMatched f x y z
+zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
+{-# INLINE zipWithMaybeMatched #-}
+
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values, perform the resulting action, and maybe use the
+-- result in the merged map.
+--
+-- This is the fundamental 'WhenMatched' tactic.
+zipWithMaybeAMatched
+  :: (Key -> x -> y -> f (Maybe z))
+  -> WhenMatched f x y z
+zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
+{-# INLINE zipWithMaybeAMatched #-}
+
+
+-- | Drop all the entries whose keys are missing from the other
+-- map.
+--
+-- > dropMissing :: SimpleWhenMissing x y
+--
+-- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
+--
+-- but @dropMissing@ is much faster.
+dropMissing :: Applicative f => WhenMissing f x y
+dropMissing = WhenMissing
+  { missingSubtree = const (pure Nil)
+  , missingKey     = \_ _ -> pure Nothing }
+{-# INLINE dropMissing #-}
+
+
+-- | Preserve, unchanged, the entries whose keys are missing from
+-- the other map.
+--
+-- > preserveMissing :: SimpleWhenMissing x x
+--
+-- prop> preserveMissing = Lazy.Merge.mapMaybeMissing (\_ x -> Just x)
+--
+-- but @preserveMissing@ is much faster.
+preserveMissing :: Applicative f => WhenMissing f x x
+preserveMissing = WhenMissing
+  { missingSubtree = pure
+  , missingKey     = \_ v -> pure (Just v) }
+{-# INLINE preserveMissing #-}
+
+
+-- | Map over the entries whose keys are missing from the other map.
+--
+-- > mapMissing :: (k -> x -> y) -> SimpleWhenMissing x y
+--
+-- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
+--
+-- but @mapMissing@ is somewhat faster.
+mapMissing :: Applicative f => (Key -> x -> y) -> WhenMissing f x y
+mapMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapWithKey f m
+  , missingKey     = \k x -> pure $ Just (f k x) }
+{-# INLINE mapMissing #-}
+
+
+-- | Map over the entries whose keys are missing from the other
+-- map, optionally removing some. This is the most powerful
+-- 'SimpleWhenMissing' tactic, but others are usually more efficient.
+--
+-- > mapMaybeMissing :: (Key -> x -> Maybe y) -> SimpleWhenMissing x y
+--
+-- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
+--
+-- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative'
+-- operations.
+mapMaybeMissing
+  :: Applicative f => (Key -> x -> Maybe y) -> WhenMissing f x y
+mapMaybeMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! mapMaybeWithKey f m
+  , missingKey     = \k x -> pure $! f k x }
+{-# INLINE mapMaybeMissing #-}
+
+
+-- | Filter the entries whose keys are missing from the other map.
+--
+-- > filterMissing :: (k -> x -> Bool) -> SimpleWhenMissing x x
+--
+-- prop> filterMissing f = Lazy.Merge.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
+--
+-- but this should be a little faster.
+filterMissing
+  :: Applicative f => (Key -> x -> Bool) -> WhenMissing f x x
+filterMissing f = WhenMissing
+  { missingSubtree = \m -> pure $! filterWithKey f m
+  , missingKey     = \k x -> pure $! if f k x then Just x else Nothing }
+{-# INLINE filterMissing #-}
+
+
+-- | Filter the entries whose keys are missing from the other map
+-- using some 'Applicative' action.
+--
+-- > filterAMissing f = Lazy.Merge.traverseMaybeMissing $
+-- >   \k x -> (\b -> guard b *> Just x) <$> f k x
+--
+-- but this should be a little faster.
+filterAMissing
+  :: Applicative f => (Key -> x -> f Bool) -> WhenMissing f x x
+filterAMissing f = WhenMissing
+  { missingSubtree = \m -> filterWithKeyA f m
+  , missingKey     = \k x -> bool Nothing (Just x) <$> f k x }
+{-# INLINE filterAMissing #-}
+
+
+-- | /O(n)/. Filter keys and values using an 'Applicative' predicate.
+filterWithKeyA
+  :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
+filterWithKeyA _ Nil           = pure Nil
+filterWithKeyA f t@(Tip k x)   = (\b -> if b then t else Nil) <$> f k x
+filterWithKeyA f (Bin p m l r) =
+    bin p m <$> filterWithKeyA f l <*> filterWithKeyA f r
+
+-- | This wasn't in Data.Bool until 4.7.0, so we define it here
+bool :: a -> a -> Bool -> a
+bool f _ False = f
+bool _ t True  = t
+
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map.
+traverseMissing
+  :: Applicative f => (Key -> x -> f y) -> WhenMissing f x y
+traverseMissing f = WhenMissing
+  { missingSubtree = traverseWithKey f
+  , missingKey = \k x -> Just <$> f k x }
+{-# INLINE traverseMissing #-}
+
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map, optionally producing values to put in the result. This is
+-- the most powerful 'WhenMissing' tactic, but others are usually
+-- more efficient.
+traverseMaybeMissing
+  :: Applicative f => (Key -> x -> f (Maybe y)) -> WhenMissing f x y
+traverseMaybeMissing f = WhenMissing
+  { missingSubtree = traverseMaybeWithKey f
+  , missingKey = f }
+{-# INLINE traverseMaybeMissing #-}
+
+
+-- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
+traverseMaybeWithKey
+  :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
+traverseMaybeWithKey f = go
+    where
+    go Nil           = pure Nil
+    go (Tip k x)     = maybe Nil (Tip k) <$> f k x
+    go (Bin p m l r) = bin p m <$> go l <*> go r
+
+
+-- | Merge two maps.
+--
+-- @merge@ takes two 'WhenMissing' tactics, a 'WhenMatched' tactic
+-- and two maps. It uses the tactics to merge the maps. Its behavior
+-- is best understood via its fundamental tactics, 'mapMaybeMissing'
+-- and 'zipWithMaybeMatched'.
+--
+-- Consider
+--
+-- @
+-- merge (mapMaybeMissing g1)
+--              (mapMaybeMissing g2)
+--              (zipWithMaybeMatched f)
+--              m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @merge@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- maybes = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- This produces a 'Maybe' for each key:
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'mapMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+--
+-- When 'merge' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should typically use
+-- 'merge' to define your custom combining functions.
+--
+--
+-- Examples:
+--
+-- prop> unionWithKey f = merge preserveMissing preserveMissing (zipWithMatched f)
+-- prop> intersectionWithKey f = merge dropMissing dropMissing (zipWithMatched f)
+-- prop> differenceWith f = merge diffPreserve diffDrop f
+-- prop> symmetricDifference = merge diffPreserve diffPreserve (\ _ _ _ -> Nothing)
+-- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g)
+--
+-- @since 0.5.8
+merge
+  :: SimpleWhenMissing a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> SimpleWhenMissing b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> SimpleWhenMatched a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> IntMap a -- ^ Map @m1@
+  -> IntMap b -- ^ Map @m2@
+  -> IntMap c
+merge g1 g2 f m1 m2 =
+  runIdentity $ mergeA g1 g2 f m1 m2
+{-# INLINE merge #-}
+
+
+-- | An applicative version of 'merge'.
+--
+-- @mergeA@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- tactic and two maps. It uses the tactics to merge the maps.
+-- Its behavior is best understood via its fundamental tactics,
+-- 'traverseMaybeMissing' and 'zipWithMaybeAMatched'.
+--
+-- Consider
+--
+-- @
+-- mergeA (traverseMaybeMissing g1)
+--               (traverseMaybeMissing g2)
+--               (zipWithMaybeAMatched f)
+--               m1 m2
+-- @
+--
+-- Take, for example,
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m2 = [(1, "one"), (2, "two"), (4, "three")]
+-- @
+--
+-- @mergeA@ will first ''align'' these maps by key:
+--
+-- @
+-- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
+-- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- @
+--
+-- It will then pass the individual entries and pairs of entries
+-- to @g1@, @g2@, or @f@ as appropriate:
+--
+-- @
+-- actions = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- @
+--
+-- Next, it will perform the actions in the @actions@ list in order from
+-- left to right.
+--
+-- @
+-- keys =     0        1          2           3        4
+-- results = [Nothing, Just True, Just False, Nothing, Just True]
+-- @
+--
+-- Finally, the @Just@ results are collected into a map:
+--
+-- @
+-- return value = [(1, True), (2, False), (4, True)]
+-- @
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'traverseMaybeMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all the keys.
+-- * 'preserveMissing' leaves all the entries alone.
+-- * 'mapMaybeMissing' does not use the 'Applicative' context.
+--
+-- When 'mergeA' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should generally only use
+-- 'mergeA' to define custom combining functions.
+--
+-- @since 0.5.8
+mergeA
+  :: (Applicative f)
+  => WhenMissing f a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> WhenMissing f b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> WhenMatched f a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> IntMap a -- ^ Map @m1@
+  -> IntMap b -- ^ Map @m2@
+  -> f (IntMap c)
+mergeA
+    WhenMissing{missingSubtree = g1t, missingKey = g1k}
+    WhenMissing{missingSubtree = g2t, missingKey = g2k}
+    WhenMatched{matchedKey = f}
+    = go
+  where
+    go t1  Nil = g1t t1
+    go Nil t2  = g2t t2
+
+    -- This case is already covered below.
+    -- go (Tip k1 x1) (Tip k2 x2) = mergeTips k1 x1 k2 x2
+
+    go (Tip k1 x1) t2' = merge2 t2'
+      where
+        merge2 t2@(Bin p2 m2 l2 r2)
+          | nomatch k1 p2 m2 = linkA k1 (subsingletonBy g1k k1 x1) p2 (g2t t2)
+          | zero k1 m2       = bin p2 m2 <$> merge2 l2 <*> g2t r2
+          | otherwise        = bin p2 m2 <$> g2t l2 <*> merge2 r2
+        merge2 (Tip k2 x2)   = mergeTips k1 x1 k2 x2
+        merge2 Nil           = subsingletonBy g1k k1 x1
+
+    go t1' (Tip k2 x2) = merge1 t1'
+      where
+        merge1 t1@(Bin p1 m1 l1 r1)
+          | nomatch k2 p1 m1 = linkA p1 (g1t t1) k2 (subsingletonBy g2k k2 x2)
+          | zero k2 m1       = bin p1 m1 <$> merge1 l1 <*> g1t r1
+          | otherwise        = bin p1 m1 <$> g1t l1 <*> merge1 r1
+        merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
+        merge1 Nil           = subsingletonBy g2k k2 x2
+
+    go t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+      | shorter m1 m2  = merge1
+      | shorter m2 m1  = merge2
+      | p1 == p2       = bin p1 m1   <$> go  l1 l2 <*> go r1 r2
+      | otherwise      = link_ p1 p2 <$> g1t t1    <*> g2t   t2
+      where
+        merge1 | nomatch p2 p1 m1  = link_ p1 p2 <$> g1t t1    <*> g2t t2
+               | zero p2 m1        = bin p1 m1   <$> go  l1 t2 <*> g1t r1
+               | otherwise         = bin p1 m1   <$> g1t l1    <*> go  r1 t2
+        merge2 | nomatch p1 p2 m2  = link_ p1 p2 <$> g1t t1    <*> g2t    t2
+               | zero p1 m2        = bin p2 m2   <$> go  t1 l2 <*> g2t    r2
+               | otherwise         = bin p2 m2   <$> g2t    l2 <*> go  t1 r2
+
+    subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
+    {-# INLINE subsingletonBy #-}
+
+    mergeTips k1 x1 k2 x2
+      | k1 == k2  = maybe Nil (Tip k1) <$> f k1 x1 x2
+      | k1 <  k2  = subdoubleton k1 k2 <$> g1k k1 x1 <*> g2k k2 x2
+        {-
+        = link_ k1 k2 <$> subsingletonBy g1k k1 x1 <*> subsingletonBy g2k k2 x2
+        -}
+      | otherwise = subdoubleton k2 k1 <$> g2k k2 x2 <*> g1k k1 x1
+    {-# INLINE mergeTips #-}
+
+    subdoubleton _ _   Nothing Nothing     = Nil
+    subdoubleton _ k2  Nothing (Just y2)   = Tip k2 y2
+    subdoubleton k1 _  (Just y1) Nothing   = Tip k1 y1
+    subdoubleton k1 k2 (Just y1) (Just y2) = link k1 (Tip k1 y1) k2 (Tip k2 y2)
+    {-# INLINE subdoubleton #-}
+
+    link_ _  _  Nil t2  = t2
+    link_ _  _  t1  Nil = t1
+    link_ p1 p2 t1  t2  = link p1 t1 p2 t2
+    {-# INLINE link_ #-}
+
+    -- | A variant of 'link_' which makes sure to execute side-effects
+    -- in the right order.
+    linkA
+        :: Applicative f
+        => Prefix -> f (IntMap a)
+        -> Prefix -> f (IntMap a)
+        -> f (IntMap a)
+    linkA p1 t1 p2 t2
+      | zero p1 m = bin p m <$> t1 <*> t2
+      | otherwise = bin p m <$> t2 <*> t1
+      where
+        m = branchMask p1 p2
+        p = mask p1 m
+    {-# INLINE linkA #-}
+{-# INLINE mergeA #-}
+
 
 {--------------------------------------------------------------------
   Min\/Max
@@ -1229,6 +1919,9 @@ updateMaxWithKey f t =
                         Nothing -> Nil
     go _ Nil = error "updateMaxWithKey Nil"
 
+
+data View a = View {-# UNPACK #-} !Key a !(IntMap a)
+
 -- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
 --
@@ -1237,12 +1930,15 @@ updateMaxWithKey f t =
 
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey t =
-  case t of Nil -> Nothing
-            Bin p m l r | m < 0 -> case go l of (result, l') -> Just (result, binCheckLeft p m l' r)
-            _ -> Just (go t)
+  case t of
+    Nil -> Nothing
+    Bin p m l r | m < 0 ->
+      Just $ case go l of View k a l' -> ((k, a), binCheckLeft p m l' r)
+    _ -> Just $ case go t of View k a t' -> ((k, a), t')
   where
-    go (Bin p m l r) = case go r of (result, r') -> (result, binCheckRight p m l r')
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) =
+        case go r of View k a r' -> View k a (binCheckRight p m l r')
+    go (Tip k y) = View k y Nil
     go Nil = error "maxViewWithKey Nil"
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
@@ -1253,12 +1949,15 @@ maxViewWithKey t =
 
 minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey t =
-  case t of Nil -> Nothing
-            Bin p m l r | m < 0 -> case go r of (result, r') -> Just (result, binCheckRight p m l r')
-            _ -> Just (go t)
+  case t of
+    Nil -> Nothing
+    Bin p m l r | m < 0 ->
+      Just $ case go r of View k a r' -> ((k, a), binCheckRight p m l r')
+    _ -> Just $ case go t of View k a t' -> ((k, a), t')
   where
-    go (Bin p m l r) = case go l of (result, l') -> (result, binCheckLeft p m l' r)
-    go (Tip k y) = ((k, y), Nil)
+    go (Bin p m l r) =
+        case go l of View k a l' -> View k a (binCheckLeft p m l' r)
+    go (Tip k y) = View k y Nil
     go Nil = error "minViewWithKey Nil"
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
@@ -1304,7 +2003,7 @@ findMin :: IntMap a -> (Key, a)
 findMin Nil = error $ "findMin: empty map has no minimal element"
 findMin (Tip k v) = (k,v)
 findMin (Bin _ m l r)
-  |   m < 0   = go r
+  | m < 0     = go r
   | otherwise = go l
     where go (Tip k v)      = (k,v)
           go (Bin _ _ l' _) = go l'
@@ -1315,7 +2014,7 @@ findMax :: IntMap a -> (Key, a)
 findMax Nil = error $ "findMax: empty map has no maximal element"
 findMax (Tip k v) = (k,v)
 findMax (Bin _ m l r)
-  |   m < 0   = go l
+  | m < 0     = go l
   | otherwise = go r
     where go (Tip k v)      = (k,v)
           go (Bin _ _ _ r') = go r'
@@ -1419,8 +2118,10 @@ isSubmapOf m1 m2
 isSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
 isSubmapOfBy predicate t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
   | shorter m1 m2  = False
-  | shorter m2 m1  = match p1 p2 m2 && (if zero p1 m2 then isSubmapOfBy predicate t1 l2
-                                                      else isSubmapOfBy predicate t1 r2)
+  | shorter m2 m1  = match p1 p2 m2 &&
+                       if zero p1 m2
+                       then isSubmapOfBy predicate t1 l2
+                       else isSubmapOfBy predicate t1 r2
   | otherwise      = (p1==p2) && isSubmapOfBy predicate l1 l2 && isSubmapOfBy predicate r1 r2
 isSubmapOfBy _         (Bin _ _ _ _) _ = False
 isSubmapOfBy predicate (Tip k x) t     = case lookup k t of
@@ -1560,7 +2261,8 @@ mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- > mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "cdab"
 
 mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
-mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysWith c f
+  = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 -- | /O(n*min(n,W))/.
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
@@ -1579,7 +2281,8 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
 
 mapKeysMonotonic :: (Key->Key) -> IntMap a -> IntMap a
-mapKeysMonotonic f = fromDistinctAscList . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysMonotonic f
+  = fromDistinctAscList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 {--------------------------------------------------------------------
   Filter
@@ -1599,14 +2302,11 @@ filter p m
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
-filterWithKey predicate t
-  = case t of
-      Bin p m l r
-        -> bin p m (filterWithKey predicate l) (filterWithKey predicate r)
-      Tip k x
-        | predicate k x -> t
-        | otherwise     -> Nil
-      Nil -> Nil
+filterWithKey predicate = go
+    where
+    go Nil           = Nil
+    go t@(Tip k x)   = if predicate k x then t else Nil
+    go (Bin p m l r) = bin p m (go l) (go r)
 
 -- | /O(n)/. Partition the map according to some predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -1631,16 +2331,16 @@ partition p m
 partitionWithKey :: (Key -> a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
 partitionWithKey predicate0 t0 = toPair $ go predicate0 t0
   where
-    go predicate t
-      = case t of
-          Bin p m l r
-            -> let (l1 :*: l2) = go predicate l
-                   (r1 :*: r2) = go predicate r
-               in bin p m l1 r1 :*: bin p m l2 r2
-          Tip k x
-            | predicate k x -> (t :*: Nil)
-            | otherwise     -> (Nil :*: t)
-          Nil -> (Nil :*: Nil)
+    go predicate t =
+      case t of
+        Bin p m l r ->
+          let (l1 :*: l2) = go predicate l
+              (r1 :*: r2) = go predicate r
+          in bin p m l1 r1 :*: bin p m l2 r2
+        Tip k x
+          | predicate k x -> (t :*: Nil)
+          | otherwise     -> (Nil :*: t)
+        Nil -> (Nil :*: Nil)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --
@@ -1688,8 +2388,8 @@ mapEither f m
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
 mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    go f (Bin p m l r)
-      = bin p m l1 r1 :*: bin p m l2 r2
+    go f (Bin p m l r) =
+      bin p m l1 r1 :*: bin p m l2 r2
       where
         (l1 :*: l2) = go f l
         (r1 :*: r2) = go f r
@@ -1711,22 +2411,42 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 split :: Key -> IntMap a -> (IntMap a, IntMap a)
 split k t =
   case t of
-      Bin _ m l r
-          | m < 0 -> if k >= 0 -- handle negative numbers.
-                     then case go k l of (lt :*: gt) -> let !lt' = union r lt 
-                                                        in (lt', gt)
-                     else case go k r of (lt :*: gt) -> let !gt' = union gt l
-                                                        in (lt, gt')
-      _ -> case go k t of
+    Bin _ m l r
+      | m < 0 ->
+        if k >= 0 -- handle negative numbers.
+        then
+          case go k l of
+            (lt :*: gt) ->
+              let !lt' = union r lt
+              in (lt', gt)
+        else
+          case go k r of
+            (lt :*: gt) ->
+              let !gt' = union gt l
+              in (lt, gt')
+    _ -> case go k t of
           (lt :*: gt) -> (lt, gt)
   where
-    go k' t'@(Bin p m l r) | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
-                           | zero k' m = case go k' l of (lt :*: gt) -> lt :*: union gt r
-                           | otherwise = case go k' r of (lt :*: gt) -> union l lt :*: gt
-    go k' t'@(Tip ky _) | k' > ky   = (t' :*: Nil)
-                        | k' < ky   = (Nil :*: t')
-                        | otherwise = (Nil :*: Nil)
+    go k' t'@(Bin p m l r)
+      | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
+      | zero k' m = case go k' l of (lt :*: gt) -> lt :*: union gt r
+      | otherwise = case go k' r of (lt :*: gt) -> union l lt :*: gt
+    go k' t'@(Tip ky _)
+      | k' > ky   = (t' :*: Nil)
+      | k' < ky   = (Nil :*: t')
+      | otherwise = (Nil :*: Nil)
     go _ Nil = (Nil :*: Nil)
+
+
+data SplitLookup a = SplitLookup !(IntMap a) !(Maybe a) !(IntMap a)
+
+mapLT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
+mapLT f (SplitLookup lt fnd gt) = SplitLookup (f lt) fnd gt
+{-# INLINE mapLT #-}
+
+mapGT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
+mapGT f (SplitLookup lt fnd gt) = SplitLookup lt fnd (f gt)
+{-# INLINE mapGT #-}
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
@@ -1739,27 +2459,28 @@ split k t =
 
 splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
 splitLookup k t =
-  case t of
+  case
+    case t of
       Bin _ m l r
-          | m < 0 -> if k >= 0 -- handle negative numbers.
-                     then case go k l of
-                         (lt, fnd, gt) -> let !lt' = union r lt
-                                          in (lt', fnd, gt)
-                     else case go k r of
-                         (lt, fnd, gt) -> let !gt' = union gt l
-                                          in (lt, fnd, gt')
+        | m < 0 ->
+          if k >= 0 -- handle negative numbers.
+          then mapLT (union r) (go k l)
+          else mapGT (`union` l) (go k r)
       _ -> go k t
+  of SplitLookup lt fnd gt -> (lt, fnd, gt)
   where
     go k' t'@(Bin p m l r)
-        | nomatch k' p m = if k' > p then (t', Nothing, Nil) else (Nil, Nothing, t')
-        | zero k' m      = case go k' l of
-            (lt, fnd, gt) -> let !gt' = union gt r in (lt, fnd, gt')
-        | otherwise      = case go k' r of
-            (lt, fnd, gt) -> let !lt' = union l lt in (lt', fnd, gt)
-    go k' t'@(Tip ky y) | k' > ky   = (t', Nothing, Nil)
-                        | k' < ky   = (Nil, Nothing, t')
-                        | otherwise = (Nil, Just y, Nil)
-    go _ Nil = (Nil, Nothing, Nil)
+      | nomatch k' p m =
+          if k' > p
+          then SplitLookup t' Nothing Nil
+          else SplitLookup Nil Nothing t'
+      | zero k' m = mapGT (`union` r) (go k' l)
+      | otherwise = mapLT (union l) (go k' r)
+    go k' t'@(Tip ky y)
+      | k' > ky   = SplitLookup t'  Nothing  Nil
+      | k' < ky   = SplitLookup Nil Nothing  t'
+      | otherwise = SplitLookup Nil (Just y) Nil
+    go _ Nil      = SplitLookup Nil Nothing  Nil
 
 {--------------------------------------------------------------------
   Fold
@@ -1775,9 +2496,11 @@ splitLookup k t =
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
 foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-                        | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip _ x)     = f x z'
@@ -1789,9 +2512,11 @@ foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
 foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-                        | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
     go !z' Nil          = z'
     go z' (Tip _ x)     = f x z'
@@ -1809,9 +2534,11 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
 foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-                        | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip _ x)     = f z' x
@@ -1823,9 +2550,11 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
 foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-                        | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
     go !z' Nil          = z'
     go z' (Tip _ x)     = f z' x
@@ -1844,9 +2573,11 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
 foldrWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-                        | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip kx x)    = f kx x z'
@@ -1858,9 +2589,11 @@ foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- function is strict in the starting value.
 foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z l) r -- put negative numbers before
-                        | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
     go !z' Nil          = z'
     go z' (Tip kx x)    = f kx x z'
@@ -1879,9 +2612,11 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
 foldlWithKey :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-                        | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
     go z' Nil           = z'
     go z' (Tip kx x)    = f z' kx x
@@ -1893,9 +2628,11 @@ foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- function is strict in the starting value.
 foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin _ m l r | m < 0 -> go (go z r) l -- put negative numbers before
-                        | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Bin _ m l r
+      | m < 0 -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
     go !z' Nil          = z'
     go z' (Tip kx x)    = f z' kx x
@@ -1971,22 +2708,27 @@ fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
 fromSet f (IntSet.Bin p m l r) = Bin p m (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
-  where -- This is slightly complicated, as we to convert the dense
-        -- representation of IntSet into tree representation of IntMap.
-        --
-        -- We are given a nonzero bit mask 'bmask' of 'bits' bits with prefix 'prefix'.
-        -- We split bmask into halves corresponding to left and right subtree.
-        -- If they are both nonempty, we create a Bin node, otherwise exactly
-        -- one of them is nonempty and we construct the IntMap from that half.
-        buildTree g !prefix !bmask bits = case bits of
-          0 -> Tip prefix (g prefix)
-          _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
-                 bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-                           buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
-                       | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-                           buildTree g prefix bmask bits2
-                       | otherwise ->
-                           Bin prefix bits2 (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+  where
+    -- This is slightly complicated, as we to convert the dense
+    -- representation of IntSet into tree representation of IntMap.
+    --
+    -- We are given a nonzero bit mask 'bmask' of 'bits' bits with
+    -- prefix 'prefix'. We split bmask into halves corresponding
+    -- to left and right subtree. If they are both nonempty, we
+    -- create a Bin node, otherwise exactly one of them is nonempty
+    -- and we construct the IntMap from that half.
+    buildTree g !prefix !bmask bits = case bits of
+      0 -> Tip prefix (g prefix)
+      _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
+        bits2
+          | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+              buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
+          | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+              buildTree g prefix bmask bits2
+          | otherwise ->
+              Bin prefix bits2
+                (buildTree g prefix bmask bits2)
+                (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
 {--------------------------------------------------------------------
   Lists
@@ -2154,8 +2896,8 @@ fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
         let mxy = branchMask px py
             pxy = mask px mxy
         in  if shorter m mxy
-                 then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work z zs (Push px tx stk)
+            then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
+            else work z zs (Push px tx stk)
 
     finish _  t  Nada = t
     finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
@@ -2352,6 +3094,10 @@ splitRoot orig =
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
+{-# DEPRECATED showTree, showTreeWith
+    "These debugging functions will be moved to a separate module in future versions"
+    #-}
+
 -- | /O(n)/. Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => IntMap a -> String
@@ -2370,30 +3116,30 @@ showTreeWith hang wide t
   | otherwise = (showsTree wide [] [] t) ""
 
 showsTree :: Show a => Bool -> [String] -> [String] -> IntMap a -> ShowS
-showsTree wide lbars rbars t
-  = case t of
-      Bin p m l r
-          -> showsTree wide (withBar rbars) (withEmpty rbars) r .
-             showWide wide rbars .
-             showsBars lbars . showString (showBin p m) . showString "\n" .
-             showWide wide lbars .
-             showsTree wide (withEmpty lbars) (withBar lbars) l
-      Tip k x
-          -> showsBars lbars . showString " " . shows k . showString ":=" . shows x . showString "\n"
-      Nil -> showsBars lbars . showString "|\n"
+showsTree wide lbars rbars t = case t of
+  Bin p m l r ->
+    showsTree wide (withBar rbars) (withEmpty rbars) r .
+    showWide wide rbars .
+    showsBars lbars . showString (showBin p m) . showString "\n" .
+    showWide wide lbars .
+    showsTree wide (withEmpty lbars) (withBar lbars) l
+  Tip k x ->
+    showsBars lbars .
+    showString " " . shows k . showString ":=" . shows x . showString "\n"
+  Nil -> showsBars lbars . showString "|\n"
 
 showsTreeHang :: Show a => Bool -> [String] -> IntMap a -> ShowS
-showsTreeHang wide bars t
-  = case t of
-      Bin p m l r
-          -> showsBars bars . showString (showBin p m) . showString "\n" .
-             showWide wide bars .
-             showsTreeHang wide (withBar bars) l .
-             showWide wide bars .
-             showsTreeHang wide (withEmpty bars) r
-      Tip k x
-          -> showsBars bars . showString " " . shows k . showString ":=" . shows x . showString "\n"
-      Nil -> showsBars bars . showString "|\n"
+showsTreeHang wide bars t = case t of
+  Bin p m l r ->
+    showsBars bars . showString (showBin p m) . showString "\n" .
+    showWide wide bars .
+    showsTreeHang wide (withBar bars) l .
+    showWide wide bars .
+    showsTreeHang wide (withEmpty bars) r
+  Tip k x ->
+    showsBars bars .
+    showString " " . shows k . showString ":=" . shows x . showString "\n"
+  Nil -> showsBars bars . showString "|\n"
 
 showBin :: Prefix -> Mask -> String
 showBin _ _
@@ -2411,7 +3157,7 @@ showsBars bars
       _  -> showString (concat (reverse (tail bars))) . showString node
 
 node :: String
-node           = "+--"
+node = "+--"
 
 withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
