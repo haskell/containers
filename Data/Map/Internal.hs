@@ -2226,7 +2226,7 @@ zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
 -- | When a key is found in both maps, apply a function to the
 -- key and values, perform the resulting action, and maybe use
 -- the result in the merged map.
--- 
+--
 -- This is the fundamental 'WhenMatched' tactic.
 zipWithMaybeAMatched :: (k -> x -> y -> f (Maybe z))
                      -> WhenMatched f k x y z

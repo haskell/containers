@@ -125,7 +125,41 @@ module Data.IntMap.Internal (
     , intersectionWith
     , intersectionWithKey
 
-    -- ** Universal combining function
+    -- ** General combining function
+    , SimpleWhenMissing
+    , SimpleWhenMatched
+    , runWhenMatched
+    , runWhenMissing
+    , merge
+    -- *** @WhenMatched@ tactics
+    , zipWithMaybeMatched
+    , zipWithMatched
+    -- *** @WhenMissing@ tactics
+    , mapMaybeMissing
+    , dropMissing
+    , preserveMissing
+    , mapMissing
+    , filterMissing
+
+    -- ** Applicative general combining function
+    , WhenMissing (..)
+    , WhenMatched (..)
+    , mergeA
+    -- *** @WhenMatched@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , zipWithMaybeAMatched
+    , zipWithAMatched
+    -- *** @WhenMissing@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , traverseMaybeMissing
+    , traverseMissing
+    , filterAMissing
+
+    -- ** Deprecated general combining function
     , mergeWithKey
     , mergeWithKey'
 
