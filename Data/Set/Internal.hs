@@ -229,6 +229,7 @@ import Data.Monoid (Monoid(..))
 #endif
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+import Data.Functor.Classes
 #endif
 import qualified Data.Foldable as Foldable
 import Data.Typeable
@@ -1060,6 +1061,20 @@ instance Ord a => Ord (Set a) where
 instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
+
+#if MIN_VERSION_base(4,9,0)
+instance Eq1 Set where
+    liftEq eq m n =
+        size m == size n && liftEq eq (toList m) (toList n)
+
+instance Ord1 Set where
+    liftCompare cmp m n =
+        liftCompare cmp (toList m) (toList n)
+
+instance Show1 Set where
+    liftShowsPrec sp sl d m =
+        showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
+#endif
 
 {--------------------------------------------------------------------
   Read
