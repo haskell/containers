@@ -65,6 +65,11 @@ import GHC.Generics (Generic)
 import Data.Coerce
 #endif
 
+#if MIN_VERSION_base(4,9,0)
+import Data.Functor.Classes
+import Data.Semigroup (Semigroup (..))
+#endif
+
 -- | Multi-way trees, also known as /rose trees/.
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value
@@ -82,6 +87,39 @@ data Tree a = Node {
   deriving (Eq, Read, Show)
 #endif
 type Forest a = [Tree a]
+
+#if MIN_VERSION_base(4,9,0)
+instance Eq1 Tree where
+  liftEq eq = leq
+    where
+      leq (Node a fr) (Node a' fr') = eq a a' && liftEq leq fr fr'
+
+instance Ord1 Tree where
+  liftCompare cmp = lcomp
+    where
+      lcomp (Node a fr) (Node a' fr') = cmp a a' <> liftCompare lcomp fr fr'
+
+instance Show1 Tree where
+  liftShowsPrec shw shwl _p (Node a fr) =
+        showString "Node {rootLabel = " . shw 0 a . showString ", " .
+          showString "subForest = " . liftShowList shw shwl fr .
+          showString "}"
+
+instance Read1 Tree where
+  liftReadsPrec rd rdl _p = readParen False $
+    \s -> do
+      ("Node", s1) <- lex s
+      ("{", s2) <- lex s1
+      ("rootLabel", s3) <- lex s2
+      ("=", s4) <- lex s3
+      (a, s5) <- rd 0 s4
+      (",", s6) <- lex s5
+      ("subForest", s7) <- lex s6
+      ("=", s8) <- lex s7
+      (fr, s9) <- liftReadList rd rdl s8
+      ("}", s10) <- lex s9
+      pure (Node a fr, s10)
+#endif
 
 INSTANCE_TYPEABLE1(Tree)
 
