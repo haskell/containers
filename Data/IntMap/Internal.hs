@@ -280,6 +280,7 @@ import Data.Word (Word)
 #endif
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+import Data.Functor.Classes
 #endif
 
 import Control.DeepSeq (NFData(rnf))
@@ -2964,12 +2965,28 @@ nequal (Tip kx x) (Tip ky y)
 nequal Nil Nil = False
 nequal _   _   = True
 
+#if MIN_VERSION_base(4,9,0)
+instance Eq1 IntMap where
+  liftEq eq (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
+    = (m1 == m2) && (p1 == p2) && (liftEq eq l1 l2) && (liftEq eq r1 r2)
+  liftEq eq (Tip kx x) (Tip ky y)
+    = (kx == ky) && (eq x y)
+  liftEq _eq Nil Nil = True
+  liftEq _eq _   _   = False
+#endif
+
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
 instance Ord a => Ord (IntMap a) where
     compare m1 m2 = compare (toList m1) (toList m2)
+
+#if MIN_VERSION_base(4,9,0)
+instance Ord1 IntMap where
+  liftCompare cmp m n =
+    liftCompare (liftCompare cmp) (toList m) (toList n)
+#endif
 
 {--------------------------------------------------------------------
   Functor
@@ -2992,6 +3009,15 @@ instance Show a => Show (IntMap a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
+#if MIN_VERSION_base(4,9,0)
+instance Show1 IntMap where
+    liftShowsPrec sp sl d m =
+        showsUnaryWith (liftShowsPrec sp' sl') "fromList" d (toList m)
+      where
+        sp' = liftShowsPrec sp sl
+        sl' = liftShowList sp sl
+#endif
+
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}
@@ -3008,6 +3034,15 @@ instance (Read e) => Read (IntMap e) where
     ("fromList",s) <- lex r
     (xs,t) <- reads s
     return (fromList xs,t)
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+instance Read1 IntMap where
+    liftReadsPrec rp rl = readsData $
+        readsUnaryWith (liftReadsPrec rp' rl') "fromList" fromList
+      where
+        rp' = liftReadsPrec rp rl
+        rl' = liftReadList rp rl
 #endif
 
 {--------------------------------------------------------------------
