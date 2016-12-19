@@ -29,7 +29,7 @@
 --
 -- This module defines an API for writing functions that merge two
 -- maps. The key functions are 'merge' and 'mergeA'.
--- Each of these can be used with several different "merge tactics".
+-- Each of these can be used with several different \"merge tactics\".
 --
 -- The 'merge' and 'mergeA' functions are shared by
 -- the lazy and strict modules. Only the choice of merge tactics
