@@ -20,8 +20,8 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Map.Merge.Lazy
--- Copyright   :  (c) David Feuer 2016
+-- Module      :  Data.IntMap.Merge.Strict
+-- Copyright   :  (c) wren romano 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
@@ -34,9 +34,9 @@
 -- The 'merge' and 'mergeA' functions are shared by
 -- the lazy and strict modules. Only the choice of merge tactics
 -- determines strictness. If you use 'Data.Map.Strict.Merge.mapMissing'
--- from "Data.Map.Strict.Merge" then the results will be forced before
--- they are inserted. If you use 'Data.Map.Lazy.Merge.mapMissing' from
--- this module then they will not.
+-- from this module then the results will be forced before they are
+-- inserted. If you use 'Data.Map.Lazy.Merge.mapMissing' from
+-- "Data.Map.Lazy.Merge" then they will not.
 --
 -- == Efficiency note
 --
@@ -45,7 +45,7 @@
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
 
-module Data.Map.Merge.Lazy (
+module Data.IntMap.Merge.Strict (
     -- ** Simple merge tactic types
       SimpleWhenMissing
     , SimpleWhenMatched
@@ -86,18 +86,14 @@ module Data.Map.Merge.Lazy (
     , traverseMissing
     , filterAMissing
 
-    -- *** Covariant maps for tactics
+    -- ** Covariant maps for tactics
     , mapWhenMissing
     , mapWhenMatched
 
-    -- *** Contravariant maps for tactics
-    , lmapWhenMissing
-    , contramapFirstWhenMatched
-    , contramapSecondWhenMatched
+    -- ** Miscellaneous functions on tactics
 
-    -- *** Miscellaneous tactic functions
     , runWhenMatched
     , runWhenMissing
     ) where
 
-import Data.Map.Internal
+import Data.IntMap.Internal

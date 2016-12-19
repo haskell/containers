@@ -18,6 +18,7 @@
 -- Module      :  Data.IntMap.Internal
 -- Copyright   :  (c) Daan Leijen 2002
 --                (c) Andriy Palamarchuk 2008
+--                (c) wren romano 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
@@ -268,6 +269,15 @@ module Data.IntMap.Internal (
     , shorter
     , branchMask
     , highestBitMask
+
+    -- * Used by "IntMap.Merge.Lazy" and "IntMap.Merge.Strict"
+    , mapWhenMissing
+    , mapWhenMatched
+    , lmapWhenMissing
+    , contramapFirstWhenMatched
+    , contramapSecondWhenMatched
+    , mapGentlyWhenMissing
+    , mapGentlyWhenMatched
     ) where
 
 #if MIN_VERSION_base(4,8,0)

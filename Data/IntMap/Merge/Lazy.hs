@@ -20,8 +20,8 @@
 
 -----------------------------------------------------------------------------
 -- |
--- Module      :  Data.Map.Merge.Lazy
--- Copyright   :  (c) David Feuer 2016
+-- Module      :  Data.IntMap.Merge.Lazy
+-- Copyright   :  (c) wren romano 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional
@@ -45,7 +45,7 @@
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
 
-module Data.Map.Merge.Lazy (
+module Data.IntMap.Merge.Lazy (
     -- ** Simple merge tactic types
       SimpleWhenMissing
     , SimpleWhenMatched
@@ -100,4 +100,4 @@ module Data.Map.Merge.Lazy (
     , runWhenMissing
     ) where
 
-import Data.Map.Internal
+import Data.IntMap.Internal

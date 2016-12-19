@@ -45,6 +45,8 @@ Library
         Data.IntMap.Lazy
         Data.IntMap.Strict
         Data.IntMap.Internal
+        Data.IntMap.Merge.Lazy
+        Data.IntMap.Merge.Strict
         Data.IntSet.Internal
         Data.IntSet
         Data.Map
