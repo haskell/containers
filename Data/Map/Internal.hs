@@ -13,7 +13,7 @@
 #define USE_MAGIC_PROXY 1
 #endif
 
-#if USE_MAGIC_PROXY
+#ifdef USE_MAGIC_PROXY
 {-# LANGUAGE MagicHash #-}
 #endif
 
@@ -366,6 +366,7 @@ import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 #endif
 #if MIN_VERSION_base(4,9,0)
+import Data.Functor.Classes
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 #endif
 import Control.Applicative (Const (..))
@@ -382,7 +383,7 @@ import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.StrictMaybe
 import Utils.Containers.Internal.BitQueue
-#if DEFINE_ALTERF_FALLBACK
+#ifdef DEFINE_ALTERF_FALLBACK
 import Utils.Containers.Internal.BitUtil (wordSize)
 #endif
 
@@ -391,7 +392,7 @@ import GHC.Exts (build)
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
 #endif
-#if USE_MAGIC_PROXY
+#ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #endif
 #if __GLASGOW_HASKELL__ >= 708
@@ -1196,7 +1197,7 @@ alterF f k m = atKeyImpl Lazy k f m
 
 atKeyImpl :: (Functor f, Ord k) =>
       AreWeStrict -> k -> (Maybe a -> f (Maybe a)) -> Map k a -> f (Map k a)
-#if DEFINE_ALTERF_FALLBACK
+#ifdef DEFINE_ALTERF_FALLBACK
 atKeyImpl strict !k f m
 -- It doesn't seem sensible to worry about overflowing the queue
 -- if the word size is 61 or more. If I calculate it correctly,
@@ -1219,7 +1220,7 @@ atKeyImpl strict !k f m = case lookupTrace k m of
 
 {-# INLINE atKeyImpl #-}
 
-#if DEFINE_ALTERF_FALLBACK
+#ifdef DEFINE_ALTERF_FALLBACK
 alterFCutoff :: Int
 #if WORD_SIZE_IN_BITS == 32
 alterFCutoff = 55744454
@@ -1286,7 +1287,7 @@ insertAlong q kx x (Bin sz ky y l r) =
 -- proxy that's ultimately erased.
 deleteAlong :: any -> BitQueue -> Map k a -> Map k a
 deleteAlong old !q0 !m = go (bogus old) q0 m where
-#if USE_MAGIC_PROXY
+#ifdef USE_MAGIC_PROXY
   go :: Proxy# () -> BitQueue -> Map k a -> Map k a
 #else
   go :: any -> BitQueue -> Map k a -> Map k a
@@ -1298,7 +1299,7 @@ deleteAlong old !q0 !m = go (bogus old) q0 m where
         Just (True, tl) -> balanceL ky y l (go foom tl r)
         Nothing -> glue l r
 
-#if USE_MAGIC_PROXY
+#ifdef USE_MAGIC_PROXY
 {-# NOINLINE bogus #-}
 bogus :: a -> Proxy# ()
 bogus _ = proxy#
@@ -1359,7 +1360,7 @@ atKeyPlain strict k0 f0 t = case go k0 f0 t of
 data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
 #endif
 
-#if DEFINE_ALTERF_FALLBACK
+#ifdef DEFINE_ALTERF_FALLBACK
 -- When the map is too large to use a bit queue, we fall back to
 -- this much slower version which uses a more "natural" implementation
 -- improved with Yoneda to avoid repeated fmaps. This works okayish for
@@ -3943,6 +3944,43 @@ instance (Eq k,Eq a) => Eq (Map k a) where
 
 instance (Ord k, Ord v) => Ord (Map k v) where
     compare m1 m2 = compare (toAscList m1) (toAscList m2)
+
+#if MIN_VERSION_base(4,9,0)
+{--------------------------------------------------------------------
+  Lifted instances
+--------------------------------------------------------------------}
+
+instance Eq2 Map where
+    liftEq2 eqk eqv m n =
+        size m == size n && liftEq (liftEq2 eqk eqv) (toList m) (toList n)
+
+instance Eq k => Eq1 (Map k) where
+    liftEq = liftEq2 (==)
+
+instance Ord2 Map where
+    liftCompare2 cmpk cmpv m n =
+        liftCompare (liftCompare2 cmpk cmpv) (toList m) (toList n)
+
+instance Ord k => Ord1 (Map k) where
+    liftCompare = liftCompare2 compare
+
+instance Show2 Map where
+    liftShowsPrec2 spk slk spv slv d m =
+        showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
+      where
+        sp = liftShowsPrec2 spk slk spv slv
+        sl = liftShowList2 spk slk spv slv
+
+instance Show k => Show1 (Map k) where
+    liftShowsPrec = liftShowsPrec2 showsPrec showList
+
+instance (Ord k, Read k) => Read1 (Map k) where
+    liftReadsPrec rp rl = readsData $
+        readsUnaryWith (liftReadsPrec rp' rl') "fromList" fromList
+      where
+        rp' = liftReadsPrec rp rl
+        rl' = liftReadList rp rl
+#endif
 
 {--------------------------------------------------------------------
   Functor

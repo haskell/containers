@@ -4,6 +4,15 @@
 
 * Planned for GHC 8.2.
 
+* Add `merge` and `mergeA` for `Data.IntMap`.
+
+* Add instances for `Data.Graph.SCC`: `Foldable`, `Traversable`, `Data`,
+  `Generic`, `Generic1`, `Eq`, `Eq1`, `Show`, `Show1`, `Read`, and `Read1`.
+
+* Add lifted instances (from `Data.Functor.Classes`) for `Data.Sequence`,
+  `Data.Map`, `Data.Set`, `Data.IntMap`, and `Data.Tree`. (Thanks to
+  Oleg Grenrus for doing a lot of this work.)
+
 * Properly deprecate functions in `Data.IntMap` long documented as deprecated.
 
 * Rename several internal modules for clarity. Thanks to esoeylemez for starting

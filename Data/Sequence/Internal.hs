@@ -213,6 +213,7 @@ import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', t
 
 #if MIN_VERSION_base(4,9,0)
 import qualified Data.Semigroup as Semigroup
+import Data.Functor.Classes
 #endif
 import Data.Traversable
 import Data.Typeable
@@ -703,6 +704,18 @@ instance Show a => Show (Seq a) where
         showString "fromList " . shows (toList xs)
 #endif
 
+#if MIN_VERSION_base(4,9,0)
+instance Show1 Seq where
+  liftShowsPrec _shwsPrc shwList p xs = showParen (p > 10) $
+        showString "fromList " . shwList (toList xs)
+
+instance Eq1 Seq where
+    liftEq eq xs ys = length xs == length ys && liftEq eq (toList xs) (toList ys)
+
+instance Ord1 Seq where
+    liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
+#endif
+
 instance Read a => Read (Seq a) where
 #ifdef __GLASGOW_HASKELL__
     readPrec = parens $ prec 10 $ do
@@ -716,6 +729,14 @@ instance Read a => Read (Seq a) where
         ("fromList",s) <- lex r
         (xs,t) <- reads s
         return (fromList xs,t)
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+instance Read1 Seq where
+  liftReadsPrec _rp readLst p = readParen (p > 10) $ \r -> do
+    ("fromList",s) <- lex r
+    (xs,t) <- readLst s
+    pure (fromList xs, t)
 #endif
 
 instance Monoid (Seq a) where
