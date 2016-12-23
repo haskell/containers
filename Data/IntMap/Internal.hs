@@ -377,7 +377,7 @@ instance Foldable.Foldable IntMap where
           go x (Bin _ _ l r) = go x l || go x r
   {-# INLINABLE elem #-}
   maximum = start
-    where start Nil = error "Data.IntMap.maximum: empty structure"
+    where start Nil = error "Data.Foldable.maximum (for Data.IntMap): empty map"
           start (Tip _ y) = y
           start (Bin _ _ l r) = go (start l) r
 
@@ -386,7 +386,7 @@ instance Foldable.Foldable IntMap where
           go m (Bin _ _ l r) = go (go m l) r
   {-# INLINABLE maximum #-}
   minimum = start
-    where start Nil = error "Data.IntMap.minimum: empty structure"
+    where start Nil = error "Data.Foldable.minimum (for Data.IntMap): empty map"
           start (Tip _ y) = y
           start (Bin _ _ l r) = go (start l) r
 
