@@ -256,6 +256,9 @@ import Data.Word (Word)
 #endif
 
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
+#if MIN_VERSION_base(4,4,0)
+import Control.Monad.Zip (MonadZip (..))
+#endif
 
 default ()
 
@@ -4079,6 +4082,109 @@ getSingleton _ = error "getSingleton: Not a singleton."
 ------------------------------------------------------------------------
 -- Zipping
 ------------------------------------------------------------------------
+
+-- MonadZip appeared in base 4.4.0
+#if MIN_VERSION_base(4,4,0)
+-- We use a custom definition of munzip to *try* to avoid retaining
+-- memory longer than necessary. Using the default definition, if
+-- we write
+--
+-- let (xs,ys) = munzip zs
+-- in xs `deepseq` (... ys ...)
+--
+-- then ys will retain the entire zs sequence until ys itself is fully
+-- forced. This implementation attempts to use the selector thunk
+-- optimization to prevent that. Unfortunately, that optimization is
+-- fragile, so we can't actually guarantee anything. If someone finds
+-- a leak, we can try to throw explicit bindings and NOINLINE pragmas
+-- around and see if that fixes it.
+instance MonadZip Seq where
+  mzipWith = zipWith
+  munzip = unzipWith id
+
+class UnzipWith f where
+  unzipWith :: (x -> (a, b)) -> f x -> (f a, f b)
+
+instance UnzipWith Elem where
+#if __GLASGOW_HASKELL__ >= 708
+  unzipWith = coerce
+#else
+  unzipWith f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
+#endif
+
+-- We're super-lazy here for the sake of efficiency. We want to be able to
+-- reach any element of either result in logarithmic time. If we pattern
+-- match strictly, we'll end up building entire 2-3 trees at once, which
+-- would take linear time.
+instance UnzipWith Node where
+  unzipWith f (Node2 s x y) =
+    case (f x, f y) of
+      (~(x1, x2), ~(y1, y2)) -> (Node2 s x1 y1, Node2 s x2 y2)
+  unzipWith f (Node3 s x y z) =
+    case (f x, f y, f z) of
+      (~(x1, x2), ~(y1, y2), ~(z1, z2)) -> (Node3 s x1 y1 z1, Node3 s x2 y2 z2)
+
+-- We're strict here for the sake of efficiency. The Node instance
+-- is lazy, so we don't particularly need to add an extra thunk on top
+-- of each node. See the note at the Seq instance for an explanation
+-- of why the Digit (Elem a) case is handled specially.
+instance UnzipWith Digit where
+  unzipWith f (One x) =
+    case f x of
+      (x1, x2) -> (One x1, One x2)
+  unzipWith f (Two x y) =
+    case (f x, f y) of
+      ((x1, x2), (y1, y2)) -> (Two x1 y1, Two x2 y2)
+  unzipWith f (Three x y z) =
+    case (f x, f y, f z) of
+      ((x1, x2), (y1, y2), (z1, z2)) -> (Three x1 y1 z1, Three x2 y2 z2)
+  unzipWith f (Four x y z w) =
+    case (f x, f y, f z, f w) of
+      ((x1, x2), (y1, y2), (z1, z2), (w1, w2)) -> (Four x1 y1 z1 w1, Four x2 y2 z2 w2)
+
+instance UnzipWith FingerTree where
+  unzipWith _ EmptyT = (EmptyT, EmptyT)
+  unzipWith f (Single x) = case f x of
+    (x1, x2) -> (Single x1, Single x2)
+  unzipWith f (Deep s pr m sf) =
+    case unzipWith f pr of { (pr1, pr2) ->
+    case unzipWith f sf of { (sf1, sf2) ->
+    case unzipWith (unzipWith f) m of { ~(m1, m2) ->
+      (Deep s pr1 m1 sf1, Deep s pr2 m2 sf2)}}}
+
+-- We need to handle the top level of the sequence specially, to make unzipping behave
+-- well in the presence of undefined elements. For example, what do we want from
+--
+-- munzip [(1,2), undefined, (5,6)]?
+--
+-- The argument could be represented as
+--
+-- Seq $ Deep 3 (One (Elem (1,2))) EmptyT (Two undefined (Elem (5,6)))
+--
+-- or as
+--
+-- Seq $ Deep 3 (Two (Elem (1,2)) undefined) EmptyT (One (Elem (5,6)))
+--
+-- We don't want the tree balance to determine whether we get
+--
+-- ([1, undefined, undefined], [2, undefined, undefined])
+--
+-- or
+--
+-- ([undefined, undefined, 5], [undefined, undefined, 6])
+--
+-- so we pretty much have to be completely lazy in the elements. We could
+-- do this by adding extra laziness to the Digit instance or to the Elem instance,
+-- but either of those would give unnecessary extra laziness lower in the tree.
+instance UnzipWith Seq where
+  unzipWith _f (Seq EmptyT) = (empty, empty)
+  unzipWith f (Seq (Single (Elem x))) = case f x of ~(a, b) -> (singleton a, singleton b)
+  unzipWith f (Seq (Deep s pr m sf)) =
+    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) pr of { (pr1, pr2) ->
+    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) sf of { (sf1, sf2) ->
+    case unzipWith (unzipWith (unzipWith f)) m of { ~(m1, m2) ->
+      (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))}}}
+#endif
 
 -- | /O(min(n1,n2))/.  'zip' takes two sequences and returns a sequence
 -- of corresponding pairs.  If one input is short, excess elements are

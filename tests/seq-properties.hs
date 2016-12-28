@@ -1,6 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
 
+#include "containers.h"
+
 import Data.Sequence.Internal
   ( Sized (..)
   , Seq (Seq)
@@ -38,6 +40,10 @@ import Test.QuickCheck.Property
 import Test.QuickCheck.Function
 import Test.Framework
 import Test.Framework.Providers.QuickCheck2
+#if MIN_VERSION_base(4,4,0)
+import Control.Monad.Zip (MonadZip (..))
+#endif
+import Control.DeepSeq (deepseq)
 
 
 main :: IO ()
@@ -121,6 +127,11 @@ main = defaultMain
        , testProperty "zipWith3" prop_zipWith3
        , testProperty "zip4" prop_zip4
        , testProperty "zipWith4" prop_zipWith4
+#if MIN_VERSION_base(4,4,0)
+       , testProperty "mzip-naturality" prop_mzipNaturality
+       , testProperty "mzip-preservation" prop_mzipPreservation
+       , testProperty "munzip-lazy" prop_munzipLazy
+#endif
        , testProperty "<*>" prop_ap
        , testProperty "*>" prop_then
        , testProperty "cycleTaking" prop_cycleTaking
@@ -248,6 +259,20 @@ toListList' xss = toList' xss >>= mapM toList'
 
 toListPair' :: (Seq a, Seq b) -> Maybe ([a], [b])
 toListPair' (xs, ys) = (,) <$> toList' xs <*> toList' ys
+
+-- Extra "polymorphic" test type
+newtype D = D{ unD :: Integer }
+  deriving ( Eq )
+
+instance Show D where
+  showsPrec n (D x) = showsPrec n x
+
+instance Arbitrary D where
+  arbitrary    = (D . (+1) . abs) `fmap` arbitrary
+  shrink (D x) = [ D x' | x' <- shrink x, x' > 0 ]
+
+instance CoArbitrary D where
+  coarbitrary = coarbitrary . unD
 
 -- instances
 
@@ -685,6 +710,35 @@ prop_zipWith4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Bool
 prop_zipWith4 xs ys zs ts =
     toList' (zipWith4 f xs ys zs ts) ~= Data.List.zipWith4 f (toList xs) (toList ys) (toList zs) (toList ts)
   where f = (,,,)
+
+#if MIN_VERSION_base(4,4,0)
+-- This comes straight from the MonadZip documentation
+prop_mzipNaturality :: Fun A C -> Fun B D -> Seq A -> Seq B -> Property
+prop_mzipNaturality f g sa sb =
+  fmap (apply f *** apply g) (mzip sa sb) ===
+  mzip (apply f <$> sa) (apply g <$> sb)
+
+-- This is a slight optimization of the MonadZip preservation
+-- law that works because sequences don't have any decorations.
+prop_mzipPreservation :: Fun A B -> Seq A -> Property
+prop_mzipPreservation f sa =
+  let sb = fmap (apply f) sa
+  in munzip (mzip sa sb) === (sa, sb)
+
+-- We want to ensure that
+--
+-- munzip xs = xs `seq` (fmap fst x, fmap snd x)
+--
+-- even in the presence of bottoms (alternatives are all balance-
+-- fragile).
+prop_munzipLazy :: Seq (Integer, B) -> Bool
+prop_munzipLazy pairs = deepseq ((`seq` ()) <$> repaired) True
+  where
+    partialpairs = mapWithIndex (\i a -> update i err pairs) pairs
+    firstPieces = fmap (fst . munzip) partialpairs
+    repaired = mapWithIndex (\i s -> update i 10000 s) firstPieces
+    err = error "munzip isn't lazy enough"
+#endif
 
 -- Applicative operations
 
