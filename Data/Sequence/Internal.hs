@@ -4072,10 +4072,6 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
     (second, third) = splt (size b) r
 #endif
 
-getSingleton :: Seq a -> a
-getSingleton (Seq (Single (Elem a))) = a
-getSingleton _ = error "getSingleton: Not a singleton."
-
 ------------------------------------------------------------------------
 -- Zipping
 ------------------------------------------------------------------------
@@ -4099,7 +4095,10 @@ zipWith f s1 s2 = zipWith' f s1' s2'
 
 -- | A version of zipWith that assumes the sequences have the same length.
 zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-zipWith' f s1 s2 = splitMap uncheckedSplitAt (\s a -> f a (getSingleton s)) s2 s1
+zipWith' f s1 s2 = splitMap uncheckedSplitAt goLeaf s2 s1
+  where
+    goLeaf (Seq (Single (Elem b))) a = f a b
+    goLeaf _ _ = error "Data.Sequence.zipWith'.goLeaf internal error: not a singleton"
 
 -- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
