@@ -61,6 +61,10 @@ import GHC.Generics (Generic, Generic1)
 import GHC.Generics (Generic)
 #endif
 
+#if MIN_VERSION_base(4,4,0)
+import Control.Monad.Zip (MonadZip (..))
+#endif
+
 #if MIN_VERSION_base(4,8,0)
 import Data.Coerce
 #endif
@@ -162,6 +166,15 @@ instance Foldable Tree where
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
+
+#if MIN_VERSION_base(4,4,0)
+instance MonadZip Tree where
+  mzipWith f (Node a as) (Node b bs)
+    = Node (f a b) (mzipWith (mzipWith f) as bs)
+
+  munzip (Node (a, b) ts) = (Node a as, Node b bs)
+    where (as, bs) = munzip (map munzip ts)
+#endif
 
 -- | Neat 2-dimensional drawing of a tree.
 drawTree :: Tree String -> String
