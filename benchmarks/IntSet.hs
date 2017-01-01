@@ -32,6 +32,10 @@ main = do
         , bench "fromList" $ whnf S.fromList elems
         , bench "fromAscList" $ whnf S.fromAscList elems
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
+        , bench "disjoint:false" $ whnf (S.disjoint s) s_even
+        , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
+        , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
+        , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
         ]
   where
     elems = [1..2^12]
