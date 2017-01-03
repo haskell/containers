@@ -1414,6 +1414,11 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 {-# INLINE foldr'Bits #-}
 
 #if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
+indexOfTheOnlyBit :: Nat -> Int
+{-# INLINE indexOfTheOnlyBit #-}
+#if MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64)
+indexOfTheOnlyBit bitmask = countTrailingZeros bitmask
+#else
 {----------------------------------------------------------------------
   For lowestBitSet we use wordsize-dependant implementation based on
   multiplication and DeBrujn indeces, which was proposed by Edward Kmett
@@ -1427,8 +1432,6 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
   before changing this code.
 ----------------------------------------------------------------------}
 
-indexOfTheOnlyBit :: Nat -> Int
-{-# INLINE indexOfTheOnlyBit #-}
 indexOfTheOnlyBit bitmask =
   I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
   where unboxInt (I# i) = i
@@ -1447,6 +1450,8 @@ indexOfTheOnlyBit bitmask =
 -- as NOINLINE. But the code size of calling it and processing the result
 -- is 48B on 32-bit and 56B on 64-bit architectures -- so the 32B and 64B array
 -- is actually improvement on 32-bit and only a 8B size increase on 64-bit.
+
+#endif
 
 lowestBitMask :: Nat -> Nat
 lowestBitMask x = x .&. negate x
