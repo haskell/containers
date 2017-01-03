@@ -1418,6 +1418,11 @@ indexOfTheOnlyBit :: Nat -> Int
 {-# INLINE indexOfTheOnlyBit #-}
 #if MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64)
 indexOfTheOnlyBit bitmask = countTrailingZeros bitmask
+
+lowestBitSet x = countTrailingZeros x
+
+highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
+
 #else
 {----------------------------------------------------------------------
   For lowestBitSet we use wordsize-dependant implementation based on
@@ -1451,6 +1456,10 @@ indexOfTheOnlyBit bitmask =
 -- is 48B on 32-bit and 56B on 64-bit architectures -- so the 32B and 64B array
 -- is actually improvement on 32-bit and only a 8B size increase on 64-bit.
 
+lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
+
+highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
+
 #endif
 
 lowestBitMask :: Nat -> Nat
@@ -1473,10 +1482,6 @@ revNat x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x555555
                      x5 -> case ((x5 `shiftRL` 16) .&. 0x0000FFFF0000FFFF) .|. ((x5 .&. 0x0000FFFF0000FFFF) `shiftLL` 16) of
                        x6 -> ( x6 `shiftRL` 32             ) .|. ( x6               `shiftLL` 32);
 #endif
-
-lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
-
-highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
 
 foldlBits prefix f z bitmap = go bitmap z
   where go 0 acc = acc
