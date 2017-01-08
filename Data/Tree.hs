@@ -104,13 +104,13 @@ instance Ord1 Tree where
       lcomp (Node a fr) (Node a' fr') = cmp a a' <> liftCompare lcomp fr fr'
 
 instance Show1 Tree where
-  liftShowsPrec shw shwl _p (Node a fr) =
+  liftShowsPrec shw shwl p (Node a fr) = showParen (p > 10) $
         showString "Node {rootLabel = " . shw 0 a . showString ", " .
           showString "subForest = " . liftShowList shw shwl fr .
           showString "}"
 
 instance Read1 Tree where
-  liftReadsPrec rd rdl _p = readParen False $
+  liftReadsPrec rd rdl p = readParen (p > 10) $
     \s -> do
       ("Node", s1) <- lex s
       ("{", s2) <- lex s1
