@@ -128,7 +128,7 @@ module Data.Map.Strict
     , intersectionWithKey
 
     -- ** General combining functions
-    -- | See "Data.Map.Strict.Merge"
+    -- | See "Data.Map.Merge.Strict"
 
     -- ** Deprecated general combining function
 
