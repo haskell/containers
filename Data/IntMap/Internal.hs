@@ -1574,7 +1574,7 @@ dropMissing = WhenMissing
 --
 -- > preserveMissing :: SimpleWhenMissing x x
 --
--- prop> preserveMissing = Lazy.Merge.mapMaybeMissing (\_ x -> Just x)
+-- prop> preserveMissing = Merge.Lazy.mapMaybeMissing (\_ x -> Just x)
 --
 -- but @preserveMissing@ is much faster.
 preserveMissing :: Applicative f => WhenMissing f x x
@@ -1620,7 +1620,7 @@ mapMaybeMissing f = WhenMissing
 --
 -- > filterMissing :: (k -> x -> Bool) -> SimpleWhenMissing x x
 --
--- prop> filterMissing f = Lazy.Merge.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
+-- prop> filterMissing f = Merge.Lazy.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
 --
 -- but this should be a little faster.
 filterMissing
@@ -1634,7 +1634,7 @@ filterMissing f = WhenMissing
 -- | Filter the entries whose keys are missing from the other map
 -- using some 'Applicative' action.
 --
--- > filterAMissing f = Lazy.Merge.traverseMaybeMissing $
+-- > filterAMissing f = Merge.Lazy.traverseMaybeMissing $
 -- >   \k x -> (\b -> guard b *> Just x) <$> f k x
 --
 -- but this should be a little faster.

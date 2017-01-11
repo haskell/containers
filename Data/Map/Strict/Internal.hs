@@ -1193,8 +1193,8 @@ forceMaybe m@(Just !_) = m
 --
 -- WARNING: This function can produce corrupt maps and its results
 -- may depend on the internal structures of its inputs. Users should
--- prefer 'Data.Map.Strict.Merge.merge' or
--- 'Data.Map.Strict.Merge.mergeA'.
+-- prefer 'Data.Map.Merge.Strict.merge' or
+-- 'Data.Map.Merge.Strict.mergeA'.
 --
 -- When 'mergeWithKey' is given three arguments, it is inlined to the call
 -- site. You should therefore use 'mergeWithKey' only to define custom
