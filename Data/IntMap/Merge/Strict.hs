@@ -33,10 +33,10 @@
 --
 -- The 'merge' and 'mergeA' functions are shared by
 -- the lazy and strict modules. Only the choice of merge tactics
--- determines strictness. If you use 'Data.Map.Strict.Merge.mapMissing'
+-- determines strictness. If you use 'Data.Map.Merge.Strict.mapMissing'
 -- from this module then the results will be forced before they are
--- inserted. If you use 'Data.Map.Lazy.Merge.mapMissing' from
--- "Data.Map.Lazy.Merge" then they will not.
+-- inserted. If you use 'Data.Map.Merge.Lazy.mapMissing' from
+-- "Data.Map.Merge.Lazy" then they will not.
 --
 -- == Efficiency note
 --

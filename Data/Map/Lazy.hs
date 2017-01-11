@@ -120,7 +120,7 @@ module Data.Map.Lazy (
     , intersectionWithKey
 
     -- ** General combining functions
-    -- | See "Data.Map.Lazy.Merge"
+    -- | See "Data.Map.Merge.Lazy"
 
     -- ** Unsafe general combining function
 
