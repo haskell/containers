@@ -24,7 +24,6 @@
 -- Copyright   :  (c) wren romano 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- This module defines an API for writing functions that merge two

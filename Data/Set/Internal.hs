@@ -20,7 +20,6 @@
 -- Copyright   :  (c) Daan Leijen 2002
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- = WARNING

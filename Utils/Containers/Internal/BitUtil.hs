@@ -15,7 +15,6 @@
 --                (c) Johan Tibel 2012
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 -----------------------------------------------------------------------------
 --

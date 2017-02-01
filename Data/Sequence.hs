@@ -11,7 +11,6 @@
 --                    Milan Straka 2014
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  experimental
 -- Portability :  portable
 --
 -- General purpose finite sequences.

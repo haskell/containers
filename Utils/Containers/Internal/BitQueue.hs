@@ -9,7 +9,6 @@
 -- Copyright   :  (c) David Feuer 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- = WARNING
