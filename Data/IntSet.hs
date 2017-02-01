@@ -12,7 +12,6 @@
 --                (c) Joachim Breitner 2011
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- An efficient implementation of integer sets.

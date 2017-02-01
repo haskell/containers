@@ -21,7 +21,6 @@
 --                (c) wren romano 2016
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
--- Stability   :  provisional
 -- Portability :  portable
 --
 -- = WARNING
