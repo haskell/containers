@@ -1000,24 +1000,14 @@ withoutKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 t1@(Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = t1
-                                             | zero k2 m1 = binCheckLeft p1 m1 (merge t2 k2 l1) r1
-                                             | otherwise  = binCheckRight p1 m1 l1 (merge t2 k2 r1)
-            merge _ k2 t1@(Tip k1 _) | k1 == k2 = Nil
-                                     | otherwise = t1
-            merge _ _  Nil = Nil
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip _ _) =
+      filterWithKey (\k _ -> k `IntSet.notMember` t2') t1'
 
     go t1@(Bin _ _ _ _) IntSet.Nil = t1
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2) | nomatch k1 p2 m2 = t1
-                                                 | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-                                                 | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = Nil
-                                          | otherwise = t1
-            merge t1 _  IntSet.Nil = t1
-
+    go t1'@(Tip k1' _) t2'
+      | k1' `IntSet.member` t2' = Nil
+      | otherwise = t1'
     go Nil _ = Nil
 
 
@@ -1055,25 +1045,13 @@ restrictKeys = go
                | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
                | otherwise         = bin p2 m2 Nil (go t1 r2)
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip k2' _) = merge t2' k2' t1'
-      where merge t2 k2 (Bin p1 m1 l1 r1) | nomatch k2 p1 m1 = Nil
-                                          | zero k2 m1 = bin p1 m1 (merge t2 k2 l1) Nil
-                                          | otherwise  = bin p1 m1 Nil (merge t2 k2 r1)
-            merge _ k2 t1@(Tip k1 _) | k1 == k2 = t1
-                                     | otherwise = Nil
-            merge _ _  Nil = Nil
-
+    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip _ _) =
+      filterWithKey (\k _ -> k `IntSet.member` t2') t1'
     go (Bin _ _ _ _) IntSet.Nil = Nil
 
-    go t1'@(Tip k1' _) t2' = merge t1' k1' t2'
-      where merge t1 k1 (IntSet.Bin p2 m2 l2 r2)
-              | nomatch k1 p2 m2 = Nil
-              | zero k1 m2 = bin p2 m2 (merge t1 k1 l2) Nil
-              | otherwise  = bin p2 m2 Nil (merge t1 k1 r2)
-            merge t1 k1 (IntSet.Tip k2 _) | k1 == k2 = t1
-                                          | otherwise = Nil
-            merge _ _  IntSet.Nil = Nil
-
+    go t1'@(Tip k1' _) t2'
+      | k1' `IntSet.member` t2' = t1'
+      | otherwise = Nil
     go Nil _ = Nil
 
 -- | /O(n+m)/. The intersection with a combining function.

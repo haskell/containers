@@ -167,6 +167,8 @@ main = defaultMain
              , testProperty "foldl'"               prop_foldl'
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
+             , testProperty "restrictKeys"         prop_restrictKeys
+             , testProperty "withoutKeys"          prop_withoutKeys
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
