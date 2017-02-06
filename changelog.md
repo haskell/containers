@@ -1,8 +1,15 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.5.9.1
+## 0.5.9.2
 
-* Planned for GHC 8.2.
+* Fix completely broken implementations of `restrictKeys` and `withoutKeys`
+in `Data.IntMap`.
+
+* Fix minor bug in `Show1` instance for `Data.Tree`.
+
+* Fix broken documentation links.
+
+## 0.5.9.1
 
 * Add `merge` and `mergeA` for `Data.IntMap`.
 
