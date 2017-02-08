@@ -458,7 +458,9 @@ apSeq fs xs@(Seq xsFT) = case viewl fs of
 {-# NOINLINE [1] apSeq #-}
 
 {-# RULES
-"ap/fmap" forall f xs ys . apSeq (fmapSeq f xs) ys = liftA2Seq f xs ys
+"ap/fmap1" forall f xs ys . apSeq (fmapSeq f xs) ys = liftA2Seq f xs ys
+"ap/fmap2" forall f gs xs . apSeq gs (fmapSeq f xs) =
+                              liftA2Seq (\g x -> g (f x)) gs xs
 "fmap/ap" forall f gs xs . fmapSeq f (gs `apSeq` xs) =
                              liftA2Seq (\g x -> f (g x)) gs xs
 "fmap/liftA2" forall f g m n . fmapSeq f (liftA2Seq g m n) =
