@@ -414,8 +414,8 @@ traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
 traverseFTE _f EmptyT = pure empty
 traverseFTE f (Single x) = Seq . Single . Elem <$> f x
 traverseFTE f (Deep s pr m sf) =
-  (\pr' m' sf' -> coerce $ Deep s pr' m' sf') <$>
-     traverse f pr <*> traverse (traverse f) m <*> traverse f sf
+  liftA3 (\pr' m' sf' -> coerce $ Deep s pr' m' sf')
+     (traverse f pr) (traverse (traverse f) m) (traverse f sf)
 #else
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
@@ -904,8 +904,8 @@ instance Traversable FingerTree where
     traverse _ EmptyT = pure EmptyT
     traverse f (Single x) = Single <$> f x
     traverse f (Deep v pr m sf) =
-        deep' v <$> traverse f pr <*> traverse (traverse f) m <*>
-            traverse f sf
+        liftA3 (Deep v) (traverse f pr) (traverse (traverse f) m)
+            (traverse f sf)
 
 instance NFData a => NFData (FingerTree a) where
     rnf EmptyT = ()
@@ -987,9 +987,9 @@ instance Functor Digit where
 instance Traversable Digit where
     {-# INLINE traverse #-}
     traverse f (One a) = One <$> f a
-    traverse f (Two a b) = Two <$> f a <*> f b
-    traverse f (Three a b c) = Three <$> f a <*> f b <*> f c
-    traverse f (Four a b c d) = Four <$> f a <*> f b <*> f c <*> f d
+    traverse f (Two a b) = liftA2 Two (f a) (f b)
+    traverse f (Three a b c) = liftA3 Three (f a) (f b) (f c)
+    traverse f (Four a b c d) = liftA3 Four (f a) (f b) (f c) <*> f d
 
 instance NFData a => NFData (Digit a) where
     rnf (One a) = rnf a
@@ -1026,24 +1026,6 @@ data Node a
     deriving Show
 #endif
 
--- Sometimes, we need to apply a Node2, Node3, or Deep constructor
--- to a size and pass the result to a function. If we calculate,
--- say, `Node2 n <$> x <*> y`, then according to -ddump-simpl,
--- GHC boxes up `n`, passes it to the strict constructor for `Node2`,
--- and passes the result to `fmap`. Using `node2'` instead prevents
--- this, forming a closure with the unboxed size.
-{-# INLINE node2' #-}
-node2' :: Int -> a -> a -> Node a
-node2' !s = \a b -> Node2 s a b
-
-{-# INLINE node3' #-}
-node3' :: Int -> a -> a -> a -> Node a
-node3' !s = \a b c -> Node3 s a b c
-
-{-# INLINE deep' #-}
-deep' :: Int -> Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
-deep' !s = \pr m sf -> Deep s pr m sf
-
 instance Foldable Node where
     foldMap f (Node2 _ a b) = f a <> f b
     foldMap f (Node3 _ a b c) = f a <> f b <> f c
@@ -1069,8 +1051,8 @@ instance Functor Node where
 
 instance Traversable Node where
     {-# INLINE traverse #-}
-    traverse f (Node2 v a b) = node2' v <$> f a <*> f b
-    traverse f (Node3 v a b c) = node3' v <$> f a <*> f b <*> f c
+    traverse f (Node2 v a b) = liftA2 (Node2 v) (f a) (f b)
+    traverse f (Node3 v a b c) = liftA3 (Node3 v) (f a) (f b) (f c)
 
 instance NFData a => NFData (Node a) where
     rnf (Node2 _ a b) = rnf a `seq` rnf b
@@ -1188,12 +1170,12 @@ applicativeTree n !mSize m = case n of
            (q,1) -> deepA two (applicativeTree (q - 1) mSize' n3) two
            (q,_) -> deepA three (applicativeTree (q - 1) mSize' n3) two
       where !mSize' = 3 * mSize
-            n3 = liftA3 (node3' mSize') m m m
+            n3 = liftA3 (Node3 mSize') m m m
   where
     one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
-    deepA = liftA3 (deep' (n * mSize))
+    deepA = liftA3 (Deep (n * mSize))
     emptyTree = pure EmptyT
 
 ------------------------------------------------------------------------
@@ -1215,7 +1197,7 @@ replicate n x
   | otherwise   = error "replicate takes a nonnegative integer argument"
 
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
--- /O(log n)/ calls to '<*>' and 'pure'.
+-- /O(log n)/ calls to 'liftA2' and 'pure'.
 --
 -- > replicateA n x = sequenceA (replicate n x)
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
@@ -1719,7 +1701,7 @@ instance Foldable ViewL where
 
 instance Traversable ViewL where
     traverse _ EmptyL       = pure EmptyL
-    traverse f (x :< xs)    = (:<) <$> f x <*> traverse f xs
+    traverse f (x :< xs)    = liftA2 (:<) (f x) (traverse f xs)
 
 -- | /O(1)/. Analyse the left end of a sequence.
 viewl           ::  Seq a -> ViewL a
@@ -1786,7 +1768,7 @@ instance Foldable ViewR where
 
 instance Traversable ViewR where
     traverse _ EmptyR       = pure EmptyR
-    traverse f (xs :> x)    = (:>) <$> traverse f xs <*> f x
+    traverse f (xs :> x)    = liftA2 (:>) (traverse f xs) (f x)
 
 -- | /O(1)/. Analyse the right end of a sequence.
 viewr           ::  Seq a -> ViewR a
@@ -2724,10 +2706,10 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexTreeE _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeE f s (Deep n pr m sf) =
-          deep' n <$>
-               traverseWithIndexDigitE f s pr <*>
-               traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m <*>
-               traverseWithIndexDigitE f sPsprm sf
+          liftA3 (Deep n)
+               (traverseWithIndexDigitE f s pr)
+               (traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m)
+               (traverseWithIndexDigitE f sPsprm sf)
     where
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
@@ -2736,10 +2718,10 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexTreeN _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeN f s (Deep n pr m sf) =
-          deep' n <$>
-               traverseWithIndexDigitN f s pr <*>
-               traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m <*>
-               traverseWithIndexDigitN f sPsprm sf
+          liftA3 (Deep n)
+               (traverseWithIndexDigitN f s pr)
+               (traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m)
+               (traverseWithIndexDigitN f sPsprm sf)
     where
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
@@ -2753,16 +2735,16 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   {-# INLINE traverseWithIndexDigit #-}
   traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
   traverseWithIndexDigit f !s (One a) = One <$> f s a
-  traverseWithIndexDigit f s (Two a b) = Two <$> f s a <*> f sPsa b
+  traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
     where
       !sPsa = s + size a
   traverseWithIndexDigit f s (Three a b c) =
-                                      Three <$> f s a <*> f sPsa b <*> f sPsab c
+                                      liftA3 Three (f s a) (f sPsa b) (f sPsab c)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
   traverseWithIndexDigit f s (Four a b c d) =
-                          Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
+                          liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
@@ -2776,11 +2758,11 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 
   {-# INLINE traverseWithIndexNode #-}
   traverseWithIndexNode :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Node a -> f (Node b)
-  traverseWithIndexNode f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
+  traverseWithIndexNode f !s (Node2 ns a b) = liftA2 (Node2 ns) (f s a) (f sPsa b)
     where
       !sPsa = s + size a
   traverseWithIndexNode f s (Node3 ns a b c) =
-                                     node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
+                           liftA3 (Node3 ns) (f s a) (f sPsa b) (f sPsab c)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b

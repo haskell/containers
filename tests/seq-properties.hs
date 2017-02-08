@@ -16,7 +16,7 @@ import Data.Sequence.Internal
 
 import Data.Sequence
 
-import Control.Applicative (Applicative(..))
+import Control.Applicative (Applicative(..), liftA2)
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
@@ -757,8 +757,10 @@ apNOINLINE :: Seq (a -> b) -> Seq a -> Seq b
 apNOINLINE fs xs = fs <*> xs
 
 prop_liftA2 :: Seq A -> Seq B -> Property
-prop_liftA2 xs ys =
-    toList' (liftA2 (,) xs ys) === ( liftA2 (,) (toList xs) (toList ys) )
+prop_liftA2 xs ys = valid q .&&.
+    toList q === liftA2 (,) (toList xs) (toList ys)
+  where
+    q = liftA2 (,) xs ys
 
 prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =
