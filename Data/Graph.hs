@@ -80,8 +80,8 @@ import qualified Data.IntSet as Set
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
-#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative
+#if !MIN_VERSION_base(4,8,0)
 import qualified Data.Foldable as F
 import Data.Traversable
 #else
@@ -157,7 +157,7 @@ instance Traversable SCC where
   traverse f (AcyclicSCC vertex) = AcyclicSCC <$> f vertex
   traverse _f (CyclicSCC []) = pure (CyclicSCC [])
   traverse f (CyclicSCC (x : xs)) =
-    (\x' xs' -> CyclicSCC (x' : xs')) <$> f x <*> traverse f xs
+    liftA2 (\x' xs' -> CyclicSCC (x' : xs')) (f x) (traverse f xs)
 
 instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
