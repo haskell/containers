@@ -38,8 +38,9 @@ module Data.Tree(
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Foldable (toList)
+import Control.Applicative (Applicative(..), liftA2)
 #else
-import Control.Applicative (Applicative(..), (<$>))
+import Control.Applicative (Applicative(..), liftA2, (<$>))
 import Data.Foldable (Foldable(foldMap), toList)
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
@@ -71,6 +72,10 @@ import Data.Coerce
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
 import Data.Semigroup (Semigroup (..))
+#endif
+
+#if !MIN_VERSION_base(4,8,0)
+import Data.Functor ((<$))
 #endif
 
 -- | Multi-way trees, also known as /rose trees/.
@@ -128,6 +133,7 @@ INSTANCE_TYPEABLE1(Tree)
 
 instance Functor Tree where
     fmap = fmapTree
+    x <$ Node _ ts = Node x (map (x <$) ts)
 
 fmapTree :: (a -> b) -> Tree a -> Tree b
 fmapTree f (Node x ts) = Node (f x) (map (fmapTree f) ts)
@@ -144,6 +150,14 @@ instance Applicative Tree where
     pure x = Node x []
     Node f tfs <*> tx@(Node x txs) =
         Node (f x) (map (f <$>) txs ++ map (<*> tx) tfs)
+#if MIN_VERSION_base(4,10,0)
+    liftA2 f (Node x txs) ty@(Node y tys) =
+        Node (f x y) (map (f x <$>) tys ++ map (\tx -> liftA2 f tx ty) txs)
+#endif
+    Node x txs <* ty@(Node _ tys) =
+        Node x (map (x <$) tys ++ map (<* ty) txs)
+    Node _ txs *> ty@(Node y tys) =
+        Node y (tys ++ map (*> ty) txs)
 
 instance Monad Tree where
     return = pure
@@ -151,7 +165,7 @@ instance Monad Tree where
       where Node x' ts' = f x
 
 instance Traversable Tree where
-    traverse f (Node x ts) = Node <$> f x <*> traverse (traverse f) ts
+    traverse f (Node x ts) = liftA2 Node (f x) (traverse (traverse f) ts)
 
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
