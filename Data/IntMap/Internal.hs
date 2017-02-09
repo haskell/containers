@@ -1125,7 +1125,7 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | zero p1 m2        = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
 restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
-    restrictBM t1 p2 bm2 (IntSet.suffixBitMask + 1)
+    restrictBM (lookupPrefix p2 bm2 t1) p2 bm2 (IntSet.suffixBitMask + 1)
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
@@ -1135,6 +1135,21 @@ restrictKeys Nil _ = Nil
 
 type IntSetPrefix = Int
 type IntSetBitMap = Word
+
+-- | Find the sub-tree of @t@ which matches the prefix @kp@.
+lookupPrefix :: IntSetPrefix -> IntSetBitMap -> IntMap a -> IntMap a
+lookupPrefix !kp !bm t@(Bin p m l r)
+    | m .&. IntSet.suffixBitMask /= 0 =
+        if p .&. IntSet.prefixBitMask == kp then t else Nil
+    | nomatch kp p m = Nil
+    | zero kp m      = lookupPrefix kp bm l
+    | otherwise      = lookupPrefix kp bm r
+lookupPrefix kp bm t@(Tip kx x)
+    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
+    | kx `IntSet.member` IntSet.Tip kp bm = t
+    | otherwise = Nil
+lookupPrefix _ _ Nil = Nil
+
 
 -- TODO(wrengr): Right now this is still pretty naive. It essentially
 -- unpacks the 'IntSetBitMap' into a tree-representation, and then
@@ -1146,6 +1161,11 @@ type IntSetBitMap = Word
 -- on the recursive calls, so that the 'lookup's are cheaper. But
 -- we should be able to do even better by avoiding the call to
 -- 'lookup' entirely.
+--
+-- | The initial value passed for the final argument should be
+-- @(IntSet.suffixBitMask + 1)@. We don't set that here via
+-- worker/wrapper, because this is the worker floated to the
+-- top-level.
 restrictBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
 restrictBM t !prefix !_ 0 =
     case lookup prefix t of
