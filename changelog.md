@@ -1,8 +1,15 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.5.10.1
+## 0.5.10.2
 
 * Planned for GHC 8.2.
+
+* Define custom `liftA2` in `Applicative` instances for base 4.10, and use
+  `liftA2` rather than `<*>` whenever it may be beneficial.
+
+* Add `liftA2`-related `RULES` for `Data.Sequence`.
+
+## 0.5.10.1
 
 * Fix completely incorrect implementations of `Data.IntMap.restrictKeys` and
   `Data.IntMap.withoutKeys`. Make the tests for these actually run. (Thanks
@@ -14,6 +21,10 @@
 * Add `MonadZip` instance for `Data.Sequence`.
 
 * Remove meaningless stability annotations (Thanks, Simon Jakobi.)
+
+## 0.5.9.2
+
+* Backport bug fixes from 0.5.10.1
 
 ## 0.5.9.1
 
@@ -45,6 +56,10 @@ alternatives to `findMin` and `findMax`.
 * Avoid using `deleteFindMin` and `deleteFindMax` internally, preferring
 total functions instead. New implementations of said functions lead to slight
 performance improvements overall.
+
+## 0.5.8.2
+
+* Backport bug fixes from 0.5.10.1.
 
 ## 0.5.8.1 *Aug 2016*
 
@@ -83,8 +98,8 @@ performance improvements overall.
     Many thanks to Cale Gibbard, Ryan Trinkle, and Dan Doel for
     inspiring the merge idea and helping refine the interface.
 
-  * Add `fromDescList`, `fromDescListWith`, `fromDescListWithKey`,
-    and `fromDistinctDescList` to `Data.Map`.
+  * Add `traverseMaybeWithKey`, `fromDescList`, `fromDescListWith`,
+    `fromDescListWithKey`, and `fromDistinctDescList` to `Data.Map`.
 
   * Add `fromDescList` and `fromDistinctDescList` to `Data.Set`.
 

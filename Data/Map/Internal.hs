@@ -359,8 +359,9 @@ module Data.Map.Internal (
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
+import Control.Applicative (liftA3)
 #else
-import Control.Applicative (Applicative(..), (<$>))
+import Control.Applicative (Applicative(..), (<$>), liftA3)
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 #endif
@@ -2514,10 +2515,10 @@ mergeA
     go Tip t2 = g2t t2
     go (Bin _ kx x1 l1 r1) t2 = case splitLookup kx t2 of
       (l2, mx2, r2) -> case mx2 of
-          Nothing -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
-                        <$> l1l2 <*> g1k kx x1 <*> r1r2
-          Just x2 -> (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
-                        <$> l1l2 <*> f kx x1 x2 <*> r1r2
+          Nothing -> liftA3 (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        l1l2 (g1k kx x1) r1r2
+          Just x2 -> liftA3 (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        l1l2 (f kx x1 x2) r1r2
         where
           !l1l2 = go l1 l2
           !r1r2 = go r1 r2
@@ -2701,7 +2702,7 @@ filterWithKey p t@(Bin _ kx x l r)
 filterWithKeyA :: Applicative f => (k -> a -> f Bool) -> Map k a -> f (Map k a)
 filterWithKeyA _ Tip = pure Tip
 filterWithKeyA p t@(Bin _ kx x l r) =
-  combine <$> p kx x <*> filterWithKeyA p l <*> filterWithKeyA p r
+  liftA3 combine (p kx x) (filterWithKeyA p l) (filterWithKeyA p r)
   where
     combine True pl pr
       | pl `ptrEq` l && pr `ptrEq` r = t
@@ -2816,14 +2817,15 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
-
+--
+-- @since 0.5.8
 traverseMaybeWithKey :: Applicative f
                      => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
 traverseMaybeWithKey = go
   where
     go _ Tip = pure Tip
     go f (Bin _ kx x Tip Tip) = maybe Tip (\x' -> Bin 1 kx x' Tip Tip) <$> f kx x
-    go f (Bin _ kx x l r) = combine <$> go f l <*> f kx x <*> go f r
+    go f (Bin _ kx x l r) = liftA3 combine (go f l) (f kx x) (go f r)
       where
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
@@ -2923,7 +2925,7 @@ traverseWithKey f = go
   where
     go Tip = pure Tip
     go (Bin 1 k v _ _) = (\v' -> Bin 1 k v' Tip Tip) <$> f k v
-    go (Bin s k v l r) = flip (Bin s k) <$> go l <*> f k v <*> go r
+    go (Bin s k v l r) = liftA3 (flip (Bin s k)) (go l) (f k v) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating

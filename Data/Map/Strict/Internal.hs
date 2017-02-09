@@ -398,7 +398,7 @@ import Data.Map.Internal
 import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
 import Data.Map.Internal.Debug (valid)
 
-import Control.Applicative (Const (..))
+import Control.Applicative (Const (..), liftA3)
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative (..), (<$>))
 #endif
@@ -1270,6 +1270,8 @@ mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
+--
+-- @since 0.5.8
 
 traverseMaybeWithKey :: Applicative f
                      => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
@@ -1277,7 +1279,7 @@ traverseMaybeWithKey = go
   where
     go _ Tip = pure Tip
     go f (Bin _ kx x Tip Tip) = maybe Tip (\ !x' -> Bin 1 kx x' Tip Tip) <$> f kx x
-    go f (Bin _ kx x l r) = combine <$> go f l <*> f kx x <*> go f r
+    go f (Bin _ kx x l r) = liftA3 combine (go f l) (f kx x) (go f r)
       where
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
@@ -1380,7 +1382,7 @@ traverseWithKey f = go
   where
     go Tip = pure Tip
     go (Bin 1 k v _ _) = (\ !v' -> Bin 1 k v' Tip Tip) <$> f k v
-    go (Bin s k v l r) = (\ l' !v' r' -> Bin s k v' l' r') <$> go l <*> f k v <*> go r
+    go (Bin s k v l r) = liftA3 (\ l' !v' r' -> Bin s k v' l' r') (go l) (f k v) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
