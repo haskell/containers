@@ -1057,29 +1057,39 @@ withoutKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | nomatch p1 p2 m2  = t1
         | zero p1 m2        = withoutKeys t1 l2
         | otherwise         = withoutKeys t1 r2
-withoutKeys t1@(Bin _ _ _ _) (IntSet.Tip kx' bm') =
-    withoutBM t1 kx' bm' (IntSet.suffixBitMask + 1)
-    where
-    -- TODO(wrengr): this is still pretty naive. It could be improved by restricting @t@ on the recursive calls, so that the 'delete' in the basis case is faster. As is, this is linear in the size of the IntSet (as opposed to the previous version which was linear in the size of the IntMap; we want /O(n+m)/ at worst, just like for 'intersection').
-    withoutBM t !prefix !_ 0 = delete prefix t
-    withoutBM t prefix bmask bits =
-        case intFromNat (natFromInt bits `shiftRL` 1) of
-        bits2
-          | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
-              withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2
-          | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
-              withoutBM t prefix bmask bits2
-          | otherwise ->
-              -- withoutKeys t (bin prefix bits2 _ _)
-              withoutBM
-                (withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
-                prefix bmask bits2
+withoutKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
+    withoutBM t1 p2 bm2 (IntSet.suffixBitMask + 1)
 withoutKeys t1@(Bin _ _ _ _) IntSet.Nil = t1
 withoutKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = Nil
     | otherwise = t1
 withoutKeys Nil _ = Nil
 
+
+-- TODO(wrengr): Right now this is still pretty naive. It essentially
+-- unpacks the 'IntSetBitMap' into a tree-representation, and then
+-- calls 'delete' on each element of the set; thus, it is
+-- /O(min(m,W) * min(n,W)/. While technically that degenerates to
+-- /O(1)/ for a fixed /W/, it's morally equivalent to /O(m * log n)/.
+-- Really, we should be able to get this down to /O(n+m)/ just like
+-- 'difference' is. One way to do this would be to restrict @t@
+-- on the recursive calls, so that the 'lookup's are cheaper. But
+-- we should be able to do even better by avoiding the call to
+-- 'lookup' entirely.
+withoutBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
+withoutBM t !prefix !_ 0 = delete prefix t
+withoutBM t prefix bmask bits =
+    case intFromNat (natFromInt bits `shiftRL` 1) of
+    bits2
+      | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
+          withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2
+      | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
+          withoutBM t prefix bmask bits2
+      | otherwise ->
+          -- withoutKeys t (bin prefix bits2 _ _)
+          withoutBM
+            (withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
+            prefix bmask bits2
 
 {--------------------------------------------------------------------
   Intersection
@@ -1114,30 +1124,44 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | nomatch p1 p2 m2  = Nil
         | zero p1 m2        = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
-restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip kx' bm') =
-    restrictBM t1 kx' bm' (IntSet.suffixBitMask + 1)
-    where
-    -- TODO(wrengr): this is still pretty naive. It could be improved by restricting @t@ on the recursive calls, so that the 'lookup' in the basis case is faster. As is, this is linear in the size of the IntSet (as opposed to the previous version which was linear in the size of the IntMap; we want /O(n+m)/ at worst, just like for 'intersection').
-    restrictBM t !prefix !_ 0 =
-        case lookup prefix t of
-        Nothing -> Nil
-        Just x -> Tip prefix x
-    restrictBM t prefix bmask bits =
-        case intFromNat (natFromInt bits `shiftRL` 1) of
-        bits2
-          | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
-              restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2
-          | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
-              restrictBM t prefix bmask bits2
-          | otherwise ->
-              bin prefix bits2
-                (restrictBM t prefix bmask bits2)
-                (restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
+restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
+    restrictBM t1 p2 bm2 (IntSet.suffixBitMask + 1)
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
     | otherwise = Nil
 restrictKeys Nil _ = Nil
+
+
+type IntSetPrefix = Int
+type IntSetBitMap = Word
+
+-- TODO(wrengr): Right now this is still pretty naive. It essentially
+-- unpacks the 'IntSetBitMap' into a tree-representation, and then
+-- calls 'lookup' on each element of the set; thus, it is
+-- /O(min(m,W) * min(n,W)/. While technically that degenerates to
+-- /O(1)/ for a fixed /W/, it's morally equivalent to /O(m * log n)/.
+-- Really, we should be able to get this down to /O(n+m)/ just like
+-- 'intersection' is. One way to do this would be to restrict @t@
+-- on the recursive calls, so that the 'lookup's are cheaper. But
+-- we should be able to do even better by avoiding the call to
+-- 'lookup' entirely.
+restrictBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
+restrictBM t !prefix !_ 0 =
+    case lookup prefix t of
+    Nothing -> Nil
+    Just x -> Tip prefix x
+restrictBM t prefix bmask bits =
+    case intFromNat (natFromInt bits `shiftRL` 1) of
+    bits2
+      | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
+          restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2
+      | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
+          restrictBM t prefix bmask bits2
+      | otherwise ->
+          bin prefix bits2
+            (restrictBM t prefix bmask bits2)
+            (restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
 
 
 -- | /O(n+m)/. The intersection with a combining function.
