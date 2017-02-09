@@ -40,14 +40,12 @@ module Data.Tree(
 import Data.Foldable (toList)
 #else
 import Control.Applicative (Applicative(..), (<$>))
-import Data.Foldable (Foldable(foldMap), toList)
+import Data.Foldable (Foldable(foldMap))
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 #endif
 
 import Control.Monad (liftM)
-import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
-            ViewL(..), ViewR(..), viewl, viewr)
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
@@ -230,37 +228,27 @@ unfoldTreeM f b = do
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
--- | Monadic tree builder, in breadth-first order,
--- using an algorithm adapted from
--- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
--- by Chris Okasaki, /ICFP'00/.
+-- | Monadic tree builder, in breadth-first order.
 unfoldTreeM_BF :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
-unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
-  where
-    getElement xs = case viewl xs of
-        x :< _ -> x
-        EmptyL -> error "unfoldTreeM_BF"
+unfoldTreeM_BF f b0 = do
+  (a, bs) <- f b0
+  Node a `liftM` unfoldForestM_BF f bs
 
--- | Monadic forest builder, in breadth-first order,
--- using an algorithm adapted from
--- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
--- by Chris Okasaki, /ICFP'00/.
-unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
-unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
+-- | Monadic forest builder, in breadth-first order.
+unfoldForestM_BF :: Monad m
+                 => (b -> m (a, [b])) -> [b] -> m (Forest a)
+unfoldForestM_BF _f [] = return []
+unfoldForestM_BF f bs = do
+  asbss' <- mapM f bs
+  rebuild asbss' `liftM` unfoldForestM_BF f (concatMap snd asbss')
+    where
+      rebuild :: [(a, [any])] -> [Tree a] -> [Tree a]
+      rebuild [] ts = ts
+      rebuild ((a, bs') : xs) ts =
+        case splitAtLength bs' ts of
+          (us, ts') -> Node a us : rebuild xs ts'
 
--- takes a sequence (queue) of seeds
--- produces a sequence (reversed queue) of trees of the same length
-unfoldForestQ :: Monad m => (b -> m (a, [b])) -> Seq b -> m (Seq (Tree a))
-unfoldForestQ f aQ = case viewl aQ of
-    EmptyL -> return empty
-    a :< aQ' -> do
-        (b, as) <- f a
-        tQ <- unfoldForestQ f (Prelude.foldl (|>) aQ' as)
-        let (tQ', ts) = splitOnto [] as tQ
-        return (Node b ts <| tQ')
-  where
-    splitOnto :: [a'] -> [b'] -> Seq a' -> (Seq a', [a'])
-    splitOnto as [] q = (q, as)
-    splitOnto as (_:bs) q = case viewr q of
-        q' :> a -> splitOnto (a:as) bs q'
-        EmptyR -> error "unfoldForestQ"
+      splitAtLength :: [any] -> [a] -> ([a],[a])
+      splitAtLength (_ : n) (x : xs) = (x : early, late)
+        where (early, late) = splitAtLength n xs
+      splitAtLength _ xs = ([], xs)
