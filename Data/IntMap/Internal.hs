@@ -1043,43 +1043,37 @@ differenceWithKey f m1 m2
 --
 -- @since 0.5.8
 withoutKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-withoutKeys = go
-  where
-    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
-      | shorter m1 m2  = difference1
-      | shorter m2 m1  = difference2
-      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
-      | otherwise      = t1
-      where
-        difference1
-            | nomatch p2 p1 m1  = t1
-            | zero p2 m1        = binCheckLeft p1 m1 (go l1 t2) r1
-            | otherwise         = binCheckRight p1 m1 l1 (go r1 t2)
-        difference2
-            | nomatch p1 p2 m2  = t1
-            | zero p1 m2        = go t1 l2
-            | otherwise         = go t1 r2
-
-    -- TODO(wrengr): should we inline the top-level 'deleteBM' here?
-    go t1@(Bin _ _ _ _) (IntSet.Tip kx' bm') = deleteBM kx' bm' t1
-      where
-        deleteBM !kx !bm t@(Bin p m l r)
-          | nomatch kx p m = t
-          | zero kx m      = binCheckLeft p m (deleteBM kx bm l) r
-          | otherwise      = binCheckRight p m l (deleteBM kx bm r)
-        deleteBM kx bm t@(Tip ky _)
-          -- TODO(wrengr): should we inline 'IntSet.member' here?
-          | ky `IntSet.member` IntSet.Tip kx bm = Nil
-          | otherwise = t
-        deleteBM _ _ Nil = Nil
-
-    go t1@(Bin _ _ _ _) IntSet.Nil = t1
-
-    go t1@(Tip k1 _) t2
-      | k1 `IntSet.member` t2 = Nil
-      | otherwise = t1
-
-    go Nil _ = Nil
+withoutKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+    | shorter m1 m2  = difference1
+    | shorter m2 m1  = difference2
+    | p1 == p2       = bin p1 m1 (withoutKeys l1 l2) (withoutKeys r1 r2)
+    | otherwise      = t1
+    where
+    difference1
+        | nomatch p2 p1 m1  = t1
+        | zero p2 m1        = binCheckLeft p1 m1 (withoutKeys l1 t2) r1
+        | otherwise         = binCheckRight p1 m1 l1 (withoutKeys r1 t2)
+    difference2
+        | nomatch p1 p2 m2  = t1
+        | zero p1 m2        = withoutKeys t1 l2
+        | otherwise         = withoutKeys t1 r2
+-- TODO(wrengr): should we inline the top-level 'withoutBM' here?
+withoutKeys t1@(Bin _ _ _ _) (IntSet.Tip kx' bm') = withoutBM kx' bm' t1
+    where
+    withoutBM !kx !bm t@(Bin p m l r)
+        | nomatch kx p m = t
+        | zero kx m      = binCheckLeft p m (withoutBM kx bm l) r
+        | otherwise      = binCheckRight p m l (withoutBM kx bm r)
+    withoutBM kx bm t@(Tip ky _)
+        -- TODO(wrengr): should we inline 'IntSet.member' here?
+        | ky `IntSet.member` IntSet.Tip kx bm = Nil
+        | otherwise = t
+    withoutBM _ _ Nil = Nil
+withoutKeys t1@(Bin _ _ _ _) IntSet.Nil = t1
+withoutKeys t1@(Tip k1 _) t2
+    | k1 `IntSet.member` t2 = Nil
+    | otherwise = t1
+withoutKeys Nil _ = Nil
 
 
 {--------------------------------------------------------------------
@@ -1101,29 +1095,38 @@ intersection m1 m2
 --
 -- @since 0.5.8
 restrictKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-restrictKeys = go
-  where
-    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
-      | shorter m1 m2  = merge1
-      | shorter m2 m1  = merge2
-      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
-      | otherwise      = Nil
-      where
-        merge1 | nomatch p2 p1 m1  = Nil
-               | zero p2 m1        = bin p1 m1 (go l1 t2) Nil
-               | otherwise         = bin p1 m1 Nil (go r1 t2)
-        merge2 | nomatch p1 p2 m2  = Nil
-               | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
-               | otherwise         = bin p2 m2 Nil (go t1 r2)
+restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+    | shorter m1 m2  = intersection1
+    | shorter m2 m1  = intersection2
+    | p1 == p2       = bin p1 m1 (restrictKeys l1 l2) (restrictKeys r1 r2)
+    | otherwise      = Nil
+    where
+    intersection1
+        | nomatch p2 p1 m1  = Nil
+        | zero p2 m1        = restrictKeys l1 t2
+        | otherwise         = restrictKeys r1 t2
+    intersection2
+        | nomatch p1 p2 m2  = Nil
+        | zero p1 m2        = restrictKeys t1 l2
+        | otherwise         = restrictKeys t1 r2
+-- TODO(wrengr): should we inline the top-level 'restrictBM' here?
+restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip kx' bm') = restrictBM kx' bm' t1
+    where
+    restrictBM !kx !bm (Bin p1 m1 l1 r1)
+        | nomatch kx p1 m1 = Nil
+        | zero kx m1       = restrictBM kx bm l1
+        | otherwise        = restrictBM kx bm r1
+    restrictBM kx bm t@(Tip ky _)
+        -- TODO(wrengr): should we inline 'IntSet.member' here?
+        | ky `IntSet.member` IntSet.Tip kx bm = t
+        | otherwise = Nil
+    restrictBM _ _ Nil = Nil
+restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
+restrictKeys t1@(Tip k1 _) t2
+    | k1 `IntSet.member` t2 = t1
+    | otherwise = Nil
+restrictKeys Nil _ = Nil
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip _ _) =
-      filterWithKey (\k _ -> k `IntSet.member` t2') t1'
-    go (Bin _ _ _ _) IntSet.Nil = Nil
-
-    go t1'@(Tip k1' _) t2'
-      | k1' `IntSet.member` t2' = t1'
-      | otherwise = Nil
-    go Nil _ = Nil
 
 -- | /O(n+m)/. The intersection with a combining function.
 --
