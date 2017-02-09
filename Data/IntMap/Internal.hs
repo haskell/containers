@@ -1125,7 +1125,19 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | zero p1 m2        = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
 restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
-    restrictBM (lookupPrefix p2 bm2 t1) p2 bm2 (IntSet.suffixBitMask + 1)
+    case lookupPrefix p2 bm2 t1 of
+    t1'@(Bin p1 _ _ _) ->
+        -- Get the IntSet.BitMap for the IntSet-suffix of @p1@. We
+        -- know this corresponds to the smallest possible key in
+        -- @t1'@, so we generate a mask for all the bitmaps of keys
+        -- greater than or equal to this smallest-possible-key and
+        -- only look at that subset of @bm2@.
+        let p1_bit = shiftLL 1 (p1 .&. IntSet.suffixBitMask)
+            bitsLT = p1_bit - 1
+            bitsGE = complement bitsLT
+            bm2' = bm2 .&. bitsGE
+        in restrictBM t1' p2 bm2' (IntSet.suffixBitMask + 1)
+    t1' -> t1'
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
@@ -1144,7 +1156,7 @@ lookupPrefix !kp !bm t@(Bin p m l r)
     | nomatch kp p m = Nil
     | zero kp m      = lookupPrefix kp bm l
     | otherwise      = lookupPrefix kp bm r
-lookupPrefix kp bm t@(Tip kx x)
+lookupPrefix kp bm t@(Tip kx _)
     -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
     | kx `IntSet.member` IntSet.Tip kp bm = t
     | otherwise = Nil
