@@ -1132,11 +1132,19 @@ restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
         -- @t1'@, so we generate a mask for all the bitmaps of keys
         -- greater than or equal to this smallest-possible-key and
         -- only look at that subset of @bm2@.
-        let p1_bit = shiftLL 1 (p1 .&. IntSet.suffixBitMask)
-            bitsLT = p1_bit - 1
-            bitsGE = complement bitsLT
-            bm2' = bm2 .&. bitsGE
-        in restrictBM t1' p2 bm2' (IntSet.suffixBitMask + 1)
+        let s1 :: IntSetPrefix
+            s1 = p1 .&. IntSet.suffixBitMask
+            s1_bitmap :: IntSetBitMap
+            s1_bitmap = shiftLL 1 s1
+            bitsLT_s1 :: IntSetBitMap
+            bitsLT_s1 = s1_bitmap - 1
+            bitsGE_s1 :: IntSetBitMap
+            bitsGE_s1 = complement bitsLT_s1
+
+            -- TODO(wrengr): in principle this should be sound to use in place of @bm2@. But why isn't it working?
+            bm2' :: IntSetBitMap
+            bm2' = bm2 .&. bitsGE_s1
+        in restrictBM t1' p2 bm2 (IntSet.suffixBitMask + 1)
     t1' -> t1'
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2

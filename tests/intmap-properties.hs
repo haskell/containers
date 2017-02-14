@@ -805,17 +805,21 @@ prop_intersectionWithKeyModel xs ys
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
 
+-- TODO: the second argument should be simply an 'IntSet', but that
+-- runs afoul of our orphan instance.
 prop_restrictKeys :: IMap -> IMap -> Property
-prop_restrictKeys m s0 = m `restrictKeys` s === filterWithKey (\k _ -> k `IntSet.member` s) m
+prop_restrictKeys m s0 =
+    m `restrictKeys` s === filterWithKey (\k _ -> k `IntSet.member` s) m
   where
     s = keysSet s0
-    restricted = restrictKeys m s
 
+-- TODO: the second argument should be simply an 'IntSet', but that
+-- runs afoul of our orphan instance.
 prop_withoutKeys :: IMap -> IMap -> Property
-prop_withoutKeys m s0 = m `withoutKeys` s === filterWithKey (\k _ -> k `IntSet.notMember` s) m
+prop_withoutKeys m s0 =
+    m `withoutKeys` s === filterWithKey (\k _ -> k `IntSet.notMember` s) m
   where
     s = keysSet s0
-    reduced = withoutKeys m s
 
 prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_mergeWithKeyModel xs ys
