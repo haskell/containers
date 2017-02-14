@@ -1126,22 +1126,23 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | otherwise         = restrictKeys t1 r2
 restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
     case lookupPrefix p2 bm2 t1 of
-    t1'@(Bin p1 _ _ _) ->
-        -- Get the IntSet.BitMap for the IntSet-suffix of @p1@. We
-        -- know this corresponds to the smallest possible key in
-        -- @t1'@, so we generate a mask for all the bitmaps of keys
-        -- greater than or equal to this smallest-possible-key and
-        -- only look at that subset of @bm2@.
-        let s1 :: IntSetPrefix
-            s1 = p1 .&. IntSet.suffixBitMask
+    t1'@(Bin p1 m1 _ _) ->
+        let
+            -- The bitmap-index of the smallest key possibly in @t1'@.
+            -- N.B., we must mask @p1@ because the low bits aren't
+            -- guaranteed to be clear!
+            s1 :: Int
+            s1 = mask p1 m1 .&. IntSet.suffixBitMask
+            -- @s1@ as a bitmap.
             s1_bitmap :: IntSetBitMap
             s1_bitmap = shiftLL 1 s1
+            -- Bitmap of all keys strictly less than @s1@.
             bitsLT_s1 :: IntSetBitMap
             bitsLT_s1 = s1_bitmap - 1
+            -- Bitmap of all keys greater than or equal to @s1@.
             bitsGE_s1 :: IntSetBitMap
             bitsGE_s1 = complement bitsLT_s1
-
-            -- TODO(wrengr): in principle this should be sound to use in place of @bm2@. But why isn't it working?
+            -- Restrict @bm2@ to keys which could possibly occur in @t1'@.
             bm2' :: IntSetBitMap
             bm2' = bm2 .&. bitsGE_s1
         in restrictBM t1' p2 bm2 (IntSet.suffixBitMask + 1)
