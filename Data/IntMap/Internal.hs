@@ -1131,20 +1131,20 @@ restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
             -- The bitmap-index of the smallest key possibly in @t1'@.
             -- N.B., we must mask @p1@ because the low bits aren't
             -- guaranteed to be clear!
-            s1 :: Int
-            s1 = mask p1 m1 .&. IntSet.suffixBitMask
-            -- @s1@ as a bitmap.
-            s1_bitmap :: IntSetBitMap
-            s1_bitmap = shiftLL 1 s1
-            -- Bitmap of all keys strictly less than @s1@.
-            bitsLT_s1 :: IntSetBitMap
-            bitsLT_s1 = s1_bitmap - 1
-            -- Bitmap of all keys greater than or equal to @s1@.
-            bitsGE_s1 :: IntSetBitMap
-            bitsGE_s1 = complement bitsLT_s1
+            minkey :: Prefix
+            minkey = mask p1 m1 .&. IntSet.suffixBitMask
+            -- Bitmap of all keys greater than or equal to @minkey@.
+            largeEnoughKeys :: IntSetBitMap
+            largeEnoughKeys = complement (shiftLL 1 minkey - 1)
+            -- The bitmap for the largest key possibly in @t1'@.
+            maxbit :: IntSetBitMap
+            maxbit = shiftLL 1 (m1 .|. (minkey - 1))
+            -- Bitmap of all keys less than or equal to @maxkey@.
+            smallEnoughKeys :: IntSetBitMap
+            smallEnoughKeys = maxbit .|. (maxbit - 1)
             -- Restrict @bm2@ to keys which could possibly occur in @t1'@.
             bm2' :: IntSetBitMap
-            bm2' = bm2 .&. bitsGE_s1
+            bm2' = bm2 .&. largeEnoughKeys .&. smallEnoughKeys
         in restrictBM t1' p2 bm2 (IntSet.suffixBitMask + 1)
     t1' -> t1'
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
