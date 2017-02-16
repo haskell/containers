@@ -1153,13 +1153,19 @@ lookupPrefix _ Nil = Nil
 
 
 restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
+{-
+-- See note below about 'bitmapForBin'.
 restrictBM 0 _ = Nil
+-}
 restrictBM bm (Bin p m l r) =
-    -- Assuming 'bitmapForBin' actually works correctly...
+    {-
+    -- Assuming 'bitmapForBin' actually worked correctly, this would let us short-circuit by hitting the 0 case above.
     let m'  = intFromNat (natFromInt m `shiftRL` 1)
         bmL = bitmapForBin p m'
         bmR = bitmapForBin (p .|. m) m'
     in bin p m (restrictBM bmL l) (restrictBM bmR r)
+    -}
+    bin p m (restrictBM bm l) (restrictBM bm r)
 restrictBM bm t@(Tip k _)
     -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
     | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
@@ -1167,6 +1173,7 @@ restrictBM bm t@(Tip k _)
 restrictBM _ Nil = Nil
 
 
+{-
 -- TODO(wrengr): this is buggy somehow.
 -- | Return an `IntSet`-bitmap for all keys that could possibly be
 -- contained in an `IntMap`-`Bin` with the given prefix and switching
@@ -1192,6 +1199,7 @@ bitmapForBin p m =
     bitmapOf i = shiftLL 1 (i .&. IntSet.suffixBitMask)
     {-# INLINE bitmapOf #-}
 {-# INLINE bitmapForBin #-}
+-}
 
 
 -- | /O(n+m)/. The intersection with a combining function.
