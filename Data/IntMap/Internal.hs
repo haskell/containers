@@ -1125,13 +1125,9 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | zero p1 m2        = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
 restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
-    case lookupPrefix p2 bm2 t1 of
-    t1'@(Bin p1 m1 _ _) ->
-        -- TODO(wrengr): start with a value for @bits@ based off @minkey@, so `restrictBM` can avoid needing to scan past the known-zero bits for too-small keys.
-        restrictBM t1' p2
-            (bm2 .&. bitmapForBin p1 m1)
-            (IntSet.suffixBitMask + 1)
-    t1' -> t1'
+    -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
+    -- and 'restrictBM' here, in order to avoid redundant case analyses?
+    restrictBM bm2 (lookupPrefix p2 t1)
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
@@ -1143,22 +1139,38 @@ type IntSetPrefix = Int
 type IntSetBitMap = Word
 
 -- | Find the sub-tree of @t@ which matches the prefix @kp@.
-lookupPrefix :: IntSetPrefix -> IntSetBitMap -> IntMap a -> IntMap a
-lookupPrefix !kp !bm t@(Bin p m l r)
+lookupPrefix :: IntSetPrefix -> IntMap a -> IntMap a
+lookupPrefix !kp t@(Bin p m l r)
     | m .&. IntSet.suffixBitMask /= 0 =
         if p .&. IntSet.prefixBitMask == kp then t else Nil
     | nomatch kp p m = Nil
-    | zero kp m      = lookupPrefix kp bm l
-    | otherwise      = lookupPrefix kp bm r
-lookupPrefix kp bm t@(Tip kx _)
-    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
-    | kx `IntSet.member` IntSet.Tip kp bm = t
+    | zero kp m      = lookupPrefix kp l
+    | otherwise      = lookupPrefix kp r
+lookupPrefix kp t@(Tip kx _)
+    | (kx .&. IntSet.prefixBitMask) == kp = t
     | otherwise = Nil
-lookupPrefix _ _ Nil = Nil
+lookupPrefix _ Nil = Nil
 
 
+restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
+restrictBM 0 _ = Nil
+restrictBM bm (Bin p m l r) =
+    -- Assuming 'bitmapForBin' actually works correctly...
+    let m'  = intFromNat (natFromInt m `shiftRL` 1)
+        bmL = bitmapForBin p m'
+        bmR = bitmapForBin (p .|. m) m'
+    in bin p m (restrictBM bmL l) (restrictBM bmR r)
+restrictBM bm t@(Tip k _)
+    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
+    | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
+    | otherwise = Nil
+restrictBM _ Nil = Nil
+
+
+-- TODO(wrengr): this is buggy somehow.
 -- | Return an `IntSet`-bitmap for all keys that could possibly be
--- contained in an `IntMap`-`Bin`.
+-- contained in an `IntMap`-`Bin` with the given prefix and switching
+-- bit.
 bitmapForBin :: Prefix -> Mask -> IntSetBitMap
 bitmapForBin p m =
     largeEnough .&. smallEnough
@@ -1180,39 +1192,6 @@ bitmapForBin p m =
     bitmapOf i = shiftLL 1 (i .&. IntSet.suffixBitMask)
     {-# INLINE bitmapOf #-}
 {-# INLINE bitmapForBin #-}
-
-
--- TODO(wrengr): Right now this is still pretty naive. It essentially
--- unpacks the 'IntSetBitMap' into a tree-representation, and then
--- calls 'lookup' on each element of the set; thus, it is
--- /O(min(m,W) * min(n,W)/. While technically that degenerates to
--- /O(1)/ for a fixed /W/, it's morally equivalent to /O(m * log n)/.
--- Really, we should be able to get this down to /O(n+m)/ just like
--- 'intersection' is. One way to do this would be to restrict @t@
--- on the recursive calls, so that the 'lookup's are cheaper. But
--- we should be able to do even better by avoiding the call to
--- 'lookup' entirely.
---
--- | The initial value passed for the final argument should be
--- @(IntSet.suffixBitMask + 1)@. We don't set that here via
--- worker/wrapper, because this is the worker floated to the
--- top-level.
-restrictBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
-restrictBM t !prefix !_ 0 =
-    case lookup prefix t of
-    Nothing -> Nil
-    Just x -> Tip prefix x
-restrictBM t prefix bmask bits =
-    case intFromNat (natFromInt bits `shiftRL` 1) of
-    bits2
-      | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
-          restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2
-      | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
-          restrictBM t prefix bmask bits2
-      | otherwise ->
-          bin prefix bits2
-            (restrictBM t prefix bmask bits2)
-            (restrictBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
 
 
 -- | /O(n+m)/. The intersection with a combining function.
@@ -3169,20 +3148,31 @@ binCheckRight p m l r   = Bin p m l r
 {--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
+
+-- | Should this key follow the left subtree of a 'Bin' with switching
+-- bit @m@? N.B., the answer is only valid when @match i p m@ is true.
 zero :: Key -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
 {-# INLINE zero #-}
 
 nomatch,match :: Key -> Prefix -> Mask -> Bool
+
+-- | Does the key @i@ differ from the prefix @p@ before getting to
+-- the switching bit @m@?
 nomatch i p m
   = (mask i m) /= p
 {-# INLINE nomatch #-}
 
+-- | Does the key @i@ match the prefix @p@ (up to but not including
+-- bit @m@)?
 match i p m
   = (mask i m) == p
 {-# INLINE match #-}
 
+
+-- | The prefix of key @i@ up to (but not including) the switching
+-- bit @m@.
 mask :: Key -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
@@ -3192,16 +3182,21 @@ mask i m
 {--------------------------------------------------------------------
   Big endian operations
 --------------------------------------------------------------------}
+
+-- | The prefix of key @i@ up to (but not including) the switching
+-- bit @m@.
 maskW :: Nat -> Nat -> Prefix
 maskW i m
   = intFromNat (i .&. (complement (m-1) `xor` m))
 {-# INLINE maskW #-}
 
+-- | Does the left switching bit specify a shorter prefix?
 shorter :: Mask -> Mask -> Bool
 shorter m1 m2
   = (natFromInt m1) > (natFromInt m2)
 {-# INLINE shorter #-}
 
+-- | The first switching bit where the two prefixes disagree.
 branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
@@ -3211,8 +3206,9 @@ branchMask p1 p2
   Utilities
 --------------------------------------------------------------------}
 
--- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
--- tree.  This function is useful for consuming a map in parallel.
+-- | /O(1)/.  Decompose a map into pieces based on the structure
+-- of the underlying tree. This function is useful for consuming a
+-- map in parallel.
 --
 -- No guarantee is made as to the sizes of the pieces; an internal, but
 -- deterministic process determines this.  However, it is guaranteed that the
