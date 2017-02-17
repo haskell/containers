@@ -1124,12 +1124,14 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | nomatch p1 p2 m2  = Nil
         | zero p1 m2        = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
-restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
+restrictKeys t1@(Bin p1 m1 _ _) (IntSet.Tip p2 bm2) =
+    let minbit = bitmapOf p1
+        ge_minbit = complement (minbit - 1)
+        maxbit = bitmapOf (p1 .|. (m1 .|. (m1 - 1)))
+        le_maxbit = maxbit .|. (maxbit - 1)
     -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
     -- and 'restrictBM' here, in order to avoid redundant case analyses?
-    -- TODO(wrengr): mask out the too-small and too-large keys
-    -- before entering 'restrictBM', for better IH.
-    restrictBM bm2 (lookupPrefix p2 t1)
+    in restrictBM (bm2 .&. ge_minbit .&. le_maxbit) (lookupPrefix p2 t1)
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
@@ -1157,7 +1159,7 @@ lookupPrefix _ Nil = Nil
 restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
 restrictBM 0 _ = Nil
 restrictBM bm (Bin p m l r) =
-    let leftBits = shiftLL 1 ((p .|. m) .&. IntSet.suffixBitMask) - 1
+    let leftBits = bitmapOf (p .|. m) - 1
         bmL = bm .&. leftBits
         bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
     in  bin p m (restrictBM bmL l) (restrictBM bmR r)
@@ -1166,6 +1168,11 @@ restrictBM bm t@(Tip k _)
     | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
     | otherwise = Nil
 restrictBM _ Nil = Nil
+
+
+bitmapOf :: Int -> IntSetBitMap
+bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
+{-# INLINE bitmapOf #-}
 
 
 -- | /O(n+m)/. The intersection with a combining function.
