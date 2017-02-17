@@ -1127,6 +1127,8 @@ restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
 restrictKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
     -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
     -- and 'restrictBM' here, in order to avoid redundant case analyses?
+    -- TODO(wrengr): mask out the too-small and too-large keys
+    -- before entering 'restrictBM', for better IH.
     restrictBM bm2 (lookupPrefix p2 t1)
 restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
@@ -1153,53 +1155,17 @@ lookupPrefix _ Nil = Nil
 
 
 restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
-{-
--- See note below about 'bitmapForBin'.
 restrictBM 0 _ = Nil
--}
 restrictBM bm (Bin p m l r) =
-    {-
-    -- Assuming 'bitmapForBin' actually worked correctly, this would let us short-circuit by hitting the 0 case above.
-    let m'  = intFromNat (natFromInt m `shiftRL` 1)
-        bmL = bitmapForBin p m'
-        bmR = bitmapForBin (p .|. m) m'
-    in bin p m (restrictBM bmL l) (restrictBM bmR r)
-    -}
-    bin p m (restrictBM bm l) (restrictBM bm r)
+    let leftBits = shiftLL 1 ((p .|. m) .&. IntSet.suffixBitMask) - 1
+        bmL = bm .&. leftBits
+        bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
+    in  bin p m (restrictBM bmL l) (restrictBM bmR r)
 restrictBM bm t@(Tip k _)
     -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
     | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
     | otherwise = Nil
 restrictBM _ Nil = Nil
-
-
-{-
--- TODO(wrengr): this is buggy somehow.
--- | Return an `IntSet`-bitmap for all keys that could possibly be
--- contained in an `IntMap`-`Bin` with the given prefix and switching
--- bit.
-bitmapForBin :: Prefix -> Mask -> IntSetBitMap
-bitmapForBin p m =
-    largeEnough .&. smallEnough
-    where
-    -- The bitmap containing only the smallest key possibly in the tree.
-    minbit :: IntSetBitMap
-    minbit = bitmapOf p
-    -- Bitmap of all keys greater than or equal to @minkey@.
-    largeEnough :: IntSetBitMap
-    largeEnough = complement (minbit - 1)
-    -- The bitmap containing only the largest key possibly in the tree.
-    maxbit :: IntSetBitMap
-    maxbit = bitmapOf (p .|. m .|. (m - 1))
-    -- Bitmap of all keys less than or equal to @maxkey@.
-    smallEnough :: IntSetBitMap
-    smallEnough = maxbit .|. (maxbit - 1)
-
-    bitmapOf :: Int -> IntSetBitMap
-    bitmapOf i = shiftLL 1 (i .&. IntSet.suffixBitMask)
-    {-# INLINE bitmapOf #-}
-{-# INLINE bitmapForBin #-}
--}
 
 
 -- | /O(n+m)/. The intersection with a combining function.
