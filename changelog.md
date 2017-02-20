@@ -4,7 +4,10 @@
 
 * Planned for GHC 8.2.
 
-* Define custom `liftA2` in `Applicative` instances for base 4.10, and use
+* Optimize `Data.IntMap.restrictKeys` (the semantic fix in 0.5.10.1 left it
+  rather slow in certain cases). Partially optimize `Data.IntMap.withoutKeys`.
+
+* Define a custom `liftA2` in `Applicative` instances for base 4.10, and use
   `liftA2` rather than `<*>` whenever it may be beneficial.
 
 * Add `liftA2`-related `RULES` for `Data.Sequence`.
