@@ -669,7 +669,7 @@ unions = foldlStrict union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. The union of two sets, preferring the first set when
+-- | /O(m*log(n\/m + 1)), m <= n/. The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
@@ -689,7 +689,7 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/. Difference of two sets.
+-- | /O(m*log(n\/m + 1)), m <= n/. Difference of two sets.
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
@@ -706,7 +706,7 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/. The intersection of two sets.
+-- | /O(m*log(n\/m + 1)), m <= n/. The intersection of two sets.
 -- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S

@@ -1851,7 +1851,7 @@ difference t1 (Bin _ k _ l2 r2) = case split k t1 of
 {-# INLINABLE difference #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. Remove all keys in a 'Set' from a 'Map'.
+-- | /O(m*log(n\/m + 1)), m <= n/. Remove all keys in a 'Set' from a 'Map'.
 --
 -- @
 -- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'Set.notMember'` s) m
@@ -1931,7 +1931,7 @@ intersection t1@(Bin _ k x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. Restrict a 'Map' to only those keys
+-- | /O(m*log(n\/m + 1)), m <= n/. Restrict a 'Map' to only those keys
 -- found in a 'Set'.
 --
 -- @
@@ -2589,7 +2589,7 @@ mergeWithKey f g1 g2 = go
 {--------------------------------------------------------------------
   Submap
 --------------------------------------------------------------------}
--- | /O(m*log(n/m + 1)), m <= n/.
+-- | /O(m*log(n\/m + 1)), m <= n/.
 -- This function is defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
@@ -2598,7 +2598,7 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 {-# INLINABLE isSubmapOf #-}
 #endif
 
-{- | /O(m*log(n/m + 1)), m <= n/.
+{- | /O(m*log(n\/m + 1)), m <= n/.
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
  all keys in @t1@ are in tree @t2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following
@@ -2636,7 +2636,7 @@ submap' f (Bin _ kx x l r) t
 {-# INLINABLE submap' #-}
 #endif
 
--- | /O(m*log(n/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
+-- | /O(m*log(n\/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
@@ -2645,7 +2645,7 @@ isProperSubmapOf m1 m2
 {-# INLINABLE isProperSubmapOf #-}
 #endif
 
-{- | /O(m*log(n/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
+{- | /O(m*log(n\/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
  @m1@ and @m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
