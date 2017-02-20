@@ -16,7 +16,7 @@ import Data.Sequence.Internal
 
 import Data.Sequence
 
-import Control.Applicative (Applicative(..))
+import Control.Applicative (Applicative(..), liftA2)
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
@@ -133,6 +133,8 @@ main = defaultMain
        , testProperty "munzip-lazy" prop_munzipLazy
 #endif
        , testProperty "<*>" prop_ap
+       , testProperty "<*> NOINLINE" prop_ap_NOINLINE
+       , testProperty "liftA2" prop_liftA2
        , testProperty "*>" prop_then
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
@@ -745,6 +747,20 @@ prop_munzipLazy pairs = deepseq ((`seq` ()) <$> repaired) True
 prop_ap :: Seq A -> Seq B -> Bool
 prop_ap xs ys =
     toList' ((,) <$> xs <*> ys) ~= ( (,) <$> toList xs <*> toList ys )
+
+prop_ap_NOINLINE :: Seq A -> Seq B -> Bool
+prop_ap_NOINLINE xs ys =
+    toList' (((,) <$> xs) `apNOINLINE` ys) ~= ( (,) <$> toList xs <*> toList ys )
+
+{-# NOINLINE apNOINLINE #-}
+apNOINLINE :: Seq (a -> b) -> Seq a -> Seq b
+apNOINLINE fs xs = fs <*> xs
+
+prop_liftA2 :: Seq A -> Seq B -> Property
+prop_liftA2 xs ys = valid q .&&.
+    toList q === liftA2 (,) (toList xs) (toList ys)
+  where
+    q = liftA2 (,) xs ys
 
 prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =

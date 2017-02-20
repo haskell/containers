@@ -281,8 +281,9 @@ module Data.IntMap.Internal (
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
+import Control.Applicative (liftA2)
 #else
-import Control.Applicative (Applicative(pure, (<*>)), (<$>))
+import Control.Applicative (Applicative(pure, (<*>)), (<$>), liftA2)
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
@@ -1697,7 +1698,7 @@ filterWithKeyA
 filterWithKeyA _ Nil           = pure Nil
 filterWithKeyA f t@(Tip k x)   = (\b -> if b then t else Nil) <$> f k x
 filterWithKeyA f (Bin p m l r) =
-    bin p m <$> filterWithKeyA f l <*> filterWithKeyA f r
+    liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1734,7 +1735,7 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k) <$> f k x
-    go (Bin p m l r) = bin p m <$> go l <*> go r
+    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
 
 
 -- | Merge two maps.
@@ -1906,8 +1907,8 @@ mergeA
       where
         merge2 t2@(Bin p2 m2 l2 r2)
           | nomatch k1 p2 m2 = linkA k1 (subsingletonBy g1k k1 x1) p2 (g2t t2)
-          | zero k1 m2       = bin p2 m2 <$> merge2 l2 <*> g2t r2
-          | otherwise        = bin p2 m2 <$> g2t l2 <*> merge2 r2
+          | zero k1 m2       = liftA2 (bin p2 m2) (merge2 l2) (g2t r2)
+          | otherwise        = liftA2 (bin p2 m2) (g2t l2) (merge2 r2)
         merge2 (Tip k2 x2)   = mergeTips k1 x1 k2 x2
         merge2 Nil           = subsingletonBy g1k k1 x1
 
@@ -1915,34 +1916,34 @@ mergeA
       where
         merge1 t1@(Bin p1 m1 l1 r1)
           | nomatch k2 p1 m1 = linkA p1 (g1t t1) k2 (subsingletonBy g2k k2 x2)
-          | zero k2 m1       = bin p1 m1 <$> merge1 l1 <*> g1t r1
-          | otherwise        = bin p1 m1 <$> g1t l1 <*> merge1 r1
+          | zero k2 m1       = liftA2 (bin p1 m1) (merge1 l1) (g1t r1)
+          | otherwise        = liftA2 (bin p1 m1) (g1t l1) (merge1 r1)
         merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
         merge1 Nil           = subsingletonBy g2k k2 x2
 
     go t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
       | shorter m1 m2  = merge1
       | shorter m2 m1  = merge2
-      | p1 == p2       = bin p1 m1   <$> go  l1 l2 <*> go r1 r2
-      | otherwise      = link_ p1 p2 <$> g1t t1    <*> g2t   t2
+      | p1 == p2       = liftA2 (bin p1 m1)   (go  l1 l2) (go r1 r2)
+      | otherwise      = liftA2 (link_ p1 p2) (g1t t1)    (g2t   t2)
       where
-        merge1 | nomatch p2 p1 m1  = link_ p1 p2 <$> g1t t1    <*> g2t t2
-               | zero p2 m1        = bin p1 m1   <$> go  l1 t2 <*> g1t r1
-               | otherwise         = bin p1 m1   <$> g1t l1    <*> go  r1 t2
-        merge2 | nomatch p1 p2 m2  = link_ p1 p2 <$> g1t t1    <*> g2t    t2
-               | zero p1 m2        = bin p2 m2   <$> go  t1 l2 <*> g2t    r2
-               | otherwise         = bin p2 m2   <$> g2t    l2 <*> go  t1 r2
+        merge1 | nomatch p2 p1 m1  = liftA2 (link_ p1 p2) (g1t t1)    (g2t t2)
+               | zero p2 m1        = liftA2 (bin p1 m1)   (go  l1 t2) (g1t r1)
+               | otherwise         = liftA2 (bin p1 m1)   (g1t l1)    (go  r1 t2)
+        merge2 | nomatch p1 p2 m2  = liftA2 (link_ p1 p2) (g1t t1)    (g2t    t2)
+               | zero p1 m2        = liftA2 (bin p2 m2)   (go  t1 l2) (g2t    r2)
+               | otherwise         = liftA2 (bin p2 m2)   (g2t    l2) (go  t1 r2)
 
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
 
     mergeTips k1 x1 k2 x2
       | k1 == k2  = maybe Nil (Tip k1) <$> f k1 x1 x2
-      | k1 <  k2  = subdoubleton k1 k2 <$> g1k k1 x1 <*> g2k k2 x2
+      | k1 <  k2  = liftA2 (subdoubleton k1 k2) (g1k k1 x1) (g2k k2 x2)
         {-
         = link_ k1 k2 <$> subsingletonBy g1k k1 x1 <*> subsingletonBy g2k k2 x2
         -}
-      | otherwise = subdoubleton k2 k1 <$> g2k k2 x2 <*> g1k k1 x1
+      | otherwise = liftA2 (subdoubleton k2 k1) (g2k k2 x2) (g1k k1 x1)
     {-# INLINE mergeTips #-}
 
     subdoubleton _ _   Nothing Nothing     = Nil
@@ -1964,8 +1965,8 @@ mergeA
         -> Prefix -> f (IntMap a)
         -> f (IntMap a)
     linkA p1 t1 p2 t2
-      | zero p1 m = bin p m <$> t1 <*> t2
-      | otherwise = bin p m <$> t2 <*> t1
+      | zero p1 m = liftA2 (bin p m) t1 t2
+      | otherwise = liftA2 (bin p m) t2 t1
       where
         m = branchMask p1 p2
         p = mask p1 m
@@ -2282,7 +2283,7 @@ traverseWithKey f = go
   where
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
-    go (Bin p m l r) = Bin p m <$> go l <*> go r
+    go (Bin p m l r) = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating

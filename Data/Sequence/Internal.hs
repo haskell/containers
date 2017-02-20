@@ -174,6 +174,7 @@ module Data.Sequence.Internal (
     traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
     intersperse,    -- :: a -> Seq a -> Seq a
+    liftA2Seq,      -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
     -- ** Zips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
@@ -413,8 +414,8 @@ traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
 traverseFTE _f EmptyT = pure empty
 traverseFTE f (Single x) = Seq . Single . Elem <$> f x
 traverseFTE f (Deep s pr m sf) =
-  (\pr' m' sf' -> coerce $ Deep s pr' m' sf') <$>
-     traverse f pr <*> traverse (traverse f) m <*> traverse f sf
+  liftA3 (\pr' m' sf' -> coerce $ Deep s pr' m' sf')
+     (traverse f pr) (traverse (traverse f) m) (traverse f sf)
 #else
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
@@ -432,24 +433,43 @@ instance Monad Seq where
 instance Applicative Seq where
     pure = singleton
     xs *> ys = cycleNTimes (length xs) ys
+    (<*>) = apSeq
+#if MIN_VERSION_base(4,10,0)
+    liftA2 = liftA2Seq
+#endif
 
-    fs <*> xs@(Seq xsFT) = case viewl fs of
-      EmptyL -> empty
-      firstf :< fs' -> case viewr fs' of
-        EmptyR -> fmap firstf xs
-        Seq fs''FT :> lastf -> case rigidify xsFT of
-             RigidEmpty -> empty
-             RigidOne (Elem x) -> fmap ($x) fs
-             RigidTwo (Elem x1) (Elem x2) ->
-                Seq $ ap2FT firstf fs''FT lastf (x1, x2)
-             RigidThree (Elem x1) (Elem x2) (Elem x3) ->
-                Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
-             RigidFull r@(Rigid s pr _m sf) -> Seq $
-                   Deep (s * length fs)
-                        (fmap (fmap firstf) (nodeToDigit pr))
-                        (aptyMiddle (fmap firstf) (fmap lastf) fmap fs''FT r)
-                        (fmap (fmap lastf) (nodeToDigit sf))
+apSeq :: Seq (a -> b) -> Seq a -> Seq b
+apSeq fs xs@(Seq xsFT) = case viewl fs of
+  EmptyL -> empty
+  firstf :< fs' -> case viewr fs' of
+    EmptyR -> fmap firstf xs
+    Seq fs''FT :> lastf -> case rigidify xsFT of
+         RigidEmpty -> empty
+         RigidOne (Elem x) -> fmap ($x) fs
+         RigidTwo (Elem x1) (Elem x2) ->
+            Seq $ ap2FT firstf fs''FT lastf (x1, x2)
+         RigidThree (Elem x1) (Elem x2) (Elem x3) ->
+            Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
+         RigidFull r@(Rigid s pr _m sf) -> Seq $
+               Deep (s * length fs)
+                    (fmap (fmap firstf) (nodeToDigit pr))
+                    (aptyMiddle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                    (fmap (fmap lastf) (nodeToDigit sf))
+{-# NOINLINE [1] apSeq #-}
 
+{-# RULES
+"ap/fmap1" forall f xs ys . apSeq (fmapSeq f xs) ys = liftA2Seq f xs ys
+"ap/fmap2" forall f gs xs . apSeq gs (fmapSeq f xs) =
+                              liftA2Seq (\g x -> g (f x)) gs xs
+"fmap/ap" forall f gs xs . fmapSeq f (gs `apSeq` xs) =
+                             liftA2Seq (\g x -> f (g x)) gs xs
+"fmap/liftA2" forall f g m n . fmapSeq f (liftA2Seq g m n) =
+                       liftA2Seq (\x y -> f (g x y)) m n
+"liftA2/fmap1" forall f g m n . liftA2Seq f (fmapSeq g m) n =
+                       liftA2Seq (\x y -> f (g x) y) m n
+"liftA2/fmap2" forall f g m n . liftA2Seq f m (fmapSeq g n) =
+                       liftA2Seq (\x y -> f x (g y)) m n
+ #-}
 
 ap2FT :: (a -> b) -> FingerTree (Elem (a->b)) -> (a -> b) -> (a,a) -> FingerTree (Elem b)
 ap2FT firstf fs lastf (x,y) =
@@ -463,6 +483,46 @@ ap3FT firstf fs lastf (x,y,z) = Deep (size fs * 3 + 6)
                         (Three (Elem $ firstf x) (Elem $ firstf y) (Elem $ firstf z))
                         (mapMulFT 3 (\(Elem f) -> Node3 3 (Elem (f x)) (Elem (f y)) (Elem (f z))) fs)
                         (Three (Elem $ lastf x) (Elem $ lastf y) (Elem $ lastf z))
+
+lift2FT :: (a -> b -> c) -> a -> FingerTree (Elem a) -> a -> (b,b) -> FingerTree (Elem c)
+lift2FT f firstx xs lastx (y1,y2) =
+                 Deep (size xs * 2 + 4)
+                      (Two (Elem $ f firstx y1) (Elem $ f firstx y2))
+                      (mapMulFT 2 (\(Elem x) -> Node2 2 (Elem (f x y1)) (Elem (f x y2))) xs)
+                      (Two (Elem $ f lastx y1) (Elem $ f lastx y2))
+
+lift3FT :: (a -> b -> c) -> a -> FingerTree (Elem a) -> a -> (b,b,b) -> FingerTree (Elem c)
+lift3FT f firstx xs lastx (y1,y2,y3) =
+                 Deep (size xs * 3 + 6)
+                      (Three (Elem $ f firstx y1) (Elem $ f firstx y2) (Elem $ f firstx y3))
+                      (mapMulFT 3 (\(Elem x) -> Node3 3 (Elem (f x y1)) (Elem (f x y2)) (Elem (f x y3))) xs)
+                      (Three (Elem $ f lastx y1) (Elem $ f lastx y2) (Elem $ f lastx y3))
+
+liftA2Seq :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
+liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
+  EmptyL -> empty
+  firstx :< xs' -> case viewr xs' of
+    EmptyR -> f firstx <$> ys
+    Seq xs''FT :> lastx -> case rigidify ysFT of
+      RigidEmpty -> empty
+      RigidOne (Elem y) -> fmap (\x -> f x y) xs
+      RigidTwo (Elem y1) (Elem y2) ->
+        Seq $ lift2FT f firstx xs''FT lastx (y1, y2)
+      RigidThree (Elem y1) (Elem y2) (Elem y3) ->
+        Seq $ lift3FT f firstx xs''FT lastx (y1, y2, y3)
+      RigidFull r@(Rigid s pr _m sf) -> Seq $
+        Deep (s * length xs)
+             (fmap (fmap (f firstx)) (nodeToDigit pr))
+             (aptyMiddle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
+             (fmap (fmap (f lastx)) (nodeToDigit sf))
+  where
+    lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
+#if __GLASGOW_HASKELL__ >= 708
+    lift_elem = coerce
+#else
+    lift_elem f x (Elem y) = Elem (f x y)
+#endif
+{-# NOINLINE [1] liftA2Seq #-}
 
 
 data Rigidified a = RigidEmpty
@@ -514,12 +574,12 @@ type Digit23 a = Node a
 -- class, but as it is we have to build up 'map23' explicitly through the
 -- recursion.
 aptyMiddle
-  :: (c -> d)
-     -> (c -> d)
-     -> ((a -> b) -> c -> d)
-     -> FingerTree (Elem (a -> b))
-     -> Rigid c
-     -> FingerTree (Node d)
+  :: (b -> c)
+     -> (b -> c)
+     -> (a -> b -> c)
+     -> FingerTree (Elem a)
+     -> Rigid b
+     -> FingerTree (Node c)
 
 -- Not at the bottom yet
 
@@ -846,8 +906,8 @@ instance Traversable FingerTree where
     traverse _ EmptyT = pure EmptyT
     traverse f (Single x) = Single <$> f x
     traverse f (Deep v pr m sf) =
-        deep' v <$> traverse f pr <*> traverse (traverse f) m <*>
-            traverse f sf
+        liftA3 (Deep v) (traverse f pr) (traverse (traverse f) m)
+            (traverse f sf)
 
 instance NFData a => NFData (FingerTree a) where
     rnf EmptyT = ()
@@ -929,9 +989,9 @@ instance Functor Digit where
 instance Traversable Digit where
     {-# INLINE traverse #-}
     traverse f (One a) = One <$> f a
-    traverse f (Two a b) = Two <$> f a <*> f b
-    traverse f (Three a b c) = Three <$> f a <*> f b <*> f c
-    traverse f (Four a b c d) = Four <$> f a <*> f b <*> f c <*> f d
+    traverse f (Two a b) = liftA2 Two (f a) (f b)
+    traverse f (Three a b c) = liftA3 Three (f a) (f b) (f c)
+    traverse f (Four a b c d) = liftA3 Four (f a) (f b) (f c) <*> f d
 
 instance NFData a => NFData (Digit a) where
     rnf (One a) = rnf a
@@ -968,24 +1028,6 @@ data Node a
     deriving Show
 #endif
 
--- Sometimes, we need to apply a Node2, Node3, or Deep constructor
--- to a size and pass the result to a function. If we calculate,
--- say, `Node2 n <$> x <*> y`, then according to -ddump-simpl,
--- GHC boxes up `n`, passes it to the strict constructor for `Node2`,
--- and passes the result to `fmap`. Using `node2'` instead prevents
--- this, forming a closure with the unboxed size.
-{-# INLINE node2' #-}
-node2' :: Int -> a -> a -> Node a
-node2' !s = \a b -> Node2 s a b
-
-{-# INLINE node3' #-}
-node3' :: Int -> a -> a -> a -> Node a
-node3' !s = \a b c -> Node3 s a b c
-
-{-# INLINE deep' #-}
-deep' :: Int -> Digit a -> FingerTree (Node a) -> Digit a -> FingerTree a
-deep' !s = \pr m sf -> Deep s pr m sf
-
 instance Foldable Node where
     foldMap f (Node2 _ a b) = f a <> f b
     foldMap f (Node3 _ a b c) = f a <> f b <> f c
@@ -1011,8 +1053,8 @@ instance Functor Node where
 
 instance Traversable Node where
     {-# INLINE traverse #-}
-    traverse f (Node2 v a b) = node2' v <$> f a <*> f b
-    traverse f (Node3 v a b c) = node3' v <$> f a <*> f b <*> f c
+    traverse f (Node2 v a b) = liftA2 (Node2 v) (f a) (f b)
+    traverse f (Node3 v a b c) = liftA3 (Node3 v) (f a) (f b) (f c)
 
 instance NFData a => NFData (Node a) where
     rnf (Node2 _ a b) = rnf a `seq` rnf b
@@ -1130,12 +1172,12 @@ applicativeTree n !mSize m = case n of
            (q,1) -> deepA two (applicativeTree (q - 1) mSize' n3) two
            (q,_) -> deepA three (applicativeTree (q - 1) mSize' n3) two
       where !mSize' = 3 * mSize
-            n3 = liftA3 (node3' mSize') m m m
+            n3 = liftA3 (Node3 mSize') m m m
   where
     one = fmap One m
     two = liftA2 Two m m
     three = liftA3 Three m m m
-    deepA = liftA3 (deep' (n * mSize))
+    deepA = liftA3 (Deep (n * mSize))
     emptyTree = pure EmptyT
 
 ------------------------------------------------------------------------
@@ -1157,7 +1199,7 @@ replicate n x
   | otherwise   = error "replicate takes a nonnegative integer argument"
 
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
--- /O(log n)/ calls to '<*>' and 'pure'.
+-- /O(log n)/ calls to 'liftA2' and 'pure'.
 --
 -- > replicateA n x = sequenceA (replicate n x)
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
@@ -1661,7 +1703,7 @@ instance Foldable ViewL where
 
 instance Traversable ViewL where
     traverse _ EmptyL       = pure EmptyL
-    traverse f (x :< xs)    = (:<) <$> f x <*> traverse f xs
+    traverse f (x :< xs)    = liftA2 (:<) (f x) (traverse f xs)
 
 -- | /O(1)/. Analyse the left end of a sequence.
 viewl           ::  Seq a -> ViewL a
@@ -1728,7 +1770,7 @@ instance Foldable ViewR where
 
 instance Traversable ViewR where
     traverse _ EmptyR       = pure EmptyR
-    traverse f (xs :> x)    = (:>) <$> traverse f xs <*> f x
+    traverse f (xs :> x)    = liftA2 (:>) (traverse f xs) (f x)
 
 -- | /O(1)/. Analyse the right end of a sequence.
 viewr           ::  Seq a -> ViewR a
@@ -2666,10 +2708,10 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexTreeE _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeE f s (Deep n pr m sf) =
-          deep' n <$>
-               traverseWithIndexDigitE f s pr <*>
-               traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m <*>
-               traverseWithIndexDigitE f sPsprm sf
+          liftA3 (Deep n)
+               (traverseWithIndexDigitE f s pr)
+               (traverseWithIndexTreeN (traverseWithIndexNodeE f) sPspr m)
+               (traverseWithIndexDigitE f sPsprm sf)
     where
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
@@ -2678,10 +2720,10 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexTreeN _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeN f s (Deep n pr m sf) =
-          deep' n <$>
-               traverseWithIndexDigitN f s pr <*>
-               traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m <*>
-               traverseWithIndexDigitN f sPsprm sf
+          liftA3 (Deep n)
+               (traverseWithIndexDigitN f s pr)
+               (traverseWithIndexTreeN (traverseWithIndexNodeN f) sPspr m)
+               (traverseWithIndexDigitN f sPsprm sf)
     where
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
@@ -2695,16 +2737,16 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   {-# INLINE traverseWithIndexDigit #-}
   traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
   traverseWithIndexDigit f !s (One a) = One <$> f s a
-  traverseWithIndexDigit f s (Two a b) = Two <$> f s a <*> f sPsa b
+  traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
     where
       !sPsa = s + size a
   traverseWithIndexDigit f s (Three a b c) =
-                                      Three <$> f s a <*> f sPsa b <*> f sPsab c
+                                      liftA3 Three (f s a) (f sPsa b) (f sPsab c)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
   traverseWithIndexDigit f s (Four a b c d) =
-                          Four <$> f s a <*> f sPsa b <*> f sPsab c <*> f sPsabc d
+                          liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
@@ -2718,11 +2760,11 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 
   {-# INLINE traverseWithIndexNode #-}
   traverseWithIndexNode :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Node a -> f (Node b)
-  traverseWithIndexNode f !s (Node2 ns a b) = node2' ns <$> f s a <*> f sPsa b
+  traverseWithIndexNode f !s (Node2 ns a b) = liftA2 (Node2 ns) (f s a) (f sPsa b)
     where
       !sPsa = s + size a
   traverseWithIndexNode f s (Node3 ns a b c) =
-                                     node3' ns <$> f s a <*> f sPsa b <*> f sPsab c
+                           liftA3 (Node3 ns) (f s a) (f sPsa b) (f sPsab c)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
