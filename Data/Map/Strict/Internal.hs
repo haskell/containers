@@ -403,6 +403,7 @@ import Control.Applicative (Const (..), liftA3)
 import Control.Applicative (Applicative (..), (<$>))
 #endif
 import qualified Data.Set.Internal as Set
+import qualified Data.Map.Internal as L
 import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 
@@ -1336,13 +1337,8 @@ map f = go
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
 {-# RULES
-"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
- #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 709
--- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
-{-# RULES
-"mapSeq/coerce" map coerce = coerce
+"map/map" forall f g xs . map f (map g xs) = map (\x -> f $! g x) xs
+"map/mapL" forall f g xs . map f (L.map g xs) = map (\x -> f (g x)) xs
  #-}
 #endif
 
@@ -1361,10 +1357,16 @@ mapWithKey f (Bin sx kx x l r) =
 {-# NOINLINE [1] mapWithKey #-}
 {-# RULES
 "mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k $! g k a) xs
+"mapWithKey/mapWithKeyL" forall f g xs . mapWithKey f (L.mapWithKey g xs) =
   mapWithKey (\k a -> f k (g k a)) xs
 "mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k $! g a) xs
+"mapWithKey/mapL" forall f g xs . mapWithKey f (L.map g xs) =
   mapWithKey (\k a -> f k (g a)) xs
 "map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f $! g k a) xs
+"map/mapWithKeyL" forall f g xs . map f (L.mapWithKey g xs) =
   mapWithKey (\k a -> f (g k a)) xs
  #-}
 #endif

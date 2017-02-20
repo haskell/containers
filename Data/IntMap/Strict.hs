@@ -217,62 +217,94 @@ module Data.IntMap.Strict (
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
 
 import Data.Bits
-import Data.IntMap.Internal hiding
-    ( findWithDefault
-    , singleton
-    , insert
-    , insertWith
-    , insertWithKey
-    , insertLookupWithKey
-    , adjust
-    , adjustWithKey
-    , update
-    , updateWithKey
-    , updateLookupWithKey
-    , alter
-    , alterF
-    , unionsWith
-    , unionWith
-    , unionWithKey
-    , differenceWith
-    , differenceWithKey
-    , intersectionWith
-    , intersectionWithKey
-    , mergeWithKey
-    , updateMinWithKey
-    , updateMaxWithKey
-    , updateMax
-    , updateMin
-    , map
-    , mapWithKey
-    , mapAccum
-    , mapAccumWithKey
-    , mapAccumRWithKey
-    , mapKeysWith
-    , mapMaybe
-    , mapMaybeWithKey
-    , mapEither
-    , mapEitherWithKey
-    , fromSet
-    , fromList
-    , fromListWith
-    , fromListWithKey
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
-    )
+import qualified Data.IntMap.Internal as L
+import Data.IntMap.Internal
+  ( IntMap (..)
+  , Key
+  , Prefix
+  , Mask
+  , mask
+  , branchMask
+  , shorter
+  , nomatch
+  , zero
+  , natFromInt
+  , intFromNat
+  , bin
+  , binCheckLeft
+  , binCheckRight
+  , link
+
+  , (\\)
+  , (!)
+  , empty
+  , assocs
+  , filter
+  , filterWithKey
+  , findMin
+  , findMax
+  , foldMapWithKey
+  , foldr
+  , foldl
+  , foldr'
+  , foldl'
+  , foldlWithKey
+  , foldrWithKey
+  , foldlWithKey'
+  , foldrWithKey'
+  , keysSet
+  , mergeWithKey'
+  , delete
+  , deleteMin
+  , deleteMax
+  , deleteFindMax
+  , deleteFindMin
+  , difference
+  , elems
+  , intersection
+  , isProperSubmapOf
+  , isProperSubmapOfBy
+  , isSubmapOf
+  , isSubmapOfBy
+  , lookup
+  , lookupLE
+  , lookupGE
+  , lookupLT
+  , lookupGT
+  , minView
+  , maxView
+  , minViewWithKey
+  , maxViewWithKey
+  , keys
+  , mapKeys
+  , mapKeysMonotonic
+  , member
+  , notMember
+  , null
+  , partition
+  , partitionWithKey
+  , restrictKeys
+  , showTree
+  , showTreeWith
+  , size
+  , split
+  , splitLookup
+  , splitRoot
+  , toAscList
+  , toDescList
+  , toList
+  , union
+  , unions
+  , withoutKeys)
 
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
-#if __GLASGOW_HASKELL__ >= 709
-import Data.Coerce
-#endif
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor((<$>))
 #endif
+import Control.Applicative (Applicative (..), liftA2)
 
 -- $strictness
 --
@@ -777,12 +809,8 @@ map f = go
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
 {-# RULES
-"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
- #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 709
-{-# RULES
-"map/coerce" map coerce = coerce
+"map/map" forall f g xs . map f (map g xs) = map (\x -> f $! g x) xs
+"map/mapL" forall f g xs . map f (L.map g xs) = map (\x -> f (g x)) xs
  #-}
 #endif
 
@@ -799,16 +827,49 @@ mapWithKey f t
       Nil         -> Nil
 
 #ifdef __GLASGOW_HASKELL__
+-- Pay close attention to strictness here. We need to force the
+-- intermediate result for map f . map g, and we need to refrain
+-- from forcing it for map f . L.map g, etc.
+--
+-- TODO Consider moving map and mapWithKey to IntMap.Internal so we can write
+-- non-orphan RULES for things like L.map f (map g xs). We'd need a new function
+-- for this, and we'd have to pay attention to simplifier phases. Something like
+--
+-- lsmap :: (b -> c) -> (a -> b) -> IntMap a -> IntMap c
+-- lsmap _ _ Nil = Nil
+-- lsmap f g (Tip k x) = let !gx = g x in Tip k (f gx)
+-- lsmap f g (Bin p m l r) = Bin p m (lsmap f g l) (lsmap f g r)
 {-# NOINLINE [1] mapWithKey #-}
 {-# RULES
 "mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
+  mapWithKey (\k a -> f k $! g k a) xs
+"mapWithKey/mapWithKeyL" forall f g xs . mapWithKey f (L.mapWithKey g xs) =
   mapWithKey (\k a -> f k (g k a)) xs
 "mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
+  mapWithKey (\k a -> f k $! g a) xs
+"mapWithKey/mapL" forall f g xs . mapWithKey f (L.map g xs) =
   mapWithKey (\k a -> f k (g a)) xs
 "map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
+  mapWithKey (\k a -> f $! g k a) xs
+"map/mapWithKeyL" forall f g xs . map f (L.mapWithKey g xs) =
   mapWithKey (\k a -> f (g k a)) xs
  #-}
 #endif
+
+-- | /O(n)/.
+-- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
+-- That is, behaves exactly like a regular 'traverse' except that the traversing
+-- function also has access to the key associated with a value.
+--
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
+-- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
+traverseWithKey :: Applicative t => (Key -> a -> t b) -> IntMap a -> t (IntMap b)
+traverseWithKey f = go
+  where
+    go Nil = pure Nil
+    go (Tip k v) = (\ !v' -> Tip k v') <$> f k v
+    go (Bin p m l r) = liftA2 (Bin p m) (go l) (go r)
+{-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.

@@ -4,8 +4,20 @@
 
 * Planned for GHC 8.2.
 
-* Optimize `Data.IntMap.restrictKeys` (the semantic fix in 0.5.10.1 left it
-  rather slow in certain cases). Partially optimize `Data.IntMap.withoutKeys`.
+* Make `Data.IntMap.Strict.traverseWithKey` force the values before
+  installing them in the result. Previously, this function could be used to
+  produce an `IntMap` containing undefined values.
+
+* Fix strictness bugs in various rewrite rules for `Data.Map.Strict` and
+  `Data.IntMap.Strict`. Previously, rules could unintentionally reduce
+  strictness. The most important change in this regard is the elimination
+  of rules rewriting `*.Strict.map coerce` to `coerce`. To map a coercion
+  over a structure for free, be sure to use the lazy `map` or `fmap`.
+  It is possible to write rules that do a somewhat better job of this, but
+  it turns out to be a bit messy.
+
+* Optimize `Data.IntMap.restrictKeys` and `Data.IntMap.withoutKeys`. The
+  semantic fix in 0.5.10.1 left them rather slow in certain cases.
 
 * Define a custom `liftA2` in `Applicative` instances for base 4.10, and use
   `liftA2` rather than `<*>` whenever it may be beneficial.
