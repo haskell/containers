@@ -1044,31 +1044,53 @@ differenceWithKey f m1 m2
 --
 -- @since 0.5.8
 withoutKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-withoutKeys = go
-  where
-    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
-      | shorter m1 m2  = merge1
-      | shorter m2 m1  = merge2
-      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
-      | otherwise      = t1
-      where
-        merge1 | nomatch p2 p1 m1  = t1
-               | zero p2 m1        = binCheckLeft p1 m1 (go l1 t2) r1
-               | otherwise         = binCheckRight p1 m1 l1 (go r1 t2)
-        merge2 | nomatch p1 p2 m2  = t1
-               | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
-               | otherwise         = bin p2 m2 Nil (go t1 r2)
+withoutKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+    | shorter m1 m2  = difference1
+    | shorter m2 m1  = difference2
+    | p1 == p2       = bin p1 m1 (withoutKeys l1 l2) (withoutKeys r1 r2)
+    | otherwise      = t1
+    where
+    difference1
+        | nomatch p2 p1 m1  = t1
+        | zero p2 m1        = binCheckLeft p1 m1 (withoutKeys l1 t2) r1
+        | otherwise         = binCheckRight p1 m1 l1 (withoutKeys r1 t2)
+    difference2
+        | nomatch p1 p2 m2  = t1
+        | zero p1 m2        = withoutKeys t1 l2
+        | otherwise         = withoutKeys t1 r2
+withoutKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
+    withoutBM t1 p2 bm2 (IntSet.suffixBitMask + 1)
+withoutKeys t1@(Bin _ _ _ _) IntSet.Nil = t1
+withoutKeys t1@(Tip k1 _) t2
+    | k1 `IntSet.member` t2 = Nil
+    | otherwise = t1
+withoutKeys Nil _ = Nil
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip _ _) =
-      filterWithKey (\k _ -> k `IntSet.notMember` t2') t1'
 
-    go t1@(Bin _ _ _ _) IntSet.Nil = t1
-
-    go t1'@(Tip k1' _) t2'
-      | k1' `IntSet.member` t2' = Nil
-      | otherwise = t1'
-    go Nil _ = Nil
-
+-- TODO(wrengr): Right now this is still pretty naive. It essentially
+-- unpacks the 'IntSetBitMap' into a tree-representation, and then
+-- calls 'delete' on each element of the set; thus, it is
+-- /O(min(m,W) * min(n,W)/. While technically that degenerates to
+-- /O(1)/ for a fixed /W/, it's morally equivalent to /O(m * log n)/.
+-- Really, we should be able to get this down to /O(n+m)/ just like
+-- 'difference' is. One way to do this would be to restrict @t@
+-- on the recursive calls, so that the 'lookup's are cheaper. But
+-- we should be able to do even better by avoiding the call to
+-- 'lookup' entirely.
+withoutBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
+withoutBM t !prefix !_ 0 = delete prefix t
+withoutBM t prefix bmask bits =
+    case intFromNat (natFromInt bits `shiftRL` 1) of
+    bits2
+      | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
+          withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2
+      | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
+          withoutBM t prefix bmask bits2
+      | otherwise ->
+          -- withoutKeys t (bin prefix bits2 _ _)
+          withoutBM
+            (withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
+            prefix bmask bits2
 
 {--------------------------------------------------------------------
   Intersection
@@ -1089,29 +1111,70 @@ intersection m1 m2
 --
 -- @since 0.5.8
 restrictKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-restrictKeys = go
-  where
-    go t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
-      | shorter m1 m2  = merge1
-      | shorter m2 m1  = merge2
-      | p1 == p2       = bin p1 m1 (go l1 l2) (go r1 r2)
-      | otherwise      = Nil
-      where
-        merge1 | nomatch p2 p1 m1  = Nil
-               | zero p2 m1        = bin p1 m1 (go l1 t2) Nil
-               | otherwise         = bin p1 m1 Nil (go r1 t2)
-        merge2 | nomatch p1 p2 m2  = Nil
-               | zero p1 m2        = bin p2 m2 (go t1 l2) Nil
-               | otherwise         = bin p2 m2 Nil (go t1 r2)
+restrictKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
+    | shorter m1 m2  = intersection1
+    | shorter m2 m1  = intersection2
+    | p1 == p2       = bin p1 m1 (restrictKeys l1 l2) (restrictKeys r1 r2)
+    | otherwise      = Nil
+    where
+    intersection1
+        | nomatch p2 p1 m1  = Nil
+        | zero p2 m1        = restrictKeys l1 t2
+        | otherwise         = restrictKeys r1 t2
+    intersection2
+        | nomatch p1 p2 m2  = Nil
+        | zero p1 m2        = restrictKeys t1 l2
+        | otherwise         = restrictKeys t1 r2
+restrictKeys t1@(Bin p1 m1 _ _) (IntSet.Tip p2 bm2) =
+    let minbit = bitmapOf p1
+        ge_minbit = complement (minbit - 1)
+        maxbit = bitmapOf (p1 .|. (m1 .|. (m1 - 1)))
+        le_maxbit = maxbit .|. (maxbit - 1)
+    -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
+    -- and 'restrictBM' here, in order to avoid redundant case analyses?
+    in restrictBM (bm2 .&. ge_minbit .&. le_maxbit) (lookupPrefix p2 t1)
+restrictKeys (Bin _ _ _ _) IntSet.Nil = Nil
+restrictKeys t1@(Tip k1 _) t2
+    | k1 `IntSet.member` t2 = t1
+    | otherwise = Nil
+restrictKeys Nil _ = Nil
 
-    go t1'@(Bin _ _ _ _) t2'@(IntSet.Tip _ _) =
-      filterWithKey (\k _ -> k `IntSet.member` t2') t1'
-    go (Bin _ _ _ _) IntSet.Nil = Nil
 
-    go t1'@(Tip k1' _) t2'
-      | k1' `IntSet.member` t2' = t1'
-      | otherwise = Nil
-    go Nil _ = Nil
+type IntSetPrefix = Int
+type IntSetBitMap = Word
+
+-- | Find the sub-tree of @t@ which matches the prefix @kp@.
+lookupPrefix :: IntSetPrefix -> IntMap a -> IntMap a
+lookupPrefix !kp t@(Bin p m l r)
+    | m .&. IntSet.suffixBitMask /= 0 =
+        if p .&. IntSet.prefixBitMask == kp then t else Nil
+    | nomatch kp p m = Nil
+    | zero kp m      = lookupPrefix kp l
+    | otherwise      = lookupPrefix kp r
+lookupPrefix kp t@(Tip kx _)
+    | (kx .&. IntSet.prefixBitMask) == kp = t
+    | otherwise = Nil
+lookupPrefix _ Nil = Nil
+
+
+restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
+restrictBM 0 _ = Nil
+restrictBM bm (Bin p m l r) =
+    let leftBits = bitmapOf (p .|. m) - 1
+        bmL = bm .&. leftBits
+        bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
+    in  bin p m (restrictBM bmL l) (restrictBM bmR r)
+restrictBM bm t@(Tip k _)
+    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
+    | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
+    | otherwise = Nil
+restrictBM _ Nil = Nil
+
+
+bitmapOf :: Int -> IntSetBitMap
+bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
+{-# INLINE bitmapOf #-}
+
 
 -- | /O(n+m)/. The intersection with a combining function.
 --
@@ -3067,20 +3130,31 @@ binCheckRight p m l r   = Bin p m l r
 {--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
+
+-- | Should this key follow the left subtree of a 'Bin' with switching
+-- bit @m@? N.B., the answer is only valid when @match i p m@ is true.
 zero :: Key -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
 {-# INLINE zero #-}
 
 nomatch,match :: Key -> Prefix -> Mask -> Bool
+
+-- | Does the key @i@ differ from the prefix @p@ before getting to
+-- the switching bit @m@?
 nomatch i p m
   = (mask i m) /= p
 {-# INLINE nomatch #-}
 
+-- | Does the key @i@ match the prefix @p@ (up to but not including
+-- bit @m@)?
 match i p m
   = (mask i m) == p
 {-# INLINE match #-}
 
+
+-- | The prefix of key @i@ up to (but not including) the switching
+-- bit @m@.
 mask :: Key -> Mask -> Prefix
 mask i m
   = maskW (natFromInt i) (natFromInt m)
@@ -3090,16 +3164,21 @@ mask i m
 {--------------------------------------------------------------------
   Big endian operations
 --------------------------------------------------------------------}
+
+-- | The prefix of key @i@ up to (but not including) the switching
+-- bit @m@.
 maskW :: Nat -> Nat -> Prefix
 maskW i m
   = intFromNat (i .&. (complement (m-1) `xor` m))
 {-# INLINE maskW #-}
 
+-- | Does the left switching bit specify a shorter prefix?
 shorter :: Mask -> Mask -> Bool
 shorter m1 m2
   = (natFromInt m1) > (natFromInt m2)
 {-# INLINE shorter #-}
 
+-- | The first switching bit where the two prefixes disagree.
 branchMask :: Prefix -> Prefix -> Mask
 branchMask p1 p2
   = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
@@ -3109,8 +3188,9 @@ branchMask p1 p2
   Utilities
 --------------------------------------------------------------------}
 
--- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
--- tree.  This function is useful for consuming a map in parallel.
+-- | /O(1)/.  Decompose a map into pieces based on the structure
+-- of the underlying tree. This function is useful for consuming a
+-- map in parallel.
 --
 -- No guarantee is made as to the sizes of the pieces; an internal, but
 -- deterministic process determines this.  However, it is guaranteed that the
