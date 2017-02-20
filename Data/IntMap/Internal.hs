@@ -354,6 +354,16 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 type Prefix = Int
 type Mask   = Int
 
+
+-- Some stuff from "Data.IntSet.Internal", for 'restrictKeys' and
+-- 'withoutKeys' to use.
+type IntSetPrefix = Int
+type IntSetBitMap = Word
+
+bitmapOf :: Int -> IntSetBitMap
+bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
+{-# INLINE bitmapOf #-}
+
 {--------------------------------------------------------------------
   Operators
 --------------------------------------------------------------------}
@@ -1036,7 +1046,9 @@ differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMa
 differenceWithKey f m1 m2
   = mergeWithKey f id (const Nil) m1 m2
 
--- | Remove all the keys in a given set from a map.
+
+-- TODO(wrengr): re-verify that asymptotic bound
+-- | /O(n+m)/. Remove all the keys in a given set from a map.
 --
 -- @
 -- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'IntSet.notMember'` s) m
@@ -1058,8 +1070,14 @@ withoutKeys t1@(Bin p1 m1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2)
         | nomatch p1 p2 m2  = t1
         | zero p1 m2        = withoutKeys t1 l2
         | otherwise         = withoutKeys t1 r2
-withoutKeys t1@(Bin _ _ _ _) (IntSet.Tip p2 bm2) =
-    withoutBM t1 p2 bm2 (IntSet.suffixBitMask + 1)
+withoutKeys t1@(Bin p1 m1 _ _) (IntSet.Tip p2 bm2) =
+    let minbit = bitmapOf p1
+        lt_minbit = minbit - 1
+        maxbit = bitmapOf (p1 .|. (m1 .|. (m1 - 1)))
+        gt_maxbit = maxbit `xor` complement (maxbit - 1)
+    -- TODO(wrengr): should we manually inline/unroll 'updatePrefix'
+    -- and 'withoutBM' here, in order to avoid redundant case analyses?
+    in updatePrefix p2 t1 $ withoutBM (bm2 .|. lt_minbit .|. gt_maxbit)
 withoutKeys t1@(Bin _ _ _ _) IntSet.Nil = t1
 withoutKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = Nil
@@ -1067,30 +1085,33 @@ withoutKeys t1@(Tip k1 _) t2
 withoutKeys Nil _ = Nil
 
 
--- TODO(wrengr): Right now this is still pretty naive. It essentially
--- unpacks the 'IntSetBitMap' into a tree-representation, and then
--- calls 'delete' on each element of the set; thus, it is
--- /O(min(m,W) * min(n,W)/. While technically that degenerates to
--- /O(1)/ for a fixed /W/, it's morally equivalent to /O(m * log n)/.
--- Really, we should be able to get this down to /O(n+m)/ just like
--- 'difference' is. One way to do this would be to restrict @t@
--- on the recursive calls, so that the 'lookup's are cheaper. But
--- we should be able to do even better by avoiding the call to
--- 'lookup' entirely.
-withoutBM :: IntMap a -> IntSetPrefix -> IntSetBitMap -> Key -> IntMap a
-withoutBM t !prefix !_ 0 = delete prefix t
-withoutBM t prefix bmask bits =
-    case intFromNat (natFromInt bits `shiftRL` 1) of
-    bits2
-      | bmask .&. (shiftLL 1 bits2 - 1) == 0 ->
-          withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2
-      | shiftRL bmask bits2 .&. (shiftLL 1 bits2 - 1) == 0 ->
-          withoutBM t prefix bmask bits2
-      | otherwise ->
-          -- withoutKeys t (bin prefix bits2 _ _)
-          withoutBM
-            (withoutBM t (prefix + bits2) (shiftRL bmask bits2) bits2)
-            prefix bmask bits2
+updatePrefix
+    :: IntSetPrefix -> IntMap a -> (IntMap a -> IntMap a) -> IntMap a
+updatePrefix !kp t@(Bin p m l r) f
+    | m .&. IntSet.suffixBitMask /= 0 =
+        if p .&. IntSet.prefixBitMask == kp then f t else t
+    | nomatch kp p m = t
+    | zero kp m      = binCheckLeft p m (updatePrefix kp l f) r
+    | otherwise      = binCheckRight p m l (updatePrefix kp r f)
+updatePrefix kp t@(Tip kx _) f
+    | kx .&. IntSet.prefixBitMask == kp = f t
+    | otherwise = t
+updatePrefix _ Nil _ = Nil
+
+
+withoutBM :: IntSetBitMap -> IntMap a -> IntMap a
+withoutBM 0 t = t
+withoutBM bm (Bin p m l r) =
+    let leftBits = bitmapOf (p .|. m) - 1
+        bmL = bm .&. leftBits
+        bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
+    in  bin p m (withoutBM bmL l) (withoutBM bmR r)
+withoutBM bm t@(Tip k _)
+    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
+    | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = Nil
+    | otherwise = t
+withoutBM _ Nil = Nil
+
 
 {--------------------------------------------------------------------
   Intersection
@@ -1103,6 +1124,8 @@ intersection :: IntMap a -> IntMap b -> IntMap a
 intersection m1 m2
   = mergeWithKey' bin const (const Nil) (const Nil) m1 m2
 
+
+-- TODO(wrengr): re-verify that asymptotic bound
 -- | /O(n+m)/. The restriction of a map to the keys in a set.
 --
 -- @
@@ -1140,10 +1163,8 @@ restrictKeys t1@(Tip k1 _) t2
 restrictKeys Nil _ = Nil
 
 
-type IntSetPrefix = Int
-type IntSetBitMap = Word
-
--- | Find the sub-tree of @t@ which matches the prefix @kp@.
+-- | /O(min(n,W))/. Restrict to the sub-map with all keys matching
+-- a key prefix.
 lookupPrefix :: IntSetPrefix -> IntMap a -> IntMap a
 lookupPrefix !kp t@(Bin p m l r)
     | m .&. IntSet.suffixBitMask /= 0 =
@@ -1169,11 +1190,6 @@ restrictBM bm t@(Tip k _)
     | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
     | otherwise = Nil
 restrictBM _ Nil = Nil
-
-
-bitmapOf :: Int -> IntSetBitMap
-bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
-{-# INLINE bitmapOf #-}
 
 
 -- | /O(n+m)/. The intersection with a combining function.
