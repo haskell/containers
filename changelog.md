@@ -24,6 +24,9 @@
 
 * Add `liftA2`-related `RULES` for `Data.Sequence`.
 
+* Export non-deprecated versions of `showTree` and `showTreeWith` from
+  `Data.IntMap.Internal.Debug`.
+
 ## 0.5.10.1
 
 * Fix completely incorrect implementations of `Data.IntMap.restrictKeys` and
