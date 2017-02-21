@@ -207,7 +207,8 @@ module Data.IntMap.Lazy (
     , showTreeWith
     ) where
 
-import Data.IntMap.Internal as IM
+import Data.IntMap.Internal as IM hiding (showTree, showTreeWith)
+import Data.IntMap.Internal.DeprecatedDebug
 
 -- $strictness
 --
