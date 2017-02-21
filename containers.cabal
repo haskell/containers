@@ -45,6 +45,7 @@ Library
         Data.IntMap.Lazy
         Data.IntMap.Strict
         Data.IntMap.Internal
+        Data.IntMap.Internal.Debug
         Data.IntMap.Merge.Lazy
         Data.IntMap.Merge.Strict
         Data.IntSet.Internal
@@ -74,6 +75,7 @@ Library
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
         Data.Map.Internal.DeprecatedShowTree
+        Data.IntMap.Internal.DeprecatedDebug
 
     include-dirs: include
 

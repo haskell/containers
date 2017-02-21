@@ -1,10 +1,11 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.IntMap.Strict as Data.IntMap
+import Data.IntMap.Strict as Data.IntMap hiding (showTree)
 #else
-import Data.IntMap.Lazy as Data.IntMap
+import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 #endif
+import Data.IntMap.Internal.Debug (showTree)
 
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)

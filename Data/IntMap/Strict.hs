@@ -284,8 +284,6 @@ import Data.IntMap.Internal
   , partition
   , partitionWithKey
   , restrictKeys
-  , showTree
-  , showTreeWith
   , size
   , split
   , splitLookup
@@ -295,8 +293,9 @@ import Data.IntMap.Internal
   , toList
   , union
   , unions
-  , withoutKeys)
-
+  , withoutKeys
+  )
+import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictFold
