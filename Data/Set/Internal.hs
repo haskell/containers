@@ -239,7 +239,7 @@ import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts ( build )
+import GHC.Exts ( build, lazy )
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
@@ -505,24 +505,30 @@ singleton x = Bin 1 x Tip Tip
 -- it is replaced with the new value.
 
 -- See Note: Type of local 'go' function
+-- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insert :: Ord a => a -> Set a -> Set a
-insert = go
+insert x0 = go x0 x0
   where
-    go :: Ord a => a -> Set a -> Set a
-    go !x Tip = singleton x
-    go !x t@(Bin sz y l r) = case compare x y of
+    go :: Ord a => a -> a -> Set a -> Set a
+    go orig !x Tip = singleton (lazy orig)
+    go orig !x t@(Bin sz y l r) = case compare x y of
         LT | l' `ptrEq` l -> t
            | otherwise -> balanceL y l' r
-           where !l' = go x l
+           where !l' = go orig x l
         GT | r' `ptrEq` r -> t
            | otherwise -> balanceR y l r'
-           where !r' = go x r
-        EQ | x `ptrEq` y -> t
-           | otherwise -> Bin sz x l r
+           where !r' = go orig x r
+        EQ | lazy orig `seq` (orig `ptrEq` y) -> t
+           | otherwise -> Bin sz (lazy orig) l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
+#endif
+
+#ifndef __GLASGOW_HASKELL__
+lazy :: a -> a
+lazy a = a
 #endif
 
 -- Insert an element to the set only if it is not in the set.

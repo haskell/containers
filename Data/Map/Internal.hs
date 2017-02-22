@@ -388,7 +388,7 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts (build)
+import GHC.Exts (build, lazy)
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
 #endif
@@ -755,31 +755,50 @@ singleton k x = Bin 1 k x Tip Tip
 -- > insert 5 'x' empty                         == singleton 5 'x'
 
 -- See Note: Type of local 'go' function
+-- See Note: Avoiding worker/wrapper
 insert :: Ord k => k -> a -> Map k a -> Map k a
-insert = go
+insert kx0 = go kx0 kx0
   where
     -- Unlike insertR, we only get sharing here
     -- when the inserted value is at the same address
-    -- as the present value. We try anyway. If we decide
-    -- not to, then Data.Map.Strict should probably
-    -- get its own union implementation.
-    go :: Ord k => k -> a -> Map k a -> Map k a
-    go !kx x Tip = singleton kx x
-    go !kx x t@(Bin sz ky y l r) =
+    -- as the present value. We try anyway; this condition
+    -- seems particularly likely to occur in 'union'.
+    go :: Ord k => k -> k -> a -> Map k a -> Map k a
+    go orig !kx x Tip = singleton (lazy orig) x
+    go orig !kx x t@(Bin sz ky y l r) =
         case compare kx ky of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL ky y l' r
-               where !l' = go kx x l
+               where !l' = go orig kx x l
             GT | r' `ptrEq` r -> t
                | otherwise -> balanceR ky y l r'
-               where !r' = go kx x r
-            EQ | kx `ptrEq` ky && x `ptrEq` y -> t
-               | otherwise -> Bin sz kx x l r
+               where !r' = go orig kx x r
+            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
+               | otherwise -> Bin sz (lazy orig) x l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
 {-# INLINE insert #-}
 #endif
+
+#ifndef __GLASGOW_HASKELL__
+lazy :: a -> a
+lazy a = a
+#endif
+
+-- [Note: Avoiding worker/wrapper]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- 'insert' has to go to great lengths to get pointer equality right and
+-- to prevent unnecessary allocation. The trouble is that GHC *really* wants
+-- to unbox the key and throw away the boxed one. This is bad for us, because
+-- we want to compare the pointer of the box we are given to the one already
+-- present if they compare EQ. It's also bad for us because it leads to the
+-- key being *reboxed* if it's actually stored in the map. Ugh! So we pass the
+-- 'go' function *two copies* of the key we're given. One of them we use for
+-- comparisons; the other we keep in our pocket. To prevent worker/wrapper from
+-- messing with the copy in our pocket, we sprinkle about calls to the magical
+-- function 'lazy'. This is all horrible, but it seems to work okay.
+
 
 -- Insert a new key and value in the map if it is not already present.
 -- Used by `union`.
@@ -1831,6 +1850,12 @@ unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
+
+-- We don't currently attempt to use any pointer equality tricks for
+-- 'difference'. To do so, we'd have to match on the first argument
+-- and split the second. Unfortunately, the proof of the time bound
+-- relies on doing it the way we do, and it's not clear whether that
+-- bound holds the other way.
 
 -- | /O(m*log(n\/m + 1)), m <= n/. Difference of two maps.
 -- Return elements of the first map not existing in the second map.
