@@ -535,18 +535,19 @@ lazy a = a
 -- Used by `union`.
 
 -- See Note: Type of local 'go' function
+-- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insertR :: Ord a => a -> Set a -> Set a
-insertR = go
+insertR x0 = go x0 x0
   where
-    go :: Ord a => a -> Set a -> Set a
-    go !x Tip = singleton x
-    go !x t@(Bin _ y l r) = case compare x y of
+    go :: Ord a => a -> a -> Set a -> Set a
+    go orig !x Tip = singleton (lazy orig)
+    go orig !x t@(Bin sz y l r) = case compare x y of
         LT | l' `ptrEq` l -> t
            | otherwise -> balanceL y l' r
-           where !l' = go x l
+           where !l' = go orig x l
         GT | r' `ptrEq` r -> t
            | otherwise -> balanceR y l r'
-           where !r' = go x r
+           where !r' = go orig x r
         EQ -> t
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
