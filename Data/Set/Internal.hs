@@ -510,7 +510,7 @@ insert :: Ord a => a -> Set a -> Set a
 insert x0 = go x0 x0
   where
     go :: Ord a => a -> a -> Set a -> Set a
-    go orig !x Tip = singleton (lazy orig)
+    go orig !_ Tip = singleton (lazy orig)
     go orig !x t@(Bin sz y l r) = case compare x y of
         LT | l' `ptrEq` l -> t
            | otherwise -> balanceL y l' r
@@ -540,8 +540,8 @@ insertR :: Ord a => a -> Set a -> Set a
 insertR x0 = go x0 x0
   where
     go :: Ord a => a -> a -> Set a -> Set a
-    go orig !x Tip = singleton (lazy orig)
-    go orig !x t@(Bin sz y l r) = case compare x y of
+    go orig !_ Tip = singleton (lazy orig)
+    go orig !x t@(Bin _ y l r) = case compare x y of
         LT | l' `ptrEq` l -> t
            | otherwise -> balanceL y l' r
            where !l' = go orig x l

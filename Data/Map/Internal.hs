@@ -764,7 +764,7 @@ insert kx0 = go kx0 kx0
     -- as the present value. We try anyway; this condition
     -- seems particularly likely to occur in 'union'.
     go :: Ord k => k -> k -> a -> Map k a -> Map k a
-    go orig !kx x Tip = singleton (lazy orig) x
+    go orig !_  x Tip = singleton (lazy orig) x
     go orig !kx x t@(Bin sz ky y l r) =
         case compare kx ky of
             LT | l' `ptrEq` l -> t
@@ -809,8 +809,8 @@ insertR :: Ord k => k -> a -> Map k a -> Map k a
 insertR kx0 = go kx0 kx0
   where
     go :: Ord k => k -> k -> a -> Map k a -> Map k a
-    go orig !kx x Tip = singleton (lazy orig) x
-    go orig !kx x t@(Bin sz ky y l r) =
+    go orig !_  x Tip = singleton (lazy orig) x
+    go orig !kx x t@(Bin _ ky y l r) =
         case compare kx ky of
             LT | l' `ptrEq` l -> t
                | otherwise -> balanceL ky y l' r
