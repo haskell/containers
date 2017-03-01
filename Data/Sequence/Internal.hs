@@ -286,9 +286,10 @@ infixl 5 |>, :>
 infixr 5 :<|
 infixl 5 :|>
 
--- TODO: Once GHC implements some way to prevent non-exhaustive
--- pattern match warnings for pattern synonyms, we should be
--- sure to take advantage of that.
+#if __GLASGOW_HASKELL__ >= 801
+{-# COMPLETE (:<|), Empty #-}
+{-# COMPLETE (:|>), Empty #-}
+#endif
 
 -- | A pattern synonym matching an empty sequence.
 pattern Empty :: Seq a

@@ -4,6 +4,9 @@
 
 * Planned for GHC 8.2.
 
+* Use `COMPLETE` pragmas to declare complete sets of pattern synonyms
+  for `Data.Sequence`. At last!
+
 * Make `Data.IntMap.Strict.traverseWithKey` force the values before
   installing them in the result. Previously, this function could be used to
   produce an `IntMap` containing undefined values.
