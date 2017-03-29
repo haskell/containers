@@ -261,8 +261,10 @@ prop_isSubsetOf a b = isSubsetOf a b == Set.isSubsetOf (toSet a) (toSet b)
 prop_isSubsetOf2 :: IntSet -> IntSet -> Bool
 prop_isSubsetOf2 a b = isSubsetOf a (union a b)
 
-prop_size :: IntSet -> Bool
-prop_size s = size s == List.length (toList s)
+prop_size :: IntSet -> Property
+prop_size s = sz === foldl' (\i _ -> i + 1) (0 :: Int) s .&&.
+              sz === List.length (toList s)
+  where sz = size s
 
 prop_findMax :: IntSet -> Property
 prop_findMax s = not (null s) ==> findMax s == maximum (toList s)
