@@ -512,9 +512,11 @@ null _   = False
 -- > size (singleton 1 'a')                       == 1
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
 size :: IntMap a -> Int
-size (Bin _ _ l r) = size l + size r
-size (Tip _ _) = 1
-size Nil = 0
+size = go 0
+  where
+    go !acc (Bin _ _ l r) = go (go acc l) r
+    go acc (Tip _ _) = 1 + acc
+    go acc Nil = acc
 
 -- | /O(min(n,W))/. Is the key a member of the map?
 --

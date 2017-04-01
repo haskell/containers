@@ -142,6 +142,7 @@ main = defaultMain
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
              , testProperty "null"                 prop_null
+             , testProperty "size"                 prop_size
              , testProperty "member"               prop_member
              , testProperty "notmember"            prop_notmember
              , testProperty "lookup"               prop_lookup
@@ -905,6 +906,11 @@ prop_index xs = length xs > 0 ==>
 
 prop_null :: IMap -> Bool
 prop_null m = null m == (size m == 0)
+
+prop_size :: UMap -> Property
+prop_size im = sz === foldl' (\i _ -> i + 1) (0 :: Int) im .&&.
+               sz === List.length (toList im)
+  where sz = size im
 
 prop_member :: [Int] -> Int -> Bool
 prop_member xs n =

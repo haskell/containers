@@ -311,9 +311,11 @@ null _   = False
 
 -- | /O(n)/. Cardinality of the set.
 size :: IntSet -> Int
-size (Bin _ _ l r) = size l + size r
-size (Tip _ bm) = bitcount 0 bm
-size Nil = 0
+size = go 0
+  where
+    go !acc (Bin _ _ l r) = go (go acc l) r
+    go acc (Tip _ bm) = acc + bitcount 0 bm
+    go acc Nil = acc
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 
