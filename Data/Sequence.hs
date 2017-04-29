@@ -104,6 +104,7 @@ module Data.Sequence (
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
+    unstableSort',
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a

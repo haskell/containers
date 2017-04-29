@@ -139,6 +139,7 @@ module Data.Sequence.Internal (
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
+    unstableSort',
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
@@ -4350,6 +4351,9 @@ sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
+unstableSort' :: Ord a => Seq a -> Seq a
+unstableSort' = unstableSortBy' compare
+
 -- | /O(n log n)/.  A generalization of 'unstableSort', 'unstableSortBy'
 -- takes an arbitrary comparator and sorts the specified sequence.
 -- The sort is not stable.  This algorithm is frequently faster and
@@ -4361,6 +4365,10 @@ unstableSortBy cmp (Seq xs) =
     fromList2 (size xs) $ maybe [] (unrollPQ cmp) $
         toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
 
+unstableSortBy' :: (a -> a -> Ordering) -> Seq a -> Seq a
+unstableSortBy' cmp (Seq xs) =
+    maybe Empty (evalQueueState (replicateA (size xs) (pqState cmp))) $
+    toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
 -- generalization.
@@ -4417,6 +4425,46 @@ unrollPQ cmp = unrollPQ'
         Nil             -> unrollPQ' t
         t1 :& Nil       -> unrollPQ' (t <+> t1)
         t1 :& t2 :& ts' -> mergePQs (t <+> (t1 <+> t2)) ts'
+
+newtype QueueState s a
+  = QueueState { runQueueState :: PQueue s -> (PQueue s,a)}
+
+evalQueueState :: QueueState s a -> PQueue s -> a
+evalQueueState xs s = case runQueueState xs s of
+  (_,y) -> y
+
+pqState :: (e -> e -> Ordering) -> QueueState e e
+pqState cmp = QueueState unrollPQ' where
+  {-# INLINE unrollPQ' #-}
+  unrollPQ' (PQueue x ts) = (mergePQs ts,x)
+  mergePQs (t :& Nil) = t
+  mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
+  mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
+  mergePQs Nil = undefined
+  (<+>) = mergePQ cmp
+
+instance Functor (QueueState s) where
+    fmap f xs =
+        QueueState
+            (\s ->
+                  case runQueueState xs s of
+                      (s',x) -> (s', f x))
+    {-# INLINE fmap #-}
+
+instance Applicative (QueueState s) where
+    pure x =
+        QueueState
+            (\s ->
+                  (s, x))
+    {-# INLINE pure #-}
+    fs <*> xs =
+        QueueState $
+        \s ->
+             case runQueueState fs s of
+                 (s',f) ->
+                     case runQueueState xs s' of
+                         (s'',x) -> (s'', f x)
+    {-# INLINABLE (<*>) #-}
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'FingerTree' to a 'PQueue'.
