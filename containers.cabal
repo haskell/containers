@@ -130,6 +130,17 @@ benchmark sequence-benchmarks
     random < 1.2,
     transformers
 
+benchmark sequence-sorting-benchmarks
+  type: exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is: SequenceSorting.hs
+  ghc-options: -O2
+  build-depends:
+    base >= 4.2 && < 5,
+    containers,
+    criterion >= 0.4.0 && < 1.2,
+    random < 1.2
+
 benchmark set-benchmarks
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks
