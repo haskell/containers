@@ -4412,14 +4412,15 @@ draw (PQueue x ts0) = x : drawSubTrees ts0
 #endif
 
 pqState :: (e -> e -> Ordering) -> State (PQueue e) e
-pqState cmp = State unrollPQ' where
-  {-# INLINE unrollPQ' #-}
-  unrollPQ' (PQueue x ts) = (mergePQs ts,x)
-  mergePQs (t :& Nil) = t
-  mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
-  mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
-  mergePQs Nil = undefined
-  (<+>) = mergePQ cmp
+pqState cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (PQueue x ts) = (mergePQs ts, x)
+    mergePQs (t :& Nil) = t
+    mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
+    mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs Nil = undefined
+    (<+>) = mergePQ cmp
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'FingerTree' to a 'PQueue'.
