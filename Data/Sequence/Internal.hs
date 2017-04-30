@@ -4355,6 +4355,10 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 -- 7/20/09 w/pragma:    8.050  8.271  8.514  0.357  0.995
 -- 4/30/17 heapsort:    7.240  7.612  7.925  0.389  0.991
 --
+-- Another happy result of the specialization of 'replicateA' is that
+-- the stable sort seems to speed up by 10-20%, and 'iterateN' looks
+-- like it's about three times as fast.
+--
 -- mail@doisinkidney.com, 4/30/17
 ------------------------------------------------------------------------
 
