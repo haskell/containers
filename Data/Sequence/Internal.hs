@@ -4388,7 +4388,7 @@ unstableSort = unstableSortBy compare
 -- uses less memory than 'sortBy'.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
-    maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
+    maybe (Seq EmptyT) (execState (replicateA (size xs) (popMin cmp))) $
     toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 
 -- | fromList2, given a list and its length, constructs a completely
