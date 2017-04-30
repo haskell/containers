@@ -29,5 +29,6 @@ incBenchAtSize n =
 main :: IO ()
 main =
     defaultMain
-        [ bgroup "increasing" $ map incBenchAtSize [500, 5000, 50000]
-        , bgroup "unordered" $ map benchAtSize [500, 5000, 50000]]
+        [ bgroup "unordered" $ map benchAtSize [500, 5000, 50000]
+        , bgroup "increasing" $ map incBenchAtSize [500, 5000, 50000]
+        ]

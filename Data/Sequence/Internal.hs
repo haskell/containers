@@ -4363,8 +4363,8 @@ unstableSort' = unstableSortBy' compare
 -- nearly sorted.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
-    fromList2 (size xs) $ maybe [] (unrollPQ cmp) $
-        toPQ cmp (\ (Elem x) -> PQueue x Nil) xs
+    maybe Empty (execState (replicateA (size xs) (pqState cmp))) $
+    toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 
 unstableSortBy' :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy' cmp (Seq xs) =
@@ -4410,22 +4410,6 @@ draw (PQueue x ts0) = x : drawSubTrees ts0
 
     shift first other = Data.List.zipWith (++) (first : repeat other)
 #endif
-
--- | 'unrollPQ', given a comparator function, unrolls a 'PQueue' into
--- a sorted list.
-unrollPQ :: (e -> e -> Ordering) -> PQueue e -> [e]
-unrollPQ cmp = unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQueue x ts) = x : mergePQs0 ts
-    (<+>) = mergePQ cmp
-    mergePQs0 Nil = []
-    mergePQs0 (t :& Nil) = unrollPQ' t
-    mergePQs0 (t1 :& t2 :& ts) = mergePQs (t1 <+> t2) ts
-    mergePQs !t ts = case ts of
-        Nil             -> unrollPQ' t
-        t1 :& Nil       -> unrollPQ' (t <+> t1)
-        t1 :& t2 :& ts' -> mergePQs (t <+> (t1 <+> t2)) ts'
 
 pqState :: (e -> e -> Ordering) -> State (PQueue e) e
 pqState cmp = State unrollPQ' where
