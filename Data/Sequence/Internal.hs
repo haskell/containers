@@ -4363,12 +4363,12 @@ unstableSort' = unstableSortBy' compare
 -- nearly sorted.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
-    maybe Empty (execState (replicateA (size xs) (pqState cmp))) $
+    maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
     toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 
 unstableSortBy' :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy' cmp (Seq xs) =
-    maybe Empty (execState (replicateA (size xs) (pqState cmp))) $
+    maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
     toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4411,8 +4411,8 @@ draw (PQueue x ts0) = x : drawSubTrees ts0
     shift first other = Data.List.zipWith (++) (first : repeat other)
 #endif
 
-pqState :: (e -> e -> Ordering) -> State (PQueue e) e
-pqState cmp = State unrollPQ'
+popMin :: (e -> e -> Ordering) -> State (PQueue e) e
+popMin cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
     unrollPQ' (PQueue x ts) = (mergePQs ts, x)
