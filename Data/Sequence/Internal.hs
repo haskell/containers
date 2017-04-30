@@ -4328,6 +4328,35 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 --
 -- wasserman.louis@gmail.com, 7/20/09
 ------------------------------------------------------------------------
+-- David Feuer wrote an unstable sort for arbitrary traversables,
+-- https://www.reddit.com/r/haskell/comments/63a4ea/fast_total_sorting_of_arbitrary_traversable/,
+-- which turned out to be competitive with the unstable sort here.
+-- Feuer suggested that this indicated some room to improve on the
+-- unstable sort.
+--
+-- The two main improvements to the original function are a specialize
+-- pragma on replicateA (this gives a 26.5% speedup) and removal of the
+-- intermediate list (a further 11.7% speedup). These numbers are all on
+-- purely random sequences of length 50000:
+--
+-- Times (ms)            min    est    max  std dev   R²
+-- to/from list:        70.90  72.44  75.07  2.224  0.998
+-- 7/20/09 heapsort:    59.84  61.44  63.08  1.554  0.998
+-- 7/20/09 w/pragma:    44.22  45.14  46.25  1.631  0.998
+-- 4/30/17 heapsort:    38.21  39.86  40.87  1.203  0.996
+--
+-- It should also be noted that Data.List.sortBy has become
+-- significantly quicker. Data.List.sortBy also now recognizes strictly
+-- increasing sequences, making it much quicker for that case:
+--
+-- Times (ms)            min    est    max  std dev   R²
+-- to/from list:        7.140  7.351  7.634  0.335  0.993
+-- 7/20/09 heapsort:    19.52  19.78  20.13  0.445  0.999
+-- 7/20/09 w/pragma:    8.050  8.271  8.514  0.357  0.995
+-- 4/30/17 heapsort:    7.240  7.612  7.925  0.389  0.991
+--
+-- mail@doisinkidney.com, 4/30/17
+------------------------------------------------------------------------
 
 -- | /O(n log n)/.  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.
@@ -4345,18 +4374,14 @@ sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
 
 -- | /O(n log n)/.  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
--- This algorithm is frequently faster and uses less memory than 'sort',
--- and performs extremely well -- frequently twice as fast as 'sort' --
--- when the sequence is already nearly sorted.
+-- This algorithm is frequently faster and uses less memory than 'sort'.
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
 -- | /O(n log n)/.  A generalization of 'unstableSort', 'unstableSortBy'
 -- takes an arbitrary comparator and sorts the specified sequence.
 -- The sort is not stable.  This algorithm is frequently faster and
--- uses less memory than 'sortBy', and performs extremely well --
--- frequently twice as fast as 'sortBy' -- when the sequence is already
--- nearly sorted.
+-- uses less memory than 'sortBy'.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
     maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
@@ -4403,6 +4428,9 @@ draw (PQueue x ts0) = x : drawSubTrees ts0
     shift first other = Data.List.zipWith (++) (first : repeat other)
 #endif
 
+-- | 'popMin', given an ordering function, constructs a stateful action
+-- which pops the smallest elements from a queue. This action will fail
+-- on empty queues.
 popMin :: (e -> e -> Ordering) -> State (PQueue e) e
 popMin cmp = State unrollPQ'
   where
@@ -4411,7 +4439,7 @@ popMin cmp = State unrollPQ'
     mergePQs (t :& Nil) = t
     mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
     mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs Nil = undefined
+    mergePQs Nil = error "popMin: tried to pop from empty queue"
     (<+>) = mergePQ cmp
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
