@@ -14,8 +14,7 @@ benchAtSize n =
     \xs ->
          bgroup
              (show n)
-             [ bench "old" $ nf S.unstableSort xs
-             , bench "new" $ nf S.unstableSort' xs]
+             [ bench "old" $ nf S.unstableSort xs ]
 
 incBenchAtSize :: Int -> Benchmark
 incBenchAtSize n =
@@ -23,8 +22,7 @@ incBenchAtSize n =
     \xs ->
          bgroup
              (show n)
-             [ bench "old" $ nf S.unstableSort xs
-             , bench "new" $ nf S.unstableSort' xs]
+             [ bench "old" $ nf S.unstableSort xs ]
 
 main :: IO ()
 main =

@@ -139,7 +139,6 @@ module Data.Sequence.Internal (
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
-    unstableSort',
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
@@ -4352,9 +4351,6 @@ sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
-unstableSort' :: Ord a => Seq a -> Seq a
-unstableSort' = unstableSortBy' compare
-
 -- | /O(n log n)/.  A generalization of 'unstableSort', 'unstableSortBy'
 -- takes an arbitrary comparator and sorts the specified sequence.
 -- The sort is not stable.  This algorithm is frequently faster and
@@ -4366,10 +4362,6 @@ unstableSortBy cmp (Seq xs) =
     maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
     toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 
-unstableSortBy' :: (a -> a -> Ordering) -> Seq a -> Seq a
-unstableSortBy' cmp (Seq xs) =
-    maybe Empty (execState (replicateA (size xs) (popMin cmp))) $
-    toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
 -- generalization.
