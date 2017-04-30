@@ -1209,7 +1209,7 @@ replicateA :: Applicative f => Int -> f a -> f (Seq a)
 replicateA n x
   | n >= 0      = Seq <$> applicativeTree n 1 (Elem <$> x)
   | otherwise   = error "replicateA takes a nonnegative integer argument"
-{-# SPECIALIZE replicateA :: Int -> QueueState a a -> QueueState a (Seq a) #-}
+{-# SPECIALIZE replicateA :: Int -> QueueState a b -> QueueState a (Seq b) #-}
 
 -- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
 --
