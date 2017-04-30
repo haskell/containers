@@ -1157,7 +1157,6 @@ execState m x = snd (runState m x)
 -- specified.  This is a generalization of 'replicateA', which itself
 -- is a generalization of many Data.Sequence methods.
 {-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
-{-# SPECIALIZE applicativeTree :: Int -> Int -> QueueState s a -> QueueState s (FingerTree a) #-}
 {-# SPECIALIZE applicativeTree :: Int -> Int -> Identity a -> Identity (FingerTree a) #-}
 -- Special note: the Identity specialization automatically does node sharing,
 -- reducing memory usage of the resulting tree to /O(log n)/.
@@ -1209,7 +1208,7 @@ replicateA :: Applicative f => Int -> f a -> f (Seq a)
 replicateA n x
   | n >= 0      = Seq <$> applicativeTree n 1 (Elem <$> x)
   | otherwise   = error "replicateA takes a nonnegative integer argument"
-{-# SPECIALIZE replicateA :: Int -> QueueState a b -> QueueState a (Seq b) #-}
+{-# SPECIALIZE replicateA :: Int -> State a b -> State a (Seq b) #-}
 
 -- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
 --
@@ -4369,7 +4368,7 @@ unstableSortBy cmp (Seq xs) =
 
 unstableSortBy' :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy' cmp (Seq xs) =
-    maybe Empty (evalQueueState (replicateA (size xs) (pqState cmp))) $
+    maybe Empty (execState (replicateA (size xs) (pqState cmp))) $
     toPQ cmp (\(Elem x) -> PQueue x Nil) xs
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4418,7 +4417,7 @@ unrollPQ :: (e -> e -> Ordering) -> PQueue e -> [e]
 unrollPQ cmp = unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQueue x ts) = x:mergePQs0 ts
+    unrollPQ' (PQueue x ts) = x : mergePQs0 ts
     (<+>) = mergePQ cmp
     mergePQs0 Nil = []
     mergePQs0 (t :& Nil) = unrollPQ' t
@@ -4428,15 +4427,8 @@ unrollPQ cmp = unrollPQ'
         t1 :& Nil       -> unrollPQ' (t <+> t1)
         t1 :& t2 :& ts' -> mergePQs (t <+> (t1 <+> t2)) ts'
 
-newtype QueueState s a
-  = QueueState { runQueueState :: PQueue s -> (PQueue s,a)}
-
-evalQueueState :: QueueState s a -> PQueue s -> a
-evalQueueState xs s = case runQueueState xs s of
-  (_,y) -> y
-
-pqState :: (e -> e -> Ordering) -> QueueState e e
-pqState cmp = QueueState unrollPQ' where
+pqState :: (e -> e -> Ordering) -> State (PQueue e) e
+pqState cmp = State unrollPQ' where
   {-# INLINE unrollPQ' #-}
   unrollPQ' (PQueue x ts) = (mergePQs ts,x)
   mergePQs (t :& Nil) = t
@@ -4444,29 +4436,6 @@ pqState cmp = QueueState unrollPQ' where
   mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
   mergePQs Nil = undefined
   (<+>) = mergePQ cmp
-
-instance Functor (QueueState s) where
-    fmap f xs =
-        QueueState
-            (\s ->
-                  case runQueueState xs s of
-                      (s',x) -> (s', f x))
-    {-# INLINE fmap #-}
-
-instance Applicative (QueueState s) where
-    pure x =
-        QueueState
-            (\s ->
-                  (s, x))
-    {-# INLINE pure #-}
-    fs <*> xs =
-        QueueState $
-        \s ->
-             case runQueueState fs s of
-                 (s',f) ->
-                     case runQueueState xs s' of
-                         (s'',x) -> (s'', f x)
-    {-# INLINABLE (<*>) #-}
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'FingerTree' to a 'PQueue'.
