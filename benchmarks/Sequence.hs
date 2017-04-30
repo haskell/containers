@@ -24,6 +24,11 @@ main = do
         r1000 = rlist 1000
         r10000 = rlist 10000
     evaluate $ rnf [r10, r100, r1000, r10000]
+    let rs10 = S.fromList r10
+        rs100 = S.fromList r100
+        rs1000 = S.fromList r1000
+        rs10000 = S.fromList r10000
+    evaluate $ rnf [rs10, rs100, rs1000, rs10000]
     let u10 = S.replicate 10 () :: S.Seq ()
         u100 = S.replicate 100 () :: S.Seq ()
         u1000 = S.replicate 1000 () :: S.Seq ()
@@ -127,6 +132,30 @@ main = do
               nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (2500,100)
          , bench "nf2500/100/ff" $
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (2500,100)
+         ]
+      , bgroup "sort"
+         [ bgroup "already sorted"
+            [ bench "10" $ nf S.sort s10
+            , bench "100" $ nf S.sort s100
+            , bench "1000" $ nf S.sort s1000
+            , bench "10000" $ nf S.sort s10000]
+         , bgroup "random"
+            [ bench "10" $ nf S.sort rs10
+            , bench "100" $ nf S.sort rs100
+            , bench "1000" $ nf S.sort rs1000
+            , bench "10000" $ nf S.sort rs10000]
+         ]
+      , bgroup "unstableSort"
+         [ bgroup "already sorted"
+            [ bench "10" $ nf S.unstableSort s10
+            , bench "100" $ nf S.unstableSort s100
+            , bench "1000" $ nf S.unstableSort s1000
+            , bench "10000" $ nf S.unstableSort s10000]
+         , bgroup "random"
+            [ bench "10" $ nf S.unstableSort rs10
+            , bench "100" $ nf S.unstableSort rs100
+            , bench "1000" $ nf S.unstableSort rs1000
+            , bench "10000" $ nf S.unstableSort rs10000]
          ]
       ]
 
