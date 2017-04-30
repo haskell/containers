@@ -8,26 +8,15 @@ import qualified Data.Sequence  as S
 randInt :: IO Int
 randInt = randomIO
 
-benchAtSize :: Int -> Benchmark
-benchAtSize n =
-    env (S.replicateA n randInt) $
-    \xs ->
-         bgroup
-             (show n)
+benchSorts :: S.Seq Int -> [Benchmark]
+benchSorts xs =
              [bench "to/from list" $ nf S.sort xs
-             ,bench "unstable heapsort" $ nf S.unstableSort xs ]
-
-incBenchAtSize :: Int -> Benchmark
-incBenchAtSize n =
-    env (S.unstableSort <$> S.replicateA n randInt) $
-    \xs ->
-         bgroup (show n)
-           [ bench "to/from list" $ nf S.sort xs
-           , bench "unstable heapsort" $ nf S.unstableSort xs]
+             ,bench "unstable heapsort" $ nf S.unstableSort xs]
 
 main :: IO ()
 main =
     defaultMain
-        [ bgroup "unordered" $ map benchAtSize [50000]
-        , bgroup "increasing" $ map incBenchAtSize [50000]
-        ]
+        [ env (S.replicateA 50000 randInt) (bgroup "unordered" . benchSorts)
+        , env
+              (S.unstableSort <$> S.replicateA 50000 randInt)
+              (bgroup "increasing" . benchSorts)]
