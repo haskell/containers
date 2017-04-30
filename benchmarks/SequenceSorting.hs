@@ -17,5 +17,17 @@ benchAtSize n =
              [ bench "old" $ nf S.unstableSort xs
              , bench "new" $ nf S.unstableSort' xs]
 
+incBenchAtSize :: Int -> Benchmark
+incBenchAtSize n =
+    env (S.unstableSort <$> S.replicateA n randInt) $
+    \xs ->
+         bgroup
+             (show n)
+             [ bench "old" $ nf S.unstableSort xs
+             , bench "new" $ nf S.unstableSort' xs]
+
 main :: IO ()
-main = defaultMain (map benchAtSize [500, 50000, 500000, 1000000])
+main =
+    defaultMain
+        [ bgroup "increasing" $ map incBenchAtSize [500, 5000, 50000]
+        , bgroup "unordered" $ map benchAtSize [500, 5000, 50000]]
