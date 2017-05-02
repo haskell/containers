@@ -1,0 +1,181 @@
+-- This package doesn't use `containers` as a library, instead compiles used
+-- modules from the library for each executable.
+--
+-- Relative paths are OK here as we don't generate tarball for this package.
+
+name:           benchmarks
+version:        0.1
+license:        BSD3
+license-file:   ../LICENSE
+maintainer:     libraries@haskell.org
+build-type:     Simple
+cabal-version:  >=1.8
+
+executable intmap-benchmarks
+    hs-source-dirs:     . ../
+    main-is:            IntMap.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable intset-benchmarks
+    hs-source-dirs:     . ../
+    main-is:            IntSet.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable map-benchmarks
+    hs-source-dirs:     . ../
+    main-is:            Map.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable sequence-benchmarks
+    hs-source-dirs:     . ../
+    main-is:            Sequence.hs
+    ghc-options:        -O2
+
+    build-depends:
+        array,
+        base,
+        criterion,
+        deepseq,
+        random,
+        transformers
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable set-benchmarks
+    hs-source-dirs:     . ../
+    main-is:            Set.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable set-operations-intmap
+    hs-source-dirs:     SetOperations ../
+    main-is:            SetOperations-IntMap.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable set-operations-intset
+    hs-source-dirs:     SetOperations ../
+    main-is:            SetOperations-IntSet.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable set-operations-map
+    hs-source-dirs:     SetOperations ../
+    main-is:            SetOperations-Map.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable set-operations-set
+    hs-source-dirs:     SetOperations ../
+    main-is:            SetOperations-Set.hs
+    ghc-options:        -O2
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable lookupge-intmap
+    hs-source-dirs:     . ../
+    main-is:            IntMap.hs
+    ghc-options:        -O2 -DTESTING
+
+    build-depends:
+        base,
+        criterion,
+        deepseq
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
+
+executable lookupge-map
+    hs-source-dirs:     . ../
+    main-is:            IntMap.hs
+    ghc-options:        -O2 -DTESTING
+
+    build-depends:
+        base,
+        criterion,
+        deepseq,
+        ghc-prim
+
+    if impl(ghc)
+        build-depends:  ghc-prim
+
+    include-dirs:       ../include
