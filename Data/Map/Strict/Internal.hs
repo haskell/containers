@@ -85,6 +85,7 @@ module Data.Map.Strict.Internal
 
     -- * Map type
     Map(..)          -- instance Eq,Show,Read
+    , L.Size
 
     -- * Operators
     , (!), (!?), (\\)
