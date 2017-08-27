@@ -21,6 +21,8 @@
 -- * The stored values don't represent large virtual data structures
 -- to be lazily computed.
 --
+-- "Data.Map.Strict" also contains applicable documentation.
+--
 -- An efficient implementation of ordered maps from keys to values
 -- (dictionaries).
 --
