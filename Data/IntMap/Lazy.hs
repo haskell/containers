@@ -187,6 +187,8 @@ module Data.IntMap.Lazy (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin

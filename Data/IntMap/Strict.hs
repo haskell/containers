@@ -194,6 +194,8 @@ module Data.IntMap.Strict (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -271,6 +273,8 @@ import Data.IntMap.Internal
   , lookupGE
   , lookupLT
   , lookupGT
+  , lookupMin
+  , lookupMax
   , minView
   , maxView
   , minViewWithKey

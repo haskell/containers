@@ -106,6 +106,8 @@ main = defaultMain
              , testCase "isSubmapOf" test_isSubmapOf
              , testCase "isProperSubmapOfBy" test_isProperSubmapOfBy
              , testCase "isProperSubmapOf" test_isProperSubmapOf
+             , testCase "lookupMin" test_lookupMin
+             , testCase "lookupMax" test_lookupMax
              , testCase "findMin" test_findMin
              , testCase "findMax" test_findMax
              , testCase "deleteMin" test_deleteMin
@@ -152,6 +154,8 @@ main = defaultMain
              , testProperty "lookupGT"             prop_lookupGT
              , testProperty "lookupLE"             prop_lookupLE
              , testProperty "lookupGE"             prop_lookupGE
+             , testProperty "lookupMin"            prop_lookupMin
+             , testProperty "lookupMax"            prop_lookupMax
              , testProperty "findMin"              prop_findMin
              , testProperty "findMax"              prop_findMax
              , testProperty "deleteMin"            prop_deleteMinModel
@@ -682,6 +686,16 @@ test_isProperSubmapOf = do
 ----------------------------------------------------------------
 -- Min/Max
 
+test_lookupMin :: Assertion
+test_lookupMin = do
+  lookupMin (fromList [(5,"a"), (3,"b")]) @?= Just (3,"b")
+  lookupMin (empty :: SMap) @?= Nothing
+
+test_lookupMax :: Assertion
+test_lookupMax = do
+  lookupMax (fromList [(5,"a"), (3,"b")]) @?= Just (5,"a")
+  lookupMax (empty :: SMap) @?= Nothing
+
 test_findMin :: Assertion
 test_findMin = findMin (fromList [(5,"a"), (3,"b")]) @?= (3,"b")
 
@@ -965,6 +979,18 @@ prop_lookupLE = test_lookupSomething lookupLE (<=)
 
 prop_lookupGE :: [(Int, Int)] -> Bool
 prop_lookupGE = test_lookupSomething lookupGE (>=)
+
+prop_lookupMin :: [(Int, Int)] -> Property
+prop_lookupMin ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  lookupMin m == Just (List.minimumBy (comparing fst) xs)
+
+prop_lookupMax :: [(Int, Int)] -> Property
+prop_lookupMax ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  lookupMax m == Just (List.maximumBy (comparing fst) xs)
 
 prop_findMin :: [(Int, Int)] -> Property
 prop_findMin ys = length ys > 0 ==>
