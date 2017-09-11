@@ -980,17 +980,11 @@ prop_lookupLE = test_lookupSomething lookupLE (<=)
 prop_lookupGE :: [(Int, Int)] -> Bool
 prop_lookupGE = test_lookupSomething lookupGE (>=)
 
-prop_lookupMin :: [(Int, Int)] -> Property
-prop_lookupMin ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  lookupMin m == Just (List.minimumBy (comparing fst) xs)
+prop_lookupMin :: IntMap Int -> Property
+prop_lookupMin im = lookupMin im === listToMaybe (toAscList im)
 
-prop_lookupMax :: [(Int, Int)] -> Property
-prop_lookupMax ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  lookupMax m == Just (List.maximumBy (comparing fst) xs)
+prop_lookupMax :: IntMap Int -> Property
+prop_lookupMax im = lookupMax im === listToMaybe (toDescList im)
 
 prop_findMin :: [(Int, Int)] -> Property
 prop_findMin ys = length ys > 0 ==>
