@@ -194,6 +194,11 @@ instance Arbitrary a => Arbitrary (IntMap a) where
                 ; return (fromList (zip xs ks))
                 }
 
+newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
+
+instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
+  arbitrary = NonEmptyIntMap . fromList . getNonEmpty <$> arbitrary
+
 
 ------------------------------------------------------------------------
 
@@ -986,17 +991,11 @@ prop_lookupMin im = lookupMin im === listToMaybe (toAscList im)
 prop_lookupMax :: IntMap Int -> Property
 prop_lookupMax im = lookupMax im === listToMaybe (toDescList im)
 
-prop_findMin :: [(Int, Int)] -> Property
-prop_findMin ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  findMin m == List.minimumBy (comparing fst) xs
+prop_findMin :: NonEmptyIntMap Int -> Property
+prop_findMin (NonEmptyIntMap im) = findMin im === head (toAscList im)
 
-prop_findMax :: [(Int, Int)] -> Property
-prop_findMax ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  findMax m == List.maximumBy (comparing fst) xs
+prop_findMax :: NonEmptyIntMap Int -> Property
+prop_findMax (NonEmptyIntMap im) = findMax im === head (toDescList im)
 
 prop_deleteMinModel :: [(Int, Int)] -> Property
 prop_deleteMinModel ys = length ys > 0 ==>
