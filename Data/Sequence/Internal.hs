@@ -191,6 +191,9 @@ module Data.Sequence.Internal (
 
 import Prelude hiding (
     Functor(..),
+#if MIN_VERSION_base(4,11,0)
+    (<>),
+#endif
 #if MIN_VERSION_base(4,8,0)
     Applicative, (<$>), foldMap, Monoid,
 #endif
