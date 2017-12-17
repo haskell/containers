@@ -297,11 +297,15 @@ infixl 5 :|>
 #endif
 
 -- | A pattern synonym matching an empty sequence.
+--
+-- @since 0.5.8
 pattern Empty :: Seq a
 pattern Empty = Seq EmptyT
 
 -- | A pattern synonym viewing the front of a non-empty
 -- sequence.
+--
+-- @since 0.5.8
 pattern (:<|) :: a -> Seq a -> Seq a
 pattern x :<| xs <- (viewl -> x :< xs)
   where
@@ -309,6 +313,8 @@ pattern x :<| xs <- (viewl -> x :< xs)
 
 -- | A pattern synonym viewing the rear of a non-empty
 -- sequence.
+--
+-- @since 0.5.8
 pattern (:|>) :: Seq a -> a -> Seq a
 pattern xs :|> x <- (viewr -> xs :> x)
   where
@@ -1692,9 +1698,11 @@ data ViewL a
 deriving instance Data a => Data (ViewL a)
 #endif
 #if __GLASGOW_HASKELL__ >= 706
+-- | @since 0.5.8
 deriving instance Generic1 ViewL
 #endif
 #if __GLASGOW_HASKELL__ >= 702
+-- | @since 0.5.8
 deriving instance Generic (ViewL a)
 #endif
 
@@ -1757,9 +1765,11 @@ data ViewR a
 deriving instance Data a => Data (ViewR a)
 #endif
 #if __GLASGOW_HASKELL__ >= 706
+-- | @since 0.5.8
 deriving instance Generic1 ViewR
 #endif
 #if __GLASGOW_HASKELL__ >= 702
+-- | @since 0.5.8
 deriving instance Generic (ViewR a)
 #endif
 
@@ -2036,6 +2046,8 @@ updateDigit v i (Four a b c d)
 -- can lead to poor performance and even memory leaks, because it does not
 -- force the new value before installing it in the sequence. 'adjust'' should
 -- usually be preferred.
+--
+-- @since 0.5.8
 adjust          :: (a -> a) -> Int -> Seq a -> Seq a
 adjust f i (Seq xs)
   -- See note on unsigned arithmetic in splitAt
@@ -3394,6 +3406,8 @@ splitSuffixN i s pr m (Four a b c d)
 -- | /O(n)/. @chunksOf n xs@ splits @xs@ into chunks of size @n>0@.
 -- If @n@ does not divide the length of @xs@ evenly, then the last element
 -- of the result will be short.
+--
+-- @since 0.5.8
 chunksOf :: Int -> Seq a -> Seq (Seq a)
 chunksOf n xs | n <= 0 =
   if null xs

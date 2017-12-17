@@ -1491,6 +1491,8 @@ elemAt i (Bin _ kx x l r)
 -- @
 -- take n = 'fromDistinctAscList' . 'Prelude.take' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 
 take :: Int -> Map k a -> Map k a
 take i m | i >= size m = m
@@ -1511,6 +1513,8 @@ take i0 m0 = go i0 m0
 -- @
 -- drop n = 'fromDistinctAscList' . 'Prelude.drop' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 drop :: Int -> Map k a -> Map k a
 drop i m | i >= size m = Tip
 drop i0 m0 = go i0 m0
@@ -1529,6 +1533,8 @@ drop i0 m0 = go i0 m0
 -- @
 -- splitAt !n !xs = ('take' n xs, 'drop' n xs)
 -- @
+--
+-- @since 0.5.8
 splitAt :: Int -> Map k a -> (Map k a, Map k a)
 splitAt i0 m0
   | i0 >= size m0 = (m0, Tip)
@@ -2748,6 +2754,8 @@ filterWithKeyA p t@(Bin _ kx x l r) =
 -- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' (p . fst) . 'toList'
 -- takeWhileAntitone p = 'filterWithKey' (\k _ -> p k)
 -- @
+--
+-- @since 0.5.8
 
 takeWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
 takeWhileAntitone _ Tip = Tip
@@ -2763,6 +2771,8 @@ takeWhileAntitone p (Bin _ kx x l r)
 -- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' (p . fst) . 'toList'
 -- dropWhileAntitone p = 'filterWithKey' (\k -> not (p k))
 -- @
+--
+-- @since 0.5.8
 
 dropWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
 dropWhileAntitone _ Tip = Tip
@@ -2783,6 +2793,8 @@ dropWhileAntitone p (Bin _ kx x l r)
 -- at some /unspecified/ point where the predicate switches from holding to not
 -- holding (where the predicate is seen to hold before the first key and to fail
 -- after the last key).
+--
+-- @since 0.5.8
 
 spanAntitone :: (k -> Bool) -> Map k a -> (Map k a, Map k a)
 spanAntitone p0 m = toPair (go p0 m)
@@ -3420,6 +3432,8 @@ fromAscList xs
 -- > fromDescList [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "b")]
 -- > valid (fromDescList [(5,"a"), (5,"b"), (3,"b")]) == True
 -- > valid (fromDescList [(5,"a"), (3,"b"), (5,"b")]) == False
+--
+-- @since 0.5.8
 
 fromDescList :: Eq k => [(k,a)] -> Map k a
 fromDescList xs = fromDistinctDescList (combineEq xs)
@@ -3459,6 +3473,8 @@ fromAscListWith f xs
 -- > fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "ba")]
 -- > valid (fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")]) == True
 -- > valid (fromDescListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
+--
+-- @since 0.5.8
 
 fromDescListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromDescListWith f xs
@@ -3555,6 +3571,8 @@ fromDistinctAscList ((kx0, x0) : xs0) = go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
 -- > fromDistinctDescList [(5,"a"), (3,"b")] == fromList [(3, "b"), (5, "a")]
 -- > valid (fromDistinctDescList [(5,"a"), (3,"b")])          == True
 -- > valid (fromDistinctDescList [(5,"a"), (5,"b"), (3,"b")]) == False
+--
+-- @since 0.5.8
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.

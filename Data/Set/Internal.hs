@@ -985,6 +985,8 @@ fromAscList xs = fromDistinctAscList (combineEq xs)
 
 -- | /O(n)/. Build a set from a descending list in linear time.
 -- /The precondition (input list is descending) is not checked./
+--
+-- @since 0.5.8
 fromDescList :: Eq a => [a] -> Set a
 fromDescList xs = fromDistinctDescList (combineEq xs)
 #if __GLASGOW_HASKELL__
@@ -1032,6 +1034,8 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
+--
+-- @since 0.5.8
 fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
 fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
@@ -1251,6 +1255,8 @@ deleteAt !i t =
 -- @
 -- take n = 'fromDistinctAscList' . 'Prelude.take' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 take :: Int -> Set a -> Set a
 take i m | i >= size m = m
 take i0 m0 = go i0 m0
@@ -1270,6 +1276,8 @@ take i0 m0 = go i0 m0
 -- @
 -- drop n = 'fromDistinctAscList' . 'Prelude.drop' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 drop :: Int -> Set a -> Set a
 drop i m | i >= size m = Tip
 drop i0 m0 = go i0 m0
@@ -1312,6 +1320,8 @@ splitAt i0 m0
 -- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' p . 'toList'
 -- takeWhileAntitone p = 'filter' p
 -- @
+--
+-- @since 0.5.8
 
 takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
 takeWhileAntitone _ Tip = Tip
@@ -1327,6 +1337,8 @@ takeWhileAntitone p (Bin _ x l r)
 -- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' p . 'toList'
 -- dropWhileAntitone p = 'filter' (not . p)
 -- @
+--
+-- @since 0.5.8
 
 dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
 dropWhileAntitone _ Tip = Tip
@@ -1347,6 +1359,8 @@ dropWhileAntitone p (Bin _ x l r)
 -- at some /unspecified/ point where the predicate switches from holding to not
 -- holding (where the predicate is seen to hold before the first element and to fail
 -- after the last element).
+--
+-- @since 0.5.8
 
 spanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
 spanAntitone p0 m = toPair (go p0 m)

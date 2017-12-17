@@ -85,9 +85,20 @@ data Tree a = Node {
     }
 #ifdef __GLASGOW_HASKELL__
 #if __GLASGOW_HASKELL__ >= 706
-  deriving (Eq, Read, Show, Data, Generic, Generic1)
+  deriving ( Eq
+           , Read
+           , Show
+           , Data
+           , Generic  -- ^ @since 0.5.8
+           , Generic1 -- ^ @since 0.5.8
+           )
 #elif __GLASGOW_HASKELL__ >= 702
-  deriving (Eq, Read, Show, Data, Generic)
+  deriving ( Eq
+           , Read
+           , Show
+           , Data
+           , Generic -- ^ @since 0.5.8
+           )
 #else
   deriving (Eq, Read, Show, Data)
 #endif
@@ -225,6 +236,8 @@ levels t =
         iterate (concatMap subForest) [t]
 
 -- | Catamorphism on trees.
+--
+-- @since 0.5.8
 foldTree :: (a -> [b] -> b) -> Tree a -> b
 foldTree f = go where
     go (Node x ts) = f x (map go ts)
