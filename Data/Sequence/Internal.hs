@@ -833,6 +833,7 @@ instance Monoid (Seq a) where
     mappend = (><)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
 #endif
@@ -3916,6 +3917,7 @@ instance GHC.Exts.IsList (Seq a) where
 #endif
 
 #ifdef __GLASGOW_HASKELL__
+-- | @since 0.5.7
 instance IsString (Seq Char) where
     fromString = fromList
 #endif

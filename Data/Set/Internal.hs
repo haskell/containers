@@ -286,6 +286,7 @@ instance Ord a => Monoid (Set a) where
 #else
     mappend = (<>)
 
+-- | @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid

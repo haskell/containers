@@ -273,6 +273,7 @@ instance Monoid IntSet where
 #else
     mappend = (<>)
 
+-- | @since 0.5.7
 instance Semigroup IntSet where
     (<>)    = union
     stimes  = stimesIdempotentMonoid

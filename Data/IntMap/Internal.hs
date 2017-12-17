@@ -400,6 +400,7 @@ instance Monoid (IntMap a) where
 #else
     mappend = (<>)
 
+-- | @since 0.5.7
 instance Semigroup (IntMap a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
