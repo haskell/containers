@@ -2755,6 +2755,8 @@ foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 -- @'foldMapWithKey' f = 'Prelude.fold' . 'mapWithKey' f@
 --
 -- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
+--
+-- @since 0.5.4
 foldMapWithKey :: Monoid m => (Key -> a -> m) -> IntMap a -> m
 foldMapWithKey f = go
   where

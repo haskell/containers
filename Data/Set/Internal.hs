@@ -1175,6 +1175,8 @@ splitMember x (Bin _ y l r)
 -- > findIndex 3 (fromList [5,3]) == 0
 -- > findIndex 5 (fromList [5,3]) == 1
 -- > findIndex 6 (fromList [5,3])    Error: element is not in the set
+--
+-- @since 0.5.4
 
 -- See Note: Type of local 'go' function
 findIndex :: Ord a => a -> Set a -> Int
@@ -1198,6 +1200,8 @@ findIndex = go 0
 -- > fromJust (lookupIndex 3 (fromList [5,3])) == 0
 -- > fromJust (lookupIndex 5 (fromList [5,3])) == 1
 -- > isJust   (lookupIndex 6 (fromList [5,3])) == False
+--
+-- @since 0.5.4
 
 -- See Note: Type of local 'go' function
 lookupIndex :: Ord a => a -> Set a -> Maybe Int
@@ -1220,6 +1224,8 @@ lookupIndex = go 0
 -- > elemAt 0 (fromList [5,3]) == 3
 -- > elemAt 1 (fromList [5,3]) == 5
 -- > elemAt 2 (fromList [5,3])    Error: index out of range
+--
+-- @since 0.5.4
 
 elemAt :: Int -> Set a -> a
 elemAt !_ Tip = error "Set.elemAt: index out of range"
@@ -1239,6 +1245,8 @@ elemAt i (Bin _ x l r)
 -- > deleteAt 1    (fromList [5,3]) == singleton 3
 -- > deleteAt 2    (fromList [5,3])    Error: index out of range
 -- > deleteAt (-1) (fromList [5,3])    Error: index out of range
+--
+-- @since 0.5.4
 
 deleteAt :: Int -> Set a -> Set a
 deleteAt !i t =
@@ -1643,6 +1651,8 @@ bin x l r
 --  Note that the current implementation does not return more than three subsets,
 --  but you should not depend on this behaviour because it can change in the
 --  future without notice.
+--
+-- @since 0.5.4
 splitRoot :: Set a -> [Set a]
 splitRoot orig =
   case orig of

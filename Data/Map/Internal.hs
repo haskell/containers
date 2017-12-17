@@ -3183,6 +3183,8 @@ foldlWithKey' f z = go z
 -- @'foldMapWithKey' f = 'Prelude.fold' . 'mapWithKey' f@
 --
 -- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
+--
+-- @since 0.5.4
 foldMapWithKey :: Monoid m => (k -> a -> m) -> Map k a -> m
 foldMapWithKey f = go
   where
@@ -4164,6 +4166,8 @@ INSTANCE_TYPEABLE2(Map)
 --  Note that the current implementation does not return more than three submaps,
 --  but you should not depend on this behaviour because it can change in the
 --  future without notice.
+--
+-- @since 0.5.4
 splitRoot :: Map k b -> [Map k b]
 splitRoot orig =
   case orig of

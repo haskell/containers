@@ -174,6 +174,7 @@ instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
     rnf (CyclicSCC vs) = rnf vs
 
+-- | @since 0.5.4
 instance Functor SCC where
     fmap f (AcyclicSCC v) = AcyclicSCC (f v)
     fmap f (CyclicSCC vs) = CyclicSCC (fmap f vs)

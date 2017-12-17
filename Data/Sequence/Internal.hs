@@ -442,6 +442,7 @@ instance Monad Seq where
       where add ys x = ys >< f x
     (>>) = (*>)
 
+-- | @since 0.5.11
 instance MonadFix Seq where
     mfix = mfixSeq
 
@@ -453,6 +454,7 @@ mfixSeq f = fromFunction (length (f err)) (\k -> fix (\xk -> f xk `index` k))
   where
     err = error "mfix for Data.Sequence.Seq applied to strict function"
 
+-- | @since 0.5.4
 instance Applicative Seq where
     pure = singleton
     xs *> ys = cycleNTimes (length xs) ys
@@ -770,6 +772,7 @@ instance MonadPlus Seq where
     mzero = empty
     mplus = (><)
 
+-- | @since 0.5.4
 instance Alternative Seq where
     empty = empty
     (<|>) = (><)
