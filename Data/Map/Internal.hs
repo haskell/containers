@@ -3247,6 +3247,7 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
   use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance (Ord k) => GHCExts.IsList (Map k v) where
   type Item (Map k v) = (k,v)
   fromList = fromList

@@ -2845,6 +2845,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   Lists
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance GHCExts.IsList (IntMap a) where
   type Item (IntMap a) = (Key,a)
   fromList = fromList

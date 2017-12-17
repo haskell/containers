@@ -937,6 +937,7 @@ elems
   Lists
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance GHCExts.IsList IntSet where
   type Item IntSet = Key
   fromList = fromList

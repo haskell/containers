@@ -2838,6 +2838,8 @@ valid.
 
 -- | /O(n)/. Convert a given sequence length and a function representing that
 -- sequence into a sequence.
+--
+-- @since 0.5.6.2
 fromFunction :: Int -> (Int -> a) -> Seq a
 fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
                    | len == 0 = empty
@@ -2881,6 +2883,8 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
 -- Note that the resulting sequence elements may be evaluated lazily (as on GHC),
 -- so you must force the entire structure to be sure that the original array
 -- can be garbage-collected.
+--
+-- @since 0.5.6.2
 fromArray :: Ix i => Array i a -> Seq a
 #ifdef __GLASGOW_HASKELL__
 fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)

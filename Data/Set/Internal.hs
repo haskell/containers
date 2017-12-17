@@ -876,6 +876,7 @@ elems = toAscList
   Lists
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance (Ord a) => GHCExts.IsList (Set a) where
   type Item (Set a) = a
   fromList = fromList
