@@ -43,6 +43,8 @@
 -- tactics are included because they are valid. However, they are
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
+--
+-- @since 0.5.9
 
 module Data.IntMap.Merge.Lazy (
     -- ** Simple merge tactic types

@@ -75,6 +75,7 @@
 -- '>>', particularly repeatedly and particularly in combination with
 -- 'replicate' or 'fromFunction'.
 --
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 module Data.Sequence.Internal (
@@ -783,13 +784,16 @@ instance Show a => Show (Seq a) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Show1 Seq where
   liftShowsPrec _shwsPrc shwList p xs = showParen (p > 10) $
         showString "fromList " . shwList (toList xs)
 
+-- | @since 0.5.9
 instance Eq1 Seq where
     liftEq eq xs ys = length xs == length ys && liftEq eq (toList xs) (toList ys)
 
+-- | @since 0.5.9
 instance Ord1 Seq where
     liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
 #endif
@@ -810,6 +814,7 @@ instance Read a => Read (Seq a) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Read1 Seq where
   liftReadsPrec _rp readLst p = readParen (p > 10) $ \r -> do
     ("fromList",s) <- lex r
@@ -2134,7 +2139,7 @@ adjustDigit f i (Four a b c d)
 -- insertAt 4 x (fromList [a,b,c,d]) = insertAt 10 x (fromList [a,b,c,d])
 --                                   = fromList [a,b,c,d,x]
 -- @
--- 
+--
 -- prop> insertAt i x xs = take i xs >< singleton x >< drop i xs
 --
 -- @since 0.5.8
@@ -3301,7 +3306,7 @@ splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf = case i of
     sprmla  = 1 + sprml
     sprmlab = sprmla + 1
 
-splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> 
+splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
                     StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitPrefixE !_i !s (One a) m sf = EmptyT :*: Deep s (One a) m sf
 splitPrefixE i s (Two a b) m sf = case i of
@@ -3317,7 +3322,7 @@ splitPrefixE i s (Four a b c d) m sf = case i of
   2 -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
   _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
-splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
+splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
                     Split a
 splitPrefixN !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
 splitPrefixN i s (Two a b) m sf

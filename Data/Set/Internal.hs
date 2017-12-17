@@ -70,6 +70,8 @@
 -- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
 -- this condition is not detected and if the size limit is exceeded, the
 -- behavior of the set is completely undefined.
+--
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
@@ -1070,14 +1072,17 @@ instance Show a => Show (Set a) where
     showString "fromList " . shows (toList xs)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Eq1 Set where
     liftEq eq m n =
         size m == size n && liftEq eq (toList m) (toList n)
 
+-- | @since 0.5.9
 instance Ord1 Set where
     liftCompare cmp m n =
         liftCompare cmp (toList m) (toList n)
 
+-- | @since 0.5.9
 instance Show1 Set where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)

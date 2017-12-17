@@ -40,6 +40,8 @@
 --
 -- This defines the data structures and core (hidden) manipulations
 -- on representations.
+--
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 -- [Note: INLINE bit fiddling]
@@ -3039,6 +3041,7 @@ nequal Nil Nil = False
 nequal _   _   = True
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Eq1 IntMap where
   liftEq eq (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
     = (m1 == m2) && (p1 == p2) && (liftEq eq l1 l2) && (liftEq eq r1 r2)
@@ -3056,6 +3059,7 @@ instance Ord a => Ord (IntMap a) where
     compare m1 m2 = compare (toList m1) (toList m2)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Ord1 IntMap where
   liftCompare cmp m n =
     liftCompare (liftCompare cmp) (toList m) (toList n)
@@ -3083,6 +3087,7 @@ instance Show a => Show (IntMap a) where
     showString "fromList " . shows (toList m)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Show1 IntMap where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp' sl') "fromList" d (toList m)
@@ -3110,6 +3115,7 @@ instance (Read e) => Read (IntMap e) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Read1 IntMap where
     liftReadsPrec rp rl = readsData $
         readsUnaryWith (liftReadsPrec rp' rl') "fromList" fromList
