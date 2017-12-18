@@ -84,7 +84,15 @@ data Tree a = Node {
         subForest :: Forest a   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 802
+  deriving ( Eq
+           , Read
+           , Show
+           , Data
+           , Generic  -- ^ @since 0.5.8
+           , Generic1 -- ^ @since 0.5.8
+           )
+#elif __GLASGOW_HASKELL__ >= 706
   deriving (Eq, Read, Show, Data, Generic, Generic1)
 #elif __GLASGOW_HASKELL__ >= 702
   deriving (Eq, Read, Show, Data, Generic)
@@ -97,22 +105,26 @@ data Tree a = Node {
 type Forest a = [Tree a]
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Eq1 Tree where
   liftEq eq = leq
     where
       leq (Node a fr) (Node a' fr') = eq a a' && liftEq leq fr fr'
 
+-- | @since 0.5.9
 instance Ord1 Tree where
   liftCompare cmp = lcomp
     where
       lcomp (Node a fr) (Node a' fr') = cmp a a' <> liftCompare lcomp fr fr'
 
+-- | @since 0.5.9
 instance Show1 Tree where
   liftShowsPrec shw shwl p (Node a fr) = showParen (p > 10) $
         showString "Node {rootLabel = " . shw 0 a . showString ", " .
           showString "subForest = " . liftShowList shw shwl fr .
           showString "}"
 
+-- | @since 0.5.9
 instance Read1 Tree where
   liftReadsPrec rd rdl p = readParen (p > 10) $
     \s -> do
@@ -221,6 +233,8 @@ levels t =
         iterate (concatMap subForest) [t]
 
 -- | Catamorphism on trees.
+--
+-- @since 0.5.8
 foldTree :: (a -> [b] -> b) -> Tree a -> b
 foldTree f = go where
     go (Node x ts) = f x (map go ts)

@@ -67,6 +67,8 @@
 -- This means that the operation can become linear in the number of
 -- elements with a maximum of /W/ -- the number of bits in an 'Int'
 -- (32 or 64).
+--
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 -- [Note: INLINE bit fiddling]
@@ -271,6 +273,7 @@ instance Monoid IntSet where
 #else
     mappend = (<>)
 
+-- | @since 0.5.7
 instance Semigroup IntSet where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
@@ -934,6 +937,7 @@ elems
   Lists
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance GHCExts.IsList IntSet where
   type Item IntSet = Key
   fromList = fromList

@@ -117,40 +117,55 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
                                         -- in any cycle.
                 | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
                                         -- reachable vertices.
+#if __GLASGOW_HASKELL__ >= 802
+  deriving ( Eq   -- ^ @since 0.5.9
+           , Show -- ^ @since 0.5.9
+           , Read -- ^ @since 0.5.9
+           )
+#else
   deriving (Eq, Show, Read)
+#endif
 
 INSTANCE_TYPEABLE1(SCC)
 
 #ifdef __GLASGOW_HASKELL__
+-- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
 #endif
 
 #if __GLASGOW_HASKELL__ >= 706
+-- | @since 0.5.9
 deriving instance Generic1 SCC
 #endif
 
 #if __GLASGOW_HASKELL__ >= 702
+-- | @since 0.5.9
 deriving instance Generic (SCC vertex)
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Eq1 SCC where
   liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
   liftEq eq (CyclicSCC vs1) (CyclicSCC vs2) = liftEq eq vs1 vs2
   liftEq _ _ _ = False
+-- | @since 0.5.9
 instance Show1 SCC where
   liftShowsPrec sp _sl d (AcyclicSCC v) = showsUnaryWith sp "AcyclicSCC" d v
   liftShowsPrec _sp sl d (CyclicSCC vs) = showsUnaryWith (const sl) "CyclicSCC" d vs
+-- | @since 0.5.9
 instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
     readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
 #endif
 
+-- | @since 0.5.9
 instance F.Foldable SCC where
   foldr c n (AcyclicSCC v) = c v n
   foldr c n (CyclicSCC vs) = foldr c n vs
 
+-- | @since 0.5.9
 instance Traversable SCC where
   -- We treat the non-empty cyclic case specially to cut one
   -- fmap application.
@@ -163,6 +178,7 @@ instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
     rnf (CyclicSCC vs) = rnf vs
 
+-- | @since 0.5.4
 instance Functor SCC where
     fmap f (AcyclicSCC v) = AcyclicSCC (f v)
     fmap f (CyclicSCC vs) = CyclicSCC (fmap f vs)

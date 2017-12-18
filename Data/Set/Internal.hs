@@ -70,6 +70,8 @@
 -- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
 -- this condition is not detected and if the size limit is exceeded, the
 -- behavior of the set is completely undefined.
+--
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 -- [Note: Using INLINABLE]
@@ -284,6 +286,7 @@ instance Ord a => Monoid (Set a) where
 #else
     mappend = (<>)
 
+-- | @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
@@ -873,6 +876,7 @@ elems = toAscList
   Lists
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
 instance (Ord a) => GHCExts.IsList (Set a) where
   type Item (Set a) = a
   fromList = fromList
@@ -983,6 +987,8 @@ fromAscList xs = fromDistinctAscList (combineEq xs)
 
 -- | /O(n)/. Build a set from a descending list in linear time.
 -- /The precondition (input list is descending) is not checked./
+--
+-- @since 0.5.8
 fromDescList :: Eq a => [a] -> Set a
 fromDescList xs = fromDistinctDescList (combineEq xs)
 #if __GLASGOW_HASKELL__
@@ -1030,6 +1036,8 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
+--
+-- @since 0.5.8
 fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
 fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
@@ -1070,14 +1078,17 @@ instance Show a => Show (Set a) where
     showString "fromList " . shows (toList xs)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Eq1 Set where
     liftEq eq m n =
         size m == size n && liftEq eq (toList m) (toList n)
 
+-- | @since 0.5.9
 instance Ord1 Set where
     liftCompare cmp m n =
         liftCompare cmp (toList m) (toList n)
 
+-- | @since 0.5.9
 instance Show1 Set where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
@@ -1164,6 +1175,8 @@ splitMember x (Bin _ y l r)
 -- > findIndex 3 (fromList [5,3]) == 0
 -- > findIndex 5 (fromList [5,3]) == 1
 -- > findIndex 6 (fromList [5,3])    Error: element is not in the set
+--
+-- @since 0.5.4
 
 -- See Note: Type of local 'go' function
 findIndex :: Ord a => a -> Set a -> Int
@@ -1187,6 +1200,8 @@ findIndex = go 0
 -- > fromJust (lookupIndex 3 (fromList [5,3])) == 0
 -- > fromJust (lookupIndex 5 (fromList [5,3])) == 1
 -- > isJust   (lookupIndex 6 (fromList [5,3])) == False
+--
+-- @since 0.5.4
 
 -- See Note: Type of local 'go' function
 lookupIndex :: Ord a => a -> Set a -> Maybe Int
@@ -1209,6 +1224,8 @@ lookupIndex = go 0
 -- > elemAt 0 (fromList [5,3]) == 3
 -- > elemAt 1 (fromList [5,3]) == 5
 -- > elemAt 2 (fromList [5,3])    Error: index out of range
+--
+-- @since 0.5.4
 
 elemAt :: Int -> Set a -> a
 elemAt !_ Tip = error "Set.elemAt: index out of range"
@@ -1228,6 +1245,8 @@ elemAt i (Bin _ x l r)
 -- > deleteAt 1    (fromList [5,3]) == singleton 3
 -- > deleteAt 2    (fromList [5,3])    Error: index out of range
 -- > deleteAt (-1) (fromList [5,3])    Error: index out of range
+--
+-- @since 0.5.4
 
 deleteAt :: Int -> Set a -> Set a
 deleteAt !i t =
@@ -1246,6 +1265,8 @@ deleteAt !i t =
 -- @
 -- take n = 'fromDistinctAscList' . 'Prelude.take' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 take :: Int -> Set a -> Set a
 take i m | i >= size m = m
 take i0 m0 = go i0 m0
@@ -1265,6 +1286,8 @@ take i0 m0 = go i0 m0
 -- @
 -- drop n = 'fromDistinctAscList' . 'Prelude.drop' n . 'toAscList'
 -- @
+--
+-- @since 0.5.8
 drop :: Int -> Set a -> Set a
 drop i m | i >= size m = Tip
 drop i0 m0 = go i0 m0
@@ -1307,6 +1330,8 @@ splitAt i0 m0
 -- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' p . 'toList'
 -- takeWhileAntitone p = 'filter' p
 -- @
+--
+-- @since 0.5.8
 
 takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
 takeWhileAntitone _ Tip = Tip
@@ -1322,6 +1347,8 @@ takeWhileAntitone p (Bin _ x l r)
 -- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' p . 'toList'
 -- dropWhileAntitone p = 'filter' (not . p)
 -- @
+--
+-- @since 0.5.8
 
 dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
 dropWhileAntitone _ Tip = Tip
@@ -1342,6 +1369,8 @@ dropWhileAntitone p (Bin _ x l r)
 -- at some /unspecified/ point where the predicate switches from holding to not
 -- holding (where the predicate is seen to hold before the first element and to fail
 -- after the last element).
+--
+-- @since 0.5.8
 
 spanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
 spanAntitone p0 m = toPair (go p0 m)
@@ -1622,6 +1651,8 @@ bin x l r
 --  Note that the current implementation does not return more than three subsets,
 --  but you should not depend on this behaviour because it can change in the
 --  future without notice.
+--
+-- @since 0.5.4
 splitRoot :: Set a -> [Set a]
 splitRoot orig =
   case orig of

@@ -75,6 +75,7 @@
 -- '>>', particularly repeatedly and particularly in combination with
 -- 'replicate' or 'fromFunction'.
 --
+-- @since 0.5.9
 -----------------------------------------------------------------------------
 
 module Data.Sequence.Internal (
@@ -296,11 +297,15 @@ infixl 5 :|>
 #endif
 
 -- | A pattern synonym matching an empty sequence.
+--
+-- @since 0.5.8
 pattern Empty :: Seq a
 pattern Empty = Seq EmptyT
 
 -- | A pattern synonym viewing the front of a non-empty
 -- sequence.
+--
+-- @since 0.5.8
 pattern (:<|) :: a -> Seq a -> Seq a
 pattern x :<| xs <- (viewl -> x :< xs)
   where
@@ -308,6 +313,8 @@ pattern x :<| xs <- (viewl -> x :< xs)
 
 -- | A pattern synonym viewing the rear of a non-empty
 -- sequence.
+--
+-- @since 0.5.8
 pattern (:|>) :: Seq a -> a -> Seq a
 pattern xs :|> x <- (viewr -> xs :> x)
   where
@@ -435,6 +442,7 @@ instance Monad Seq where
       where add ys x = ys >< f x
     (>>) = (*>)
 
+-- | @since 0.5.11
 instance MonadFix Seq where
     mfix = mfixSeq
 
@@ -446,6 +454,7 @@ mfixSeq f = fromFunction (length (f err)) (\k -> fix (\xk -> f xk `index` k))
   where
     err = error "mfix for Data.Sequence.Seq applied to strict function"
 
+-- | @since 0.5.4
 instance Applicative Seq where
     pure = singleton
     xs *> ys = cycleNTimes (length xs) ys
@@ -763,6 +772,7 @@ instance MonadPlus Seq where
     mzero = empty
     mplus = (><)
 
+-- | @since 0.5.4
 instance Alternative Seq where
     empty = empty
     (<|>) = (><)
@@ -783,13 +793,16 @@ instance Show a => Show (Seq a) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Show1 Seq where
   liftShowsPrec _shwsPrc shwList p xs = showParen (p > 10) $
         showString "fromList " . shwList (toList xs)
 
+-- | @since 0.5.9
 instance Eq1 Seq where
     liftEq eq xs ys = length xs == length ys && liftEq eq (toList xs) (toList ys)
 
+-- | @since 0.5.9
 instance Ord1 Seq where
     liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
 #endif
@@ -810,6 +823,7 @@ instance Read a => Read (Seq a) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Read1 Seq where
   liftReadsPrec _rp readLst p = readParen (p > 10) $ \r -> do
     ("fromList",s) <- lex r
@@ -822,6 +836,7 @@ instance Monoid (Seq a) where
     mappend = (><)
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
 #endif
@@ -1687,9 +1702,11 @@ data ViewL a
 deriving instance Data a => Data (ViewL a)
 #endif
 #if __GLASGOW_HASKELL__ >= 706
+-- | @since 0.5.8
 deriving instance Generic1 ViewL
 #endif
 #if __GLASGOW_HASKELL__ >= 702
+-- | @since 0.5.8
 deriving instance Generic (ViewL a)
 #endif
 
@@ -1752,9 +1769,11 @@ data ViewR a
 deriving instance Data a => Data (ViewR a)
 #endif
 #if __GLASGOW_HASKELL__ >= 706
+-- | @since 0.5.8
 deriving instance Generic1 ViewR
 #endif
 #if __GLASGOW_HASKELL__ >= 702
+-- | @since 0.5.8
 deriving instance Generic (ViewR a)
 #endif
 
@@ -2031,6 +2050,8 @@ updateDigit v i (Four a b c d)
 -- can lead to poor performance and even memory leaks, because it does not
 -- force the new value before installing it in the sequence. 'adjust'' should
 -- usually be preferred.
+--
+-- @since 0.5.8
 adjust          :: (a -> a) -> Int -> Seq a -> Seq a
 adjust f i (Seq xs)
   -- See note on unsigned arithmetic in splitAt
@@ -2134,7 +2155,7 @@ adjustDigit f i (Four a b c d)
 -- insertAt 4 x (fromList [a,b,c,d]) = insertAt 10 x (fromList [a,b,c,d])
 --                                   = fromList [a,b,c,d,x]
 -- @
--- 
+--
 -- prop> insertAt i x xs = take i xs >< singleton x >< drop i xs
 --
 -- @since 0.5.8
@@ -2820,6 +2841,8 @@ valid.
 
 -- | /O(n)/. Convert a given sequence length and a function representing that
 -- sequence into a sequence.
+--
+-- @since 0.5.6.2
 fromFunction :: Int -> (Int -> a) -> Seq a
 fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
                    | len == 0 = empty
@@ -2863,6 +2886,8 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
 -- Note that the resulting sequence elements may be evaluated lazily (as on GHC),
 -- so you must force the entire structure to be sure that the original array
 -- can be garbage-collected.
+--
+-- @since 0.5.6.2
 fromArray :: Ix i => Array i a -> Seq a
 #ifdef __GLASGOW_HASKELL__
 fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
@@ -3301,7 +3326,7 @@ splitMiddleE i s spr pr ml (Node3 _ a b c) mr sf = case i of
     sprmla  = 1 + sprml
     sprmlab = sprmla + 1
 
-splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> 
+splitPrefixE :: Int -> Int -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) ->
                     StrictPair (FingerTree (Elem a)) (FingerTree (Elem a))
 splitPrefixE !_i !s (One a) m sf = EmptyT :*: Deep s (One a) m sf
 splitPrefixE i s (Two a b) m sf = case i of
@@ -3317,7 +3342,7 @@ splitPrefixE i s (Four a b c d) m sf = case i of
   2 -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
   _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
-splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) -> 
+splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
                     Split a
 splitPrefixN !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
 splitPrefixN i s (Two a b) m sf
@@ -3389,6 +3414,8 @@ splitSuffixN i s pr m (Four a b c d)
 -- | /O(n)/. @chunksOf n xs@ splits @xs@ into chunks of size @n>0@.
 -- If @n@ does not divide the length of @xs@ evenly, then the last element
 -- of the result will be short.
+--
+-- @since 0.5.8
 chunksOf :: Int -> Seq a -> Seq (Seq a)
 chunksOf n xs | n <= 0 =
   if null xs
@@ -3897,6 +3924,7 @@ instance GHC.Exts.IsList (Seq a) where
 #endif
 
 #ifdef __GLASGOW_HASKELL__
+-- | @since 0.5.7
 instance IsString (Seq Char) where
     fromString = fromList
 #endif
