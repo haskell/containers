@@ -1336,17 +1336,20 @@ mergeWithKey' bin' f g1 g2 = go
 --
 -- A tactic of type @WhenMissing f k x z@ is an abstract representation
 -- of a function of type @Key -> x -> f (Maybe z)@.
+--
+-- @since 0.5.9
 
 data WhenMissing f x y = WhenMissing
   { missingSubtree :: IntMap x -> f (IntMap y)
   , missingKey :: Key -> x -> f (Maybe y)}
 
-
+-- | @since 0.5.9
 instance (Applicative f, Monad f) => Functor (WhenMissing f x) where
   fmap = mapWhenMissing
   {-# INLINE fmap #-}
 
 
+-- | @since 0.5.9
 instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
   where
     id = preserveMissing
@@ -1361,6 +1364,8 @@ instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
 
 
 -- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+--
+-- @since 0.5.9
 instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
   pure x = mapMissing (\ _ _ -> x)
   f <*> g =
@@ -1374,6 +1379,8 @@ instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
 
 
 -- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
+--
+-- @since 0.5.9
 instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
 #if !MIN_VERSION_base(4,8,0)
   return = pure
@@ -1388,6 +1395,8 @@ instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
 
 
 -- | Map covariantly over a @'WhenMissing' f x@.
+--
+-- @since 0.5.9
 mapWhenMissing
   :: (Applicative f, Monad f)
   => (a -> b)
@@ -1425,6 +1434,8 @@ mapGentlyWhenMatched f t =
 
 
 -- | Map contravariantly over a @'WhenMissing' f _ x@.
+--
+-- @since 0.5.9
 lmapWhenMissing :: (b -> a) -> WhenMissing f a x -> WhenMissing f b x
 lmapWhenMissing f t = WhenMissing
   { missingSubtree = \m -> missingSubtree t (fmap f m)
@@ -1433,6 +1444,8 @@ lmapWhenMissing f t = WhenMissing
 
 
 -- | Map contravariantly over a @'WhenMatched' f _ y z@.
+--
+-- @since 0.5.9
 contramapFirstWhenMatched
   :: (b -> a)
   -> WhenMatched f a y z
@@ -1443,6 +1456,8 @@ contramapFirstWhenMatched f t =
 
 
 -- | Map contravariantly over a @'WhenMatched' f x _ z@.
+--
+-- @since 0.5.9
 contramapSecondWhenMatched
   :: (b -> a)
   -> WhenMatched f x a z
@@ -1468,6 +1483,8 @@ instance Applicative Identity where
 --
 -- A tactic of type @SimpleWhenMissing x z@ is an abstract
 -- representation of a function of type @Key -> x -> Maybe z@.
+--
+-- @since 0.5.9
 type SimpleWhenMissing = WhenMissing Identity
 
 
@@ -1476,12 +1493,16 @@ type SimpleWhenMissing = WhenMissing Identity
 --
 -- A tactic of type @WhenMatched f x y z@ is an abstract representation
 -- of a function of type @Key -> x -> y -> f (Maybe z)@.
+--
+-- @since 0.5.9
 newtype WhenMatched f x y z = WhenMatched
   { matchedKey :: Key -> x -> y -> f (Maybe z) }
 
 
 -- | Along with zipWithMaybeAMatched, witnesses the isomorphism
 -- between @WhenMatched f x y z@ and @Key -> x -> y -> f (Maybe z)@.
+--
+-- @since 0.5.9
 runWhenMatched :: WhenMatched f x y z -> Key -> x -> y -> f (Maybe z)
 runWhenMatched = matchedKey
 {-# INLINE runWhenMatched #-}
@@ -1489,16 +1510,20 @@ runWhenMatched = matchedKey
 
 -- | Along with traverseMaybeMissing, witnesses the isomorphism
 -- between @WhenMissing f x y@ and @Key -> x -> f (Maybe y)@.
+--
+-- @since 0.5.9
 runWhenMissing :: WhenMissing f x y -> Key-> x -> f (Maybe y)
 runWhenMissing = missingKey
 {-# INLINE runWhenMissing #-}
 
 
+-- | @since 0.5.9
 instance Functor f => Functor (WhenMatched f x y) where
   fmap = mapWhenMatched
   {-# INLINE fmap #-}
 
 
+-- | @since 0.5.9
 instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
   where
     id = zipWithMatched (\_ _ y -> y)
@@ -1513,6 +1538,8 @@ instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
 
 
 -- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
 instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
   pure x = zipWithMatched (\_ _ _ -> x)
   fs <*> xs =
@@ -1526,6 +1553,8 @@ instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
 
 
 -- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
 instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
 #if !MIN_VERSION_base(4,8,0)
   return = pure
@@ -1540,6 +1569,8 @@ instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
 
 
 -- | Map covariantly over a @'WhenMatched' f x y@.
+--
+-- @since 0.5.9
 mapWhenMatched
   :: Functor f
   => (a -> b)
@@ -1554,6 +1585,8 @@ mapWhenMatched f (WhenMatched g) =
 --
 -- A tactic of type @SimpleWhenMatched x y z@ is an abstract
 -- representation of a function of type @Key -> x -> y -> Maybe z@.
+--
+-- @since 0.5.9
 type SimpleWhenMatched = WhenMatched Identity
 
 
@@ -1563,6 +1596,8 @@ type SimpleWhenMatched = WhenMatched Identity
 -- > zipWithMatched
 -- >   :: (Key -> x -> y -> z)
 -- >   -> SimpleWhenMatched x y z
+--
+-- @since 0.5.9
 zipWithMatched
   :: Applicative f
   => (Key -> x -> y -> z)
@@ -1574,6 +1609,8 @@ zipWithMatched f = WhenMatched $ \ k x y -> pure . Just $ f k x y
 -- | When a key is found in both maps, apply a function to the key
 -- and values to produce an action and use its result in the merged
 -- map.
+--
+-- @since 0.5.9
 zipWithAMatched
   :: Applicative f
   => (Key -> x -> y -> f z)
@@ -1588,6 +1625,8 @@ zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
 -- > zipWithMaybeMatched
 -- >   :: (Key -> x -> y -> Maybe z)
 -- >   -> SimpleWhenMatched x y z
+--
+-- @since 0.5.9
 zipWithMaybeMatched
   :: Applicative f
   => (Key -> x -> y -> Maybe z)
@@ -1601,6 +1640,8 @@ zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
 -- result in the merged map.
 --
 -- This is the fundamental 'WhenMatched' tactic.
+--
+-- @since 0.5.9
 zipWithMaybeAMatched
   :: (Key -> x -> y -> f (Maybe z))
   -> WhenMatched f x y z
@@ -1616,6 +1657,8 @@ zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
 -- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
 --
 -- but @dropMissing@ is much faster.
+--
+-- @since 0.5.9
 dropMissing :: Applicative f => WhenMissing f x y
 dropMissing = WhenMissing
   { missingSubtree = const (pure Nil)
@@ -1631,6 +1674,8 @@ dropMissing = WhenMissing
 -- prop> preserveMissing = Merge.Lazy.mapMaybeMissing (\_ x -> Just x)
 --
 -- but @preserveMissing@ is much faster.
+--
+-- @since 0.5.9
 preserveMissing :: Applicative f => WhenMissing f x x
 preserveMissing = WhenMissing
   { missingSubtree = pure
@@ -1645,6 +1690,8 @@ preserveMissing = WhenMissing
 -- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
 --
 -- but @mapMissing@ is somewhat faster.
+--
+-- @since 0.5.9
 mapMissing :: Applicative f => (Key -> x -> y) -> WhenMissing f x y
 mapMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapWithKey f m
@@ -1662,6 +1709,8 @@ mapMissing f = WhenMissing
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative'
 -- operations.
+--
+-- @since 0.5.9
 mapMaybeMissing
   :: Applicative f => (Key -> x -> Maybe y) -> WhenMissing f x y
 mapMaybeMissing f = WhenMissing
@@ -1677,6 +1726,8 @@ mapMaybeMissing f = WhenMissing
 -- prop> filterMissing f = Merge.Lazy.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
 --
 -- but this should be a little faster.
+--
+-- @since 0.5.9
 filterMissing
   :: Applicative f => (Key -> x -> Bool) -> WhenMissing f x x
 filterMissing f = WhenMissing
@@ -1692,6 +1743,8 @@ filterMissing f = WhenMissing
 -- >   \k x -> (\b -> guard b *> Just x) <$> f k x
 --
 -- but this should be a little faster.
+--
+-- @since 0.5.9
 filterAMissing
   :: Applicative f => (Key -> x -> f Bool) -> WhenMissing f x x
 filterAMissing f = WhenMissing
@@ -1716,6 +1769,8 @@ bool _ t True  = t
 
 -- | Traverse over the entries whose keys are missing from the other
 -- map.
+--
+-- @since 0.5.9
 traverseMissing
   :: Applicative f => (Key -> x -> f y) -> WhenMissing f x y
 traverseMissing f = WhenMissing
@@ -1728,6 +1783,8 @@ traverseMissing f = WhenMissing
 -- map, optionally producing values to put in the result. This is
 -- the most powerful 'WhenMissing' tactic, but others are usually
 -- more efficient.
+--
+-- @since 0.5.9
 traverseMaybeMissing
   :: Applicative f => (Key -> x -> f (Maybe y)) -> WhenMissing f x y
 traverseMaybeMissing f = WhenMissing
@@ -1815,7 +1872,7 @@ traverseMaybeWithKey f = go
 -- prop> symmetricDifference = merge diffPreserve diffPreserve (\ _ _ _ -> Nothing)
 -- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g)
 --
--- @since 0.5.8
+-- @since 0.5.9
 merge
   :: SimpleWhenMissing a c -- ^ What to do with keys in @m1@ but not @m2@
   -> SimpleWhenMissing b c -- ^ What to do with keys in @m2@ but not @m1@
@@ -1890,7 +1947,7 @@ merge g1 g2 f m1 m2 =
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
 --
--- @since 0.5.8
+-- @since 0.5.9
 mergeA
   :: (Applicative f)
   => WhenMissing f a c -- ^ What to do with keys in @m1@ but not @m2@
