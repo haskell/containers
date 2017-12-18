@@ -91,7 +91,7 @@ benchmark intmap-benchmarks
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5
 
 benchmark intset-benchmarks
@@ -102,7 +102,7 @@ benchmark intset-benchmarks
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5
 
 benchmark map-benchmarks
@@ -113,7 +113,7 @@ benchmark map-benchmarks
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
     transformers
 
@@ -125,7 +125,7 @@ benchmark sequence-benchmarks
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
     random < 1.2,
     transformers
@@ -138,53 +138,67 @@ benchmark set-benchmarks
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5
 
 benchmark set-operations-intmap
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is: SetOperations-IntMap.hs
+  other-modules: SetOperations
   ghc-options: -O2
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2
+    criterion >= 0.4.0 && < 1.3
 
 benchmark set-operations-intset
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is: SetOperations-IntSet.hs
+  other-modules: SetOperations
   ghc-options: -O2
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2
+    criterion >= 0.4.0 && < 1.3
 
 benchmark set-operations-map
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is: SetOperations-Map.hs
+  other-modules: SetOperations
   ghc-options: -O2
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2
+    criterion >= 0.4.0 && < 1.3
 
 benchmark set-operations-set
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is: SetOperations-Set.hs
+  other-modules: SetOperations
   ghc-options: -O2
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2
+    criterion >= 0.4.0 && < 1.3
 
 benchmark lookupge-intmap
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE, .
   main-is: IntMap.hs
+  other-modules:
+      Data.IntMap
+      Data.IntMap.Internal.DeprecatedDebug
+      Data.IntMap.Lazy
+      Data.IntMap.Strict
+      Data.IntSet.Internal
+      LookupGE_IntMap
+      Utils.Containers.Internal.BitUtil
+      Utils.Containers.Internal.StrictFold
+      Utils.Containers.Internal.StrictPair
   ghc-options: -O2
   cpp-options: -DTESTING
   other-modules:
@@ -192,7 +206,7 @@ benchmark lookupge-intmap
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
     ghc-prim
 
@@ -200,6 +214,21 @@ benchmark lookupge-map
   type: exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE, .
   main-is: Map.hs
+  other-modules:
+      Data.Map
+      Data.Map.Internal.Debug
+      Data.Map.Internal.DeprecatedShowTree
+      Data.Map.Lazy
+      Data.Map.Strict
+      Data.Map.Strict.Internal
+      Data.Set.Internal
+      LookupGE_Map
+      Utils.Containers.Internal.BitQueue
+      Utils.Containers.Internal.BitUtil
+      Utils.Containers.Internal.PtrEquality
+      Utils.Containers.Internal.StrictFold
+      Utils.Containers.Internal.StrictMaybe
+      Utils.Containers.Internal.StrictPair
   ghc-options: -O2
   cpp-options: -DTESTING
   other-modules:
@@ -207,7 +236,7 @@ benchmark lookupge-map
   build-depends:
     base >= 4.2 && < 5,
     containers,
-    criterion >= 0.4.0 && < 1.2,
+    criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
     ghc-prim
 
@@ -221,6 +250,20 @@ benchmark lookupge-map
 Test-suite map-lazy-properties
     hs-source-dirs: tests, .
     main-is: map-properties.hs
+    other-modules:
+        Data.Map.Internal
+        Data.Map.Internal.Debug
+        Data.Map.Internal.DeprecatedShowTree
+        Data.Map.Lazy
+        Data.Map.Merge.Lazy
+        Data.Set
+        Data.Set.Internal
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -240,6 +283,21 @@ Test-suite map-lazy-properties
 Test-suite map-strict-properties
     hs-source-dirs: tests, .
     main-is: map-properties.hs
+    other-modules:
+        Data.Map.Internal
+        Data.Map.Internal.Debug
+        Data.Map.Internal.DeprecatedShowTree
+        Data.Map.Merge.Strict
+        Data.Map.Strict
+        Data.Map.Strict.Internal
+        Data.Set
+        Data.Set.Internal
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
@@ -259,6 +317,9 @@ Test-suite map-strict-properties
 Test-suite bitqueue-properties
     hs-source-dirs: tests, .
     main-is: bitqueue-properties.hs
+    other-modules:
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.BitUtil
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -275,6 +336,15 @@ Test-suite bitqueue-properties
 Test-suite set-properties
     hs-source-dirs: tests, .
     main-is: set-properties.hs
+    other-modules:
+        Data.IntSet
+        Data.IntSet.Internal
+        Data.Set
+        Data.Set.Internal
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -294,6 +364,16 @@ Test-suite set-properties
 Test-suite intmap-lazy-properties
     hs-source-dirs: tests, .
     main-is: intmap-properties.hs
+    other-modules:
+        Data.IntMap.Internal
+        Data.IntMap.Internal.Debug
+        Data.IntMap.Internal.DeprecatedDebug
+        Data.IntMap.Lazy
+        Data.IntSet
+        Data.IntSet.Internal
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -312,6 +392,16 @@ Test-suite intmap-lazy-properties
 Test-suite intmap-strict-properties
     hs-source-dirs: tests, .
     main-is: intmap-properties.hs
+    other-modules:
+        Data.IntMap.Internal
+        Data.IntMap.Internal.Debug
+        Data.IntMap.Internal.DeprecatedDebug
+        Data.IntMap.Strict
+        Data.IntSet
+        Data.IntSet.Internal
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
@@ -330,6 +420,15 @@ Test-suite intmap-strict-properties
 Test-suite intset-properties
     hs-source-dirs: tests, .
     main-is: intset-properties.hs
+    other-modules:
+        Data.IntSet
+        Data.IntSet.Internal
+        Data.Set
+        Data.Set.Internal
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -348,6 +447,27 @@ Test-suite intset-properties
 Test-suite deprecated-properties
     hs-source-dirs: tests, .
     main-is: deprecated-properties.hs
+    other-modules:
+        Data.IntMap
+        Data.IntMap.Internal
+        Data.IntMap.Internal.DeprecatedDebug
+        Data.IntMap.Lazy
+        Data.IntMap.Strict
+        Data.IntSet.Internal
+        Data.Map
+        Data.Map.Internal
+        Data.Map.Internal.Debug
+        Data.Map.Internal.DeprecatedShowTree
+        Data.Map.Lazy
+        Data.Map.Strict
+        Data.Map.Strict.Internal
+        Data.Set.Internal
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.StrictFold
+        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -364,6 +484,10 @@ Test-suite deprecated-properties
 Test-suite seq-properties
     hs-source-dirs: tests, .
     main-is: seq-properties.hs
+    other-modules:
+        Data.Sequence
+        Data.Sequence.Internal
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -381,6 +505,19 @@ Test-suite seq-properties
 test-suite map-strictness-properties
   hs-source-dirs: tests, .
   main-is: map-strictness.hs
+  other-modules:
+      Data.Map.Internal
+      Data.Map.Internal.Debug
+      Data.Map.Internal.DeprecatedShowTree
+      Data.Map.Strict
+      Data.Map.Strict.Internal
+      Data.Set.Internal
+      Utils.Containers.Internal.BitQueue
+      Utils.Containers.Internal.BitUtil
+      Utils.Containers.Internal.PtrEquality
+      Utils.Containers.Internal.StrictFold
+      Utils.Containers.Internal.StrictMaybe
+      Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
 
   build-depends:
@@ -400,6 +537,14 @@ test-suite map-strictness-properties
 test-suite intmap-strictness-properties
   hs-source-dirs: tests, .
   main-is: intmap-strictness.hs
+  other-modules:
+      Data.IntMap.Internal
+      Data.IntMap.Internal.DeprecatedDebug
+      Data.IntMap.Strict
+      Data.IntSet.Internal
+      Utils.Containers.Internal.BitUtil
+      Utils.Containers.Internal.StrictFold
+      Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns
 
@@ -419,6 +564,12 @@ test-suite intmap-strictness-properties
 test-suite intset-strictness-properties
   hs-source-dirs: tests, .
   main-is: intset-strictness.hs
+  other-modules:
+      Data.IntSet
+      Data.IntSet.Internal
+      Utils.Containers.Internal.BitUtil
+      Utils.Containers.Internal.StrictFold
+      Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns
 
