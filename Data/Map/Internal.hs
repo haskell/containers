@@ -2054,15 +2054,19 @@ instance Applicative Identity where
 --
 -- A tactic of type @ WhenMissing f k x z @ is an abstract representation
 -- of a function of type @ k -> x -> f (Maybe z) @.
+--
+-- @since 0.5.9
 
 data WhenMissing f k x y = WhenMissing
   { missingSubtree :: Map k x -> f (Map k y)
   , missingKey :: k -> x -> f (Maybe y)}
 
+-- | @since 0.5.9
 instance (Applicative f, Monad f) => Functor (WhenMissing f k x) where
   fmap = mapWhenMissing
   {-# INLINE fmap #-}
 
+-- | @since 0.5.9
 instance (Applicative f, Monad f)
          => Category.Category (WhenMissing f k) where
   id = preserveMissing
@@ -2075,6 +2079,8 @@ instance (Applicative f, Monad f)
   {-# INLINE (.) #-}
 
 -- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
+--
+-- @since 0.5.9
 instance (Applicative f, Monad f) => Applicative (WhenMissing f k x) where
   pure x = mapMissing (\ _ _ -> x)
   f <*> g = traverseMaybeMissing $ \k x -> do
@@ -2086,6 +2092,8 @@ instance (Applicative f, Monad f) => Applicative (WhenMissing f k x) where
   {-# INLINE (<*>) #-}
 
 -- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
+--
+-- @since 0.5.9
 instance (Applicative f, Monad f) => Monad (WhenMissing f k x) where
 #if !MIN_VERSION_base(4,8,0)
   return = pure
@@ -2098,6 +2106,8 @@ instance (Applicative f, Monad f) => Monad (WhenMissing f k x) where
   {-# INLINE (>>=) #-}
 
 -- | Map covariantly over a @'WhenMissing' f k x@.
+--
+-- @since 0.5.9
 mapWhenMissing :: (Applicative f, Monad f)
                => (a -> b)
                -> WhenMissing f k x a -> WhenMissing f k x b
@@ -2126,6 +2136,8 @@ mapGentlyWhenMatched f t = zipWithMaybeAMatched $
 {-# INLINE mapGentlyWhenMatched #-}
 
 -- | Map contravariantly over a @'WhenMissing' f k _ x@.
+--
+-- @since 0.5.9
 lmapWhenMissing :: (b -> a) -> WhenMissing f k a x -> WhenMissing f k b x
 lmapWhenMissing f t = WhenMissing
   { missingSubtree = \m -> missingSubtree t (fmap f m)
@@ -2133,6 +2145,8 @@ lmapWhenMissing f t = WhenMissing
 {-# INLINE lmapWhenMissing #-}
 
 -- | Map contravariantly over a @'WhenMatched' f k _ y z@.
+--
+-- @since 0.5.9
 contramapFirstWhenMatched :: (b -> a)
                           -> WhenMatched f k a y z
                           -> WhenMatched f k b y z
@@ -2141,6 +2155,8 @@ contramapFirstWhenMatched f t = WhenMatched $
 {-# INLINE contramapFirstWhenMatched #-}
 
 -- | Map contravariantly over a @'WhenMatched' f k x _ z@.
+--
+-- @since 0.5.9
 contramapSecondWhenMatched :: (b -> a)
                            -> WhenMatched f k x a z
                            -> WhenMatched f k x b z
@@ -2153,6 +2169,8 @@ contramapSecondWhenMatched f t = WhenMatched $
 --
 -- A tactic of type @ SimpleWhenMissing k x z @ is an abstract representation
 -- of a function of type @ k -> x -> Maybe z @.
+--
+-- @since 0.5.9
 type SimpleWhenMissing = WhenMissing Identity
 
 -- | A tactic for dealing with keys present in both
@@ -2160,25 +2178,33 @@ type SimpleWhenMissing = WhenMissing Identity
 --
 -- A tactic of type @ WhenMatched f k x y z @ is an abstract representation
 -- of a function of type @ k -> x -> y -> f (Maybe z) @.
+--
+-- @since 0.5.9
 newtype WhenMatched f k x y z = WhenMatched
   { matchedKey :: k -> x -> y -> f (Maybe z) }
 
 -- | Along with zipWithMaybeAMatched, witnesses the isomorphism between
 -- @WhenMatched f k x y z@ and @k -> x -> y -> f (Maybe z)@.
+--
+-- @since 0.5.9
 runWhenMatched :: WhenMatched f k x y z -> k -> x -> y -> f (Maybe z)
 runWhenMatched = matchedKey
 {-# INLINE runWhenMatched #-}
 
 -- | Along with traverseMaybeMissing, witnesses the isomorphism between
 -- @WhenMissing f k x y@ and @k -> x -> f (Maybe y)@.
+--
+-- @since 0.5.9
 runWhenMissing :: WhenMissing f k x y -> k -> x -> f (Maybe y)
 runWhenMissing = missingKey
 {-# INLINE runWhenMissing #-}
 
+-- | @since 0.5.9
 instance Functor f => Functor (WhenMatched f k x y) where
   fmap = mapWhenMatched
   {-# INLINE fmap #-}
 
+-- | @since 0.5.9
 instance (Monad f, Applicative f) => Category.Category (WhenMatched f k x) where
   id = zipWithMatched (\_ _ y -> y)
   f . g = zipWithMaybeAMatched $
@@ -2191,6 +2217,8 @@ instance (Monad f, Applicative f) => Category.Category (WhenMatched f k x) where
   {-# INLINE (.) #-}
 
 -- | Equivalent to @ ReaderT k (ReaderT x (ReaderT y (MaybeT f))) @
+--
+-- @since 0.5.9
 instance (Monad f, Applicative f) => Applicative (WhenMatched f k x y) where
   pure x = zipWithMatched (\_ _ _ -> x)
   fs <*> xs = zipWithMaybeAMatched $ \k x y -> do
@@ -2202,6 +2230,8 @@ instance (Monad f, Applicative f) => Applicative (WhenMatched f k x y) where
   {-# INLINE (<*>) #-}
 
 -- | Equivalent to @ ReaderT k (ReaderT x (ReaderT y (MaybeT f))) @
+--
+-- @since 0.5.9
 instance (Monad f, Applicative f) => Monad (WhenMatched f k x y) where
 #if !MIN_VERSION_base(4,8,0)
   return = pure
@@ -2214,6 +2244,8 @@ instance (Monad f, Applicative f) => Monad (WhenMatched f k x y) where
   {-# INLINE (>>=) #-}
 
 -- | Map covariantly over a @'WhenMatched' f k x y@.
+--
+-- @since 0.5.9
 mapWhenMatched :: Functor f
                => (a -> b)
                -> WhenMatched f k x y a
@@ -2225,6 +2257,8 @@ mapWhenMatched f (WhenMatched g) = WhenMatched $ \k x y -> fmap (fmap f) (g k x 
 --
 -- A tactic of type @ SimpleWhenMatched k x y z @ is an abstract representation
 -- of a function of type @ k -> x -> y -> Maybe z @.
+--
+-- @since 0.5.9
 type SimpleWhenMatched = WhenMatched Identity
 
 -- | When a key is found in both maps, apply a function to the
@@ -2234,6 +2268,8 @@ type SimpleWhenMatched = WhenMatched Identity
 -- zipWithMatched :: (k -> x -> y -> z)
 --                -> SimpleWhenMatched k x y z
 -- @
+--
+-- @since 0.5.9
 zipWithMatched :: Applicative f
                => (k -> x -> y -> z)
                -> WhenMatched f k x y z
@@ -2242,6 +2278,8 @@ zipWithMatched f = WhenMatched $ \ k x y -> pure . Just $ f k x y
 
 -- | When a key is found in both maps, apply a function to the
 -- key and values to produce an action and use its result in the merged map.
+--
+-- @since 0.5.9
 zipWithAMatched :: Applicative f
                 => (k -> x -> y -> f z)
                 -> WhenMatched f k x y z
@@ -2255,6 +2293,8 @@ zipWithAMatched f = WhenMatched $ \ k x y -> Just <$> f k x y
 -- zipWithMaybeMatched :: (k -> x -> y -> Maybe z)
 --                     -> SimpleWhenMatched k x y z
 -- @
+--
+-- @since 0.5.9
 zipWithMaybeMatched :: Applicative f
                     => (k -> x -> y -> Maybe z)
                     -> WhenMatched f k x y z
@@ -2266,6 +2306,8 @@ zipWithMaybeMatched f = WhenMatched $ \ k x y -> pure $ f k x y
 -- the result in the merged map.
 --
 -- This is the fundamental 'WhenMatched' tactic.
+--
+-- @since 0.5.9
 zipWithMaybeAMatched :: (k -> x -> y -> f (Maybe z))
                      -> WhenMatched f k x y z
 zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
@@ -2281,6 +2323,8 @@ zipWithMaybeAMatched f = WhenMatched $ \ k x y -> f k x y
 -- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
 --
 -- but @dropMissing@ is much faster.
+--
+-- @since 0.5.9
 dropMissing :: Applicative f => WhenMissing f k x y
 dropMissing = WhenMissing
   { missingSubtree = const (pure Tip)
@@ -2297,6 +2341,8 @@ dropMissing = WhenMissing
 -- prop> preserveMissing = Merge.Lazy.mapMaybeMissing (\_ x -> Just x)
 --
 -- but @preserveMissing@ is much faster.
+--
+-- @since 0.5.9
 preserveMissing :: Applicative f => WhenMissing f k x x
 preserveMissing = WhenMissing
   { missingSubtree = pure
@@ -2312,6 +2358,8 @@ preserveMissing = WhenMissing
 -- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
 --
 -- but @mapMissing@ is somewhat faster.
+--
+-- @since 0.5.9
 mapMissing :: Applicative f => (k -> x -> y) -> WhenMissing f k x y
 mapMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapWithKey f m
@@ -2329,6 +2377,8 @@ mapMissing f = WhenMissing
 -- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
+--
+-- @since 0.5.9
 mapMaybeMissing :: Applicative f => (k -> x -> Maybe y) -> WhenMissing f k x y
 mapMaybeMissing f = WhenMissing
   { missingSubtree = \m -> pure $! mapMaybeWithKey f m
@@ -2344,6 +2394,8 @@ mapMaybeMissing f = WhenMissing
 -- prop> filterMissing f = Merge.Lazy.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
 --
 -- but this should be a little faster.
+--
+-- @since 0.5.9
 filterMissing :: Applicative f
               => (k -> x -> Bool) -> WhenMissing f k x x
 filterMissing f = WhenMissing
@@ -2360,6 +2412,8 @@ filterMissing f = WhenMissing
 -- @
 --
 -- but this should be a little faster.
+--
+-- @since 0.5.9
 filterAMissing :: Applicative f
               => (k -> x -> f Bool) -> WhenMissing f k x x
 filterAMissing f = WhenMissing
@@ -2373,6 +2427,8 @@ bool f _ False = f
 bool _ t True  = t
 
 -- | Traverse over the entries whose keys are missing from the other map.
+--
+-- @since 0.5.9
 traverseMissing :: Applicative f
                     => (k -> x -> f y) -> WhenMissing f k x y
 traverseMissing f = WhenMissing
@@ -2384,6 +2440,8 @@ traverseMissing f = WhenMissing
 -- optionally producing values to put in the result.
 -- This is the most powerful 'WhenMissing' tactic, but others are usually
 -- more efficient.
+--
+-- @since 0.5.9
 traverseMaybeMissing :: Applicative f
                       => (k -> x -> f (Maybe y)) -> WhenMissing f k x y
 traverseMaybeMissing f = WhenMissing
@@ -2460,7 +2518,7 @@ traverseMaybeMissing f = WhenMissing
 -- prop> symmetricDifference = merge diffPreserve diffPreserve (\ _ _ _ -> Nothing)
 -- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g)
 --
--- @since 0.5.8
+-- @since 0.5.9
 merge :: Ord k
              => SimpleWhenMissing k a c -- ^ What to do with keys in @m1@ but not @m2@
              -> SimpleWhenMissing k b c -- ^ What to do with keys in @m2@ but not @m1@
@@ -2534,7 +2592,7 @@ merge g1 g2 f m1 m2 = runIdentity $
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
 --
--- @since 0.5.8
+-- @since 0.5.9
 mergeA
   :: (Applicative f, Ord k)
   => WhenMissing f k a c -- ^ What to do with keys in @m1@ but not @m2@
