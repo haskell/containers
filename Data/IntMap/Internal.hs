@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
@@ -231,6 +232,8 @@ module Data.IntMap.Internal (
     , isProperSubmapOf, isProperSubmapOfBy
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -2091,27 +2094,39 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
--- | /O(min(n,W))/. The minimal key of the map.
-findMin :: IntMap a -> (Key, a)
-findMin Nil = error $ "findMin: empty map has no minimal element"
-findMin (Tip k v) = (k,v)
-findMin (Bin _ m l r)
+-- | /O(min(n,W))/. The minimal key of the map. Returns 'Nothing' if the map is empty.
+lookupMin :: IntMap a -> Maybe (Key, a)
+lookupMin Nil = Nothing
+lookupMin (Tip k v) = Just (k,v)
+lookupMin (Bin _ m l r)
   | m < 0     = go r
   | otherwise = go l
-    where go (Tip k v)      = (k,v)
+    where go (Tip k v)      = Just (k,v)
           go (Bin _ _ l' _) = go l'
-          go Nil            = error "findMax Nil"
+          go Nil            = Nothing
 
--- | /O(min(n,W))/. The maximal key of the map.
-findMax :: IntMap a -> (Key, a)
-findMax Nil = error $ "findMax: empty map has no maximal element"
-findMax (Tip k v) = (k,v)
-findMax (Bin _ m l r)
+-- | /O(min(n,W))/. The minimal key of the map. Calls 'error' if the map is empty.
+findMin :: IntMap a -> (Key, a)
+findMin t
+  | Just r <- lookupMin t = r
+  | otherwise = error "findMin: empty map has no minimal element"
+  
+-- | /O(min(n,W))/. The maximal key of the map. Returns 'Nothing' if the map is empty.
+lookupMax :: IntMap a -> Maybe (Key, a)
+lookupMax Nil = Nothing
+lookupMax (Tip k v) = Just (k,v)
+lookupMax (Bin _ m l r)
   | m < 0     = go l
   | otherwise = go r
-    where go (Tip k v)      = (k,v)
+    where go (Tip k v)      = Just (k,v)
           go (Bin _ _ _ r') = go r'
-          go Nil            = error "findMax Nil"
+          go Nil            = Nothing
+
+-- | /O(min(n,W))/. The maximal key of the map. Calls 'error' if the map is empty.
+findMax :: IntMap a -> (Key, a)
+findMax t
+  | Just r <- lookupMax t = r
+  | otherwise = error "findMax: empty map has no maximal element"          
 
 -- | /O(min(n,W))/. Delete the minimal key. Returns an empty map if the map is empty.
 --
