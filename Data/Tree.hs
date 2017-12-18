@@ -84,7 +84,7 @@ data Tree a = Node {
         subForest :: Forest a   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__ >= 802
   deriving ( Eq
            , Read
            , Show
@@ -92,13 +92,10 @@ data Tree a = Node {
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
            )
+#elif __GLASGOW_HASKELL__ >= 706
+  deriving (Eq, Read, Show, Data, Generic, Generic1)
 #elif __GLASGOW_HASKELL__ >= 702
-  deriving ( Eq
-           , Read
-           , Show
-           , Data
-           , Generic -- ^ @since 0.5.8
-           )
+  deriving (Eq, Read, Show, Data, Generic)
 #else
   deriving (Eq, Read, Show, Data)
 #endif

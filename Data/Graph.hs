@@ -117,10 +117,14 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
                                         -- in any cycle.
                 | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
                                         -- reachable vertices.
+#if __GLASGOW_HASKELL__ >= 802
   deriving ( Eq   -- ^ @since 0.5.9
            , Show -- ^ @since 0.5.9
            , Read -- ^ @since 0.5.9
            )
+#else
+  deriving (Eq, Show, Read)
+#endif
 
 INSTANCE_TYPEABLE1(SCC)
 
