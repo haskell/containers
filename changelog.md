@@ -2,13 +2,20 @@
 
 ## 0.5.11
 
-* Sped up unstable sorting for `Data.Sequence` (Thanks, Donacha
+* Speed up unstable sorting for `Data.Sequence` (Thanks, Donnacha
   Oisín Kidney!)
 
-* Made compatible with the upcoming export of `<>` from the
-  `Prelude` (Thanks, Herbert Valerio Riedel!)
+* Add a `MonadFix` instance for `Data.Sequence`.
 
-* Added a `MonadFix` instance for `Data.Sequence`.
+* Add `lookupMin` and `lookupMax` to `Data.IntMap` (Thanks, bwroga!)
+
+* Update for recent and upcoming GHC and Cabal versions (Thanks, Herbert
+  Valerio Reidel, Simon Jakobi, and Ryan Scott!)
+
+* Improve documentation (Thanks, Oleg Grenrus and Benjamin Hodgson!)
+
+* Add Haddock `@since` annotations for changes made since version
+  0.5.4 (Thanks, Simon Jakobi!)
 
 ## 0.5.10.2
 
