@@ -121,6 +121,7 @@
 module Data.Set.Internal (
             -- * Set type
               Set(..)       -- instance Eq,Ord,Show,Read,Data,Typeable
+            , Size
 
             -- * Operators
             , (\\)

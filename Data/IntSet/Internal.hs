@@ -98,6 +98,7 @@
 module Data.IntSet.Internal (
     -- * Set type
       IntSet(..), Key -- instance Eq,Show
+    , Prefix, Mask, BitMap
 
     -- * Operators
     , (\\)

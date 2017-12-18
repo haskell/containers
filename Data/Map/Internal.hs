@@ -129,6 +129,7 @@
 module Data.Map.Internal (
     -- * Map type
       Map(..)          -- instance Eq,Show,Read
+    , Size
 
     -- * Operators
     , (!), (!?), (\\)
