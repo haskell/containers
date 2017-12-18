@@ -1881,7 +1881,8 @@ difference t1 (Bin _ k _ l2 r2) = case split k t1 of
 -- | /O(m*log(n\/m + 1)), m <= n/. Remove all keys in a 'Set' from a 'Map'.
 --
 -- @
--- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'Set.notMember'` s) m
+-- m `'withoutKeys'` s = 'filterWithKey' (\k _ -> k `'Set.notMember'` s) m
+-- m `'withoutKeys'` s = m `'difference'` 'fromSet' (const ()) s
 -- @
 --
 -- @since 0.5.8
@@ -1962,7 +1963,8 @@ intersection t1@(Bin _ k x l1 r1) t2
 -- found in a 'Set'.
 --
 -- @
--- m `restrictKeys` s = 'filterWithKey' (\k _ -> k `'Set.member'` s) m
+-- m `'restrictKeys'` s = 'filterWithKey' (\k _ -> k `'Set.member'` s) m
+-- m `'restrictKeys'` s = m `'intersect' 'fromSet' (const ()) s
 -- @
 --
 -- @since 0.5.8
