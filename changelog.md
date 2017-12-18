@@ -1,8 +1,18 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.5.11
+
+* Sped up unstable sorting for `Data.Sequence` (Thanks, Donacha
+  Oisín Kidney!)
+
+* Made compatible with the upcoming export of `<>` from the
+  `Prelude` (Thanks, Herbert Valerio Riedel!)
+
+* Added a `MonadFix` instance for `Data.Sequence`.
+
 ## 0.5.10.2
 
-* Planned for GHC 8.2.
+* Released with GHC 8.2.
 
 * Use `COMPLETE` pragmas to declare complete sets of pattern synonyms
   for `Data.Sequence`. At last!

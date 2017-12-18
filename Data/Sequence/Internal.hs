@@ -262,6 +262,7 @@ import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 #if MIN_VERSION_base(4,4,0)
 import Control.Monad.Zip (MonadZip (..))
 #endif
+import Control.Monad.Fix (MonadFix (..), fix)
 
 default ()
 
@@ -433,6 +434,17 @@ instance Monad Seq where
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
     (>>) = (*>)
+
+instance MonadFix Seq where
+    mfix = mfixSeq
+
+-- This is just like the instance for lists, but we can take advantage of
+-- constant-time length and logarithmic-time indexing to speed things up.
+-- Using fromFunction, we make this about as lazy as we can.
+mfixSeq :: (a -> Seq a) -> Seq a
+mfixSeq f = fromFunction (length (f err)) (\k -> fix (\xk -> f xk `index` k))
+  where
+    err = error "mfix for Data.Sequence.Seq applied to strict function"
 
 instance Applicative Seq where
     pure = singleton
