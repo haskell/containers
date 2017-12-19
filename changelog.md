@@ -7,12 +7,21 @@
 
 * Add a `MonadFix` instance for `Data.Sequence`.
 
+* Add a `MonadFix` instance for `Data.Tree`.
+
+* Make `>>=` for `Data.Tree` strict in the result of its second argument;
+  being too lazy here is almost useless, and violates one of the monad identity
+  laws. Specifically, `return () >>= \_ -> undefined` should always be
+  `undefined`, but this was not the case.
+
 * Add `lookupMin` and `lookupMax` to `Data.IntMap` (Thanks, bwroga!)
 
 * Update for recent and upcoming GHC and Cabal versions (Thanks, Herbert
   Valerio Reidel, Simon Jakobi, and Ryan Scott!)
 
 * Improve documentation (Thanks, Oleg Grenrus and Benjamin Hodgson!)
+
+* Add a (very incomplete) test suite for `Data.Tree`.
 
 * Add Haddock `@since` annotations for changes made since version
   0.5.4 (Thanks, Simon Jakobi!)
