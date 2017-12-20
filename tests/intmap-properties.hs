@@ -31,6 +31,7 @@ main :: IO ()
 main = defaultMain
          [
                testCase "index"      test_index
+             , testCase "index_lookup" test_index_lookup
              , testCase "size"       test_size
              , testCase "size2"      test_size2
              , testCase "member"     test_member
@@ -143,6 +144,7 @@ main = defaultMain
              , testProperty "fromList"             prop_fromList
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
+             , testProperty "index_lookup"         prop_index_lookup
              , testProperty "null"                 prop_null
              , testProperty "size"                 prop_size
              , testProperty "member"               prop_member
@@ -225,6 +227,11 @@ tests = [ testGroup "Test Case" [
 
 test_index :: Assertion
 test_index = fromList [(5,'a'), (3,'b')] ! 5 @?= 'a'
+
+test_index_lookup :: Assertion
+test_index_lookup = do
+    fromList [(5,'a'), (3,'b')] !? 1 @?= Nothing
+    fromList [(5,'a'), (3,'b')] !? 5 @?= Just 'a'
 
 ----------------------------------------------------------------
 -- Query
@@ -922,6 +929,11 @@ prop_index :: [Int] -> Property
 prop_index xs = length xs > 0 ==>
   let m  = fromList (zip xs xs)
   in  xs == [ m ! i | i <- xs ]
+
+prop_index_lookup :: [Int] -> Property
+prop_index_lookup xs = length xs > 0 ==>
+  let m  = fromList (zip xs xs)
+  in  (Prelude.map Just xs) == [ m !? i | i <- xs ]
 
 prop_null :: IMap -> Bool
 prop_null m = null m == (size m == 0)

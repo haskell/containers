@@ -75,7 +75,7 @@ module Data.IntMap.Internal (
       IntMap(..), Key          -- instance Eq,Show
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -382,11 +382,22 @@ bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
 (!) :: IntMap a -> Key -> a
 (!) m k = find k m
 
+-- | /O(min(n,W))/. Find the value at a key.
+-- Returns 'Nothing' when the element can not be found.
+--
+-- > fromList [(5,'a'), (3,'b')] !? 1 == Nothing
+-- > fromList [(5,'a'), (3,'b')] !? 5 == Just 'a'
+--
+-- @since 0.5.11
+
+(!?) :: IntMap a -> Key -> Maybe a
+(!?) m k = lookup k m
+
 -- | Same as 'difference'.
 (\\) :: IntMap a -> IntMap b -> IntMap a
 m1 \\ m2 = difference m1 m2
 
-infixl 9 \\{-This comment teaches CPP correct behaviour -}
+infixl 9 !?,\\{-This comment teaches CPP correct behaviour -}
 
 {--------------------------------------------------------------------
   Types
@@ -2170,7 +2181,7 @@ findMin :: IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
-  
+
 -- | /O(min(n,W))/. The maximal key of the map. Returns 'Nothing' if the map is empty.
 lookupMax :: IntMap a -> Maybe (Key, a)
 lookupMax Nil = Nothing
@@ -2186,7 +2197,7 @@ lookupMax (Bin _ m l r)
 findMax :: IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
-  | otherwise = error "findMax: empty map has no maximal element"          
+  | otherwise = error "findMax: empty map has no maximal element"
 
 -- | /O(min(n,W))/. Delete the minimal key. Returns an empty map if the map is empty.
 --

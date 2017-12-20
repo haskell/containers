@@ -70,7 +70,7 @@ module Data.IntMap.Strict (
 #endif
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , null
@@ -239,6 +239,7 @@ import Data.IntMap.Internal
 
   , (\\)
   , (!)
+  , (!?)
   , empty
   , assocs
   , filter
