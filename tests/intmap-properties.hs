@@ -31,6 +31,7 @@ main :: IO ()
 main = defaultMain
          [
                testCase "index"      test_index
+             , testCase "index_lookup" test_index_lookup
              , testCase "size"       test_size
              , testCase "size2"      test_size2
              , testCase "member"     test_member
@@ -143,6 +144,7 @@ main = defaultMain
              , testProperty "fromList"             prop_fromList
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
+             , testProperty "index_lookup"         prop_index_lookup
              , testProperty "null"                 prop_null
              , testProperty "size"                 prop_size
              , testProperty "member"               prop_member
