@@ -388,7 +388,7 @@ bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
 -- > fromList [(5,'a'), (3,'b')] !? 1 == Nothing
 -- > fromList [(5,'a'), (3,'b')] !? 5 == Just 'a'
 --
--- TODO(mrenaud): Add @since annotation.
+-- @since 0.5.11
 
 (!?) :: IntMap a -> Key -> Maybe a
 (!?) m k = lookup k m
