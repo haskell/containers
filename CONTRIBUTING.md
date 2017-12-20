@@ -4,15 +4,19 @@ As mentioned in the [README](https://github.com/haskell/containers/blob/master/R
 
 For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers). Especially note that all API changes/enhancements should be discussed on libraries@haskell.org mailing list.
 
-## Building the Library
+## Building and testing
 
-Building the containers package can be done easily using either cabal-install or stack.
+Building and testing the containers package can be done using either `cabal-install` or `stack`.
 
 ### With cabal-install
 
 ```
 cabal sandbox init
+cabal install --only-dependencies
+cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
+cabal configure -v2 --enable-tests
 cabal build
+cabal test
 ```
 
 ### With [Stack](https://docs.haskellstack.org/en/stable/README/)
@@ -20,22 +24,12 @@ cabal build
 ```
 stack init   # If you haven't previously initialized stack
 stack build
-```
-
-## Running Tests
-
-At the time of writing it was difficult to get cabal-install to find a compatible set of dependencies to run the tests so we recommend using [Stack](https://docs.haskellstack.org/en/stable/README/) at this point in time.
-
-### With stack
-
-```
-stack init   # If you haven't previously initialized stack
 stack test
 ```
 
 ## Troubleshooting
 
-- If you're using stack, make sure you have version >= 1.6.1 ([1], [2])
+- If you're using Stack, make sure you have version >= 1.6.1 ([1], [2])
 
 
 [1] https://github.com/commercialhaskell/stack/issues/3624
