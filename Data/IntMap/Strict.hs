@@ -239,6 +239,7 @@ import Data.IntMap.Internal
 
   , (\\)
   , (!)
+  , (!?)
   , empty
   , assocs
   , filter
