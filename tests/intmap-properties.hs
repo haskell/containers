@@ -933,7 +933,7 @@ prop_index xs = length xs > 0 ==>
 prop_index_lookup :: [Int] -> Property
 prop_index_lookup xs = length xs > 0 ==>
   let m  = fromList (zip xs xs)
-  in  (Just <$> xs) == [ m !? i | i <- xs ]
+  in  (Prelude.map Just xs) == [ m !? i | i <- xs ]
 
 prop_null :: IMap -> Bool
 prop_null m = null m == (size m == 0)
