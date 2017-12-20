@@ -91,6 +91,7 @@ tests =
       , testProperty "findWithDefault is key-strict" pFindWithDefaultKeyStrict
       , testProperty "findWithDefault is value-strict" pFindWithDefaultValueStrict
       , testProperty "! is key-strict" $ keyStrict (flip (M.!))
+      , testProperty "!? is key-strict" $ keyStrict (flip (M.!?))
       , testProperty "delete is key-strict" $ keyStrict M.delete
       , testProperty "adjust is key-strict" pAdjustKeyStrict
       , testProperty "adjust is value-strict" pAdjustValueStrict

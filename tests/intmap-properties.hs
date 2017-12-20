@@ -226,6 +226,11 @@ tests = [ testGroup "Test Case" [
 test_index :: Assertion
 test_index = fromList [(5,'a'), (3,'b')] ! 5 @?= 'a'
 
+test_index_lookup :: Assertion
+test_index_lookup = do
+    fromList [(5,'a'), (3,'b')] !? 1 @?= Nothing
+    fromList [(5,'a'), (3,'b')] !? 5 @?= Just 'a'
+
 ----------------------------------------------------------------
 -- Query
 
@@ -922,6 +927,11 @@ prop_index :: [Int] -> Property
 prop_index xs = length xs > 0 ==>
   let m  = fromList (zip xs xs)
   in  xs == [ m ! i | i <- xs ]
+
+prop_index_lookup :: [Int] -> Property
+prop_index_lookup xs = length xs > 0 ==>
+  let m  = fromList (zip xs xs)
+  in  Just <$> xs == [ m !? i | i <- xs ]
 
 prop_null :: IMap -> Bool
 prop_null m = null m == (size m == 0)

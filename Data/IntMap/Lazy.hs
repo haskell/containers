@@ -63,7 +63,7 @@ module Data.IntMap.Lazy (
 #endif
 
     -- * Operators
-    , (!), (\\)
+    , (!), (!?), (\\)
 
     -- * Query
     , IM.null
