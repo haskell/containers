@@ -23,6 +23,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
+                   , testProperty "prop_Valid" prop_Valid
                    , testProperty "prop_Single" prop_Single
                    , testProperty "prop_Member" prop_Member
                    , testProperty "prop_NotMember" prop_NotMember
@@ -32,10 +33,13 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_LookupGE" prop_LookupGE
                    , testProperty "prop_InsertDelete" prop_InsertDelete
                    , testProperty "prop_MemberFromList" prop_MemberFromList
+                   , testProperty "prop_UnionValid" prop_UnionValid
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
                    , testProperty "prop_UnionComm" prop_UnionComm
+                   , testProperty "prop_DiffValid" prop_DiffValid
                    , testProperty "prop_Diff" prop_Diff
+                   , testProperty "prop_IntValid" prop_IntValid
                    , testProperty "prop_Int" prop_Int
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
@@ -109,6 +113,21 @@ instance Arbitrary IntSet where
                 ; return (fromList xs)
                 }
 
+{--------------------------------------------------------------------
+  Valid IntMaps
+--------------------------------------------------------------------}
+forValid :: Testable a => (IntSet -> a) -> Property
+forValid f = forAll arbitrary $ \t ->
+    classify (size t == 0) "empty" $
+    classify (size t > 0 && size t <= 10) "small" $
+    classify (size t > 10 && size t <= 64) "medium" $
+    classify (size t > 64) "large" $ f t
+
+forValidUnitTree :: Testable a => (IntSet -> a) -> Property
+forValidUnitTree f = forValid f
+
+prop_Valid :: Property
+prop_Valid = forValidUnitTree $ \t -> valid t
 
 {--------------------------------------------------------------------
   Single, Member, Insert, Delete, Member, FromList
@@ -166,6 +185,12 @@ prop_MemberFromList xs
 {--------------------------------------------------------------------
   Union
 --------------------------------------------------------------------}
+prop_UnionValid :: Property
+prop_UnionValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (union t1 t2)
+
 prop_UnionInsert :: Int -> IntSet -> Bool
 prop_UnionInsert x t
   = union t (singleton x) == insert x t
@@ -178,10 +203,22 @@ prop_UnionComm :: IntSet -> IntSet -> Bool
 prop_UnionComm t1 t2
   = (union t1 t2 == union t2 t1)
 
+prop_DiffValid :: Property
+prop_DiffValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (difference t1 t2)
+
 prop_Diff :: [Int] -> [Int] -> Bool
 prop_Diff xs ys
   =  toAscList (difference (fromList xs) (fromList ys))
     == List.sort ((List.\\) (nub xs)  (nub ys))
+
+prop_IntValid :: Property
+prop_IntValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (intersection t1 t2)
 
 prop_Int :: [Int] -> [Int] -> Bool
 prop_Int xs ys

@@ -123,16 +123,20 @@ main = defaultMain
              , testCase "maxView" test_maxView
              , testCase "minViewWithKey" test_minViewWithKey
              , testCase "maxViewWithKey" test_maxViewWithKey
+             , testProperty "valid"                prop_valid
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
              , testProperty "insert then delete"   prop_insertDelete
              , testProperty "delete non member"    prop_deleteNonMember
+             , testProperty "union valid"          prop_unionValid
              , testProperty "union model"          prop_unionModel
              , testProperty "union singleton"      prop_unionSingleton
              , testProperty "union associative"    prop_unionAssoc
              , testProperty "union+unionWith"      prop_unionWith
              , testProperty "union sum"            prop_unionSum
+             , testProperty "difference valid"     prop_differenceValid
              , testProperty "difference model"     prop_differenceModel
+             , testProperty "intersection valid"   prop_intersectionValid
              , testProperty "intersection model"   prop_intersectionModel
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
@@ -771,6 +775,23 @@ test_maxViewWithKey = do
     maxViewWithKey (empty :: SMap) @?= Nothing
 
 ----------------------------------------------------------------
+-- Valid IntMaps
+----------------------------------------------------------------
+
+forValid :: Testable b => (SMap -> b) -> Property
+forValid f = forAll arbitrary $ \t ->
+    classify (size t == 0) "empty" $
+    classify (size t > 0 && size t <= 10) "small" $
+    classify (size t > 10 && size t <= 64) "medium" $
+    classify (size t > 64) "large" $ f t
+
+forValidUnitTree :: Testable b => (SMap -> b) -> Property
+forValidUnitTree f = forValid f
+
+prop_valid :: Property
+prop_valid = forValidUnitTree $ \t -> valid t
+
+----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
 
@@ -787,6 +808,12 @@ prop_deleteNonMember :: Int -> UMap -> Property
 prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
 
 ----------------------------------------------------------------
+
+prop_unionValid :: Property
+prop_unionValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (union t1 t2)
 
 prop_unionModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_unionModel xs ys
@@ -807,10 +834,22 @@ prop_unionSum xs ys
   = sum (elems (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys)))
     == (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
 
+prop_differenceValid :: Property
+prop_differenceValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (difference t1 t2)
+
 prop_differenceModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_differenceModel xs ys
   = sort (keys (difference (fromListWith (+) xs) (fromListWith (+) ys)))
     == sort ((List.\\) (nub (Prelude.map fst xs)) (nub (Prelude.map fst ys)))
+
+prop_intersectionValid :: Property
+prop_intersectionValid
+  = forValidUnitTree $ \t1 ->
+    forValidUnitTree $ \t2 ->
+    valid (intersection t1 t2)
 
 prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_intersectionModel xs ys

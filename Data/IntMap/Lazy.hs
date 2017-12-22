@@ -207,6 +207,7 @@ module Data.IntMap.Lazy (
     -- * Debugging
     , showTree
     , showTreeWith
+    , valid
     ) where
 
 import Data.IntMap.Internal as IM hiding (showTree, showTreeWith)

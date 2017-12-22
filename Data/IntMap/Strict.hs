@@ -214,6 +214,7 @@ module Data.IntMap.Strict (
     -- * Debugging
     , showTree
     , showTreeWith
+    , valid
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
@@ -299,6 +300,9 @@ import Data.IntMap.Internal
   , union
   , unions
   , withoutKeys
+
+  -- * Debugging
+  , valid
   )
 import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
 import qualified Data.IntSet.Internal as IntSet
