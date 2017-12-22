@@ -354,6 +354,10 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
                     {-# UNPACK #-} !Mask
                     !(IntMap a)
                     !(IntMap a)
+-- Fields:
+--   prefix: The most significant bits shared by all keys in this Bin.
+--   mask: The switching bit to determine if a key should follow the left
+--         or right subtree of a 'Bin'.
 -- Invariant: Nil is never found as a child of Bin.
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
