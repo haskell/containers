@@ -24,6 +24,9 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
                    , testProperty "prop_Valid" prop_Valid
+                   , testProperty "prop_EmptyValid" prop_EmptyValid
+                   , testProperty "prop_SingletonValid" prop_SingletonValid
+                   , testProperty "prop_InsertIntoEmptyValid" prop_InsertIntoEmptyValid
                    , testProperty "prop_Single" prop_Single
                    , testProperty "prop_Member" prop_Member
                    , testProperty "prop_NotMember" prop_NotMember
@@ -31,6 +34,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_LookupGT" prop_LookupGT
                    , testProperty "prop_LookupLE" prop_LookupLE
                    , testProperty "prop_LookupGE" prop_LookupGE
+                   , testProperty "prop_InsertDeleteValid" prop_InsertDeleteValid
                    , testProperty "prop_InsertDelete" prop_InsertDelete
                    , testProperty "prop_MemberFromList" prop_MemberFromList
                    , testProperty "prop_UnionValid" prop_UnionValid
@@ -45,6 +49,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
+                   , testProperty "prop_fromListValid" prop_fromListValid
                    , testProperty "prop_fromList" prop_fromList
                    , testProperty "prop_MaskPow2" prop_MaskPow2
                    , testProperty "prop_Prefix" prop_Prefix
@@ -68,7 +73,9 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_split" prop_split
                    , testProperty "prop_splitMember" prop_splitMember
                    , testProperty "prop_splitRoot" prop_splitRoot
+                   , testProperty "prop_partitionValid" prop_partitionValid
                    , testProperty "prop_partition" prop_partition
+                   , testProperty "prop_filterValid" prop_filterValid
                    , testProperty "prop_filter" prop_filter
 #if MIN_VERSION_base(4,5,0)
                    , testProperty "prop_bitcount" prop_bitcount
@@ -130,6 +137,22 @@ prop_Valid :: Property
 prop_Valid = forValidUnitTree $ \t -> valid t
 
 {--------------------------------------------------------------------
+  Construction validity
+--------------------------------------------------------------------}
+
+prop_EmptyValid :: Bool
+prop_EmptyValid =
+  valid empty
+
+prop_SingletonValid :: Int -> Bool
+prop_SingletonValid x =
+    valid (singleton x)
+
+prop_InsertIntoEmptyValid :: Int -> Bool
+prop_InsertIntoEmptyValid x =
+    valid (insert x empty)
+
+{--------------------------------------------------------------------
   Single, Member, Insert, Delete, Member, FromList
 --------------------------------------------------------------------}
 prop_Single :: Int -> Bool
@@ -171,6 +194,10 @@ prop_LookupLE = test_LookupSomething lookupLE (<=)
 
 prop_LookupGE :: [Int] -> Bool
 prop_LookupGE = test_LookupSomething lookupGE (>=)
+
+prop_InsertDeleteValid :: Int -> IntSet -> Property
+prop_InsertDeleteValid k t
+  = not (member k t) ==> valid (delete k (insert k t))
 
 prop_InsertDelete :: Int -> IntSet -> Property
 prop_InsertDelete k t
@@ -243,6 +270,10 @@ prop_DescList xs = (reverse (sort (nub xs)) == toDescList (fromList xs))
 prop_AscDescList :: [Int] -> Bool
 prop_AscDescList xs = toAscList s == reverse (toDescList s)
   where s = fromList xs
+
+prop_fromListValid :: [Int] -> Bool
+prop_fromListValid xs
+  = valid (fromList xs)
 
 prop_fromList :: [Int] -> Bool
 prop_fromList xs
@@ -358,9 +389,18 @@ prop_splitRoot s = loop ls && (s == unions ls)
                           , y <- toList (unions rst)
                           , x > y ]
 
+prop_partitionValid :: IntSet -> Int -> Bool
+prop_partitionValid s i =
+  case partition odd s of
+    (s1,s2) -> valid s1 && valid s2
+
 prop_partition :: IntSet -> Int -> Bool
 prop_partition s i = case partition odd s of
     (s1,s2) -> all odd (toList s1) && all even (toList s2) && s == s1 `union` s2
+
+prop_filterValid :: IntSet -> Int -> Bool
+prop_filterValid s i =
+  valid (filter odd s) && valid (filter even s)
 
 prop_filter :: IntSet -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)

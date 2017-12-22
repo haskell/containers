@@ -124,8 +124,11 @@ main = defaultMain
              , testCase "minViewWithKey" test_minViewWithKey
              , testCase "maxViewWithKey" test_maxViewWithKey
              , testProperty "valid"                prop_valid
+             , testProperty "empty valid"          prop_emptyValid
+             , testProperty "singleton valid"      prop_singletonValid
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
+             , testProperty "insert then delete valid" prop_insertDeleteValid
              , testProperty "insert then delete"   prop_insertDelete
              , testProperty "delete non member"    prop_deleteNonMember
              , testProperty "union valid"          prop_unionValid
@@ -145,6 +148,7 @@ main = defaultMain
              , testProperty "fromList then toList" prop_list
              , testProperty "toDescList"           prop_descList
              , testProperty "toAscList+toDescList" prop_ascDescList
+             , testProperty "fromListValid"        prop_fromListValid
              , testProperty "fromList"             prop_fromList
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
@@ -166,7 +170,9 @@ main = defaultMain
              , testProperty "findMax"              prop_findMax
              , testProperty "deleteMin"            prop_deleteMinModel
              , testProperty "deleteMax"            prop_deleteMaxModel
+             , testProperty "filter valid"         prop_filterValid
              , testProperty "filter"               prop_filter
+             , testProperty "partition valid"      prop_partitionValid
              , testProperty "partition"            prop_partition
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
@@ -795,11 +801,21 @@ prop_valid = forValidUnitTree $ \t -> valid t
 -- QuickCheck
 ----------------------------------------------------------------
 
+prop_emptyValid :: Bool
+prop_emptyValid = valid empty
+
+prop_singletonValid :: Int -> Bool
+prop_singletonValid x = valid (singleton x x)
+
 prop_singleton :: Int -> Int -> Bool
 prop_singleton k x = insert k x empty == singleton k x
 
 prop_insertLookup :: Int -> UMap -> Bool
 prop_insertLookup k t = lookup k (insert k () t) /= Nothing
+
+prop_insertDeleteValid :: Int -> UMap -> Property
+prop_insertDeleteValid k t =
+    (lookup k t == Nothing) ==> valid (delete k (insert k () t))
 
 prop_insertDelete :: Int -> UMap -> Property
 prop_insertDelete k t = (lookup k t == Nothing) ==> (delete k (insert k () t) == t)
@@ -941,6 +957,9 @@ prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
   where m = fromList $ zip xs $ repeat ()
 
+prop_fromListValid :: [(Int, Int)] -> Bool
+prop_fromListValid xs = valid (fromList xs)
+
 prop_fromList :: [Int] -> Bool
 prop_fromList xs
   = case fromList (zip xs xs) of
@@ -1060,11 +1079,19 @@ prop_deleteMaxModel ys = length ys > 0 ==>
       m  = fromList xs
   in  toAscList (deleteMax m) == init (sort xs)
 
+prop_filterValid :: Fun Int Bool -> IntMap Int -> Bool
+prop_filterValid p m = valid (filter (apply p) m)
+
 prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
+
+prop_partitionValid :: Fun Int Bool -> IntMap Int -> Bool
+prop_partitionValid p m =
+  let (m1,m2)  = partition (apply p) m
+  in  valid m1 && valid m2
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
