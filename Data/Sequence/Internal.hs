@@ -1883,7 +1883,7 @@ index (Seq xs) i
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
                 Place _ (Elem x) -> x
-  | otherwise   = error "index out of bounds"
+  | otherwise   = error $ "index out of bounds in call to: index " ++ show i
 
 -- | /O(log(min(i,n-i)))/. The element at the specified position,
 -- counting from 0. If the specified position is negative or at
