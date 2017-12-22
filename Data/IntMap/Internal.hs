@@ -3434,10 +3434,10 @@ commonPrefix t
   = case t of
       Nil -> True
       Tip _ _ -> True
-      b@(Bin p _ _ _) -> all (validBinPrefix p) (keys b)
-
-validBinPrefix :: Prefix -> Int -> Bool
-validBinPrefix p a = 0 == (p `xor` (p .&. a))
+      b@(Bin p _ _ _) -> all (sharedPrefix p) (keys b)
+  where
+    sharedPrefix :: Prefix -> Int -> Bool
+    sharedPrefix p a = 0 == (p `xor` (p .&. a))
 
 -- Invariant: In Bin prefix mask left right, left consists of the elements that
 --            don't have the mask bit set; right is all the elements that do.
