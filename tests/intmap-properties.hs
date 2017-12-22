@@ -150,6 +150,7 @@ main = defaultMain
              , testProperty "toAscList+toDescList" prop_ascDescList
              , testProperty "fromListValid"        prop_fromListValid
              , testProperty "fromList"             prop_fromList
+             , testProperty "alterValid"           prop_alterValid
              , testProperty "alter"                prop_alter
              , testProperty "index"                prop_index
              , testProperty "index_lookup"         prop_index_lookup
@@ -177,6 +178,7 @@ main = defaultMain
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
+             , testProperty "splitValid"           prop_splitValid
              , testProperty "split"                prop_splitModel
              , testProperty "splitRoot"            prop_splitRoot
              , testProperty "foldr"                prop_foldr
@@ -971,6 +973,12 @@ prop_fromList xs
 
 ----------------------------------------------------------------
 
+prop_alterValid :: UMap -> Int -> Bool
+prop_alterValid t k = valid (alter f k t)
+  where
+    f Nothing   = Just ()
+    f (Just ()) = Nothing
+
 prop_alter :: UMap -> Int -> Bool
 prop_alter t k = case lookup k t of
     Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
@@ -1116,6 +1124,10 @@ prop_mapkeys f ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  mapKeys (apply f) m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
+
+prop_splitValid :: Int -> IntMap Int -> Bool
+prop_splitValid n m = case split n m of
+  (l,r) -> valid l && valid r
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>

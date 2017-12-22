@@ -70,7 +70,9 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_map" prop_map
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
+                   , testProperty "prop_splitValid" prop_splitValid
                    , testProperty "prop_split" prop_split
+                   , testProperty "prop_splitMemberValid" prop_splitMemberValid
                    , testProperty "prop_splitMember" prop_splitMember
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partitionValid" prop_partitionValid
@@ -371,9 +373,17 @@ prop_minView s = case minView s of
     Nothing -> null s
     Just (m,s') -> m == minimum (toList s) && s == insert m s' && m `notMember` s'
 
+prop_splitValid :: IntSet -> Int -> Bool
+prop_splitValid s i = case split i s of
+    (s1,s2) -> valid s1 && valid s2
+
 prop_split :: IntSet -> Int -> Bool
 prop_split s i = case split i s of
     (s1,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && i `delete` s == union s1 s2
+
+prop_splitMemberValid :: IntSet -> Int -> Bool
+prop_splitMemberValid s i = case splitMember i s of
+    (s1,t,s2) -> valid s1 && valid s2
 
 prop_splitMember :: IntSet -> Int -> Bool
 prop_splitMember s i = case splitMember i s of
