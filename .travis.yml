@@ -31,7 +31,7 @@ install:
  - cabal install --only-dependencies
  # we need to install the test-suite and benchmark deps manually as the cabal
  # solver would otherwise complain about cyclic deps
- - cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
+ - cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.7.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
 
  # If we enable benchmarks, we'll need 'criterion >= 0.4.0 && < 1.2'
 
