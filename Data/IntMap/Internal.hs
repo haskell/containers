@@ -986,20 +986,18 @@ alterF f k m = (<$> f mv) $ \fres ->
 -- TODO(m-renaud): Figure out if this should be marked INLINE or NOINLINE.
 -- It needs to be one or the other or else the specialization rule may not fire.
 {-# NOINLINE [1] alterF #-}
+#if MIN_VERSION_base(4,8,0)
 {-# RULES
 "Identity specialize alterF" forall (f :: Maybe a -> Identity (Maybe a)) k m.
-  alterF f k m =
-    Identity $ alter (runIdentity . f) k m
+  alterF f k m = Identity $ alter (runIdentity . f) k m
   #-}
+#endif
 
 #if MIN_VERSION_base(4,9,0)
--- TODO(m-renaud): Figure out where to import Const from from pre-base-4.9 or
--- how to conditionally include pragrams (the #if around this doesn't work :/).
--- {-# RULES
--- "Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
---   alterF f k m =
---     Const $ alter (getConst . f) k m
---   #-}
+{-# RULES
+"Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
+  alterF f k m = Const $ alter (getConst . f) k m
+  #-}
 #endif
 
 {--------------------------------------------------------------------

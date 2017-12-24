@@ -7,6 +7,12 @@ import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 #endif
 import Data.IntMap.Internal.Debug (showTree)
 
+#if MIN_VERSION_base(4,9,0)
+import Control.Applicative (Const(..))
+#endif
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity (..))
+#endif
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -56,6 +62,7 @@ main = defaultMain
              , testCase "updateWithKey" test_updateWithKey
              , testCase "updateLookupWithKey" test_updateLookupWithKey
              , testCase "alter" test_alter
+             , testCase "alterF" test_alterF
              , testCase "union" test_union
              , testCase "mappend" test_mappend
              , testCase "unionWith" test_unionWith
@@ -399,8 +406,52 @@ test_alter = do
     alter g 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "c")]
     alter g 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "c")]
   where
+    f, g :: Maybe String -> Maybe String
     f _ = Nothing
     g _ = Just "c"
+
+test_alterF :: Assertion
+test_alterF = do
+    let m = fromList [(5,"a"), (3,"b")]
+    -- List applicative
+    alterF fList 7 m @?= [fromList [(3, "b"), (5, "a")]]
+    alterF fList 5 m @?= [singleton 3 "b"]
+    alterF gList 7 m @?= [fromList [(3, "b"), (5, "a"), (7, "c")]]
+    alterF gList 5 m @?= [fromList [(3, "b"), (5, "c")]]
+#if MIN_VERSION_base(4,8,0)
+    -- Identity applicative
+    alterF fIdentity 7 m @?= Identity (fromList [(3, "b"), (5, "a")])
+    alterF fIdentity 5 m @?= Identity (singleton 3 "b")
+    alterF gIdentity 7 m @?= Identity (fromList [(3, "b"), (5, "a"), (7, "c")])
+    alterF gIdentity 5 m @?= Identity (fromList [(3, "b"), (5, "c")])
+#endif
+#if MIN_VERSION_base(4,9,0)
+    -- Const applicative
+    alterF fConst 7 m @?= Const False
+    alterF fConst 5 m @?= Const False
+    alterF gConst 7 m @?= Const True
+    alterF gConst 5 m @?= Const True
+#endif
+  where
+    f, g :: Applicative f => Maybe String -> f (Maybe String)
+    f _ = pure Nothing
+    g _ = pure $ Just "c"
+
+    fList, gList :: Maybe String -> [Maybe String]
+    fList = f
+    gList = g
+
+#if MIN_VERSION_base(4,8,0)
+    fIdentity, gIdentity :: Maybe String -> Identity (Maybe String)
+    fIdentity = f
+    gIdentity = g
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+    fConst, gConst :: Maybe String -> Const Bool (Maybe String)
+    fConst _ = Const False
+    gConst _ = Const True
+#endif
 
 ----------------------------------------------------------------
 -- Combine
