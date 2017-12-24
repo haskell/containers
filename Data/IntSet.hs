@@ -132,7 +132,6 @@ module Data.IntSet (
             -- * Debugging
             , showTree
             , showTreeWith
-            , valid
 
 #if defined(TESTING)
             -- * Internals

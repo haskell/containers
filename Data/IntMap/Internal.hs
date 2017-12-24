@@ -254,7 +254,6 @@ module Data.IntMap.Internal (
     -- * Debugging
     , showTree
     , showTreeWith
-    , valid
 
     -- * Internal types
     , Mask, Prefix, Nat
