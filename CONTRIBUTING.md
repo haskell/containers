@@ -17,7 +17,11 @@ _Note: The procedure here is a little weird because cabal configure is unable to
 ```
 cabal sandbox init
 cabal install --only-dependencies
-cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit' 'criterion'
+# Install test dependencies
+cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
+# Install benchmark dependencies
+cabal install 'criterion'
+# If you only need tests or benchmarks, you can omit the other --enable-xyz flag.
 cabal configure -v2 --enable-tests --enable-benchmarks
 cabal build
 cabal test
