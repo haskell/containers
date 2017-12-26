@@ -17,7 +17,7 @@ _Note: The procedure here is a little weird because cabal configure is unable to
 ```
 cabal sandbox init
 cabal install --only-dependencies
-cabal install 'test-framework' 'test-framework-quickcheck2' 'QuickCheck' 'ChasingBottoms' 'HUnit' 'test-framework-hunit' 'criterion'
+cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit' 'criterion'
 cabal configure -v2 --enable-tests --enable-benchmarks
 cabal build
 cabal test
