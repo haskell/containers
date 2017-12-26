@@ -22,7 +22,6 @@ cabal test
 ### With [Stack](https://docs.haskellstack.org/en/stable/README/)
 
 ```
-stack init   # If you haven't previously initialized stack
 stack build
 stack test
 ```
