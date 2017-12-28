@@ -34,7 +34,6 @@ cabal bench
 Minimum stack version: 1.6.1
 
 ```
-stack init   # If you haven't previously initialized stack
 stack build
 stack test
 stack bench
