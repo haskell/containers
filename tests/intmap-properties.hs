@@ -150,6 +150,12 @@ main = defaultMain
              , testProperty "toAscList+toDescList" prop_ascDescList
              , testProperty "fromList"             prop_fromList
              , testProperty "alter"                prop_alter
+#if MIN_VERSION_base(4,8,0)
+             , testProperty "alterF_Identity"      prop_alterF_IdentityRules
+#endif
+#if MIN_VERSION_base(4,9,0)
+             , testProperty "alterF_Const"         prop_alterF_ConstRules
+#endif
              , testProperty "index"                prop_index
              , testProperty "index_lookup"         prop_index_lookup
              , testProperty "null"                 prop_null
@@ -452,6 +458,7 @@ test_alterF = do
     fConst _ = Const False
     gConst _ = Const True
 #endif
+
 
 ----------------------------------------------------------------
 -- Combine
@@ -972,6 +979,52 @@ prop_alter t k = case lookup k t of
     t' = alter f k t
     f Nothing   = Just ()
     f (Just ()) = Nothing
+
+#if MIN_VERSION_base(4,8,0)
+-- Verify that the rewrite rules for Identity give the same result as the
+-- non-rewritten version. We use our own TestIdentity functor to compare
+-- against.
+
+data TestIdentity a = TestIdentity { runTestIdentity :: a }
+
+instance Functor TestIdentity where
+    fmap f (TestIdentity a) = TestIdentity (f a)
+
+prop_alterF_IdentityRules :: UMap -> Int -> Bool
+prop_alterF_IdentityRules t k =
+    runIdentity tIdentity == runTestIdentity tTestIdentity
+  where
+    tIdentity = alterF fIdentity k t
+    fIdentity Nothing = Identity (Just ())
+    fIdentity (Just ()) = Identity Nothing
+
+    tTestIdentity = alterF fTest k t
+    fTest Nothing   = TestIdentity (Just ())
+    fTest (Just ()) = TestIdentity (Nothing)
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+-- Verify that the rewrite rules for Const give the same result
+-- as the non-rewritten version. We use a custom TestConst that
+-- will not fire the rewrite rules to compare against.
+
+data TestConst a b = TestConst { getTestConst :: a }
+
+instance Functor (TestConst a) where
+    fmap _ (TestConst a) = TestConst a
+
+prop_alterF_ConstRules :: UMap -> Int -> Bool
+prop_alterF_ConstRules t k =
+    getConst tConst == getTestConst tTestConst
+  where
+    tConst = alterF fConst k t
+    fConst Nothing = Const False
+    fConst (Just ()) = Const True
+
+    tTestConst = alterF fTest k t
+    fTest Nothing   = TestConst False
+    fTest (Just ()) = TestConst True
+#endif
 
 ------------------------------------------------------------------------
 -- Compare against the list model (after nub on keys)
