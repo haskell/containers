@@ -286,12 +286,13 @@ module Data.IntMap.Internal (
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
-import Control.Applicative (liftA2)
+import Control.Applicative (liftA2
+#if MIN_VERSION_base(4,9,0)
+                           , Const(..)
+#endif
+                           )
 #else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>), liftA2)
-#if MIN_VERSION_base(4,9,0)
-import Control.Applicative (Const(..))
-#endif
 import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
@@ -996,7 +997,7 @@ alterF f k m = (<$> f mv) $ \fres ->
 #if MIN_VERSION_base(4,9,0)
 {-# RULES
 "Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
-  alterF f k m = Const $ alter (getConst . f) k m
+  alterF f k m = Const . getConst . f $ lookup k m
   #-}
 #endif
 
