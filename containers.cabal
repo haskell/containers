@@ -371,6 +371,7 @@ Test-suite intmap-lazy-properties
         Data.IntMap.Lazy
         Data.IntSet
         Data.IntSet.Internal
+        IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
@@ -399,6 +400,7 @@ Test-suite intmap-strict-properties
         Data.IntMap.Strict
         Data.IntSet
         Data.IntSet.Internal
+        IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
@@ -425,6 +427,7 @@ Test-suite intset-properties
         Data.IntSet.Internal
         Data.Set
         Data.Set.Internal
+        IntSetValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.StrictFold
