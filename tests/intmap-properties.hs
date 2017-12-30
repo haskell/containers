@@ -439,18 +439,14 @@ test_alterF = do
     alterF gConst 5 m @?= Const True
 #endif
   where
-    f, g :: Applicative f => Maybe String -> f (Maybe String)
-    f _ = pure Nothing
-    g _ = pure $ Just "c"
-
     fList, gList :: Maybe String -> [Maybe String]
-    fList = f
-    gList = g
+    fList _ = [Nothing]
+    gList _ = [Just "c"]
 
 #if MIN_VERSION_base(4,8,0)
     fIdentity, gIdentity :: Maybe String -> Identity (Maybe String)
-    fIdentity = f
-    gIdentity = g
+    fIdentity _ = Identity Nothing
+    gIdentity _ = Identity (Just "c")
 #endif
 
 #if MIN_VERSION_base(4,9,0)
