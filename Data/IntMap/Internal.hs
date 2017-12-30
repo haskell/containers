@@ -286,11 +286,11 @@ module Data.IntMap.Internal (
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
-import Control.Applicative (liftA2
 #if MIN_VERSION_base(4,9,0)
-                           , Const(..)
+import Control.Applicative (liftA2, Const(..))
+#else
+import Control.Applicative (liftA2)
 #endif
-                           )
 #else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>), liftA2)
 import Data.Monoid (Monoid(..))
@@ -298,6 +298,7 @@ import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
 #endif
 #if MIN_VERSION_base(4,9,0)
+import Data.Coerce (coerce)
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 import Data.Functor.Classes
 #endif
@@ -990,14 +991,14 @@ alterF f k m = (<$> f mv) $ \fres ->
 #if MIN_VERSION_base(4,8,0)
 {-# RULES
 "Identity specialize alterF" forall (f :: Maybe a -> Identity (Maybe a)) k m.
-  alterF f k m = Identity $ alter (runIdentity . f) k m
+  alterF f k m = Identity $ alter (coerce f) k m
   #-}
 #endif
 
 #if MIN_VERSION_base(4,9,0)
 {-# RULES
 "Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
-  alterF f k m = Const . getConst . f $ lookup k m
+  alterF f k m = coerce . f $ lookup k m
   #-}
 #endif
 

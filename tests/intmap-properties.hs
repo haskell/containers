@@ -981,7 +981,7 @@ prop_alter t k = case lookup k t of
 -- non-rewritten version. We use our own TestIdentity functor to compare
 -- against.
 
-data TestIdentity a = TestIdentity { runTestIdentity :: a }
+newtype TestIdentity a = TestIdentity { runTestIdentity :: a }
 
 instance Functor TestIdentity where
     fmap f (TestIdentity a) = TestIdentity (f a)
@@ -1004,7 +1004,7 @@ prop_alterF_IdentityRules t k =
 -- as the non-rewritten version. We use a custom TestConst that
 -- will not fire the rewrite rules to compare against.
 
-data TestConst a b = TestConst { getTestConst :: a }
+newtype TestConst a b = TestConst { getTestConst :: a }
 
 instance Functor (TestConst a) where
     fmap _ (TestConst a) = TestConst a
