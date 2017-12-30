@@ -34,6 +34,9 @@ Related Packages
 - `array <https://hackage.haskell.org/package/array>`_ - mutable and immutable
   arrays.
 
+- `vector <http://hackage.haskell.org/package/vector>`_ - efficient
+  `Int`-indexed arrays (boxed and unboxed).
+
 - `bytestring <https://hackage.haskell.org/package/bytestring>`_ - compact,
   immutable bytestrings, useful for binary and 8-bit character data.
 
