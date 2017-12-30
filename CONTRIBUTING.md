@@ -1,8 +1,9 @@
 # Instructions for Contributors
 
-As mentioned in the [README](https://github.com/haskell/containers/blob/master/README.md), for reporting bugs (and maybe even the respective fix), please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
+For reporting bugs (and maybe even the respective fix), please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
 
 For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers). Especially note that all API changes/enhancements should be discussed on libraries@haskell.org mailing list.
+
 
 ## Building and testing
 
@@ -27,11 +28,23 @@ stack build
 stack test
 ```
 
+
 ## Troubleshooting
 
-- If you're using Stack, make sure you have version >= 1.6.1 ([1], [2])
+- If you're using Stack, make sure you have version >= 1.6.1
+  ([stack#3524](https://github.com/commercialhaskell/stack/issues/3624),
+  [stack#3345](https://github.com/commercialhaskell/stack/issues/3345)).
 
 
-[1] https://github.com/commercialhaskell/stack/issues/3624
+## Sending Pull Requests
 
-[2] https://github.com/commercialhaskell/stack/issues/3345
+When you send a pull request, please:
+
+- Link to libraries@haskell.org discussion thread if you are changing the public
+  API.
+
+- Run the benchmarks and include the results in the commit message and Pull
+  Request.
+
+- Add unit tests exercising any changes you make, especially if it is a bug
+  fix.
