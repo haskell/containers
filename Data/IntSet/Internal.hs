@@ -180,6 +180,7 @@ module Data.IntSet.Internal (
     , suffixBitMask
     , prefixBitMask
     , bitmapOf
+    , zero
     ) where
 
 import Control.DeepSeq (NFData(rnf))
@@ -250,8 +251,8 @@ data IntSet = Bin {-# UNPACK #-} !Prefix {-# UNPACK #-} !Mask !IntSet !IntSet
 -- Invariant: In Bin prefix mask left right, left consists of the elements that
 --            don't have the mask bit set; right is all the elements that do.
             | Tip {-# UNPACK #-} !Prefix {-# UNPACK #-} !BitMap
--- Invariant: The Prefix is zero for all but the last 5 (on 32 bit arches) or 6
---            bits (on 64 bit arches). The values of the map represented by a tip
+-- Invariant: The Prefix is zero for the last 5 (on 32 bit arches) or 6 bits
+--            (on 64 bit arches). The values of the set represented by a tip
 --            are the prefix plus the indices of the set bits in the bit map.
             | Nil
 
@@ -323,7 +324,7 @@ size = go 0
 
 -- | /O(min(n,W))/. Is the value a member of the set?
 
--- See Note: Local 'go' functions and capturing]
+-- See Note: Local 'go' functions and capturing.
 member :: Key -> IntSet -> Bool
 member !x = go
   where
@@ -1250,6 +1251,7 @@ bitmapOf x = bitmapOfSuffix (suffixOf x)
 {--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
+-- Returns True iff the bits set in i and the Mask m are disjoint.
 zero :: Int -> Mask -> Bool
 zero i m
   = (natFromInt i) .&. (natFromInt m) == 0
