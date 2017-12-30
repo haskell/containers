@@ -998,7 +998,9 @@ alterF f k m = (<$> f mv) $ \fres ->
 #if MIN_VERSION_base(4,9,0)
 {-# RULES
 "Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
-  alterF f k m = coerce . f $ lookup k m
+  -- 'Const . getConst' is needed because the phantom type differs between
+  -- the return type of 'f' and 'alterF'.
+  alterF f k m = Const . getConst . f $ lookup k m
   #-}
 #endif
 
