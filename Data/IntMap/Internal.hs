@@ -985,8 +985,6 @@ alterF f k m = (<$> f mv) $ \fres ->
     Nothing -> maybe m (const (delete k m)) mv
     Just v' -> insert k v' m
   where mv = lookup k m
--- TODO(m-renaud): Figure out if this should be marked INLINE or NOINLINE.
--- It needs to be one or the other or else the specialization rule may not fire.
 {-# NOINLINE [1] alterF #-}
 #if MIN_VERSION_base(4,8,0)
 {-# RULES
