@@ -60,3 +60,5 @@ When you send a pull request, please:
 
 - Add unit tests exercising any changes you make, especially if it is a bug
   fix.
+  
+- Update change log for non-trivial changes.
