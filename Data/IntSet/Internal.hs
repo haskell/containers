@@ -354,9 +354,9 @@ lookupLT !x t = case t of
       | zero x m      = go def l
       | otherwise     = go l r
     go def (Tip kx bm)
-      | prefixOf x > kx                 = Just $ kx + highestBitSet bm
+      | prefixOf x > kx = Just $ kx + highestBitSet bm
       | prefixOf x == kx && maskLT /= 0 = Just $ kx + highestBitSet maskLT
-      | otherwise                       = unsafeFindMax def
+      | otherwise = unsafeFindMax def
       where maskLT = (bitmapOf x - 1) .&. bm
     go def Nil = unsafeFindMax def
 
@@ -379,7 +379,7 @@ lookupGT !x t = case t of
     go def (Tip kx bm)
       | prefixOf x < kx = Just $ kx + lowestBitSet bm
       | prefixOf x == kx && maskGT /= 0 = Just $ kx + lowestBitSet maskGT
-      | otherwise       = unsafeFindMin def
+      | otherwise = unsafeFindMin def
       where maskGT = (-((bitmapOf x) `shiftLL` 1)) .&. bm
     go def Nil = unsafeFindMin def
 
@@ -403,7 +403,7 @@ lookupLE !x t = case t of
     go def (Tip kx bm)
       | prefixOf x > kx = Just $ kx + highestBitSet bm
       | prefixOf x == kx && maskLE /= 0 = Just $ kx + highestBitSet maskLE
-      | otherwise       = unsafeFindMax def
+      | otherwise = unsafeFindMax def
       where maskLE = (((bitmapOf x) `shiftLL` 1) - 1) .&. bm
     go def Nil = unsafeFindMax def
 
@@ -427,7 +427,7 @@ lookupGE !x t = case t of
     go def (Tip kx bm)
       | prefixOf x < kx = Just $ kx + lowestBitSet bm
       | prefixOf x == kx && maskGE /= 0 = Just $ kx + lowestBitSet maskGE
-      | otherwise       = unsafeFindMin def
+      | otherwise = unsafeFindMin def
       where maskGE = (-(bitmapOf x)) .&. bm
     go def Nil = unsafeFindMin def
 
