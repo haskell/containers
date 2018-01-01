@@ -290,11 +290,11 @@ instance Semigroup IntSet where
 
 instance Data IntSet where
   gfoldl f z is = z fromList `f` (toList is)
-  toConstr _     = fromListConstr
-  gunfold k z c  = case constrIndex c of
+  toConstr _    = fromListConstr
+  gunfold k z c = case constrIndex c of
     1 -> k (z fromList)
     _ -> error "gunfold"
-  dataTypeOf _   = intSetDataType
+  dataTypeOf _  = intSetDataType
 
 fromListConstr :: Constr
 fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
