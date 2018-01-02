@@ -269,11 +269,23 @@ insert = start
         | k < min = IntMap (NonEmpty k v (insertMinL (xor min k) min minV root))
         | otherwise = IntMap (NonEmpty k v root)
 
+    -- | Insert a key/value pair into a left node when the key is known to be larger
+    -- than the minimum value of the tree.
     goL !k v !_        !_    Tip = Bin k v Tip Tip
     goL !k v !xorCache !min (Bin max maxV l r)
+        -- In the simple case, we just recurse into whichever branch is applicable.
         | k < max = if xorCache < xorCacheMax
                     then Bin max maxV (goL k v xorCache min l) r
                     else Bin max maxV l (goR k v xorCacheMax max r)
+        -- If the key is the new maximum, then we have two cases to consider. If
+        -- the split point between 'min' and 'k' is earlier than the split between
+        -- 'min' and 'max', then we can just immediately create a new node. Otherwise,
+        -- we need to push 'max' down into the right branch until it arrives at the
+        -- correct location.
+        -- We do the this check by simulating a navigation where 'max' is the key,
+        -- 'min' is the minimum, and 'k' is the maximum. If 'max' belongs on the
+        -- left side, then the entire old subtree belongs on the left side. If
+        -- 'max' belongs on the right side, then we have to push it down.
         | k > max = if xor min max < xorCacheMax
                     then Bin k v (Bin max maxV l r) Tip
                     else Bin k v l (insertMaxR xorCacheMax max maxV r)

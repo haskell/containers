@@ -1765,6 +1765,12 @@ r2lDR (DR max maxV (Bin min minV l r)) = DR min minV (Bin max maxV l r)
 insertMinL :: Word -> Key -> a -> Node L a -> Node L a
 insertMinL !_ !min minV Tip = Bin min minV Tip Tip
 insertMinL !xorCache !min minV (Bin max maxV l r)
+    -- Although the new minimum is not directly passed into 'insertMinL',
+    -- it is captured in the 'xorCache'. We use standard navigation to
+    -- determine whether 'min' should belong in the left or right branch.
+    -- Since 'min' is, by assumption, smaller than any key in the tree,
+    -- if 'min' is assigned to the right branch than the entire subtree
+    -- must fit in the right branch. Otherwise, we need to continue recursing.
     | xor min max < xorCache = Bin max maxV Tip (Bin min minV l r)
     | otherwise = Bin max maxV (insertMinL xorCache min minV l) r
 
