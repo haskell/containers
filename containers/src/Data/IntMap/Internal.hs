@@ -1605,6 +1605,19 @@ submapCmp p = start
     combine EQ EQ = EQ
     combine _ _ = LT
 
+
+-- | /O(1)/. The minimal key of the map. Returns 'Nothing' if the map is empty.
+lookupMin :: IntMap a -> Maybe (Key, a)
+lookupMin (IntMap Empty) = Nothing
+lookupMin (IntMap (NonEmpty min minV _)) = Just (min, minV)
+
+-- | /O(1)/. The maximal key of the map. Returns 'Nothing' if the map is empty.
+lookupMax :: IntMap a -> Maybe (Key, a)
+lookupMax (IntMap Empty) = Nothing
+lookupMax (IntMap (NonEmpty min minV root)) = case root of
+    Tip -> Just (min, minV)
+    Bin max maxV _ _ -> Just (max, maxV)
+
 -- | /O(1)/. The minimal key of the map.
 findMin :: IntMap a -> (Key, a)
 findMin (IntMap Empty) = error "findMin: empty map has no minimal element"
