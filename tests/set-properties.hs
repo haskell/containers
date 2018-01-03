@@ -93,6 +93,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "take"                 prop_take
                    , testProperty "drop"                 prop_drop
                    , testProperty "splitAt"              prop_splitAt
+                   , testProperty "powerSet"             prop_powerSet
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -602,6 +603,17 @@ prop_spanAntitone xs' = valid tw .&&. valid dw
   where
     xs = fromList xs'
     (tw, dw) = spanAntitone isLeft xs
+
+prop_powerSet :: Set Int -> Property
+prop_powerSet xs = valid ps .&&. ps === ps'
+  where
+    xs' = take 10 xs
+
+    ps = powerSet xs'
+    ps' = fromList . fmap fromList $ lps (toList xs')
+
+    lps [] = [[]]
+    lps (y : ys) = fmap (y:) (lps ys) ++ lps ys
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True
