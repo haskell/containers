@@ -216,7 +216,7 @@ Check if a sequence is empty
     Seq.null :: Seq a -> Bool
     Seq.null xs = ...
 
-   Returns ``True`` if the sequence ``xs`` is empty, ``False`` otherwise.
+Returns ``True`` if the sequence ``xs`` is empty, ``False`` otherwise.
 
 ::
 
@@ -253,17 +253,24 @@ The element at a given index
     Seq.lookup n xs = ...
 
     Seq.!? :: Seq a -> Int -> Maybe a
-    xs `Seq.!?` n = ...
+    xs !? n = ...
 
 Returns the element at the position ``n``, ``Nothing`` if the index is out of
 bounds. ``!?`` is simply a flipped version of ``lookup``.
 
-``Seq.index :: Seq a -> Int -> a``
+.. NOTE::
+   You may need to import ``!?`` qualified if you're using a ``Map`` in the same
+   file because they both export the operator.
+
+::
+
+    Seq.index :: Seq a -> Int -> a
+    Seq.index xs n = ...
 
 Returns the element at the given position, throws a runtime ``error`` if the
 index is out of bounds.
 
-.. NOTE::
+.. TIP::
    Use ``lookup``/``!?`` whenever you can and explicitly deal with the
    ``Nothing`` case.
 
