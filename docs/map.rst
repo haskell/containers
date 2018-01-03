@@ -251,7 +251,7 @@ Check if a key is present in the map (member)
     Map.member key m = ...
 
 :map:`member` returns ``True`` if the ``key`` is in the map ``m``, ``False``
-otherwise. 
+otherwise.
 
 ::
 
@@ -285,6 +285,7 @@ version of ``lookup`` and can often be imported unqualified.
 map ``m``, return the ``defaultValue`` if the key is not present.
 
 ::
+
     import Data.Map.Strict ((!?))
 
     Map.lookup 1 Map.empty
@@ -411,6 +412,7 @@ Modifying a map entry
 key ``k``, if no entry for that key exists then the map is left unchanged.
 
 ::
+
     Map.update :: Ord k => (v -> Maybe v) -> k -> Map k v -> Map k v
     Map.update f k m = ...
 

@@ -69,8 +69,8 @@ version by `from haskell.org <https://www.haskell.org/downloads>`_, or with
 ghci``.
 
 
-Importing ``container`` modules
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Importing modules
+^^^^^^^^^^^^^^^^^
 
 All of the modules in ``containers`` should be imported ``qualified`` since they
 use names that conflict with the standard Prelude.
