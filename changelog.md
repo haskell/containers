@@ -9,6 +9,8 @@
 
 * Add a `MonadFix` instance for `Data.Tree`.
 
+* Add `powerSet` for `Data.Set` (Thanks, Edward Kmett!)
+
 * Make `>>=` for `Data.Tree` strict in the result of its second argument;
   being too lazy here is almost useless, and violates one of the monad identity
   laws. Specifically, `return () >>= \_ -> undefined` should always be

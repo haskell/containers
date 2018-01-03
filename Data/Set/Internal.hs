@@ -145,6 +145,7 @@ module Data.Set.Internal (
             , singleton
             , insert
             , delete
+            , powerSet
 
             -- * Combine
             , union
@@ -246,7 +247,8 @@ import GHC.Exts ( build, lazy )
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
-import Text.Read
+import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
+                 , lexP, readListPrecDefault )
 import Data.Data
 #endif
 
@@ -1660,6 +1662,17 @@ splitRoot orig =
     Bin _ v l r -> [l, singleton v, r]
 {-# INLINE splitRoot #-}
 
+
+-- | Calculate the power set of a set: the set of all its subsets.
+--
+-- @
+-- t `member` powerSet s == t `isSubsetOf` s
+-- @
+--
+-- @since 0.5.11
+powerSet :: Set a -> Set (Set a)
+powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
+  step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
 
 {--------------------------------------------------------------------
   Debugging
