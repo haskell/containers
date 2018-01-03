@@ -3,7 +3,7 @@
 {-# LANGUAGE MagicHash #-}
 #endif
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 #endif
 
 #include "containers.h"
@@ -38,18 +38,19 @@ module Utils.Containers.Internal.BitUtil
     ) where
 
 import Data.Bits ((.|.), xor)
+#if MIN_VERSION_base(4,5,0)
+import Data.Bits (unsafeShiftL, unsafeShiftR)
+#else
+import Data.Bits (shiftL, shiftR)
+#endif
 #if MIN_VERSION_base(4,7,0)
 import Data.Bits (finiteBitSize)
 #else
 import Data.Bits (bitSize)
 #endif
 
-
-#if __GLASGOW_HASKELL__
-import GHC.Exts (Word(..), Int(..))
-import GHC.Prim (uncheckedShiftL#, uncheckedShiftRL#)
-#else
-import Data.Word (shiftL, shiftR)
+#if !MIN_VERSION_base (4,8,0)
+import Data.Word (Word)
 #endif
 
 -- The highestBitMask implementation is based on
@@ -73,19 +74,12 @@ highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
 
 -- Right and left logical shifts.
 shiftRL, shiftLL :: Word -> Int -> Word
-#if __GLASGOW_HASKELL__
-{--------------------------------------------------------------------
-  GHC: use unboxing to get @shiftRL@ inlined.
---------------------------------------------------------------------}
-shiftRL (W# x) (I# i) = W# (uncheckedShiftRL# x i)
-shiftLL (W# x) (I# i) = W# (uncheckedShiftL#  x i)
-{-# INLINE CONLIKE shiftRL #-}
-{-# INLINE CONLIKE shiftLL #-}
+#if MIN_VERSION_base(4,5,0)
+shiftRL = unsafeShiftR
+shiftLL = unsafeShiftL
 #else
-shiftRL x i   = shiftR x i
-shiftLL x i   = shiftL x i
-{-# INLINE shiftRL #-}
-{-# INLINE shiftLL #-}
+shiftRL = shiftR
+shiftLL = shiftL
 #endif
 
 {-# INLINE wordSize #-}
