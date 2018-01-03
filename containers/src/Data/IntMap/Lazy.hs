@@ -313,30 +313,30 @@ insert = start
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith combine = start
+insertWith = start
   where
-    start !k v (IntMap Empty) = IntMap (NonEmpty k v Tip)
-    start !k v (IntMap (NonEmpty min minV root))
-        | k > min = IntMap (NonEmpty min minV (goL k v (xor min k) min root))
+    start _       !k v (IntMap Empty) = IntMap (NonEmpty k v Tip)
+    start combine !k v (IntMap (NonEmpty min minV root))
+        | k > min = IntMap (NonEmpty min minV (goL combine k v (xor min k) min root))
         | k < min = IntMap (NonEmpty k v (insertMinL (xor min k) min minV root))
         | otherwise = IntMap (NonEmpty k (combine v minV) root)
 
-    goL !k v !_        !_    Tip = Bin k v Tip Tip
-    goL !k v !xorCache !min (Bin max maxV l r)
+    goL _       !k v !_        !_    Tip = Bin k v Tip Tip
+    goL combine !k v !xorCache !min (Bin max maxV l r)
         | k < max = if xorCache < xorCacheMax
-                    then Bin max maxV (goL k v xorCache min l) r
-                    else Bin max maxV l (goR k v xorCacheMax max r)
+                    then Bin max maxV (goL combine k v xorCache min l) r
+                    else Bin max maxV l (goR combine k v xorCacheMax max r)
         | k > max = if xor min max < xorCacheMax
                     then Bin k v (Bin max maxV l r) Tip
                     else Bin k v l (insertMaxR xorCacheMax max maxV r)
         | otherwise = Bin max (combine v maxV) l r
       where xorCacheMax = xor k max
 
-    goR !k v !_        !_    Tip = Bin k v Tip Tip
-    goR !k v !xorCache !max (Bin min minV l r)
+    goR _       !k v !_        !_    Tip = Bin k v Tip Tip
+    goR combine !k v !xorCache !max (Bin min minV l r)
         | k > min = if xorCache < xorCacheMin
-                    then Bin min minV l (goR k v xorCache max r)
-                    else Bin min minV (goL k v xorCacheMin min l) r
+                    then Bin min minV l (goR combine k v xorCache max r)
+                    else Bin min minV (goL combine k v xorCacheMin min l) r
         | k < min = if xor min max < xorCacheMin
                     then Bin k v Tip (Bin min minV l r)
                     else Bin k v (insertMinL xorCacheMin min minV l) r
