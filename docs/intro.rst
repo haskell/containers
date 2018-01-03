@@ -34,7 +34,7 @@ Related Packages
 - `array <https://hackage.haskell.org/package/array>`_ - mutable and immutable
   arrays.
 
-- `vector <http://hackage.haskell.org/package/vector>`_ - efficient
+- `vector <https://hackage.haskell.org/package/vector>`_ - efficient
   ``Int``-indexed arrays (boxed and unboxed).
 
 - `bytestring <https://hackage.haskell.org/package/bytestring>`_ - compact,
@@ -43,7 +43,7 @@ Related Packages
 - `dlist <https://hackage.haskell.org/package/dlist>`_ - difference lists with
   *O(1)* append, useful for efficient logging and pretty printing.
 
-- `hashtables <http://hackage.haskell.org/package/hashtables>`_ - mutable hash
+- `hashtables <https://hackage.haskell.org/package/hashtables>`_ - mutable hash
   tables in the ST monad.
 
 .. _installing:
@@ -91,8 +91,8 @@ Start the GHCi `REPL
 to use and you're good to go!
 
 
-In a `Cabal <http://cabal.readthedocs.io>`_ or `Stack <https://www.haskellstack.org>`_ project
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In a `Cabal <https://cabal.readthedocs.io>`_ or `Stack <https://www.haskellstack.org>`_ project
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add ``containers`` to the ``build-depends:`` stanza for your library,
 executable, or test-suite::

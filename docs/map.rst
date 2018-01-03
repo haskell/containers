@@ -6,11 +6,11 @@ Maps
 Maps, sometimes referred to as dictionaries in other languages, allow you to
 store associations between *unique keys* and *values*. There are three
 implementations provided by the ``containers`` package: `Data.Map.Strict
-<http://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_,
+<https://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_,
 `Data.Map.Lazy
-<http://hackage.haskell.org/package/containers/docs/Data-Map-Lazy.html>`_, and
+<https://hackage.haskell.org/package/containers/docs/Data-Map-Lazy.html>`_, and
 `Data.IntMap
-<http://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_. You
+<https://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_. You
 almost never want the lazy version so use ``Data.Map.Strict``, or if your keys
 are ``Int`` use ``Data.IntMap``; all of these implementations are *immutable*.
 
@@ -115,7 +115,7 @@ Create an empty map
     Map.empty :: Map k v
     Map.empty = ...
 
-Creates a map with zero entries.
+:map:`empty` creates a map with zero entries.
 
 ::
 
@@ -130,7 +130,7 @@ Create a map with one entry (singleton)
     Map.singleton :: k -> v -> Map k v
     Map.singleton key value = ...
 
-Creates a map with a single ``(key,value)`` entry in it.
+:map:`singleton` creates a map with a single ``(key,value)`` entry in it.
 
 ::
 
@@ -148,9 +148,9 @@ Create a map from a list
     Map.fromList :: Ord k => [(k, v)] -> Map k v
     Map.fromList xs = ...
 
-Creates a map containing the entries of the list ``xs`` where the keys comes
-from the first entries of the pairs and the values from the second. If the same
-key appears more than once then the last value is taken.
+:map:`fromList` creates a map containing the entries of the list ``xs`` where
+the keys comes from the first entries of the pairs and the values from the
+second. If the same key appears more than once then the last value is taken.
 
 ::
 
@@ -168,7 +168,7 @@ Create a list from a map
     Map.elems :: Map k v -> [v]
     Map.elems m = ...
 
-Returns a list of values held in the map ``m``.
+:map:`elems` returns a list of values held in the map ``m``.
 
 ::
 
@@ -179,16 +179,16 @@ Returns a list of values held in the map ``m``.
    These all do the same thing, use ``toAscList`` because its name indicates
    the ordering.
 
-Returns a list containing the (key, value) pairts in the map ``m`` in
-*ascending* key order.
+:map:`toAscList`, :map:`toList`, and :map:`assocs` returns a list containing the
+(key, value) pairts in the map ``m`` in *ascending* key order.
 
 ::
 
     Map.toDescList :: Map k v -> [(k, v)]
     Map.toDescList m = ...
 
-Returns a list containing the (key, value) pairs in the map ``m`` in
-*descending* key order.
+:map:`toDescList` returns a list containing the (key, value) pairs in the map
+``m`` in *descending* key order.
 
 ::
 
@@ -213,7 +213,7 @@ Check if a map is empty
     Map.null :: Map k v -> Bool
     Map.null m = ...
 
-Returns ``True`` if the map ``m`` is empty, ``False`` otherwise.
+:map:`null` returns ``True`` if the map ``m`` is empty, ``False`` otherwise.
 
 ::
 
@@ -231,7 +231,7 @@ The number of entries in a map
     Map.size :: Map k v -> Int
     Map.size m = ...
 
-Returns the number of entries in the map ``m``.
+:map:`size` returns the number of entries in the map ``m``.
 
 ::
 
@@ -250,7 +250,8 @@ Check if a key is present in the map (member)
     Map.member :: Ord k => k -> Map k v -> Bool
     Map.member key m = ...
 
-Returns ``True`` if the ``key`` is in the map ``m``, ``False`` otherwise.
+:map:`member` returns ``True`` if the ``key`` is in the map ``m``, ``False``
+otherwise. 
 
 ::
 
@@ -271,17 +272,17 @@ Lookup an entry in the map (lookup)
     Map.!? :: Ord k => Map k v -> k -> Maybe v
     Map.!? m k = ...
 
-Lookup the value corresponding to the given ``key``, returns ``Nothing`` if the
-key is not present; the ``!?`` operator (*since 0.5.10*) is a flipped version of
-``lookup`` and can often be imported unqualified.
+:map:`lookup` the value corresponding to the given ``key``, returns ``Nothing``
+if the key is not present; the ``!?`` operator (*since 0.5.10*) is a flipped
+version of ``lookup`` and can often be imported unqualified.
 
 ::
 
     Map.findWithDefault :: Ord k => v -> k -> Map k v -> v
     Map.findWithDefault defaultValue key m = ...
 
-Lookup the value corresponding to the given ``key`` in the map ``m``, return the
-``defaultValue`` if the key is not present.
+:map:`findWithDefault` finds the value corresponding to the given ``key`` in the
+map ``m``, return the ``defaultValue`` if the key is not present.
 
 ::
     import Data.Map.Strict ((!?))
@@ -316,8 +317,8 @@ Find the minimum/maximum
     Map.lookupMin m = ...
     Map.lookupMax m = ...
 
-Return the minimum, or maximum respectively, element of the map ``m``, or
-``Nothing`` if the map is empty.
+:map:`lookupMin` return the minimum, or maximum respectively, element of the map
+``m``, or ``Nothing`` if the map is empty.
 
 ::
 
@@ -345,8 +346,8 @@ Adding a new entry to a map
     Map.insert :: Ord k => k -> v -> Map k v -> Map k v
     Map.insert key value m = ...
 
-Insert the ``value`` into the map ``m`` with the given ``key``, replacing the
-existing value if the key already exists.
+:map:`insert` adds the ``value`` into the map ``m`` with the given ``key``,
+replacing the existing value if the key already exists.
 
 ::
 
@@ -368,7 +369,7 @@ Removing an entry from a map
     Map.delete :: Ord k => k -> Map k v -> Map k v
     Map.delete key m = ...
 
-Deletes the entry with the specified ``key`` from the map ``m``, if the key
+:map:`delete` the entry with the specified ``key`` from the map ``m``, if the key
 doesn't exist it leaves the map unchanged. Remember, maps are immutable so if
 you delete an entry from a map you need to assign the new map to a new
 variable.
@@ -389,8 +390,8 @@ Filtering map entries
     Map.filter :: (v -> Bool) -> Map k v -> Map k v
     Map.filter predicate m = ...
 
-Removes entries from the map ``m`` who's values **do not match** the
-``predicate``.
+:map:`filter` removes all entries from the map ``m`` who's values **do not
+match** the ``predicate``.
 
 ::
 
@@ -406,8 +407,8 @@ Modifying a map entry
     Map.adjust :: Ord k => (v -> v) -> k -> Map k v -> Map k v
     Map.adjust f k m = ...
 
-Apply the value transformation function ``f`` to the entry with key ``k``, if no
-entry for that key exists then the map is left unchanged.
+:map:`abjust` applies the value transformation function ``f`` to the entry with
+key ``k``, if no entry for that key exists then the map is left unchanged.
 
 ::
     Map.update :: Ord k => (v -> Maybe v) -> k -> Map k v -> Map k v
@@ -426,9 +427,9 @@ Modifying all map entries (mapping)
     Map.map :: (a -> b) -> Map k a -> Map k v
     Map.map f m = ...
 
-Creates a new map by applying the transformation function ``f`` to each entries
-value. This is how `Functor <https://wiki.haskell.org/Typeclassopedia#Functor>`_
-is defined for maps.
+:map:`map` creates a new map by applying the transformation function ``f`` to
+each entries value. This is how `Functor
+<https://wiki.haskell.org/Typeclassopedia#Functor>`_ is defined for maps.
 
 ::
 
@@ -458,9 +459,9 @@ Union
     Map.union :: Ord k => Map k v -> Map k v -> Map k v
     Map.union l r = ...
 
-Returns a map containing all entries that are keyed in either of the two map. If
-the same key appears in both maps, the value from the left map ``l`` taken (`set
-union <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
+:map:`union` returns a map containing all entries that are keyed in either of
+the two map. If the same key appears in both maps, the value from the left map
+``l`` taken (`set union <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
 
 ::
 
@@ -478,9 +479,10 @@ Intersection
     Map.intersection :: Ord k => Map k v -> Map k v -> Map k v
     Map.intersection l r = ...
 
-Returns a map containing all entries that are keyed in both maps ``l`` and
-``r``. The value from the left map is taken if the key exists in both maps (`set
-intersection <https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
+:map:`intersection` returns a map containing all entries that are keyed in both
+maps ``l`` and ``r``. The value from the left map is taken if the key exists in
+both maps (`set intersection
+<https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
 
 ::
 
@@ -498,8 +500,8 @@ Difference
     Map.difference :: Ord k => Map k v -> Map k v -> Map k v
     Map.difference l r = ...
 
-Returns a map containing all entries that are keyed in the ``l`` map but not the
-``r`` map (`set difference/relative compliment
+:map:`difference` returns a map containing all entries that are keyed in the
+``l`` map but not the ``r`` map (`set difference/relative compliment
 <https://en.wikipedia.org/wiki/Complement_(set_theory)#Relative_complement>`_).
 
 ::
@@ -518,8 +520,8 @@ Subset (submap)
     Map.isSubmapOf :: (Eq a, Ord k) => Map k v -> Map k v -> Bool
     Map.isSubmapOf l r = ...
 
-Returns ``True`` if all entries--(keys, value) pairs--in the left map ``l``
-exist in the right map ``r``, ``False`` otherwise (`subset
+:map:`isSubmapOf` returns ``True`` if all entries--(keys, value) pairs--in the
+left map ``l`` exist in the right map ``r``, ``False`` otherwise (`subset
 <https://en.wikipedia.org/wiki/Subset>`_).
 
 .. NOTE::
@@ -544,20 +546,20 @@ Typeclass Instances
 
 ``Map`` is an instance of a number of common typeclasses, for the full list see
 the `docs
-<http://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#t:Map>`_.
+<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#t:Map>`_.
 
 .. NOTE::
    Some constraints have been left out for brevity, and the types given below
    are speciliazed to ``Map``; the true types are more general.
 
 - `Show
-  <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
+  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
   conversion to string: ``show :: (Show k, Show v) => Map k v -> String``
 - `Eq
-  <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
+  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
   equality check: ``(==) :: (Eq k, Eq v) => Map k v -> Map k v -> Bool``
 - `Ord
-  <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
+  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
   comparison: ``(<) :: (Ord k, Ord v) => Map k v -> Map k v -> Bool``
 - `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
   into summary value: ``foldr :: (v -> b -> b) -> b -> Map k v -> b``
@@ -583,7 +585,7 @@ people use.
 
 .. TIP::
    If you are writing custom serialization code use `fromDistinctAscList
-   <http://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#v:fromDistinctAscList>`_
+   <https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#v:fromDistinctAscList>`_
    (see `#405 <https://github.com/haskell/containers/issues/405>`_ for more
    info).
 
@@ -601,6 +603,6 @@ Looking for more?
 
 Didn't find what you're looking for? This tutorial only covered the most common
 map functions, for a full list of functions see the `Map
-<http://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_ and
-`IntMap <http://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_
+<https://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_ and
+`IntMap <https://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_
 API documentation.
