@@ -63,6 +63,7 @@ module Data.IntMap.Lazy (
 
     -- * Operators
     , (!)
+    , (!?)
     , (\\)
 
     -- * Query

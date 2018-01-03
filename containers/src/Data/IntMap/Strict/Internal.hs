@@ -83,6 +83,7 @@ module Data.IntMap.Strict (
 
     -- * Operators
     , (!)
+    , (!?)
     , (\\)
 
     -- * Query

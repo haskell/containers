@@ -155,6 +155,17 @@ instance NFData a => NFData (Node t a) where
 (!) :: IntMap a -> Key -> a
 (!) m k = findWithDefault (error $ "IntMap.!: key " ++ show k ++ " is not an element of the map") k m
 
+
+-- | /O(min(n,W))/. Find the value at a key.
+-- Returns 'Nothing' when the element can not be found.
+--
+-- > fromList [(5,'a'), (3,'b')] !? 1 == Nothing
+-- > fromList [(5,'a'), (3,'b')] !? 5 == Just 'a'
+--
+-- @since 0.5.11
+(!?) :: IntMap a -> Key -> Maybe a
+(!?) m k = lookup k m
+
 -- | Same as 'difference'.
 (\\) :: IntMap a -> IntMap b -> IntMap a
 (\\) = difference
