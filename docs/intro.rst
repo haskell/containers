@@ -35,7 +35,7 @@ Related Packages
   arrays.
 
 - `vector <http://hackage.haskell.org/package/vector>`_ - efficient
-  `Int`-indexed arrays (boxed and unboxed).
+  ``Int``-indexed arrays (boxed and unboxed).
 
 - `bytestring <https://hackage.haskell.org/package/bytestring>`_ - compact,
   immutable bytestrings, useful for binary and 8-bit character data.
@@ -59,21 +59,27 @@ For some of the examples you'll need ``containers >= 0.5.9`` which ships with
 
 ::
 
-    ghc-pkg list | grep containers
-    > containers-0.5.10.2
+    ghc --version
+    > The Glorious Glasgow Haskell Compilation System, version 8.2.2
 
 If you have an older version, don't worry about it, the majority of the code
-works with older versions of the package. If you want, you can get version
-``0.5.10`` with `Stack <https://www.haskellstack.org>`_ using ``stack --resolver
-lts-10.0 ghci``.
+works with older versions of the package. If you want, you can get a recent
+version by `from haskell.org <https://www.haskell.org/downloads>`_, or with
+`Stack <https://www.haskellstack.org>`_ using ``stack --resolver lts-10.2
+ghci``.
 
 
 Importing ``container`` modules
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 All of the modules in ``containers`` should be imported ``qualified`` since they
-use names that conflict with the standard Prelude. See the instructions for `In
-GHCi`_ below for an example.
+use names that conflict with the standard Prelude.
+
+::
+
+    import qualified Data.Set as Set
+    import qualified Data.Map.Strict as Map
+    import qualified Data.Sequence as Seq
 
 
 In GHCi
@@ -81,16 +87,12 @@ In GHCi
 
 Start the GHCi `REPL
 <https://en.wikipedia.org/wiki/Read%E2%80%93eval%E2%80%93print_loop>`_ with
-``ghci`` or ``stack ghci``. Once the REPL is loaded all you need to do is import
-the modules you want to use::
-
-    import qualified Data.Set as Set
-    import qualified Data.Map.Strict as Map
-    import qualified Data.Sequence as Seq
+``ghci`` or ``stack ghci``. Once the REPL is loaded import the modules you want
+to use and you're good to go!
 
 
-In a `Cabal <http://cabal.readthedocs.io>`_ project
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+In a `Cabal <http://cabal.readthedocs.io>`_ or `Stack <https://www.haskellstack.org>`_ project
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Add ``containers`` to the ``build-depends:`` stanza for your library,
 executable, or test-suite::
@@ -100,20 +102,4 @@ executable, or test-suite::
 	    base >= 4.3 && < 5,
 	    containers >= 0.5.7 && < 0.6
 
-
-In a `Stack <https://www.haskellstack.org>`_ project
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-Same as a Cabal project, add the dependency to the the ``build-depneds:``
-stanza.
-
-::
-
-    library
-        build-depends:
-	    base,
-	    containers
-
-.. NOTE::
-   You can omit the version range since Stackage snapshots have pre-defined
-   versions.
+and ``import`` any modules you need in your Haskell source files.

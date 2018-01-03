@@ -3,15 +3,15 @@ Sequences
 
 .. highlight:: haskell
 
-Sequences allow you to store a finite number of sequential elements, they are
-similar to deques (double ended queues) or vectors in other languages. They
-support efficient prepending, appending, and range construction. The relevant
-module from the ``containers`` package is `Data.Sequence
-<http://hackage.haskell.org/package/containers/docs/Data-Sequence.html>`_.
+Sequences allow you to store a finite number of sequential elements, providing
+fast access to both ends of the sequence as well as efficient concatenation. The
+``containers`` package provides the `Data.Sequence
+<http://hackage.haskell.org/package/containers/docs/Data-Sequence.html>`_ module
+which defines the ``Seq`` data type.
 
 
-Example
--------
+Short Example
+-------------
 
 The following GHCi session shows some of the basic sequence funcitonality::
 
@@ -31,8 +31,13 @@ The following GHCi session shows some of the basic sequence funcitonality::
     > fromList [1,2,3,4]
 
 
+    -- Reverse a sequence
+    Seq.reverse (Seq.fromList [0, 1, 2])
+    > fromList [2,1,0]
+
+
     -- Put two sequences together.
-    (Seq.fromList [-2, -1]) >< (Seq.fromList [0, 1, 2])
+    (Seq.fromList [-2, -1]) >< nums
     > fromList [-2,-1,0,1,2]
 
 
@@ -50,6 +55,19 @@ The following GHCi session shows some of the basic sequence funcitonality::
 
     -- Or the unsafe version, you MUST check length beforehand.
     Seq.index 2 nums
+    > 3
+
+
+    -- Map a function over a sequence (can use fmap or the infix function <$>).
+    fmap show nums
+    > fromList ["0","1","2"]
+
+    show <$> nums
+    > fromList ["0","1","2"]
+
+
+    -- Fold a sequence into a summary value.
+    foldr (+) 0 (Seq.fromList [0, 1, 2])
     > 3
 
 
@@ -312,7 +330,7 @@ Adjust/modify an element
 ::
 
     adjust' :: forall a. (a -> a) -> Int -> Seq a -> Seq a
-    adjust f i xs = ...
+    adjust' f i xs = ...
 
 Updates the element at position ``i`` in the sequence by applying the function
 ``f`` to the existing element. If the index is out of bounds then the original
@@ -323,7 +341,7 @@ sequence is returned.
     Seq.adjust' (*10) 0 (Seq.fromList [1, 2, 3])
     > fromList [10,2,3]
 
-    Seq.adjust (*10) 3 (Seq.fromList [1, 2, 3])
+    Seq.adjust' (*10) 3 (Seq.fromList [1, 2, 3])
     > fromList [1,2,3]
 
 .. NOTE::
@@ -331,24 +349,65 @@ sequence is returned.
    careful because it can lead to `poor performance and space leaks
    <http://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#v:adjust>`_.
 
+Modifying all elements
+""""""""""""""""""""""
+
+::
+
+    fmap :: (a -> b) -> Seq a -> Seq b
+    fmap f xs = ...
+
+    Seq.mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
+    Seq.mapWithIndex f xs = ...
+
+Transform each element of the sequence with the function ``f``. ``fmap`` is
+provided by the `Functor <https://wiki.haskell.org/Typeclassopedia#Functor>`_
+instance for sequences and can also be written infix using the ``<$>``
+operator.
+
+::
+
+    fmap (*10) (Seq.fromList [1, 2, 3])
+    -- = fromList [1*10, 2*10, 3*10]
+    > fromList [10,20,30]
+
+    (*10) <$> Seq.fromList [1, 2, 3]
+    -- = fromList [1*10, 2*10, 3*10]
+    > fromList [10,20,30]
+
+    let myMapFunc index val = index * val
+
+    Seq.mapWithIndex myMapFunc (Seq.fromList [1, 2, 3])
+    -- = fromList [0*1, 1*2, 2*3]
+    > fromList [0,2,6]
+
+
 Delete an element
 """""""""""""""""
 
 ::
 
-    deleteAt :: Int -> Seq a -> Seq a
-    deleteAt i xs = ...
+    Seq.deleteAt :: Int -> Seq a -> Seq a
+    Seq.deleteAt i xs = ...
 
-Deletes the element of the sequence at index ``i``.
+Deletes the element of the sequence at index ``i``. If the index is out of
+bounds then the original sequence is returned.
 
+::
+
+    Seq.deleteAt 0 (Seq.fromList [0, 1, 2])
+    > fromList [1,2]
+
+    Seq.deleteAt 10 (Seq.fromList [0, 1, 2])
+    > fromList [0,1,2]
 
 Sorting
 ^^^^^^^
 
 ::
 
-    sort :: Ord a => Seq a -> Seq a
-    sort xs = ...
+    Seq.sort :: Ord a => Seq a -> Seq a
+    Seq.sort xs = ...
 
 Sorts the sequence ``xs`` using the ``Ord`` instance.
 
@@ -414,8 +473,8 @@ Chunks
     Seq.chunksOf k xs = ...
 
 Splits the sequence ``xs`` into chunks of size ``k``. If the length of the
-sequence is not divisible by ``k`` then the last chunk will have less than ``k``
-elements.
+sequence is not evenly divisible by ``k`` then the last chunk will have less
+than ``k`` elements.
 
 .. WARNING::
    ``k`` can only be ``0`` when the sequence is empty, otherwise a runtime
@@ -437,6 +496,36 @@ elements.
     > fromList [fromList [1,2,3]]
 
 
+Folding
+^^^^^^^
+
+::
+
+    foldr :: (a -> b -> b) -> b -> Seq a -> b
+    foldr f init xs = ...
+
+    Seq.foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
+    Seq.foldrWithIndex f init xs = ...
+
+Fold the sequence into a summary value by applying repeatedly applying
+``f``. ``foldr`` is provided by the `Foldable
+<https://wiki.haskell.org/Typeclassopedia#Foldable>`_ instance for
+sequences. ``foldWithIndex`` gives you access to the position in the sequence
+when transforming each element.
+
+::
+
+    foldr (+) 0 (Seq.fromList [1, 2, 3])
+    -- = (1 + (2 + (3 + 0)))
+    > 6
+
+    let myFoldFunction index val accum = (index * val) + accum
+
+    Seq.foldrWithIndex myFoldFunction 0 (Seq.fromList [1, 2, 3])
+    -- = ((0*1) + ((1*2) + ((2*3) + 0)))
+    > 8
+
+
 Typeclass Instances
 -------------------
 
@@ -450,13 +539,13 @@ the `docs
 
 - `Show
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: Seq a -> String``
+  conversion to string: ``show :: Show a => Seq a -> String``
 - `Eq
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
-  equality check: ``(==) :: Seq a -> Seq a -> Bool``
+  equality check: ``(==) :: Eq a => Seq a -> Seq a -> Bool``
 - `Ord
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
-  comparison: ``(<) :: Seq a -> Seq a -> Bool``
+  comparison: ``(<) :: Ord a => Seq a -> Seq a -> Bool``
 - `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
   into summary value: ``foldr :: (a -> b -> b) -> b -> Seq a -> b``
 - `Semigroup <https://wiki.haskell.org/Typeclassopedia#Semigroup>`_ - combine

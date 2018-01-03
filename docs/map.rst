@@ -4,19 +4,33 @@ Maps
 .. highlight:: haskell
 
 Maps, sometimes referred to as dictionaries in other languages, allow you to
-store associations between keys and values. There are three implementations
-provided by the ``containers`` package: `Data.Map.Strict
+store associations between *unique keys* and *values*. There are three
+implementations provided by the ``containers`` package: `Data.Map.Strict
 <http://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_,
 `Data.Map.Lazy
 <http://hackage.haskell.org/package/containers/docs/Data-Map-Lazy.html>`_, and
 `Data.IntMap
 <http://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_. You
 almost never want the lazy version so use ``Data.Map.Strict``, or if your keys
-are ``Int`` use ``Data.IntMap``.
+are ``Int`` use ``Data.IntMap``; all of these implementations are *immutable*.
+
+::
+
+    data Map key value = ...
+
+    data IntMap value = ...
+
+.. IMPORTANT::
+   ``Map`` relies on the `key` type having instances of the ``Eq`` and
+   ``Ord`` typeclass for its internal representation. These are already defined
+   for builtin types, and if you are using your own data type you can use the
+   `deriving
+   <https://en.wikibooks.org/wiki/Haskell/Classes_and_types#Deriving>`_
+   mechanism.
 
 
-Example
--------
+Short Example
+-------------
 
 The following GHCi session shows some of the basic map functionality::
 
@@ -66,8 +80,8 @@ Importing Map and IntMap
 ------------------------
 
 When using ``Map`` or ``IntMap`` in a Haskell source file you should always use
-a ``qualified`` import because they export names that clash with the standard
-Prelude (you can import the type constructor on its own though!).
+a ``qualified`` import because these modules export names that clash with the
+standard Prelude (you can import the type constructor on its own though!).
 
 ::
 
@@ -81,7 +95,7 @@ Prelude (you can import the type constructor on its own though!).
 Common API Functions
 --------------------
 
-.. NOTE::
+.. TIP::
    All of these functions that work for ``Map`` will also work for ``IntMap``,
    which has the key type ``k`` specialized to ``Int``. Anywhere that you
    see ``Map k v`` you can replace it with ``IntMap v``.
@@ -161,12 +175,12 @@ Returns a list of values held in the map ``m``.
     Map.toAscList, Map.toList, Map.assocs :: Map k v -> [(k, v)]
     Map.toAscList m = ...
 
-Returns a list containing the (key, value) pairts in the map ``m`` in
-*ascending* key order.
-
 .. NOTE::
    These all do the same thing, use ``toAscList`` because its name indicates
    the ordering.
+
+Returns a list containing the (key, value) pairts in the map ``m`` in
+*ascending* key order.
 
 ::
 
@@ -254,8 +268,12 @@ Lookup an entry in the map (lookup)
     Map.lookup :: Ord k => k -> Map k v -> Maybe v
     Map.lookup key m = ...
 
+    Map.!? :: Ord k => Map k v -> k -> Maybe v
+    Map.!? m k = ...
+
 Lookup the value corresponding to the given ``key``, returns ``Nothing`` if the
-key is not present.
+key is not present; the ``!?`` operator (*since 0.5.10*) is a flipped version of
+``lookup`` and can often be imported unqualified.
 
 ::
 
@@ -266,11 +284,15 @@ Lookup the value corresponding to the given ``key`` in the map ``m``, return the
 ``defaultValue`` if the key is not present.
 
 ::
+    import Data.Map.Strict ((!?))
 
     Map.lookup 1 Map.empty
     > Nothing
 
     Map.lookup 1 (Map.fromList [(1,"one"),(2,"two"),(3,"three")])
+    > Just "one"
+
+    > (Map.fromList [(1,"one"),(2,"two"),(3,"three")]) !? 1
     > Just "one"
 
     Map.findWithDefault "?" 1 Map.empty
@@ -347,7 +369,9 @@ Removing an entry from a map
     Map.delete key m = ...
 
 Deletes the entry with the specified ``key`` from the map ``m``, if the key
-doesn't exist it leaves the map unchanged.
+doesn't exist it leaves the map unchanged. Remember, maps are immutable so if
+you delete an entry from a map you need to assign the new map to a new
+variable.
 
 ::
 
@@ -372,6 +396,53 @@ Removes entries from the map ``m`` who's values **do not match** the
 
     Map.filter (=="one") (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
     > fromList [(1,"one")]
+
+
+Modifying a map entry
+"""""""""""""""""""""
+
+::
+
+    Map.adjust :: Ord k => (v -> v) -> k -> Map k v -> Map k v
+    Map.adjust f k m = ...
+
+Apply the value transformation function ``f`` to the entry with key ``k``, if no
+entry for that key exists then the map is left unchanged.
+
+::
+    Map.update :: Ord k => (v -> Maybe v) -> k -> Map k v -> Map k v
+    Map.update f k m = ...
+
+Apply the value transformation function ``f`` to the entry with key ``k``, if no
+entry for that key exists then the map is left unchanged, if the function
+returns ``Nothing`` then the entry is deleted.
+
+
+Modifying all map entries (mapping)
+"""""""""""""""""""""""""""""""""""
+
+::
+
+    Map.map :: (a -> b) -> Map k a -> Map k v
+    Map.map f m = ...
+
+Creates a new map by applying the transformation function ``f`` to each entries
+value. This is how `Functor <https://wiki.haskell.org/Typeclassopedia#Functor>`_
+is defined for maps.
+
+::
+
+    Map.map (*10) (Map.fromList [("haskell", 45), ("idris", 15)])
+    > fromList [("haskell",450),("idris",150)]
+
+    -- Use the Functor instance for Map.
+    (*10) <$> Map.fromList [("haskell", 45), ("idris", 15)]
+    > fromList [("haskell",450),("idris",150)]
+
+There are several other more complex mapping functions available that let you
+look at other parts of the entry (such as they key) when transforming the
+value. For the full list see the `API documentation
+<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#g:15>`_.
 
 
 Set-like Operations
@@ -468,27 +539,6 @@ exist in the right map ``r``, ``False`` otherwise (`subset
     > True
 
 
-Debugging
----------
-
-For dubugging you can use the ``Show`` instance which displays the entries of
-the map (which we've been using all along)::
-
-    show (Map.fromList  [(1,"one"), (2,"two"), (3,"three")])
-    > "fromList [(1,\"one\"),(2,\"two\"),(3,\"three\")]"
-
-If you need to see the structure of the tree (you probably don't but if you're
-curious) you can use `Map.showTree
-<http://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html#v:showTree>`_.
-
-::
-
-    putStr (Map.showTree (Map.fromList  [(1,"one"), (2,"two"), (3,"three")]))
-    > 2:="two"
-    > +--1:="one"
-    > +--3:="three"
-
-
 Typeclass Instances
 -------------------
 
@@ -502,13 +552,13 @@ the `docs
 
 - `Show
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: Map k v -> String``
+  conversion to string: ``show :: (Show k, Show v) => Map k v -> String``
 - `Eq
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
-  equality check: ``(==) :: Map k v -> Map k v -> Bool``
+  equality check: ``(==) :: (Eq k, Eq v) => Map k v -> Map k v -> Bool``
 - `Ord
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
-  comparison: ``(<) :: Map k v -> Map k v -> Bool``
+  comparison: ``(<) :: (Ord k, Ord v) => Map k v -> Map k v -> Bool``
 - `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
   into summary value: ``foldr :: (v -> b -> b) -> b -> Map k v -> b``
 - `Semigroup <https://wiki.haskell.org/Typeclassopedia#Semigroup>`_ - combine

@@ -3,17 +3,32 @@ Sets
 
 .. highlight:: haskell
 
-Sets allow you to store non-repeated ordered elements, providing efficient
+Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
 provided by the ``containers`` package: `Data.Set
 <http://hackage.haskell.org/package/containers/docs/Data-Set.html>`_ and
 `Data.IntSet
 <http://hackage.haskell.org/package/containers/docs/Data-IntSet.html>`_. Use
-``IntSet`` if you are storing, well... ``Int`` s.
+``IntSet`` if you are storing, well... ``Int`` s; both of these implementations
+are *immutable*.
+
+::
+
+    data Set element = ...
+
+    data IntSet = ...
+
+.. IMPORTANT::
+   ``Set`` relies on the `element` type having instances of the ``Eq`` and
+   ``Ord`` typeclass for its internal representation. These are already defined
+   for builtin types, and if you are using your own data type you can use the
+   `deriving
+   <https://en.wikibooks.org/wiki/Haskell/Classes_and_types#Deriving>`_
+   mechanism.
 
 
-Example
--------
+Short Example
+-------------
 
 The following GHCi session shows some of the basic set functionality::
 
@@ -54,8 +69,8 @@ Importing Set and IntSet
 ------------------------
 
 When using ``Set`` or ``IntSet`` in a Haskell source file you should always use
-a ``qualified`` import because they export names that clash with the standard
-Prelude (you can import the type constructor on its own though!):
+a ``qualified`` import because these modules export names that clash with the
+standard Prelude (you can import the type constructor on its own though!):
 
 ::
 
@@ -404,27 +419,6 @@ set ``r`` (`subset <https://en.wikipedia.org/wiki/Subset>`_).
     > False
 
 
-Debugging
----------
-
-For dubugging you can use the ``Show`` instance which displays the elements of
-the set (which we've been using all along)::
-
-    show (Set.fromList [1,2,3])
-    > "fromList [1,2,3]"
-
-If you need to see the structure of the tree (you probably don't but if you're
-curious) you can use `Set.showTree
-<http://hackage.haskell.org/package/containers/docs/Data-Set.html#v:showTree>`_.
-
-::
-
-    putStrLn (Set.showTree (Set.fromList [1,2,3]))
-    > 2
-    > +--1
-    > +--3
-
-
 Typeclass Instances
 -------------------
 
@@ -438,7 +432,7 @@ the `docs
 
 - `Show
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: Set a -> String``
+  conversion to string: ``show :: Show a => Set a -> String``
 - `Eq
   <http://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
   equality check: ``(==) :: Eq a => Set a -> Set a -> Bool``
