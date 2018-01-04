@@ -209,6 +209,44 @@ fold using ``Seq``'s `Foldable
     > ["base","containers","QuickCheck"]
 
 
+Pattern Matching
+^^^^^^^^^^^^^^^^
+
+*Since 0.5.10*
+
+Just like you can pattern match (aka. destructure) a list ``[a]``, you can do
+the same with sequneces. Lets first look at how we do this with lists::
+
+    case [1, 2, 3] of
+      [] -> "empty list"
+      (x:xs) -> "first:" ++ show x ++ " rest:" ++ show xs
+    > "first:1 rest:[2,3]"
+
+
+We can do the same thing with sequences, but first we'll need to enable the
+``PatternSynonyms`` language extension. At the top of your Haskell source file
+above the ``module`` declaration add::
+
+   {-# LANGUAGE PatternSynonyms #-}
+
+Now that we have that out of the way, lets pattern match on a sequence!
+
+::
+
+    case Seq.fromList [1, 2, 3] of
+      Empty -> "empty sequence"
+      x :<| xs -> "first:" ++ x ++ " rest:" ++ show xs
+    > "first:1 rest:fromList [2,3]"
+
+.. NOTE:: You can't copy/paste this into GHCi because its multiple lines.
+
+You can also take an element off the end::
+
+    case Seq.fromList [1, 2, 3] of
+      Empty -> "empty sequence"
+      xs :|> x -> "last element:" ++ x
+    > "last element:3"
+
 Querying
 ^^^^^^^^
 
