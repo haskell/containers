@@ -160,6 +160,25 @@ second. If the same key appears more than once then the last value is taken.
     Map.fromList [(1,"uno"), (1,"one"), (2,"two"), (3,"three")]
     > fromList [(1,"one"),(2,"two"),(3,"three")]
 
+There's another incredibly useful function for constructing a map from a list::
+
+    Map.fromListWith :: Ord k => (a -> a -> a) -> [(k, a)] -> Map.Map k a
+    Map.fromListWith f xs = ...
+
+:map:`fromListWith` allows you to build a map from a list ``xs`` with repeated
+keys, where ``f`` is used to "combine" (or "choose") values with the same key.
+
+::
+
+    -- Build a map from a list, but only keep the largest value for each key.
+    Map.fromListWith max [("a", 1), ("a", 2), ("b", 2)]
+    > fromList [("a",2),("b",2)]
+
+    -- Build a histogram from a list of elements.
+    Map.fromListWith (+) (map (\x -> (x, 1)) ["a", "a", "b", "c", "c", "c"])
+    > fromList [("a",2),("b",1),("c",3)]
+
+
 Create a list from a map
 """"""""""""""""""""""""
 
