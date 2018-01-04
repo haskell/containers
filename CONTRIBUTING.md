@@ -55,10 +55,16 @@ When you send a pull request, please:
 - Link to libraries@haskell.org discussion thread if you are changing the public
   API.
 
-- Run the benchmarks and include the results in the commit message and Pull
-  Request.
+- If you are requesting a change that is likely to affect performance, we will
+  be able to evaluate it better if you include the results of running the
+  benchmarks before and after. If the current benchmarks cannot demonstrate
+  a desired difference, please try to add one or more new benchmarks to do so.
+  If there are significant changes, please include the benchmark results in
+  your commit message.
 
-- Add unit tests exercising any changes you make, especially if it is a bug
-  fix.
+- If you are requesting a change that affects behaviour, please add QuickCheck
+  properties exercising the code if they do not already exist. If the problem
+  occurs too rarely for QuickCheck to hit then consider adding unit tests as
+  well.
   
 - Update change log for non-trivial changes.
