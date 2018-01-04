@@ -773,50 +773,50 @@ intersection = start
     start (IntMap Empty) !_ = IntMap Empty
     start !_ (IntMap Empty) = IntMap Empty
     start (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 _ root2))
-        | min1 < min2 = IntMap (fromSketchy (goL2 min1 root1 min2 root2))
-        | min1 > min2 = IntMap (fromSketchy (goL1 minV1 min1 root1 min2 root2))
+        | min1 < min2 = IntMap (goL2 min1 root1 min2 root2)
+        | min1 > min2 = IntMap (goL1 minV1 min1 root1 min2 root2)
         | otherwise = IntMap (NonEmpty min1 minV1 (goLFused min1 root1 root2)) -- we choose min1 arbitrarily, as min1 == min2
 
     -- TODO: This scheme might produce lots of unnecessary l2r and r2l calls. This should be rectified.
 
-    goL1 _     !_   !_  !_   Tip = toSketchy Empty
+    goL1 _     !_   !_  !_   Tip = Empty
     goL1 minV1 min1 Tip min2 n2  = goLookupL1 min1 minV1 (xor min1 min2) n2
-    goL1 _ min1 (Bin _ _ _ _) _ (Bin max2 _ _ _) | min1 > max2 = toSketchy Empty
+    goL1 _ min1 (Bin _ _ _ _) _ (Bin max2 _ _ _) | min1 > max2 = Empty
     goL1 minV1 min1 n1@(Bin max1 maxV1 l1 r1) min2 n2@(Bin max2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
         LT | xor min2 min1 < xor min1 max2 -> goL1 minV1 min1 n1 min2 l2 -- min1 is arbitrary here - we just need something from tree 1
-           | max1 > max2 -> r2lSketchyMap $ goR2 max1 (Bin min1 minV1 l1 r1) max2 r2
-           | max1 < max2 -> r2lSketchyMap $ goR1 maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
-           | otherwise -> toSketchy $ r2lMap $ NonEmpty max1 maxV1 (goRFused max1 (Bin min1 minV1 l1 r1) r2)
-        EQ | max1 > max2 -> sketchyBinL (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | max1 < max2 -> sketchyBinL (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case fromSketchy (goL1 minV1 min1 l1 min2 l2) of
-                Empty -> toSketchy $ r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
-                NonEmpty min' minV' l' -> toSketchy (NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2)))
+           | max1 > max2 -> r2lMap $ goR2 max1 (Bin min1 minV1 l1 r1) max2 r2
+           | max1 < max2 -> r2lMap $ goR1 maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
+           | otherwise -> r2lMap $ NonEmpty max1 maxV1 (goRFused max1 (Bin min1 minV1 l1 r1) r2)
+        EQ | max1 > max2 -> binL (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
+           | max1 < max2 -> binL (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> case goL1 minV1 min1 l1 min2 l2 of
+                Empty -> r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
+                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2))
         GT -> goL1 minV1 min1 l1 min2 n2
 
-    goL2 !_   Tip !_   !_  = toSketchy Empty
+    goL2 !_   Tip !_   !_  = Empty
     goL2 min1 n1  min2 Tip = goLookupL2 min2 (xor min1 min2) n1
-    goL2 _ (Bin max1 _ _ _) min2 (Bin _ _ _ _) | min2 > max1 = toSketchy Empty
+    goL2 _ (Bin max1 _ _ _) min2 (Bin _ _ _ _) | min2 > max1 = Empty
     goL2 min1 n1@(Bin max1 maxV1 l1 r1) min2 n2@(Bin max2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
         LT -> goL2 min1 n1 min2 l2
-        EQ | max1 > max2 -> sketchyBinL (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | max1 < max2 -> sketchyBinL (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case fromSketchy (goL2 min1 l1 min2 l2) of
-                Empty -> toSketchy (r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2)))
-                NonEmpty min' minV' l' -> toSketchy (NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2)))
+        EQ | max1 > max2 -> binL (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
+           | max1 < max2 -> binL (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> case goL2 min1 l1 min2 l2 of
+                Empty -> r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
+                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2))
         GT | xor min1 min2 < xor min2 max1 -> goL2 min1 l1 min2 n2 -- min2 is arbitrary here - we just need something from tree 2
-           | max1 > max2 -> r2lSketchyMap $ goR2 max1 r1 max2 (Bin min2 dummyV l2 r2)
-           | max1 < max2 -> r2lSketchyMap $ goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2)
-           | otherwise -> toSketchy $ r2lMap $ NonEmpty max1 maxV1 (goRFused max1 r1 (Bin min2 dummyV l2 r2))
+           | max1 > max2 -> r2lMap $ goR2 max1 r1 max2 (Bin min2 dummyV l2 r2)
+           | max1 < max2 -> r2lMap $ goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2)
+           | otherwise -> r2lMap $ NonEmpty max1 maxV1 (goRFused max1 r1 (Bin min2 dummyV l2 r2))
 
     goLFused !_ Tip !_ = Tip
     goLFused !_ !_ Tip = Tip
     goLFused !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 _ l2 r2) = case compareMSB (xor min max1) (xor min max2) of
             LT -> goLFused min n1 l2
-            EQ | max1 > max2 -> case fromSketchy (goR2 max1 r1 max2 r2) of
+            EQ | max1 > max2 -> case goR2 max1 r1 max2 r2 of
                     Empty -> l'
                     NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
-               | max1 < max2 -> case fromSketchy (goR1 maxV1 max1 r1 max2 r2) of
+               | max1 < max2 -> case goR1 maxV1 max1 r1 max2 r2 of
                     Empty -> l'
                     NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
                | otherwise -> Bin max1 maxV1 l' (goRFused max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
@@ -824,44 +824,44 @@ intersection = start
                l' = goLFused min l1 l2
             GT -> goLFused min l1 n2
 
-    goR1 _     !_   !_  !_   Tip = toSketchy Empty
+    goR1 _     !_   !_  !_   Tip = Empty
     goR1 maxV1 max1 Tip max2 n2  = goLookupR1 max1 maxV1 (xor max1 max2) n2
-    goR1 _ max1 (Bin _ _ _ _) _ (Bin min2 _ _ _) | min2 > max1 = toSketchy Empty
+    goR1 _ max1 (Bin _ _ _ _) _ (Bin min2 _ _ _) | min2 > max1 = Empty
     goR1 maxV1 max1 n1@(Bin min1 minV1 l1 r1) max2 n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
         LT | xor min2 max1 > xor max1 max2 -> goR1 maxV1 max1 n1 max2 r2 -- max1 is arbitrary here - we just need something from tree 1
-           | min1 < min2 -> l2rSketchyMap $ goL2 min1 (Bin max1 maxV1 l1 r1) min2 l2
-           | min1 > min2 -> l2rSketchyMap $ goL1 minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
-           | otherwise -> toSketchy $ l2rMap $ NonEmpty min1 minV1 (goLFused min1 (Bin max1 maxV1 l1 r1) l2)
-        EQ | min1 < min2 -> sketchyBinR (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | min1 > min2 -> sketchyBinR (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case fromSketchy (goR1 maxV1 max1 r1 max2 r2) of
-                Empty -> toSketchy $ l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
-                NonEmpty max' maxV' r' -> toSketchy $ NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
+           | min1 < min2 -> l2rMap $ goL2 min1 (Bin max1 maxV1 l1 r1) min2 l2
+           | min1 > min2 -> l2rMap $ goL1 minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
+           | otherwise -> l2rMap $ NonEmpty min1 minV1 (goLFused min1 (Bin max1 maxV1 l1 r1) l2)
+        EQ | min1 < min2 -> binR (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | min1 > min2 -> binR (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> case goR1 maxV1 max1 r1 max2 r2 of
+                Empty -> l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
+                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
         GT -> goR1 maxV1 max1 r1 max2 n2
 
-    goR2 !_   Tip !_   !_  = toSketchy Empty
+    goR2 !_   Tip !_   !_  = Empty
     goR2 max1 n1  max2 Tip = goLookupR2 max2 (xor max1 max2) n1
-    goR2 _ (Bin min1 _ _ _) max2 (Bin _ _ _ _) | min1 > max2 = toSketchy Empty
+    goR2 _ (Bin min1 _ _ _) max2 (Bin _ _ _ _) | min1 > max2 = Empty
     goR2 max1 n1@(Bin min1 minV1 l1 r1) max2 n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
         LT -> goR2 max1 n1 max2 r2
-        EQ | min1 < min2 -> sketchyBinR (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | min1 > min2 -> sketchyBinR (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | otherwise -> case fromSketchy (goR2 max1 r1 max2 r2) of
-                Empty -> toSketchy $ l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
-                NonEmpty max' maxV' r' -> toSketchy $ NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
+        EQ | min1 < min2 -> binR (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
+           | min1 > min2 -> binR (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
+           | otherwise -> case goR2 max1 r1 max2 r2 of
+                Empty -> l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
+                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
         GT | xor min1 max2 > xor max2 max1 -> goR2 max1 r1 max2 n2 -- max2 is arbitrary here - we just need something from tree 2
-           | min1 < min2 -> l2rSketchyMap $ goL2 min1 l1 min2 (Bin max2 dummyV l2 r2)
-           | min1 > min2 -> l2rSketchyMap $ goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2)
-           | otherwise -> toSketchy $ l2rMap $ NonEmpty min1 minV1 (goLFused min1 l1 (Bin max2 dummyV l2 r2))
+           | min1 < min2 -> l2rMap $ goL2 min1 l1 min2 (Bin max2 dummyV l2 r2)
+           | min1 > min2 -> l2rMap $ goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2)
+           | otherwise -> l2rMap $ NonEmpty min1 minV1 (goLFused min1 l1 (Bin max2 dummyV l2 r2))
 
     goRFused !_ Tip !_ = Tip
     goRFused !_ !_ Tip = Tip
     goRFused !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max) (xor min2 max) of
             LT -> goRFused max n1 r2
-            EQ | min1 < min2 -> case fromSketchy (goL2 min1 l1 min2 l2) of
+            EQ | min1 < min2 -> case goL2 min1 l1 min2 l2 of
                     Empty -> r'
                     NonEmpty min' minV' l' -> Bin min' minV' l' r'
-               | min1 > min2 -> case fromSketchy (goL1 minV1 min1 l1 min2 l2) of
+               | min1 > min2 -> case goL1 minV1 min1 l1 min2 l2 of
                     Empty -> r'
                     NonEmpty min' minV' l' -> Bin min' minV' l' r'
                | otherwise -> Bin min1 minV1 (goLFused min1 l1 l2) r' -- we choose max1 arbitrarily, as max1 == max2
@@ -869,40 +869,40 @@ intersection = start
                r' = goRFused max r1 r2
             GT -> goRFused max r1 n2
 
-    goLookupL1 !_ _ !_ Tip = toSketchy Empty
+    goLookupL1 !_ _ !_ Tip = Empty
     goLookupL1 k v !xorCache (Bin max _ l r)
         | k < max = if xorCache < xorCacheMax
                     then goLookupL1 k v xorCache l
                     else goLookupR1 k v xorCacheMax r
-        | k > max = toSketchy Empty
-        | otherwise = toSketchy $ NonEmpty k v Tip
+        | k > max = Empty
+        | otherwise = NonEmpty k v Tip
       where xorCacheMax = xor k max
 
-    goLookupR1 !_ _ !_ Tip = toSketchy Empty
+    goLookupR1 !_ _ !_ Tip = Empty
     goLookupR1 k v !xorCache (Bin min _ l r)
         | k > min = if xorCache < xorCacheMin
                     then goLookupR1 k v xorCache r
                     else goLookupL1 k v xorCacheMin l
-        | k < min = toSketchy Empty
-        | otherwise = toSketchy $ NonEmpty k v Tip
+        | k < min = Empty
+        | otherwise = NonEmpty k v Tip
       where xorCacheMin = xor min k
 
-    goLookupL2 !_ !_ Tip = toSketchy Empty
+    goLookupL2 !_ !_ Tip = Empty
     goLookupL2 k !xorCache (Bin max maxV l r)
         | k < max = if xorCache < xorCacheMax
                     then goLookupL2 k xorCache l
                     else goLookupR2 k xorCacheMax r
-        | k > max = toSketchy Empty
-        | otherwise = toSketchy (NonEmpty k maxV Tip)
+        | k > max = Empty
+        | otherwise = NonEmpty k maxV Tip
       where xorCacheMax = xor k max
 
-    goLookupR2 !_ !_ Tip = toSketchy Empty
+    goLookupR2 !_ !_ Tip = Empty
     goLookupR2 k !xorCache (Bin min minV l r)
         | k > min = if xorCache < xorCacheMin
                     then goLookupR2 k xorCache r
                     else goLookupL2 k xorCacheMin l
-        | k < min = toSketchy Empty
-        | otherwise = toSketchy (NonEmpty k minV Tip)
+        | k < min = Empty
+        | otherwise = NonEmpty k minV Tip
       where xorCacheMin = xor min k
 
     dummyV = error "impossible"
@@ -1874,31 +1874,3 @@ deleteR !k !xorCache n@(Bin min minV l r)
     | k < min = n
     | otherwise = extractBinR l r
   where xorCacheMin = xor min k
-
-data SketchyIntMap_ t a = SIM !Bool {-# UNPACK #-} !Key a !(Node t a)
-
-{-# INLINE fromSketchy #-}
-fromSketchy :: SketchyIntMap_ t a -> IntMap_ t a
-fromSketchy (SIM False _ _ _) = Empty
-fromSketchy (SIM True k v root) = NonEmpty k v root
-
-{-# INLINE toSketchy #-}
-toSketchy :: IntMap_ t a -> SketchyIntMap_ t a
-toSketchy Empty = SIM False 0 (error "sketchyEmpty") Tip
-toSketchy (NonEmpty k v root) = SIM True k v root
-
-{-# INLINE sketchyBinL #-}
-sketchyBinL :: SketchyIntMap_ L a -> SketchyIntMap_ R a -> SketchyIntMap_ L a
-sketchyBinL l r = toSketchy (binL (fromSketchy l) (fromSketchy r))
-
-{-# INLINE sketchyBinR #-}
-sketchyBinR :: SketchyIntMap_ L a -> SketchyIntMap_ R a -> SketchyIntMap_ R a
-sketchyBinR l r = toSketchy (binR (fromSketchy l) (fromSketchy r))
-
-{-# INLINE l2rSketchyMap #-}
-l2rSketchyMap :: SketchyIntMap_ L a -> SketchyIntMap_ R a
-l2rSketchyMap = toSketchy . l2rMap . fromSketchy
-
-{-# INLINE r2lSketchyMap #-}
-r2lSketchyMap :: SketchyIntMap_ R a -> SketchyIntMap_ L a
-r2lSketchyMap = toSketchy . r2lMap . fromSketchy
