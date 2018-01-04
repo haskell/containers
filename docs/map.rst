@@ -16,12 +16,12 @@ are ``Int`` use ``Data.IntMap``; all of these implementations are *immutable*.
 
 ::
 
-    data Map key value = ...
+    data Map k v = ...
 
-    data IntMap value = ...
+    data IntMap v = ...
 
 .. IMPORTANT::
-   ``Map`` relies on the `key` type having instances of the ``Eq`` and
+   ``Map`` relies on the key type ``k`` having instances of the ``Eq`` and
    ``Ord`` typeclass for its internal representation. These are already defined
    for builtin types, and if you are using your own data type you can use the
    `deriving
@@ -289,7 +289,7 @@ Lookup an entry in the map (lookup)
     Map.lookup key m = ...
 
     Map.!? :: Ord k => Map k v -> k -> Maybe v
-    Map.!? m k = ...
+    Map.!? m key = ...
 
 :map:`lookup` the value corresponding to the given ``key``, returns ``Nothing``
 if the key is not present; the ``!?`` operator (*since 0.5.10*) is a flipped
@@ -425,18 +425,18 @@ Modifying a map entry
 ::
 
     Map.adjust :: Ord k => (v -> v) -> k -> Map k v -> Map k v
-    Map.adjust f k m = ...
+    Map.adjust f key m = ...
 
 :map:`abjust` applies the value transformation function ``f`` to the entry with
-key ``k``, if no entry for that key exists then the map is left unchanged.
+given ``key``, if no entry for that key exists then the map is left unchanged.
 
 ::
 
     Map.update :: Ord k => (v -> Maybe v) -> k -> Map k v -> Map k v
-    Map.update f k m = ...
+    Map.update f key m = ...
 
-Apply the value transformation function ``f`` to the entry with key ``k``, if no
-entry for that key exists then the map is left unchanged, if the function
+Apply the value transformation function ``f`` to the entry with given ``key``,
+if no entry for that key exists then the map is left unchanged, if the function
 returns ``Nothing`` then the entry is deleted.
 
 
