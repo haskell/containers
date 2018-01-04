@@ -80,6 +80,7 @@ module Data.Set (
             , singleton
             , insert
             , delete
+            , powerSet
 
             -- * Combine
             , union
