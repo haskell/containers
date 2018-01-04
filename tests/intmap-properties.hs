@@ -984,7 +984,7 @@ prop_alter t k = case lookup k t of
 newtype TestIdentity a = TestIdentity { runTestIdentity :: a }
 
 instance Functor TestIdentity where
-    fmap f (TestIdentity a) = TestIdentity (f a)
+    fmap = coerce
 
 prop_alterF_IdentityRules :: UMap -> Int -> Bool
 prop_alterF_IdentityRules t k =
