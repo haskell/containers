@@ -51,7 +51,7 @@ Looking for more resources?
 ---------------------------
 
 If you've worked your way through the documentation here and you're looking for
-more examples you should check out:
+more examples or tutorials you should check out:
 
 - `haskell-lang.org's containers tutorial
   <https://haskell-lang.org/library/containers>`_

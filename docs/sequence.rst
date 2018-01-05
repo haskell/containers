@@ -72,6 +72,13 @@ The following GHCi session shows some of the basic sequence funcitonality.
     foldr (+) 0 (Seq.fromList [0, 1, 2])
     > 3
 
+.. TIP:: You can use the `OverloadedLists
+	 <https://ghc.haskell.org/trac/ghc/wiki/OverloadedLists>`_ extension so
+	 you don't need to write ``fromList [1, 2, 3]`` everywhere, instead you
+	 can just write ``[1, 2, 3]`` and if the function is expecting a
+	 sequence it will be converted automatically! The code here will
+	 continue to use ``fromList`` for clarity though.
+
 
 Importing Sequence
 ------------------
@@ -223,28 +230,28 @@ the same with sequneces. Lets first look at how we do this with lists::
     > "first:1 rest:[2,3]"
 
 
-We can do the same thing with sequences, but first we'll need to enable the
-``PatternSynonyms`` language extension. At the top of your Haskell source file
-above the ``module`` declaration add::
-
-   {-# LANGUAGE PatternSynonyms #-}
-
-Now that we have that out of the way, lets pattern match on a sequence!
+Let's do the same thing with sequences!
 
 ::
+
+    -- Imports the patterns to match on.
+    import Data.Sequence (Seq (Empty, (:<|), (:|>)))
 
     case Seq.fromList [1, 2, 3] of
       Empty -> "empty sequence"
       x :<| xs -> "first:" ++ x ++ " rest:" ++ show xs
     > "first:1 rest:fromList [2,3]"
 
-.. NOTE:: You can't copy/paste this into GHCi because its multiple lines.
+.. NOTE:: You can't copy/paste this into GHCi because it's multiple lines.
 
 You can also take an element off the end::
 
+    -- Imports the patterns to match on.
+    import Data.Sequence (Seq (Empty, (:<|), (:|>)))
+
     case Seq.fromList [1, 2, 3] of
       Empty -> "empty sequence"
-      xs :|> x -> "last element:" ++ x
+      xs :|> x -> "last element:" ++ show x
     > "last element:3"
 
 Querying
@@ -304,16 +311,17 @@ index is out of bounds. `!?
 is simply a flipped version of ``lookup``.
 
 .. NOTE::
-   You may need to import ``!?`` qualified if you're using a ``Map`` in the same
-   file because they both export the operator.
+   You may need to import ``!?`` qualified if you're using a ``Map``,
+   ``IntMap``, or ``Vector`` in the same file because they all export the
+   same operator.
 
 ::
 
     Seq.index :: Seq a -> Int -> a
     Seq.index xs n = ...
 
-:seq:`index` returns the element at the given position, throws a runtime
-``error`` if the index is out of bounds.
+:seq:`index` returns the element at the given position; it throws a runtime
+error if the index is out of bounds.
 
 .. TIP::
    Use ``lookup``/``!?`` whenever you can and explicitly deal with the
@@ -333,6 +341,16 @@ is simply a flipped version of ``lookup``.
     Seq.index (Seq.fromList ["base", "containers"]) 2
     > "*** Exception: index out of bounds
 
+When working with functions that return a ``Maybe v``, use a `case expression
+<https://en.wikibooks.org/wiki/Haskell/Control_structures#case_expressions>`_ to
+deal with the ``Just`` or ``Nothing`` value::
+
+   do
+     let firstDependency = Seq.fromList ["base", "containers"] !? 0
+     case firstDependency of
+       Nothing -> print "Whoops! No dependencies!"
+       Just dep -> print "The first dependency is " ++ dep
+
 
 Modification
 ^^^^^^^^^^^^
@@ -346,14 +364,40 @@ Inserting an element
     Seq.insertAt i x xs = ...
 
 :seq:`insertAt` inserts ``x`` into ``xs`` at the index ``i``, shifting the rest
-of the sequence over.
+of the sequence over. If ``i`` is out of range then ``x`` will be inserted at
+the beginning or the end of the sequence as appropriate.
 
 ::
 
     Seq.insertAt 0 "idris" (Seq.fromList ["haskell", "rust"])
     > fromList ["idris","haskell","rust"]
 
+    Seq.insertAt (-10) "idris" (Seq.fromList ["haskell", "rust"])
+    > fromList ["idris","haskell","rust"]
+
+    Seq.insertAt 10 "idris" (Seq.fromList ["haskell", "rust"])
+    > fromList ["haskell","rust","idris"]
+
 See also `Adding to an existing sequence`_.
+
+Delete an element
+"""""""""""""""""
+
+::
+
+    Seq.deleteAt :: Int -> Seq a -> Seq a
+    Seq.deleteAt i xs = ...
+
+:seq:`deleteAt` removes the element of the sequence at index ``i``. If the index
+is out of bounds then the original sequence is returned.
+
+::
+
+    Seq.deleteAt 0 (Seq.fromList [0, 1, 2])
+    > fromList [1,2]
+
+    Seq.deleteAt 10 (Seq.fromList [0, 1, 2])
+    > fromList [0,1,2]
 
 Replace an element
 """"""""""""""""""
@@ -439,25 +483,6 @@ index that each element is at.
     > fromList [0,2,6]
 
 
-Delete an element
-"""""""""""""""""
-
-::
-
-    Seq.deleteAt :: Int -> Seq a -> Seq a
-    Seq.deleteAt i xs = ...
-
-:seq:`deleteAt` removes the element of the sequence at index ``i``. If the index
-is out of bounds then the original sequence is returned.
-
-::
-
-    Seq.deleteAt 0 (Seq.fromList [0, 1, 2])
-    > fromList [1,2]
-
-    Seq.deleteAt 10 (Seq.fromList [0, 1, 2])
-    > fromList [0,1,2]
-
 Sorting
 ^^^^^^^
 
@@ -535,7 +560,7 @@ have less than ``k`` elements.
 
 .. WARNING::
    ``k`` can only be ``0`` when the sequence is empty, otherwise a runtime
-   ``error`` is thrown.
+   error is thrown.
 
 ::
 
@@ -564,8 +589,8 @@ Folding
     Seq.foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
     Seq.foldrWithIndex f init xs = ...
 
-:seq:`foldr` collapses the sequence into a summary value by applying repeatedly
-applying ``f``. ``foldr`` is provided by the `Foldable
+:seq:`foldr` collapses the sequence into a summary value by repeatedly applying
+``f``. ``foldr`` is provided by the `Foldable
 <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ instance for
 sequences. :seq:`foldWithIndex` gives you access to the position in the sequence
 when transforming each element.
