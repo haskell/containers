@@ -123,7 +123,7 @@ Create an empty map
     Map.empty :: Map k v
     Map.empty = ...
 
-:map:`empty` creates a map with zero entries.
+:map:`empty` creates a map without any entries.
 
 ::
 
@@ -206,6 +206,10 @@ Create a list from a map
    These all do the same thing, use ``toAscList`` because its name indicates
    the ordering.
 
+.. NOTE::
+   ``Map.toList`` is **not** the same as ``Foldable.toList``; the latter is
+   equivalent to ``elems``.
+
 :map:`toAscList`, :map:`toList`, and :map:`assocs` returns a list containing the
 (key, value) pairts in the map ``m`` in *ascending* key order.
 
@@ -268,26 +272,6 @@ The number of entries in a map
     Map.size (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
     > 3
 
-
-Check if a key is present in the map (member)
-"""""""""""""""""""""""""""""""""""""""""""""
-
-::
-
-    Map.member :: Ord k => k -> Map k v -> Bool
-    Map.member key m = ...
-
-:map:`member` returns ``True`` if the ``key`` is in the map ``m``, ``False``
-otherwise.
-
-::
-
-    Map.member 1 Map.empty
-    > False
-
-    Map.member 1 (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
-    > True
-
 Lookup an entry in the map (lookup)
 """""""""""""""""""""""""""""""""""
 
@@ -303,17 +287,20 @@ Lookup an entry in the map (lookup)
 if the key is not present; the ``!?`` operator (*since 0.5.10*) is a flipped
 version of ``lookup`` and can often be imported unqualified.
 
-::
 
-    Map.findWithDefault :: Ord k => v -> k -> Map k v -> v
-    Map.findWithDefault defaultValue key m = ...
-
-:map:`findWithDefault` finds the value corresponding to the given ``key`` in the
-map ``m``, return the ``defaultValue`` if the key is not present.
+If you want to provide a default value if the key doesn't exist you can do:
 
 ::
+
+    import Data.Maybe (fromMaybe)
+
+    -- fromMaybe :: a -> Maybe a -> a
+    fromMaybe defaultValue (lookup k m)
+
+For example::
 
     import Data.Map.Strict ((!?))
+    import Data.Maybe (fromMaybe)
 
     Map.lookup 1 Map.empty
     > Nothing
@@ -324,10 +311,10 @@ map ``m``, return the ``defaultValue`` if the key is not present.
     > (Map.fromList [(1,"one"),(2,"two"),(3,"three")]) !? 1
     > Just "one"
 
-    Map.findWithDefault "?" 1 Map.empty
+    fromMaybe "?" (Map.empty !? 1)
     > "?"
 
-    Map.findWithDefault "?" 1 (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
+    fromMaybe "?" (Map.fromList [(1,"one"), (2,"two"), (3,"three")] !? 1)
     > "one"
 
 .. WARNING::
@@ -415,16 +402,17 @@ Filtering map entries
 
 ::
 
-    Map.filter :: (v -> Bool) -> Map k v -> Map k v
-    Map.filter predicate m = ...
+    Map.filterWithKey :: (k -> v -> Bool) -> Map k v -> Map k v
+    Map.filterWithKey predicate m = ...
 
-:map:`filter` removes all entries from the map ``m`` who's values **do not
-match** the ``predicate``.
+:map:`filterWithKey` produces a map consisting of all entries of ``m`` for which
+     the ``predicate`` returns ``True``.
 
 ::
 
-    Map.filter (=="one") (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
-    > fromList [(1,"one")]
+    let f key value = key == 2 || value == "one"
+    Map.filterWithKey f (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
+    > fromList [(1,"one"),(2,"two"]
 
 
 Modifying a map entry
@@ -489,7 +477,7 @@ Union
     Map.union l r = ...
 
 :map:`union` returns a map containing all entries that are keyed in either of
-the two map. If the same key appears in both maps, the value from the left map
+the two maps. If the same key appears in both maps, the value from the left map
 ``l`` taken (`set union <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
 
 ::
@@ -508,7 +496,7 @@ Intersection
     Map.intersection :: Ord k => Map k v -> Map k v -> Map k v
     Map.intersection l r = ...
 
-:map:`intersection` returns a map containing all entries that are keyed in both
+:map:`intersection` returns a map containing all entries that have a key in both
 maps ``l`` and ``r``. The value from the left map is taken if the key exists in
 both maps (`set intersection
 <https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
@@ -529,8 +517,8 @@ Difference
     Map.difference :: Ord k => Map k v -> Map k v -> Map k v
     Map.difference l r = ...
 
-:map:`difference` returns a map containing all entries that are keyed in the
-``l`` map but not the ``r`` map (`set difference/relative compliment
+:map:`difference` returns a map containing all entries that have a key in the
+``l`` map but not the ``r`` map (`set difference/relative complement
 <https://en.wikipedia.org/wiki/Complement_(set_theory)#Relative_complement>`_).
 
 ::
@@ -540,34 +528,6 @@ Difference
 
     Map.difference (Map.fromList[(1,"one"), (2,"two")]) (Map.fromList [(1,"uno")])
     > fromList [(2,"two")]
-
-Subset (submap)
-"""""""""""""""
-
-::
-
-    Map.isSubmapOf :: (Eq a, Ord k) => Map k v -> Map k v -> Bool
-    Map.isSubmapOf l r = ...
-
-:map:`isSubmapOf` returns ``True`` if all entries--(keys, value) pairs--in the
-left map ``l`` exist in the right map ``r``, ``False`` otherwise (`subset
-<https://en.wikipedia.org/wiki/Subset>`_).
-
-.. NOTE::
-   We use `infix notation
-   <https://wiki.haskell.org/Infix_operator#Using_infix_functions_with_prefix_notation>`_
-   so that it reads nicer. These are back-ticks (`), not quotes.
-
-::
-
-    Map.empty `Map.isSubmapOf ` Map.empty
-    > True
-
-    Map.empty `Map.isSubmapOf` (Map.fromList [(1,"one"), (2,"two")])
-    > True
-
-    (Map.singleton 1 "uno") `Map.isSubmapOf` (Map.fromList [(1,"one"), (2,"two")])
-    > True
 
 
 Typeclass Instances

@@ -73,11 +73,11 @@ The following GHCi session shows some of the basic sequence funcitonality.
     > 3
 
 .. TIP:: You can use the `OverloadedLists
-	 <https://ghc.haskell.org/trac/ghc/wiki/OverloadedLists>`_ extension so
-	 you don't need to write ``fromList [1, 2, 3]`` everywhere, instead you
-	 can just write ``[1, 2, 3]`` and if the function is expecting a
-	 sequence it will be converted automatically! The code here will
-	 continue to use ``fromList`` for clarity though.
+	 <http://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#overloaded-lists>`_
+	 extension so you don't need to write ``fromList [1, 2, 3]`` everywhere,
+	 instead you can just write ``[1, 2, 3]`` and if the function is
+	 expecting a sequence it will be converted automatically! The code here
+	 will continue to use ``fromList`` for clarity though.
 
 
 Importing Sequence
@@ -202,7 +202,8 @@ Create a list from a sequence
 
 ::
 
-    foldr (:) [] :: Seq a -> [a]
+    import qualified Data.Foldable as Foldable
+    Foldable.toList :: Seq a -> [a]
 
 
 There is no ``toList`` function in the Sequence module since it can be
@@ -212,7 +213,8 @@ fold using ``Seq``'s `Foldable
 
 ::
 
-    foldr (:) [] (Seq.fromList ["base", "containers", "QuickCheck"])
+    import qualified Data.Foldable as Foldable
+    Foldable.toList (Seq.fromList ["base", "containers", "QuickCheck"])
     > ["base","containers","QuickCheck"]
 
 
@@ -291,7 +293,7 @@ The length/size of a sequence
     Seq.length Seq.empty
     > 0
 
-    Seq.size (Seq.fromList [1, 2, 3])
+    Seq.length (Seq.fromList [1, 2, 3])
     > 3
 
 The element at a given index

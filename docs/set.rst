@@ -324,8 +324,8 @@ Filtering elements from a set
     Set.filter :: (a -> Bool) -> Set a -> Set a
     Set.filter predicate s = ...
 
-:set:`filter` removes elements from the set ``s`` that **do not match** the
-``predicate``.
+:set:`filter` produces a set consisting of all elements of ``s`` for which the
+     ``predicate`` returns ``True``.
 
 ::
 
@@ -442,7 +442,7 @@ the `docs
 
 .. NOTE::
    Some constraints have been left out for brevity, and the types given below
-   are speciliazed to ``Set``; the true types are more general.
+   are specialized to ``Set``; the true types are more general.
 
 - `Show
   <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
