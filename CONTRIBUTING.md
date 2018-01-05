@@ -35,3 +35,14 @@ stack test
 [1] https://github.com/commercialhaskell/stack/issues/3624
 
 [2] https://github.com/commercialhaskell/stack/issues/3345
+
+
+## Docs
+
+The internal docs are generated using Haddock which can be invoked with `cabal
+haddock` or `stack haddock`.
+
+The external docs are served by ReadTheDocs at
+https://haskell-containers.readthedocs.io and live in the `docs/` directory. To
+build the docs locally run `pip install sphinx sphinx-autobuild` to install the
+dependencies and then `cd docs/ && make html`.
