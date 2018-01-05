@@ -152,6 +152,8 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
+            , cartesianProduct
+            , disjointUnion
 
             -- * Filter
             , filter
@@ -235,6 +237,9 @@ import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 import Data.Functor.Classes
 #endif
 import qualified Data.Foldable as Foldable
+#if !MIN_VERSION_base(4,8,0)
+import Data.Foldable (Foldable (foldMap))
+#endif
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
@@ -1669,10 +1674,70 @@ splitRoot orig =
 -- t `member` powerSet s == t `isSubsetOf` s
 -- @
 --
+-- Example:
+--
+-- @
+-- powerSet (fromList [1,2,3]) =
+--   fromList [[], [1], [2], [3], [1,2], [1,3], [2,3], [1,2,3]]
+-- @
+--
 -- @since 0.5.11
 powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
+
+-- | Calculate the Cartesian product of two sets.
+--
+-- @
+-- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
+-- @
+--
+-- Example:
+--
+-- @
+-- cartesianProduct (fromList [1,2]) (fromList ['a','b']) =
+--   fromList [(1,'a'), (1,'b'), (2,'a'), (2,'b')]
+-- @
+--
+-- @since 0.5.11
+cartesianProduct :: Set a -> Set b -> Set (a, b)
+cartesianProduct as bs =
+  getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
+
+-- A version of Set with peculiar Semigroup and Monoid instances.
+-- The result of xs <> ys will only be a valid set if the greatest
+-- element of xs is strictly less than the least element of ys.
+-- This is used to define cartesianProduct.
+newtype MergeSet a = MergeSet { getMergeSet :: Set a }
+
+#if (MIN_VERSION_base(4,9,0))
+instance Semigroup (MergeSet a) where
+  MergeSet xs <> MergeSet ys = MergeSet (merge xs ys)
+#endif
+
+instance Monoid (MergeSet a) where
+  mempty = MergeSet empty
+
+#if (MIN_VERSION_base(4,9,0))
+  mappend = (<>)
+#else
+  mappend (MergeSet xs) (MergeSet ys) = MergeSet (merge xs ys)
+#endif
+
+-- | Calculate the disjoin union of two sets.
+--
+-- @ disjointUnion xs ys = map Left xs `union` map Right ys @
+--
+-- Example:
+--
+-- @
+-- disjointUnion (fromList [1,2]) (fromList ["hi", "bye"]) =
+--   fromList [Left 1, Left 2, Right "hi", Right "bye"]
+-- @
+--
+-- @since 0.5.11
+disjointUnion :: Set a -> Set b -> Set (Either a b)
+disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 
 {--------------------------------------------------------------------
   Debugging

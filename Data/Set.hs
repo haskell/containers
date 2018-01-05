@@ -87,6 +87,8 @@ module Data.Set (
             , unions
             , difference
             , intersection
+            , cartesianProduct
+            , disjointUnion
 
             -- * Filter
             , S.filter
