@@ -46,6 +46,17 @@ Related Packages
 - `hashtables <https://hackage.haskell.org/package/hashtables>`_ - mutable hash
   tables in the ST monad.
 
+
+Looking for more resources?
+---------------------------
+
+If you've worked your way through the documentation here and you're looking for
+more examples you should check out:
+
+- `haskell-lang.org's containers tutorial
+  <https://haskell-lang.org/library/containers>`_
+- `Learn You a Haskell "Modules" chapter <http://learnyouahaskell.com/modules>`_
+
 .. _installing:
 
 Installing and using the ``containers`` package
