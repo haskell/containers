@@ -164,19 +164,6 @@ def haddock_ref(haddock_host, haddock_root, pkg, module, func_name):
 # Stackage: www.stackage.org/haddock/lts-10.0/containers/Data.Set.html#t:empty
 # Local: file:///path/to/html/containers/Data.Set.html#t:empty
 
-
-### URI scheme examples for Hackage, Stackage, and local docs.
-## Packages
-# Hackage: hackage.haskell.org/package/containers
-# Stackage: www.stackage.org/haddock/lts-10.0/containers/index.html
-# Local: file:///local/path/html/containers/index.html
-
-## Module (and function) references
-# Hackage: hackage.haskell.org/package/containers/docs/Data.Set.html#v:empty
-# Stackage: www.stackage.org/haddock/lts-10.0/containers/Data.Set.html#t:empty
-# Local: file:///path/to/html/containers/Data.Set.html#t:empty
-
-
 class HaddockAutolinker:
 
     def __init__(self, app, haddock_host, haddock_root):
