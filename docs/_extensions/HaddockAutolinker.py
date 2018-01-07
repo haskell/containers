@@ -4,11 +4,11 @@ import string
 
 ### Utility functions.
 
-def get_config(inliner):
+def get_project(inliner):
     """
-    Returns the config object associated with the file beind processed.
+    Returns the project name associated with the file being processed.
     """
-    return inliner.document.settings.env.app.config
+    return inliner.document.settings.env.app.config.project
 
 
 def convert_special_chars_to_ascii(func_name):
@@ -39,8 +39,14 @@ def parse_haddock_ref_text(text):
     TODO(m-renaud): Clean this up, there's probably a python parsing library.
     """
 
+    # If there's no '/' then this is either a reference to a package or a local
+    # reference.
     if '/' not in text:
-        return (text, None, None)
+        if '#' not in text:
+            return (text, None, None)
+        else:
+            module,func_name = text.split('#')
+            return (None, module, func_name)
 
     pkg_name,rest = text.split('/')
 
@@ -185,6 +191,11 @@ class HaddockAutolinker:
             """
 
             (pkg, module, func_name) = parse_haddock_ref_text(text)
+
+            # If the pkg isn't set then this is a reference to a function in the current
+            # package.
+            if pkg == None:
+                pkg = get_project(inliner)
             ref = haddock_ref(self.haddock_host, self.haddock_root, pkg, module, func_name)
 
             if ref == None:
