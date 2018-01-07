@@ -8,8 +8,7 @@ Some of the data structures provided by this package have a very large API
 surface (for better or worse). The docs here focus on the most common functions
 which should be more than enough to get you started. Once you know the basics,
 or if you're looking for a specific function, you can head over to the
-`containers hackage page <https://hackage.haskell.org/package/containers>`_ to
-check out the full API documentation!
+:haddock:`containers` Haddocks to check out the full API documentation!
 
 Provided Data Structures
 ------------------------
@@ -27,24 +26,20 @@ Provided Data Structures
 Related Packages
 ----------------
 
-- `unordered-containers
-  <https://hackage.haskell.org/package/unordered-containers>`_ - containers
-  using hashing instead of ordering.
+- :haddock:`unordered-containers` - containers using hashing instead of
+  ordering.
 
-- `array <https://hackage.haskell.org/package/array>`_ - mutable and immutable
-  arrays.
+- :haddock:`array` - mutable and immutable arrays.
 
-- `vector <https://hackage.haskell.org/package/vector>`_ - efficient
-  ``Int``-indexed arrays (boxed and unboxed).
+- :haddock:`vector` - efficient ``Int``-indexed arrays (boxed and unboxed).
 
-- `bytestring <https://hackage.haskell.org/package/bytestring>`_ - compact,
-  immutable bytestrings, useful for binary and 8-bit character data.
+- :haddock:`bytestring` - compact, immutable bytestrings, useful for binary and
+  8-bit character data.
 
-- `dlist <https://hackage.haskell.org/package/dlist>`_ - difference lists with
-  *O(1)* append, useful for efficient logging and pretty printing.
+- :haddock:`dlist` - difference lists with *O(1)* append, useful for efficient
+  logging and pretty printing.
 
-- `hashtables <https://hackage.haskell.org/package/hashtables>`_ - mutable hash
-  tables in the ST monad.
+- :haddock:`hashtables` - mutable hash tables in the ST monad.
 
 
 Looking for more resources?

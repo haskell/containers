@@ -1,8 +1,7 @@
 Haskell ``containers`` package
 ==============================
 
-For full API documentation see the `containers hackage page
-<http://hackage.haskell.org/package/containers>`_.
+For full API documentation see the :haddock:`containers` Haddocks.
 
 .. toctree::
    :maxdepth: 2

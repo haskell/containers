@@ -5,14 +5,11 @@ Maps
 
 Maps (sometimes referred to as dictionaries in other languages) allow you to
 store associations between *unique keys* and *values*. There are three
-implementations provided by the ``containers`` package: `Data.Map.Strict
-<https://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_,
-`Data.Map.Lazy
-<https://hackage.haskell.org/package/containers/docs/Data-Map-Lazy.html>`_, and
-`Data.IntMap
-<https://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_. You
-almost never want the lazy version so use ``Data.Map.Strict``, or if your keys
-are ``Int`` use ``Data.IntMap``. All of these implementations are *immutable*.
+implementations provided by the ``containers`` package:
+:haddock:`containers/Data.Map.Strict`, :haddock:`Data.Map.Lazy`, and
+:haddock:`Data.IntMap`. You almost never want the lazy version so use
+``Data.Map.Strict``, or if your keys are ``Int`` use ``Data.IntMap``; all of
+these implementations are *immutable*.
 
 ::
 
@@ -478,8 +475,8 @@ each entries value. This is how `Functor
 
 There are several other more complex mapping functions available that let you
 look at other parts of the entry (such as they key) when transforming the
-value. For the full list see the `API documentation
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#g:15>`_.
+value. For the full list see the :haddock:`containers/Data.Map.Strict` API
+documentation.
 
 
 Set-like Operations
@@ -562,15 +559,12 @@ Serialization
 -------------
 
 The best way to serialize and deserialize maps is to use one of the many
-libraries which already support serializing map. `binary
-<https://hackage.haskell.org/package/binary>`_, `cereal
-<https://hackage.haskell.org/package/cereal>`_, and `store
-<https://hackage.haskell.org/package/store>`_ are some common libraries that
-people use.
+libraries which already support serializing maps. :haddock:`binary`,
+:haddock:`cereal`, and :haddock:`store` are some common libraries that people
+use.
 
 .. TIP::
-   If you are writing custom serialization code use `fromDistinctAscList
-   <https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#v:fromDistinctAscList>`_
+   If you are writing custom serialization code use :map:`fromDistinctAscList`
    (see `#405 <https://github.com/haskell/containers/issues/405>`_ for more
    info).
 
@@ -587,7 +581,5 @@ Looking for more?
 -----------------
 
 Didn't find what you're looking for? This tutorial only covered the most common
-map functions, for a full list of functions see the `Map
-<https://hackage.haskell.org/package/containers/docs/Data-Map-Strict.html>`_ and
-`IntMap <https://hackage.haskell.org/package/containers/docs/Data-IntMap.html>`_
-API documentation.
+map functions, for a full list of functions see the :map:`Data.Map.Strict` and
+:map:`Data.IntMap` API documentation.

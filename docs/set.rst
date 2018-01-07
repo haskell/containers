@@ -1,16 +1,19 @@
 Sets
 ====
 
+:haddock:`unordered-containers`
+
+:haddock:`unordered-containers/Data.HashSet`
+
+:haddock:`unordered-containers/Data.HashSet#empty`
+
 .. highlight:: haskell
 
 Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
-provided by the ``containers`` package: `Data.Set
-<https://hackage.haskell.org/package/containers/docs/Data-Set.html>`_ and
-`Data.IntSet
-<https://hackage.haskell.org/package/containers/docs/Data-IntSet.html>`_. Use
-``IntSet`` if you are storing, well... ``Int`` s; both of these implementations
-are *immutable*.
+provided by the ``containers`` package: :haddock:`containers/Data.Set` and
+:haddock:`containers/Data.IntSet`. Use ``IntSet`` if you are storing,
+well... ``Int`` s; both of these implementations are *immutable*.
 
 ::
 
@@ -437,15 +440,12 @@ Serialization
 -------------
 
 The best way to serialize and deserialize sets is to use one of the many
-libraries which already support serializing sets. `binary
-<https://hackage.haskell.org/package/binary>`_, `cereal
-<https://hackage.haskell.org/package/cereal>`_, and `store
-<https://hackage.haskell.org/package/store>`_ are some common libraries that
-people use.
+libraries which already support serializing sets. :haddock:`binary`,
+:haddock:`cereal`, and :haddock:`store` are some common libraries that people
+use.
 
 .. TIP::
-   If you are writing custom serialization code use `fromDistinctAscList
-   <https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Set.html#v:fromDistinctAscList>`_
+   If you are writing custom serialization code use :set:`fromDistinctAscList`
    (see `#405 <https://github.com/haskell/containers/issues/405>`_ for more
    info).
 
@@ -461,7 +461,5 @@ Looking for more?
 -----------------
 
 Didn't find what you're looking for? This tutorial only covered the most common
-set functions. For a full list of functions see the `Set
-<https://hackage.haskell.org/package/containers/docs/Data-Set.html>`_ and `IntSet
-<https://hackage.haskell.org/package/containers/docs/Data-IntSet.html>`_ API
-documentation.
+set functions, for a full list of functions see the :set:`Data.Set` and
+:set:`Data.IntSet` API documentation.

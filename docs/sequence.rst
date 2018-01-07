@@ -5,8 +5,7 @@ Sequences
 
 Sequences allow you to store a finite number of sequential elements, providing
 fast access to both ends of the sequence as well as efficient concatenation. The
-``containers`` package provides the `Data.Sequence
-<https://hackage.haskell.org/package/containers/docs/Data-Sequence.html>`_ module
+``containers`` package provides the :haddock:`containers/Data.Sequence` module
 which defines the ``Seq`` data type.
 
 
@@ -308,9 +307,7 @@ The element at a given index
     xs !? n = ...
 
 :seq:`lookup` returns the element at the position ``n``, or ``Nothing`` if the
-index is out of bounds. `!?
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#v:-33--63->`_
-is simply a flipped version of ``lookup``.
+index is out of bounds. :seq:`!?` is simply a flipped version of ``lookup``.
 
 .. NOTE::
    You may need to import ``!?`` qualified if you're using a ``Map``,
@@ -430,11 +427,9 @@ Adjust/modify an element
     adjust' :: forall a. (a -> a) -> Int -> Seq a -> Seq a
     adjust' f i xs = ...
 
-`adjust'
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#v:adjust-39->`_
-updates the element at position ``i`` in the sequence by applying the function
-``f`` to the existing element. If the index is out of bounds then the original
-sequence is returned.
+:seq:`adjust'` updates the element at position ``i`` in the sequence by applying
+the function ``f`` to the existing element. If the index is out of bounds then
+the original sequence is returned.
 
 ::
 
@@ -446,8 +441,8 @@ sequence is returned.
 
 .. NOTE::
    If you're using an older version of containers which only has ``adjust``, be
-   careful because it can lead to `poor performance and space leaks
-   <https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#v:adjust>`_.
+   careful because it can lead to poor performance and space leaks (see
+   :seq:`adjust` docs).
 
 Modifying all elements
 """"""""""""""""""""""
@@ -614,11 +609,9 @@ Serialization
 -------------
 
 The best way to serialize and deserialize sequences is to use one of the many
-libraries which already support serializing sequences. `binary
-<https://hackage.haskell.org/package/binary>`_, `cereal
-<https://hackage.haskell.org/package/cereal>`_, and `store
-<https://hackage.haskell.org/package/store>`_ are some common libraries that
-people use.
+libraries which already support serializing sequences. :haddock:`binary`,
+:haddock:`cereal`, and :haddock:`store` are some common libraries that people
+use.
 
 
 Performance
@@ -633,6 +626,5 @@ Looking for more?
 -----------------
 
 Didn't find what you're looking for? This tutorial only covered the most common
-sequence functions, for a full list of functions see the `Sequence
-<https://hackage.haskell.org/package/containers/docs/Data-Sequence.html>`_ API
-documentation.
+sequence functions, for a full list of functions see the
+:haddock:`containers/Data.Sequence` API documentation.
