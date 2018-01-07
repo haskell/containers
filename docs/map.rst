@@ -6,8 +6,8 @@ Maps
 Maps (sometimes referred to as dictionaries in other languages) allow you to
 store associations between *unique keys* and *values*. There are three
 implementations provided by the ``containers`` package:
-:haddock:`containers/Data.Map.Strict`, :haddock:`Data.Map.Lazy`, and
-:haddock:`Data.IntMap`. You almost never want the lazy version so use
+:haddock:`containers/Data.Map.Strict`, :haddock:`containers/Data.Map.Lazy`, and
+:haddock:`containers/Data.IntMap`. You almost never want the lazy version so use
 ``Data.Map.Strict``, or if your keys are ``Int`` use ``Data.IntMap``; all of
 these implementations are *immutable*.
 
@@ -35,15 +35,7 @@ The following GHCi session shows some of the basic map functionality::
 
     let nums = Map.fromList [(1,"one"), (2,"two"), (3,"three")]
 
-    -- Check if we know the english words for 1 and 4
-    Map.member nums 1
-    > True
-
-    Map.member nums 4
-    > False
-
-
-    -- Get the english word for the number 3 and 4.
+    -- Get the English word for the number 3 and 4.
     Map.lookup 3 nums
     > Just "three"
 
@@ -66,12 +58,13 @@ The following GHCi session shows some of the basic map functionality::
 
 
     -- Create a new map and combine it with our original map.
-    -- Note that these operations are left-biased.
-    let newNums = Map.fromList [(3,"new three"), (4,"new four")]
+    -- fromList is right-biased: if a key is repeated the rightmost value is taken.
+    let newNums = Map.fromList [(3,"new three"), (4,"new four"), (4,"newer four")]
 
+    -- union is left-biased: if a key occurs more than once the value from the
+    -- left map is taken.
     Map.union newNums nums
-    > fromList [(1,"one"),(2,"two"),(3,"new three"),(4,"new four")]
-
+    > fromList [(1,"one"),(2,"two"),(3,"new three"),(4,"newer four")]
 
 .. TIP:: You can use the `OverloadedLists
 	 <https://ghc.haskell.org/trac/ghc/wiki/OverloadedLists>`_ extension so
@@ -87,8 +80,10 @@ Importing Map and IntMap
 When using ``Map`` or ``IntMap`` in a Haskell source file you should always use
 a ``qualified`` import because these modules export names that clash with the
 standard Prelude (you can import the type constructor on its own though!). You
-should also import Prelude and hide ``lookup`` because if you accidentally leave
-off the ``Map.`` qualifier you'll get confusing type errors.
+should also import ``Prelude`` and hide ``lookup`` because if you accidentally
+leave off the ``Map.`` qualifier you'll get confusing type errors. You can
+always import any specific identifiers you want unqualified. Most of the time,
+that will include the type constructor (``Map``).
 
 ::
 
@@ -107,10 +102,13 @@ Common API Functions
 .. TIP::
    All of these functions that work for ``Map`` will also work for ``IntMap``,
    which has the key type ``k`` specialized to ``Int``. Anywhere that you
-   see ``Map Int v`` you can replace it with ``IntMap v``.
+   see ``Map Int v`` you can replace it with ``IntMap v``. This will speed up
+   most operations tremendously (see `Performance`_) with the exception of
+   ``size`` which is O(1) for ``Map`` and O(n) for ``IntMap``.
 
 .. NOTE::
-   ``fromList [some,map,entries]`` is how a ``Map`` is printed.
+   A ``Map`` is printed as an association list preceeded by ``fromList``. For
+   example, it might look like ``fromList [(Key1,True),(Key2,False)]``.
 
 
 Construction and Conversion
@@ -201,14 +199,6 @@ Create a list from a map
 
 ::
 
-    Map.elems :: Map k v -> [v]
-    Map.elems m = ...
-
-:haddock_short:`Data.Map.Strict#elems` returns a list of values held in the map
-``m``.
-
-::
-
     Map.toAscList, Map.toList, Map.assocs :: Map k v -> [(k, v)]
     Map.toAscList m = ...
 
@@ -235,9 +225,6 @@ value) pairs in the map ``m`` in *descending* key order.
 
 ::
 
-    Map.elems (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
-    > ["one","two","three"]
-
     Map.toAscList (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
     > [(1,"one"),(2,"two"),(3,"three")]
 
@@ -247,44 +234,6 @@ value) pairs in the map ``m`` in *descending* key order.
 
 Querying
 ^^^^^^^^
-
-Check if a map is empty
-"""""""""""""""""""""""
-
-::
-
-    Map.null :: Map k v -> Bool
-    Map.null m = ...
-
-:haddock_short:`Data.Map.Strict#null` returns ``True`` if the map ``m`` is
-empty, ``False`` otherwise.
-
-::
-
-    Map.null Map.empty
-    > True
-
-    Map.null (Map.fromList [(1,"one")])
-    > False
-
-The number of entries in a map
-""""""""""""""""""""""""""""""
-
-::
-
-    Map.size :: Map k v -> Int
-    Map.size m = ...
-
-:haddock_short:`Data.Map.Strict#size` returns the number of entries in the map
-``m``.
-
-::
-
-    Map.size Map.empty
-    > 0
-
-    Map.size (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
-    > 3
 
 Lookup an entry in the map (lookup)
 """""""""""""""""""""""""""""""""""
@@ -335,6 +284,44 @@ For example::
 .. WARNING::
    **DO NOT** Use ``Map.!``. It is partial and throws a runtime error if the key
    doesn't exist.
+
+Check if a map is empty
+"""""""""""""""""""""""
+
+::
+
+    Map.null :: Map k v -> Bool
+    Map.null m = ...
+
+:haddock_short:`Data.Map.Strict#null` returns ``True`` if the map ``m`` is
+empty and ``False`` otherwise.
+
+::
+
+    Map.null Map.empty
+    > True
+
+    Map.null (Map.fromList [(1,"one")])
+    > False
+
+The number of entries in a map
+""""""""""""""""""""""""""""""
+
+::
+
+    Map.size :: Map k v -> Int
+    Map.size m = ...
+
+:haddock_short:`Data.Map.Strict#size` returns the number of entries in the map
+``m``.
+
+::
+
+    Map.size Map.empty
+    > 0
+
+    Map.size (Map.fromList [(1,"one"), (2,"two"), (3,"three")])
+    > 3
 
 Find the minimum/maximum
 """"""""""""""""""""""""
@@ -505,7 +492,7 @@ Union
 ::
 
     Map.unionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
-    Map.union f l r = ...
+    Map.unionWith f l r = ...
 
 :haddock_short:`Data.Map.Strict#union` returns a map containing all entries that
 are keyed in either of the two maps. If the same key appears in both maps, the
@@ -532,7 +519,7 @@ Intersection
 ::
 
     Map.intersectionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
-    Map.intersection f l r = ...
+    Map.intersectionWith f l r = ...
 
 :haddock_short:`Data.Map.Strict#intersection` returns a map containing all
 entries that have a key in both maps ``l`` and ``r``. The value in the returned

@@ -1,14 +1,6 @@
 Sets
 ====
 
-:haddock:`unordered-containers`
-
-:haddock:`unordered-containers/Data.HashSet`
-
-:haddock:`unordered-containers/Data.HashSet#empty`
-
-.. highlight:: haskell
-
 Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
 provided by the ``containers`` package: :haddock:`containers/Data.Set` and
@@ -81,11 +73,11 @@ Importing Set and IntSet
 
 When using ``Set`` or ``IntSet`` in a Haskell source file you should always use
 a ``qualified`` import because these modules export names that clash with the
-standard Prelude (you can import the type constructor on its own though!):
+standard Prelude. You can import the type constructor and addional functions
+that you care about unqualified.
 
 ::
-
-    import Data.Set (Set)
+    import Data.Set (Set, lookupMin, lookupMax)
     import qualified Data.Set as Set
 
     import Data.IntSet (IntSet)
@@ -98,7 +90,9 @@ Common API Functions
 .. TIP::
    All of these functions that work for ``Set`` will also work for ``IntSet``,
    which has the element type ``a`` specialized to ``Int``. Anywhere that you
-   see ``Set Int`` you can replace it with ``IntSet``.
+   see ``Set Int`` you can replace it with ``IntSet``. This will speed up
+   most operations tremendously (see `Performance`_) with the exception of
+   ``size`` which is O(1) for ``Set`` and O(n) for ``IntSet``.
 
 .. NOTE::
    ``fromList [some,list,elements]`` is how a ``Set`` is printed.
@@ -197,6 +191,25 @@ the set ``s`` in *descending* order.
 Querying
 ^^^^^^^^
 
+Check if an element is in a set (member)
+""""""""""""""""""""""""""""""""""""""""
+
+::
+
+    Set.member :: Ord a => a -> Set a -> Bool
+    Set.member x s = ...
+
+:haddock_short:`Data.Set#member` returns ``True`` if the element ``x`` is in the
+set ``s``, ``False`` otherwise.
+
+::
+
+    Set.member 0 Set.empty
+    > False
+
+    Set.member 0 (Set.fromList [0, 2, 4, 6])
+    > True
+
 Check if a set is empty
 """""""""""""""""""""""
 
@@ -234,25 +247,6 @@ The number of elements in a set
 
     Set.size (Set.fromList [0, 2, 4, 6])
     > 4
-
-Check if an element is in a set (member)
-""""""""""""""""""""""""""""""""""""""""
-
-::
-
-    Set.member :: Ord a => a -> Set a -> Bool
-    Set.member x s = ...
-
-:haddock_short:`Data.Set#member` returns ``True`` if the element ``x`` is in the
-set ``s``, ``False`` otherwise.
-
-::
-
-    Set.member 0 Set.empty
-    > False
-
-    Set.member 0 (Set.fromList [0, 2, 4, 6])
-    > True
 
 Find the minimum/maximum element in a set
 """""""""""""""""""""""""""""""""""""""""
