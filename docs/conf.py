@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 #
 
-from ast import literal_eval
 from docutils.parsers.rst import roles
 from docutils import nodes
 import itertools
 import string
 import os
 import sphinx_rtd_theme
+import sys
 
 
 # -- General configuration ------------------------------------------------
 
+# Add the _extenions dir to the search path.
+sys.path.insert(0, os.path.abspath('.') + '/_extensions')
+
 extensions = ['sphinx.ext.intersphinx',
-    'sphinx.ext.ifconfig']
+              'sphinx.ext.ifconfig',
+              'haddock-autolink']
 
 templates_path = ['_templates']
 
@@ -93,247 +97,3 @@ html_sidebars = {
         'searchbox.html',
     ]
 }
-
-#############################################
-# -- Custom roles for linking to Hackage docs
-#############################################
-
-# Support building docs with link to hackage, stackage, or locally build haddocks.
-# Valid options:
-#   hackage - link to hackage.haskell.org
-#   stackage - link to www.stackage.org (must also pass STACKAGE_RESOLVER)
-#   local - any path to local docs (must also set HADDOCK_DIR)
-#
-# Note: Defaults to hackage if none specified.
-#
-# Note: We need to do some custom URL rewriting for stackage because it uses a different
-# format from what the haddock tool builds
-#
-# TODO(m-renaud): Improve this and publish as sphinx extension.
-
-haddock_host = os.getenv('HADDOCK_HOST', 'hackage')
-
-
-# hackage hosting
-if haddock_host == 'hackage':
-    haddock_root = 'https://hackage.haskell.org/package/'
-
-# stackage hosting
-elif haddock_host == 'stackage':
-    stackage_resolver = os.getenv('STACKAGE_RESOLVER', None)
-    if stackage_resolver != None:
-        haddock_root = 'https://www.stackage.org/haddock/' + stackage_resolver + '/'
-    else:
-        raise Exception("Must specify STACKAGE_RESOLVER when setting HADDOCK_HOST=stackage")
-
-# local hosting
-elif haddock_host == 'local':
-    haddock_dir = os.getenv('HADDOCK_DIR', None)
-    if haddock_dir != None:
-        haddock_root = haddock_dir
-    else:
-        raise Exception("Must specify HADDOCK_DIR when setting HADDOCK_HOST=local")
-
-else:
-    raise Exception("HADDOCK_HOST not recognized, valid options: hackage, stackage, local")
-
-
-
-### URI scheme examples for Hackage, Stackage, and local docs.
-## Packages
-# Hackage: hackage.haskell.org/package/containers
-# Stackage: www.stackage.org/haddock/lts-10.0/containers/index.html
-# Local: file:///local/path/html/containers/index.html
-
-## Module (and function) references
-# Hackage: hackage.haskell.org/package/containers/docs/Data.Set.html#v:empty
-# Stackage: www.stackage.org/haddock/lts-10.0/containers/Data.Set.html#t:empty
-# Local: file:///path/to/html/containers/Data.Set.html#t:empty
-
-
-def pkg_root_ref(pkg):
-    """
-    Returns the URI for the root of pkg's Haddocks.
-
-    Note: Hackage uses a different URI scheme than stackage and local.
-
-    URI enclosed in {} corresponds to 'haddock_root'.
-
-    Hackage: {hackage.haskell.org/package/}<pkg_name>
-    Stackage: {www.stackage.org/haddock/<resolver>/}<pkg_name>/index.html
-    Local: {file:///path/to/html/}<pkg_name>/index.html
-    """
-
-    if haddock_host == 'hackage':
-        return haddock_root + pkg
-
-    if haddock_host == 'stackage':
-        return haddock_root + pkg + '/index.html'
-
-    if haddock_host == 'local':
-        return haddock_root + pkg + '/index.html'
-
-
-def module_ref(pkg, module, func_name):
-    """
-    Returns the URI referring to pkg/module#func_name.
-
-    Note: Hackage uses a different URI scheme than stackage and local.
-
-    URI enclosed in {} corresponds to 'haddock_root'.
-
-    Hackage: {hackage.haskell.org/package/}<pkg_name>/docs/<module>.html#v:<func_name>
-    Stackage: {www.stackage.org/haddock/<resolver>/}<pkg_name>/<module>.html#t:<func_name>
-    Local: {file:///path/to/html/}<pkg_name>/<module>.html#t:<func_name>
-    """
-
-    if module != None:
-        module = module.replace('.', '-')
-
-    if haddock_host == 'hackage':
-        ref = haddock_root + pkg + '/docs/' + module + '.html'
-
-    if haddock_host == 'stackage':
-        ref = haddock_root + pkg + '/' + module + '.html'
-
-    if haddock_host == 'local':
-        ref = haddock_root + pkg + '/' + module + '.html'
-
-    # If a function name was provided, link to it.
-    if func_name != None:
-        # Select the correct anchor, types use #t, functions use #v.
-        if func_name[0].isupper():
-            anchor_type = '#t:'
-        else:
-            anchor_type = '#v:'
-        ref = ref + anchor_type + func_name
-
-    return ref
-
-
-def parse_haddock_ref_text(text):
-    """
-    Parses text of the form pkg-name/Module.Path#func_name into the tuple
-    (package, module, function_name).
-
-    The module and function name are optional, if they are omitted then 'None'
-    will be returned in the corresponding tuple element.
-
-    TODO(m-renaud): Clean this up, there's probably a python parsing library.
-    """
-
-    if '/' not in text:
-        return (text, None, None)
-
-    pkg_name,rest = text.split('/')
-
-    func_name = None
-    module = None
-    if '#' in rest:
-        module,func_name = rest.split('#')
-    else:
-        module = rest
-
-    return (pkg_name, module, func_name)
-
-def convert_special_chars_to_ascii(func_name):
-    """
-    If func_name is an operator, convert it to its ascii representation.
-
-    This is how Haddock generates links for operators.
-
-    '!?' => '-33--63-'
-    """
-    if func_name == None:
-        return None
-
-    escaped_func_name = [ c if c not in string.punctuation else '-' + str(ord(c)) + '-'
-                          for c in func_name ]
-
-    return ''.join(escaped_func_name)
-        
-
-def haddock_ref(pkg, module, func_name):
-    """
-    Return a reference link to Haddocks for pkg/module#func_name.
-    """
-
-    if module == None and func_name == None:
-        return pkg_root_ref(pkg)
-    else:
-        func_name = convert_special_chars_to_ascii(func_name)
-        return module_ref(pkg, module, func_name)
-
-
-def haddock_role(display_name_only=False):
-    def haddock_role_impl(name, rawtext, text, lineno, inliner, options={}, content=[]):
-        """
-        Role handler for :haddock:.
-        """
-
-        (pkg, module, func_name) = parse_haddock_ref_text(text)
-        ref = haddock_ref(pkg, module, func_name)
-
-        if ref == None:
-            FAIL = '\033[91m'
-            ENDC = '\033[0m'
-            print FAIL
-            print 'ERROR: invalid argument to :' + name + ':'
-            print 'Markup: ' + str(rawtext)
-            print 'Line: ' + str(lineno)
-            print ENDC
-            raise Exception('Invalid Haddock link, see ERROR above.')
-
-        if module == None:
-            link_text = pkg
-        else:
-            if func_name == None:
-                link_text = module
-            else:
-                if display_name_only:
-                    link_text = func_name
-                else:
-                    link_text = module + '#' + func_name
-
-        node = nodes.reference(rawtext, link_text, refuri=ref, **options)
-        return [node], []
-    return haddock_role_impl
-
-def make_module_role(module_name):
-    module_name_with_dashes = module_name.replace('.','-')
-    def role(name, rawtext, text, lineno, inliner, options={}, content=[]):
-        func_name = convert_special_chars_to_ascii(text)
-        ref = module_ref(project, module_name, func_name)
-        node = nodes.reference(rawtext, text, refuri=ref, **options)
-        return [node], []
-    return role
-
-
-def seq_role():
-    return make_module_role("Data.Sequence")
-
-def set_role():
-    return make_module_role("Data.Set")
-
-def map_role():
-    return make_module_role("Data.Map.Strict")
-
-
-# These custom roles allow you to easily link to Haddock documentation using
-# :role_name:`function_name`.
-#
-# For example:
-#   :set:`insert` will create a link to
-#   https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Set.html#v:insert
-roles.register_canonical_role('seq', seq_role())
-roles.register_canonical_role('set', set_role())
-roles.register_canonical_role('map', map_role())
-roles.register_canonical_role('haddock', haddock_role())
-roles.register_canonical_role('haddock_name_only', haddock_role(True))
-
-print '\nHaddock host information'
-print '  haddoc_host: ' + haddock_host
-print '  haddock_root: ' + haddock_root
-print
-print '  Links to docs will be of the form: ' + haddock_ref('pkg-name', 'Module-Name', 'funcName')
-print
