@@ -62,7 +62,7 @@ module Data.Sequence (
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
-    replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
+    replicateM,     -- :: Applicative m => Int -> m a -> m (Seq a)
     cycleTaking,    -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
