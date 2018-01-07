@@ -209,24 +209,3 @@ class HaddockAutolinker:
             node = nodes.reference(rawtext, link_text, refuri=ref, **options)
             return [node], []
         return haddock_role_impl
-
-
-    def make_module_role(self, module_name):
-        module_name_with_dashes = module_name.replace('.','-')
-        def role(name, rawtext, text, lineno, inliner, options={}, content=[]):
-            func_name = convert_special_chars_to_ascii(text)
-            project = get_config(inliner).project
-            ref = module_ref(self.haddock_host, self.haddock_root, project, module_name, func_name)
-            node = nodes.reference(rawtext, text, refuri=ref, **options)
-            return [node], []
-        return role
-
-
-    def seq_role(self):
-        return self.make_module_role("Data.Sequence")
-
-    def set_role(self):
-        return self.make_module_role("Data.Set")
-
-    def map_role(self):
-        return self.make_module_role("Data.Map.Strict")

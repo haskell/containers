@@ -12,9 +12,7 @@ which defines the ``Seq`` data type.
 Short Example
 -------------
 
-The following GHCi session shows some of the basic sequence funcitonality.
-
-.. code-block:: haskell
+The following GHCi session shows some of the basic sequence funcitonality::
 
     -- Import the Seq type and operators for combining sequences unqualified.
     -- Import the rest of the Sequence module qualified.
@@ -110,7 +108,7 @@ Create an empty sequence
     Seq.empty :: Seq a
     Seq.empty = ...
 
-:seq:`empty` creates a sequence with zero elements.
+:haddock_short:`Data.Sequence#empty` creates a sequence with zero elements.
 
 ::
 
@@ -126,7 +124,8 @@ Create a sequence with one element (singleton)
     Seq.singleton :: a -> Seq a
     Seq.singleton x = ...
 
-:seq:`singleton` creates a sequence with the single element ``x`` in it.
+:haddock_short:`Data.Sequence#singleton` creates a sequence with the single
+element ``x`` in it.
 
 ::
 
@@ -144,8 +143,8 @@ Create a sequence with the same element repeated
     Seq.replicate :: Int -> a -> Seq a
     Seq.replicate n x = ...
 
-:seq:`replicate` creates a sequence with same element ``x`` repeated ``n``
-times.
+:haddock_short:`Data.Sequence#replicate` creates a sequence with same element
+``x`` repeated ``n`` times.
 
 ::
 
@@ -163,9 +162,9 @@ Create a sequence from a list
     Seq.fromList :: [a] -> Seq a
     Seq.FromList xs = ...
 
-:seq:`fromList` creates a sequence containing the elements of the list
-``xs``. Sequences allow duplicate so all elements will be included in the order
-given.
+:haddock_short:`Data.Sequence#fromList` creates a sequence containing the
+elements of the list ``xs``. Sequences allow duplicate so all elements will be
+included in the order given.
 
 ::
 
@@ -266,8 +265,8 @@ Check if a sequence is empty
     Seq.null :: Seq a -> Bool
     Seq.null xs = ...
 
-:seq:`null` returns ``True`` if the sequence ``xs`` is empty, and ``False``
-otherwise.
+:haddock_short:`Data.Sequence#null` returns ``True`` if the sequence ``xs`` is
+empty, and ``False`` otherwise.
 
 ::
 
@@ -285,7 +284,7 @@ The length/size of a sequence
     Seq.length :: Seq a -> Int
     Seq.length xs = ...
 
-:seq:`length` returns the length of the sequence ``xs``.
+:haddock_short:`Data.Sequence#length` returns the length of the sequence ``xs``.
 
 ::
 
@@ -306,8 +305,9 @@ The element at a given index
     Seq.!? :: Seq a -> Int -> Maybe a
     xs !? n = ...
 
-:seq:`lookup` returns the element at the position ``n``, or ``Nothing`` if the
-index is out of bounds. :seq:`!?` is simply a flipped version of ``lookup``.
+:haddock_short:`Data.Sequence#lookup` returns the element at the position ``n``,
+or ``Nothing`` if the index is out of bounds. :haddock_short:`Data.Sequence#!?`
+is simply a flipped version of ``lookup``.
 
 .. NOTE::
    You may need to import ``!?`` qualified if you're using a ``Map``,
@@ -319,8 +319,8 @@ index is out of bounds. :seq:`!?` is simply a flipped version of ``lookup``.
     Seq.index :: Seq a -> Int -> a
     Seq.index xs n = ...
 
-:seq:`index` returns the element at the given position. It throws a runtime
-error if the index is out of bounds.
+:haddock_short:`Data.Sequence#index` returns the element at the given
+position. It throws a runtime error if the index is out of bounds.
 
 .. TIP::
    Use ``lookup``/``!?`` whenever you can and explicitly deal with the
@@ -362,9 +362,10 @@ Inserting an element
     Seq.insertAt :: Int -> a -> Seq a -> Seq a
     Seq.insertAt i x xs = ...
 
-:seq:`insertAt` inserts ``x`` into ``xs`` at the index ``i``, shifting the rest
-of the sequence over. If ``i`` is out of range then ``x`` will be inserted at
-the beginning or the end of the sequence as appropriate.
+:haddock_short:`Data.Sequence#insertAt` inserts ``x`` into ``xs`` at the index
+``i``, shifting the rest of the sequence over. If ``i`` is out of range then
+``x`` will be inserted at the beginning or the end of the sequence as
+appropriate.
 
 ::
 
@@ -387,8 +388,9 @@ Delete an element
     Seq.deleteAt :: Int -> Seq a -> Seq a
     Seq.deleteAt i xs = ...
 
-:seq:`deleteAt` removes the element of the sequence at index ``i``. If the index
-is out of bounds then the original sequence is returned.
+:haddock_short:`Data.Sequence#deleteAt` removes the element of the sequence at
+index ``i``. If the index is out of bounds then the original sequence is
+returned.
 
 ::
 
@@ -406,8 +408,9 @@ Replace an element
     Seq.update :: Int -> a -> Seq a -> Seq a
     Seq.update i x xs = ...
 
-:seq:`update` replaces the element at position ``i`` in the sequence with
-``x``. If the index is out of bounds then the original sequence is returned.
+:haddock_short:`Data.Sequence#update` replaces the element at position ``i`` in
+the sequence with ``x``. If the index is out of bounds then the original
+sequence is returned.
 
 ::
 
@@ -427,9 +430,9 @@ Adjust/modify an element
     adjust' :: forall a. (a -> a) -> Int -> Seq a -> Seq a
     adjust' f i xs = ...
 
-:seq:`adjust'` updates the element at position ``i`` in the sequence by applying
-the function ``f`` to the existing element. If the index is out of bounds then
-the original sequence is returned.
+:haddock_short:`Data.Sequence#adjust'` updates the element at position ``i`` in
+the sequence by applying the function ``f`` to the existing element. If the
+index is out of bounds then the original sequence is returned.
 
 ::
 
@@ -442,7 +445,7 @@ the original sequence is returned.
 .. NOTE::
    If you're using an older version of containers which only has ``adjust``, be
    careful because it can lead to poor performance and space leaks (see
-   :seq:`adjust` docs).
+   :haddock_short:`Data.Sequence#adjust` docs).
 
 Modifying all elements
 """"""""""""""""""""""
@@ -455,13 +458,13 @@ Modifying all elements
     Seq.mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
     Seq.mapWithIndex f xs = ...
 
-:seq:`fmap` transform each element of the sequence with the function
-``f``. ``fmap`` is provided by the `Functor
+:haddock_short:`Data.Sequence#fmap` transform each element of the sequence with
+the function ``f``. ``fmap`` is provided by the `Functor
 <https://wiki.haskell.org/Typeclassopedia#Functor>`_ instance for sequences and
 can also be written infix using the ``<$>`` operator.
 
-:seq:`mapWithIndex` allows you to do a similar transformation but gives you the
-index that each element is at.
+:haddock_short:`Data.Sequence#mapWithIndex` allows you to do a similar
+transformation but gives you the index that each element is at.
 
 ::
 
@@ -488,7 +491,8 @@ Sorting
     Seq.sort :: Ord a => Seq a -> Seq a
     Seq.sort xs = ...
 
-:seq:`sort` the sequence ``xs`` using the ``Ord`` instance.
+:haddock_short:`Data.Sequence#sort` the sequence ``xs`` using the ``Ord``
+instance.
 
 ::
 
@@ -507,8 +511,9 @@ Take
     Seq.take :: Int -> Seq a -> Seq a
     Seq.take n xs = ...
 
-:seq:`take` returns the first ``n`` elements of the sequence ``xs``. If the
-length of ``xs`` is less than ``n`` then all elements are returned.
+:haddock_short:`Data.Sequence#take` returns the first ``n`` elements of the
+sequence ``xs``. If the length of ``xs`` is less than ``n`` then all elements
+are returned.
 
 ::
 
@@ -529,8 +534,9 @@ Drop
     Seq.drop :: Int -> Seq a -> Seq a
     Seq.drop n xs = ...
 
-:seq:`drop` the first ``n`` elements of the sequence ``xs``. If the length of
-``xs`` is less than ``n`` then an empty sequence is returned.
+:haddock_short:`Data.Sequence#drop` the first ``n`` elements of the sequence
+``xs``. If the length of ``xs`` is less than ``n`` then an empty sequence is
+returned.
 
 ::
 
@@ -551,9 +557,9 @@ Chunks
     Seq.chunksOf :: Int -> Seq a -> Seq (Seq a)
     Seq.chunksOf k xs = ...
 
-:seq:`chunksOf` splits the sequence ``xs`` into chunks of size ``k``. If the
-length of the sequence is not evenly divisible by ``k`` then the last chunk will
-have less than ``k`` elements.
+:haddock_short:`Data.Sequence#chunksOf` splits the sequence ``xs`` into chunks
+of size ``k``. If the length of the sequence is not evenly divisible by ``k``
+then the last chunk will have less than ``k`` elements.
 
 .. WARNING::
    ``k`` can only be ``0`` when the sequence is empty, otherwise a runtime
@@ -586,11 +592,11 @@ Folding
     Seq.foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
     Seq.foldrWithIndex f init xs = ...
 
-:seq:`foldr` collapses the sequence into a summary value by repeatedly applying
-``f``. ``foldr`` is provided by the `Foldable
+:haddock_short:`Data.Sequence#foldr` collapses the sequence into a summary value
+by repeatedly applying ``f``. ``foldr`` is provided by the `Foldable
 <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ instance for
-sequences. :seq:`foldWithIndex` gives you access to the position in the sequence
-when transforming each element.
+sequences. :haddock_short:`Data.Sequence#foldWithIndex` gives you access to the
+position in the sequence when transforming each element.
 
 ::
 

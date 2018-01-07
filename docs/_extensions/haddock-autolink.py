@@ -37,9 +37,6 @@ def setup(app):
     #   https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Set.html#v:insert
     autolinker = HaddockAutolinker(app, haddock_host, haddock_root)
 
-    app.add_role('seq', autolinker.seq_role())
-    app.add_role('set', autolinker.set_role())
-    app.add_role('map', autolinker.map_role())
     app.add_role('haddock', autolinker.haddock_role())
     app.add_role('haddock_short', autolinker.haddock_role(True))
 
@@ -50,6 +47,4 @@ def setup(app):
     print
     print '  Links to docs will be of the form: ' + \
         haddock_ref(haddock_host, haddock_root, 'pkg-name', 'Module-Name', 'funcName')
-    print
 
-    print "Project: " + app.config["project"]
