@@ -12,6 +12,8 @@
 {-# LANGUAGE TypeFamilies #-}
 #endif
 
+{-# OPTIONS_HADDOCK not-home #-}
+
 #include "containers.h"
 
 -----------------------------------------------------------------------------
