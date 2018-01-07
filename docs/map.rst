@@ -186,6 +186,11 @@ keys, where ``f`` is used to "combine" (or "choose") values with the same key.
     Map.fromListWith (+) (map (\x -> (x, 1)) ["a", "a", "b", "c", "c", "c"])
     > fromList [("a",2),("b",1),("c",3)]
 
+    -- Build a map from a list, combining the string values for the same key.
+    Map.fromListWith (++) [(1, "a"), (1, "b"), (2, "x"), (2, "y")]
+    > fromList [(1,"ba"),(2,"yx")]
+
+
 
 Create a list from a map
 """"""""""""""""""""""""
@@ -428,12 +433,27 @@ given ``key``, if no entry for that key exists then the map is left unchanged.
 
 ::
 
-    Map.update :: Ord k => (v -> Maybe v) -> k -> Map k v -> Map k v
-    Map.update f key m = ...
+    Map.alter :: Ord k => (Maybe v -> Maybe v) -> k -> Map k v -> Map k v
+    Map.alter f key m = ...
 
 Apply the value transformation function ``f`` to the entry with given ``key``,
-if no entry for that key exists then the map is left unchanged, if the function
-returns ``Nothing`` then the entry is deleted.
+if no entry for that key exists then the function is passed ``Nothing``. If the
+function returns ``Nothing`` then the entry is deleted, if the function returns
+``Just v2`` then the value for the ``key`` is updated to ``v2``. In other words,
+alter can be used to insert, update, or delete a value.
+
+::
+
+    let removeElement _ = Nothing
+    Map.alter removeElement "key" (Map.fromList [("key", 0)])
+    > fromList []
+
+    let setValueToOne _ = Just 1
+    Map.alter setValueToOne "key" (Map.fromList [("key", 0)])
+    > fromList [("key",1)]
+
+    Map.alter setValueToOne "key" Map.empty
+    > fromList [("key",1)]
 
 
 Modifying all map entries (mapping)
@@ -473,41 +493,50 @@ Union
 
 ::
 
-    Map.union :: Ord k => Map k v -> Map k v -> Map k v
-    Map.union l r = ...
+    Map.unionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
+    Map.union f l r = ...
 
 :map:`union` returns a map containing all entries that are keyed in either of
-the two maps. If the same key appears in both maps, the value from the left map
-``l`` taken (`set union <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
+the two maps. If the same key appears in both maps, the value is determined by
+calling ``f`` passing in the left and right value (`set union
+<https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
 
 ::
 
-    Map.union Map.empty (Map.fromList [(1,"one"),(2,"two")])
-    > fromList [(1,"one"),(2,"two")]
 
-    Map.union (Map.fromList [(1, "uno")]) (Map.fromList [(1,"one"),(2,"two")])
-    > fromList [(1,"uno"),(2,"two")]
+    Map.unionWith (++) Map.empty (Map.fromList [(1,"x"),(2,"y")])
+    > fromList [(1,"x"),(2,"y")]
+
+    let f lv rv = lv
+    Map.unionWith f (Map.fromList [(1, "a")]) (Map.fromList [(1,"x"),(2,"y")])
+    > fromList [(1,"a"),(2,"y")]
+
+    Map.unionWith (++) (Map.fromList [(1, "a")]) (Map.fromList [(1,"x"),(2,"y")])
+    > fromList [(1,"ax"),(2,"y")]
+
 
 Intersection
 """"""""""""
 
 ::
 
-    Map.intersection :: Ord k => Map k v -> Map k v -> Map k v
-    Map.intersection l r = ...
+    Map.intersectionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
+    Map.intersection f l r = ...
 
 :map:`intersection` returns a map containing all entries that have a key in both
-maps ``l`` and ``r``. The value from the left map is taken if the key exists in
-both maps (`set intersection
+maps ``l`` and ``r``. The value in the returned map is determined by calling
+``f`` on the values from the left and right map (`set intersection
 <https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
 
 ::
 
-    Map.intersection Map.empty (Map.fromList [(1,"one"), (2,"two")])
+    Map.intersectionWith (++) Map.empty (Map.fromList [(1,"x"), (2,"y")])
     > fromList []
 
-    Map.intersection (Map.fromList [(1, "uno")]) (Map.fromList [(1,"one"),(2,"two")])
-    > fromList [(1,"uno")]
+    Map.intersectionWith (++) (Map.fromList [(1, "a")]) (Map.fromList [(1,"x"),(2,"y")])
+    > fromList [(1,"ax")]
+
+
 
 Difference
 """"""""""
@@ -528,38 +557,6 @@ Difference
 
     Map.difference (Map.fromList[(1,"one"), (2,"two")]) (Map.fromList [(1,"uno")])
     > fromList [(2,"two")]
-
-
-Typeclass Instances
--------------------
-
-``Map`` is an instance of a number of common typeclasses, for the full list see
-the `docs
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Map-Strict.html#t:Map>`_.
-
-.. NOTE::
-   Some constraints have been left out for brevity, and the types given below
-   are speciliazed to ``Map``; the true types are more general.
-
-- `Show
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: (Show k, Show v) => Map k v -> String``
-- `Eq
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
-  equality check: ``(==) :: (Eq k, Eq v) => Map k v -> Map k v -> Bool``
-- `Ord
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
-  comparison: ``(<) :: (Ord k, Ord v) => Map k v -> Map k v -> Bool``
-- `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
-  into summary value: ``foldr :: (v -> b -> b) -> b -> Map k v -> b``
-- `Semigroup <https://wiki.haskell.org/Typeclassopedia#Semigroup>`_ - combine
-  two things together (union_): ``(<>) :: Map k v -> Map k v -> Map k v``
-- `Monoid <https://wiki.haskell.org/Typeclassopedia#Monoid>`_  - a semigroup
-  with an identity element: ``mempty :: Map k v``
-- `Functor <https://wiki.haskell.org/Typeclassopedia#Functor>`_ - a container
-  that can be mapped over: ``fmap :: (v -> b) -> Map k v -> Map k b``
-- `Traversable <https://wiki.haskell.org/Typeclassopedia#Traversable>`_ - a
-  functor with effects, follow the link :)
 
 
 Serialization

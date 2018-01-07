@@ -433,34 +433,6 @@ also in the second set ``r`` (`subset <https://en.wikipedia.org/wiki/Subset>`_).
     > False
 
 
-Typeclass Instances
--------------------
-
-``Set`` is an instance of a number of common typeclasses, for the full list see
-the `docs
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Set.html#t:Set>`_.
-
-.. NOTE::
-   Some constraints have been left out for brevity, and the types given below
-   are specialized to ``Set``; the true types are more general.
-
-- `Show
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: Show a => Set a -> String``
-- `Eq
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
-  equality check: ``(==) :: Eq a => Set a -> Set a -> Bool``
-- `Ord
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
-  comparison: ``(<) :: Ord a => Set a -> Set a -> Bool``
-- `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
-  into summary value: ``foldr :: (a -> b -> b) -> b -> Set a -> b``
-- `Semigroup <https://wiki.haskell.org/Typeclassopedia#Semigroup>`_ - combine
-  two things together (`union`_): ``(<>) :: Set a -> Set a -> Seq a``
-- `Monoid <https://wiki.haskell.org/Typeclassopedia#Monoid>`_  - a semigroup
-  with an identity element: ``mempty :: Seq a``
-
-
 Serialization
 -------------
 

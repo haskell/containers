@@ -90,7 +90,7 @@ though!).
 
 ::
 
-    import Data.Sequence (Seq(..), (<|), (|>), (><))
+    import Data.Sequence (Seq, (<|), (|>), (><))
     import qualified Data.Sequence as Seq
 
 
@@ -608,42 +608,6 @@ when transforming each element.
     Seq.foldrWithIndex myFoldFunction 0 (Seq.fromList [1, 2, 3])
     -- = ((0*1) + ((1*2) + ((2*3) + 0)))
     > 8
-
-
-Typeclass Instances
--------------------
-
-``Seq`` is an instance of a number of common typeclasses, for the full list see
-the `docs
-<https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#t:Seq>`_.
-
-.. NOTE::
-   Some constraints have been left out for brevity, and the types given below
-   are speciliazed to ``Seq``; the true types are more general.
-
-- `Show
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Show>`_ -
-  conversion to string: ``show :: Show a => Seq a -> String``
-- `Eq
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Eq>`_ -
-  equality check: ``(==) :: Eq a => Seq a -> Seq a -> Bool``
-- `Ord
-  <https://hackage.haskell.org/package/base-4.10.1.0/docs/Prelude.html#t:Ord>`_ -
-  comparison: ``(<) :: Ord a => Seq a -> Seq a -> Bool``
-- `Foldable <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ - collapse
-  into summary value: ``foldr :: (a -> b -> b) -> b -> Seq a -> b``
-- `Semigroup <https://wiki.haskell.org/Typeclassopedia#Semigroup>`_ - combine
-  two things together: ``(<>) :: Seq a -> Seq a -> Seq a``
-- `Monoid <https://wiki.haskell.org/Typeclassopedia#Monoid>`_  - a semigroup
-  with an identity element: ``mempty :: Seq a``
-- `Functor <https://wiki.haskell.org/Typeclassopedia#Functor>`_ - a container
-  that can be mapped over: ``fmap :: (a -> b) -> Seq a -> Seq b``
-- `Traversable <https://wiki.haskell.org/Typeclassopedia#Traversable>`_ - a
-  functor with effects, follow the link :)
-- `Applicative <https://wiki.haskell.org/Typeclassopedia#Applicative>`_ - follow
-  the link :)
-- `Monad <https://wiki.haskell.org/Typeclassopedia#Monad>`_ - follow
-  the link :)
 
 
 Serialization
