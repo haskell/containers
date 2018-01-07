@@ -86,9 +86,13 @@ Importing Map and IntMap
 
 When using ``Map`` or ``IntMap`` in a Haskell source file you should always use
 a ``qualified`` import because these modules export names that clash with the
-standard Prelude (you can import the type constructor on its own though!).
+standard Prelude (you can import the type constructor on its own though!). You
+should also import Prelude and hide ``lookup`` because if you accidentally leave
+off the ``Map.`` qualifier you'll get confusing type errors.
 
 ::
+
+    import Prelude hiding (lookup)
 
     import Data.Map.Strict (Map)
     import qualified Data.Map.Strict as Map
