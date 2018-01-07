@@ -21,6 +21,8 @@
 {-# LANGUAGE ViewPatterns #-}
 #endif
 
+{-# OPTIONS_HADDOCK not-home #-}
+
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Sequence.Internal
