@@ -74,10 +74,10 @@ The following GHCi session shows some of the basic sequence funcitonality.
 
 .. TIP:: You can use the `OverloadedLists
 	 <http://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#overloaded-lists>`_
-	 extension so you don't need to write ``fromList [1, 2, 3]`` everywhere,
-	 instead you can just write ``[1, 2, 3]`` and if the function is
+	 extension so you don't need to write ``fromList [1, 2, 3]`` everywhere.
+	 Instead you can just write ``[1, 2, 3]`` and if the function is
 	 expecting a sequence it will be converted automatically! The code here
-	 will continue to use ``fromList`` for clarity though.
+	 will continue to use ``fromList`` for clarity.
 
 
 Importing Sequence
@@ -224,7 +224,7 @@ Pattern Matching
 *Since 0.5.10*
 
 Just like you can pattern match (aka. destructure) a list ``[a]``, you can do
-the same with sequneces. Lets first look at how we do this with lists::
+the same with sequneces. Let's first look at how we do this with lists::
 
     case [1, 2, 3] of
       [] -> "empty list"
@@ -267,7 +267,7 @@ Check if a sequence is empty
     Seq.null :: Seq a -> Bool
     Seq.null xs = ...
 
-:seq:`null` returns ``True`` if the sequence ``xs`` is empty, ``False``
+:seq:`null` returns ``True`` if the sequence ``xs`` is empty, and ``False``
 otherwise.
 
 ::
@@ -307,7 +307,7 @@ The element at a given index
     Seq.!? :: Seq a -> Int -> Maybe a
     xs !? n = ...
 
-:seq:`lookup` returns the element at the position ``n``, ``Nothing`` if the
+:seq:`lookup` returns the element at the position ``n``, or ``Nothing`` if the
 index is out of bounds. `!?
 <https://hackage.haskell.org/package/containers-0.5.10.2/docs/Data-Sequence.html#v:-33--63->`_
 is simply a flipped version of ``lookup``.
@@ -322,7 +322,7 @@ is simply a flipped version of ``lookup``.
     Seq.index :: Seq a -> Int -> a
     Seq.index xs n = ...
 
-:seq:`index` returns the element at the given position; it throws a runtime
+:seq:`index` returns the element at the given position. It throws a runtime
 error if the index is out of bounds.
 
 .. TIP::
@@ -465,7 +465,7 @@ Modifying all elements
 <https://wiki.haskell.org/Typeclassopedia#Functor>`_ instance for sequences and
 can also be written infix using the ``<$>`` operator.
 
-:seq:`mapWithIndex` allows you to do a similar transformation but given you the
+:seq:`mapWithIndex` allows you to do a similar transformation but gives you the
 index that each element is at.
 
 ::
@@ -614,7 +614,7 @@ Serialization
 -------------
 
 The best way to serialize and deserialize sequences is to use one of the many
-libraries which already supports serializing sequences. `binary
+libraries which already support serializing sequences. `binary
 <https://hackage.haskell.org/package/binary>`_, `cereal
 <https://hackage.haskell.org/package/cereal>`_, and `store
 <https://hackage.haskell.org/package/store>`_ are some common libraries that

@@ -67,7 +67,7 @@ The following GHCi session shows some of the basic set functionality::
 
 .. TIP:: You can use the `OverloadedLists
 	 <https://ghc.haskell.org/trac/ghc/wiki/OverloadedLists>`_ extension so
-	 you don't need to write ``fromList [1, 2, 3]`` everywhere, instead you
+	 you don't need to write ``fromList [1, 2, 3]`` everywhere. Instead you
 	 can just write ``[1, 2, 3]`` and if the function is expecting a set it
 	 will be converted automatically! The code here will continue to use
 	 ``fromList`` for clarity though.
@@ -95,7 +95,7 @@ Common API Functions
 .. TIP::
    All of these functions that work for ``Set`` will also work for ``IntSet``,
    which has the element type ``a`` specialized to ``Int``. Anywhere that you
-   see ``Set a`` you can replace it with ``IntSet``.
+   see ``Set Int`` you can replace it with ``IntSet``.
 
 .. NOTE::
    ``fromList [some,list,elements]`` is how a ``Set`` is printed.
@@ -169,7 +169,7 @@ Create a list from a set
 elements of the set ``s`` in *ascending* order.
 
 .. NOTE::
-   These all do the same thing, use ``toAscList`` because its name indicates the
+   These all do the same thing; use ``toAscList`` because its name indicates the
    ordering.
 
 ::
@@ -275,7 +275,7 @@ set ``s``, or ``Nothing`` if the set is empty.
 
 .. WARNING::
    Unless you're using an old version of ``containers`` **DO NOT** use
-   ``Set.findMin`` or ``Set.findMax``, they are partial and throw a runtime
+   ``Set.findMin`` or ``Set.findMax``. They are partial and throw a runtime
    error if the set is empty.
 
 Modification
@@ -308,7 +308,7 @@ Removing an element from a set
     Set.delete :: Ord a => a -> Set a -> Set a
     Set.delete x s = ...
 
-:set:`delete` the element ``x`` from the set ``s``, if it’s not a member it
+:set:`delete` the element ``x`` from the set ``s``. If it’s not a member it
 leaves the set unchanged.
 
 ::
@@ -325,7 +325,7 @@ Filtering elements from a set
     Set.filter predicate s = ...
 
 :set:`filter` produces a set consisting of all elements of ``s`` for which the
-     ``predicate`` returns ``True``.
+`predicate`` returns ``True``.
 
 ::
 
@@ -437,7 +437,7 @@ Serialization
 -------------
 
 The best way to serialize and deserialize sets is to use one of the many
-libraries which already supports serializing sets. `binary
+libraries which already support serializing sets. `binary
 <https://hackage.haskell.org/package/binary>`_, `cereal
 <https://hackage.haskell.org/package/cereal>`_, and `store
 <https://hackage.haskell.org/package/store>`_ are some common libraries that
@@ -461,7 +461,7 @@ Looking for more?
 -----------------
 
 Didn't find what you're looking for? This tutorial only covered the most common
-set functions, for a full list of functions see the `Set
+set functions. For a full list of functions see the `Set
 <https://hackage.haskell.org/package/containers/docs/Data-Set.html>`_ and `IntSet
 <https://hackage.haskell.org/package/containers/docs/Data-IntSet.html>`_ API
 documentation.
