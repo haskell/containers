@@ -1,4 +1,7 @@
 {-# LANGUAGE CPP #-}
+#ifdef __HADDOCK_VERSION__
+{-# OPTIONS_GHC -Wno-unused-imports #-}
+#endif
 
 #include "containers.h"
 
@@ -13,40 +16,109 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- General purpose finite sequences.
--- Apart from being finite and having strict operations, sequences
--- also differ from lists in supporting a wider variety of operations
--- efficiently.
+-- = Finite sequences
+--
+-- The @'Seq' a@ type represents a finite sequence of values of
+-- type @a@.
+--
+-- Sequences generally behave very much like lists.
+--
+-- * The class instances for sequences are all based very closely on those for
+-- lists.
+--
+-- * Many functions in this module have the same names as functions in
+-- the "Prelude" or in "Data.List". In almost all cases, these functions
+-- behave analogously. For example, 'filter' filters a sequence in exactly the
+-- same way that 'Prelude.filter' filters a sequence. The only major exception
+-- is the 'lookup' function, which is based on the function by that name in
+--  "Data.Map" rather than the one from "Data.List".
+--
+-- There are two major differences between sequences and lists:
+--
+-- * Sequences support a wider variety of efficient operations than
+-- do lists. Notably, they offer
+--
+--     * Constant-time access to both the front and the rear with
+--     '<|', '|>', 'viewl', 'viewr'. For recent GHC versions, this can
+--     be done more conveniently using the bidirectional
+--     [pattern synonyms](#patterns) 'Empty', ':<|', and ':|>'.
+--     * Logarithmic-time concatenation with '><'
+--     * Logarithmic-time splitting with 'splitAt', 'take' and 'drop'
+--     * Logarithmic-time access to any element with
+--     'lookup', '!?', 'index', 'insertAt', 'deleteAt', 'adjust'', and 'update'
+--
+-- * Whereas lists can be either finite or infinite, sequences are
+-- always finite. As a result, a sequence is strict in its
+-- length. Ignoring efficiency, you can imagine that 'Seq' is defined
+--
+--     @ data Seq a = Empty | a :<| !(Seq a) @
+--
+--     This means that many operations on sequences are stricter than
+--     those on lists. For example,
+--
+--     @ ([1] ++ undefined) !! 0 = 1 @
+--
+--     but
+--
+--     @ (fromList [1] >< undefined) `index` 0 = undefined @
+--
+-- == Detailed performance information
 --
 -- An amortized running time is given for each operation, with /n/ referring
 -- to the length of the sequence and /i/ being the integral index used by
 -- some operations. These bounds hold even in a persistent (shared) setting.
 --
+-- Despite sequences being structurally strict from a semantic standpoint,
+-- they are in fact implemented using laziness internally. As a result,
+-- many operations can be performed /incrementally/, producing their results
+-- as they are demanded. This greatly improves performance in some cases. These
+-- functions include
+--
+-- * The 'Functor' methods 'fmap' and '<$', along with 'mapWithIndex'
+-- * The 'Applicative' methods '<*>', '*>', and '<*'
+-- * The zips: 'zipWith', 'zip', etc.
+-- * 'heads' and 'tails'
+-- * 'fromFunction', 'replicate', 'intersperse', and 'cycleTaking'
+-- * 'reverse'
+-- * 'chunksOf'
+--
+-- Note that the 'Monad' method, '>>=', is not particularly lazy. It will
+-- take time proportional to the sum of the logarithms of the individual
+-- result sequences to produce anything whatsoever.
+--
+-- Several functions take special advantage of sharing to produce
+-- results using much less time and memory than one might expect. These
+-- are documented individually for functions, but also include the
+-- methods '<$' and '*>', each of which take time and space proportional
+-- to the logarithm of the size of the result.
+--
+-- == Warning
+--
+-- The size of a 'Seq' must not exceed @maxBound::Int@. Violation
+-- of this condition is not detected and if the size limit is exceeded, the
+-- behaviour of the sequence is undefined. This is unlikely to occur in most
+-- applications, but some care may be required when using '><', '<*>', '*>', or
+-- '>>', particularly repeatedly and particularly in combination with
+-- 'replicate' or 'fromFunction'.
+--
+-- == Implementation
+--
 -- The implementation uses 2-3 finger trees annotated with sizes,
 -- as described in section 4.2 of
 --
 --    * Ralf Hinze and Ross Paterson,
---      \"Finger trees: a simple general-purpose data structure\",
+--      [\"Finger trees: a simple general-purpose data structure\"]
+--      (http://staff.city.ac.uk/~ross/papers/FingerTree.html),
 --      /Journal of Functional Programming/ 16:2 (2006) pp 197-217.
---      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>
---
--- /Note/: Many of these operations have the same names as similar
--- operations on lists in the "Prelude". The ambiguity may be resolved
--- using either qualification or the @hiding@ clause.
---
--- /Warning/: The size of a 'Seq' must not exceed @maxBound::Int@.  Violation
--- of this condition is not detected and if the size limit is exceeded, the
--- behaviour of the sequence is undefined.  This is unlikely to occur in most
--- applications, but some care may be required when using '><', '<*>', '*>', or
--- '>>', particularly repeatedly and particularly in combination with
--- 'replicate' or 'fromFunction'.
 --
 -----------------------------------------------------------------------------
 
 
 module Data.Sequence (
+    -- * Finite sequences
 #if defined(DEFINE_PATTERN_SYNONYMS)
     Seq (Empty, (:<|), (:|>)),
+    -- $patterns
 #else
     Seq,
 #endif
@@ -62,7 +134,7 @@ module Data.Sequence (
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
-    replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
+    replicateM,     -- :: Applicative m => Int -> m a -> m (Seq a)
     cycleTaking,    -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
@@ -150,3 +222,61 @@ module Data.Sequence (
 
 import Data.Sequence.Internal
 import Prelude ()
+#ifdef __HADDOCK_VERSION__
+import Control.Monad (Monad (..))
+import Control.Applicative (Applicative (..))
+import Data.Functor (Functor (..))
+#endif
+
+{- $patterns
+== #pat-syn-note#Pattern synonyms
+
+Much like lists can be constructed and matched using the
+@:@ and @[]@ constructors, sequences can be constructed and
+matched using the 'Empty', ':<|', and ':|>' pattern synonyms.
+
+=== Note
+
+These patterns are only available with GHC version 8.0 or later,
+and version 8.2 works better with them. When writing for such recent
+versions of GHC, the patterns can be used in place of 'empty',
+'<|', '|>', 'viewl', and 'viewr'.
+
+=== Examples
+
+Import the patterns:
+
+@
+import Data.Sequence (Seq (..))
+@
+
+Look at the first three elements of a sequence
+
+@
+getFirst3 :: Seq a -> Maybe (a,a,a)
+getFirst3 (x1 :<| x2 :<| x3 :<| _xs) = Just (x1,x2,x3)
+getFirst3 _ = Nothing
+@
+
+@
+\> getFirst3 ('fromList' [1,2,3,4]) = Just (1,2,3)
+\> getFirst3 ('fromList' [1,2]) = Nothing
+@
+
+Move the last two elements from the end of the first list
+onto the beginning of the second one.
+
+@
+shift2Right :: Seq a -> Seq a -> (Seq a, Seq a)
+shift2Right Empty ys = (Empty, ys)
+shift2Right (Empty :|> x) ys = (Empty, x :<| ys)
+shift2Right (xs :|> x1 :|> x2) = (xs, x1 :<| x2 :<| ys)
+@
+
+@
+\> shift2Right ('fromList' []) ('fromList' [10]) = ('fromList' [], 'fromList' [10])
+\> shift2Right ('fromList' [9]) ('fromList' [10]) = ('fromList' [], 'fromList' [9,10])
+\> shift2Right ('fromList' [8,9]) ('fromList' [10]) = ('fromList' [], 'fromList' [8,9,10])
+\> shift2Right ('fromList' [7,8,9]) ('fromList' [10]) = ('fromList' [7], 'fromList' [8,9,10])
+@
+-}

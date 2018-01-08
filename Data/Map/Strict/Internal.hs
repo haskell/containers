@@ -3,6 +3,7 @@
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+{-# OPTIONS_HADDOCK not-home #-}
 
 #include "containers.h"
 
