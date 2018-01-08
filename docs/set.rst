@@ -5,7 +5,7 @@ Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
 provided by the ``containers`` package: :haddock:`containers/Data.Set` and
 :haddock:`containers/Data.IntSet`. Use ``IntSet`` if you are storing,
-well... ``Int`` s; both of these implementations are *immutable*.
+well... ``Int`` s.
 
 ::
 
@@ -20,6 +20,18 @@ well... ``Int`` s; both of these implementations are *immutable*.
    `deriving
    <https://en.wikibooks.org/wiki/Haskell/Classes_and_types#Deriving>`_
    mechanism.
+
+
+All of these implementations are *immutable* which means that any update
+functions do not modify the set that you passed in, they creates a new set. In
+order to keep the changes you need to assign it to a new variable. For example::
+
+    let s1 = Set.fromList ["a", "b"]
+    let s2 = Set.delete "a" s1
+    print s2
+    > fromList ["a","b"]
+    print s2
+    > fromList ["b"]
 
 
 Short Example

@@ -8,8 +8,7 @@ store associations between *unique keys* and *values*. There are three
 implementations provided by the ``containers`` package:
 :haddock:`containers/Data.Map.Strict`, :haddock:`containers/Data.Map.Lazy`, and
 :haddock:`containers/Data.IntMap`. You almost never want the lazy version so use
-``Data.Map.Strict``, or if your keys are ``Int`` use ``Data.IntMap``; all of
-these implementations are *immutable*.
+``Data.Map.Strict``, or if your keys are ``Int`` use ``Data.IntMap``.
 
 ::
 
@@ -24,6 +23,17 @@ these implementations are *immutable*.
    `deriving
    <https://en.wikibooks.org/wiki/Haskell/Classes_and_types#Deriving>`_
    mechanism.
+
+All of these implementations are *immutable* which means that any update
+functions do not modify the map that you passed in, they creates a new map. In
+order to keep the changes you need to assign it to a new variable. For example::
+
+    let m1 = Map.fromList [("a", 1), ("b", 2)]
+    let m2 = Map.delete "a" m1
+    print m1
+    > fromList [("a",1),("b",2)]
+    print m2
+    > fromList [("b",2)]
 
 
 Short Example
@@ -211,7 +221,7 @@ Create a list from a map
    equivalent to ``elems``.
 
 :haddock_short:`Data.Map.Strict#toAscList`,
-:haddock_short:`Data.Map.Strict#toList`, and 
+:haddock_short:`Data.Map.Strict#toList`, and
 :haddock_short:`Data.Map.Strict#assocs` returns a list containing the (key,
 value) pairs in the map ``m`` in *ascending* key order.
 
@@ -389,8 +399,7 @@ Removing an entry from a map
 
 :haddock_short:`Data.Map.Strict#delete` removes the entry with the specified
 ``key`` from the map ``m``.  If the key doesn't exist it leaves the map
-unchanged. Remember, maps are immutable so if you delete an entry from a map you
-need to assign the new map to a new variable.
+unchanged.
 
 ::
 
@@ -454,17 +463,24 @@ alter can be used to insert, update, or delete a value.
     Map.alter setValueToOne "key" Map.empty
     > fromList [("key",1)]
 
-Modifying all map entries (mapping)
-"""""""""""""""""""""""""""""""""""
+Modifying all map entries (mapping and traversing)
+""""""""""""""""""""""""""""""""""""""""""""""""""
 
 ::
 
     Map.map :: (a -> b) -> Map k a -> Map k v
     Map.map f m = ...
 
+    Map.mapWithKey :: (k -> a -> b) -> Map.Map k a -> Map.Map k b
+    Map.mapWithKey g m = ...
+
+
 :haddock_short:`Data.Map.Strict#map` creates a new map by applying the
 transformation function ``f`` to each entries value. This is how `Functor
 <https://wiki.haskell.org/Typeclassopedia#Functor>`_ is defined for maps.
+
+:haddock_short:`Data.Map.Strict#mapWithKey` does the same as ``map`` but gives
+you access to the key in the transformation function ``g``.
 
 ::
 
@@ -475,10 +491,36 @@ transformation function ``f`` to each entries value. This is how `Functor
     (*10) <$> Map.fromList [("haskell", 45), ("idris", 15)]
     > fromList [("haskell",450),("idris",150)]
 
-There are several other more complex mapping functions available that let you
-look at other parts of the entry (such as they key) when transforming the
-value. For the full list see the :haddock:`containers/Data.Map.Strict` API
-documentation.
+    let g key value = if key == "haskell" then (value * 1000) else value
+    Map.mapWithKey g (Map.fromList [("haskell", 45), ("idris", 15)])
+    > fromList [("haskell",45000),("idris",15)]
+
+
+You can also apply a function which performs *actions* (such as printing) to
+each entry in the map.
+
+::
+
+    Map.traverseWithKey :: Applicative t => (k -> a -> t b) -> Map.Map k a -> t (Map.Map k b)
+    Map.traverseWithKey f m = ...
+
+:haddock_short:`Data.Map.Strict#traverseWithKey` maps each element of the map
+``m`` to an *action* that produces a result of type ``b``. The actions are
+performed and the values of the map are replaced with the results from the
+function. You can think of this as a ``map`` with affects.
+
+::
+
+    -- | Ask the user how they want to schedule a bunch of tasks
+    -- that the boss has assigned certain priorities.
+    makeSchedule :: Map Task Priority -> IO (Map Task DateTime)
+    makeSchedule = traverseWithKey $ \task priority ->
+      do
+        putStrLn $ "The boss thinks " ++ show task ++
+	             " has priority " ++ show priority ++
+                     ". When do you want to do it?"
+        readLn
+
 
 
 Set-like Operations
