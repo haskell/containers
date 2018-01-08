@@ -1,8 +1,11 @@
 # Instructions for Contributors
 
-As mentioned in the [README](https://github.com/haskell/containers/blob/master/README.md), for reporting bugs (and maybe even the respective fix), please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
+To report bugs, please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
+We also appreciate [pull requests](https://github.com/haskell/containers/pulls) on GitHub.
 
-For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers). Especially note that all API changes/enhancements should be discussed on libraries@haskell.org mailing list.
+For proposing API changes or enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers).
+All such changes should be discussed on the libraries@haskell.org mailing list.
+
 
 ## Building, testing, and benchmarking
 
@@ -39,11 +42,33 @@ stack test
 stack bench
 ```
 
+
 ## Troubleshooting
 
-- If you're using Stack, make sure you have version >= 1.6.1 ([1], [2])
+- If you're using Stack, make sure you have version >= 1.6.1
+  ([stack#3524](https://github.com/commercialhaskell/stack/issues/3624),
+  [stack#3345](https://github.com/commercialhaskell/stack/issues/3345)).
 
 
-[1] https://github.com/commercialhaskell/stack/issues/3624
+## Sending Pull Requests
 
-[2] https://github.com/commercialhaskell/stack/issues/3345
+When you send a pull request, please:
+
+- Link to the libraries@haskell.org discussion thread if you are changing the
+  public API.
+
+- If you are requesting a change that is likely to affect performance, we will
+  be able to evaluate it better if you include the results of running the
+  benchmarks before and after. If the current benchmarks cannot demonstrate
+  a desired difference, please try to add one or more new benchmarks to do so.
+  If there are significant changes, please include the benchmark results in
+  your commit message.
+
+- If you are requesting a change that adds new functionality or affects
+  behaviour, please add QuickCheck properties exercising the code if they
+  do not already exist. If you are fixing a bug that occurs too rarely for
+  QuickCheck to hit reliably then consider adding unit tests as well.
+  
+- Update the change log for non-trivial changes.
+
+- Let us know how you wish to be credited in the changelog.
