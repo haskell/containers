@@ -2,12 +2,36 @@
 
 ## 0.5.11
 
-* Speed up unstable sorting for `Data.Sequence` (Thanks, Donnacha
-  Oisín Kidney!)
+### New functions and classes
 
 * Add a `MonadFix` instance for `Data.Sequence`.
 
+* Add a `MonadFix` instance for `Data.Tree`.
+
+* Add `powerSet`, `cartesianProduct`, and `disjointUnion` for
+  `Data.Set` (Thanks, Edward Kmett!)
+
+* Make `Data.Sequence.replicateM` a synonym for `replicateA`
+  for post-AMP `base`.
+
 * Add `lookupMin` and `lookupMax` to `Data.IntMap` (Thanks, bwroga!)
+
+### Changes to existing functions and features
+
+* Rewrite the `IsString` instance head for sequences, improving compatibility
+  with the list instance and also improving type inference.
+
+* Make `>>=` for `Data.Tree` strict in the result of its second argument;
+  being too lazy here is almost useless, and violates one of the monad identity
+  laws. Specifically, `return () >>= \_ -> undefined` should always be
+  `undefined`, but this was not the case.
+
+### Performance improvement
+
+* Speed up unstable sorting for `Data.Sequence` (Thanks, Donnacha
+  Oisín Kidney!)
+
+### Other changes
 
 * Update for recent and upcoming GHC and Cabal versions (Thanks, Herbert
   Valerio Reidel, Simon Jakobi, and Ryan Scott!)
@@ -16,6 +40,8 @@
 
 * Add Haddock `@since` annotations for changes made since version
   0.5.4 (Thanks, Simon Jakobi!)
+
+* Add a (very incomplete) test suite for `Data.Tree`.
 
 ## 0.5.10.2
 
