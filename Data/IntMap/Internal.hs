@@ -298,7 +298,6 @@ import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
 #endif
 #if MIN_VERSION_base(4,9,0)
-import Data.Coerce (coerce)
 import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
 import Data.Functor.Classes
 #endif

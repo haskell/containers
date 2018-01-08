@@ -9,6 +9,7 @@ import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Criterion.Main (bench, defaultMain, whnf)
 #if MIN_VERSION_base(4,8,0)
+import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity (..))
 #endif
 import Data.List (foldl')
@@ -42,12 +43,13 @@ main = do
         , bench "update" $ whnf (upd keys) m
         , bench "updateLookupWithKey" $ whnf (upd' keys) m
         , bench "alter"  $ whnf (alt keys) m
-        , bench "alterF" $ whnf (altFList keys) m
 #if MIN_VERSION_base(4,8,0)
-        , bench "alterFIdentity" $ whnf (altFIdentity keys) m
+        , bench "alterF_IdentityNoRewrite" $ whnf (altFTestIdentity keys) m
+        , bench "alterF_IdentityRewrite" $ whnf (altFIdentity keys) m
 #endif
 #if MIN_VERSION_base(4,9,0)
-        , bench "alterFConst" $ whnf (altFConst keys) m
+        , bench "alterF_ConstNoRewrite" $ whnf (altFTestConst keys) m
+        , bench "alterF_ConstRewrite" $ whnf (altFConst keys) m
 #endif
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
@@ -104,15 +106,30 @@ upd' xs m = foldl' (\m k -> snd $ M.updateLookupWithKey (\_ a -> Just a) k m) m 
 alt :: [Int] -> M.IntMap Int -> M.IntMap Int
 alt xs m = foldl' (\m k -> M.alter id k m) m xs
 
-altFList :: [Int] -> M.IntMap Int -> M.IntMap Int
-altFList xs m = foldl' (\m k -> head $ M.alterF (pure . id) k m) m xs
-
 #if MIN_VERSION_base(4,8,0)
+newtype TestIdentity a = TestIdentity { runTestIdentity :: a }
+
+instance Functor TestIdentity where
+    fmap = coerce
+
+altFTestIdentity :: [Int] -> M.IntMap Int -> M.IntMap Int
+altFTestIdentity xs m =
+    foldl' (\m k -> runTestIdentity $ M.alterF (TestIdentity . id) k m) m xs
+
 altFIdentity :: [Int] -> M.IntMap Int -> M.IntMap Int
 altFIdentity xs m = foldl' (\m k -> runIdentity $ M.alterF (pure . id) k m) m xs
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+newtype TestConst a b = TestConst { getTestConst :: a }
+
+instance Functor (TestConst a) where
+    fmap _ (TestConst a) = TestConst a
+
+altFTestConst :: [Int] -> M.IntMap Int -> M.IntMap Int
+altFTestConst xs m =
+    foldl' (\m k -> getTestConst $ M.alterF (const (TestConst m) . id) k m) m xs
+
 altFConst :: [Int] -> M.IntMap Int -> M.IntMap Int
 altFConst xs m =
     foldl' (\m k -> getConst $ M.alterF (const (Const m) . id) k m) m xs

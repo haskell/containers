@@ -11,6 +11,7 @@ import Data.IntMap.Internal.Debug (showTree)
 import Control.Applicative (Const(..))
 #endif
 #if MIN_VERSION_base(4,8,0)
+import Data.Coerce (coerce)
 import Data.Functor.Identity (Identity (..))
 #endif
 import Data.Monoid
