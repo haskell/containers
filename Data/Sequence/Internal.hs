@@ -100,7 +100,7 @@ module Data.Sequence.Internal (
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
-    replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
+    replicateM,     -- :: Applicative m => Int -> m a -> m (Seq a)
     cycleTaking,    -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
@@ -205,8 +205,8 @@ import Prelude hiding (
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
-                            WrappedMonad(..), liftA, liftA2, liftA3)
-import qualified Control.Applicative as Applicative (Alternative(..))
+                            liftA, liftA2, liftA3)
+import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
@@ -1244,10 +1244,18 @@ replicateA n x
 -- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
 --
 -- > replicateM n x = sequence (replicate n x)
+--
+-- For @base >= 4.8.0@ and @containers >= 0.5.11@, 'replicateM'
+-- is a synonym for 'replicateA'.
+#if MIN_VERSION_base(4,8,0)
+replicateM :: Applicative m => Int -> m a -> m (Seq a)
+replicateM = replicateA
+#else
 replicateM :: Monad m => Int -> m a -> m (Seq a)
 replicateM n x
-  | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
+  | n >= 0      = Applicative.unwrapMonad (replicateA n (Applicative.WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
+#endif
 
 -- | /O(log(k))/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
