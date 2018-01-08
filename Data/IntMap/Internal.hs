@@ -995,7 +995,7 @@ alterF f k m = (<$> f mv) $ \fres ->
     Nothing -> maybe m (const (delete k m)) mv
     Just v' -> insert k v' m
   where mv = lookup k m
-{-# INLINEABLE [1] alterF #-}
+{-# INLINABLE [1] alterF #-}
 #if MIN_VERSION_base(4,8,0)
 {-# RULES
 "Identity specialize alterF" forall (f :: Maybe a -> Identity (Maybe a)) k m.
