@@ -452,16 +452,34 @@ alter can be used to insert, update, or delete a value.
 
 ::
 
-    let removeElement _ = Nothing
-    Map.alter removeElement "key" (Map.fromList [("key", 0)])
-    > fromList []
+    import Data.Maybe (isJust)
+    let addValueIfMissing mv = if isJust mv then mv else (Just 1)
+    Map.alter addValueIfMissing "key" (Map.fromList [("key", 0)])
+    > fromList [("key",0)]
 
-    let setValueToOne _ = Just 1
-    Map.alter setValueToOne "key" (Map.fromList [("key", 0)])
-    > fromList [("key",1)]
+    let addValueIfMissing mv = if isJust mv then mv else (Just 1)
+    Map.alter addValueIfMissing "new_key" (Map.fromList [("key", 0)])
+    > fromList [("key",0),("new_key",1)]
 
-    Map.alter setValueToOne "key" Map.empty
-    > fromList [("key",1)]
+The function ``doubleIfPositivie`` below will need to be placed in a Haskell
+source file.
+
+::
+
+    doubleIfPositive :: Maybe Int -> Maybe Int
+    doubleIfPositive mv = case mv of
+      -- Do nothing if the key doesn't exist.
+      Nothing -> Nothing
+
+      -- If the key does exist, double the value if it is positive.
+      Just v -> if v > 0 then (Just v*2) else (Just v)
+
+    -- In GHCi
+    Map.alter doubleIfPositive "a" (Map.fromList [("a", 1), ("b", -1)])
+    > Map.fromList [("a",2), ("b",-1)]
+
+    Map.alter doubleIfPositive "b" (Map.fromList [("a", 1), ("b", -1)])
+    > Map.fromList [("a", 1), ("b",-1)]
 
 Modifying all map entries (mapping and traversing)
 """"""""""""""""""""""""""""""""""""""""""""""""""
