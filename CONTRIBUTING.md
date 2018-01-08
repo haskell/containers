@@ -1,8 +1,10 @@
 # Instructions for Contributors
 
-For reporting bugs (and maybe even the respective fix), please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
+To report bugs, please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
+We also appreciate [pull requests](https://github.com/haskell/containers/pulls) on GitHub.
 
-For proposing API changes/enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers). Especially note that all API changes/enhancements should be discussed on libraries@haskell.org mailing list.
+For proposing API changes or enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers).
+All such changes should be discussed on the libraries@haskell.org mailing list.
 
 
 ## Building, testing, and benchmarking
@@ -52,8 +54,8 @@ stack bench
 
 When you send a pull request, please:
 
-- Link to libraries@haskell.org discussion thread if you are changing the public
-  API.
+- Link to the libraries@haskell.org discussion thread if you are changing the
+  public API.
 
 - If you are requesting a change that is likely to affect performance, we will
   be able to evaluate it better if you include the results of running the
@@ -64,9 +66,9 @@ When you send a pull request, please:
 
 - If you are requesting a change that adds new functionality or affects
   behaviour, please add QuickCheck properties exercising the code if they
-  do not already exist. If the problem occurs too rarely for QuickCheck to
-  hit then consider adding unit tests as well.
+  do not already exist. If you are fixing a bug that occurs too rarely for
+  QuickCheck to hit reliably then consider adding unit tests as well.
   
-- Update change log for non-trivial changes.
+- Update the change log for non-trivial changes.
 
-- Let us know how you wish to be credited in the changelog.
+- Please let us know how you wish to be credited in the changelog.
