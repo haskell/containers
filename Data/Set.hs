@@ -80,12 +80,15 @@ module Data.Set (
             , singleton
             , insert
             , delete
+            , powerSet
 
             -- * Combine
             , union
             , unions
             , difference
             , intersection
+            , cartesianProduct
+            , disjointUnion
 
             -- * Filter
             , S.filter

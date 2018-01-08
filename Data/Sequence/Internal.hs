@@ -6,6 +6,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
@@ -13,13 +14,12 @@
 #if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE TypeFamilies #-}
-#endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
+
+{-# OPTIONS_HADDOCK not-home #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -52,8 +52,8 @@
 -- also differ from lists in supporting a wider variety of operations
 -- efficiently.
 --
--- An amortized running time is given for each operation, with /n/ referring
--- to the length of the sequence and /i/ being the integral index used by
+-- An amortized running time is given for each operation, with \( n \) referring
+-- to the length of the sequence and \( i \) being the integral index used by
 -- some operations. These bounds hold even in a persistent (shared) setting.
 --
 -- The implementation uses 2-3 finger trees annotated with sizes,
@@ -98,7 +98,7 @@ module Data.Sequence.Internal (
     -- ** Repetition
     replicate,      -- :: Int -> a -> Seq a
     replicateA,     -- :: Applicative f => Int -> f a -> f (Seq a)
-    replicateM,     -- :: Monad m => Int -> m a -> m (Seq a)
+    replicateM,     -- :: Applicative m => Int -> m a -> m (Seq a)
     cycleTaking,    -- :: Int -> Seq a -> Seq a
     -- ** Iterative construction
     iterateN,       -- :: Int -> (a -> a) -> a -> Seq a
@@ -203,8 +203,8 @@ import Prelude hiding (
     takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
-                            WrappedMonad(..), liftA, liftA2, liftA3)
-import qualified Control.Applicative as Applicative (Alternative(..))
+                            liftA, liftA2, liftA3)
+import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
@@ -296,13 +296,13 @@ infixl 5 :|>
 {-# COMPLETE (:|>), Empty #-}
 #endif
 
--- | A pattern synonym matching an empty sequence.
+-- | A bidirectional pattern synonym matching an empty sequence.
 --
 -- @since 0.5.8
 pattern Empty :: Seq a
 pattern Empty = Seq EmptyT
 
--- | A pattern synonym viewing the front of a non-empty
+-- | A bidirectional pattern synonym viewing the front of a non-empty
 -- sequence.
 --
 -- @since 0.5.8
@@ -311,7 +311,7 @@ pattern x :<| xs <- (viewl -> x :< xs)
   where
     x :<| xs = x <| xs
 
--- | A pattern synonym viewing the rear of a non-empty
+-- | A bidirectional pattern synonym viewing the rear of a non-empty
 -- sequence.
 --
 -- @since 0.5.8
@@ -744,7 +744,7 @@ thin12 s pr m (Two a b) = DeepTh s pr (thin m) (Two12 a b)
 thin12 s pr m (Three a b c) = DeepTh s pr (thin $ m `snocTree` node2 a b) (One12 c)
 thin12 s pr m (Four a b c d) = DeepTh s pr (thin $ m `snocTree` node2 a b) (Two12 c d)
 
--- | Intersperse an element between the elements of a sequence.
+-- | \( O(n) \). Intersperse an element between the elements of a sequence.
 --
 -- @
 -- intersperse a empty = empty
@@ -1215,22 +1215,22 @@ applicativeTree n !mSize m = case n of
 -- Construction
 ------------------------------------------------------------------------
 
--- | /O(1)/. The empty sequence.
+-- | \( O(1) \). The empty sequence.
 empty           :: Seq a
 empty           =  Seq EmptyT
 
--- | /O(1)/. A singleton sequence.
+-- | \( O(1) \). A singleton sequence.
 singleton       :: a -> Seq a
 singleton x     =  Seq (Single (Elem x))
 
--- | /O(log n)/. @replicate n x@ is a sequence consisting of @n@ copies of @x@.
+-- | \( O(\log n) \). @replicate n x@ is a sequence consisting of @n@ copies of @x@.
 replicate       :: Int -> a -> Seq a
 replicate n x
   | n >= 0      = runIdentity (replicateA n (Identity x))
   | otherwise   = error "replicate takes a nonnegative integer argument"
 
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
--- /O(log n)/ calls to 'liftA2' and 'pure'.
+-- \( O(\log n) \) calls to 'liftA2' and 'pure'.
 --
 -- > replicateA n x = sequenceA (replicate n x)
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
@@ -1242,12 +1242,20 @@ replicateA n x
 -- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
 --
 -- > replicateM n x = sequence (replicate n x)
+--
+-- For @base >= 4.8.0@ and @containers >= 0.5.11@, 'replicateM'
+-- is a synonym for 'replicateA'.
+#if MIN_VERSION_base(4,8,0)
+replicateM :: Applicative m => Int -> m a -> m (Seq a)
+replicateM = replicateA
+#else
 replicateM :: Monad m => Int -> m a -> m (Seq a)
 replicateM n x
-  | n >= 0      = unwrapMonad (replicateA n (WrapMonad x))
+  | n >= 0      = Applicative.unwrapMonad (replicateA n (Applicative.WrapMonad x))
   | otherwise   = error "replicateM takes a nonnegative integer argument"
+#endif
 
--- | /O(log(k))/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
+-- | /O(/log/ k)/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
 -- @k@ is 0.
 --
@@ -1265,7 +1273,7 @@ cycleTaking n xs = cycleNTimes reps xs >< take final xs
   where
     (reps, final) = n `quotRem` length xs
 
--- | /O(log(kn))/. @'cycleNTimes' k xs@ concatenates @k@ copies of @xs@. This
+-- \( O(\log(kn)) \). @'cycleNTimes' k xs@ concatenates @k@ copies of @xs@. This
 -- operation uses time and additional space logarithmic in the size of its
 -- result.
 cycleNTimes :: Int -> Seq a -> Seq a
@@ -1325,7 +1333,7 @@ cycleNMiddle n
    where converted = node3 pr q sf
 
 
--- | /O(1)/. Add an element to the left end of a sequence.
+-- | \( O(1) \). Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
 (<|)            :: a -> Seq a -> Seq a
 x <| Seq xs     =  Seq (Elem x `consTree` xs)
@@ -1374,7 +1382,7 @@ consTree' a (Deep s (Two b c) m sf) =
 consTree' a (Deep s (One b) m sf) =
     Deep (size a + s) (Two a b) m sf
 
--- | /O(1)/. Add an element to the right end of a sequence.
+-- | \( O(1) \). Add an element to the right end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
 (|>)            :: Seq a -> a -> Seq a
 Seq xs |> x     =  Seq (xs `snocTree` Elem x)
@@ -1411,7 +1419,7 @@ snocTree' (Deep s pr m (Two a b)) c =
 snocTree' (Deep s pr m (One a)) b =
     Deep (s + size b) pr m (Two a b)
 
--- | /O(log(min(n1,n2)))/. Concatenate two sequences.
+-- | \( O(\log(\min(n_1,n_2))) \). Concatenate two sequences.
 (><)            :: Seq a -> Seq a -> Seq a
 Seq xs >< Seq ys = Seq (appendTree0 xs ys)
 
@@ -1665,7 +1673,7 @@ unfoldl :: (b -> Maybe (b, a)) -> b -> Seq a
 unfoldl f = unfoldl' empty
   where unfoldl' !as b = maybe as (\ (b', a) -> unfoldl' (a `cons'` as) b') (f b)
 
--- | /O(n)/.  Constructs a sequence by repeated application of a function
+-- | \( O(n) \).  Constructs a sequence by repeated application of a function
 -- to a seed value.
 --
 -- > iterateN n f x = fromList (Prelude.take n (Prelude.iterate f x))
@@ -1678,12 +1686,12 @@ iterateN n f x
 -- Deconstruction
 ------------------------------------------------------------------------
 
--- | /O(1)/. Is this the empty sequence?
+-- | \( O(1) \). Is this the empty sequence?
 null            :: Seq a -> Bool
 null (Seq EmptyT) = True
 null _            =  False
 
--- | /O(1)/. The number of elements in the sequence.
+-- | \( O(1) \). The number of elements in the sequence.
 length          :: Seq a -> Int
 length (Seq xs) =  size xs
 
@@ -1739,7 +1747,7 @@ instance Traversable ViewL where
     traverse _ EmptyL       = pure EmptyL
     traverse f (x :< xs)    = liftA2 (:<) (f x) (traverse f xs)
 
--- | /O(1)/. Analyse the left end of a sequence.
+-- | \( O(1) \). Analyse the left end of a sequence.
 viewl           ::  Seq a -> ViewL a
 viewl (Seq xs)  =  case viewLTree xs of
     EmptyLTree -> EmptyL
@@ -1808,7 +1816,7 @@ instance Traversable ViewR where
     traverse _ EmptyR       = pure EmptyR
     traverse f (xs :> x)    = liftA2 (:>) (traverse f xs) (f x)
 
--- | /O(1)/. Analyse the right end of a sequence.
+-- | \( O(1) \). Analyse the right end of a sequence.
 viewr           ::  Seq a -> ViewR a
 viewr (Seq xs)  =  case viewRTree xs of
     EmptyRTree -> EmptyR
@@ -1867,7 +1875,7 @@ scanr1 f xs = case viewr xs of
 
 -- Indexing
 
--- | /O(log(min(i,n-i)))/. The element at the specified position,
+-- | \( O(\log(\min(i,n-i))) \). The element at the specified position,
 -- counting from 0.  The argument should thus be a non-negative
 -- integer less than the size of the sequence.
 -- If the position is out of range, 'index' fails with an error.
@@ -1886,7 +1894,7 @@ index (Seq xs) i
   | otherwise   = 
       error $ "index out of bounds in call to: Data.Sequence.index " ++ show i
 
--- | /O(log(min(i,n-i)))/. The element at the specified position,
+-- | \( O(\log(\min(i,n-i))) \). The element at the specified position,
 -- counting from 0. If the specified position is negative or at
 -- least the length of the sequence, 'lookup' returns 'Nothing'.
 --
@@ -1915,7 +1923,7 @@ lookup i (Seq xs)
                 Place _ (Elem x) -> Just x
   | otherwise = Nothing
 
--- | /O(log(min(i,n-i)))/. A flipped, infix version of `lookup`.
+-- | \( O(\log(\min(i,n-i))) \). A flipped, infix version of `lookup`.
 --
 -- @since 0.5.8
 (!?) ::           Seq a -> Int -> Maybe a
@@ -1982,7 +1990,7 @@ lookupDigit i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | /O(log(min(i,n-i)))/. Replace the element at the specified position.
+-- | \( O(\log(\min(i,n-i))) \). Replace the element at the specified position.
 -- If the position is out of range, the original sequence is returned.
 update          :: Int -> a -> Seq a -> Seq a
 update i x (Seq xs)
@@ -2046,7 +2054,7 @@ updateDigit v i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | /O(log(min(i,n-i)))/. Update the element at the specified position.  If
+-- | \( O(\log(\min(i,n-i))) \). Update the element at the specified position.  If
 -- the position is out of range, the original sequence is returned.  'adjust'
 -- can lead to poor performance and even memory leaks, because it does not
 -- force the new value before installing it in the sequence. 'adjust'' should
@@ -2059,7 +2067,7 @@ adjust f i (Seq xs)
   | fromIntegral i < (fromIntegral (size xs) :: Word) = Seq (adjustTree (`seq` fmap f) i xs)
   | otherwise   = Seq xs
 
--- | /O(log(min(i,n-i)))/. Update the element at the specified position.
+-- | \( O(\log(\min(i,n-i))) \). Update the element at the specified position.
 -- If the position is out of range, the original sequence is returned.
 -- The new value is forced before it is installed in the sequence.
 --
@@ -2148,7 +2156,7 @@ adjustDigit f i (Four a b c d)
     sab     = sa + size b
     sabc    = sab + size c
 
--- | /O(log(min(i,n-i)))/. @'insertAt' i x xs@ inserts @x@ into @xs@
+-- | \( O(\log(\min(i,n-i))) \). @'insertAt' i x xs@ inserts @x@ into @xs@
 -- at the index @i@, shifting the rest of the sequence over.
 --
 -- @
@@ -2304,7 +2312,7 @@ insRightDigit f i (Four a b c d)
         sab = sa + size b
         sabc = sab + size c
 
--- | /O(log(min(i,n-i)))/. Delete the element of a sequence at a given
+-- | \( O(\log(\min(i,n-i))) \). Delete the element of a sequence at a given
 -- index. Return the original sequence if the index is out of range.
 --
 -- @
@@ -2582,7 +2590,7 @@ delDigit f i (Four a b c d)
         sabc = sab + size c
 
 
--- | /O(n)/. A generalization of 'fmap', 'mapWithIndex' takes a mapping
+-- | A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
@@ -2646,7 +2654,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
 #endif
 
 
--- | /O(n)/. A generalization of 'foldMap', 'foldMapWithIndex' takes a folding
+-- A generalization of 'foldMap', 'foldMapWithIndex' takes a folding
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
 --
@@ -2840,7 +2848,7 @@ valid.
 -}
 
 
--- | /O(n)/. Convert a given sequence length and a function representing that
+-- | \( O(n) \). Convert a given sequence length and a function representing that
 -- sequence into a sequence.
 --
 -- @since 0.5.6.2
@@ -2883,7 +2891,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
 #endif
     {-# INLINE lift_elem #-}
 
--- | /O(n)/. Create a sequence consisting of the elements of an 'Array'.
+-- | \( O(n) \). Create a sequence consisting of the elements of an 'Array'.
 -- Note that the resulting sequence elements may be evaluated lazily (as on GHC),
 -- so you must force the entire structure to be sure that the original array
 -- can be garbage-collected.
@@ -2902,7 +2910,7 @@ fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array
 
 -- Splitting
 
--- | /O(log(min(i,n-i)))/. The first @i@ elements of a sequence.
+-- | \( O(\log(\min(i,n-i))) \). The first @i@ elements of a sequence.
 -- If @i@ is negative, @'take' i s@ yields the empty sequence.
 -- If the sequence contains fewer than @i@ elements, the whole sequence
 -- is returned.
@@ -3064,7 +3072,7 @@ takeSuffixN i s pr m (Four a b c d)
     scd     = size c + sd
     sbcd    = size b + scd
 
--- | /O(log(min(i,n-i)))/. Elements of a sequence after the first @i@.
+-- | \( O(\log(\min(i,n-i))) \). Elements of a sequence after the first @i@.
 -- If @i@ is negative, @'drop' i s@ yields the whole sequence.
 -- If the sequence contains fewer than @i@ elements, the empty sequence
 -- is returned.
@@ -3230,7 +3238,7 @@ takePrefixNR i s (Four a b c d) m sf
     scd     = size c + sd
     sbcd    = size b + scd
 
--- | /O(log(min(i,n-i)))/. Split a sequence at a given position.
+-- | \( O(\log(\min(i,n-i))) \). Split a sequence at a given position.
 -- @'splitAt' i s = ('take' i s, 'drop' i s)@.
 splitAt                  :: Int -> Seq a -> (Seq a, Seq a)
 splitAt i xs@(Seq t)
@@ -3245,7 +3253,7 @@ splitAt i xs@(Seq t)
   | i <= 0 = (empty, xs)
   | otherwise = (xs, empty)
 
--- | /O(log(min(i,n-i))) A version of 'splitAt' that does not attempt to
+-- | \( O(\log(\min(i,n-i))) \) A version of 'splitAt' that does not attempt to
 -- enhance sharing when the split point is less than or equal to 0, and that
 -- gives completely wrong answers when the split point is at least the length
 -- of the sequence, unless the sequence is a singleton. This is used to
@@ -3412,9 +3420,14 @@ splitSuffixN i s pr m (Four a b c d)
     scd     = size c + sd
     sbcd    = size b + scd
 
--- | /O(n)/. @chunksOf n xs@ splits @xs@ into chunks of size @n>0@.
--- If @n@ does not divide the length of @xs@ evenly, then the last element
+-- | \(O \Bigl(\bigl(\frac{n}{c}\bigr) \log c\Bigr)\). @chunksOf c xs@ splits @xs@ into chunks of size @c>0@.
+-- If @c@ does not divide the length of @xs@ evenly, then the last element
 -- of the result will be short.
+--
+-- Side note: the given performance bound is missing some messy terms that only
+-- really affect edge cases. Performance degrades smoothly from \( O(1) \) (for
+-- \( c = n \)) to \( O(n) \) (for \( c = 1 \)). The true bound is more like
+-- \( O \Bigl( \bigl(\frac{n}{c} - 1\bigr) (\log (c + 1)) + 1 \Bigr) \)
 --
 -- @since 0.5.8
 chunksOf :: Int -> Seq a -> Seq (Seq a)
@@ -3429,23 +3442,23 @@ chunksOf n s = splitMap (uncheckedSplitAt . (*n)) const most (replicate numReps 
     (numReps, endLength) = length s `quotRem` n
     (most, end) = splitAt (length s - endLength) s
 
--- | /O(n)/.  Returns a sequence of all suffixes of this sequence,
+-- | \( O(n) \).  Returns a sequence of all suffixes of this sequence,
 -- longest first.  For example,
 --
 -- > tails (fromList "abc") = fromList [fromList "abc", fromList "bc", fromList "c", fromList ""]
 --
--- Evaluating the /i/th suffix takes /O(log(min(i, n-i)))/, but evaluating
--- every suffix in the sequence takes /O(n)/ due to sharing.
+-- Evaluating the \( i \)th suffix takes \( O(\log(\min(i, n-i))) \), but evaluating
+-- every suffix in the sequence takes \( O(n) \) due to sharing.
 tails                   :: Seq a -> Seq (Seq a)
 tails (Seq xs)          = Seq (tailsTree (Elem . Seq) xs) |> empty
 
--- | /O(n)/.  Returns a sequence of all prefixes of this sequence,
+-- | \( O(n) \).  Returns a sequence of all prefixes of this sequence,
 -- shortest first.  For example,
 --
 -- > inits (fromList "abc") = fromList [fromList "", fromList "a", fromList "ab", fromList "abc"]
 --
--- Evaluating the /i/th prefix takes /O(log(min(i, n-i)))/, but evaluating
--- every prefix in the sequence takes /O(n)/ due to sharing.
+-- Evaluating the \( i \)th prefix takes \( O(\log(\min(i, n-i))) \), but evaluating
+-- every prefix in the sequence takes \( O(n) \) due to sharing.
 inits                   :: Seq a -> Seq (Seq a)
 inits (Seq xs)          = empty <| Seq (initsTree (Elem . Seq) xs)
 
@@ -3554,13 +3567,13 @@ foldrWithIndex f z xs = foldr (\ x g !i -> f i x (g (i+1))) (const z) xs 0
 listToMaybe' :: [a] -> Maybe a
 listToMaybe' = foldr (\ x _ -> Just x) Nothing
 
--- | /O(i)/ where /i/ is the prefix length.  'takeWhileL', applied
+-- | \( O(i) \) where \( i \) is the prefix length. 'takeWhileL', applied
 -- to a predicate @p@ and a sequence @xs@, returns the longest prefix
 -- (possibly empty) of @xs@ of elements that satisfy @p@.
 takeWhileL :: (a -> Bool) -> Seq a -> Seq a
 takeWhileL p = fst . spanl p
 
--- | /O(i)/ where /i/ is the suffix length.  'takeWhileR', applied
+-- | \( O(i) \) where \( i \) is the suffix length.  'takeWhileR', applied
 -- to a predicate @p@ and a sequence @xs@, returns the longest suffix
 -- (possibly empty) of @xs@ of elements that satisfy @p@.
 --
@@ -3568,26 +3581,26 @@ takeWhileL p = fst . spanl p
 takeWhileR :: (a -> Bool) -> Seq a -> Seq a
 takeWhileR p = fst . spanr p
 
--- | /O(i)/ where /i/ is the prefix length.  @'dropWhileL' p xs@ returns
+-- | \( O(i) \) where \( i \) is the prefix length.  @'dropWhileL' p xs@ returns
 -- the suffix remaining after @'takeWhileL' p xs@.
 dropWhileL :: (a -> Bool) -> Seq a -> Seq a
 dropWhileL p = snd . spanl p
 
--- | /O(i)/ where /i/ is the suffix length.  @'dropWhileR' p xs@ returns
+-- | \( O(i) \) where \( i \) is the suffix length.  @'dropWhileR' p xs@ returns
 -- the prefix remaining after @'takeWhileR' p xs@.
 --
 -- @'dropWhileR' p xs@ is equivalent to @'reverse' ('dropWhileL' p ('reverse' xs))@.
 dropWhileR :: (a -> Bool) -> Seq a -> Seq a
 dropWhileR p = snd . spanr p
 
--- | /O(i)/ where /i/ is the prefix length.  'spanl', applied to
+-- | \( O(i) \) where \( i \) is the prefix length.  'spanl', applied to
 -- a predicate @p@ and a sequence @xs@, returns a pair whose first
 -- element is the longest prefix (possibly empty) of @xs@ of elements that
 -- satisfy @p@ and the second element is the remainder of the sequence.
 spanl :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
 spanl p = breakl (not . p)
 
--- | /O(i)/ where /i/ is the suffix length.  'spanr', applied to a
+-- | \( O(i) \) where \( i \) is the suffix length.  'spanr', applied to a
 -- predicate @p@ and a sequence @xs@, returns a pair whose /first/ element
 -- is the longest /suffix/ (possibly empty) of @xs@ of elements that
 -- satisfy @p@ and the second element is the remainder of the sequence.
@@ -3595,7 +3608,7 @@ spanr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
 spanr p = breakr (not . p)
 
 {-# INLINE breakl #-}
--- | /O(i)/ where /i/ is the breakpoint index.  'breakl', applied to a
+-- | \( O(i) \) where \( i \) is the breakpoint index.  'breakl', applied to a
 -- predicate @p@ and a sequence @xs@, returns a pair whose first element
 -- is the longest prefix (possibly empty) of @xs@ of elements that
 -- /do not satisfy/ @p@ and the second element is the remainder of
@@ -3611,7 +3624,7 @@ breakr :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
 breakr p xs = foldr (\ i _ -> flipPair (splitAt (i + 1) xs)) (xs, empty) (findIndicesR p xs)
   where flipPair (x, y) = (y, x)
 
--- | /O(n)/.  The 'partition' function takes a predicate @p@ and a
+-- | \( O(n) \).  The 'partition' function takes a predicate @p@ and a
 -- sequence @xs@ and returns sequences of those elements which do and
 -- do not satisfy the predicate.
 partition :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
@@ -3621,7 +3634,7 @@ partition p = toPair . foldl' part (empty :*: empty)
       | p x         = (xs `snoc'` x) :*: ys
       | otherwise   = xs :*: (ys `snoc'` x)
 
--- | /O(n)/.  The 'filter' function takes a predicate @p@ and a sequence
+-- | \( O(n) \).  The 'filter' function takes a predicate @p@ and a sequence
 -- @xs@ and returns a sequence of those elements which satisfy the
 -- predicate.
 filter :: (a -> Bool) -> Seq a -> Seq a
@@ -3735,7 +3748,7 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- representation of the entire right side of the tree. Perhaps someone will
 -- eventually find a less mind-bending way to accomplish this.
 
--- | /O(n)/. Create a sequence from a finite list of elements.
+-- | \( O(n) \). Create a sequence from a finite list of elements.
 -- There is a function 'toList' in the opposite direction for all
 -- instances of the 'Foldable' class, including 'Seq'.
 fromList        :: [a] -> Seq a
@@ -3926,7 +3939,7 @@ instance GHC.Exts.IsList (Seq a) where
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.7
-instance IsString (Seq Char) where
+instance a ~ Char => IsString (Seq a) where
     fromString = fromList
 #endif
 
@@ -3934,14 +3947,14 @@ instance IsString (Seq Char) where
 -- Reverse
 ------------------------------------------------------------------------
 
--- | /O(n)/. The reverse of a sequence.
+-- | \( O(n) \). The reverse of a sequence.
 reverse :: Seq a -> Seq a
 reverse (Seq xs) = Seq (fmapReverseTree id xs)
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] reverse #-}
 
--- | /O(n)/. Reverse a sequence while mapping over it. This is not
+-- | \( O(n) \). Reverse a sequence while mapping over it. This is not
 -- currently exported, but is used in rewrite rules.
 fmapReverse :: (a -> b) -> Seq a -> Seq b
 fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
@@ -4035,7 +4048,7 @@ reverseNode f (Node3 s a b c) = Node3 s (f c) (f b) (f a)
 --
 -- David Feuer, with some guidance from Carter Schonwald, December 2014
 
--- | /O(n)/. Constructs a new sequence with the same structure as an existing
+-- | \( O(n) \). Constructs a new sequence with the same structure as an existing
 -- sequence using a user-supplied mapping function along with a splittable
 -- value and a way to split it. The value is split up lazily according to the
 -- structure of the sequence, so one piece of the value is distributed to each
@@ -4269,13 +4282,13 @@ instance UnzipWith Seq where
       (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))}}}
 #endif
 
--- | /O(min(n1,n2))/.  'zip' takes two sequences and returns a sequence
+-- | \( O(\min(n_1,n_2)) \).  'zip' takes two sequences and returns a sequence
 -- of corresponding pairs.  If one input is short, excess elements are
 -- discarded from the right end of the longer sequence.
 zip :: Seq a -> Seq b -> Seq (a, b)
 zip = zipWith (,)
 
--- | /O(min(n1,n2))/.  'zipWith' generalizes 'zip' by zipping with the
+-- | \( O(\min(n_1,n_2)) \).  'zipWith' generalizes 'zip' by zipping with the
 -- function given as the first argument, instead of a tupling function.
 -- For example, @zipWith (+)@ is applied to two sequences to take the
 -- sequence of corresponding sums.
@@ -4293,12 +4306,12 @@ zipWith' f s1 s2 = splitMap uncheckedSplitAt goLeaf s2 s1
     goLeaf (Seq (Single (Elem b))) a = f a b
     goLeaf _ _ = error "Data.Sequence.zipWith'.goLeaf internal error: not a singleton"
 
--- | /O(min(n1,n2,n3))/.  'zip3' takes three sequences and returns a
+-- | \( O(\min(n_1,n_2,n_3)) \).  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
 zip3 :: Seq a -> Seq b -> Seq c -> Seq (a,b,c)
 zip3 = zipWith3 (,,)
 
--- | /O(min(n1,n2,n3))/.  'zipWith3' takes a function which combines
+-- | \( O(\min(n_1,n_2,n_3)) \).  'zipWith3' takes a function which combines
 -- three elements, as well as three sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith3 :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
@@ -4312,12 +4325,12 @@ zipWith3 f s1 s2 s3 = zipWith' ($) (zipWith' f s1' s2') s3'
 zipWith3' :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
 zipWith3' f s1 s2 s3 = zipWith' ($) (zipWith' f s1 s2) s3
 
--- | /O(min(n1,n2,n3,n4))/.  'zip4' takes four sequences and returns a
+-- | \( O(\min(n_1,n_2,n_3,n_4)) \).  'zip4' takes four sequences and returns a
 -- sequence of quadruples, analogous to 'zip'.
 zip4 :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a,b,c,d)
 zip4 = zipWith4 (,,,)
 
--- | /O(min(n1,n2,n3,n4))/.  'zipWith4' takes a function which combines
+-- | \( O(\min(n_1,n_2,n_3,n_4)) \).  'zipWith4' takes a function which combines
 -- four elements, as well as four sequences and returns a sequence of
 -- their point-wise combinations, analogous to 'zipWith'.
 zipWith4 :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
@@ -4406,27 +4419,27 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 -- mail@doisinkidney.com, 4/30/17
 ------------------------------------------------------------------------
 
--- | /O(n log n)/.  'sort' sorts the specified 'Seq' by the natural
+-- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.
 -- If stability is not required, 'unstableSort' can be considerably
 -- faster, and in particular uses less memory.
 sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
--- | /O(n log n)/.  'sortBy' sorts the specified 'Seq' according to the
+-- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
 -- specified comparator.  The sort is stable.
 -- If stability is not required, 'unstableSortBy' can be considerably
 -- faster, and in particular uses less memory.
 sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
 
--- | /O(n log n)/.  'unstableSort' sorts the specified 'Seq' by
+-- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
 -- This algorithm is frequently faster and uses less memory than 'sort'.
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
--- | /O(n log n)/.  A generalization of 'unstableSort', 'unstableSortBy'
+-- | \( O(n \log n) \).  A generalization of 'unstableSort', 'unstableSortBy'
 -- takes an arbitrary comparator and sorts the specified sequence.
 -- The sort is not stable.  This algorithm is frequently faster and
 -- uses less memory than 'sortBy'.

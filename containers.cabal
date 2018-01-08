@@ -274,7 +274,7 @@ Test-suite map-lazy-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2,
@@ -308,7 +308,7 @@ Test-suite map-strict-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2,
@@ -329,7 +329,7 @@ Test-suite bitqueue-properties
     include-dirs: include
 
     build-depends:
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-quickcheck2
 
@@ -355,7 +355,7 @@ Test-suite set-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2,
@@ -371,6 +371,7 @@ Test-suite intmap-lazy-properties
         Data.IntMap.Lazy
         Data.IntSet
         Data.IntSet.Internal
+        IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
@@ -384,7 +385,7 @@ Test-suite intmap-lazy-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2
@@ -399,6 +400,7 @@ Test-suite intmap-strict-properties
         Data.IntMap.Strict
         Data.IntSet
         Data.IntSet.Internal
+        IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
@@ -412,7 +414,7 @@ Test-suite intmap-strict-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2
@@ -425,6 +427,7 @@ Test-suite intset-properties
         Data.IntSet.Internal
         Data.Set
         Data.Set.Internal
+        IntSetValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.StrictFold
@@ -439,7 +442,7 @@ Test-suite intset-properties
 
     build-depends:
         HUnit,
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
         test-framework-quickcheck2
@@ -477,7 +480,7 @@ Test-suite deprecated-properties
     include-dirs: include
 
     build-depends:
-        QuickCheck,
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-quickcheck2
 
@@ -497,7 +500,26 @@ Test-suite seq-properties
     include-dirs: include
 
     build-depends:
-        QuickCheck,
+        QuickCheck >= 2.7.1,
+        test-framework,
+        test-framework-quickcheck2,
+        transformers
+
+Test-suite tree-properties
+    hs-source-dirs: tests, .
+    main-is: tree-properties.hs
+    other-modules:
+        Data.Tree
+    type: exitcode-stdio-1.0
+    cpp-options: -DTESTING
+
+    build-depends: base >= 4.3 && < 5, array, deepseq >= 1.2 && < 1.5, ghc-prim
+    ghc-options: -O2
+    other-extensions: CPP, BangPatterns
+    include-dirs: include
+
+    build-depends:
+        QuickCheck >= 2.7.1,
         test-framework,
         test-framework-quickcheck2,
         transformers
@@ -525,7 +547,7 @@ test-suite map-strictness-properties
     base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
-    QuickCheck >= 2.4.0.1,
+    QuickCheck >= 2.7.1,
     ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
@@ -553,7 +575,7 @@ test-suite intmap-strictness-properties
     base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
-    QuickCheck >= 2.4.0.1,
+    QuickCheck >= 2.7.1,
     ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
@@ -578,7 +600,7 @@ test-suite intset-strictness-properties
     base >= 4.3 && < 5,
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
-    QuickCheck >= 2.4.0.1,
+    QuickCheck >= 2.7.1,
     ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9

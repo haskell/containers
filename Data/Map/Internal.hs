@@ -17,6 +17,8 @@
 {-# LANGUAGE MagicHash #-}
 #endif
 
+{-# OPTIONS_HADDOCK not-home #-}
+
 #include "containers.h"
 
 #if !(WORD_SIZE_IN_BITS >= 61)

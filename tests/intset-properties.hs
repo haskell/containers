@@ -10,6 +10,7 @@ import Data.List (nub,sort)
 import qualified Data.List as List
 import Data.Monoid (mempty)
 import qualified Data.Set as Set
+import IntSetValidity (valid)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import Test.Framework
 import Test.Framework.Providers.HUnit
@@ -23,6 +24,10 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
+                   , testProperty "prop_Valid" prop_Valid
+                   , testProperty "prop_EmptyValid" prop_EmptyValid
+                   , testProperty "prop_SingletonValid" prop_SingletonValid
+                   , testProperty "prop_InsertIntoEmptyValid" prop_InsertIntoEmptyValid
                    , testProperty "prop_Single" prop_Single
                    , testProperty "prop_Member" prop_Member
                    , testProperty "prop_NotMember" prop_NotMember
@@ -109,6 +114,37 @@ instance Arbitrary IntSet where
                 ; return (fromList xs)
                 }
 
+{--------------------------------------------------------------------
+  Valid IntMaps
+--------------------------------------------------------------------}
+forValid :: Testable a => (IntSet -> a) -> Property
+forValid f = forAll arbitrary $ \t ->
+    classify (size t == 0) "empty" $
+    classify (size t > 0 && size t <= 10) "small" $
+    classify (size t > 10 && size t <= 64) "medium" $
+    classify (size t > 64) "large" $ f t
+
+forValidUnitTree :: Testable a => (IntSet -> a) -> Property
+forValidUnitTree f = forValid f
+
+prop_Valid :: Property
+prop_Valid = forValidUnitTree $ \t -> valid t
+
+{--------------------------------------------------------------------
+  Construction validity
+--------------------------------------------------------------------}
+
+prop_EmptyValid :: Property
+prop_EmptyValid =
+    valid empty
+
+prop_SingletonValid :: Int -> Property
+prop_SingletonValid x =
+    valid (singleton x)
+
+prop_InsertIntoEmptyValid :: Int -> Property
+prop_InsertIntoEmptyValid x =
+    valid (insert x empty)
 
 {--------------------------------------------------------------------
   Single, Member, Insert, Delete, Member, FromList
@@ -155,7 +191,9 @@ prop_LookupGE = test_LookupSomething lookupGE (>=)
 
 prop_InsertDelete :: Int -> IntSet -> Property
 prop_InsertDelete k t
-  = not (member k t) ==> delete k (insert k t) == t
+  = not (member k t) ==>
+      case delete k (insert k t) of
+        t' -> valid t' .&&. t' === t
 
 prop_MemberFromList :: [Int] -> Bool
 prop_MemberFromList xs
@@ -166,9 +204,12 @@ prop_MemberFromList xs
 {--------------------------------------------------------------------
   Union
 --------------------------------------------------------------------}
-prop_UnionInsert :: Int -> IntSet -> Bool
-prop_UnionInsert x t
-  = union t (singleton x) == insert x t
+prop_UnionInsert :: Int -> IntSet -> Property
+prop_UnionInsert x t =
+  case union t (singleton x) of
+    t' ->
+      valid t' .&&.
+      t' === insert x t
 
 prop_UnionAssoc :: IntSet -> IntSet -> IntSet -> Bool
 prop_UnionAssoc t1 t2 t3
@@ -178,15 +219,19 @@ prop_UnionComm :: IntSet -> IntSet -> Bool
 prop_UnionComm t1 t2
   = (union t1 t2 == union t2 t1)
 
-prop_Diff :: [Int] -> [Int] -> Bool
-prop_Diff xs ys
-  =  toAscList (difference (fromList xs) (fromList ys))
-    == List.sort ((List.\\) (nub xs)  (nub ys))
+prop_Diff :: [Int] -> [Int] -> Property
+prop_Diff xs ys =
+  case difference (fromList xs) (fromList ys) of
+    t ->
+      valid t .&&.
+      toAscList t === List.sort ((List.\\) (nub xs)  (nub ys))
 
-prop_Int :: [Int] -> [Int] -> Bool
-prop_Int xs ys
-  =  toAscList (intersection (fromList xs) (fromList ys))
-    == List.sort (nub ((List.intersect) (xs)  (ys)))
+prop_Int :: [Int] -> [Int] -> Property
+prop_Int xs ys =
+  case intersection (fromList xs) (fromList ys) of
+    t ->
+      valid t .&&.
+      toAscList t === List.sort (nub ((List.intersect) (xs)  (ys)))
 
 {--------------------------------------------------------------------
   Lists
@@ -207,12 +252,13 @@ prop_AscDescList :: [Int] -> Bool
 prop_AscDescList xs = toAscList s == reverse (toDescList s)
   where s = fromList xs
 
-prop_fromList :: [Int] -> Bool
+prop_fromList :: [Int] -> Property
 prop_fromList xs
   = case fromList xs of
-      t -> t == fromAscList sort_xs &&
-           t == fromDistinctAscList nub_sort_xs &&
-           t == List.foldr insert empty xs
+      t -> valid t .&&.
+           t === fromAscList sort_xs .&&.
+           t === fromDistinctAscList nub_sort_xs .&&.
+           t === List.foldr insert empty xs
   where sort_xs = sort xs
         nub_sort_xs = List.map List.head $ List.group sort_xs
 
@@ -303,13 +349,22 @@ prop_minView s = case minView s of
     Nothing -> null s
     Just (m,s') -> m == minimum (toList s) && s == insert m s' && m `notMember` s'
 
-prop_split :: IntSet -> Int -> Bool
+prop_split :: IntSet -> Int -> Property
 prop_split s i = case split i s of
-    (s1,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && i `delete` s == union s1 s2
+    (s1,s2) -> valid s1 .&&.
+               valid s2 .&&.
+               all (<i) (toList s1) .&&.
+               all (>i) (toList s2) .&&.
+               i `delete` s === union s1 s2
 
-prop_splitMember :: IntSet -> Int -> Bool
+prop_splitMember :: IntSet -> Int -> Property
 prop_splitMember s i = case splitMember i s of
-    (s1,t,s2) -> all (<i) (toList s1) && all (>i) (toList s2) && t == i `member` s && i `delete` s == union s1 s2
+    (s1,t,s2) -> valid s1 .&&.
+                 valid s2 .&&.
+                 all (<i) (toList s1) .&&.
+                 all (>i) (toList s2) .&&.
+                 t === i `member` s .&&.
+                 i `delete` s === union s1 s2
 
 prop_splitRoot :: IntSet -> Bool
 prop_splitRoot s = loop ls && (s == unions ls)
@@ -321,12 +376,22 @@ prop_splitRoot s = loop ls && (s == unions ls)
                           , y <- toList (unions rst)
                           , x > y ]
 
-prop_partition :: IntSet -> Int -> Bool
+prop_partition :: IntSet -> Int -> Property
 prop_partition s i = case partition odd s of
-    (s1,s2) -> all odd (toList s1) && all even (toList s2) && s == s1 `union` s2
+    (s1,s2) -> valid s1 .&&.
+               valid s2 .&&.
+               all odd (toList s1) .&&.
+               all even (toList s2) .&&.
+               s === s1 `union` s2
 
-prop_filter :: IntSet -> Int -> Bool
-prop_filter s i = partition odd s == (filter odd s, filter even s)
+prop_filter :: IntSet -> Int -> Property
+prop_filter s i =
+  let parts = partition odd s
+      odds = filter odd s
+      evens = filter even s
+  in valid odds .&&.
+     valid evens .&&.
+     parts === (odds, evens)
 
 #if MIN_VERSION_base(4,5,0)
 prop_bitcount :: Int -> Word -> Bool

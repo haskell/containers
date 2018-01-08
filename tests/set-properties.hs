@@ -21,6 +21,7 @@ import Data.Foldable (all)
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative (..), (<$>))
 #endif
+import Control.Applicative (liftA2)
 
 main :: IO ()
 main = defaultMain [ testCase "lookupLT" test_lookupLT
@@ -93,6 +94,9 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "take"                 prop_take
                    , testProperty "drop"                 prop_drop
                    , testProperty "splitAt"              prop_splitAt
+                   , testProperty "powerSet"             prop_powerSet
+                   , testProperty "cartesianProduct"     prop_cartesianProduct
+                   , testProperty "disjointUnion"        prop_disjointUnion
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -602,6 +606,27 @@ prop_spanAntitone xs' = valid tw .&&. valid dw
   where
     xs = fromList xs'
     (tw, dw) = spanAntitone isLeft xs
+
+prop_powerSet :: Set Int -> Property
+prop_powerSet xs = valid ps .&&. ps === ps'
+  where
+    xs' = take 10 xs
+
+    ps = powerSet xs'
+    ps' = fromList . fmap fromList $ lps (toList xs')
+
+    lps [] = [[]]
+    lps (y : ys) = fmap (y:) (lps ys) ++ lps ys
+
+prop_cartesianProduct :: Set Int -> Set Int -> Property
+prop_cartesianProduct xs ys =
+  valid cp .&&. toList cp === liftA2 (,) (toList xs) (toList ys)
+  where cp = cartesianProduct xs ys
+
+prop_disjointUnion :: Set Int -> Set Int -> Property
+prop_disjointUnion xs ys =
+  valid du .&&. du === union (mapMonotonic Left xs) (mapMonotonic Right ys)
+  where du = disjointUnion xs ys
 
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True

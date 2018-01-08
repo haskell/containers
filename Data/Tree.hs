@@ -1,3 +1,4 @@
+{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
@@ -47,6 +48,7 @@ import Data.Traversable (Traversable(traverse))
 #endif
 
 import Control.Monad (liftM)
+import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
 import Data.Typeable
@@ -173,8 +175,18 @@ instance Applicative Tree where
 
 instance Monad Tree where
     return = pure
-    Node x ts >>= f = Node x' (ts' ++ map (>>= f) ts)
-      where Node x' ts' = f x
+    Node x ts >>= f = case f x of
+        Node x' ts' -> Node x' (ts' ++ map (>>= f) ts)
+
+-- | @since 0.5.11
+instance MonadFix Tree where
+  mfix = mfixTree
+
+mfixTree :: (a -> Tree a) -> Tree a
+mfixTree f
+  | Node a children <- fix (f . rootLabel)
+  = Node a (zipWith (\i _ -> mfixTree ((!! i) . subForest . f))
+                    [0..] children)
 
 instance Traversable Tree where
     traverse f (Node x ts) = liftA2 Node (f x) (traverse (traverse f) ts)
