@@ -6,15 +6,13 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeFamilies #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE TypeFamilies #-}
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
@@ -3928,7 +3926,7 @@ instance GHC.Exts.IsList (Seq a) where
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.7
-instance IsString (Seq Char) where
+instance a ~ Char => IsString (Seq a) where
     fromString = fromList
 #endif
 
