@@ -71,4 +71,4 @@ When you send a pull request, please:
   
 - Update the change log for non-trivial changes.
 
-- Please let us know how you wish to be credited in the changelog.
+- Let us know how you wish to be credited in the changelog.
