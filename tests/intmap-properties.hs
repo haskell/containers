@@ -1028,15 +1028,17 @@ newtype TestIdentity a = TestIdentity { runTestIdentity :: a }
 instance Functor TestIdentity where
     fmap = coerce
 
-prop_alterF_IdentityRules :: UMap -> Int -> Bool
+prop_alterF_IdentityRules :: UMap -> Int -> Property
 prop_alterF_IdentityRules t k =
-    runIdentity tIdentity == runTestIdentity tTestIdentity
+    valid tIdentity .&&.
+    valid tTestIdentity .&&.
+    tIdentity == tTestIdentity
   where
-    tIdentity = alterF fIdentity k t
+    tIdentity = runIdentity $ alterF fIdentity k t
     fIdentity Nothing = Identity (Just ())
     fIdentity (Just ()) = Identity Nothing
 
-    tTestIdentity = alterF fTest k t
+    tTestIdentity = runTestIdentity $ alterF fTest k t
     fTest Nothing   = TestIdentity (Just ())
     fTest (Just ()) = TestIdentity (Nothing)
 #endif
