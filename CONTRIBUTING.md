@@ -62,9 +62,11 @@ When you send a pull request, please:
   If there are significant changes, please include the benchmark results in
   your commit message.
 
-- If you are requesting a change that affects behaviour, please add QuickCheck
-  properties exercising the code if they do not already exist. If the problem
-  occurs too rarely for QuickCheck to hit then consider adding unit tests as
-  well.
+- If you are requesting a change that adds new functionality or affects
+  behaviour, please add QuickCheck properties exercising the code if they
+  do not already exist. If the problem occurs too rarely for QuickCheck to
+  hit then consider adding unit tests as well.
   
 - Update change log for non-trivial changes.
+
+- Let us know how you wish to be credited in the changelog.
