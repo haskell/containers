@@ -288,11 +288,7 @@ module Data.IntMap.Internal (
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
-#if MIN_VERSION_base(4,9,0)
-import Control.Applicative (liftA2, Const(..))
-#else
 import Control.Applicative (liftA2)
-#endif
 #else
 import Control.Applicative (Applicative(pure, (<*>)), (<$>), liftA2)
 import Data.Monoid (Monoid(..))
@@ -1000,15 +996,6 @@ alterF f k m = (<$> f mv) $ \fres ->
 {-# RULES
 "Identity specialize alterF" forall (f :: Maybe a -> Identity (Maybe a)) k m.
   alterF f k m = Identity $ alter (coerce f) k m
-  #-}
-#endif
-
-#if MIN_VERSION_base(4,9,0)
-{-# RULES
-"Const specialize alterF" forall (f :: Maybe a -> Const x (Maybe a)) k m.
-  -- 'Const . getConst' is needed because the phantom type differs between
-  -- the return type of 'f' and 'alterF'.
-  alterF f k m = Const . getConst . f $ lookup k m
   #-}
 #endif
 

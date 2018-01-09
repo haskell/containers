@@ -157,9 +157,6 @@ main = defaultMain
 #if MIN_VERSION_base(4,8,0)
              , testProperty "alterF_Identity"      prop_alterF_IdentityRules
 #endif
-#if MIN_VERSION_base(4,9,0)
-             , testProperty "alterF_Const"         prop_alterF_ConstRules
-#endif
              , testProperty "index"                prop_index
              , testProperty "index_lookup"         prop_index_lookup
              , testProperty "null"                 prop_null
@@ -1041,29 +1038,6 @@ prop_alterF_IdentityRules t k =
     tTestIdentity = runTestIdentity $ alterF fTest k t
     fTest Nothing   = TestIdentity (Just ())
     fTest (Just ()) = TestIdentity (Nothing)
-#endif
-
-#if MIN_VERSION_base(4,9,0)
--- Verify that the rewrite rules for Const give the same result
--- as the non-rewritten version. We use a custom TestConst that
--- will not fire the rewrite rules to compare against.
-
-newtype TestConst a b = TestConst { getTestConst :: a }
-
-instance Functor (TestConst a) where
-    fmap _ (TestConst a) = TestConst a
-
-prop_alterF_ConstRules :: UMap -> Int -> Bool
-prop_alterF_ConstRules t k =
-    getConst tConst == getTestConst tTestConst
-  where
-    tConst = alterF fConst k t
-    fConst Nothing = Const False
-    fConst (Just ()) = Const True
-
-    tTestConst = alterF fTest k t
-    fTest Nothing   = TestConst False
-    fTest (Just ()) = TestConst True
 #endif
 
 ------------------------------------------------------------------------

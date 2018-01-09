@@ -48,8 +48,7 @@ main = do
         , bench "alterF_IdentityRewrite" $ whnf (altFIdentity keys) m
 #endif
 #if MIN_VERSION_base(4,9,0)
-        , bench "alterF_ConstNoRewrite" $ whnf (altFTestConst keys) m
-        , bench "alterF_ConstRewrite" $ whnf (altFConst keys) m
+        , bench "alterF_Const" $ whnf (altFConst keys) m
 #endif
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
@@ -121,15 +120,6 @@ altFIdentity xs m = foldl' (\m k -> runIdentity $ M.alterF (pure . id) k m) m xs
 #endif
 
 #if MIN_VERSION_base(4,9,0)
-newtype TestConst a b = TestConst { getTestConst :: a }
-
-instance Functor (TestConst a) where
-    fmap _ (TestConst a) = TestConst a
-
-altFTestConst :: [Int] -> M.IntMap Int -> M.IntMap Int
-altFTestConst xs m =
-    foldl' (\m k -> getTestConst $ M.alterF (const (TestConst m) . id) k m) m xs
-
 altFConst :: [Int] -> M.IntMap Int -> M.IntMap Int
 altFConst xs m =
     foldl' (\m k -> getConst $ M.alterF (const (Const m) . id) k m) m xs
