@@ -5,8 +5,8 @@ Sequences
 
 Sequences allow you to store a finite number of sequential elements, providing
 fast access to both ends of the sequence as well as efficient concatenation. The
-``containers`` package provides the :haddock:`containers/Data.Sequence` module
-which defines the ``Seq`` data type.
+``containers`` package provides the :haddock:`/Data.Sequence` module which
+defines the ``Seq`` data type.
 
 
 Short Example
@@ -108,7 +108,7 @@ Create an empty sequence
     Seq.empty :: Seq a
     Seq.empty = ...
 
-:haddock_short:`Data.Sequence#empty` creates a sequence with zero elements.
+:haddock_short:`/Data.Sequence#empty` creates a sequence with zero elements.
 
 ::
 
@@ -124,7 +124,7 @@ Create a sequence with one element (singleton)
     Seq.singleton :: a -> Seq a
     Seq.singleton x = ...
 
-:haddock_short:`Data.Sequence#singleton` creates a sequence with the single
+:haddock_short:`/Data.Sequence#singleton` creates a sequence with the single
 element ``x`` in it.
 
 ::
@@ -143,7 +143,7 @@ Create a sequence with the same element repeated
     Seq.replicate :: Int -> a -> Seq a
     Seq.replicate n x = ...
 
-:haddock_short:`Data.Sequence#replicate` creates a sequence with same element
+:haddock_short:`/Data.Sequence#replicate` creates a sequence with same element
 ``x`` repeated ``n`` times.
 
 ::
@@ -162,7 +162,7 @@ Create a sequence from a list
     Seq.fromList :: [a] -> Seq a
     Seq.FromList xs = ...
 
-:haddock_short:`Data.Sequence#fromList` creates a sequence containing the
+:haddock_short:`/Data.Sequence#fromList` creates a sequence containing the
 elements of the list ``xs``. Sequences allow duplicate so all elements will be
 included in the order given.
 
@@ -265,7 +265,7 @@ Check if a sequence is empty
     Seq.null :: Seq a -> Bool
     Seq.null xs = ...
 
-:haddock_short:`Data.Sequence#null` returns ``True`` if the sequence ``xs`` is
+:haddock_short:`/Data.Sequence#null` returns ``True`` if the sequence ``xs`` is
 empty, and ``False`` otherwise.
 
 ::
@@ -284,7 +284,7 @@ The length/size of a sequence
     Seq.length :: Seq a -> Int
     Seq.length xs = ...
 
-:haddock_short:`Data.Sequence#length` returns the length of the sequence ``xs``.
+:haddock_short:`/Data.Sequence#length` returns the length of the sequence ``xs``.
 
 ::
 
@@ -305,8 +305,8 @@ The element at a given index
     Seq.!? :: Seq a -> Int -> Maybe a
     xs !? n = ...
 
-:haddock_short:`Data.Sequence#lookup` returns the element at the position ``n``,
-or ``Nothing`` if the index is out of bounds. :haddock_short:`Data.Sequence#!?`
+:haddock_short:`/Data.Sequence#lookup` returns the element at the position ``n``,
+or ``Nothing`` if the index is out of bounds. :haddock_short:`/Data.Sequence#!?`
 is simply a flipped version of ``lookup``.
 
 .. NOTE::
@@ -319,7 +319,7 @@ is simply a flipped version of ``lookup``.
     Seq.index :: Seq a -> Int -> a
     Seq.index xs n = ...
 
-:haddock_short:`Data.Sequence#index` returns the element at the given
+:haddock_short:`/Data.Sequence#index` returns the element at the given
 position. It throws a runtime error if the index is out of bounds.
 
 .. TIP::
@@ -362,7 +362,7 @@ Inserting an element
     Seq.insertAt :: Int -> a -> Seq a -> Seq a
     Seq.insertAt i x xs = ...
 
-:haddock_short:`Data.Sequence#insertAt` inserts ``x`` into ``xs`` at the index
+:haddock_short:`/Data.Sequence#insertAt` inserts ``x`` into ``xs`` at the index
 ``i``, shifting the rest of the sequence over. If ``i`` is out of range then
 ``x`` will be inserted at the beginning or the end of the sequence as
 appropriate.
@@ -388,7 +388,7 @@ Delete an element
     Seq.deleteAt :: Int -> Seq a -> Seq a
     Seq.deleteAt i xs = ...
 
-:haddock_short:`Data.Sequence#deleteAt` removes the element of the sequence at
+:haddock_short:`/Data.Sequence#deleteAt` removes the element of the sequence at
 index ``i``. If the index is out of bounds then the original sequence is
 returned.
 
@@ -408,7 +408,7 @@ Replace an element
     Seq.update :: Int -> a -> Seq a -> Seq a
     Seq.update i x xs = ...
 
-:haddock_short:`Data.Sequence#update` replaces the element at position ``i`` in
+:haddock_short:`/Data.Sequence#update` replaces the element at position ``i`` in
 the sequence with ``x``. If the index is out of bounds then the original
 sequence is returned.
 
@@ -430,7 +430,7 @@ Adjust/modify an element
     adjust' :: forall a. (a -> a) -> Int -> Seq a -> Seq a
     adjust' f i xs = ...
 
-:haddock_short:`Data.Sequence#adjust'` updates the element at position ``i`` in
+:haddock_short:`/Data.Sequence#adjust'` updates the element at position ``i`` in
 the sequence by applying the function ``f`` to the existing element. If the
 index is out of bounds then the original sequence is returned.
 
@@ -445,7 +445,7 @@ index is out of bounds then the original sequence is returned.
 .. NOTE::
    If you're using an older version of containers which only has ``adjust``, be
    careful because it can lead to poor performance and space leaks (see
-   :haddock_short:`Data.Sequence#adjust` docs).
+   :haddock_short:`/Data.Sequence#adjust` docs).
 
 Modifying all elements
 """"""""""""""""""""""
@@ -458,12 +458,12 @@ Modifying all elements
     Seq.mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
     Seq.mapWithIndex f xs = ...
 
-:haddock_short:`Data.Sequence#fmap` transform each element of the sequence with
+:haddock_short:`/Data.Sequence#fmap` transform each element of the sequence with
 the function ``f``. ``fmap`` is provided by the `Functor
 <https://wiki.haskell.org/Typeclassopedia#Functor>`_ instance for sequences and
 can also be written infix using the ``<$>`` operator.
 
-:haddock_short:`Data.Sequence#mapWithIndex` allows you to do a similar
+:haddock_short:`/Data.Sequence#mapWithIndex` allows you to do a similar
 transformation but gives you the index that each element is at.
 
 ::
@@ -491,7 +491,7 @@ Sorting
     Seq.sort :: Ord a => Seq a -> Seq a
     Seq.sort xs = ...
 
-:haddock_short:`Data.Sequence#sort` the sequence ``xs`` using the ``Ord``
+:haddock_short:`/Data.Sequence#sort` the sequence ``xs`` using the ``Ord``
 instance.
 
 ::
@@ -511,7 +511,7 @@ Take
     Seq.take :: Int -> Seq a -> Seq a
     Seq.take n xs = ...
 
-:haddock_short:`Data.Sequence#take` returns the first ``n`` elements of the
+:haddock_short:`/Data.Sequence#take` returns the first ``n`` elements of the
 sequence ``xs``. If the length of ``xs`` is less than ``n`` then all elements
 are returned.
 
@@ -534,7 +534,7 @@ Drop
     Seq.drop :: Int -> Seq a -> Seq a
     Seq.drop n xs = ...
 
-:haddock_short:`Data.Sequence#drop` the first ``n`` elements of the sequence
+:haddock_short:`/Data.Sequence#drop` the first ``n`` elements of the sequence
 ``xs``. If the length of ``xs`` is less than ``n`` then an empty sequence is
 returned.
 
@@ -557,7 +557,7 @@ Chunks
     Seq.chunksOf :: Int -> Seq a -> Seq (Seq a)
     Seq.chunksOf k xs = ...
 
-:haddock_short:`Data.Sequence#chunksOf` splits the sequence ``xs`` into chunks
+:haddock_short:`/Data.Sequence#chunksOf` splits the sequence ``xs`` into chunks
 of size ``k``. If the length of the sequence is not evenly divisible by ``k``
 then the last chunk will have less than ``k`` elements.
 
@@ -592,10 +592,10 @@ Folding
     Seq.foldrWithIndex :: (Int -> a -> b -> b) -> b -> Seq a -> b
     Seq.foldrWithIndex f init xs = ...
 
-:haddock_short:`Data.Sequence#foldr` collapses the sequence into a summary value
-by repeatedly applying ``f``. ``foldr`` is provided by the `Foldable
+:haddock_short:`/Data.Sequence#foldr` collapses the sequence into a summary
+value by repeatedly applying ``f``. ``foldr`` is provided by the `Foldable
 <https://wiki.haskell.org/Typeclassopedia#Foldable>`_ instance for
-sequences. :haddock_short:`Data.Sequence#foldWithIndex` gives you access to the
+sequences. :haddock_short:`/Data.Sequence#foldWithIndex` gives you access to the
 position in the sequence when transforming each element.
 
 ::
@@ -633,4 +633,4 @@ Looking for more?
 
 Didn't find what you're looking for? This tutorial only covered the most common
 sequence functions, for a full list of functions see the
-:haddock:`containers/Data.Sequence` API documentation.
+:haddock:`/Data.Sequence` API documentation.

@@ -6,8 +6,8 @@ Maps
 Maps (sometimes referred to as dictionaries in other languages) allow you to
 store associations between *unique keys* and *values*. There are three
 implementations provided by the ``containers`` package:
-:haddock:`containers/Data.Map.Strict`, :haddock:`containers/Data.Map.Lazy`, and
-:haddock:`containers/Data.IntMap`. You almost never want the lazy version so use
+:haddock:`/Data.Map.Strict`, :haddock:`/Data.Map.Lazy`, and
+:haddock:`/Data.IntMap`. You almost never want the lazy version so use
 ``Data.Map.Strict``, or if your keys are ``Int`` use ``Data.IntMap``.
 
 ::
@@ -132,7 +132,7 @@ Create an empty map
     Map.empty :: Map k v
     Map.empty = ...
 
-:haddock_short:`Data.Map.Strict#empty` creates a map without any entries.
+:haddock_short:`/Data.Map.Strict#empty` creates a map without any entries.
 
 ::
 
@@ -147,7 +147,7 @@ Create a map with one entry (singleton)
     Map.singleton :: k -> v -> Map k v
     Map.singleton key value = ...
 
-:haddock_short:`Data.Map.Strict#singleton` creates a map with a single
+:haddock_short:`/Data.Map.Strict#singleton` creates a map with a single
 ``(key,value)`` entry in it.
 
 ::
@@ -166,7 +166,7 @@ Create a map from a list
     Map.fromList :: Ord k => [(k, v)] -> Map k v
     Map.fromList xs = ...
 
-:haddock_short:`Data.Map.Strict#fromList` creates a map containing the entries
+:haddock_short:`/Data.Map.Strict#fromList` creates a map containing the entries
 of the list ``xs`` where the keys comes from the first entries of the pairs and
 the values from the second. If the same key appears more than once then the last
 value is taken.
@@ -184,7 +184,7 @@ There's another incredibly useful function for constructing a map from a list::
     Map.fromListWith :: Ord k => (a -> a -> a) -> [(k, a)] -> Map.Map k a
     Map.fromListWith f xs = ...
 
-:haddock_short:`Data.Map.Strict#fromListWith` allows you to build a map from a
+:haddock_short:`/Data.Map.Strict#fromListWith` allows you to build a map from a
 list ``xs`` with repeated keys, where ``f`` is used to "combine" (or "choose")
 values with the same key.
 
@@ -221,9 +221,9 @@ Create a list from a map
    equivalent to ``elems``, although is rarely useful for maps. In general, use
    ``toAscList``.
 
-:haddock_short:`Data.Map.Strict#toAscList`,
-:haddock_short:`Data.Map.Strict#toList`, and
-:haddock_short:`Data.Map.Strict#assocs` returns a list containing the (key,
+:haddock_short:`/Data.Map.Strict#toAscList`,
+:haddock_short:`/Data.Map.Strict#toList`, and
+:haddock_short:`/Data.Map.Strict#assocs` returns a list containing the (key,
 value) pairs in the map ``m`` in *ascending* key order.
 
 ::
@@ -231,7 +231,7 @@ value) pairs in the map ``m`` in *ascending* key order.
     Map.toDescList :: Map k v -> [(k, v)]
     Map.toDescList m = ...
 
-:haddock_short:`Data.Map.Strict#toDescList` returns a list containing the (key,
+:haddock_short:`/Data.Map.Strict#toDescList` returns a list containing the (key,
 value) pairs in the map ``m`` in *descending* key order.
 
 ::
@@ -257,7 +257,7 @@ Lookup an entry in the map (lookup)
     Map.!? :: Ord k => Map k v -> k -> Maybe v
     Map.!? m key = ...
 
-:haddock_short:`Data.Map.Strict#lookup` the value corresponding to the given
+:haddock_short:`/Data.Map.Strict#lookup` the value corresponding to the given
 ``key``, returns ``Nothing`` if the key is not present; the ``!?`` operator
 (*since 0.5.10*) is a flipped version of ``lookup`` and can often be imported
 unqualified.
@@ -304,7 +304,7 @@ Check if a map is empty
     Map.null :: Map k v -> Bool
     Map.null m = ...
 
-:haddock_short:`Data.Map.Strict#null` returns ``True`` if the map ``m`` is
+:haddock_short:`/Data.Map.Strict#null` returns ``True`` if the map ``m`` is
 empty and ``False`` otherwise.
 
 ::
@@ -323,7 +323,7 @@ The number of entries in a map
     Map.size :: Map k v -> Int
     Map.size m = ...
 
-:haddock_short:`Data.Map.Strict#size` returns the number of entries in the map
+:haddock_short:`/Data.Map.Strict#size` returns the number of entries in the map
 ``m``.
 
 ::
@@ -345,8 +345,8 @@ Find the minimum/maximum
     Map.lookupMin m = ...
     Map.lookupMax m = ...
 
-:haddock_short:`Data.Map.Strict#lookupMin` and
-:haddock_short:`Data.Map.Strict#lookupMax` respectively return the
+:haddock_short:`/Data.Map.Strict#lookupMin` and
+:haddock_short:`/Data.Map.Strict#lookupMax` respectively return the
 minimum or maximum element of the map ``m``, or ``Nothing`` if the map is empty.
 
 ::
@@ -375,7 +375,7 @@ Adding a new entry to a map
     Map.insert :: Ord k => k -> v -> Map k v -> Map k v
     Map.insert key value m = ...
 
-:haddock_short:`Data.Map.Strict#insert` adds the ``value`` into the map ``m``
+:haddock_short:`/Data.Map.Strict#insert` adds the ``value`` into the map ``m``
 with the given ``key``, replacing the existing value if the key already exists.
 
 ::
@@ -398,7 +398,7 @@ Removing an entry from a map
     Map.delete :: Ord k => k -> Map k v -> Map k v
     Map.delete key m = ...
 
-:haddock_short:`Data.Map.Strict#delete` removes the entry with the specified
+:haddock_short:`/Data.Map.Strict#delete` removes the entry with the specified
 ``key`` from the map ``m``.  If the key doesn't exist it leaves the map
 unchanged.
 
@@ -418,7 +418,7 @@ Filtering map entries
     Map.filterWithKey :: (k -> v -> Bool) -> Map k v -> Map k v
     Map.filterWithKey predicate m = ...
 
-:haddock_short:`Data.Map.Strict#filterWithKey` produces a map consisting of all
+:haddock_short:`/Data.Map.Strict#filterWithKey` produces a map consisting of all
 entries of ``m`` for which the ``predicate`` returns ``True``.
 
 ::
@@ -436,7 +436,7 @@ Modifying a map entry
     Map.adjust :: Ord k => (v -> v) -> k -> Map k v -> Map k v
     Map.adjust f key m = ...
 
-:haddock_short:`Data.Map.Strict#abjust` applies the value transformation
+:haddock_short:`/Data.Map.Strict#abjust` applies the value transformation
 function ``f`` to the entry with given ``key``. If no entry for that key exists
 then the map is left unchanged.
 
@@ -494,11 +494,11 @@ Modifying all map entries (mapping and traversing)
     Map.mapWithKey g m = ...
 
 
-:haddock_short:`Data.Map.Strict#map` creates a new map by applying the
+:haddock_short:`/Data.Map.Strict#map` creates a new map by applying the
 transformation function ``f`` to each entries value. This is how `Functor
 <https://wiki.haskell.org/Typeclassopedia#Functor>`_ is defined for maps.
 
-:haddock_short:`Data.Map.Strict#mapWithKey` does the same as ``map`` but gives
+:haddock_short:`/Data.Map.Strict#mapWithKey` does the same as ``map`` but gives
 you access to the key in the transformation function ``g``.
 
 ::
@@ -523,7 +523,7 @@ each entry in the map.
     Map.traverseWithKey :: Applicative t => (k -> a -> t b) -> Map.Map k a -> t (Map.Map k b)
     Map.traverseWithKey f m = ...
 
-:haddock_short:`Data.Map.Strict#traverseWithKey` maps each element of the map
+:haddock_short:`/Data.Map.Strict#traverseWithKey` maps each element of the map
 ``m`` to an *action* that produces a result of type ``b``. The actions are
 performed and the values of the map are replaced with the results from the
 function. You can think of this as a ``map`` with affects.
@@ -555,7 +555,7 @@ Union
     Map.unionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
     Map.unionWith f l r = ...
 
-:haddock_short:`Data.Map.Strict#union` returns a map containing all entries that
+:haddock_short:`/Data.Map.Strict#union` returns a map containing all entries that
 are keyed in either of the two maps. If the same key appears in both maps, the
 value is determined by calling ``f`` passing in the left and right value (`set
 union <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
@@ -582,7 +582,7 @@ Intersection
     Map.intersectionWith :: Ord k => (v -> v -> v) -> Map k v -> Map k v -> Map k v
     Map.intersectionWith f l r = ...
 
-:haddock_short:`Data.Map.Strict#intersection` returns a map containing all
+:haddock_short:`/Data.Map.Strict#intersection` returns a map containing all
 entries that have a key in both maps ``l`` and ``r``. The value in the returned
 map is determined by calling ``f`` on the values from the left and right map
 (`set intersection <https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
@@ -605,7 +605,7 @@ Difference
     Map.difference :: Ord k => Map k v -> Map k v -> Map k v
     Map.difference l r = ...
 
-:haddock_short:`Data.Map.Strict#difference` returns a map containing all entries
+:haddock_short:`/Data.Map.Strict#difference` returns a map containing all entries
 that have a key in the ``l`` map but not the ``r`` map (`set difference/relative
 complement
 <https://en.wikipedia.org/wiki/Complement_(set_theory)#Relative_complement>`_).
@@ -629,7 +629,7 @@ use.
 
 .. TIP::
    If you are writing custom serialization code use
-   :haddock_short:`Data.Map.Strict#fromDistinctAscList` (see
+   :haddock_short:`/Data.Map.Strict#fromDistinctAscList` (see
    `#405 <https://github.com/haskell/containers/issues/405>`_ for more info).
 
 
@@ -646,5 +646,5 @@ Looking for more?
 
 Didn't find what you're looking for? This tutorial only covered the most common
 map functions, for a full list of functions see the
-:haddock_short:`Data.Map.Strict#Map` and
-:haddock_short:`Data.IntMap.Strict#IntMap` API documentation.
+:haddock_short:`/Data.Map.Strict#Map` and
+:haddock_short:`/Data.IntMap.Strict#IntMap` API documentation.
