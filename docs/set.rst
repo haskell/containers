@@ -89,6 +89,7 @@ standard Prelude. You can import the type constructor and addional functions
 that you care about unqualified.
 
 ::
+
     import Data.Set (Set, lookupMin, lookupMax)
     import qualified Data.Set as Set
 
