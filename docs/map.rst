@@ -218,7 +218,8 @@ Create a list from a map
 
 .. NOTE::
    ``Map.toList`` is **not** the same as ``Foldable.toList``; the latter is
-   equivalent to ``elems``.
+   equivalent to ``elems``, although is rarely useful for maps. In general, use
+   ``toAscList``.
 
 :haddock_short:`Data.Map.Strict#toAscList`,
 :haddock_short:`Data.Map.Strict#toList`, and
