@@ -7,10 +7,18 @@ bug-reports: https://github.com/haskell/containers/issues
 synopsis: Assorted concrete container types
 category: Data Structures
 description:
+    .
     This package contains efficient general-purpose implementations
-    of various basic immutable container types.  The declared cost of
-    each operation is either worst-case or amortized, but remains
-    valid even if structures are shared.
+    of various immutable container types including sets, maps, sequences,
+    trees, and graphs.
+    .
+    For a walkthrough of what this package provides with examples of common
+    operations see the [containers
+    introduction](https://haskell-containers.readthedocs.io).
+    .
+    The declared cost of each operation is either worst-case or amortized, but
+    remains valid even if structures are shared.
+
 build-type: Simple
 cabal-version:  >=1.8
 extra-source-files:
