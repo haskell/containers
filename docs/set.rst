@@ -1,6 +1,8 @@
 Sets
 ====
 
+.. highlight:: haskell
+
 Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
 provided by the ``containers`` package: :haddock:`containers/Data.Set` and
