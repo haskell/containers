@@ -28,7 +28,7 @@ order to keep the changes you need to assign it to a new variable. For example::
 
     let s1 = Set.fromList ["a", "b"]
     let s2 = Set.delete "a" s1
-    print s2
+    print s1
     > fromList ["a","b"]
     print s2
     > fromList ["b"]
@@ -58,7 +58,7 @@ The following GHCi session shows some of the basic set functionality::
     > True
 
 
-    -- Remove "Graph" froum our original set of data structures.
+    -- Remove "Graph" from our original set of data structures.
     let fewerDataStructures = Set.delete "Graph" dataStructures
 
     Set.toAscList fewerDataStructures
