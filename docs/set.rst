@@ -5,9 +5,8 @@ Sets
 
 Sets allow you to store *unique*, *ordered* elements, providing efficient
 insertion, lookups, deletions, and set operations. There are two implementations
-provided by the ``containers`` package: :haddock:`containers/Data.Set` and
-:haddock:`containers/Data.IntSet`. Use ``IntSet`` if you are storing,
-well... ``Int`` s.
+provided by the ``containers`` package: :haddock:`/Data.Set` and
+:haddock:`/Data.IntSet`. Use ``IntSet`` if you are storing, well... ``Int`` s.
 
 ::
 
@@ -124,7 +123,7 @@ Create an empty set
     Set.empty :: Set a
     Set.empty = ...
 
-:haddock_short:`Data.Set#empty` creates a set with zero elements.
+:haddock_short:`/Data.Set#empty` creates a set with zero elements.
 
 ::
 
@@ -139,7 +138,7 @@ Create a set with one element (singleton)
     Set.singleton :: a -> Set a
     Set.singleton x = ...
 
-:haddock_short:`Data.Set#singleton` creates a set with a single element ``x`` in
+:haddock_short:`/Data.Set#singleton` creates a set with a single element ``x`` in
 it.
 
 ::
@@ -158,7 +157,7 @@ Create a set from a list
     Set.fromList :: Ord a => [a] -> Set a
     Set.fromList xs = ...
 
-:haddock_short:`Data.Set#fromList` creates a set containing the elements of the
+:haddock_short:`/Data.Set#fromList` creates a set containing the elements of the
 list ``xs``. Since sets don't contain duplicates, if there are repeated elements
 in the list they will only appear once.
 
@@ -178,9 +177,9 @@ Create a list from a set
     Set.toAscList, Set.toList, Set.elems :: Set a -> [a]
     Set.toAscList s = ...
 
-:haddock_short:`Data.Set#toAscList`, :haddock_short:`Data.Set#toList`, and
-:haddock_short:`Data.Set#elems` return a list containing the elements of the set
-:haddock_short:``s`` in *ascending* order.
+:haddock_short:`/Data.Set#toAscList`, :haddock_short:`/Data.Set#toList`, and
+:haddock_short:`/Data.Set#elems` return a list containing the elements of the set
+:haddock_short:`/`s`` in *ascending* order.
 
 .. NOTE::
    These all do the same thing; use ``toAscList`` because its name indicates the
@@ -191,7 +190,7 @@ Create a list from a set
     Set.toDescList :: Set a -> [a]
     Set.toDescList s = ...
 
-:haddock_short:`Data.Set#toDescList` returns a list containing the elements of
+:haddock_short:`/Data.Set#toDescList` returns a list containing the elements of
 the set ``s`` in *descending* order.
 
 ::
@@ -214,7 +213,7 @@ Check if an element is in a set (member)
     Set.member :: Ord a => a -> Set a -> Bool
     Set.member x s = ...
 
-:haddock_short:`Data.Set#member` returns ``True`` if the element ``x`` is in the
+:haddock_short:`/Data.Set#member` returns ``True`` if the element ``x`` is in the
 set ``s``, ``False`` otherwise.
 
 ::
@@ -233,7 +232,7 @@ Check if a set is empty
     Set.null :: Set a -> Bool
     Set.null s = ...
 
-:haddock_short:`Data.Set#null` returns ``True`` if the set ``s`` is empty,
+:haddock_short:`/Data.Set#null` returns ``True`` if the set ``s`` is empty,
 ``False`` otherwise.
 
 ::
@@ -253,7 +252,7 @@ The number of elements in a set
     Set.size :: Set a -> Int
     Set.size s = ...
 
-:haddock_short:`Data.Set#size` returns the number of elements in the set ``s``.
+:haddock_short:`/Data.Set#size` returns the number of elements in the set ``s``.
 
 ::
 
@@ -274,7 +273,7 @@ Find the minimum/maximum element in a set
    lookupMin s = ...
    lookupMax s = ...
 
-:haddock_short:`Data.Set#lookupMin` returns the minimum, or maximum
+:haddock_short:`/Data.Set#lookupMin` returns the minimum, or maximum
 respectively, element of the set ``s``, or ``Nothing`` if the set is empty.
 
 ::
@@ -304,7 +303,7 @@ Adding a new element to a set
     Set.insert :: Ord a => a -> Set a -> Set a
     Set.insert x s = ...
 
-:haddock_short:`Data.Set#insert` places the element ``x`` into the set ``s``,
+:haddock_short:`/Data.Set#insert` places the element ``x`` into the set ``s``,
 replacing an existing equal element if it already exists.
 
 ::
@@ -323,7 +322,7 @@ Removing an element from a set
     Set.delete :: Ord a => a -> Set a -> Set a
     Set.delete x s = ...
 
-:haddock_short:`Data.Set#delete` the element ``x`` from the set ``s``. If it’s
+:haddock_short:`/Data.Set#delete` the element ``x`` from the set ``s``. If it’s
 not a member it leaves the set unchanged.
 
 ::
@@ -339,7 +338,7 @@ Filtering elements from a set
     Set.filter :: (a -> Bool) -> Set a -> Set a
     Set.filter predicate s = ...
 
-:haddock_short:`Data.Set#filter` produces a set consisting of all elements of
+:haddock_short:`/Data.Set#filter` produces a set consisting of all elements of
 ``s`` for which the `predicate`` returns ``True``.
 
 ::
@@ -359,7 +358,7 @@ Union
     Set.union :: Ord a => Set a -> Set a -> Set a
     Set.union l r = ...
 
-:haddock_short:`Data.Set#union` returns a set containing all elements that are
+:haddock_short:`/Data.Set#union` returns a set containing all elements that are
 in either of the two sets ``l`` or ``r`` (`set union
 <https://en.wikipedia.org/wiki/Union_(set_theory)>`_).
 
@@ -379,7 +378,7 @@ Intersection
     Set.intersection :: Ord a => Set a -> Set a -> Set a
     Set.intersection l r = ...
 
-:haddock_short:`Data.Set#intersection` returns a set the elements that are in
+:haddock_short:`/Data.Set#intersection` returns a set the elements that are in
 both sets ``l`` and ``r`` (`set intersection
 <https://en.wikipedia.org/wiki/Intersection_(set_theory)>`_).
 
@@ -402,7 +401,7 @@ Difference
     Set.difference :: Ord a => Set a -> Set a -> Set a
     Set.difference l r = ...
 
-:haddock_short:`Data.Set#difference` returns a set containing the elements that
+:haddock_short:`/Data.Set#difference` returns a set containing the elements that
 are in the first set ``l`` but not the second set ``r`` (`set
 difference/relative compliment
 <https://en.wikipedia.org/wiki/Complement_(set_theory)#Relative_complement>`_).
@@ -426,7 +425,7 @@ Subset
     Set.isSubsetOf :: Ord a => Set a -> Set a -> Bool
     Set.isSubsetOf l r = ...
 
-:haddock_short:`Data.Set#isSubsetOf` returns ``True`` if all elements in the
+:haddock_short:`/Data.Set#isSubsetOf` returns ``True`` if all elements in the
 first set ``l`` are also in the second set ``r`` (`subset
 <https://en.wikipedia.org/wiki/Subset>`_).
 
@@ -460,7 +459,7 @@ use.
 
 .. TIP::
    If you are writing custom serialization code use
-   :haddock_short:`Data.Set#fromDistinctAscList` (see
+   :haddock_short:`/Data.Set#fromDistinctAscList` (see
    `#405 <https://github.com/haskell/containers/issues/405>`_ for more info).
 
 Performance
@@ -476,5 +475,5 @@ Looking for more?
 
 Didn't find what you're looking for? This tutorial only covered the most common
 set functions, for a full list of functions see the
-:haddock_short:`Data.Set#Set` and :haddock_short:`Data.IntSet#IntSet` API
+:haddock_short:`/Data.Set#Set` and :haddock_short:`/Data.IntSet#IntSet` API
 documentation.

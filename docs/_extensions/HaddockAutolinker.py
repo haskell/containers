@@ -30,34 +30,56 @@ def convert_special_chars_to_ascii(func_name):
 
 def parse_haddock_ref_text(text):
     """
-    Parses text of the form pkg-name/Module.Path#func_name into the tuple
-    (package, module, function_name).
+    Parses text of the form pkg-name/Module.Path#ident into the tuple
+    (package, module, ident).
 
     The module and function name are optional, if they are omitted then 'None'
     will be returned in the corresponding tuple element.
 
+    Example inputs:
+      Explicit package references:
+      'pkg' => ('package_name', None, None)
+      'pkg/Module.Name' => ('pkg', 'Module.Name', None)
+      'pkg/Module.Name#ident' => ('pkg', 'Module.Name', 'ident')
+
+      Implicit package references:
+      '/Module.Name' => (None, 'Module.Name', None)
+      '/Module.Name#ident' => (None, 'Module.Name', 'ident')
+
     TODO(m-renaud): Clean this up, there's probably a python parsing library.
     """
 
-    # If there's no '/' then this is either a reference to a package or a local
-    # reference.
+    # If there's no '/' then this is a reference to a package.
+    # A module or identifier reference is invalid here.
     if '/' not in text:
-        if '#' not in text:
-            return (text, None, None)
+        if '#' in text:
+            print_error('Invalid haddock reference: ' + text)
+            raise Exception('Invalid haddock reference, see error above.')
+            return (None, None, None)
         else:
-            module,func_name = text.split('#')
-            return (None, module, func_name)
+            return (text, None, None)
 
+    # Leading '/' means local package reference.
+    # Calling code responsible for determining what "local" means.
+    if 0 == text.find('/'):
+        text = text[1:]
+        if '#' in text:
+            module,ident = text.split('#')
+            return (None, module, ident)
+        else:
+            return (None, text, None)
+
+    # Otherwise, explicit reference.
     pkg_name,rest = text.split('/')
 
-    func_name = None
+    ident = None
     module = None
     if '#' in rest:
-        module,func_name = rest.split('#')
+        module,ident = rest.split('#')
     else:
         module = rest
 
-    return (pkg_name, module, func_name)
+    return (pkg_name, module, ident)
 
 
 
@@ -177,13 +199,13 @@ class HaddockAutolinker:
             Role handler for :haddock:.
             """
 
-            (pkg, module, func_name) = parse_haddock_ref_text(text)
+            (pkg, module, ident) = parse_haddock_ref_text(text)
 
-            # If the pkg isn't set then this is a reference to a function in the current
-            # package.
+            # If the pkg isn't set then this is a local reference to a module
+            # function in the current package.
             if pkg == None:
                 pkg = get_project(inliner)
-            ref = haddock_ref(self.haddock_host, self.haddock_root, pkg, module, func_name)
+            ref = haddock_ref(self.haddock_host, self.haddock_root, pkg, module, ident)
 
             if ref == None:
                 FAIL = '\033[91m'
@@ -198,13 +220,13 @@ class HaddockAutolinker:
             if module == None:
                 link_text = pkg
             else:
-                if func_name == None:
+                if ident == None:
                     link_text = module
                 else:
                     if display_name_only:
-                        link_text = func_name
+                        link_text = ident
                     else:
-                        link_text = module + '#' + func_name
+                        link_text = module + '#' + ident
 
             node = nodes.reference(rawtext, link_text, refuri=ref, **options)
             return [node], []
