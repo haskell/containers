@@ -4421,17 +4421,17 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.
--- If stability is not required, 'unstableSort' can be considerably
--- faster, and in particular uses less memory.
 sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
 -- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
 -- specified comparator.  The sort is stable.
--- If stability is not required, 'unstableSortBy' can be considerably
--- faster, and in particular uses less memory.
 sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
-sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
+sortBy cmp (Seq xs) =
+    maybe
+        (Seq EmptyT)
+        (execState (replicateA (size xs) (popMinS cmp)))
+        (toPQS cmp (Seq xs))
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -4445,8 +4445,10 @@ unstableSort = unstableSortBy compare
 -- uses less memory than 'sortBy'.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
-    maybe (Seq EmptyT) (execState (replicateA (size xs) (popMin cmp))) $
-    toPQ cmp (\(Elem x) -> PQueue x Nil) xs
+    maybe
+        (Seq EmptyT)
+        (execState (replicateA (size xs) (popMin cmp)))
+        (toPQ cmp (Seq xs))
 
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4504,24 +4506,111 @@ popMin cmp = State unrollPQ'
     (<+>) = mergePQ cmp
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
--- elements, converts a 'FingerTree' to a 'PQueue'.
-toPQ :: (e -> e -> Ordering) -> (a -> PQueue e) -> FingerTree a -> Maybe (PQueue e)
-toPQ _ _ EmptyT = Nothing
-toPQ _ f (Single x) = Just (f x)
-toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) (toPQ cmp fNode m))
+-- elements, converts a 'Seq' to a 'PQueue'.
+toPQ :: (e -> e -> Ordering) -> Seq e -> Maybe (PQueue e)
+toPQ cmp (Seq xs') = toPQTree cmp (\(Elem a) -> PQueue a Nil) xs'
   where
-    fDigit digit = case fmap f digit of
-        One a           -> a
-        Two a b         -> a <+> b
-        Three a b c     -> a <+> b <+> c
-        Four a b c d    -> (a <+> b) <+> (c <+> d)
-    (<+>) = mergePQ cmp
-    fNode = fDigit . nodeToDigit
-    pr' = fDigit pr
-    sf' = fDigit sf
+    toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
+    toPQTree _ _ EmptyT = Nothing
+    toPQTree _ f (Single xs) = Just (f xs)
+    toPQTree cmp f (Deep n pr m sf) =  Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQDigit cmp f pr
+        sf' = toPQDigit cmp f sf
+        m' = toPQTree cmp (toPQNode cmp f) m
+        (<+>) = mergePQ cmp
+    toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
+    toPQDigit cmp f dig = case dig of
+        One a -> f a
+        Two a b -> f a <+> f b
+        Three a b c -> f a <+> f b <+> f c
+        Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
+      where (<+>) = mergePQ cmp
+    toPQNode cmp f node = case node of
+        Node2 _ a b -> f a <+> f b
+        Node3 _ a b c -> f a <+> f b <+> f c
+      where (<+>) = mergePQ cmp
 
 -- | 'mergePQ' merges two 'PQueue's.
 mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
 mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
   | cmp x1 x2 == GT     = PQueue x2 (q1 :& ts2)
   | otherwise           = PQueue x1 (q2 :& ts1)
+
+-- | A pairing heap tagged with the original position of elements,
+-- to allow for stable sorting.
+data PQS e = PQS {-# UNPACK #-} !Int e (PQSL e)
+data PQSL e = Nl | {-# UNPACK #-} !(PQS e) :&& PQSL e
+
+infixr 8 :&&
+
+-- | 'popMinS', given an ordering function, constructs a stateful action
+-- which pops the smallest elements from a queue. This action will fail
+-- on empty queues.
+popMinS :: (e -> e -> Ordering) -> State (PQS e) e
+popMinS cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (PQS _ x ts) = (mergePQs ts, x)
+    mergePQs (t :&& Nl) = t
+    mergePQs (t1 :&& t2 :&& Nl) = t1 <+> t2
+    mergePQs (t1 :&& t2 :&& ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs Nl = error "popMin: tried to pop from empty queue"
+    (<+>) = mergePQS cmp
+
+-- | 'toPQS', given an ordering function, converts a 'Seq' to a
+-- 'PQS'.
+toPQS :: (e -> e -> Ordering) -> Seq e -> Maybe (PQS e)
+toPQS cmp (Seq xs') = toPQSTree cmp (\s (Elem a) -> PQS s a Nl) 0 xs'
+  where
+    {-# SPECIALIZE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
+    {-# SPECIALIZE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
+    toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> FingerTree a -> Maybe (PQS b)
+    toPQSTree _ _ !_s EmptyT = Nothing
+    toPQSTree _ f s (Single xs) = Just (f s xs)
+    toPQSTree cmp f s (Deep n pr m sf) =  Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQSDigit cmp f s pr
+        sf' = toPQSDigit cmp f sPsprm sf
+        m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
+        !sPspr = s + size pr
+        !sPsprm = sPspr + size m
+        (<+>) = mergePQS cmp
+    {-# SPECIALIZE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
+    {-# SPECIALIZE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
+    toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
+    toPQSDigit _ f !s (One a) = f s a
+    toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
+      where
+        !sPsa = s + size a
+        (<+>) = mergePQS cmp
+    toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        (<+>) = mergePQS cmp
+    toPQSDigit cmp f s (Four a b c d) = (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        !sPsabc = sPsab + size c
+        (<+>) = mergePQS cmp
+    {-# SPECIALIZE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
+    {-# SPECIALIZE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
+    toPQSNode cmp f s (Node2 ns a b) = f s a <+> f sPsa b
+      where
+        !sPsa = s + size a
+        (<+>) = mergePQS cmp
+    toPQSNode cmp f s (Node3 ns a b c) = f s a <+> f sPsa b <+> f sPsab c
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        (<+>) = mergePQS cmp
+
+-- | 'mergePQS' merges two PQS, taking into account the original
+-- position of the elements.
+mergePQS :: (a -> a -> Ordering) -> PQS a -> PQS a -> PQS a
+mergePQS cmp q1@(PQS i1 x1 ts1) q2@(PQS i2 x2 ts2) = case cmp x1 x2 of
+  LT -> PQS i1 x1 (q2 :&& ts1)
+  EQ | i1 <= i2 -> PQS i1 x1 (q2 :&& ts1)
+  _ -> PQS i2 x2 (q1 :&& ts2)
