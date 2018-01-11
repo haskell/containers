@@ -2,7 +2,7 @@ Haskell ``containers`` introduction and tutorial
 ================================================
 
 This site contains an introduction and overview of the main features of the
-``containers package``. For full API documentation see the :haddock:`containers`
+``containers`` package. For full API documentation see the :haddock:`containers`
 Haddocks.
 
 .. toctree::
