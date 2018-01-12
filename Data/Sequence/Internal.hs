@@ -18,6 +18,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
+{-# LANGUAGE PatternGuards #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -176,13 +177,15 @@ module Data.Sequence.Internal (
     reverse,        -- :: Seq a -> Seq a
     intersperse,    -- :: a -> Seq a -> Seq a
     liftA2Seq,      -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-    -- ** Zips
+    -- ** Zips and unzips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
     zip3,           -- :: Seq a -> Seq b -> Seq c -> Seq (a, b, c)
     zipWith3,       -- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
+    unzip,          -- :: Seq (a, b) -> (Seq a, Seq b)
+    unzipWith,      -- :: (a -> (b, c)) -> Seq a -> (Seq b, Seq c)
 #ifdef TESTING
     deep,
     node2,
@@ -200,7 +203,7 @@ import Prelude hiding (
 #endif
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
-    takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
+    unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
                             liftA, liftA2, liftA3)
@@ -4181,77 +4184,73 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
 
 -- MonadZip appeared in base 4.4.0
 #if MIN_VERSION_base(4,4,0)
--- We use a custom definition of munzip to *try* to avoid retaining
+-- We use a custom definition of munzip to avoid retaining
 -- memory longer than necessary. Using the default definition, if
 -- we write
 --
 -- let (xs,ys) = munzip zs
 -- in xs `deepseq` (... ys ...)
 --
--- then ys will retain the entire zs sequence until ys itself is fully
--- forced. This implementation attempts to use the selector thunk
--- optimization to prevent that. Unfortunately, that optimization is
--- fragile, so we can't actually guarantee anything. If someone finds
--- a leak, we can try to throw explicit bindings and NOINLINE pragmas
--- around and see if that fixes it.
+-- then ys will retain the entire zs sequence until ys itself is fully forced.
+-- This implementation uses the selector thunk optimization to prevent that.
+-- Unfortunately, that optimization is fragile, so we can't actually guarantee
+-- anything.
+
+-- | @ 'mzipWith' = 'zipWith' @
+--
+-- @ 'munzip' = 'unzip' @
 instance MonadZip Seq where
   mzipWith = zipWith
-  munzip = unzipWith id
-
-class UnzipWith f where
-  unzipWith :: (x -> (a, b)) -> f x -> (f a, f b)
-
-instance UnzipWith Elem where
-#if __GLASGOW_HASKELL__ >= 708
-  unzipWith = coerce
-#else
-  unzipWith f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
+  munzip = unzip
 #endif
 
--- We're super-lazy here for the sake of efficiency. We want to be able to
--- reach any element of either result in logarithmic time. If we pattern
--- match strictly, we'll end up building entire 2-3 trees at once, which
--- would take linear time.
-instance UnzipWith Node where
-  unzipWith f (Node2 s x y) =
-    case (f x, f y) of
-      (~(x1, x2), ~(y1, y2)) -> (Node2 s x1 y1, Node2 s x2 y2)
-  unzipWith f (Node3 s x y z) =
-    case (f x, f y, f z) of
-      (~(x1, x2), ~(y1, y2), ~(z1, z2)) -> (Node3 s x1 y1 z1, Node3 s x2 y2 z2)
-
--- We're strict here for the sake of efficiency. The Node instance
--- is lazy, so we don't particularly need to add an extra thunk on top
--- of each node. See the note at the Seq instance for an explanation
--- of why the Digit (Elem a) case is handled specially.
-instance UnzipWith Digit where
-  unzipWith f (One x) =
-    case f x of
-      (x1, x2) -> (One x1, One x2)
-  unzipWith f (Two x y) =
-    case (f x, f y) of
-      ((x1, x2), (y1, y2)) -> (Two x1 y1, Two x2 y2)
-  unzipWith f (Three x y z) =
-    case (f x, f y, f z) of
-      ((x1, x2), (y1, y2), (z1, z2)) -> (Three x1 y1 z1, Three x2 y2 z2)
-  unzipWith f (Four x y z w) =
-    case (f x, f y, f z, f w) of
-      ((x1, x2), (y1, y2), (z1, z2), (w1, w2)) -> (Four x1 y1 z1 w1, Four x2 y2 z2 w2)
-
-instance UnzipWith FingerTree where
-  unzipWith _ EmptyT = (EmptyT, EmptyT)
-  unzipWith f (Single x) = case f x of
-    (x1, x2) -> (Single x1, Single x2)
-  unzipWith f (Deep s pr m sf) =
-    case unzipWith f pr of { (pr1, pr2) ->
-    case unzipWith f sf of { (sf1, sf2) ->
-    case unzipWith (unzipWith f) m of { ~(m1, m2) ->
-      (Deep s pr1 m1 sf1, Deep s pr2 m2 sf2)}}}
-
--- We need to handle the top level of the sequence specially, to make unzipping behave
--- well in the presence of undefined elements. For example, what do we want from
+-- | Unzip a sequence of pairs.
 --
--- munzip [(1,2), undefined, (5,6)]?
+-- @
+-- unzip ps = ps `'seq'` ('fmap' 'fst' ps) ('fmap' 'snd' ps)
+-- @
+--
+-- Example:
+--
+-- @
+-- unzip $ fromList [(1,"a"), (2,"b"), (3,"c")] =
+--   (fromList [1,2,3], fromList ["a", "b", "c"])
+-- @
+--
+-- See the note about efficiency at 'unzipWith'.
+--
+-- @since 0.5.11
+unzip :: Seq (a, b) -> (Seq a, Seq b)
+unzip xs = unzipWith id xs
+
+-- | \( O(n) \). Unzip a sequence using a function to divide elements.
+--
+-- @ unzipWith f xs == 'unzip' ('fmap' f xs) @
+--
+-- Efficiency note:
+--
+-- @unzipWith@ produces its two results in lockstep. If you calculate
+-- @ unzipWith f xs @ and fully force /either/ of the results, then the
+-- entire structure of the /other/ one will be built as well. This
+-- behavior allows the garbage collector to collect each calculated
+-- pair component as soon as it dies, without having to wait for its mate
+-- to die. If you do not need this behavior, you may be better off simply
+-- calculating the sequence of pairs and using 'fmap' to extract each
+-- component sequence.
+--
+-- @since 0.5.11
+unzipWith :: (a -> (b, c)) -> Seq a -> (Seq b, Seq c)
+unzipWith f = unzipWith' (\x ->
+  let
+    {-# NOINLINE fx #-}
+    fx = f x
+    (y,z) = fx
+  in (y,z))
+-- Why do we lazify `f`? Because we don't want the strictness to depend
+-- on exactly how the sequence is balanced. For example, what do we want
+-- from
+--
+-- unzip [(1,2), undefined, (5,6)]?
 --
 -- The argument could be represented as
 --
@@ -4269,18 +4268,150 @@ instance UnzipWith FingerTree where
 --
 -- ([undefined, undefined, 5], [undefined, undefined, 6])
 --
--- so we pretty much have to be completely lazy in the elements. We could
--- do this by adding extra laziness to the Digit instance or to the Elem instance,
--- but either of those would give unnecessary extra laziness lower in the tree.
-instance UnzipWith Seq where
-  unzipWith _f (Seq EmptyT) = (empty, empty)
-  unzipWith f (Seq (Single (Elem x))) = case f x of ~(a, b) -> (singleton a, singleton b)
-  unzipWith f (Seq (Deep s pr m sf)) =
-    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) pr of { (pr1, pr2) ->
-    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) sf of { (sf1, sf2) ->
-    case unzipWith (unzipWith (unzipWith f)) m of { ~(m1, m2) ->
-      (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))}}}
+-- so we pretty much have to be completely lazy in the elements.
+
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] unzipWith #-}
+
+-- We don't need a special rule for unzip:
+--
+-- unzip (fmap f xs) = unzipWith id f xs,
+--
+-- which rewrites to unzipWith (id . f) xs
+--
+-- It's true that if GHC doesn't know the arity of `f` then
+-- it won't reduce further, but that doesn't seem like too
+-- big a deal here.
+{-# RULES
+"unzipWith/fmapSeq" forall f g xs. unzipWith f (fmapSeq g xs) =
+                                     unzipWith (f . g) xs
+ #-}
 #endif
+
+class UnzipWith f where
+  unzipWith' :: (x -> (a, b)) -> f x -> (f a, f b)
+
+-- This instance is only used at the very top of the tree;
+-- the rest of the elements are handled by unzipWithNodeElem
+instance UnzipWith Elem where
+#if __GLASGOW_HASKELL__ >= 708
+  unzipWith' = coerce
+#else
+  unzipWith' f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
+#endif
+
+-- We're very lazy here for the sake of efficiency. We want to be able to
+-- reach any element of either result in logarithmic time. If we pattern
+-- match strictly, we'll end up building entire 2-3 trees at once, which
+-- would take linear time.
+--
+-- However, we're not *entirely* lazy! We are careful to build pieces
+-- of each sequence as the corresponding pieces of the *other* sequence
+-- are demanded. This allows the garbage collector to get rid of each
+-- *component* of each result pair as soon as it is dead.
+--
+-- Note that this instance is used only for *internal* nodes. Nodes
+-- containing elements are handled by 'unzipWithNodeElem'
+instance UnzipWith Node where
+  unzipWith' f (Node2 s x y) =
+    ( Node2 s x1 y1
+    , Node2 s x2 y2)
+    where
+      {-# NOINLINE fx #-}
+      {-# NOINLINE fy #-}
+      fx = strictifyPair (f x)
+      fy = strictifyPair (f y)
+      (x1, x2) = fx
+      (y1, y2) = fy
+  unzipWith' f (Node3 s x y z) =
+    ( Node3 s x1 y1 z1
+    , Node3 s x2 y2 z2)
+    where
+      {-# NOINLINE fx #-}
+      {-# NOINLINE fy #-}
+      {-# NOINLINE fz #-}
+      fx = strictifyPair (f x)
+      fy = strictifyPair (f y)
+      fz = strictifyPair (f z)
+      (x1, x2) = fx
+      (y1, y2) = fy
+      (z1, z2) = fz
+
+-- Force both elements of a pair
+strictifyPair :: (a, b) -> (a, b)
+strictifyPair (!x, !y) = (x, y)
+
+-- We're strict here for the sake of efficiency. The Node instance
+-- is lazy, so we don't particularly need to add an extra thunk on top
+-- of each node.
+instance UnzipWith Digit where
+  unzipWith' f (One x)
+    | (x1, x2) <- f x
+    = (One x1, One x2)
+  unzipWith' f (Two x y)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    = ( Two x1 y1
+      , Two x2 y2)
+  unzipWith' f (Three x y z)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    , (z1, z2) <- f z
+    = ( Three x1 y1 z1
+      , Three x2 y2 z2)
+  unzipWith' f (Four x y z w)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    , (z1, z2) <- f z
+    , (w1, w2) <- f w
+    = ( Four x1 y1 z1 w1
+      , Four x2 y2 z2 w2)
+
+instance UnzipWith FingerTree where
+  unzipWith' _ EmptyT = (EmptyT, EmptyT)
+  unzipWith' f (Single x)
+    | (x1, x2) <- f x
+    = (Single x1, Single x2)
+  unzipWith' f (Deep s pr m sf)
+    | (!pr1, !pr2) <- unzipWith' f pr
+    , (!sf1, !sf2) <- unzipWith' f sf
+    = (Deep s pr1 m1 sf1, Deep s pr2 m2 sf2)
+    where
+      {-# NOINLINE m1m2 #-}
+      m1m2 = strictifyPair $ unzipWith' (unzipWith' f) m
+      (m1, m2) = m1m2
+
+instance UnzipWith Seq where
+  unzipWith' _ (Seq EmptyT) = (empty, empty)
+  unzipWith' f (Seq (Single (Elem x)))
+    | (x1, x2) <- f x
+    = (singleton x1, singleton x2)
+  unzipWith' f (Seq (Deep s pr m sf))
+    | (!pr1, !pr2) <- unzipWith' (unzipWith' f) pr
+    , (!sf1, !sf2) <- unzipWith' (unzipWith' f) sf
+    = (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))
+    where
+      {-# NOINLINE m1m2 #-}
+      m1m2 = strictifyPair $ unzipWith' (unzipWithNodeElem f) m
+      (m1, m2) = m1m2
+
+-- Here we need to be lazy in the children (because they're
+-- Elems), but we can afford to be strict in the results
+-- of `f` because it's sure to return a pair immediately
+-- (unzipWith lazifies the function it's passed).
+unzipWithNodeElem :: (x -> (a, b))
+       -> Node (Elem x) -> (Node (Elem a), Node (Elem b))
+unzipWithNodeElem f (Node2 s (Elem x) (Elem y))
+  | (x1, x2) <- f x
+  , (y1, y2) <- f y
+  = ( Node2 s (Elem x1) (Elem y1)
+    , Node2 s (Elem x2) (Elem y2))
+unzipWithNodeElem f (Node3 s (Elem x) (Elem y) (Elem z))
+  | (x1, x2) <- f x
+  , (y1, y2) <- f y
+  , (z1, z2) <- f z
+  = ( Node3 s (Elem x1) (Elem y1) (Elem z1)
+    , Node3 s (Elem x2) (Elem y2) (Elem z2))
 
 -- | \( O(\min(n_1,n_2)) \).  'zip' takes two sequences and returns a sequence
 -- of corresponding pairs.  If one input is short, excess elements are
