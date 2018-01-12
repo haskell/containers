@@ -4455,14 +4455,19 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 --
 -- mail@doisinkidney.com, 1/11/18
 ------------------------------------------------------------------------
+-- Further notes are available in the file sorting.md (in this
+-- directory).
+------------------------------------------------------------------------
 
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
--- ordering of its elements.  The sort is stable.
+-- ordering of its elements.  The sort is stable.  If stability is not
+-- required, 'unstableSort' can be slightly faster.
 sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
 -- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
--- specified comparator.  The sort is stable.
+-- specified comparator.  The sort is stable.  If stability is not required,
+-- 'unstableSortBy' can be slightly faster.
 sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 sortBy cmp (Seq xs) =
     maybe
@@ -4473,6 +4478,9 @@ sortBy cmp (Seq xs) =
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
 -- This algorithm is frequently faster and uses less memory than 'sort'.
+
+-- Notes on the implementation and choice of heap are available in
+-- the file sorting.md (in this directory).
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
