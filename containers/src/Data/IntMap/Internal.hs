@@ -364,7 +364,9 @@ import Text.Read
 #endif
 import qualified Control.Category as Category
 
+#if __GLASGOW_HASKELL__ >= 800
 import GHC.Stack (HasCallStack)
+#endif
 
 {--------------------------------------------------------------------
   Types
@@ -430,7 +432,11 @@ deriving instance Lift a => Lift (IntMap a)
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+#if __GLASGOW_HASKELL__ >= 800
 (!) :: HasCallStack => IntMap a -> Key -> a
+#else
+(!) :: IntMap a -> Key -> a
+#endif
 (!) m k = find k m
 
 -- | \(O(\min(n,W))\). Find the value at a key.
@@ -2352,7 +2358,11 @@ minView t = fmap (\((_, x), t') -> (x, t')) (minViewWithKey t)
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxViewWithKey'.
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMax :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
+#else
+deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
+#endif
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
@@ -2360,7 +2370,11 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'minViewWithKey'.
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMin :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
+#else
+deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
+#endif
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
 -- The KeyValue type is used when returning a key-value pair and helps with
@@ -2379,7 +2393,11 @@ kvToTuple :: KeyValue a -> (Key, a)
 kvToTuple (KeyValue k x) = (k, x)
 {-# INLINE kvToTuple #-}
 
+#if __GLASGOW_HASKELL__ >= 800
+lookupMinSure :: HasCallStack => IntMap a -> KeyValue a
+#else
 lookupMinSure :: IntMap a -> KeyValue a
+#endif
 lookupMinSure (Tip k v)   = KeyValue k v
 lookupMinSure (Bin _ l _) = lookupMinSure l
 lookupMinSure Nil         = error "lookupMinSure Nil"
@@ -2395,12 +2413,20 @@ lookupMin (Bin p l r) =
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
+#if __GLASGOW_HASKELL__ >= 800
 findMin :: HasCallStack => IntMap a -> (Key, a)
+#else
+findMin :: IntMap a -> (Key, a)
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
 
+#if __GLASGOW_HASKELL__ >= 800
+lookupMaxSure :: HasCallStack => IntMap a -> KeyValue a
+#else
 lookupMaxSure :: IntMap a -> KeyValue a
+#endif
 lookupMaxSure (Tip k v)   = KeyValue k v
 lookupMaxSure (Bin _ _ r) = lookupMaxSure r
 lookupMaxSure Nil         = error "lookupMaxSure Nil"
@@ -2416,7 +2442,11 @@ lookupMax (Bin p l r) =
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
+#if __GLASGOW_HASKELL__ >= 800
 findMax :: HasCallStack => IntMap a -> (Key, a)
+#else
+findMax :: IntMap a -> (Key, a)
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty map has no maximal element"
