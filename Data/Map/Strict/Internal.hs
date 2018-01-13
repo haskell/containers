@@ -418,6 +418,8 @@ import Data.Coerce
 import Data.Functor.Identity (Identity (..))
 #endif
 
+import GHC.Stack (HasCallStack)
+
 
 -- $strictness
 --
@@ -881,7 +883,7 @@ atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
     Tip -> error "Map.updateAt: index out of range"

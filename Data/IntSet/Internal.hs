@@ -216,6 +216,7 @@ import qualified GHC.Exts as GHCExts
 import GHC.Prim (indexInt8OffAddr#)
 #endif
 
+import GHC.Stack (HasCallStack)
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
@@ -793,18 +794,18 @@ minView t =
 -- | /O(min(n,W))/. Delete and find the minimal element.
 --
 -- > deleteFindMin set = (findMin set, deleteMin set)
-deleteFindMin :: IntSet -> (Key, IntSet)
+deleteFindMin :: HasCallStack => IntSet -> (Key, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 --
 -- > deleteFindMax set = (findMax set, deleteMax set)
-deleteFindMax :: IntSet -> (Key, IntSet)
+deleteFindMax :: HasCallStack => IntSet -> (Key, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
 
 -- | /O(min(n,W))/. The minimal element of the set.
-findMin :: IntSet -> Key
+findMin :: HasCallStack => IntSet -> Key
 findMin Nil = error "findMin: empty set has no minimal element"
 findMin (Tip kx bm) = kx + lowestBitSet bm
 findMin (Bin _ m l r)
@@ -815,7 +816,7 @@ findMin (Bin _ m l r)
           find Nil            = error "findMin Nil"
 
 -- | /O(min(n,W))/. The maximal element of a set.
-findMax :: IntSet -> Key
+findMax :: HasCallStack => IntSet -> Key
 findMax Nil = error "findMax: empty set has no maximal element"
 findMax (Tip kx bm) = kx + highestBitSet bm
 findMax (Bin _ m l r)

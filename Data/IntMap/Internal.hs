@@ -331,6 +331,8 @@ import qualified Control.Category as Category
 import Data.Coerce
 #endif
 
+import GHC.Stack (HasCallStack)
+
 
 -- A "Nat" is a natural machine word (an unsigned Int)
 type Nat = Word
@@ -390,7 +392,7 @@ bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
-(!) :: IntMap a -> Key -> a
+(!) :: HasCallStack => IntMap a -> Key -> a
 (!) m k = find k m
 
 -- | /O(min(n,W))/. Find the value at a key.
@@ -2169,11 +2171,11 @@ minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
-deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMax :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
-deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMin :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
 -- | /O(min(n,W))/. The minimal key of the map. Returns 'Nothing' if the map is empty.
@@ -2188,7 +2190,7 @@ lookupMin (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The minimal key of the map. Calls 'error' if the map is empty.
-findMin :: IntMap a -> (Key, a)
+findMin :: HasCallStack => IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
@@ -2205,7 +2207,7 @@ lookupMax (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The maximal key of the map. Calls 'error' if the map is empty.
-findMax :: IntMap a -> (Key, a)
+findMax :: HasCallStack => IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty map has no maximal element"
