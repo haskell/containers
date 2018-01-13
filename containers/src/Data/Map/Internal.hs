@@ -426,6 +426,7 @@ import Data.Coerce
 import Text.Read hiding (lift)
 #endif
 import qualified Control.Category as Category
+import GHC.Stack (HasCallStack)
 
 {--------------------------------------------------------------------
   Operators
@@ -440,7 +441,7 @@ infixl 9 !,!?,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
-(!) :: Ord k => Map k a -> k -> a
+(!) :: (HasCallStack, Ord k) => Map k a -> k -> a
 (!) m k = find k m
 #if __GLASGOW_HASKELL__
 {-# INLINE (!) #-}
@@ -1484,7 +1485,7 @@ alterFYoneda = go
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
 -- See Note: Type of local 'go' function
-findIndex :: Ord k => k -> Map k a -> Int
+findIndex :: (HasCallStack, Ord k) => k -> Map k a -> Int
 findIndex = go 0
   where
     go :: Ord k => Int -> k -> Map k a -> Int
@@ -1530,7 +1531,7 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-elemAt :: Int -> Map k a -> (k,a)
+elemAt :: HasCallStack => Int -> Map k a -> (k,a)
 elemAt !_ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of
@@ -1621,7 +1622,7 @@ splitAt i0 m0
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f !i t =
   case t of
     Tip -> error "Map.updateAt: index out of range"
@@ -1645,7 +1646,7 @@ updateAt f !i t =
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
-deleteAt :: Int -> Map k a -> Map k a
+deleteAt :: HasCallStack => Int -> Map k a -> Map k a
 deleteAt !i t =
   case t of
     Tip -> error "Map.deleteAt: index out of range"
@@ -1702,7 +1703,7 @@ lookupMin (Bin _ k x l _) = Just $! kvToTuple (lookupMinSure k x l)
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
-findMin :: Map k a -> (k,a)
+findMin :: HasCallStack => Map k a -> (k,a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Map.findMin: empty map has no minimal element"
@@ -1730,7 +1731,7 @@ lookupMax (Bin _ k x _ r) = Just $! kvToTuple (lookupMaxSure k x r)
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
 
-findMax :: Map k a -> (k,a)
+findMax :: HasCallStack => Map k a -> (k,a)
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Map.findMax: empty map has no maximal element"
@@ -2848,7 +2849,7 @@ mergeA
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@,
 -- @'filterWithKey' f@, or @'mapMaybeWithKey' f@ could be used for any @f@.
 
-mergeWithKey :: Ord k
+mergeWithKey :: (HasCallStack, Ord k)
              => (k -> a -> b -> Maybe c)
              -> (Map k a -> Map k c)
              -> (Map k b -> Map k c)
@@ -4182,7 +4183,7 @@ maxViewSure !k x !l r = case r of
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'minViewWithKey'.
-deleteFindMin :: Map k a -> ((k,a),Map k a)
+deleteFindMin :: HasCallStack => Map k a -> ((k,a),Map k a)
 deleteFindMin t = case minViewWithKey t of
   Nothing -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
   Just res -> res
@@ -4192,7 +4193,7 @@ deleteFindMin t = case minViewWithKey t of
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxViewWithKey'.
-deleteFindMax :: Map k a -> ((k,a),Map k a)
+deleteFindMax :: HasCallStack => Map k a -> ((k,a),Map k a)
 deleteFindMax t = case maxViewWithKey t of
   Nothing -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
   Just res -> res
