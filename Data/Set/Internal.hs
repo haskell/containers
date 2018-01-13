@@ -259,7 +259,9 @@ import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
 import Data.Data
 #endif
 
+#if __GLASGOW_HASKELL__ >= 800
 import GHC.Stack (HasCallStack)
+#endif
 
 
 {--------------------------------------------------------------------
@@ -646,7 +648,11 @@ lookupMin Tip = Nothing
 lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
 
 -- | /O(log n)/. The minimal element of a set.
+#if MIN_VERSION_base(4,9,0)
 findMin :: HasCallStack => Set a -> a
+#else
+findMin :: Set a -> a
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Set.findMin: empty set has no minimal element"
@@ -664,7 +670,11 @@ lookupMax Tip = Nothing
 lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
 
 -- | /O(log n)/. The maximal element of a set.
+#if __GLASGOW_HASKELL__ >= 800
 findMax :: HasCallStack => Set a -> a
+#else
+findMax :: Set a -> a
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Set.findMax: empty set has no maximal element"
@@ -1190,7 +1200,11 @@ splitMember x (Bin _ y l r)
 -- @since 0.5.4
 
 -- See Note: Type of local 'go' function
+#if __GLASGOW_HASKELL__ >= 800
 findIndex :: (HasCallStack, Ord a) => a -> Set a -> Int
+#else
+findIndex :: Ord a => a -> Set a -> Int
+#endif
 findIndex = go 0
   where
     go :: Ord a => Int -> a -> Set a -> Int
@@ -1238,7 +1252,11 @@ lookupIndex = go 0
 --
 -- @since 0.5.4
 
+#if __GLASGOW_HASKELL__ >= 800
 elemAt :: HasCallStack => Int -> Set a -> a
+#else
+elemAt :: Int -> Set a -> a
+#endif
 elemAt !_ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ x l r)
   = case compare i sizeL of
@@ -1259,7 +1277,11 @@ elemAt i (Bin _ x l r)
 --
 -- @since 0.5.4
 
+#if __GLASGOW_HASKELL__ >= 800
 deleteAt :: HasCallStack => Int -> Set a -> Set a
+#else
+deleteAt :: Int -> Set a -> Set a
+#endif
 deleteAt !i t =
   case t of
     Tip -> error "Set.deleteAt: index out of range"
@@ -1466,7 +1488,11 @@ glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
 --
 -- > deleteFindMin set = (findMin set, deleteMin set)
 
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMin :: HasCallStack => Set a -> (a,Set a)
+#else
+deleteFindMin :: Set a -> (a,Set a)
+#endif
 deleteFindMin t
   | Just r <- minView t = r
   | otherwise = (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
@@ -1474,7 +1500,11 @@ deleteFindMin t
 -- | /O(log n)/. Delete and find the maximal element.
 --
 -- > deleteFindMax set = (findMax set, deleteMax set)
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMax :: HasCallStack => Set a -> (a,Set a)
+#else
+deleteFindMax :: Set a -> (a,Set a)
+#endif
 deleteFindMax t
   | Just r <- maxView t = r
   | otherwise = (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)

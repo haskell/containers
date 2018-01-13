@@ -411,7 +411,9 @@ import qualified Control.Category as Category
 import Data.Coerce
 #endif
 
+#if __GLASGOW_HASKELL__ >= 800
 import GHC.Stack (HasCallStack)
+#endif
 
 {--------------------------------------------------------------------
   Operators
@@ -424,7 +426,11 @@ infixl 9 !,!?,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+#if __GLASGOW_HASKELL__ >= 800
 (!) :: (HasCallStack, Ord k) => Map k a -> k -> a
+#else
+(!) :: Ord k => Map k a -> k -> a
+#endif
 (!) m k = find k m
 #if __GLASGOW_HASKELL__
 {-# INLINE (!) #-}
@@ -1434,7 +1440,11 @@ alterFYoneda = go
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
 -- See Note: Type of local 'go' function
+#if __GLASGOW_HASKELL__ >= 800
 findIndex :: (HasCallStack, Ord k) => k -> Map k a -> Int
+#else
+findIndex :: Ord k => k -> Map k a -> Int
+#endif
 findIndex = go 0
   where
     go :: Ord k => Int -> k -> Map k a -> Int
@@ -1478,7 +1488,11 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
 elemAt :: HasCallStack => Int -> Map k a -> (k,a)
+#else
+elemAt :: Int -> Map k a -> (k,a)
+#endif
 elemAt !_ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of
@@ -1567,7 +1581,11 @@ splitAt i0 m0
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
 updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+#else
+updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+#endif
 updateAt f !i t =
   case t of
     Tip -> error "Map.updateAt: index out of range"
@@ -1589,7 +1607,11 @@ updateAt f !i t =
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
 deleteAt :: HasCallStack => Int -> Map k a -> Map k a
+#else
+deleteAt :: Int -> Map k a -> Map k a
+#endif
 deleteAt !i t =
   case t of
     Tip -> error "Map.deleteAt: index out of range"
@@ -1625,7 +1647,11 @@ lookupMin (Bin _ k x l _) = Just $! lookupMinSure k x l
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
+#if __GLASGOW_HASKELL__ >= 800
 findMin :: HasCallStack => Map k a -> (k,a)
+#else
+findMin :: Map k a -> (k,a)
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Map.findMin: empty map has no minimal element"
@@ -1650,7 +1676,11 @@ lookupMax :: Map k a -> Maybe (k, a)
 lookupMax Tip = Nothing
 lookupMax (Bin _ k x _ r) = Just $! lookupMaxSure k x r
 
+#if __GLASGOW_HASKELL__ >= 800
 findMax :: HasCallStack => Map k a -> (k,a)
+#else
+findMax :: Map k a -> (k,a)
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Map.findMax: empty map has no maximal element"
@@ -2662,7 +2692,11 @@ mergeA
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@,
 -- @'filterWithKey' f@, or @'mapMaybeWithKey' f@ could be used for any @f@.
 
+#if __GLASGOW_HASKELL__ >= 800
 mergeWithKey :: (HasCallStack, Ord k)
+#else
+mergeWithKey :: Ord k
+#endif
              => (k -> a -> b -> Maybe c)
              -> (Map k a -> Map k c)
              -> (Map k b -> Map k c)
@@ -3867,7 +3901,11 @@ maxViewSure = go
 -- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
 -- > deleteFindMin                                            Error: can not return the minimal element of an empty map
 
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMin :: HasCallStack => Map k a -> ((k,a),Map k a)
+#else
+deleteFindMin :: Map k a -> ((k,a),Map k a)
+#endif
 deleteFindMin t = case minViewWithKey t of
   Nothing -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
   Just res -> res
@@ -3877,7 +3915,11 @@ deleteFindMin t = case minViewWithKey t of
 -- > deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((10,"c"), fromList [(3,"b"), (5,"a")])
 -- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
 
+#if __GLASGOW_HASKELL__ >= 800
 deleteFindMax :: HasCallStack => Map k a -> ((k,a),Map k a)
+#else
+deleteFindMax :: Map k a -> ((k,a),Map k a)
+#endif
 deleteFindMax t = case maxViewWithKey t of
   Nothing -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
   Just res -> res
