@@ -283,6 +283,8 @@ import Language.Haskell.TH ()
 import Data.Coerce (coerce)
 #endif
 
+import GHC.Stack (HasCallStack)
+
 
 {--------------------------------------------------------------------
   Operators
@@ -782,7 +784,7 @@ lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
 -- empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-findMin :: Set a -> a
+findMin :: HasCallStack => Set a -> a
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Set.findMin: empty set has no minimal element"
@@ -805,7 +807,7 @@ lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
 -- empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-findMax :: Set a -> a
+findMax :: HasCallStack => Set a -> a
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Set.findMax: empty set has no maximal element"
@@ -1472,7 +1474,7 @@ splitMember x0 t = case go x0 t of
 -- @since 0.5.4
 
 -- See Note: Type of local 'go' function
-findIndex :: Ord a => a -> Set a -> Int
+findIndex :: (HasCallStack, Ord a) => a -> Set a -> Int
 findIndex = go 0
   where
     go :: Ord a => Int -> a -> Set a -> Int
@@ -1518,7 +1520,7 @@ lookupIndex = go 0
 --
 -- @since 0.5.4
 
-elemAt :: Int -> Set a -> a
+elemAt :: HasCallStack => Int -> Set a -> a
 elemAt !_ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ x l r)
   = case compare i sizeL of
@@ -1541,7 +1543,7 @@ elemAt i (Bin _ x l r)
 --
 -- @since 0.5.4
 
-deleteAt :: Int -> Set a -> Set a
+deleteAt :: HasCallStack => Int -> Set a -> Set a
 deleteAt !i t =
   case t of
     Tip -> error "Set.deleteAt: index out of range"
@@ -1844,7 +1846,7 @@ glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'minView'.
-deleteFindMin :: Set a -> (a,Set a)
+deleteFindMin :: HasCallStack => Set a -> (a,Set a)
 deleteFindMin t
   | Just r <- minView t = r
   | otherwise = (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
@@ -1854,7 +1856,7 @@ deleteFindMin t
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxView'.
-deleteFindMax :: Set a -> (a,Set a)
+deleteFindMax :: HasCallStack => Set a -> (a,Set a)
 deleteFindMax t
   | Just r <- maxView t = r
   | otherwise = (error "Set.deleteFindMax: can not return the maximal element of an empty set", Tip)

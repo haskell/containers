@@ -370,6 +370,7 @@ import Text.Read
 #endif
 import qualified Control.Category as Category
 
+import GHC.Stack (HasCallStack)
 
 {--------------------------------------------------------------------
   Types
@@ -435,7 +436,7 @@ deriving instance Lift a => Lift (IntMap a)
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
-(!) :: IntMap a -> Key -> a
+(!) :: HasCallStack => IntMap a -> Key -> a
 (!) m k = find k m
 
 -- | \(O(\min(n,W))\). Find the value at a key.
@@ -655,7 +656,7 @@ lookup !k = go
     go Nil = Nothing
 
 -- See Note: Local 'go' functions and capturing]
-find :: Key -> IntMap a -> a
+find :: HasCallStack => Key -> IntMap a -> a
 find !k = go
   where
     go (Bin p l r) | left k p  = go l
@@ -2384,7 +2385,7 @@ minView t = fmap (\((_, x), t') -> (x, t')) (minViewWithKey t)
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxViewWithKey'.
-deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMax :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
@@ -2392,7 +2393,7 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'minViewWithKey'.
-deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
+deleteFindMin :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
 -- The KeyValue type is used when returning a key-value pair and helps with
@@ -2427,7 +2428,7 @@ lookupMin (Bin p l r) =
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-findMin :: IntMap a -> (Key, a)
+findMin :: HasCallStack => IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
@@ -2448,7 +2449,7 @@ lookupMax (Bin p l r) =
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-findMax :: IntMap a -> (Key, a)
+findMax :: HasCallStack => IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty map has no maximal element"

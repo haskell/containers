@@ -242,6 +242,8 @@ import Language.Haskell.TH ()
 import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity(..))
 
+import GHC.Stack (HasCallStack)
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 {--------------------------------------------------------------------
@@ -1153,7 +1155,7 @@ minView t =
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'minView'.
-deleteFindMin :: IntSet -> (Key, IntSet)
+deleteFindMin :: HasCallStack => IntSet -> (Key, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | \(O(\min(n,W))\). Delete and find the maximal element.
@@ -1161,7 +1163,7 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxView'.
-deleteFindMax :: IntSet -> (Key, IntSet)
+deleteFindMax :: HasCallStack => IntSet -> (Key, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
 lookupMinSure :: IntSet -> Key
@@ -1183,7 +1185,7 @@ lookupMin (Bin p l r) = Just $! lookupMinSure (if signBranch p then r else l)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-findMin :: IntSet -> Key
+findMin :: HasCallStack => IntSet -> Key
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty set has no minimal element"
@@ -1207,7 +1209,7 @@ lookupMax (Bin p l r) = Just $! lookupMaxSure (if signBranch p then l else r)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-findMax :: IntSet -> Key
+findMax :: HasCallStack => IntSet -> Key
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty set has no maximal element"
