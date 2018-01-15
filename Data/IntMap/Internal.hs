@@ -399,7 +399,9 @@ bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
 #else
 (!) :: IntMap a -> Key -> a
 #endif
-(!) m k = find k m
+(!) m k
+  | Just a <- lookup k m = a
+  | otherwise = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. Find the value at a key.
 -- Returns 'Nothing' when the element can not be found.
@@ -590,19 +592,6 @@ lookup !k = go
                   | otherwise = Nothing
     go Nil = Nothing
 
-
--- See Note: Local 'go' functions and capturing]
-find :: Key -> IntMap a -> a
-find !k = go
-  where
-    go (Bin p m l r) | nomatch k p m = not_found
-                     | zero k m  = go l
-                     | otherwise = go r
-    go (Tip kx x) | k == kx   = x
-                  | otherwise = not_found
-    go Nil = not_found
-
-    not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
 -- returns the value at key @k@ or returns @def@ when the key is not an

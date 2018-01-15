@@ -4505,11 +4505,7 @@ unstableSortBy cmp (Seq xs) =
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
 -- generalization.
-#if __GLASGOW_HASKELL__ >= 800
-fromList2 :: HasCallStack => Int -> [a] -> Seq a
-#else
 fromList2 :: Int -> [a] -> Seq a
-#endif
 fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
