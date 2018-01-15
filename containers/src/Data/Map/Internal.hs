@@ -450,7 +450,9 @@ infixl 9 !,!?,\\ --
 #else
 (!) :: Ord k => Map k a -> k -> a
 #endif
-(!) m k = find k m
+(!) m k
+  | Just a <- lookup k m = a
+  | otherwise = error "Map.!: given key is not an element in the map"
 {-# INLINE (!) #-}
 
 -- | \(O(\log n)\). Find the value at a key.
@@ -615,17 +617,11 @@ member = go
 
 notMember :: Ord k => k -> Map k a -> Bool
 notMember k m = not $ member k m
+#if __GLASGOW_HASKELL__
 {-# INLINABLE notMember #-}
-
-find :: Ord k => k -> Map k a -> a
-find = go
-  where
-    go !_ Tip = error "Map.!: given key is not an element in the map"
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> x
-{-# INLINABLE find #-}
+#else
+{-# INLINE notMember #-}
+#endif
 
 -- | \(O(\log n)\). The expression @('findWithDefault' def k map)@ returns
 -- the value at key @k@ or returns default value @def@
@@ -1486,9 +1482,17 @@ lookupIndex = go 0
 
 #if __GLASGOW_HASKELL__ >= 800
 elemAt :: HasCallStack => Int -> Map k a -> (k,a)
+elemAt = go where
+  go !_ Tip = error "Map.elemAt: index out of range"
+  go i (Bin _ kx x l r)
+    = case compare i sizeL of
+        LT -> elemAt i l
+        GT -> elemAt (i-sizeL-1) r
+        EQ -> (kx,x)
+    where
+      sizeL = size l
 #else
 elemAt :: Int -> Map k a -> (k,a)
-#endif
 elemAt !_ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
   = case compare i sizeL of
@@ -1497,6 +1501,7 @@ elemAt i (Bin _ kx x l r)
       EQ -> (kx,x)
   where
     sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Take a given number of entries in key order, beginning
 -- with the smallest keys.
@@ -1581,9 +1586,20 @@ splitAt i0 m0
 
 #if __GLASGOW_HASKELL__ >= 800
 updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+updateAt = go where
+  go f !i t =
+    case t of
+      Tip -> error "Map.updateAt: index out of range"
+      Bin sx kx x l r -> case compare i sizeL of
+        LT -> balanceR kx x (go f i l) r
+        GT -> balanceL kx x l (go f (i-sizeL-1) r)
+        EQ -> case f kx x of
+                Just x' -> Bin sx kx x' l r
+                Nothing -> glue l r
+        where
+          sizeL = size l
 #else
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-#endif
 updateAt f !i t =
   case t of
     Tip -> error "Map.updateAt: index out of range"
@@ -1595,6 +1611,7 @@ updateAt f !i t =
               Nothing -> glue l r
       where
         sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sequence sorted by keys. If the /index/ is out of range (less than zero,
@@ -1609,9 +1626,18 @@ updateAt f !i t =
 
 #if __GLASGOW_HASKELL__ >= 800
 deleteAt :: HasCallStack => Int -> Map k a -> Map k a
+deleteAt = go where
+  go !i t =
+    case t of
+      Tip -> error "Map.deleteAt: index out of range"
+      Bin _ kx x l r -> case compare i sizeL of
+        LT -> balanceR kx x (go i l) r
+        GT -> balanceL kx x l (go (i-sizeL-1) r)
+        EQ -> glue l r
+        where
+          sizeL = size l
 #else
 deleteAt :: Int -> Map k a -> Map k a
-#endif
 deleteAt !i t =
   case t of
     Tip -> error "Map.deleteAt: index out of range"
@@ -1621,6 +1647,7 @@ deleteAt !i t =
       EQ -> glue l r
       where
         sizeL = size l
+#endif
 
 
 {--------------------------------------------------------------------
