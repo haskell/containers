@@ -4554,32 +4554,35 @@ popMin cmp = State unrollPQ'
 -- elements, converts a 'Seq' to a 'PQueue'.
 toPQ :: (e -> e -> Ordering) -> Seq e -> Maybe (PQueue e)
 toPQ cmp' (Seq xs') = toPQTree cmp' (\(Elem a) -> PQueue a Nil) xs'
+
+toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
+toPQTree _ _ EmptyT = Nothing
+toPQTree _ f (Single xs) = Just (f xs)
+toPQTree cmp f (Deep _ pr m sf) =
+    Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
   where
-    toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
-    toPQTree _ _ EmptyT = Nothing
-    toPQTree _ f (Single xs) = Just (f xs)
-    toPQTree cmp f (Deep _ pr m sf) =
-        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
-      where
-        pr' = toPQDigit cmp f pr
-        sf' = toPQDigit cmp f sf
-        m' = toPQTree cmp (toPQNode cmp f) m
-        (<+>) = mergePQ cmp
-    toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
-    toPQDigit cmp f dig =
-        case dig of
-            One a -> f a
-            Two a b -> f a <+> f b
-            Three a b c -> f a <+> f b <+> f c
-            Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
-      where
-        (<+>) = mergePQ cmp
-    toPQNode cmp f node =
-        case node of
-            Node2 _ a b -> f a <+> f b
-            Node3 _ a b c -> f a <+> f b <+> f c
-      where
-        (<+>) = mergePQ cmp
+    pr' = toPQDigit cmp f pr
+    sf' = toPQDigit cmp f sf
+    m' = toPQTree cmp (toPQNode cmp f) m
+    (<+>) = mergePQ cmp
+
+toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
+toPQDigit cmp f dig =
+    case dig of
+        One a -> f a
+        Two a b -> f a <+> f b
+        Three a b c -> f a <+> f b <+> f c
+        Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
+  where
+    (<+>) = mergePQ cmp
+
+toPQNode :: (a -> a -> Ordering) -> (t -> PQueue a) -> Node t -> PQueue a
+toPQNode cmp f node =
+    case node of
+        Node2 _ a b -> f a <+> f b
+        Node3 _ a b c -> f a <+> f b <+> f c
+  where
+    (<+>) = mergePQ cmp
 
 -- | 'mergePQ' merges two 'PQueue's.
 mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
@@ -4612,52 +4615,55 @@ popMinS cmp = State unrollPQ'
 -- 'PQS'.
 toPQS :: (e -> e -> Ordering) -> Seq e -> Maybe (PQS e)
 toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
+
+{-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
+{-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
+toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> FingerTree a -> Maybe (PQS b)
+toPQSTree _ _ !_s EmptyT = Nothing
+toPQSTree _ f s (Single xs) = Just (f s xs)
+toPQSTree cmp f s (Deep _ pr m sf) =
+    Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
   where
-    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
-    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
-    toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> FingerTree a -> Maybe (PQS b)
-    toPQSTree _ _ !_s EmptyT = Nothing
-    toPQSTree _ f s (Single xs) = Just (f s xs)
-    toPQSTree cmp f s (Deep _ pr m sf) =
-        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
-      where
-        pr' = toPQSDigit cmp f s pr
-        sf' = toPQSDigit cmp f sPsprm sf
-        m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
-        !sPspr = s + size pr
-        !sPsprm = sPspr + size m
-        (<+>) = mergePQS cmp
-    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
-    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
-    toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
-    toPQSDigit _ f !s (One a) = f s a
-    toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Four a b c d) =
-        (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        !sPsabc = sPsab + size c
-        (<+>) = mergePQS cmp
-    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
-    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
-    toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSNode cmp f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
+    pr' = toPQSDigit cmp f s pr
+    sf' = toPQSDigit cmp f sPsprm sf
+    m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
+    !sPspr = s + size pr
+    !sPsprm = sPspr + size m
+    (<+>) = mergePQS cmp
+
+{-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
+{-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
+toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
+toPQSDigit _ f !s (One a) = f s a
+toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+    (<+>) = mergePQS cmp
+toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    (<+>) = mergePQS cmp
+toPQSDigit cmp f s (Four a b c d) =
+    (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+    (<+>) = mergePQS cmp
+
+{-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
+{-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
+toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
+toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+    (<+>) = mergePQS cmp
+toPQSNode cmp f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    (<+>) = mergePQS cmp
 
 -- | 'mergePQS' merges two PQS, taking into account the original
 -- position of the elements.
