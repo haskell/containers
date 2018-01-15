@@ -1525,9 +1525,17 @@ lookupIndex = go 0
 
 #if __GLASGOW_HASKELL__ >= 800
 elemAt :: HasCallStack => Int -> Set a -> a
+elemAt = go where
+  go !_ Tip = error "Set.elemAt: index out of range"
+  go i (Bin _ x l r)
+    = case compare i sizeL of
+        LT -> go i l
+        GT -> go (i-sizeL-1) r
+        EQ -> x
+    where
+      sizeL = size l
 #else
 elemAt :: Int -> Set a -> a
-#endif
 elemAt !_ Tip = error "Set.elemAt: index out of range"
 elemAt i (Bin _ x l r)
   = case compare i sizeL of
@@ -1536,6 +1544,7 @@ elemAt i (Bin _ x l r)
       EQ -> x
   where
     sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sorted sequence of elements. If the /index/ is out of range (less than zero,
@@ -1552,9 +1561,18 @@ elemAt i (Bin _ x l r)
 
 #if __GLASGOW_HASKELL__ >= 800
 deleteAt :: HasCallStack => Int -> Set a -> Set a
+deleteAt = go where
+  go !i t =
+    case t of
+      Tip -> error "Set.deleteAt: index out of range"
+      Bin _ x l r -> case compare i sizeL of
+        LT -> balanceR x (go i l) r
+        GT -> balanceL x l (go (i-sizeL-1) r)
+        EQ -> glue l r
+        where
+          sizeL = size l
 #else
 deleteAt :: Int -> Set a -> Set a
-#endif
 deleteAt !i t =
   case t of
     Tip -> error "Set.deleteAt: index out of range"
@@ -1564,6 +1582,7 @@ deleteAt !i t =
       EQ -> glue l r
       where
         sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Take a given number of elements in order, beginning
 -- with the smallest ones.
