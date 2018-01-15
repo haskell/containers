@@ -5034,11 +5034,7 @@ zipWith f s1 s2 = zipWith' f s1' s2'
     s2' = take minLen s2
 
 -- | A version of zipWith that assumes the sequences have the same length.
-#if __GLASGOW_HASKELL__ >= 800
-zipWith' :: HasCallStack => (a -> b -> c) -> Seq a -> Seq b -> Seq c
-#else
 zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-#endif
 zipWith' f s1 s2 = splitMap uncheckedSplitAt goLeaf s2 s1
   where
     goLeaf (Seq (Single (Elem b))) a = f a b

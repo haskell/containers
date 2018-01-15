@@ -2879,11 +2879,7 @@ mergeA
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@,
 -- @'filterWithKey' f@, or @'mapMaybeWithKey' f@ could be used for any @f@.
 
-#if __GLASGOW_HASKELL__ >= 800
-mergeWithKey :: (HasCallStack, Ord k)
-#else
 mergeWithKey :: Ord k
-#endif
              => (k -> a -> b -> Maybe c)
              -> (Map k a -> Map k c)
              -> (Map k b -> Map k c)
