@@ -4574,6 +4574,7 @@ toPQ cmp' (Seq xs') = toPQTree cmp' (\(Elem a) -> PQueue a Nil) xs'
             Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
       where
         (<+>) = mergePQ cmp
+    toPQNode :: (b -> b -> Ordering) -> (a -> PQueue b) -> Node a -> PQueue b
     toPQNode cmp f node =
         case node of
             Node2 _ a b -> f a <+> f b
@@ -4649,6 +4650,7 @@ toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
         (<+>) = mergePQS cmp
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
+    toPQSNode :: (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
     toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
       where
         !sPsa = s + size a
