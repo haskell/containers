@@ -98,3 +98,11 @@ mean                 238.8 ms   (231.3 ms .. 241.4 ms)
 std dev              5.006 ms   (269.0 μs .. 6.151 ms)
 variance introduced by outliers: 16% (moderately inflated)
 ```
+
+## Stable Sorting
+
+Stable sorting was previously accomplished by converting to a list, applying Data.List.sort, and rebuilding the sequence. Data.List.sort is designed to maximize laziness, which doesn't apply for Data.Sequence, and it can't take advantage of the structure of the finger tree. As a result, simply tagging each element with its position, then applying the unstable sort (using the tag to discriminate between elements for which the comparator is equal) is faster. The current implementation doesn't use the actual `unstableSort`: to perform the building of the queue and tagging in one pass, a specialized version is used.
+
+Times (ms)            min    est    max  std dev   r²
+to/from list:        64.23  64.50  64.81  0.432  1.000
+1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999

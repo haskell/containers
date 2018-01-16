@@ -4650,7 +4650,7 @@ toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
         (<+>) = mergePQS cmp
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
-    toPQSNode :: (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
+    toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
     toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
       where
         !sPsa = s + size a
