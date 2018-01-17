@@ -11,12 +11,15 @@
 * Add `powerSet`, `cartesianProduct`, and `disjointUnion` for
   `Data.Set` (Thanks, Edward Kmett!)
 
-* Make `Data.Sequence.replicateM` a synonym for `replicateA`
-  for post-AMP `base`.
-
 * Add `lookupMin` and `lookupMax` to `Data.IntMap` (Thanks, bwroga!)
 
+* Add `unzip` and `unzipWith` to `Data.Sequence`. Make unzipping
+  build its results in lockstep to avoid certain space leaks.
+
 ### Changes to existing functions and features
+
+* Make `Data.Sequence.replicateM` a synonym for `replicateA`
+  for post-AMP `base`.
 
 * Rewrite the `IsString` instance head for sequences, improving compatibility
   with the list instance and also improving type inference.
