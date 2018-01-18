@@ -42,7 +42,7 @@ import Data.Bits ((.|.), xor)
 #if MIN_VERSION_base(4,5,0)
 import Data.Bits (popCount, unsafeShiftL, unsafeShiftR)
 #else
-import Data.Bits (shiftL, shiftR)
+import Data.Bits ((.&.), shiftL, shiftR)
 #endif
 #if MIN_VERSION_base(4,7,0)
 import Data.Bits (finiteBitSize)
