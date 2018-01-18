@@ -39,7 +39,7 @@ maskPowerOfTwo t =
     Nil -> True
     Tip _ _ -> True
     Bin _ m l r ->
-      (m `mod` 2 == 0) && maskPowerOfTwo l && maskPowerOfTwo r
+      bitcount 0 m == 1 && maskPowerOfTwo l && maskPowerOfTwo r
 
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
