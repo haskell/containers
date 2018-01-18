@@ -1,7 +1,7 @@
 {-# LANGUAGE CPP #-}
 module IntSetValidity (valid) where
 
-import Data.Bits (xor, (.&.), popCount)
+import Data.Bits (xor, (.&.))
 import Data.IntSet.Internal
 import Test.QuickCheck (Property, counterexample, property, (.&&.))
 
@@ -39,7 +39,7 @@ maskPowerOfTwo t =
     Nil -> True
     Tip _ _ -> True
     Bin _ m l r ->
-      popCount m == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+      bitcount 0 m == 1 && maskPowerOfTwo l && maskPowerOfTwo r
 
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
