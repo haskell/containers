@@ -14,19 +14,63 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- An efficient implementation of ordered maps from keys to values
--- (dictionaries).
 --
--- API of this module is strict in the keys, but lazy in the values.
--- If you need value-strict maps, use "Data.Map.Strict" instead.
--- The 'Map' type itself is shared between the lazy and strict modules,
--- meaning that the same 'Map' value can be passed to functions in
--- both modules (although that is rarely needed).
+-- = Lazy Maps (aka dictionaries)
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- The @'Map' k v@ type represents an /ordered/ map indexed by keys of type @k@
+-- containing /lazy/ values of type @v@.
 --
--- >  import qualified Data.Map.Lazy as Map
+-- When deciding if this is the correct data structure to use, consider:
+--
+-- * The API of this module is strict in the keys but lazy in the values. If you
+-- don't need /value-lazy/ maps, use "Data.Map.Strict" instead.
+--
+-- * If your key type is @Int@, use "Data.IntMap.Lazy" instead.
+--
+-- * If you don't care about ordering, use @Data.HashMap.Lazy@ from the
+-- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
+-- package instead.
+--
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions:
+--
+-- > import qualified Data.Map.Lazy as Map
+--
+-- Note that the implementation is /left-biased/, the elements of a first
+-- argument are always preferred to the second, for example in 'union' or
+-- 'insert'.
+--
+--
+-- == Detailed performance information
+--
+-- The amortized running time is given for each operation, with /n/ referring to
+-- the number of entries in the map.
+--
+-- Benchmarks comparing "Data.Map.Lazy" with other dictionary implementations
+-- can be found at https://github.com/haskell-perf/dictionaries.
+--
+--
+-- == Strictness propertios
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > insertWith (\ new old -> old) undefined v m  ==  undefined
+-- > insertWith (\ new old -> old) k undefined m  ==  OK
+-- > delete undefined m  ==  undefined
+--
+--
+-- == Warning
+--
+-- The size of a 'Map' must not exceed @maxBound::Int@. Violation of this
+-- condition is not detected and if the size limit is exceeded, its behaviour is
+-- undefined.
+--
+--
+-- == Implementation
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -45,22 +89,9 @@
 --      \"/Just Join for Parallel Ordered Sets/\",
 --      <https://arxiv.org/abs/1602.02120v3>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
---
--- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
---
--- Operation comments contain the operation time complexity in
--- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 -----------------------------------------------------------------------------
 
 module Data.Map.Lazy (
-    -- * Strictness properties
-    -- $strictness
-
     -- * Map type
     Map              -- instance Eq,Show,Read
 
@@ -238,15 +269,3 @@ import Data.Map.Internal
 import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
 import Data.Map.Internal.Debug (valid)
 import Prelude ()
-
--- $strictness
---
--- This module satisfies the following strictness property:
---
--- * Key arguments are evaluated to WHNF
---
--- Here are some examples that illustrate the property:
---
--- > insertWith (\ new old -> old) undefined v m  ==  undefined
--- > insertWith (\ new old -> old) k undefined m  ==  OK
--- > delete undefined m  ==  undefined
