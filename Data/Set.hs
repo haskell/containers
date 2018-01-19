@@ -74,6 +74,7 @@ module Data.Set (
             , lookupGE
             , isSubsetOf
             , isProperSubsetOf
+            , disjoint
 
             -- * Construction
             , empty
