@@ -1457,28 +1457,6 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
 
 #endif
 
-{----------------------------------------------------------------------
-  [bitcount] as posted by David F. Place to haskell-cafe on April 11, 2006,
-  based on the code on
-  http://graphics.stanford.edu/~seander/bithacks.html#CountBitsSetKernighan,
-  where the following source is given:
-    Published in 1988, the C Programming Language 2nd Ed. (by Brian W.
-    Kernighan and Dennis M. Ritchie) mentions this in exercise 2-9. On April
-    19, 2006 Don Knuth pointed out to me that this method "was first published
-    by Peter Wegner in CACM 3 (1960), 322. (Also discovered independently by
-    Derrick Lehmer and published in 1964 in a book edited by Beckenbach.)"
-----------------------------------------------------------------------}
-
-bitcount :: Int -> Word -> Int
-#if MIN_VERSION_base(4,5,0)
-bitcount a x = a + popCount x
-#else
-bitcount a0 x0 = go a0 x0
-  where go a 0 = a
-        go a x = go (a + 1) (x .&. (x-1))
-#endif
-{-# INLINE bitcount #-}
-
 
 {--------------------------------------------------------------------
   Utilities
