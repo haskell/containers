@@ -140,6 +140,7 @@ module Data.Sequence.Internal (
     -- * Sorting
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
+    sortOn,         -- :: Ord b => (a -> b) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     unstableSortOn, -- :: Ord b => (a -> b) -> Seq a -> Seq a
@@ -4606,7 +4607,14 @@ sortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMinS cmp)))
-        (toPQS cmp (Seq xs))
+        (toPQS cmp (\s (Elem x) -> PQS s x Nl) 0 xs)
+
+sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
+sortOn f (Seq xs) =
+    maybe
+       (Seq EmptyT)
+       (execState (replicateA (size xs) (fmap snd (popMinS (comparing fst)))))
+       (toPQS (comparing fst) (\s (Elem x) -> PQS s (f x, x) Nl) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -4750,8 +4758,8 @@ popMinS cmp = State unrollPQ'
 
 -- | 'toPQS', given an ordering function, converts a 'Seq' to a
 -- 'PQS'.
-toPQS :: (e -> e -> Ordering) -> Seq e -> Maybe (PQS e)
-toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
+toPQS :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b)
+toPQS = toPQSTree
   where
     {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
     {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
