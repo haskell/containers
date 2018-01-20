@@ -142,6 +142,7 @@ module Data.Sequence.Internal (
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
+    unstableSortOn, -- :: Ord b => (a -> b) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
     (!?),           -- :: Seq a -> Int -> Maybe a
@@ -211,6 +212,7 @@ import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
+import Data.Ord (comparing)
 import Data.Functor (Functor(..))
 #if MIN_VERSION_base(4,6,0)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
@@ -4624,7 +4626,14 @@ unstableSortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMin cmp)))
-        (toPQ cmp (Seq xs))
+        (toPQ cmp (\(Elem x) -> PQueue x Nil) xs)
+
+unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
+unstableSortOn f (Seq xs) =
+    maybe
+       (Seq EmptyT)
+       (execState (replicateA (size xs) (fmap snd (popMin (comparing fst)))))
+       (toPQ (comparing fst) (\(Elem x) -> PQueue (f x, x) Nil) xs)
 
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4683,9 +4692,8 @@ popMin cmp = State unrollPQ'
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
 -- elements, converts a 'Seq' to a 'PQueue'.
-toPQ :: (e -> e -> Ordering) -> Seq e -> Maybe (PQueue e)
-toPQ cmp' (Seq xs') = toPQTree cmp' (\(Elem a) -> PQueue a Nil) xs'
-  where
+toPQ :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
+toPQ = toPQTree where
     toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
     toPQTree _ _ EmptyT = Nothing
     toPQTree _ f (Single xs) = Just (f xs)
