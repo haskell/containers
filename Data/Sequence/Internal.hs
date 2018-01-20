@@ -18,6 +18,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
+{-# LANGUAGE PatternGuards #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -176,13 +177,15 @@ module Data.Sequence.Internal (
     reverse,        -- :: Seq a -> Seq a
     intersperse,    -- :: a -> Seq a -> Seq a
     liftA2Seq,      -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
-    -- ** Zips
+    -- ** Zips and unzips
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
     zip3,           -- :: Seq a -> Seq b -> Seq c -> Seq (a, b, c)
     zipWith3,       -- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
+    unzip,          -- :: Seq (a, b) -> (Seq a, Seq b)
+    unzipWith,      -- :: (a -> (b, c)) -> Seq a -> (Seq b, Seq c)
 #ifdef TESTING
     deep,
     node2,
@@ -200,7 +203,7 @@ import Prelude hiding (
 #endif
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
-    takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
+    unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
                             liftA, liftA2, liftA3)
@@ -4181,77 +4184,73 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
 
 -- MonadZip appeared in base 4.4.0
 #if MIN_VERSION_base(4,4,0)
--- We use a custom definition of munzip to *try* to avoid retaining
+-- We use a custom definition of munzip to avoid retaining
 -- memory longer than necessary. Using the default definition, if
 -- we write
 --
 -- let (xs,ys) = munzip zs
 -- in xs `deepseq` (... ys ...)
 --
--- then ys will retain the entire zs sequence until ys itself is fully
--- forced. This implementation attempts to use the selector thunk
--- optimization to prevent that. Unfortunately, that optimization is
--- fragile, so we can't actually guarantee anything. If someone finds
--- a leak, we can try to throw explicit bindings and NOINLINE pragmas
--- around and see if that fixes it.
+-- then ys will retain the entire zs sequence until ys itself is fully forced.
+-- This implementation uses the selector thunk optimization to prevent that.
+-- Unfortunately, that optimization is fragile, so we can't actually guarantee
+-- anything.
+
+-- | @ 'mzipWith' = 'zipWith' @
+--
+-- @ 'munzip' = 'unzip' @
 instance MonadZip Seq where
   mzipWith = zipWith
-  munzip = unzipWith id
-
-class UnzipWith f where
-  unzipWith :: (x -> (a, b)) -> f x -> (f a, f b)
-
-instance UnzipWith Elem where
-#if __GLASGOW_HASKELL__ >= 708
-  unzipWith = coerce
-#else
-  unzipWith f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
+  munzip = unzip
 #endif
 
--- We're super-lazy here for the sake of efficiency. We want to be able to
--- reach any element of either result in logarithmic time. If we pattern
--- match strictly, we'll end up building entire 2-3 trees at once, which
--- would take linear time.
-instance UnzipWith Node where
-  unzipWith f (Node2 s x y) =
-    case (f x, f y) of
-      (~(x1, x2), ~(y1, y2)) -> (Node2 s x1 y1, Node2 s x2 y2)
-  unzipWith f (Node3 s x y z) =
-    case (f x, f y, f z) of
-      (~(x1, x2), ~(y1, y2), ~(z1, z2)) -> (Node3 s x1 y1 z1, Node3 s x2 y2 z2)
-
--- We're strict here for the sake of efficiency. The Node instance
--- is lazy, so we don't particularly need to add an extra thunk on top
--- of each node. See the note at the Seq instance for an explanation
--- of why the Digit (Elem a) case is handled specially.
-instance UnzipWith Digit where
-  unzipWith f (One x) =
-    case f x of
-      (x1, x2) -> (One x1, One x2)
-  unzipWith f (Two x y) =
-    case (f x, f y) of
-      ((x1, x2), (y1, y2)) -> (Two x1 y1, Two x2 y2)
-  unzipWith f (Three x y z) =
-    case (f x, f y, f z) of
-      ((x1, x2), (y1, y2), (z1, z2)) -> (Three x1 y1 z1, Three x2 y2 z2)
-  unzipWith f (Four x y z w) =
-    case (f x, f y, f z, f w) of
-      ((x1, x2), (y1, y2), (z1, z2), (w1, w2)) -> (Four x1 y1 z1 w1, Four x2 y2 z2 w2)
-
-instance UnzipWith FingerTree where
-  unzipWith _ EmptyT = (EmptyT, EmptyT)
-  unzipWith f (Single x) = case f x of
-    (x1, x2) -> (Single x1, Single x2)
-  unzipWith f (Deep s pr m sf) =
-    case unzipWith f pr of { (pr1, pr2) ->
-    case unzipWith f sf of { (sf1, sf2) ->
-    case unzipWith (unzipWith f) m of { ~(m1, m2) ->
-      (Deep s pr1 m1 sf1, Deep s pr2 m2 sf2)}}}
-
--- We need to handle the top level of the sequence specially, to make unzipping behave
--- well in the presence of undefined elements. For example, what do we want from
+-- | Unzip a sequence of pairs.
 --
--- munzip [(1,2), undefined, (5,6)]?
+-- @
+-- unzip ps = ps `'seq'` ('fmap' 'fst' ps) ('fmap' 'snd' ps)
+-- @
+--
+-- Example:
+--
+-- @
+-- unzip $ fromList [(1,"a"), (2,"b"), (3,"c")] =
+--   (fromList [1,2,3], fromList ["a", "b", "c"])
+-- @
+--
+-- See the note about efficiency at 'unzipWith'.
+--
+-- @since 0.5.11
+unzip :: Seq (a, b) -> (Seq a, Seq b)
+unzip xs = unzipWith id xs
+
+-- | \( O(n) \). Unzip a sequence using a function to divide elements.
+--
+-- @ unzipWith f xs == 'unzip' ('fmap' f xs) @
+--
+-- Efficiency note:
+--
+-- @unzipWith@ produces its two results in lockstep. If you calculate
+-- @ unzipWith f xs @ and fully force /either/ of the results, then the
+-- entire structure of the /other/ one will be built as well. This
+-- behavior allows the garbage collector to collect each calculated
+-- pair component as soon as it dies, without having to wait for its mate
+-- to die. If you do not need this behavior, you may be better off simply
+-- calculating the sequence of pairs and using 'fmap' to extract each
+-- component sequence.
+--
+-- @since 0.5.11
+unzipWith :: (a -> (b, c)) -> Seq a -> (Seq b, Seq c)
+unzipWith f = unzipWith' (\x ->
+  let
+    {-# NOINLINE fx #-}
+    fx = f x
+    (y,z) = fx
+  in (y,z))
+-- Why do we lazify `f`? Because we don't want the strictness to depend
+-- on exactly how the sequence is balanced. For example, what do we want
+-- from
+--
+-- unzip [(1,2), undefined, (5,6)]?
 --
 -- The argument could be represented as
 --
@@ -4269,18 +4268,150 @@ instance UnzipWith FingerTree where
 --
 -- ([undefined, undefined, 5], [undefined, undefined, 6])
 --
--- so we pretty much have to be completely lazy in the elements. We could
--- do this by adding extra laziness to the Digit instance or to the Elem instance,
--- but either of those would give unnecessary extra laziness lower in the tree.
-instance UnzipWith Seq where
-  unzipWith _f (Seq EmptyT) = (empty, empty)
-  unzipWith f (Seq (Single (Elem x))) = case f x of ~(a, b) -> (singleton a, singleton b)
-  unzipWith f (Seq (Deep s pr m sf)) =
-    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) pr of { (pr1, pr2) ->
-    case unzipWith (\(Elem x) -> case f x of ~(a, b) -> (Elem a, Elem b)) sf of { (sf1, sf2) ->
-    case unzipWith (unzipWith (unzipWith f)) m of { ~(m1, m2) ->
-      (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))}}}
+-- so we pretty much have to be completely lazy in the elements.
+
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [1] unzipWith #-}
+
+-- We don't need a special rule for unzip:
+--
+-- unzip (fmap f xs) = unzipWith id f xs,
+--
+-- which rewrites to unzipWith (id . f) xs
+--
+-- It's true that if GHC doesn't know the arity of `f` then
+-- it won't reduce further, but that doesn't seem like too
+-- big a deal here.
+{-# RULES
+"unzipWith/fmapSeq" forall f g xs. unzipWith f (fmapSeq g xs) =
+                                     unzipWith (f . g) xs
+ #-}
 #endif
+
+class UnzipWith f where
+  unzipWith' :: (x -> (a, b)) -> f x -> (f a, f b)
+
+-- This instance is only used at the very top of the tree;
+-- the rest of the elements are handled by unzipWithNodeElem
+instance UnzipWith Elem where
+#if __GLASGOW_HASKELL__ >= 708
+  unzipWith' = coerce
+#else
+  unzipWith' f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
+#endif
+
+-- We're very lazy here for the sake of efficiency. We want to be able to
+-- reach any element of either result in logarithmic time. If we pattern
+-- match strictly, we'll end up building entire 2-3 trees at once, which
+-- would take linear time.
+--
+-- However, we're not *entirely* lazy! We are careful to build pieces
+-- of each sequence as the corresponding pieces of the *other* sequence
+-- are demanded. This allows the garbage collector to get rid of each
+-- *component* of each result pair as soon as it is dead.
+--
+-- Note that this instance is used only for *internal* nodes. Nodes
+-- containing elements are handled by 'unzipWithNodeElem'
+instance UnzipWith Node where
+  unzipWith' f (Node2 s x y) =
+    ( Node2 s x1 y1
+    , Node2 s x2 y2)
+    where
+      {-# NOINLINE fx #-}
+      {-# NOINLINE fy #-}
+      fx = strictifyPair (f x)
+      fy = strictifyPair (f y)
+      (x1, x2) = fx
+      (y1, y2) = fy
+  unzipWith' f (Node3 s x y z) =
+    ( Node3 s x1 y1 z1
+    , Node3 s x2 y2 z2)
+    where
+      {-# NOINLINE fx #-}
+      {-# NOINLINE fy #-}
+      {-# NOINLINE fz #-}
+      fx = strictifyPair (f x)
+      fy = strictifyPair (f y)
+      fz = strictifyPair (f z)
+      (x1, x2) = fx
+      (y1, y2) = fy
+      (z1, z2) = fz
+
+-- Force both elements of a pair
+strictifyPair :: (a, b) -> (a, b)
+strictifyPair (!x, !y) = (x, y)
+
+-- We're strict here for the sake of efficiency. The Node instance
+-- is lazy, so we don't particularly need to add an extra thunk on top
+-- of each node.
+instance UnzipWith Digit where
+  unzipWith' f (One x)
+    | (x1, x2) <- f x
+    = (One x1, One x2)
+  unzipWith' f (Two x y)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    = ( Two x1 y1
+      , Two x2 y2)
+  unzipWith' f (Three x y z)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    , (z1, z2) <- f z
+    = ( Three x1 y1 z1
+      , Three x2 y2 z2)
+  unzipWith' f (Four x y z w)
+    | (x1, x2) <- f x
+    , (y1, y2) <- f y
+    , (z1, z2) <- f z
+    , (w1, w2) <- f w
+    = ( Four x1 y1 z1 w1
+      , Four x2 y2 z2 w2)
+
+instance UnzipWith FingerTree where
+  unzipWith' _ EmptyT = (EmptyT, EmptyT)
+  unzipWith' f (Single x)
+    | (x1, x2) <- f x
+    = (Single x1, Single x2)
+  unzipWith' f (Deep s pr m sf)
+    | (!pr1, !pr2) <- unzipWith' f pr
+    , (!sf1, !sf2) <- unzipWith' f sf
+    = (Deep s pr1 m1 sf1, Deep s pr2 m2 sf2)
+    where
+      {-# NOINLINE m1m2 #-}
+      m1m2 = strictifyPair $ unzipWith' (unzipWith' f) m
+      (m1, m2) = m1m2
+
+instance UnzipWith Seq where
+  unzipWith' _ (Seq EmptyT) = (empty, empty)
+  unzipWith' f (Seq (Single (Elem x)))
+    | (x1, x2) <- f x
+    = (singleton x1, singleton x2)
+  unzipWith' f (Seq (Deep s pr m sf))
+    | (!pr1, !pr2) <- unzipWith' (unzipWith' f) pr
+    , (!sf1, !sf2) <- unzipWith' (unzipWith' f) sf
+    = (Seq (Deep s pr1 m1 sf1), Seq (Deep s pr2 m2 sf2))
+    where
+      {-# NOINLINE m1m2 #-}
+      m1m2 = strictifyPair $ unzipWith' (unzipWithNodeElem f) m
+      (m1, m2) = m1m2
+
+-- Here we need to be lazy in the children (because they're
+-- Elems), but we can afford to be strict in the results
+-- of `f` because it's sure to return a pair immediately
+-- (unzipWith lazifies the function it's passed).
+unzipWithNodeElem :: (x -> (a, b))
+       -> Node (Elem x) -> (Node (Elem a), Node (Elem b))
+unzipWithNodeElem f (Node2 s (Elem x) (Elem y))
+  | (x1, x2) <- f x
+  , (y1, y2) <- f y
+  = ( Node2 s (Elem x1) (Elem y1)
+    , Node2 s (Elem x2) (Elem y2))
+unzipWithNodeElem f (Node3 s (Elem x) (Elem y) (Elem z))
+  | (x1, x2) <- f x
+  , (y1, y2) <- f y
+  , (z1, z2) <- f z
+  = ( Node3 s (Elem x1) (Elem y1) (Elem z1)
+    , Node3 s (Elem x2) (Elem y2) (Elem z2))
 
 -- | \( O(\min(n_1,n_2)) \).  'zip' takes two sequences and returns a sequence
 -- of corresponding pairs.  If one input is short, excess elements are
@@ -4344,10 +4475,6 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 
 ------------------------------------------------------------------------
 -- Sorting
---
--- sort and sortBy are implemented by simple deforestations of
---      \ xs -> fromList2 (length xs) . Data.List.sortBy cmp . toList
--- which does not get deforested automatically, it would appear.
 --
 -- Unstable sorting is performed by a heap sort implementation based on
 -- pairing heaps.  Because the internal structure of sequences is quite
@@ -4418,24 +4545,73 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
 --
 -- mail@doisinkidney.com, 4/30/17
 ------------------------------------------------------------------------
+-- The sort and sortBy functions are implemented by tagging each element
+-- in the input sequence with its position, and using that to
+-- discriminate between elements which are equivalent according to the
+-- comparator. This makes the sort stable.
+--
+-- The algorithm is effectively the same as the unstable sorts, except
+-- the queue is constructed while giving each element a tag.
+--
+-- It's quicker than the old implementation (which used Data.List.sort)
+-- in the general case (all times are on sequences of length 50000):
+--
+-- Times (ms)            min    est    max  std dev   r²
+-- to/from list:        64.23  64.50  64.81  0.432  1.000
+-- 1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
+--
+-- Slightly slower in the case of already sorted lists:
+--
+-- Times (ms)            min    est    max  std dev   r²
+-- to/from list:        6.806  6.861  6.901  0.234  1.000
+-- 1/11/18 stable heap: 8.211  8.268  8.328  0.111  1.000
+--
+-- And quicker in the case of lists sorted in reverse:
+--
+-- Times (ms)            min    est    max  std dev   r²
+-- to/from list:        26.79  28.34  30.55  1.219  0.988
+-- 1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
+--
+-- Interestingly, the stable sort is now competitive with the unstable:
+--
+-- Times (ms)            min    est    max  std dev   r²
+-- unstable:            34.71  35.10  35.38  0.845  1.000
+-- stable:              38.84  39.22  39.59  0.564  0.999
+--
+-- And even beats it in the case of already-sorted lists:
+--
+-- Times (ms)            min    est    max  std dev   r²
+-- unstable:            8.457  8.499  8.536  0.069  1.000
+-- stable:              8.160  8.230  8.334  0.158  0.999
+--
+-- mail@doisinkidney.com, 1/11/18
+------------------------------------------------------------------------
+-- Further notes are available in the file sorting.md (in this
+-- directory).
+------------------------------------------------------------------------
 
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
--- ordering of its elements.  The sort is stable.
--- If stability is not required, 'unstableSort' can be considerably
--- faster, and in particular uses less memory.
+-- ordering of its elements.  The sort is stable.  If stability is not
+-- required, 'unstableSort' can be slightly faster.
 sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
 -- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
--- specified comparator.  The sort is stable.
--- If stability is not required, 'unstableSortBy' can be considerably
--- faster, and in particular uses less memory.
+-- specified comparator.  The sort is stable.  If stability is not required,
+-- 'unstableSortBy' can be slightly faster.
 sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
-sortBy cmp xs = fromList2 (length xs) (Data.List.sortBy cmp (toList xs))
+sortBy cmp (Seq xs) =
+    maybe
+        (Seq EmptyT)
+        (execState (replicateA (size xs) (popMinS cmp)))
+        (toPQS cmp (Seq xs))
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
 -- This algorithm is frequently faster and uses less memory than 'sort'.
+
+-- Notes on the implementation and choice of heap are available in
+-- the file sorting.md (in this directory).
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
@@ -4445,8 +4621,10 @@ unstableSort = unstableSortBy compare
 -- uses less memory than 'sortBy'.
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
-    maybe (Seq EmptyT) (execState (replicateA (size xs) (popMin cmp))) $
-    toPQ cmp (\(Elem x) -> PQueue x Nil) xs
+    maybe
+        (Seq EmptyT)
+        (execState (replicateA (size xs) (popMin cmp)))
+        (toPQ cmp (Seq xs))
 
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4504,24 +4682,121 @@ popMin cmp = State unrollPQ'
     (<+>) = mergePQ cmp
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
--- elements, converts a 'FingerTree' to a 'PQueue'.
-toPQ :: (e -> e -> Ordering) -> (a -> PQueue e) -> FingerTree a -> Maybe (PQueue e)
-toPQ _ _ EmptyT = Nothing
-toPQ _ f (Single x) = Just (f x)
-toPQ cmp f (Deep _ pr m sf) = Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) (toPQ cmp fNode m))
+-- elements, converts a 'Seq' to a 'PQueue'.
+toPQ :: (e -> e -> Ordering) -> Seq e -> Maybe (PQueue e)
+toPQ cmp' (Seq xs') = toPQTree cmp' (\(Elem a) -> PQueue a Nil) xs'
   where
-    fDigit digit = case fmap f digit of
-        One a           -> a
-        Two a b         -> a <+> b
-        Three a b c     -> a <+> b <+> c
-        Four a b c d    -> (a <+> b) <+> (c <+> d)
-    (<+>) = mergePQ cmp
-    fNode = fDigit . nodeToDigit
-    pr' = fDigit pr
-    sf' = fDigit sf
+    toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
+    toPQTree _ _ EmptyT = Nothing
+    toPQTree _ f (Single xs) = Just (f xs)
+    toPQTree cmp f (Deep _ pr m sf) =
+        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQDigit cmp f pr
+        sf' = toPQDigit cmp f sf
+        m' = toPQTree cmp (toPQNode cmp f) m
+        (<+>) = mergePQ cmp
+    toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
+    toPQDigit cmp f dig =
+        case dig of
+            One a -> f a
+            Two a b -> f a <+> f b
+            Three a b c -> f a <+> f b <+> f c
+            Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
+      where
+        (<+>) = mergePQ cmp
+    toPQNode :: (b -> b -> Ordering) -> (a -> PQueue b) -> Node a -> PQueue b
+    toPQNode cmp f node =
+        case node of
+            Node2 _ a b -> f a <+> f b
+            Node3 _ a b c -> f a <+> f b <+> f c
+      where
+        (<+>) = mergePQ cmp
 
 -- | 'mergePQ' merges two 'PQueue's.
 mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
 mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
   | cmp x1 x2 == GT     = PQueue x2 (q1 :& ts2)
   | otherwise           = PQueue x1 (q2 :& ts1)
+
+-- | A pairing heap tagged with the original position of elements,
+-- to allow for stable sorting.
+data PQS e = PQS {-# UNPACK #-} !Int e (PQSL e)
+data PQSL e = Nl | {-# UNPACK #-} !(PQS e) :&& PQSL e
+
+infixr 8 :&&
+
+-- | 'popMinS', given an ordering function, constructs a stateful action
+-- which pops the smallest elements from a queue. This action will fail
+-- on empty queues.
+popMinS :: (e -> e -> Ordering) -> State (PQS e) e
+popMinS cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (PQS _ x ts) = (mergePQs ts, x)
+    mergePQs (t :&& Nl) = t
+    mergePQs (t1 :&& t2 :&& Nl) = t1 <+> t2
+    mergePQs (t1 :&& t2 :&& ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs Nl = error "popMin: tried to pop from empty queue"
+    (<+>) = mergePQS cmp
+
+-- | 'toPQS', given an ordering function, converts a 'Seq' to a
+-- 'PQS'.
+toPQS :: (e -> e -> Ordering) -> Seq e -> Maybe (PQS e)
+toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
+  where
+    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
+    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
+    toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> FingerTree a -> Maybe (PQS b)
+    toPQSTree _ _ !_s EmptyT = Nothing
+    toPQSTree _ f s (Single xs) = Just (f s xs)
+    toPQSTree cmp f s (Deep _ pr m sf) =
+        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQSDigit cmp f s pr
+        sf' = toPQSDigit cmp f sPsprm sf
+        m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
+        !sPspr = s + size pr
+        !sPsprm = sPspr + size m
+        (<+>) = mergePQS cmp
+    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
+    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
+    toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
+    toPQSDigit _ f !s (One a) = f s a
+    toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
+      where
+        !sPsa = s + size a
+        (<+>) = mergePQS cmp
+    toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        (<+>) = mergePQS cmp
+    toPQSDigit cmp f s (Four a b c d) =
+        (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        !sPsabc = sPsab + size c
+        (<+>) = mergePQS cmp
+    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
+    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
+    toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
+    toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
+      where
+        !sPsa = s + size a
+        (<+>) = mergePQS cmp
+    toPQSNode cmp f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
+      where
+        !sPsa = s + size a
+        !sPsab = sPsa + size b
+        (<+>) = mergePQS cmp
+
+-- | 'mergePQS' merges two PQS, taking into account the original
+-- position of the elements.
+mergePQS :: (a -> a -> Ordering) -> PQS a -> PQS a -> PQS a
+mergePQS cmp q1@(PQS i1 x1 ts1) q2@(PQS i2 x2 ts2) =
+    case cmp x1 x2 of
+        LT -> PQS i1 x1 (q2 :&& ts1)
+        EQ | i1 <= i2 -> PQS i1 x1 (q2 :&& ts1)
+        _ -> PQS i2 x2 (q1 :&& ts2)

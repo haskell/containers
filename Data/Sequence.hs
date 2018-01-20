@@ -211,13 +211,15 @@ module Data.Sequence (
     traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
     intersperse,    -- :: a -> Seq a -> Seq a
-    -- ** Zips
+    -- ** Zips and unzip
     zip,            -- :: Seq a -> Seq b -> Seq (a, b)
     zipWith,        -- :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
     zip3,           -- :: Seq a -> Seq b -> Seq c -> Seq (a, b, c)
     zipWith3,       -- :: (a -> b -> c -> d) -> Seq a -> Seq b -> Seq c -> Seq d
     zip4,           -- :: Seq a -> Seq b -> Seq c -> Seq d -> Seq (a, b, c, d)
     zipWith4,       -- :: (a -> b -> c -> d -> e) -> Seq a -> Seq b -> Seq c -> Seq d -> Seq e
+    unzip,          -- :: Seq (a, b) -> (Seq a, Seq b)
+    unzipWith       -- :: (a -> (b, c)) -> Seq a -> (Seq b, Seq c)
     ) where
 
 import Data.Sequence.Internal
