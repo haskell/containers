@@ -95,8 +95,10 @@ main = defaultMain
        , testProperty "filter" prop_filter
        , testProperty "sort" prop_sort
        , testProperty "sortBy" prop_sortBy
+       , testProperty "sortOn" prop_sortOn
        , testProperty "unstableSort" prop_unstableSort
        , testProperty "unstableSortBy" prop_unstableSortBy
+       , testProperty "unstableSortOn" prop_unstableSortOn
        , testProperty "index" prop_index
        , testProperty "(!?)" prop_safeIndex
        , testProperty "adjust" prop_adjust
@@ -540,6 +542,10 @@ prop_sortBy xs =
     toList' (sortBy f xs) ~= Data.List.sortBy f (toList xs)
   where f (x1, _) (x2, _) = compare x1 x2
 
+prop_sortOn :: Seq (OrdA, B) -> Bool
+prop_sortOn xs =
+    toList' (sortOn fst xs) ~= Data.List.sortOn fst (toList xs)
+
 prop_unstableSort :: Seq OrdA -> Bool
 prop_unstableSort xs =
     toList' (unstableSort xs) ~= Data.List.sort (toList xs)
@@ -547,6 +553,11 @@ prop_unstableSort xs =
 prop_unstableSortBy :: Seq OrdA -> Bool
 prop_unstableSortBy xs =
     toList' (unstableSortBy compare xs) ~= Data.List.sort (toList xs)
+
+prop_unstableSortOn :: Seq (OrdA, B) -> Bool
+prop_unstableSortOn xs =
+    toList' (unstableSortBy f xs) ~= toList' (unstableSortOn fst xs)
+  where f (x1, _) (x2, _) = compare x1 x2
 
 -- * Indexing
 
