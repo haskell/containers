@@ -136,8 +136,8 @@ sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 sortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
-        (execState (replicateA (size xs) (popMinS cmp)))
-        (toIndexedQueue cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
+        (execState (replicateA (size xs) (popMinIQ cmp)))
+        (toIQ cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
 -- the results of a key function applied to each element. @'sortOn' f@ is
@@ -162,8 +162,8 @@ sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (popMinST compare)))
-       (toIndexedTaggedQueue compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
+       (execState (replicateA (size xs) (popMinITQ compare)))
+       (toITQ compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -182,8 +182,8 @@ unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
-        (execState (replicateA (size xs) (popMin cmp)))
-        (toPQ cmp (\(Elem x) -> Q x Nil) xs)
+        (execState (replicateA (size xs) (popMinQ cmp)))
+        (toQ cmp (\(Elem x) -> Q x Nil) xs)
 
 -- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
 -- comparing the results of a key function applied to each element.
@@ -208,8 +208,8 @@ unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (popMinT compare)))
-       (toTaggedQueue compare (\(Elem x) -> TQ (f x) x TQNil) xs)
+       (execState (replicateA (size xs) (popMinTQ compare)))
+       (toTQ compare (\(Elem x) -> TQ (f x) x TQNil) xs)
 
 ------------------------------------------------------------------------
 -- Heaps
@@ -253,19 +253,120 @@ data ITQList e a
 
 infixr 8 `ITQCons`, `TQCons`, `QCons`, `IQCons`
 
--- | 'popMin', given an ordering function, constructs a stateful action
--- which pops the smallest elements from a queue. This action will fail
--- on empty queues.
-popMin :: (e -> e -> Ordering) -> State (Queue e) e
-popMin cmp = State unrollPQ'
+------------------------------------------------------------------------
+-- Merges
+--
+-- The following are definitions for "merge" for each of the heaps
+-- above.
+------------------------------------------------------------------------
+
+-- | 'mergeQ' merges two 'Queue's.
+mergeQ :: (a -> a -> Ordering) -> Queue a -> Queue a -> Queue a
+mergeQ cmp q1@(Q x1 ts1) q2@(Q x2 ts2)
+  | cmp x1 x2 == GT     = Q x2 (q1 `QCons` ts2)
+  | otherwise           = Q x1 (q2 `QCons` ts1)
+
+-- | 'mergeTQ' merges two 'TaggedQueue's.
+mergeTQ :: (a -> a -> Ordering) -> TaggedQueue a b -> TaggedQueue a b -> TaggedQueue a b
+mergeTQ cmp q1@(TQ x1 y1 ts1) q2@(TQ x2 y2 ts2)
+  | cmp x1 x2 == GT     = TQ x2 y2 (q1 `TQCons` ts2)
+  | otherwise           = TQ x1 y1 (q2 `TQCons` ts1)
+
+-- | 'mergeIQ' merges two IndexedQueue, taking into account the original
+-- position of the elements.
+mergeIQ :: (a -> a -> Ordering) -> IndexedQueue a -> IndexedQueue a -> IndexedQueue a
+mergeIQ cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
+    case cmp x1 x2 of
+        LT -> IQ i1 x1 (q2 `IQCons` ts1)
+        EQ | i1 <= i2 -> IQ i1 x1 (q2 `IQCons` ts1)
+        _ -> IQ i2 x2 (q1 `IQCons` ts2)
+
+-- | 'mergeIQ' merges two IndexedQueue, taking into account the original
+-- position of the elements.
+mergeITQ :: (a -> a -> Ordering) -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b
+mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
+    case cmp x1 x2 of
+        LT -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
+        EQ | i1 <= i2 -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
+        _ -> ITQ i2 x2 y2 (q1 `ITQCons` ts2)
+
+------------------------------------------------------------------------
+-- popMin
+--
+-- The following are definitions for @popMin@, a function which
+-- constructs a stateful action which pops the next element from a
+-- queue. This action will fail on empty queues.
+------------------------------------------------------------------------
+
+popMinQ :: (e -> e -> Ordering) -> State (Queue e) e
+popMinQ cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (Q x ts) = (mergePQs ts, x)
-    mergePQs (t `QCons` Nil) = t
-    mergePQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
-    mergePQs (t1 `QCons` t2 `QCons` ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs Nil = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQ cmp
+    unrollPQ' (Q x ts) = (mergeQs ts, x)
+    mergeQs (t `QCons` Nil) = t
+    mergeQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
+    mergeQs (t1 `QCons` t2 `QCons` ts) = (t1 <+> t2) <+> mergeQs ts
+    mergeQs Nil = error "popMinQ: tried to pop from empty queue"
+    (<+>) = mergeQ cmp
+
+popMinIQ :: (e -> e -> Ordering) -> State (IndexedQueue e) e
+popMinIQ cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (IQ _ x ts) = (mergeQs ts, x)
+    mergeQs (t `IQCons` IQNil) = t
+    mergeQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
+    mergeQs (t1 `IQCons` t2 `IQCons` ts) = (t1 <+> t2) <+> mergeQs ts
+    mergeQs IQNil = error "popMinQ: tried to pop from empty queue"
+    (<+>) = mergeIQ cmp
+
+popMinTQ :: (a -> a -> Ordering) -> State (TaggedQueue a b) b
+popMinTQ cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (TQ _ x ts) = (mergeQs ts, x)
+    mergeQs (t `TQCons` TQNil) = t
+    mergeQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
+    mergeQs (t1 `TQCons` t2 `TQCons` ts) = (t1 <+> t2) <+> mergeQs ts
+    mergeQs TQNil = error "popMinQ: tried to pop from empty queue"
+    (<+>) = mergeTQ cmp
+
+popMinITQ :: (e -> e -> Ordering) -> State (IndexedTaggedQueue e a) a
+popMinITQ cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (ITQ _ _ x ts) = (mergeQs ts, x)
+    mergeQs (t `ITQCons` ITQNil) = t
+    mergeQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
+    mergeQs (t1 `ITQCons` t2 `ITQCons` ts) = (t1 <+> t2) <+> mergeQs ts
+    mergeQs ITQNil = error "popMinQ: tried to pop from empty queue"
+    (<+>) = mergeITQ cmp
+
+------------------------------------------------------------------------
+-- to*
+--
+-- The following are definitions for @to*@, a function which
+-- constructs queue from a 'Seq'.
+------------------------------------------------------------------------
+
+toQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
+toQ cmp = foldToMaybeTree (mergeQ cmp)
+
+toIQ :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedQueue b) -> Int -> FingerTree (Elem y) -> Maybe (IndexedQueue b)
+toIQ cmp = foldToMaybeWithIndexTree (mergeIQ cmp)
+
+toTQ :: (b -> b -> Ordering) -> (a -> TaggedQueue b c) -> FingerTree a -> Maybe (TaggedQueue b c)
+toTQ cmp = foldToMaybeTree (mergeTQ cmp)
+
+toITQ :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedTaggedQueue b c) -> Int -> FingerTree (Elem y) -> Maybe (IndexedTaggedQueue b c)
+toITQ cmp = foldToMaybeWithIndexTree (mergeITQ cmp)
+
+------------------------------------------------------------------------
+-- foldToMaybe
+--
+-- Definitions for foldToMaybe, which are used in constructing the
+-- queues above.
+------------------------------------------------------------------------
 
 {-# INLINE foldToMaybeTree #-}
 foldToMaybeTree :: (b -> b -> b) -> (a -> b) -> FingerTree a -> Maybe b
@@ -278,32 +379,7 @@ foldToMaybeTree (<+>) f (Deep _ pr m sf) =
     sf' = foldDigit (<+>) f sf
     m' = foldToMaybeTree (<+>) (foldNode (<+>) f) m
 
--- | 'toPQ', given an ordering function and a mechanism for queueifying
--- elements, converts a 'Seq' to a 'Queue'.
-toPQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
-toPQ cmp = foldToMaybeTree (mergePQ cmp)
-
--- | 'mergePQ' merges two 'Queue's.
-mergePQ :: (a -> a -> Ordering) -> Queue a -> Queue a -> Queue a
-mergePQ cmp q1@(Q x1 ts1) q2@(Q x2 ts2)
-  | cmp x1 x2 == GT     = Q x2 (q1 `QCons` ts2)
-  | otherwise           = Q x1 (q2 `QCons` ts1)
-
-
--- | 'popMinS', given an ordering function, constructs a stateful action
--- which pops the smallest elements from a queue. This action will fail
--- on empty queues.
-popMinS :: (e -> e -> Ordering) -> State (IndexedQueue e) e
-popMinS cmp = State unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (IQ _ x ts) = (mergePQs ts, x)
-    mergePQs (t `IQCons` IQNil) = t
-    mergePQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
-    mergePQs (t1 `IQCons` t2 `IQCons` ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs IQNil = error "popMin: tried to pop from empty queue"
-    (<+>) = mergeIndexedQueue cmp
-
+{-# INLINE foldToMaybeWithIndexTree #-}
 foldToMaybeWithIndexTree :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b
 foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
   where
@@ -329,65 +405,3 @@ foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
     node :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
     node = foldWithIndexNode
 
--- | 'toIndexedQueue', given an ordering function, converts a 'Seq' to a
--- 'IndexedQueue'.
-toIndexedQueue :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedQueue b) -> Int -> FingerTree (Elem y) -> Maybe (IndexedQueue b)
-toIndexedQueue cmp = foldToMaybeWithIndexTree (mergeIndexedQueue cmp)
-
--- | 'mergeIndexedQueue' merges two IndexedQueue, taking into account the original
--- position of the elements.
-mergeIndexedQueue :: (a -> a -> Ordering) -> IndexedQueue a -> IndexedQueue a -> IndexedQueue a
-mergeIndexedQueue cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
-    case cmp x1 x2 of
-        LT -> IQ i1 x1 (q2 `IQCons` ts1)
-        EQ | i1 <= i2 -> IQ i1 x1 (q2 `IQCons` ts1)
-        _ -> IQ i2 x2 (q1 `IQCons` ts2)
-
-popMinT :: (a -> a -> Ordering) -> State (TaggedQueue a b) b
-popMinT cmp = State unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (TQ _ x ts) = (mergePQs ts, x)
-    mergePQs (t `TQCons` TQNil) = t
-    mergePQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
-    mergePQs (t1 `TQCons` t2 `TQCons` ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs TQNil = error "popMin: tried to pop from empty queue"
-    (<+>) = mergeTaggedQueue cmp
-
--- | 'mergeTaggedQueue' merges two 'TaggedQueue's.
-mergeTaggedQueue :: (a -> a -> Ordering) -> TaggedQueue a b -> TaggedQueue a b -> TaggedQueue a b
-mergeTaggedQueue cmp q1@(TQ x1 y1 ts1) q2@(TQ x2 y2 ts2)
-  | cmp x1 x2 == GT     = TQ x2 y2 (q1 `TQCons` ts2)
-  | otherwise           = TQ x1 y1 (q2 `TQCons` ts1)
-
-toTaggedQueue :: (b -> b -> Ordering) -> (a -> TaggedQueue b c) -> FingerTree a -> Maybe (TaggedQueue b c)
-toTaggedQueue cmp = foldToMaybeTree (mergeTaggedQueue cmp)
-
-
--- | 'popMinS', given an ordering function, constructs a stateful action
--- which pops the smallest elements from a queue. This action will fail
--- on empty queues.
-popMinST :: (e -> e -> Ordering) -> State (IndexedTaggedQueue e a) a
-popMinST cmp = State unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (ITQ _ _ x ts) = (mergePQs ts, x)
-    mergePQs (t `ITQCons` ITQNil) = t
-    mergePQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
-    mergePQs (t1 `ITQCons` t2 `ITQCons` ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs ITQNil = error "popMin: tried to pop from empty queue"
-    (<+>) = mergeIndexedTaggedQueue cmp
-
--- | 'toIndexedQueue', given an ordering function, converts a 'Seq' to a
--- 'IndexedQueue'.
-toIndexedTaggedQueue :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedTaggedQueue b c) -> Int -> FingerTree (Elem y) -> Maybe (IndexedTaggedQueue b c)
-toIndexedTaggedQueue cmp = foldToMaybeWithIndexTree (mergeIndexedTaggedQueue cmp)
-
--- | 'mergeIndexedQueue' merges two IndexedQueue, taking into account the original
--- position of the elements.
-mergeIndexedTaggedQueue :: (a -> a -> Ordering) -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b
-mergeIndexedTaggedQueue cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
-    case cmp x1 x2 of
-        LT -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
-        EQ | i1 <= i2 -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
-        _ -> ITQ i2 x2 y2 (q1 `ITQCons` ts2)
