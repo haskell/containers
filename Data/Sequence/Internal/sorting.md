@@ -113,25 +113,45 @@ And quicker in the case of lists sorted in reverse:
 
 Times (ms)          | min | est | max |std dev|  r²
 --------------------|-----|-----|-----|-------|-----
-to/from list:        26.79  28.34  30.55  1.219  0.988
-1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
+to/from list:       |26.79|28.34|30.55|  1.219|0.988
+1/11/18 stable heap:|9.405|10.13|10.91|  0.670|0.977
 
 Interestingly, the stable sort is now competitive with the unstable:
 
-Times (ms)          | min | est | max |std dev|  r²
---------------------|-----|-----|-----|-------|-----
-unstable:            34.71  35.10  35.38  0.845  1.000
-stable:              38.84  39.22  39.59  0.564  0.999
+Times (ms)| min | est | max |std dev|  r²
+----------|-----|-----|-----|-------|-----
+unstable: |34.71|35.10|35.38|  0.845|1.000
+stable:   |38.84|39.22|39.59|  0.564|0.999
 
 And even beats it in the case of already-sorted lists:
 
-Times (ms)          | min | est | max |std dev|  r²
---------------------|-----|-----|-----|-------|-----
-unstable:            8.457  8.499  8.536  0.069  1.000
-stable:              8.160  8.230  8.334  0.158  0.999
+Times (ms)| min | est | max |std dev|  r²
+----------|-----|-----|-----|-------|-----
+unstable: |8.457|8.499|8.536|  0.069|1.000
+stable:   |8.160|8.230|8.334|  0.158|0.999
 
 mail@doisinkidney.com, 1/11/18
 
+## sortOn Functions
+
+The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, however instead of the following implementation:
+
+```haskell
+sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
+```
+
+The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. It still suffers a slowdown of roughly 35%:
+
+Times (ms)     | min | est | max |std dev|  r²
+---------------|-----|-----|-----|-------|-----
+unstableSortOn |47.81|48.33|48.80| 1.051 |1.000
+unstableSort   |35.36|35.89|36.41| 0.588 |0.999
+sortOn         |56.28|59.64|63.06| 2.387 |0.994
+sort           |39.91|40.19|40.45| 0.553 |1.000
+
+## Other Heaps
+
+Strict pairs are also used, instead of tuples, which yields a significant speedup.
 The pairing heap seems to particularly suit the structure of the finger tree, as other heaps have not managed to beat it. Specifically, when compared to a skew heap:
 
 ```haskell
@@ -229,21 +249,3 @@ std dev              5.006 ms   (269.0 μs .. 6.151 ms)
 variance introduced by outliers: 16% (moderately inflated)
 ```
 
-## sortOn Functions
-
-The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, however instead of the following implementation:
-
-```haskell
-sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
-```
-
-The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. It still suffers a slowdown of roughly 35%:
-
-Times (ms)     | min | est | max |std dev|  r²
----------------|-----|-----|-----|-------|-----
-unstableSortOn |47.81|48.33|48.80| 1.051 |1.000
-unstableSort   |35.36|35.89|36.41| 0.588 |0.999
-sortOn         |56.28|59.64|63.06| 2.387 |0.994
-sort           |39.91|40.19|40.45| 0.553 |1.000
-
-Strict pairs are also used, instead of tuples, which yields a significant speedup.
