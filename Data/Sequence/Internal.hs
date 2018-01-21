@@ -4609,12 +4609,21 @@ sortBy cmp (Seq xs) =
         (execState (replicateA (size xs) (popMinS cmp)))
         (toPQS cmp (\s (Elem x) -> PQS s x Nl) 0 xs)
 
--- | \( O(n \log n) \). `sortOn` sorts the specified `Seq` by comparing
--- the results of a key function applied to each element. `sortOn f` is
--- equivalent to `sortBy (comparing f)`, but has the performance
+-- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
+-- the results of a key function applied to each element. @'sortOn' f@ is
+-- equivalent to @'sortBy' ('Data.Ord.comparing' f)@, but has the performance
 -- advantage of only evaluating f once for each element in the input
 -- list. This is called the decorate-sort-undecorate paradigm, or
 -- Schwartzian transform.
+--
+-- An example of using 'sortOn' might be to sort a 'Seq' of strings
+-- according to their length:
+--
+-- > sortOn length (fromList ["alligator", "monkey", "zebra"]) == fromList ["zebra", "monkey", "alligator"]
+--
+-- If, instead, 'sortBy' had been used, 'length' would be evaluated on
+-- every comparison, giving \( O(n \log n) \) evaluations, rather than
+-- \( O(n) \).
 sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
@@ -4644,12 +4653,21 @@ unstableSortBy cmp (Seq xs) =
         (execState (replicateA (size xs) (popMin cmp)))
         (toPQ cmp (\(Elem x) -> PQueue x Nil) xs)
 
--- | \( O(n \log n) \). `unstableSortOn` sorts the specified `Seq` by
+-- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
 -- comparing the results of a key function applied to each element.
--- `unstableSortOn f` is equivalent to `unstableSortBy (comparing f)`,
+-- @'unstableSortOn' f@ is equivalent to @'unstableSortBy' ('Data.Ord.comparing' f)@,
 -- but has the performance advantage of only evaluating f once for each
 -- element in the input list. This is called the
 -- decorate-sort-undecorate paradigm, or Schwartzian transform.
+--
+-- An example of using 'unstableSortOn' might be to sort a 'Seq' of strings
+-- according to their length:
+--
+-- > unstableSortOn length (fromList ["alligator", "monkey", "zebra"]) == fromList ["zebra", "monkey", "alligator"]
+--
+-- If, instead, 'unstableSortBy' had been used, 'length' would be evaluated on
+-- every comparison, giving \( O(n \log n) \) evaluations, rather than
+-- \( O(n) \).
 unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
