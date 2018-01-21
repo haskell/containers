@@ -978,11 +978,15 @@ data Digit a
     deriving Show
 #endif
 
+foldDigit :: (b -> b -> b) -> (a -> b) -> Digit a -> b
+foldDigit (<+>) f (One a) = f a
+foldDigit (<+>) f (Two a b) = f a <+> f b
+foldDigit (<+>) f (Three a b c) = f a <+> f b <+> f c
+foldDigit (<+>) f (Four a b c d) = f a <+> f b <+> f c <+> f d
+{-# INLINE foldDigit #-}
+
 instance Foldable Digit where
-    foldMap f (One a) = f a
-    foldMap f (Two a b) = f a <> f b
-    foldMap f (Three a b c) = f a <> f b <> f c
-    foldMap f (Four a b c d) = f a <> f b <> f c <> f d
+    foldMap = foldDigit mappend
 
     foldr f z (One a) = a `f` z
     foldr f z (Two a b) = a `f` (b `f` z)
@@ -1065,9 +1069,13 @@ data Node a
     deriving Show
 #endif
 
+foldNode :: (b -> b -> b) -> (a -> b) -> Node a -> b
+foldNode (<+>) f (Node2 _ a b) = f a <+> f b
+foldNode (<+>) f (Node3 _ a b c) = f a <+> f b <+> f c
+{-# INLINE foldNode #-}
+
 instance Foldable Node where
-    foldMap f (Node2 _ a b) = f a <> f b
-    foldMap f (Node3 _ a b c) = f a <> f b <> f c
+    foldMap = foldNode mappend
 
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
@@ -2659,6 +2667,32 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
  #-}
 #endif
 
+{-# INLINE foldWithIndexDigit #-}
+foldWithIndexDigit :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
+foldWithIndexDigit _ f !s (One a) = f s a
+foldWithIndexDigit (<+>) f s (Two a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+foldWithIndexDigit (<+>) f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+foldWithIndexDigit (<+>) f s (Four a b c d) =
+    f s a <+> f sPsa b <+> f sPsab c <+> f sPsabc d
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
+{-# INLINE foldWithIndexNode #-}
+foldWithIndexNode :: Sized a => (m -> m -> m) -> (Int -> a -> m) -> Int -> Node a -> m
+foldWithIndexNode (<+>) f !s (Node2 _ a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+foldWithIndexNode (<+>) f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
 
 -- A generalization of 'foldMap', 'foldMapWithIndex' takes a folding
 -- function that also depends on the element's index, and applies it to every
@@ -2702,45 +2736,16 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
       !sPsprm = sPspr + size m
 
   foldMapWithIndexDigitE :: Monoid m => (Int -> Elem a -> m) -> Int -> Digit (Elem a) -> m
-  foldMapWithIndexDigitE f i t = foldMapWithIndexDigit f i t
+  foldMapWithIndexDigitE f i t = foldWithIndexDigit (<>) f i t
 
   foldMapWithIndexDigitN :: Monoid m => (Int -> Node a -> m) -> Int -> Digit (Node a) -> m
-  foldMapWithIndexDigitN f i t = foldMapWithIndexDigit f i t
-
-  {-# INLINE foldMapWithIndexDigit #-}
-  foldMapWithIndexDigit :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Digit a -> m
-  foldMapWithIndexDigit f !s (One a) = f s a
-  foldMapWithIndexDigit f s (Two a b) = f s a <> f sPsa b
-    where
-      !sPsa = s + size a
-  foldMapWithIndexDigit f s (Three a b c) =
-                                      f s a <> f sPsa b <> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  foldMapWithIndexDigit f s (Four a b c d) =
-                          f s a <> f sPsa b <> f sPsab c <> f sPsabc d
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
+  foldMapWithIndexDigitN f i t = foldWithIndexDigit (<>) f i t
 
   foldMapWithIndexNodeE :: Monoid m => (Int -> Elem a -> m) -> Int -> Node (Elem a) -> m
-  foldMapWithIndexNodeE f i t = foldMapWithIndexNode f i t
+  foldMapWithIndexNodeE f i t = foldWithIndexNode (<>) f i t
 
   foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
-  foldMapWithIndexNodeN f i t = foldMapWithIndexNode f i t
-
-  {-# INLINE foldMapWithIndexNode #-}
-  foldMapWithIndexNode :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Node a -> m
-  foldMapWithIndexNode f !s (Node2 _ a b) = f s a <> f sPsa b
-    where
-      !sPsa = s + size a
-  foldMapWithIndexNode f s (Node3 _ a b c) =
-                                     f s a <> f sPsa b <> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
+  foldMapWithIndexNodeN f i t = foldWithIndexNode (<>) f i t
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE foldMapWithIndex #-}
@@ -4755,21 +4760,9 @@ toPQ = toPQTree where
         m' = toPQTree cmp (toPQNode cmp f) m
         (<+>) = mergePQ cmp
     toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
-    toPQDigit cmp f dig =
-        case dig of
-            One a -> f a
-            Two a b -> f a <+> f b
-            Three a b c -> f a <+> f b <+> f c
-            Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
-      where
-        (<+>) = mergePQ cmp
+    toPQDigit cmp = foldDigit (mergePQ cmp)
     toPQNode :: (b -> b -> Ordering) -> (a -> PQueue b) -> Node a -> PQueue b
-    toPQNode cmp f node =
-        case node of
-            Node2 _ a b -> f a <+> f b
-            Node3 _ a b c -> f a <+> f b <+> f c
-      where
-        (<+>) = mergePQ cmp
+    toPQNode cmp = foldNode (mergePQ cmp)
 
 -- | 'mergePQ' merges two 'PQueue's.
 mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
@@ -4820,35 +4813,11 @@ toPQS = toPQSTree
     {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
     {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
     toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
-    toPQSDigit _ f !s (One a) = f s a
-    toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Four a b c d) =
-        (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        !sPsabc = sPsab + size c
-        (<+>) = mergePQS cmp
+    toPQSDigit cmp = foldWithIndexDigit (mergePQS cmp)
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
     {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
     toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
-    toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSNode cmp f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
+    toPQSNode cmp = foldWithIndexNode (mergePQS cmp)
 
 -- | 'mergePQS' merges two PQS, taking into account the original
 -- position of the elements.
