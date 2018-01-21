@@ -103,9 +103,10 @@ variance introduced by outliers: 16% (moderately inflated)
 
 Stable sorting was previously accomplished by converting to a list, applying Data.List.sort, and rebuilding the sequence. Data.List.sort is designed to maximize laziness, which doesn't apply for Data.Sequence, and it can't take advantage of the structure of the finger tree. As a result, simply tagging each element with its position, then applying the unstable sort (using the tag to discriminate between elements for which the comparator is equal) is faster. The current implementation doesn't use the actual `unstableSort`: to perform the building of the queue and tagging in one pass, a specialized version is used.
 
-Times (ms)            min    est    max  std dev   r²
-to/from list:        64.23  64.50  64.81  0.432  1.000
-1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+to/from list        |64.23|64.50|64.81| 0.432 |1.000
+1/11/18 stable heap |38.87|39.40|40.09| 0.457 |0.999
 
 ## sortOn Functions
 
@@ -115,4 +116,9 @@ The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, h
 sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
 ```
 
-The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals.
+The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. I still suffers a slowdown of roughly 35%:
+
+Times (ms)     | min | est | max |std dev|  r²
+---------------|-----|-----|-----|-------|-----
+unstableSortOn |47.81|48.33|48.80| 1.051 |1.000
+unstableSort   |35.36|35.89|36.41| 0.588 |0.999
