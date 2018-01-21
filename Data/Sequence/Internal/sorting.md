@@ -1,6 +1,126 @@
 # Sorting
 
-Data.Sequence exports two methods of sorting: stable and unstable. The stable sort is simply a call to Data.List.Sort, whereas the unstable sort constructs a pairing heap, and uses it to perform heap sort.
+## Unstable Sorting
+
+Unstable sorting is performed by a heap sort implementation based on
+pairing heaps.  Because the internal structure of sequences is quite
+varied, it is difficult to get blocks of elements of roughly the same
+length, which would improve merge sort performance.  Pairing heaps,
+on the other hand, are relatively resistant to the effects of merging
+heaps of wildly different sizes, as guaranteed by its amortized
+constant-time merge operation.  Moreover, extensive use of SpecConstr
+transformations can be done on pairing heaps, especially when we're
+only constructing them to immediately be unrolled.
+
+On purely random sequences of length 50000, with no RTS options,
+I get the following statistics, in which heapsort is about 42.5%
+faster:  (all comparisons done with -O2)
+
+Times (ms)        |  min  |  mean  | +/-sd | median |  max
+------------------|-------|--------|-------|--------|-------
+to/from list:     |103.802| 108.572|  7.487| 106.436|143.339
+unstable heapsort:| 60.686|  62.968|  4.275|  61.187| 79.151
+
+Heapsort, it would seem, is less of a memory hog than Data.List.sortBy.
+The gap is narrowed when more memory is available, but heapsort still
+wins, 15% faster, with +RTS -H128m:
+
+Times (ms)        |  min  | mean | +/-sd | median |  max
+------------------|-------|------|-------|--------|-------
+to/from list:     | 42.692|45.074|  2.596|  44.600| 56.601
+unstable heapsort:| 37.100|38.344|  3.043|  37.715| 55.526
+
+In addition, on strictly increasing sequences the gap is even wider
+than normal; heapsort is 68.5% faster with no RTS options:
+
+Times (ms)        |  min  | mean | +/-sd | median |  max
+------------------|-------|------|-------|--------|-------
+to/from list:     | 52.236|53.574|  1.987|  53.034| 62.098
+unstable heapsort:| 16.433|16.919|  0.931|  16.681| 21.622
+
+This may be attributed to the elegant nature of the pairing heap.
+
+wasserman.louis@gmail.com, 7/20/09
+
+----------------------------------------------------------------------
+
+David Feuer wrote an unstable sort for arbitrary traversables,
+https://www.reddit.com/r/haskell/comments/63a4ea/fast_total_sorting_of_arbitrary_traversable/,
+which turned out to be competitive with the unstable sort here.
+Feuer suggested that this indicated some room to improve on the
+unstable sort.
+
+The two main improvements to the original function are a specialize
+pragma on replicateA (this gives a 26.5% speedup) and removal of the
+intermediate list (a further 11.7% speedup). These numbers are all on
+purely random sequences of length 50000:
+
+Times (ms)       | min | est | max |std dev|  r²
+-----------------|-----|-----|-----|-------|-----
+to/from list:    |70.90|72.44|75.07|  2.224|0.998
+7/20/09 heapsort:|59.84|61.44|63.08|  1.554|0.998
+7/20/09 w/pragma:|44.22|45.14|46.25|  1.631|0.998
+4/30/17 heapsort:|38.21|39.86|40.87|  1.203|0.996
+
+It should also be noted that Data.List.sortBy has become
+significantly quicker. Data.List.sortBy also now recognizes strictly
+increasing sequences, making it much quicker for that case:
+
+Times (ms)       | min | est | max |std dev|  r²
+-----------------|-----|-----|-----|-------|-----
+to/from list:    |7.140|7.351|7.634|  0.335|0.993
+7/20/09 heapsort:|19.52|19.78|20.13|  0.445|0.999
+7/20/09 w/pragma:|8.050|8.271|8.514|  0.357|0.995
+4/30/17 heapsort:|7.240|7.612|7.925|  0.389|0.991
+
+Another happy result of the specialization of 'replicateA' is that
+the stable sort seems to speed up by 10-20%, and 'iterateN' looks
+like it's about three times as fast.
+
+mail@doisinkidney.com, 4/30/17
+
+## Stable Sorting
+
+The sort and sortBy functions are implemented by tagging each element
+in the input sequence with its position, and using that to
+discriminate between elements which are equivalent according to the
+comparator. This makes the sort stable.
+
+The algorithm is effectively the same as the unstable sorts, except
+the queue is constructed while giving each element a tag.
+
+It's quicker than the old implementation (which used Data.List.sort)
+in the general case (all times are on sequences of length 50000):
+
+> Times (ms)            min    est    max  std dev   r²
+> to/from list:        64.23  64.50  64.81  0.432  1.000
+> 1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
+
+Slightly slower in the case of already sorted lists:
+
+> Times (ms)            min    est    max  std dev   r²
+> to/from list:        6.806  6.861  6.901  0.234  1.000
+> 1/11/18 stable heap: 8.211  8.268  8.328  0.111  1.000
+
+And quicker in the case of lists sorted in reverse:
+
+> Times (ms)            min    est    max  std dev   r²
+> to/from list:        26.79  28.34  30.55  1.219  0.988
+> 1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
+
+Interestingly, the stable sort is now competitive with the unstable:
+
+> Times (ms)            min    est    max  std dev   r²
+> unstable:            34.71  35.10  35.38  0.845  1.000
+> stable:              38.84  39.22  39.59  0.564  0.999
+
+And even beats it in the case of already-sorted lists:
+
+> Times (ms)            min    est    max  std dev   r²
+> unstable:            8.457  8.499  8.536  0.069  1.000
+> stable:              8.160  8.230  8.334  0.158  0.999
+
+mail@doisinkidney.com, 1/11/18
 
 The pairing heap seems to particularly suit the structure of the finger tree, as other heaps have not managed to beat it. Specifically, when compared to a skew heap:
 
