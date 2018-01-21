@@ -116,7 +116,7 @@ The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, h
 sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
 ```
 
-The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. I still suffers a slowdown of roughly 35%:
+The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. It still suffers a slowdown of roughly 35%:
 
 Times (ms)     | min | est | max |std dev|  r²
 ---------------|-----|-----|-----|-------|-----
