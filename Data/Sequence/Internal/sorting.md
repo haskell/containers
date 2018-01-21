@@ -81,10 +81,15 @@ mail@doisinkidney.com, 4/30/17
 
 ## Stable Sorting
 
-The sort and sortBy functions are implemented by tagging each element
-in the input sequence with its position, and using that to
-discriminate between elements which are equivalent according to the
-comparator. This makes the sort stable.
+Stable sorting was previously accomplished by converting to a list,
+applying Data.List.sort, and rebuilding the sequence. Data.List.sort is
+designed to maximize laziness, which doesn't apply for Data.Sequence,
+and it can't take advantage of the structure of the finger tree. As a
+result, simply tagging each element with its position, then applying
+the unstable sort (using the tag to discriminate between elements for
+which the comparator is equal) is faster. The current implementation
+doesn't use the actual `unstableSort`: to perform the building of the
+queue and tagging in one pass, a specialized version is used.
 
 The algorithm is effectively the same as the unstable sorts, except
 the queue is constructed while giving each element a tag.
@@ -92,33 +97,38 @@ the queue is constructed while giving each element a tag.
 It's quicker than the old implementation (which used Data.List.sort)
 in the general case (all times are on sequences of length 50000):
 
-> Times (ms)            min    est    max  std dev   r²
-> to/from list:        64.23  64.50  64.81  0.432  1.000
-> 1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+to/from list:       |64.23|64.50|64.81|  0.432|1.000
+1/11/18 stable heap:|38.87|39.40|40.09|  0.457|0.999
 
 Slightly slower in the case of already sorted lists:
 
-> Times (ms)            min    est    max  std dev   r²
-> to/from list:        6.806  6.861  6.901  0.234  1.000
-> 1/11/18 stable heap: 8.211  8.268  8.328  0.111  1.000
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+to/from list:       |6.806|6.861|6.901|  0.234|1.000
+1/11/18 stable heap:|8.211|8.268|8.328|  0.111|1.000
 
 And quicker in the case of lists sorted in reverse:
 
-> Times (ms)            min    est    max  std dev   r²
-> to/from list:        26.79  28.34  30.55  1.219  0.988
-> 1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+to/from list:        26.79  28.34  30.55  1.219  0.988
+1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
 
 Interestingly, the stable sort is now competitive with the unstable:
 
-> Times (ms)            min    est    max  std dev   r²
-> unstable:            34.71  35.10  35.38  0.845  1.000
-> stable:              38.84  39.22  39.59  0.564  0.999
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+unstable:            34.71  35.10  35.38  0.845  1.000
+stable:              38.84  39.22  39.59  0.564  0.999
 
 And even beats it in the case of already-sorted lists:
 
-> Times (ms)            min    est    max  std dev   r²
-> unstable:            8.457  8.499  8.536  0.069  1.000
-> stable:              8.160  8.230  8.334  0.158  0.999
+Times (ms)          | min | est | max |std dev|  r²
+--------------------|-----|-----|-----|-------|-----
+unstable:            8.457  8.499  8.536  0.069  1.000
+stable:              8.160  8.230  8.334  0.158  0.999
 
 mail@doisinkidney.com, 1/11/18
 
@@ -218,15 +228,6 @@ mean                 238.8 ms   (231.3 ms .. 241.4 ms)
 std dev              5.006 ms   (269.0 μs .. 6.151 ms)
 variance introduced by outliers: 16% (moderately inflated)
 ```
-
-## Stable Sorting
-
-Stable sorting was previously accomplished by converting to a list, applying Data.List.sort, and rebuilding the sequence. Data.List.sort is designed to maximize laziness, which doesn't apply for Data.Sequence, and it can't take advantage of the structure of the finger tree. As a result, simply tagging each element with its position, then applying the unstable sort (using the tag to discriminate between elements for which the comparator is equal) is faster. The current implementation doesn't use the actual `unstableSort`: to perform the building of the queue and tagging in one pass, a specialized version is used.
-
-Times (ms)          | min | est | max |std dev|  r²
---------------------|-----|-----|-----|-------|-----
-to/from list        |64.23|64.50|64.81| 0.432 |1.000
-1/11/18 stable heap |38.87|39.40|40.09| 0.457 |0.999
 
 ## sortOn Functions
 
