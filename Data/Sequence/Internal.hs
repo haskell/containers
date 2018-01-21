@@ -4609,6 +4609,12 @@ sortBy cmp (Seq xs) =
         (execState (replicateA (size xs) (popMinS cmp)))
         (toPQS cmp (\s (Elem x) -> PQS s x Nl) 0 xs)
 
+-- | \( O(n \log n) \). `sortOn` sorts the specified `Seq` by comparing
+-- the results of a key function applied to each element. `sortOn f` is
+-- equivalent to `sortBy (comparing f)`, but has the performance
+-- advantage of only evaluating f once for each element in the input
+-- list. This is called the decorate-sort-undecorate paradigm, or
+-- Schwartzian transform.
 sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
@@ -4636,6 +4642,12 @@ unstableSortBy cmp (Seq xs) =
         (execState (replicateA (size xs) (popMin cmp)))
         (toPQ cmp (\(Elem x) -> PQueue x Nil) xs)
 
+-- | \( O(n \log n) \). `unstableSortOn` sorts the specified `Seq` by
+-- comparing the results of a key function applied to each element.
+-- `unstableSortOn f` is equivalent to `unstableSortBy (comparing f)`,
+-- but has the performance advantage of only evaluating f once for each
+--  element in the input list. This is called the
+-- decorate-sort-undecorate paradigm, or Schwartzian transform.
 unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
