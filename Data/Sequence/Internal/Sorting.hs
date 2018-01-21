@@ -218,7 +218,7 @@ unstableSortOn f (Seq xs) =
 ------------------------------------------------------------------------
 
 -- | A 'Queue' is a simple pairing heap.
-data Queue e = Q e (QList e)
+data Queue e = Q !e (QList e)
 data QList e
     = Nil
     | QCons {-# UNPACK #-} !(Queue e)
@@ -227,7 +227,7 @@ data QList e
 -- | A pairing heap tagged with the original position of elements,
 -- to allow for stable sorting.
 data IndexedQueue e =
-    IQ {-# UNPACK #-} !Int e (IQList e)
+    IQ {-# UNPACK #-} !Int !e (IQList e)
 data IQList e
     = IQNil
     | IQCons {-# UNPACK #-} !(IndexedQueue e)
@@ -236,7 +236,7 @@ data IQList e
 -- | A pairing heap tagged with some key for sorting elements, for use
 -- in 'unstableSortOn'.
 data TaggedQueue a b =
-    TQ a b (TQList a b)
+    TQ !a b (TQList a b)
 data TQList a b
     = TQNil
     | TQCons {-# UNPACK #-} !(TaggedQueue a b)
@@ -245,7 +245,7 @@ data TQList a b
 -- | A pairing heap tagged with both a key and the original position
 -- of its elements, for use in 'sortOn'.
 data IndexedTaggedQueue e a =
-    ITQ {-# UNPACK #-} !Int e a (ITQList e a)
+    ITQ {-# UNPACK #-} !Int !e a (ITQList e a)
 data ITQList e a
     = ITQNil
     | ITQCons {-# UNPACK #-} !(IndexedTaggedQueue e a)
