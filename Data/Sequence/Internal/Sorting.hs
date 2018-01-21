@@ -137,7 +137,7 @@ sortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMinS cmp)))
-        (toPQS cmp (\s (Elem x) -> PQS s x Nl) 0 xs)
+        (toIndexedQueue cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
 -- the results of a key function applied to each element. @'sortOn' f@ is
@@ -163,7 +163,7 @@ sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
        (execState (replicateA (size xs) (popMinST compare)))
-       (toPQST compare (\s (Elem x) -> PQST s (f x) x NlT) 0 xs)
+       (toIndexedTaggedQueue compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -183,7 +183,7 @@ unstableSortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMin cmp)))
-        (toPQ cmp (\(Elem x) -> PQueue x Nil) xs)
+        (toPQ cmp (\(Elem x) -> Q x Nil) xs)
 
 -- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
 -- comparing the results of a key function applied to each element.
@@ -209,25 +209,61 @@ unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
        (execState (replicateA (size xs) (popMinT compare)))
-       (toPQT compare (\(Elem x) -> PQT (f x) x NilT) xs)
+       (toTaggedQueue compare (\(Elem x) -> TQ (f x) x TQNil) xs)
 
--- | A 'PQueue' is a simple pairing heap.
-data PQueue e = PQueue e (PQL e)
-data PQL e = Nil | {-# UNPACK #-} !(PQueue e) :& PQL e
+------------------------------------------------------------------------
+-- Heaps
+--
+-- The following are definitions for various specialized pairing heaps.
+------------------------------------------------------------------------
 
-infixr 8 :&
+-- | A 'Queue' is a simple pairing heap.
+data Queue e = Q e (QList e)
+data QList e
+    = Nil
+    | QCons {-# UNPACK #-} !(Queue e)
+            (QList e)
+
+-- | A pairing heap tagged with the original position of elements,
+-- to allow for stable sorting.
+data IndexedQueue e =
+    IQ {-# UNPACK #-} !Int e (IQList e)
+data IQList e
+    = IQNil
+    | IQCons {-# UNPACK #-} !(IndexedQueue e)
+             (IQList e)
+
+-- | A pairing heap tagged with some key for sorting elements, for use
+-- in 'unstableSortOn'.
+data TaggedQueue a b =
+    TQ a b (TQList a b)
+data TQList a b
+    = TQNil
+    | TQCons {-# UNPACK #-} !(TaggedQueue a b)
+             (TQList a b)
+
+-- | A pairing heap tagged with both a key and the original position
+-- of its elements, for use in 'sortOn'.
+data IndexedTaggedQueue e a =
+    ITQ {-# UNPACK #-} !Int e a (ITQList e a)
+data ITQList e a
+    = ITQNil
+    | ITQCons {-# UNPACK #-} !(IndexedTaggedQueue e a)
+              (ITQList e a)
+
+infixr 8 `ITQCons`, `TQCons`, `QCons`, `IQCons`
 
 -- | 'popMin', given an ordering function, constructs a stateful action
 -- which pops the smallest elements from a queue. This action will fail
 -- on empty queues.
-popMin :: (e -> e -> Ordering) -> State (PQueue e) e
+popMin :: (e -> e -> Ordering) -> State (Queue e) e
 popMin cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQueue x ts) = (mergePQs ts, x)
-    mergePQs (t :& Nil) = t
-    mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
-    mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
+    unrollPQ' (Q x ts) = (mergePQs ts, x)
+    mergePQs (t `QCons` Nil) = t
+    mergePQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
+    mergePQs (t1 `QCons` t2 `QCons` ts) = (t1 <+> t2) <+> mergePQs ts
     mergePQs Nil = error "popMin: tried to pop from empty queue"
     (<+>) = mergePQ cmp
 
@@ -243,36 +279,30 @@ foldToMaybeTree (<+>) f (Deep _ pr m sf) =
     m' = foldToMaybeTree (<+>) (foldNode (<+>) f) m
 
 -- | 'toPQ', given an ordering function and a mechanism for queueifying
--- elements, converts a 'Seq' to a 'PQueue'.
-toPQ :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
+-- elements, converts a 'Seq' to a 'Queue'.
+toPQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
 toPQ cmp = foldToMaybeTree (mergePQ cmp)
 
--- | 'mergePQ' merges two 'PQueue's.
-mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
-mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
-  | cmp x1 x2 == GT     = PQueue x2 (q1 :& ts2)
-  | otherwise           = PQueue x1 (q2 :& ts1)
+-- | 'mergePQ' merges two 'Queue's.
+mergePQ :: (a -> a -> Ordering) -> Queue a -> Queue a -> Queue a
+mergePQ cmp q1@(Q x1 ts1) q2@(Q x2 ts2)
+  | cmp x1 x2 == GT     = Q x2 (q1 `QCons` ts2)
+  | otherwise           = Q x1 (q2 `QCons` ts1)
 
--- | A pairing heap tagged with the original position of elements,
--- to allow for stable sorting.
-data PQS e = PQS {-# UNPACK #-} !Int e (PQSL e)
-data PQSL e = Nl | {-# UNPACK #-} !(PQS e) :&& PQSL e
-
-infixr 8 :&&
 
 -- | 'popMinS', given an ordering function, constructs a stateful action
 -- which pops the smallest elements from a queue. This action will fail
 -- on empty queues.
-popMinS :: (e -> e -> Ordering) -> State (PQS e) e
+popMinS :: (e -> e -> Ordering) -> State (IndexedQueue e) e
 popMinS cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQS _ x ts) = (mergePQs ts, x)
-    mergePQs (t :&& Nl) = t
-    mergePQs (t1 :&& t2 :&& Nl) = t1 <+> t2
-    mergePQs (t1 :&& t2 :&& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs Nl = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQS cmp
+    unrollPQ' (IQ _ x ts) = (mergePQs ts, x)
+    mergePQs (t `IQCons` IQNil) = t
+    mergePQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
+    mergePQs (t1 `IQCons` t2 `IQCons` ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs IQNil = error "popMin: tried to pop from empty queue"
+    (<+>) = mergeIndexedQueue cmp
 
 foldToMaybeWithIndexTree :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b
 foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
@@ -299,74 +329,65 @@ foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
     node :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
     node = foldWithIndexNode
 
--- | 'toPQS', given an ordering function, converts a 'Seq' to a
--- 'PQS'.
-toPQS :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b)
-toPQS cmp = foldToMaybeWithIndexTree (mergePQS cmp)
+-- | 'toIndexedQueue', given an ordering function, converts a 'Seq' to a
+-- 'IndexedQueue'.
+toIndexedQueue :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedQueue b) -> Int -> FingerTree (Elem y) -> Maybe (IndexedQueue b)
+toIndexedQueue cmp = foldToMaybeWithIndexTree (mergeIndexedQueue cmp)
 
--- | 'mergePQS' merges two PQS, taking into account the original
+-- | 'mergeIndexedQueue' merges two IndexedQueue, taking into account the original
 -- position of the elements.
-mergePQS :: (a -> a -> Ordering) -> PQS a -> PQS a -> PQS a
-mergePQS cmp q1@(PQS i1 x1 ts1) q2@(PQS i2 x2 ts2) =
+mergeIndexedQueue :: (a -> a -> Ordering) -> IndexedQueue a -> IndexedQueue a -> IndexedQueue a
+mergeIndexedQueue cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
     case cmp x1 x2 of
-        LT -> PQS i1 x1 (q2 :&& ts1)
-        EQ | i1 <= i2 -> PQS i1 x1 (q2 :&& ts1)
-        _ -> PQS i2 x2 (q1 :&& ts2)
+        LT -> IQ i1 x1 (q2 `IQCons` ts1)
+        EQ | i1 <= i2 -> IQ i1 x1 (q2 `IQCons` ts1)
+        _ -> IQ i2 x2 (q1 `IQCons` ts2)
 
-data PQT a b = PQT a b (PQTL a b)
-data PQTL a b = NilT | {-# UNPACK #-} !(PQT a b) :&&& PQTL a b
-
-infixr 8 :&&&
-
-popMinT :: (a -> a -> Ordering) -> State (PQT a b) b
+popMinT :: (a -> a -> Ordering) -> State (TaggedQueue a b) b
 popMinT cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQT _ x ts) = (mergePQs ts, x)
-    mergePQs (t :&&& NilT) = t
-    mergePQs (t1 :&&& t2 :&&& NilT) = t1 <+> t2
-    mergePQs (t1 :&&& t2 :&&& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs NilT = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQT cmp
+    unrollPQ' (TQ _ x ts) = (mergePQs ts, x)
+    mergePQs (t `TQCons` TQNil) = t
+    mergePQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
+    mergePQs (t1 `TQCons` t2 `TQCons` ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs TQNil = error "popMin: tried to pop from empty queue"
+    (<+>) = mergeTaggedQueue cmp
 
--- | 'mergePQT' merges two 'PQT's.
-mergePQT :: (a -> a -> Ordering) -> PQT a b -> PQT a b -> PQT a b
-mergePQT cmp q1@(PQT x1 y1 ts1) q2@(PQT x2 y2 ts2)
-  | cmp x1 x2 == GT     = PQT x2 y2 (q1 :&&& ts2)
-  | otherwise           = PQT x1 y1 (q2 :&&& ts1)
+-- | 'mergeTaggedQueue' merges two 'TaggedQueue's.
+mergeTaggedQueue :: (a -> a -> Ordering) -> TaggedQueue a b -> TaggedQueue a b -> TaggedQueue a b
+mergeTaggedQueue cmp q1@(TQ x1 y1 ts1) q2@(TQ x2 y2 ts2)
+  | cmp x1 x2 == GT     = TQ x2 y2 (q1 `TQCons` ts2)
+  | otherwise           = TQ x1 y1 (q2 `TQCons` ts1)
 
-toPQT :: (b -> b -> Ordering) -> (a -> PQT b c) -> FingerTree a -> Maybe (PQT b c)
-toPQT cmp = foldToMaybeTree (mergePQT cmp)
+toTaggedQueue :: (b -> b -> Ordering) -> (a -> TaggedQueue b c) -> FingerTree a -> Maybe (TaggedQueue b c)
+toTaggedQueue cmp = foldToMaybeTree (mergeTaggedQueue cmp)
 
-data PQST e a = PQST {-# UNPACK #-} !Int e a (PQSTL e a)
-data PQSTL e a = NlT | {-# UNPACK #-} !(PQST e a) :&&&& PQSTL e a
-
-infixr 8 :&&&&
 
 -- | 'popMinS', given an ordering function, constructs a stateful action
 -- which pops the smallest elements from a queue. This action will fail
 -- on empty queues.
-popMinST :: (e -> e -> Ordering) -> State (PQST e a) a
+popMinST :: (e -> e -> Ordering) -> State (IndexedTaggedQueue e a) a
 popMinST cmp = State unrollPQ'
   where
     {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQST _ _ x ts) = (mergePQs ts, x)
-    mergePQs (t :&&&& NlT) = t
-    mergePQs (t1 :&&&& t2 :&&&& NlT) = t1 <+> t2
-    mergePQs (t1 :&&&& t2 :&&&& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs NlT = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQST cmp
+    unrollPQ' (ITQ _ _ x ts) = (mergePQs ts, x)
+    mergePQs (t `ITQCons` ITQNil) = t
+    mergePQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
+    mergePQs (t1 `ITQCons` t2 `ITQCons` ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs ITQNil = error "popMin: tried to pop from empty queue"
+    (<+>) = mergeIndexedTaggedQueue cmp
 
--- | 'toPQS', given an ordering function, converts a 'Seq' to a
--- 'PQS'.
-toPQST :: (b -> b -> Ordering) -> (Int -> Elem y -> PQST b c) -> Int -> FingerTree (Elem y) -> Maybe (PQST b c)
-toPQST cmp = foldToMaybeWithIndexTree (mergePQST cmp)
+-- | 'toIndexedQueue', given an ordering function, converts a 'Seq' to a
+-- 'IndexedQueue'.
+toIndexedTaggedQueue :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedTaggedQueue b c) -> Int -> FingerTree (Elem y) -> Maybe (IndexedTaggedQueue b c)
+toIndexedTaggedQueue cmp = foldToMaybeWithIndexTree (mergeIndexedTaggedQueue cmp)
 
--- | 'mergePQS' merges two PQS, taking into account the original
+-- | 'mergeIndexedQueue' merges two IndexedQueue, taking into account the original
 -- position of the elements.
-mergePQST :: (a -> a -> Ordering) -> PQST a b -> PQST a b -> PQST a b
-mergePQST cmp q1@(PQST i1 x1 y1 ts1) q2@(PQST i2 x2 y2 ts2) =
+mergeIndexedTaggedQueue :: (a -> a -> Ordering) -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b
+mergeIndexedTaggedQueue cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
     case cmp x1 x2 of
-        LT -> PQST i1 x1 y1 (q2 :&&&& ts1)
-        EQ | i1 <= i2 -> PQST i1 x1 y1 (q2 :&&&& ts1)
-        _ -> PQST i2 x2 y2 (q1 :&&&& ts2)
+        LT -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
+        EQ | i1 <= i2 -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
+        _ -> ITQ i2 x2 y2 (q1 `ITQCons` ts2)
