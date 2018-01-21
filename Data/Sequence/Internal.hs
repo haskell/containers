@@ -4637,10 +4637,8 @@ sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (fmap (\(_ :*: x) -> x) (popMinS compareFst))))
-       (toPQS compareFst (\s (Elem x) -> PQS s (f x :*: x) Nl) 0 xs)
-  where
-    compareFst (x :*: _) (y :*: _) = compare x y
+       (execState (replicateA (size xs) (popMinST compare)))
+       (toPQST compare (\s (Elem x) -> PQST s (f x) x NlT) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -4685,10 +4683,8 @@ unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (fmap (\(_ :*: x) -> x) (popMin compareFst))))
-       (toPQ compareFst (\(Elem x) -> PQueue (f x :*: x) Nil) xs)
-  where
-    compareFst (x :*: _) (y :*: _) = compare x y
+       (execState (replicateA (size xs) (popMinT compare)))
+       (toPQT compare (\(Elem x) -> PQT (f x) x NilT) xs)
 
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
@@ -4827,3 +4823,98 @@ mergePQS cmp q1@(PQS i1 x1 ts1) q2@(PQS i2 x2 ts2) =
         LT -> PQS i1 x1 (q2 :&& ts1)
         EQ | i1 <= i2 -> PQS i1 x1 (q2 :&& ts1)
         _ -> PQS i2 x2 (q1 :&& ts2)
+
+data PQT a b = PQT a b (PQTL a b)
+data PQTL a b = NilT | {-# UNPACK #-} !(PQT a b) :&&& PQTL a b
+
+infixr 8 :&&&
+
+popMinT :: (a -> a -> Ordering) -> State (PQT a b) b
+popMinT cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (PQT _ x ts) = (mergePQs ts, x)
+    mergePQs (t :&&& NilT) = t
+    mergePQs (t1 :&&& t2 :&&& NilT) = t1 <+> t2
+    mergePQs (t1 :&&& t2 :&&& ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs NilT = error "popMin: tried to pop from empty queue"
+    (<+>) = mergePQT cmp
+
+-- | 'mergePQT' merges two 'PQT's.
+mergePQT :: (a -> a -> Ordering) -> PQT a b -> PQT a b -> PQT a b
+mergePQT cmp q1@(PQT x1 y1 ts1) q2@(PQT x2 y2 ts2)
+  | cmp x1 x2 == GT     = PQT x2 y2 (q1 :&&& ts2)
+  | otherwise           = PQT x1 y1 (q2 :&&& ts1)
+
+toPQT :: (b -> b -> Ordering) -> (a -> PQT b c) -> FingerTree a -> Maybe (PQT b c)
+toPQT = toPQTree where
+    toPQTree :: (b -> b -> Ordering) -> (a -> PQT b c) -> FingerTree a -> Maybe (PQT b c)
+    toPQTree _ _ EmptyT = Nothing
+    toPQTree _ f (Single xs) = Just (f xs)
+    toPQTree cmp f (Deep _ pr m sf) =
+        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQDigit cmp f pr
+        sf' = toPQDigit cmp f sf
+        m' = toPQTree cmp (toPQNode cmp f) m
+        (<+>) = mergePQT cmp
+    toPQDigit :: (b -> b -> Ordering) -> (a -> PQT b c) -> Digit a -> PQT b c
+    toPQDigit cmp = foldDigit (mergePQT cmp)
+    toPQNode :: (b -> b -> Ordering) -> (a -> PQT b c) -> Node a -> PQT b c
+    toPQNode cmp = foldNode (mergePQT cmp)
+
+data PQST e a = PQST {-# UNPACK #-} !Int e a (PQSTL e a)
+data PQSTL e a = NlT | {-# UNPACK #-} !(PQST e a) :&&&& PQSTL e a
+
+infixr 8 :&&&&
+
+-- | 'popMinS', given an ordering function, constructs a stateful action
+-- which pops the smallest elements from a queue. This action will fail
+-- on empty queues.
+popMinST :: (e -> e -> Ordering) -> State (PQST e a) a
+popMinST cmp = State unrollPQ'
+  where
+    {-# INLINE unrollPQ' #-}
+    unrollPQ' (PQST _ _ x ts) = (mergePQs ts, x)
+    mergePQs (t :&&&& NlT) = t
+    mergePQs (t1 :&&&& t2 :&&&& NlT) = t1 <+> t2
+    mergePQs (t1 :&&&& t2 :&&&& ts) = (t1 <+> t2) <+> mergePQs ts
+    mergePQs NlT = error "popMin: tried to pop from empty queue"
+    (<+>) = mergePQST cmp
+
+-- | 'toPQS', given an ordering function, converts a 'Seq' to a
+-- 'PQS'.
+toPQST :: (b -> b -> Ordering) -> (Int -> Elem y -> PQST b c) -> Int -> FingerTree (Elem y) -> Maybe (PQST b c)
+toPQST = toPQSTree
+  where
+    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQST b c) -> Int -> FingerTree (Elem y) -> Maybe (PQST b c) #-}
+    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQST b c) -> Int -> FingerTree (Node y) -> Maybe (PQST b c) #-}
+    toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQST b c) -> Int -> FingerTree a -> Maybe (PQST b c)
+    toPQSTree _ _ !_s EmptyT = Nothing
+    toPQSTree _ f s (Single xs) = Just (f s xs)
+    toPQSTree cmp f s (Deep _ pr m sf) =
+        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
+      where
+        pr' = toPQSDigit cmp f s pr
+        sf' = toPQSDigit cmp f sPsprm sf
+        m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
+        !sPspr = s + size pr
+        !sPsprm = sPspr + size m
+        (<+>) = mergePQST cmp
+    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQST b c) -> Int -> Digit (Elem y) -> PQST b c #-}
+    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQST b c) -> Int -> Digit (Node y) -> PQST b c #-}
+    toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQST b c) -> Int -> Digit a -> PQST b c
+    toPQSDigit cmp = foldWithIndexDigit (mergePQST cmp)
+    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQST b c) -> Int -> Node (Elem y) -> PQST b c #-}
+    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQST b c) -> Int -> Node (Node y) -> PQST b c #-}
+    toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQST b c) -> Int -> Node a -> PQST b c
+    toPQSNode cmp = foldWithIndexNode (mergePQST cmp)
+
+-- | 'mergePQS' merges two PQS, taking into account the original
+-- position of the elements.
+mergePQST :: (a -> a -> Ordering) -> PQST a b -> PQST a b -> PQST a b
+mergePQST cmp q1@(PQST i1 x1 y1 ts1) q2@(PQST i2 x2 y2 ts2) =
+    case cmp x1 x2 of
+        LT -> PQST i1 x1 y1 (q2 :&&&& ts1)
+        EQ | i1 <= i2 -> PQST i1 x1 y1 (q2 :&&&& ts1)
+        _ -> PQST i2 x2 y2 (q1 :&&&& ts2)
