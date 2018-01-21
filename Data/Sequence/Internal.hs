@@ -213,7 +213,7 @@ import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
-import Data.Ord (comparing)
+import Utils.Containers.Internal.StrictPair (StrictPair(..))
 import Data.Functor (Functor(..))
 #if MIN_VERSION_base(4,6,0)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
@@ -4619,8 +4619,10 @@ sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (fmap snd (popMinS (comparing fst)))))
-       (toPQS (comparing fst) (\s (Elem x) -> PQS s (f x, x) Nl) 0 xs)
+       (execState (replicateA (size xs) (fmap (\(_ :*: x) -> x) (popMinS compareFst))))
+       (toPQS compareFst (\s (Elem x) -> PQS s (f x :*: x) Nl) 0 xs)
+  where
+    compareFst (x :*: _) (y :*: _) = compare x y
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -4652,8 +4654,10 @@ unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (fmap snd (popMin (comparing fst)))))
-       (toPQ (comparing fst) (\(Elem x) -> PQueue (f x, x) Nil) xs)
+       (execState (replicateA (size xs) (fmap (\(_ :*: y) -> y) (popMin compareFst))))
+       (toPQ compareFst (\(Elem x) -> PQueue (f x :*: x) Nil) xs)
+  where
+    compareFst (x :*: _) (y :*: _) = compare x y
 
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
