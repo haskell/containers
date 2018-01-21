@@ -16,6 +16,7 @@ module Data.Sequence.Internal.Sorting
   ,unstableSortOn
   ,
    -- * Heaps
+   -- $heaps
    Queue(..)
   ,QList(..)
   ,IndexedQueue(..)
@@ -25,25 +26,29 @@ module Data.Sequence.Internal.Sorting
   ,IndexedTaggedQueue(..)
   ,ITQList(..)
   ,
-   -- * Merging
+   -- * Merges
+   -- $merges
    mergeQ
   ,mergeIQ
   ,mergeTQ
   ,mergeITQ
   ,
    -- * popMin
+   -- $popMin
    popMinQ
   ,popMinIQ
   ,popMinTQ
   ,popMinITQ
   ,
    -- * Building
+   -- $building
    buildQ
   ,buildIQ
   ,buildTQ
   ,buildITQ
   ,
    -- * Special folds
+   -- $folds
    foldToMaybeTree
   ,foldToMaybeWithIndexTree)
   where
@@ -142,12 +147,15 @@ unstableSortOn f (Seq xs) =
        (buildTQ compare (\(Elem x) -> TQ (f x) x TQNil) xs)
 
 ------------------------------------------------------------------------
--- Heaps
+-- $heaps
 --
 -- The following are definitions for various specialized pairing heaps.
+--
+-- All of the heaps are defined to be non-empty, which speeds up the
+-- merge functions.
 ------------------------------------------------------------------------
 
--- | A 'Queue' is a simple pairing heap.
+-- | A simple pairing heap.
 data Queue e = Q !e (QList e)
 data QList e
     = Nil
@@ -184,29 +192,30 @@ data ITQList e a
 infixr 8 `ITQCons`, `TQCons`, `QCons`, `IQCons`
 
 ------------------------------------------------------------------------
--- Merges
+-- $merges
 --
 -- The following are definitions for "merge" for each of the heaps
--- above.
+-- above. Each takes a comparison function which is used to order the
+-- elements.
 ------------------------------------------------------------------------
 
 -- | 'mergeQ' merges two 'Queue's.
 mergeQ :: (a -> a -> Ordering) -> Queue a -> Queue a -> Queue a
 mergeQ cmp q1@(Q x1 ts1) q2@(Q x2 ts2)
-  | cmp x1 x2 == GT     = Q x2 (q1 `QCons` ts2)
-  | otherwise           = Q x1 (q2 `QCons` ts1)
+  | cmp x1 x2 == GT = Q x2 (q1 `QCons` ts2)
+  | otherwise       = Q x1 (q2 `QCons` ts1)
 
--- | 'mergeTQ' merges two 'TaggedQueue's.
+-- | 'mergeTQ' merges two 'TaggedQueue's, based on the tag value.
 mergeTQ :: (a -> a -> Ordering)
         -> TaggedQueue a b
         -> TaggedQueue a b
         -> TaggedQueue a b
 mergeTQ cmp q1@(TQ x1 y1 ts1) q2@(TQ x2 y2 ts2)
-  | cmp x1 x2 == GT     = TQ x2 y2 (q1 `TQCons` ts2)
-  | otherwise           = TQ x1 y1 (q2 `TQCons` ts1)
+  | cmp x1 x2 == GT = TQ x2 y2 (q1 `TQCons` ts2)
+  | otherwise       = TQ x1 y1 (q2 `TQCons` ts1)
 
--- | 'mergeIQ' merges two IndexedQueue, taking into account the original
--- position of the elements.
+-- | 'mergeIQ' merges two 'IndexedQueue's, taking into account the
+-- original position of the elements.
 mergeIQ :: (a -> a -> Ordering)
         -> IndexedQueue a
         -> IndexedQueue a
@@ -217,8 +226,8 @@ mergeIQ cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
         EQ | i1 <= i2 -> IQ i1 x1 (q2 `IQCons` ts1)
         _ -> IQ i2 x2 (q1 `IQCons` ts2)
 
--- | 'mergeIQ' merges two IndexedQueue, taking into account the original
--- position of the elements.
+-- | 'mergeITQ' merges two 'IndexedTaggedQueue's, based on the tag
+-- value, taking into account the original position of the elements.
 mergeITQ
     :: (a -> a -> Ordering)
     -> IndexedTaggedQueue a b
@@ -231,51 +240,73 @@ mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
         _ -> ITQ i2 x2 y2 (q1 `ITQCons` ts2)
 
 ------------------------------------------------------------------------
--- popMin
+-- $popMin
 --
 -- The following are definitions for @popMin@, a function which
--- constructs a stateful action which pops the next element from a
--- queue. This action will fail on empty queues.
+-- constructs a stateful action which pops the smallest element from the
+-- queue, where "smallest" is according to the supplied comparison
+-- function.
+--
+-- All of the functions fail on an empty queue.
+--
+-- Each of these functions contains an "unroll" function, which is
+-- called like this:
+--
+-- @unroll (Q x ts) = (mergeQs ts, x)@
+--
+-- The reason the call to @mergeQs@ is lazy is that it will be bottom
+-- the last element in the queue, preventing us from evaluating the
+-- fully sorted sequence.
 ------------------------------------------------------------------------
 
+-- | Pop the smallest element from the queue, using the supplied
+-- comparator.
 popMinQ :: (e -> e -> Ordering) -> State (Queue e) e
-popMinQ cmp = State unrollPQ'
+popMinQ cmp = State unroll
   where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (Q x ts) = (mergeQs ts, x)
+    {-# INLINE unroll #-}
+    unroll (Q x ts) = (mergeQs ts, x)
     mergeQs (t `QCons` Nil) = t
     mergeQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
     mergeQs (t1 `QCons` t2 `QCons` ts) = (t1 <+> t2) <+> mergeQs ts
     mergeQs Nil = error "popMinQ: tried to pop from empty queue"
     (<+>) = mergeQ cmp
 
+-- | Pop the smallest element from the queue, using the supplied
+-- comparator, deferring to the item's original position when the
+-- comparator returns 'EQ'.
 popMinIQ :: (e -> e -> Ordering) -> State (IndexedQueue e) e
-popMinIQ cmp = State unrollPQ'
+popMinIQ cmp = State unroll
   where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (IQ _ x ts) = (mergeQs ts, x)
+    {-# INLINE unroll #-}
+    unroll (IQ _ x ts) = (mergeQs ts, x)
     mergeQs (t `IQCons` IQNil) = t
     mergeQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
     mergeQs (t1 `IQCons` t2 `IQCons` ts) = (t1 <+> t2) <+> mergeQs ts
     mergeQs IQNil = error "popMinQ: tried to pop from empty queue"
     (<+>) = mergeIQ cmp
 
+-- | Pop the smallest element from the queue, using the supplied
+-- comparator on the tag.
 popMinTQ :: (a -> a -> Ordering) -> State (TaggedQueue a b) b
-popMinTQ cmp = State unrollPQ'
+popMinTQ cmp = State unroll
   where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (TQ _ x ts) = (mergeQs ts, x)
+    {-# INLINE unroll #-}
+    unroll (TQ _ x ts) = (mergeQs ts, x)
     mergeQs (t `TQCons` TQNil) = t
     mergeQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
     mergeQs (t1 `TQCons` t2 `TQCons` ts) = (t1 <+> t2) <+> mergeQs ts
     mergeQs TQNil = error "popMinQ: tried to pop from empty queue"
     (<+>) = mergeTQ cmp
 
+-- | Pop the smallest element from the queue, using the supplied
+-- comparator on the tag, deferring to the item's original position
+-- when the comparator returns 'EQ'.
 popMinITQ :: (e -> e -> Ordering) -> State (IndexedTaggedQueue e a) a
-popMinITQ cmp = State unrollPQ'
+popMinITQ cmp = State unroll
   where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (ITQ _ _ x ts) = (mergeQs ts, x)
+    {-# INLINE unroll #-}
+    unroll (ITQ _ _ x ts) = (mergeQs ts, x)
     mergeQs (t `ITQCons` ITQNil) = t
     mergeQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
     mergeQs (t1 `ITQCons` t2 `ITQCons` ts) = (t1 <+> t2) <+> mergeQs ts
@@ -283,10 +314,10 @@ popMinITQ cmp = State unrollPQ'
     (<+>) = mergeITQ cmp
 
 ------------------------------------------------------------------------
--- to*
+-- $building
 --
--- The following are definitions for @to*@, a function which
--- constructs queue from a 'Seq'.
+-- The following are definitions for functions to build queues, given a
+-- comparison function.
 ------------------------------------------------------------------------
 
 buildQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
@@ -316,13 +347,22 @@ buildITQ
 buildITQ cmp = foldToMaybeWithIndexTree (mergeITQ cmp)
 
 ------------------------------------------------------------------------
--- foldToMaybe
+-- $folds
 --
--- Definitions for foldToMaybe, which are used in constructing the
--- queues above.
+-- A big part of what makes the heaps fast is that they're non empty,
+-- so the merge function can avoid an extra case match. To take
+-- advantage of this, though, we need specialized versions of 'foldMap'
+-- and 'Data.Sequence.foldMapWithIndex', which can alternate between
+-- calling the faster semigroup-like merge when folding over non empty
+-- structures (like 'Node' and 'Digit'), and the
+-- 'Data.Semirgroup.Option'-like mappend, when folding over structures
+-- which can be empty (like 'FingerTree').
 ------------------------------------------------------------------------
 
-{-# INLINE foldToMaybeTree #-}
+-- | A 'foldMap'-like function, specialized to the
+-- 'Data.Semigroup.Option' monoid, which takes advantage of the
+-- internal structure of 'Seq' to avoid wrapping in 'Maybe' at certain
+-- points.
 foldToMaybeTree :: (b -> b -> b) -> (a -> b) -> FingerTree a -> Maybe b
 foldToMaybeTree _ _ EmptyT = Nothing
 foldToMaybeTree _ f (Single xs) = Just (f xs)
@@ -332,8 +372,12 @@ foldToMaybeTree (<+>) f (Deep _ pr m sf) =
     pr' = foldDigit (<+>) f pr
     sf' = foldDigit (<+>) f sf
     m' = foldToMaybeTree (<+>) (foldNode (<+>) f) m
+{-# INLINE foldToMaybeTree #-}
 
-{-# INLINE foldToMaybeWithIndexTree #-}
+-- | A 'foldMapWithIndex'-like function, specialized to the
+-- 'Data.Semigroup.Option' monoid, which takes advantage of the
+-- internal structure of 'Seq' to avoid wrapping in 'Maybe' at certain
+-- points.
 foldToMaybeWithIndexTree :: (b -> b -> b)
                          -> (Int -> Elem y -> b)
                          -> Int
@@ -368,3 +412,4 @@ foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
         :: Sized a
         => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
     node = foldWithIndexNode
+{-# INLINE foldToMaybeWithIndexTree #-}
