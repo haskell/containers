@@ -4654,7 +4654,7 @@ unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (fmap (\(_ :*: y) -> y) (popMin compareFst))))
+       (execState (replicateA (size xs) (fmap (\(_ :*: x) -> x) (popMin compareFst))))
        (toPQ compareFst (\(Elem x) -> PQueue (f x :*: x) Nil) xs)
   where
     compareFst (x :*: _) (y :*: _) = compare x y
