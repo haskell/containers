@@ -1,5 +1,7 @@
 {-# LANGUAGE BangPatterns #-}
 
+{-# OPTIONS_HADDOCK not-home #-}
+
 -- |
 --
 -- Further notes are available in the file sorting.md (in this
