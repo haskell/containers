@@ -122,3 +122,7 @@ Times (ms)     | min | est | max |std dev|  r²
 ---------------|-----|-----|-----|-------|-----
 unstableSortOn |47.81|48.33|48.80| 1.051 |1.000
 unstableSort   |35.36|35.89|36.41| 0.588 |0.999
+sortOn         |56.28|59.64|63.06| 2.387 |0.994
+sort           |39.91|40.19|40.45| 0.553 |1.000
+
+Strict pairs are also used, instead of tuples, which yields a significant speedup.
