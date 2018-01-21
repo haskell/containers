@@ -4611,7 +4611,7 @@ sortBy cmp (Seq xs) =
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
 -- the results of a key function applied to each element. @'sortOn' f@ is
--- equivalent to @'sortBy' ('compare' ``Data.function.on`` f)@, but has the
+-- equivalent to @'sortBy' ('compare' ``Data.Function.on`` f)@, but has the
 -- performance advantage of only evaluating @f@ once for each element in the
 -- input list. This is called the decorate-sort-undecorate paradigm, or
 -- Schwartzian transform.
