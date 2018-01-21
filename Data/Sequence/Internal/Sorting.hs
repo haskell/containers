@@ -267,14 +267,20 @@ mergeQ cmp q1@(Q x1 ts1) q2@(Q x2 ts2)
   | otherwise           = Q x1 (q2 `QCons` ts1)
 
 -- | 'mergeTQ' merges two 'TaggedQueue's.
-mergeTQ :: (a -> a -> Ordering) -> TaggedQueue a b -> TaggedQueue a b -> TaggedQueue a b
+mergeTQ :: (a -> a -> Ordering)
+        -> TaggedQueue a b
+        -> TaggedQueue a b
+        -> TaggedQueue a b
 mergeTQ cmp q1@(TQ x1 y1 ts1) q2@(TQ x2 y2 ts2)
   | cmp x1 x2 == GT     = TQ x2 y2 (q1 `TQCons` ts2)
   | otherwise           = TQ x1 y1 (q2 `TQCons` ts1)
 
 -- | 'mergeIQ' merges two IndexedQueue, taking into account the original
 -- position of the elements.
-mergeIQ :: (a -> a -> Ordering) -> IndexedQueue a -> IndexedQueue a -> IndexedQueue a
+mergeIQ :: (a -> a -> Ordering)
+        -> IndexedQueue a
+        -> IndexedQueue a
+        -> IndexedQueue a
 mergeIQ cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
     case cmp x1 x2 of
         LT -> IQ i1 x1 (q2 `IQCons` ts1)
@@ -283,7 +289,11 @@ mergeIQ cmp q1@(IQ i1 x1 ts1) q2@(IQ i2 x2 ts2) =
 
 -- | 'mergeIQ' merges two IndexedQueue, taking into account the original
 -- position of the elements.
-mergeITQ :: (a -> a -> Ordering) -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b -> IndexedTaggedQueue a b
+mergeITQ
+    :: (a -> a -> Ordering)
+    -> IndexedTaggedQueue a b
+    -> IndexedTaggedQueue a b
+    -> IndexedTaggedQueue a b
 mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
     case cmp x1 x2 of
         LT -> ITQ i1 x1 y1 (q2 `ITQCons` ts1)
@@ -352,13 +362,27 @@ popMinITQ cmp = State unrollPQ'
 toQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
 toQ cmp = foldToMaybeTree (mergeQ cmp)
 
-toIQ :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedQueue b) -> Int -> FingerTree (Elem y) -> Maybe (IndexedQueue b)
+toIQ
+    :: (b -> b -> Ordering)
+    -> (Int -> Elem y -> IndexedQueue b)
+    -> Int
+    -> FingerTree (Elem y)
+    -> Maybe (IndexedQueue b)
 toIQ cmp = foldToMaybeWithIndexTree (mergeIQ cmp)
 
-toTQ :: (b -> b -> Ordering) -> (a -> TaggedQueue b c) -> FingerTree a -> Maybe (TaggedQueue b c)
+toTQ
+    :: (b -> b -> Ordering)
+    -> (a -> TaggedQueue b c)
+    -> FingerTree a
+    -> Maybe (TaggedQueue b c)
 toTQ cmp = foldToMaybeTree (mergeTQ cmp)
 
-toITQ :: (b -> b -> Ordering) -> (Int -> Elem y -> IndexedTaggedQueue b c) -> Int -> FingerTree (Elem y) -> Maybe (IndexedTaggedQueue b c)
+toITQ
+    :: (b -> b -> Ordering)
+    -> (Int -> Elem y -> IndexedTaggedQueue b c)
+    -> Int
+    -> FingerTree (Elem y)
+    -> Maybe (IndexedTaggedQueue b c)
 toITQ cmp = foldToMaybeWithIndexTree (mergeITQ cmp)
 
 ------------------------------------------------------------------------
@@ -380,12 +404,18 @@ foldToMaybeTree (<+>) f (Deep _ pr m sf) =
     m' = foldToMaybeTree (<+>) (foldNode (<+>) f) m
 
 {-# INLINE foldToMaybeWithIndexTree #-}
-foldToMaybeWithIndexTree :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b
+foldToMaybeWithIndexTree :: (b -> b -> b)
+                         -> (Int -> Elem y -> b)
+                         -> Int
+                         -> FingerTree (Elem y)
+                         -> Maybe b
 foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
   where
     {-# SPECIALISE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b #-}
     {-# SPECIALISE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> Maybe b #-}
-    foldToMaybeWithIndexTree' :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> FingerTree a -> Maybe b
+    foldToMaybeWithIndexTree'
+        :: Sized a
+        => (b -> b -> b) -> (Int -> a -> b) -> Int -> FingerTree a -> Maybe b
     foldToMaybeWithIndexTree' _ _ !_s EmptyT = Nothing
     foldToMaybeWithIndexTree' _ f s (Single xs) = Just (f s xs)
     foldToMaybeWithIndexTree' (<+>) f s (Deep _ pr m sf) =
@@ -398,10 +428,13 @@ foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
         !sPsprm = sPspr + size m
     {-# SPECIALISE digit :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> b #-}
     {-# SPECIALISE digit :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Digit (Node y) -> b #-}
-    digit :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
+    digit
+        :: Sized a
+        => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
     digit = foldWithIndexDigit
     {-# SPECIALISE node :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Node (Elem y) -> b #-}
     {-# SPECIALISE node :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Node (Node y) -> b #-}
-    node :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
+    node
+        :: Sized a
+        => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
     node = foldWithIndexNode
-
