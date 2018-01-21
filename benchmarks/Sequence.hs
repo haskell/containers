@@ -157,6 +157,18 @@ main = do
             , bench "1000" $ nf S.unstableSort rs1000
             , bench "10000" $ nf S.unstableSort rs10000]
          ]
+      , bgroup "unstableSortOn"
+         [ bgroup "already sorted"
+            [ bench "10" $ nf S.unstableSortOn s10
+            , bench "100" $ nf S.unstableSortOn s100
+            , bench "1000" $ nf S.unstableSortOn s1000
+            , bench "10000" $ nf S.unstableSortOn s10000]
+         , bgroup "random"
+            [ bench "10" $ nf S.unstableSortOn rs10
+            , bench "100" $ nf S.unstableSortOn rs100
+            , bench "1000" $ nf S.unstableSortOn rs1000
+            , bench "10000" $ nf S.unstableSortOn rs10000]
+         ]
       ]
 
 {-
