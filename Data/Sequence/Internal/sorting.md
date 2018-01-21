@@ -144,14 +144,15 @@ The `fmap`s are fused manually with the creation of the queue, avoiding the two 
 
 Times (ms)     | min | est | max |std dev|  r²
 ---------------|-----|-----|-----|-------|-----
-unstableSortOn |47.81|48.33|48.80| 1.051 |1.000
-unstableSort   |35.36|35.89|36.41| 0.588 |0.999
-sortOn         |56.28|59.64|63.06| 2.387 |0.994
-sort           |39.91|40.19|40.45| 0.553 |1.000
+unstableSortOn |47.81|48.33|48.80|  1.051|1.000
+unstableSort   |35.36|35.89|36.41|  0.588|0.999
+sortOn         |56.28|59.64|63.06|  2.387|0.994
+sort           |39.91|40.19|40.45|  0.553|1.000
+
+The heaps are also specialized to avoid the creation of a tuple.
 
 ## Other Heaps
 
-Strict pairs are also used, instead of tuples, which yields a significant speedup.
 The pairing heap seems to particularly suit the structure of the finger tree, as other heaps have not managed to beat it. Specifically, when compared to a skew heap:
 
 ```haskell

@@ -1,12 +1,52 @@
 {-# LANGUAGE BangPatterns #-}
 
-------------------------------------------------------------------------
 -- |
 --
 -- Further notes are available in the file sorting.md (in this
 -- directory).
 
-module Data.Sequence.Internal.Sorting where
+module Data.Sequence.Internal.Sorting
+  (
+   -- * Sort Functions
+   sort
+  ,sortBy
+  ,sortOn
+  ,unstableSort
+  ,unstableSortBy
+  ,unstableSortOn
+  ,
+   -- * Heaps
+   Queue(..)
+  ,QList(..)
+  ,IndexedQueue(..)
+  ,IQList(..)
+  ,TaggedQueue(..)
+  ,TQList(..)
+  ,IndexedTaggedQueue(..)
+  ,ITQList(..)
+  ,
+   -- * Merging
+   mergeQ
+  ,mergeIQ
+  ,mergeTQ
+  ,mergeITQ
+  ,
+   -- * popMin
+   popMinQ
+  ,popMinIQ
+  ,popMinTQ
+  ,popMinITQ
+  ,
+   -- * Building
+   buildQ
+  ,buildIQ
+  ,buildTQ
+  ,buildITQ
+  ,
+   -- * Special folds
+   foldToMaybeTree
+  ,foldToMaybeWithIndexTree)
+  where
 
 import Data.Sequence.Internal
        (Elem(..), Seq(..), Node(..), Digit(..), Sized(..), FingerTree(..),
@@ -27,7 +67,7 @@ sortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMinIQ cmp)))
-        (toIQ cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
+        (buildIQ cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
 -- the results of a key function applied to each element. @'sortOn' f@ is
@@ -53,7 +93,7 @@ sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
        (execState (replicateA (size xs) (popMinITQ compare)))
-       (toITQ compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
+       (buildITQ compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
 -- the natural ordering of its elements, but the sort is not stable.
@@ -73,7 +113,7 @@ unstableSortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
         (execState (replicateA (size xs) (popMinQ cmp)))
-        (toQ cmp (\(Elem x) -> Q x Nil) xs)
+        (buildQ cmp (\(Elem x) -> Q x Nil) xs)
 
 -- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
 -- comparing the results of a key function applied to each element.
@@ -99,7 +139,7 @@ unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
        (execState (replicateA (size xs) (popMinTQ compare)))
-       (toTQ compare (\(Elem x) -> TQ (f x) x TQNil) xs)
+       (buildTQ compare (\(Elem x) -> TQ (f x) x TQNil) xs)
 
 ------------------------------------------------------------------------
 -- Heaps
@@ -249,31 +289,31 @@ popMinITQ cmp = State unrollPQ'
 -- constructs queue from a 'Seq'.
 ------------------------------------------------------------------------
 
-toQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
-toQ cmp = foldToMaybeTree (mergeQ cmp)
+buildQ :: (b -> b -> Ordering) -> (a -> Queue b) -> FingerTree a -> Maybe (Queue b)
+buildQ cmp = foldToMaybeTree (mergeQ cmp)
 
-toIQ
+buildIQ
     :: (b -> b -> Ordering)
     -> (Int -> Elem y -> IndexedQueue b)
     -> Int
     -> FingerTree (Elem y)
     -> Maybe (IndexedQueue b)
-toIQ cmp = foldToMaybeWithIndexTree (mergeIQ cmp)
+buildIQ cmp = foldToMaybeWithIndexTree (mergeIQ cmp)
 
-toTQ
+buildTQ
     :: (b -> b -> Ordering)
     -> (a -> TaggedQueue b c)
     -> FingerTree a
     -> Maybe (TaggedQueue b c)
-toTQ cmp = foldToMaybeTree (mergeTQ cmp)
+buildTQ cmp = foldToMaybeTree (mergeTQ cmp)
 
-toITQ
+buildITQ
     :: (b -> b -> Ordering)
     -> (Int -> Elem y -> IndexedTaggedQueue b c)
     -> Int
     -> FingerTree (Elem y)
     -> Maybe (IndexedTaggedQueue b c)
-toITQ cmp = foldToMaybeWithIndexTree (mergeITQ cmp)
+buildITQ cmp = foldToMaybeWithIndexTree (mergeITQ cmp)
 
 ------------------------------------------------------------------------
 -- foldToMaybe
