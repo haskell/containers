@@ -225,6 +225,7 @@ module Data.Sequence (
     ) where
 
 import Data.Sequence.Internal
+import Data.Sequence.Internal.Sorting
 import Prelude ()
 #ifdef __HADDOCK_VERSION__
 import Control.Monad (Monad (..))
