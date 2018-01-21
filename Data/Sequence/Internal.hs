@@ -4648,7 +4648,7 @@ unstableSortBy cmp (Seq xs) =
 -- comparing the results of a key function applied to each element.
 -- `unstableSortOn f` is equivalent to `unstableSortBy (comparing f)`,
 -- but has the performance advantage of only evaluating f once for each
---  element in the input list. This is called the
+-- element in the input list. This is called the
 -- decorate-sort-undecorate paradigm, or Schwartzian transform.
 unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
