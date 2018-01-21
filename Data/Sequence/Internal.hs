@@ -4611,9 +4611,9 @@ sortBy cmp (Seq xs) =
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
 -- the results of a key function applied to each element. @'sortOn' f@ is
--- equivalent to @'sortBy' ('Data.Ord.comparing' f)@, but has the performance
--- advantage of only evaluating f once for each element in the input
--- list. This is called the decorate-sort-undecorate paradigm, or
+-- equivalent to @'sortBy' ('compare' ``Data.function.on`` f)@, but has the
+-- performance advantage of only evaluating @f@ once for each element in the
+-- input list. This is called the decorate-sort-undecorate paradigm, or
 -- Schwartzian transform.
 --
 -- An example of using 'sortOn' might be to sort a 'Seq' of strings
@@ -4624,6 +4624,10 @@ sortBy cmp (Seq xs) =
 -- If, instead, 'sortBy' had been used, 'length' would be evaluated on
 -- every comparison, giving \( O(n \log n) \) evaluations, rather than
 -- \( O(n) \).
+--
+-- If @f@ is very cheap (for example a record selector, or 'fst'),
+-- @'sortBy' ('compare' ``Data.Function.on`` f)@ will be faster than
+-- @'sortOn' f@.
 sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
@@ -4655,8 +4659,8 @@ unstableSortBy cmp (Seq xs) =
 
 -- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
 -- comparing the results of a key function applied to each element.
--- @'unstableSortOn' f@ is equivalent to @'unstableSortBy' ('Data.Ord.comparing' f)@,
--- but has the performance advantage of only evaluating f once for each
+-- @'unstableSortOn' f@ is equivalent to @'unstableSortBy' ('compare' ``Data.Function.on`` f)@,
+-- but has the performance advantage of only evaluating @f@ once for each
 -- element in the input list. This is called the
 -- decorate-sort-undecorate paradigm, or Schwartzian transform.
 --
@@ -4668,6 +4672,10 @@ unstableSortBy cmp (Seq xs) =
 -- If, instead, 'unstableSortBy' had been used, 'length' would be evaluated on
 -- every comparison, giving \( O(n \log n) \) evaluations, rather than
 -- \( O(n) \).
+--
+-- If @f@ is very cheap (for example a record selector, or 'fst'),
+-- @'unstableSortBy' ('compare' ``Data.Function.on`` f)@ will be faster than
+-- @'unstableSortOn' f@.
 unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
