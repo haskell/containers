@@ -1,6 +1,5 @@
 {-# LANGUAGE BangPatterns #-}
 
-
 ------------------------------------------------------------------------
 -- |
 -- Sorting
@@ -122,6 +121,9 @@
 module Data.Sequence.Internal.Sorting where
 
 import Data.Sequence.Internal
+       (Elem(..), Seq(..), Node(..), Digit(..), Sized(..), FingerTree(..),
+        State(..), execState, replicateA, foldDigit, foldNode,
+        foldWithIndexDigit, foldWithIndexNode)
 
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.  If stability is not
