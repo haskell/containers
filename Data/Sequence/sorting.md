@@ -106,3 +106,13 @@ Stable sorting was previously accomplished by converting to a list, applying Dat
 Times (ms)            min    est    max  std dev   r²
 to/from list:        64.23  64.50  64.81  0.432  1.000
 1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
+
+## sortOn Functions
+
+The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, however instead of the following implementation:
+
+```haskell
+sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
+```
+
+The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals.

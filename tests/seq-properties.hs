@@ -554,10 +554,11 @@ prop_unstableSortBy :: Seq OrdA -> Bool
 prop_unstableSortBy xs =
     toList' (unstableSortBy compare xs) ~= Data.List.sort (toList xs)
 
-prop_unstableSortOn :: Seq (OrdA, B) -> Bool
+prop_unstableSortOn :: Seq (OrdA, B) -> Property
 prop_unstableSortOn xs =
-    toList' (unstableSortBy f xs) ~= toList' (unstableSortOn fst xs)
-  where f (x1, _) (x2, _) = compare x1 x2
+    toList' (unstableSortBy f xs) === toList' (unstableSortOn fst xs)
+  where
+    f (x1,_) (x2,_) = compare x1 x2
 
 -- * Indexing
 
