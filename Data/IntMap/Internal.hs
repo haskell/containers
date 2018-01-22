@@ -301,7 +301,6 @@ import Data.Functor.Classes
 #endif
 
 import Control.DeepSeq (NFData(rnf))
-import Control.Monad (liftM)
 import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
@@ -2107,17 +2106,26 @@ data View a = View {-# UNPACK #-} !Key a !(IntMap a)
 -- > maxViewWithKey empty == Nothing
 
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
-maxViewWithKey t =
+maxViewWithKey t = case t of
+  Nil -> Nothing
+  _ -> Just $ case maxViewWithKeySure t of
+                View k v t' -> ((k, v), t')
+{-# INLINE maxViewWithKey #-}
+
+maxViewWithKeySure :: IntMap a -> View a
+maxViewWithKeySure t =
   case t of
-    Nil -> Nothing
+    Nil -> error "maxViewWithKeySure Nil"
     Bin p m l r | m < 0 ->
-      Just $ case go l of View k a l' -> ((k, a), binCheckLeft p m l' r)
-    _ -> Just $ case go t of View k a t' -> ((k, a), t')
+      case go l of View k a l' -> View k a (binCheckLeft p m l' r)
+    _ -> go t
   where
     go (Bin p m l r) =
         case go r of View k a r' -> View k a (binCheckRight p m l r')
     go (Tip k y) = View k y Nil
-    go Nil = error "maxViewWithKey Nil"
+    go Nil = error "maxViewWithKey_go Nil"
+-- See note on NOINLINE at minViewWithKeySure
+{-# NOINLINE maxViewWithKeySure #-}
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -2129,14 +2137,31 @@ minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey t =
   case t of
     Nil -> Nothing
+    _ -> Just $ case minViewWithKeySure t of
+                  View k v t' -> ((k, v), t')
+-- We inline this to give GHC the best possible chance of
+-- getting rid of the Maybe, pair, and Int constructors, as
+-- well as a thunk under the Just. That is, we really want to
+-- be certain this inlines!
+{-# INLINE minViewWithKey #-}
+
+minViewWithKeySure :: IntMap a -> View a
+minViewWithKeySure t =
+  case t of
+    Nil -> error "minViewWithKeySure Nil"
     Bin p m l r | m < 0 ->
-      Just $ case go r of View k a r' -> ((k, a), binCheckRight p m l r')
-    _ -> Just $ case go t of View k a t' -> ((k, a), t')
+      case go r of
+        View k a r' -> View k a (binCheckRight p m l r')
+    _ -> go t
   where
     go (Bin p m l r) =
         case go l of View k a l' -> View k a (binCheckLeft p m l' r)
     go (Tip k y) = View k y Nil
-    go Nil = error "minViewWithKey Nil"
+    go Nil = error "minViewWithKey_go Nil"
+-- There's never anything significant to be gained by inlining
+-- this. Sufficiently recent GHC versions will inline the wrapper
+-- anyway, which should be good enough.
+{-# NOINLINE minViewWithKeySure #-}
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
 --
@@ -2154,25 +2179,25 @@ updateMax f = updateMaxWithKey (const f)
 updateMin :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMin f = updateMinWithKey (const f)
 
--- Similar to the Arrow instance.
-first :: (a -> c) -> (a, b) -> (c, b)
-first f (x,y) = (f x,y)
-
 -- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
-maxView t = liftM (first snd) (maxViewWithKey t)
+maxView t = fmap (\((_, x), t') -> (x, t')) (maxViewWithKey t)
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
-minView t = liftM (first snd) (minViewWithKey t)
+minView t = fmap (\((_, x), t') -> (x, t')) (minViewWithKey t)
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
+-- This function throws an error if the map is empty. Use 'maxViewWithKey'
+-- if the map may be empty.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
+-- This function throws an error if the map is empty. Use 'minViewWithKey'
+-- if the map may be empty.
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
@@ -2188,6 +2213,7 @@ lookupMin (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The minimal key of the map. Calls 'error' if the map is empty.
+-- Use 'minViewWithKey' if the map may be empty.
 findMin :: IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
@@ -2205,6 +2231,7 @@ lookupMax (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The maximal key of the map. Calls 'error' if the map is empty.
+-- Use 'maxViewWithKey' if the map may be empty.
 findMax :: IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r

@@ -1725,9 +1725,13 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 
 minViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 minViewWithKey Tip = Nothing
-minViewWithKey (Bin _ k x l r) =
+minViewWithKey (Bin _ k x l r) = Just $
   case minViewSure k x l r of
-    MinView km xm t -> Just ((km, xm), t)
+    MinView km xm t -> ((km, xm), t)
+-- We inline this to give GHC the best possible chance of getting
+-- rid of the Maybe and pair constructors, as well as the thunk under
+-- the Just.
+{-# INLINE minViewWithKey #-}
 
 -- | /O(log n)/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -1737,9 +1741,11 @@ minViewWithKey (Bin _ k x l r) =
 
 maxViewWithKey :: Map k a -> Maybe ((k,a), Map k a)
 maxViewWithKey Tip = Nothing
-maxViewWithKey (Bin _ k x l r) =
+maxViewWithKey (Bin _ k x l r) = Just $
   case maxViewSure k x l r of
-    MaxView km xm t -> Just ((km, xm), t)
+    MaxView km xm t -> ((km, xm), t)
+-- See note on inlining at minViewWithKey
+{-# INLINE maxViewWithKey #-}
 
 -- | /O(log n)/. Retrieves the value associated with minimal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1751,7 +1757,7 @@ maxViewWithKey (Bin _ k x l r) =
 minView :: Map k a -> Maybe (a, Map k a)
 minView t = case minViewWithKey t of
               Nothing -> Nothing
-              Just ((_, x), t') -> Just (x, t')
+              Just ~((_, x), t') -> Just (x, t')
 
 -- | /O(log n)/. Retrieves the value associated with maximal key of the
 -- map, and the map stripped of that element, or 'Nothing' if passed an
@@ -1763,7 +1769,7 @@ minView t = case minViewWithKey t of
 maxView :: Map k a -> Maybe (a, Map k a)
 maxView t = case maxViewWithKey t of
               Nothing -> Nothing
-              Just ((_, x), t') -> Just (x, t')
+              Just ~((_, x), t') -> Just (x, t')
 
 {--------------------------------------------------------------------
   Union.
@@ -3852,6 +3858,7 @@ minViewSure = go
     go k x (Bin _ kl xl ll lr) r =
       case go kl xl ll lr of
         MinView km xm l' -> MinView km xm (balanceR k x l' r)
+{-# NOINLINE minViewSure #-}
 
 maxViewSure :: k -> a -> Map k a -> Map k a -> MaxView k a
 maxViewSure = go
@@ -3860,6 +3867,7 @@ maxViewSure = go
     go k x l (Bin _ kr xr rl rr) =
       case go kr xr rl rr of
         MaxView km xm r' -> MaxView km xm (balanceL k x l r')
+{-# NOINLINE maxViewSure #-}
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
