@@ -11,15 +11,17 @@
 * Add a `MonadFix` instance for `Data.Tree`.
 
 * Add `powerSet`, `cartesianProduct`, and `disjointUnion` for
-  `Data.Set` (Thanks, Edward Kmett!)
+  `Data.Set`. (Thanks, Edward Kmett.)
 
-* Add `lookupMin` and `lookupMax` to `Data.IntMap` (Thanks, bwroga!)
+* Add `disjoint` for `Data.Set` and `Data.IntSet`. (Thanks, Víctor López Juan.)
+
+* Add `lookupMin` and `lookupMax` to `Data.IntMap`. (Thanks, bwroga.)
 
 * Add `unzip` and `unzipWith` to `Data.Sequence`. Make unzipping
   build its results in lockstep to avoid certain space leaks.
 
 * Add carefully optimized implementations of `sortOn` and `unstableSortOn`
-  to `Data.Sequence` (Thanks, Donnacha Oisín Kidney!)
+  to `Data.Sequence`. (Thanks, Donnacha Oisín Kidney.)
 
 ### Changes to existing functions and features
 
@@ -47,17 +49,17 @@
 ### Performance improvement
 
 * Speed up both stable and unstable sorting for `Data.Sequence` by (Thanks, Donnacha
-  Oisín Kidney!)
+  Oisín Kidney.)
 
 ### Other changes
 
 * Update for recent and upcoming GHC and Cabal versions (Thanks, Herbert
-  Valerio Reidel, Simon Jakobi, and Ryan Scott!)
+  Valerio Reidel, Simon Jakobi, and Ryan Scott.)
 
-* Improve documentation (Thanks, Oleg Grenrus and Benjamin Hodgson!)
+* Improve documentation (Thanks, Oleg Grenrus and Benjamin Hodgson.)
 
 * Add Haddock `@since` annotations for changes made since version
-  0.5.4 (Thanks, Simon Jakobi!)
+  0.5.4 (Thanks, Simon Jakobi.)
 
 * Add a (very incomplete) test suite for `Data.Tree`.
 
