@@ -23,6 +23,7 @@ import Data.Array (listArray)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
+import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
@@ -95,8 +96,10 @@ main = defaultMain
        , testProperty "filter" prop_filter
        , testProperty "sort" prop_sort
        , testProperty "sortBy" prop_sortBy
+       , testProperty "sortOn" prop_sortOn
        , testProperty "unstableSort" prop_unstableSort
        , testProperty "unstableSortBy" prop_unstableSortBy
+       , testProperty "unstableSortOn" prop_unstableSortOn
        , testProperty "index" prop_index
        , testProperty "(!?)" prop_safeIndex
        , testProperty "adjust" prop_adjust
@@ -540,6 +543,16 @@ prop_sortBy xs =
     toList' (sortBy f xs) ~= Data.List.sortBy f (toList xs)
   where f (x1, _) (x2, _) = compare x1 x2
 
+prop_sortOn :: Fun A OrdB -> Seq A -> Bool
+prop_sortOn (Fun _ f) xs =
+    toList' (sortOn f xs) ~= listSortOn f (toList xs)
+  where
+#if MIN_VERSION_base(4,8,0)
+    listSortOn = Data.List.sortOn
+#else
+    listSortOn k = Data.List.sortBy (compare `on` k)
+#endif
+
 prop_unstableSort :: Seq OrdA -> Bool
 prop_unstableSort xs =
     toList' (unstableSort xs) ~= Data.List.sort (toList xs)
@@ -547,6 +560,10 @@ prop_unstableSort xs =
 prop_unstableSortBy :: Seq OrdA -> Bool
 prop_unstableSortBy xs =
     toList' (unstableSortBy compare xs) ~= Data.List.sort (toList xs)
+
+prop_unstableSortOn :: Fun A OrdB -> Seq A -> Property
+prop_unstableSortOn (Fun _ f) xs =
+    toList' (unstableSortBy (compare `on` f) xs) === toList' (unstableSortOn f xs)
 
 -- * Indexing
 

@@ -141,6 +141,7 @@ module Data.Set.Internal (
             , lookupGE
             , isSubsetOf
             , isProperSubsetOf
+            , disjoint
 
             -- * Construction
             , empty
@@ -622,6 +623,27 @@ isSubsetOfX (Bin _ x l r) t
 {-# INLINABLE isSubsetOfX #-}
 #endif
 
+{--------------------------------------------------------------------
+  Disjoint
+--------------------------------------------------------------------}
+-- | /O(n+m)/. Check whether two sets are disjoint (i.e. their intersection
+--   is empty).
+--
+-- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
+-- > disjoint (fromList [2,4,6,8]) (fromList [2,3,5,7]) == False
+-- > disjoint (fromList [1,2])     (fromList [1,2,3,4]) == False
+-- > disjoint (fromList [])        (fromList [])        == True
+--
+-- @since 0.5.11
+
+disjoint :: Ord a => Set a -> Set a -> Bool
+disjoint Tip _ = True
+disjoint _ Tip = True
+disjoint (Bin _ x l r) t
+  -- Analogous implementation to `subsetOfX`
+  = not found && disjoint l lt && disjoint r gt
+  where
+    (lt,found,gt) = splitMember x t
 
 {--------------------------------------------------------------------
   Minimal, Maximal

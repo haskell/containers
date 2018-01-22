@@ -175,8 +175,10 @@ module Data.Sequence (
     -- * Sorting
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
+    sortOn,         -- :: Ord b => (a -> b) -> Seq a -> Seq a
     unstableSort,   -- :: Ord a => Seq a -> Seq a
     unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
+    unstableSortOn, -- :: Ord b => (a -> b) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
     (!?),           -- :: Seq a -> Int -> Maybe a
@@ -223,6 +225,7 @@ module Data.Sequence (
     ) where
 
 import Data.Sequence.Internal
+import Data.Sequence.Internal.Sorting
 import Prelude ()
 #ifdef __HADDOCK_VERSION__
 import Control.Monad (Monad (..))

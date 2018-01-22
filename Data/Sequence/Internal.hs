@@ -86,6 +86,12 @@ module Data.Sequence.Internal (
 #else
     Seq (..),
 #endif
+    State(..),
+    execState,
+    foldDigit,
+    foldNode,
+    foldWithIndexDigit,
+    foldWithIndexNode,
 
     -- * Construction
     empty,          -- :: Seq a
@@ -137,11 +143,6 @@ module Data.Sequence.Internal (
     breakr,         -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     partition,      -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     filter,         -- :: (a -> Bool) -> Seq a -> Seq a
-    -- * Sorting
-    sort,           -- :: Ord a => Seq a -> Seq a
-    sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a
-    unstableSort,   -- :: Ord a => Seq a -> Seq a
-    unstableSortBy, -- :: (a -> a -> Ordering) -> Seq a -> Seq a
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
     (!?),           -- :: Seq a -> Int -> Maybe a
@@ -206,12 +207,13 @@ import Prelude hiding (
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
-                            liftA, liftA2, liftA3)
+                            liftA2, liftA3)
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
-import Control.Monad (MonadPlus(..), ap)
+import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
+import Utils.Containers.Internal.State (State(..), execState)
 #if MIN_VERSION_base(4,6,0)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
 #else
@@ -975,11 +977,15 @@ data Digit a
     deriving Show
 #endif
 
+foldDigit :: (b -> b -> b) -> (a -> b) -> Digit a -> b
+foldDigit _     f (One a) = f a
+foldDigit (<+>) f (Two a b) = f a <+> f b
+foldDigit (<+>) f (Three a b c) = f a <+> f b <+> f c
+foldDigit (<+>) f (Four a b c d) = f a <+> f b <+> f c <+> f d
+{-# INLINE foldDigit #-}
+
 instance Foldable Digit where
-    foldMap f (One a) = f a
-    foldMap f (Two a b) = f a <> f b
-    foldMap f (Three a b c) = f a <> f b <> f c
-    foldMap f (Four a b c d) = f a <> f b <> f c <> f d
+    foldMap = foldDigit mappend
 
     foldr f z (One a) = a `f` z
     foldr f z (Two a b) = a `f` (b `f` z)
@@ -1062,9 +1068,13 @@ data Node a
     deriving Show
 #endif
 
+foldNode :: (b -> b -> b) -> (a -> b) -> Node a -> b
+foldNode (<+>) f (Node2 _ a b) = f a <+> f b
+foldNode (<+>) f (Node3 _ a b c) = f a <+> f b <+> f c
+{-# INLINE foldNode #-}
+
 instance Foldable Node where
-    foldMap f (Node2 _ a b) = f a <> f b
-    foldMap f (Node3 _ a b c) = f a <> f b <> f c
+    foldMap = foldNode mappend
 
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
@@ -1161,27 +1171,6 @@ instance Applicative Identity where
     pure = Identity
     Identity f <*> Identity x = Identity (f x)
 #endif
-
--- | This is essentially a clone of Control.Monad.State.Strict.
-newtype State s a = State {runState :: s -> (s, a)}
-
-instance Functor (State s) where
-    fmap = liftA
-
-instance Monad (State s) where
-    {-# INLINE return #-}
-    {-# INLINE (>>=) #-}
-    return = pure
-    m >>= k = State $ \ s -> case runState m s of
-        (s', x) -> runState (k x) s'
-
-instance Applicative (State s) where
-    {-# INLINE pure #-}
-    pure x = State $ \ s -> (s, x)
-    (<*>) = ap
-
-execState :: State s a -> s -> a
-execState m x = snd (runState m x)
 
 -- | 'applicativeTree' takes an Applicative-wrapped construction of a
 -- piece of a FingerTree, assumed to always have the same size (which
@@ -2656,6 +2645,32 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
  #-}
 #endif
 
+{-# INLINE foldWithIndexDigit #-}
+foldWithIndexDigit :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
+foldWithIndexDigit _ f !s (One a) = f s a
+foldWithIndexDigit (<+>) f s (Two a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+foldWithIndexDigit (<+>) f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+foldWithIndexDigit (<+>) f s (Four a b c d) =
+    f s a <+> f sPsa b <+> f sPsab c <+> f sPsabc d
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
+{-# INLINE foldWithIndexNode #-}
+foldWithIndexNode :: Sized a => (m -> m -> m) -> (Int -> a -> m) -> Int -> Node a -> m
+foldWithIndexNode (<+>) f !s (Node2 _ a b) = f s a <+> f sPsa b
+  where
+    !sPsa = s + size a
+foldWithIndexNode (<+>) f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
 
 -- A generalization of 'foldMap', 'foldMapWithIndex' takes a folding
 -- function that also depends on the element's index, and applies it to every
@@ -2699,45 +2714,16 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
       !sPsprm = sPspr + size m
 
   foldMapWithIndexDigitE :: Monoid m => (Int -> Elem a -> m) -> Int -> Digit (Elem a) -> m
-  foldMapWithIndexDigitE f i t = foldMapWithIndexDigit f i t
+  foldMapWithIndexDigitE f i t = foldWithIndexDigit (<>) f i t
 
   foldMapWithIndexDigitN :: Monoid m => (Int -> Node a -> m) -> Int -> Digit (Node a) -> m
-  foldMapWithIndexDigitN f i t = foldMapWithIndexDigit f i t
-
-  {-# INLINE foldMapWithIndexDigit #-}
-  foldMapWithIndexDigit :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Digit a -> m
-  foldMapWithIndexDigit f !s (One a) = f s a
-  foldMapWithIndexDigit f s (Two a b) = f s a <> f sPsa b
-    where
-      !sPsa = s + size a
-  foldMapWithIndexDigit f s (Three a b c) =
-                                      f s a <> f sPsa b <> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  foldMapWithIndexDigit f s (Four a b c d) =
-                          f s a <> f sPsa b <> f sPsab c <> f sPsabc d
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
+  foldMapWithIndexDigitN f i t = foldWithIndexDigit (<>) f i t
 
   foldMapWithIndexNodeE :: Monoid m => (Int -> Elem a -> m) -> Int -> Node (Elem a) -> m
-  foldMapWithIndexNodeE f i t = foldMapWithIndexNode f i t
+  foldMapWithIndexNodeE f i t = foldWithIndexNode (<>) f i t
 
   foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
-  foldMapWithIndexNodeN f i t = foldMapWithIndexNode f i t
-
-  {-# INLINE foldMapWithIndexNode #-}
-  foldMapWithIndexNode :: (Monoid m, Sized a) => (Int -> a -> m) -> Int -> Node a -> m
-  foldMapWithIndexNode f !s (Node2 _ a b) = f s a <> f sPsa b
-    where
-      !sPsa = s + size a
-  foldMapWithIndexNode f s (Node3 _ a b c) =
-                                     f s a <> f sPsa b <> f sPsab c
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
+  foldMapWithIndexNodeN f i t = foldWithIndexNode (<>) f i t
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE foldMapWithIndex #-}
@@ -4473,159 +4459,6 @@ zipWith4 f s1 s2 s3 s4 = zipWith' ($) (zipWith3' f s1' s2' s3') s4'
     s3' = take minLen s3
     s4' = take minLen s4
 
-------------------------------------------------------------------------
--- Sorting
---
--- Unstable sorting is performed by a heap sort implementation based on
--- pairing heaps.  Because the internal structure of sequences is quite
--- varied, it is difficult to get blocks of elements of roughly the same
--- length, which would improve merge sort performance.  Pairing heaps,
--- on the other hand, are relatively resistant to the effects of merging
--- heaps of wildly different sizes, as guaranteed by its amortized
--- constant-time merge operation.  Moreover, extensive use of SpecConstr
--- transformations can be done on pairing heaps, especially when we're
--- only constructing them to immediately be unrolled.
---
--- On purely random sequences of length 50000, with no RTS options,
--- I get the following statistics, in which heapsort is about 42.5%
--- faster:  (all comparisons done with -O2)
---
--- Times (ms)            min      mean    +/-sd    median    max
--- to/from list:       103.802  108.572    7.487  106.436  143.339
--- unstable heapsort:   60.686   62.968    4.275   61.187   79.151
---
--- Heapsort, it would seem, is less of a memory hog than Data.List.sortBy.
--- The gap is narrowed when more memory is available, but heapsort still
--- wins, 15% faster, with +RTS -H128m:
---
--- Times (ms)            min    mean    +/-sd  median    max
--- to/from list:       42.692  45.074   2.596  44.600  56.601
--- unstable heapsort:  37.100  38.344   3.043  37.715  55.526
---
--- In addition, on strictly increasing sequences the gap is even wider
--- than normal; heapsort is 68.5% faster with no RTS options:
--- Times (ms)            min    mean    +/-sd  median    max
--- to/from list:       52.236  53.574   1.987  53.034  62.098
--- unstable heapsort:  16.433  16.919   0.931  16.681  21.622
---
--- This may be attributed to the elegant nature of the pairing heap.
---
--- wasserman.louis@gmail.com, 7/20/09
-------------------------------------------------------------------------
--- David Feuer wrote an unstable sort for arbitrary traversables,
--- https://www.reddit.com/r/haskell/comments/63a4ea/fast_total_sorting_of_arbitrary_traversable/,
--- which turned out to be competitive with the unstable sort here.
--- Feuer suggested that this indicated some room to improve on the
--- unstable sort.
---
--- The two main improvements to the original function are a specialize
--- pragma on replicateA (this gives a 26.5% speedup) and removal of the
--- intermediate list (a further 11.7% speedup). These numbers are all on
--- purely random sequences of length 50000:
---
--- Times (ms)            min    est    max  std dev   R²
--- to/from list:        70.90  72.44  75.07  2.224  0.998
--- 7/20/09 heapsort:    59.84  61.44  63.08  1.554  0.998
--- 7/20/09 w/pragma:    44.22  45.14  46.25  1.631  0.998
--- 4/30/17 heapsort:    38.21  39.86  40.87  1.203  0.996
---
--- It should also be noted that Data.List.sortBy has become
--- significantly quicker. Data.List.sortBy also now recognizes strictly
--- increasing sequences, making it much quicker for that case:
---
--- Times (ms)            min    est    max  std dev   R²
--- to/from list:        7.140  7.351  7.634  0.335  0.993
--- 7/20/09 heapsort:    19.52  19.78  20.13  0.445  0.999
--- 7/20/09 w/pragma:    8.050  8.271  8.514  0.357  0.995
--- 4/30/17 heapsort:    7.240  7.612  7.925  0.389  0.991
---
--- Another happy result of the specialization of 'replicateA' is that
--- the stable sort seems to speed up by 10-20%, and 'iterateN' looks
--- like it's about three times as fast.
---
--- mail@doisinkidney.com, 4/30/17
-------------------------------------------------------------------------
--- The sort and sortBy functions are implemented by tagging each element
--- in the input sequence with its position, and using that to
--- discriminate between elements which are equivalent according to the
--- comparator. This makes the sort stable.
---
--- The algorithm is effectively the same as the unstable sorts, except
--- the queue is constructed while giving each element a tag.
---
--- It's quicker than the old implementation (which used Data.List.sort)
--- in the general case (all times are on sequences of length 50000):
---
--- Times (ms)            min    est    max  std dev   r²
--- to/from list:        64.23  64.50  64.81  0.432  1.000
--- 1/11/18 stable heap: 38.87  39.40  40.09  0.457  0.999
---
--- Slightly slower in the case of already sorted lists:
---
--- Times (ms)            min    est    max  std dev   r²
--- to/from list:        6.806  6.861  6.901  0.234  1.000
--- 1/11/18 stable heap: 8.211  8.268  8.328  0.111  1.000
---
--- And quicker in the case of lists sorted in reverse:
---
--- Times (ms)            min    est    max  std dev   r²
--- to/from list:        26.79  28.34  30.55  1.219  0.988
--- 1/11/18 stable heap: 9.405  10.13  10.91  0.670  0.977
---
--- Interestingly, the stable sort is now competitive with the unstable:
---
--- Times (ms)            min    est    max  std dev   r²
--- unstable:            34.71  35.10  35.38  0.845  1.000
--- stable:              38.84  39.22  39.59  0.564  0.999
---
--- And even beats it in the case of already-sorted lists:
---
--- Times (ms)            min    est    max  std dev   r²
--- unstable:            8.457  8.499  8.536  0.069  1.000
--- stable:              8.160  8.230  8.334  0.158  0.999
---
--- mail@doisinkidney.com, 1/11/18
-------------------------------------------------------------------------
--- Further notes are available in the file sorting.md (in this
--- directory).
-------------------------------------------------------------------------
-
--- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
--- ordering of its elements.  The sort is stable.  If stability is not
--- required, 'unstableSort' can be slightly faster.
-sort :: Ord a => Seq a -> Seq a
-sort = sortBy compare
-
--- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
--- specified comparator.  The sort is stable.  If stability is not required,
--- 'unstableSortBy' can be slightly faster.
-sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
-sortBy cmp (Seq xs) =
-    maybe
-        (Seq EmptyT)
-        (execState (replicateA (size xs) (popMinS cmp)))
-        (toPQS cmp (Seq xs))
-
--- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
--- the natural ordering of its elements, but the sort is not stable.
--- This algorithm is frequently faster and uses less memory than 'sort'.
-
--- Notes on the implementation and choice of heap are available in
--- the file sorting.md (in this directory).
-unstableSort :: Ord a => Seq a -> Seq a
-unstableSort = unstableSortBy compare
-
--- | \( O(n \log n) \).  A generalization of 'unstableSort', 'unstableSortBy'
--- takes an arbitrary comparator and sorts the specified sequence.
--- The sort is not stable.  This algorithm is frequently faster and
--- uses less memory than 'sortBy'.
-unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
-unstableSortBy cmp (Seq xs) =
-    maybe
-        (Seq EmptyT)
-        (execState (replicateA (size xs) (popMin cmp)))
-        (toPQ cmp (Seq xs))
-
 -- | fromList2, given a list and its length, constructs a completely
 -- balanced Seq whose elements are that list using the replicateA
 -- generalization.
@@ -4634,169 +4467,3 @@ fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
-
--- | A 'PQueue' is a simple pairing heap.
-data PQueue e = PQueue e (PQL e)
-data PQL e = Nil | {-# UNPACK #-} !(PQueue e) :& PQL e
-
-infixr 8 :&
-
-#ifdef TESTING
-
-instance Functor PQueue where
-    fmap f (PQueue x ts) = PQueue (f x) (fmap f ts)
-
-instance Functor PQL where
-    fmap f (q :& qs) = fmap f q :& fmap f qs
-    fmap _ Nil = Nil
-
-instance Show e => Show (PQueue e) where
-    show = unlines . draw . fmap show
-
--- borrowed wholesale from Data.Tree, as Data.Tree actually depends
--- on Data.Sequence
-draw :: PQueue String -> [String]
-draw (PQueue x ts0) = x : drawSubTrees ts0
-  where
-    drawSubTrees Nil = []
-    drawSubTrees (t :& Nil) =
-        "|" : shift "`- " "   " (draw t)
-    drawSubTrees (t :& ts) =
-        "|" : shift "+- " "|  " (draw t) ++ drawSubTrees ts
-
-    shift first other = Data.List.zipWith (++) (first : repeat other)
-#endif
-
--- | 'popMin', given an ordering function, constructs a stateful action
--- which pops the smallest elements from a queue. This action will fail
--- on empty queues.
-popMin :: (e -> e -> Ordering) -> State (PQueue e) e
-popMin cmp = State unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQueue x ts) = (mergePQs ts, x)
-    mergePQs (t :& Nil) = t
-    mergePQs (t1 :& t2 :& Nil) = t1 <+> t2
-    mergePQs (t1 :& t2 :& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs Nil = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQ cmp
-
--- | 'toPQ', given an ordering function and a mechanism for queueifying
--- elements, converts a 'Seq' to a 'PQueue'.
-toPQ :: (e -> e -> Ordering) -> Seq e -> Maybe (PQueue e)
-toPQ cmp' (Seq xs') = toPQTree cmp' (\(Elem a) -> PQueue a Nil) xs'
-  where
-    toPQTree :: (b -> b -> Ordering) -> (a -> PQueue b) -> FingerTree a -> Maybe (PQueue b)
-    toPQTree _ _ EmptyT = Nothing
-    toPQTree _ f (Single xs) = Just (f xs)
-    toPQTree cmp f (Deep _ pr m sf) =
-        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
-      where
-        pr' = toPQDigit cmp f pr
-        sf' = toPQDigit cmp f sf
-        m' = toPQTree cmp (toPQNode cmp f) m
-        (<+>) = mergePQ cmp
-    toPQDigit :: (b -> b -> Ordering) -> (a -> PQueue b) -> Digit a -> PQueue b
-    toPQDigit cmp f dig =
-        case dig of
-            One a -> f a
-            Two a b -> f a <+> f b
-            Three a b c -> f a <+> f b <+> f c
-            Four a b c d -> (f a <+> f b) <+> (f c <+> f d)
-      where
-        (<+>) = mergePQ cmp
-    toPQNode :: (b -> b -> Ordering) -> (a -> PQueue b) -> Node a -> PQueue b
-    toPQNode cmp f node =
-        case node of
-            Node2 _ a b -> f a <+> f b
-            Node3 _ a b c -> f a <+> f b <+> f c
-      where
-        (<+>) = mergePQ cmp
-
--- | 'mergePQ' merges two 'PQueue's.
-mergePQ :: (a -> a -> Ordering) -> PQueue a -> PQueue a -> PQueue a
-mergePQ cmp q1@(PQueue x1 ts1) q2@(PQueue x2 ts2)
-  | cmp x1 x2 == GT     = PQueue x2 (q1 :& ts2)
-  | otherwise           = PQueue x1 (q2 :& ts1)
-
--- | A pairing heap tagged with the original position of elements,
--- to allow for stable sorting.
-data PQS e = PQS {-# UNPACK #-} !Int e (PQSL e)
-data PQSL e = Nl | {-# UNPACK #-} !(PQS e) :&& PQSL e
-
-infixr 8 :&&
-
--- | 'popMinS', given an ordering function, constructs a stateful action
--- which pops the smallest elements from a queue. This action will fail
--- on empty queues.
-popMinS :: (e -> e -> Ordering) -> State (PQS e) e
-popMinS cmp = State unrollPQ'
-  where
-    {-# INLINE unrollPQ' #-}
-    unrollPQ' (PQS _ x ts) = (mergePQs ts, x)
-    mergePQs (t :&& Nl) = t
-    mergePQs (t1 :&& t2 :&& Nl) = t1 <+> t2
-    mergePQs (t1 :&& t2 :&& ts) = (t1 <+> t2) <+> mergePQs ts
-    mergePQs Nl = error "popMin: tried to pop from empty queue"
-    (<+>) = mergePQS cmp
-
--- | 'toPQS', given an ordering function, converts a 'Seq' to a
--- 'PQS'.
-toPQS :: (e -> e -> Ordering) -> Seq e -> Maybe (PQS e)
-toPQS cmp' (Seq xs') = toPQSTree cmp' (\s (Elem a) -> PQS s a Nl) 0 xs'
-  where
-    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> FingerTree (Elem y) -> Maybe (PQS b) #-}
-    {-# SPECIALISE toPQSTree :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> FingerTree (Node y) -> Maybe (PQS b) #-}
-    toPQSTree :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> FingerTree a -> Maybe (PQS b)
-    toPQSTree _ _ !_s EmptyT = Nothing
-    toPQSTree _ f s (Single xs) = Just (f s xs)
-    toPQSTree cmp f s (Deep _ pr m sf) =
-        Just (maybe (pr' <+> sf') ((pr' <+> sf') <+>) m')
-      where
-        pr' = toPQSDigit cmp f s pr
-        sf' = toPQSDigit cmp f sPsprm sf
-        m' = toPQSTree cmp (toPQSNode cmp f) sPspr m
-        !sPspr = s + size pr
-        !sPsprm = sPspr + size m
-        (<+>) = mergePQS cmp
-    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Digit (Elem y) -> PQS b #-}
-    {-# SPECIALISE toPQSDigit :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Digit (Node y) -> PQS b #-}
-    toPQSDigit :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Digit a -> PQS b
-    toPQSDigit _ f !s (One a) = f s a
-    toPQSDigit cmp f s (Two a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Three a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
-    toPQSDigit cmp f s (Four a b c d) =
-        (f s a <+> f sPsa b) <+> (f sPsab c <+> f sPsabc d)
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        !sPsabc = sPsab + size c
-        (<+>) = mergePQS cmp
-    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Elem y -> PQS b) -> Int -> Node (Elem y) -> PQS b #-}
-    {-# SPECIALISE toPQSNode :: (b -> b -> Ordering) -> (Int -> Node y -> PQS b) -> Int -> Node (Node y) -> PQS b #-}
-    toPQSNode :: Sized a => (b -> b -> Ordering) -> (Int -> a -> PQS b) -> Int -> Node a -> PQS b
-    toPQSNode cmp f s (Node2 _ a b) = f s a <+> f sPsa b
-      where
-        !sPsa = s + size a
-        (<+>) = mergePQS cmp
-    toPQSNode cmp f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
-      where
-        !sPsa = s + size a
-        !sPsab = sPsa + size b
-        (<+>) = mergePQS cmp
-
--- | 'mergePQS' merges two PQS, taking into account the original
--- position of the elements.
-mergePQS :: (a -> a -> Ordering) -> PQS a -> PQS a -> PQS a
-mergePQS cmp q1@(PQS i1 x1 ts1) q2@(PQS i2 x2 ts2) =
-    case cmp x1 x2 of
-        LT -> PQS i1 x1 (q2 :&& ts1)
-        EQ | i1 <= i2 -> PQS i1 x1 (q2 :&& ts1)
-        _ -> PQS i2 x2 (q1 :&& ts2)

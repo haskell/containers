@@ -40,6 +40,8 @@ main = do
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromAscList" $ whnf M.fromAscList elems
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
+                    (M.fromList $ zip [1..10] [1..10])
         ]
   where
     elems = zip keys values

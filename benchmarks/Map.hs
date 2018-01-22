@@ -91,6 +91,7 @@ main = do
         , bench "fromList-desc" $ whnf M.fromList (reverse elems)
         , bench "fromAscList" $ whnf M.fromAscList elems
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         ]
   where
     bound = 2^12
