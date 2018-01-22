@@ -32,6 +32,9 @@
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
 -- package instead.
 --
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
+--
 -- This module is intended to be imported qualified, to avoid name clashes with
 -- Prelude functions:
 --
