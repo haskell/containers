@@ -78,9 +78,9 @@ Library
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.StrictPair
-        Utils.Containers.Internal.State
 
     other-modules:
+        Utils.Containers.Internal.State
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality

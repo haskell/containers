@@ -4,8 +4,23 @@
 
 -- |
 --
--- Further notes are available in the file sorting.md (in this
--- directory).
+-- = WARNING
+--
+-- This module is considered __internal__.
+--
+-- The Package Versioning Policy __does not apply__.
+--
+-- This contents of this module may change __in any way whatsoever__
+-- and __without any warning__ between minor versions of this package.
+--
+-- Authors importing this module are expected to track development
+-- closely.
+--
+-- = Description
+--
+-- This module provides the various sorting implementations for
+-- "Data.Sequence". Further notes are available in the file sorting.md
+-- (in this directory).
 
 module Data.Sequence.Internal.Sorting
   (
@@ -73,7 +88,7 @@ sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 sortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
-        (execState (replicateA (size xs) (popMinIQ cmp)))
+        (execState (replicateA (size xs) (State (popMinIQ cmp))))
         (buildIQ cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
@@ -99,7 +114,7 @@ sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (popMinITQ compare)))
+       (execState (replicateA (size xs) (State (popMinITQ compare))))
        (buildITQ compare (\s (Elem x) -> ITQ s (f x) x ITQNil) 0 xs)
 
 -- | \( O(n \log n) \).  'unstableSort' sorts the specified 'Seq' by
@@ -119,7 +134,7 @@ unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
     maybe
         (Seq EmptyT)
-        (execState (replicateA (size xs) (popMinQ cmp)))
+        (execState (replicateA (size xs) (State (popMinQ cmp))))
         (buildQ cmp (\(Elem x) -> Q x Nil) xs)
 
 -- | \( O(n \log n) \). 'unstableSortOn' sorts the specified 'Seq' by
@@ -145,7 +160,7 @@ unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
        (Seq EmptyT)
-       (execState (replicateA (size xs) (popMinTQ compare)))
+       (execState (replicateA (size xs) (State (popMinTQ compare))))
        (buildTQ compare (\(Elem x) -> TQ (f x) x TQNil) xs)
 
 ------------------------------------------------------------------------
@@ -251,10 +266,9 @@ mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
 --
 -- All of the functions fail on an empty queue.
 --
--- Each of these functions contains an "unroll" function, which is
--- called like this:
+-- Each of these functions is structured something like this:
 --
--- @unroll (Q x ts) = (mergeQs ts, x)@
+-- @popMinQ cmp (Q x ts) = (mergeQs ts, x)@
 --
 -- The reason the call to @mergeQs@ is lazy is that it will be bottom
 -- for the last element in the queue, preventing us from evaluating the
@@ -263,11 +277,9 @@ mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
 
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator.
-popMinQ :: (e -> e -> Ordering) -> State (Queue e) e
-popMinQ cmp = State unroll
+popMinQ :: (e -> e -> Ordering) -> Queue e -> (Queue e, e)
+popMinQ cmp (Q x xs) = (mergeQs ts, x)
   where
-    {-# INLINE unroll #-}
-    unroll (Q x ts) = (mergeQs ts, x)
     mergeQs (t `QCons` Nil) = t
     mergeQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
     mergeQs (t1 `QCons` t2 `QCons` ts) = (t1 <+> t2) <+> mergeQs ts
@@ -277,11 +289,9 @@ popMinQ cmp = State unroll
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator, deferring to the item's original position when the
 -- comparator returns 'EQ'.
-popMinIQ :: (e -> e -> Ordering) -> State (IndexedQueue e) e
-popMinIQ cmp = State unroll
+popMinIQ :: (e -> e -> Ordering) -> IndexedQueue e -> (IndexedQueue e, e)
+popMinIQ cmp (IQ _ x ts) = (mergeQs ts, x)
   where
-    {-# INLINE unroll #-}
-    unroll (IQ _ x ts) = (mergeQs ts, x)
     mergeQs (t `IQCons` IQNil) = t
     mergeQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
     mergeQs (t1 `IQCons` t2 `IQCons` ts) = (t1 <+> t2) <+> mergeQs ts
@@ -290,11 +300,9 @@ popMinIQ cmp = State unroll
 
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator on the tag.
-popMinTQ :: (a -> a -> Ordering) -> State (TaggedQueue a b) b
-popMinTQ cmp = State unroll
+popMinTQ :: (a -> a -> Ordering) -> TaggedQueue a b -> (TaggedQueue a b, b)
+popMinTQ cmp (TQ _ x ts) = (mergeQs ts, x)
   where
-    {-# INLINE unroll #-}
-    unroll (TQ _ x ts) = (mergeQs ts, x)
     mergeQs (t `TQCons` TQNil) = t
     mergeQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
     mergeQs (t1 `TQCons` t2 `TQCons` ts) = (t1 <+> t2) <+> mergeQs ts
@@ -304,11 +312,11 @@ popMinTQ cmp = State unroll
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator on the tag, deferring to the item's original position
 -- when the comparator returns 'EQ'.
-popMinITQ :: (e -> e -> Ordering) -> State (IndexedTaggedQueue e a) a
-popMinITQ cmp = State unroll
+popMinITQ :: (e -> e -> Ordering)
+          -> IndexedTaggedQueue e b
+          -> (IndexedTaggedQueue e b, b)
+popMinITQ cmp (ITQ _ _ x ts) = (mergeQs ts, x)
   where
-    {-# INLINE unroll #-}
-    unroll (ITQ _ _ x ts) = (mergeQs ts, x)
     mergeQs (t `ITQCons` ITQNil) = t
     mergeQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
     mergeQs (t1 `ITQCons` t2 `ITQCons` ts) = (t1 <+> t2) <+> mergeQs ts
