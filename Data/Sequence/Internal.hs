@@ -207,10 +207,10 @@ import Prelude hiding (
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
-                            liftA, liftA2, liftA3)
+                            liftA2, liftA3)
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
-import Control.Monad (MonadPlus(..), ap)
+import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)

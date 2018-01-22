@@ -1,10 +1,18 @@
+{-# LANGUAGE CPP #-}
+#include "containers.h"
 {-# OPTIONS_HADDOCK hide #-}
 
 -- | A clone of Control.Monad.State.Strict.
 module Utils.Containers.Internal.State where
 
+import Prelude hiding (
+#if MIN_VERSION_base(4,8,0)
+    Applicative
+#endif
+    )
+
 import Control.Monad (ap)
-import Control.Applicative (liftA)
+import Control.Applicative (Applicative(..), liftA)
 
 newtype State s a = State {runState :: s -> (s, a)}
 
