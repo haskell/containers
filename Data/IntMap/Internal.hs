@@ -331,6 +331,10 @@ import qualified Control.Category as Category
 import Data.Coerce
 #endif
 
+#if __GLASGOW_HASKELL__ >= 800
+import GHC.Stack (HasCallStack)
+#endif
+
 
 -- A "Nat" is a natural machine word (an unsigned Int)
 type Nat = Word
@@ -390,8 +394,14 @@ bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+#if __GLASGOW_HASKELL__ >= 800
+(!) :: HasCallStack => IntMap a -> Key -> a
+#else
 (!) :: IntMap a -> Key -> a
-(!) m k = find k m
+#endif
+(!) m k
+  | Just a <- lookup k m = a
+  | otherwise = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. Find the value at a key.
 -- Returns 'Nothing' when the element can not be found.
@@ -582,19 +592,6 @@ lookup !k = go
                   | otherwise = Nothing
     go Nil = Nothing
 
-
--- See Note: Local 'go' functions and capturing]
-find :: Key -> IntMap a -> a
-find !k = go
-  where
-    go (Bin p m l r) | nomatch k p m = not_found
-                     | zero k m  = go l
-                     | otherwise = go r
-    go (Tip kx x) | k == kx   = x
-                  | otherwise = not_found
-    go Nil = not_found
-
-    not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | /O(min(n,W))/. The expression @('findWithDefault' def k map)@
 -- returns the value at key @k@ or returns @def@ when the key is not an
@@ -2169,11 +2166,19 @@ minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = liftM (first snd) (minViewWithKey t)
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMax :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
+#else
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
+#endif
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMin :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
+#else
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
+#endif
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
 -- | /O(min(n,W))/. The minimal key of the map. Returns 'Nothing' if the map is empty.
@@ -2188,7 +2193,11 @@ lookupMin (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The minimal key of the map. Calls 'error' if the map is empty.
+#if __GLASGOW_HASKELL__ >= 800
+findMin :: HasCallStack => IntMap a -> (Key, a)
+#else
 findMin :: IntMap a -> (Key, a)
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
@@ -2205,7 +2214,11 @@ lookupMax (Bin _ m l r)
           go Nil            = Nothing
 
 -- | /O(min(n,W))/. The maximal key of the map. Calls 'error' if the map is empty.
+#if __GLASGOW_HASKELL__ >= 800
+findMax :: HasCallStack => IntMap a -> (Key, a)
+#else
 findMax :: IntMap a -> (Key, a)
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty map has no maximal element"

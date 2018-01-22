@@ -270,6 +270,10 @@ import Control.Monad.Zip (MonadZip (..))
 #endif
 import Control.Monad.Fix (MonadFix (..), fix)
 
+#if __GLASGOW_HASKELL__ >= 800
+import GHC.Stack (HasCallStack)
+#endif
+
 default ()
 
 -- We define our own copy here, for Monoid only, even though this
@@ -454,7 +458,11 @@ instance MonadFix Seq where
 -- This is just like the instance for lists, but we can take advantage of
 -- constant-time length and logarithmic-time indexing to speed things up.
 -- Using fromFunction, we make this about as lazy as we can.
+#if __GLASGOW_HASKELL__ >= 800
+mfixSeq :: HasCallStack => (a -> Seq a) -> Seq a
+#else
 mfixSeq :: (a -> Seq a) -> Seq a
+#endif
 mfixSeq f = fromFunction (length (f err)) (\k -> fix (\xk -> f xk `index` k))
   where
     err = error "mfix for Data.Sequence.Seq applied to strict function"
@@ -1216,7 +1224,11 @@ singleton       :: a -> Seq a
 singleton x     =  Seq (Single (Elem x))
 
 -- | \( O(\log n) \). @replicate n x@ is a sequence consisting of @n@ copies of @x@.
+#if __GLASGOW_HASKELL__ >= 800
+replicate       :: HasCallStack => Int -> a -> Seq a
+#else
 replicate       :: Int -> a -> Seq a
+#endif
 replicate n x
   | n >= 0      = runIdentity (replicateA n (Identity x))
   | otherwise   = error "replicate takes a nonnegative integer argument"
@@ -1225,7 +1237,11 @@ replicate n x
 -- \( O(\log n) \) calls to 'liftA2' and 'pure'.
 --
 -- > replicateA n x = sequenceA (replicate n x)
+#if __GLASGOW_HASKELL__ >= 800
+replicateA :: (HasCallStack, Applicative f) => Int -> f a -> f (Seq a)
+#else
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
+#endif
 replicateA n x
   | n >= 0      = Seq <$> applicativeTree n 1 (Elem <$> x)
   | otherwise   = error "replicateA takes a nonnegative integer argument"
@@ -1238,7 +1254,11 @@ replicateA n x
 -- For @base >= 4.8.0@ and @containers >= 0.5.11@, 'replicateM'
 -- is a synonym for 'replicateA'.
 #if MIN_VERSION_base(4,8,0)
+#if __GLASGOW_HASKELL__ >= 800
+replicateM :: (HasCallStack, Applicative m) => Int -> m a -> m (Seq a)
+#else
 replicateM :: Applicative m => Int -> m a -> m (Seq a)
+#endif
 replicateM = replicateA
 #else
 replicateM :: Monad m => Int -> m a -> m (Seq a)
@@ -1258,7 +1278,11 @@ replicateM n x
 -- @replicate k () *> xs@.
 --
 -- @since 0.5.8
+#if __GLASGOW_HASKELL__ >= 800
+cycleTaking :: HasCallStack => Int -> Seq a -> Seq a
+#else
 cycleTaking :: Int -> Seq a -> Seq a
+#endif
 cycleTaking n !_xs | n <= 0 = empty
 cycleTaking _n xs  | null xs = error "cycleTaking cannot take a positive number of elements from an empty cycle."
 cycleTaking n xs = cycleNTimes reps xs >< take final xs
@@ -1669,7 +1693,11 @@ unfoldl f = unfoldl' empty
 -- to a seed value.
 --
 -- > iterateN n f x = fromList (Prelude.take n (Prelude.iterate f x))
+#if __GLASGOW_HASKELL__ >= 800
+iterateN :: HasCallStack => Int -> (a -> a) -> a -> Seq a
+#else
 iterateN :: Int -> (a -> a) -> a -> Seq a
+#endif
 iterateN n f x
   | n >= 0      = replicateA n (State (\ y -> (f y, y))) `execState` x
   | otherwise   = error "iterateN takes a nonnegative integer argument"
@@ -1850,7 +1878,11 @@ scanl f z0 xs = z0 <| snd (mapAccumL (\ x z -> let x' = f x z in (x', x')) z0 xs
 -- | 'scanl1' is a variant of 'scanl' that has no starting value argument:
 --
 -- > scanl1 f (fromList [x1, x2, ...]) = fromList [x1, x1 `f` x2, ...]
+#if __GLASGOW_HASKELL__ >= 800
+scanl1 :: HasCallStack => (a -> a -> a) -> Seq a -> Seq a
+#else
 scanl1 :: (a -> a -> a) -> Seq a -> Seq a
+#endif
 scanl1 f xs = case viewl xs of
     EmptyL          -> error "scanl1 takes a nonempty sequence as an argument"
     x :< xs'        -> scanl f x xs'
@@ -1860,7 +1892,11 @@ scanr :: (a -> b -> b) -> b -> Seq a -> Seq b
 scanr f z0 xs = snd (mapAccumR (\ z x -> let z' = f x z in (z', z')) z0 xs) |> z0
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+#if __GLASGOW_HASKELL__ >= 800
+scanr1 :: HasCallStack => (a -> a -> a) -> Seq a -> Seq a
+#else
 scanr1 :: (a -> a -> a) -> Seq a -> Seq a
+#endif
 scanr1 f xs = case viewr xs of
     EmptyR          -> error "scanr1 takes a nonempty sequence as an argument"
     xs' :> x        -> scanr f x xs'
@@ -1878,7 +1914,11 @@ scanr1 f xs = case viewr xs of
 -- element until the result is forced. It can therefore lead to a space
 -- leak if the result is stored, unforced, in another structure. To retrieve
 -- an element immediately without forcing it, use 'lookup' or '(!?)'.
+#if __GLASGOW_HASKELL__ >= 800
+index           :: HasCallStack => Seq a -> Int -> a
+#else
 index           :: Seq a -> Int -> a
+#endif
 index (Seq xs) i
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
@@ -2841,7 +2881,11 @@ valid.
 -- sequence into a sequence.
 --
 -- @since 0.5.6.2
+#if __GLASGOW_HASKELL__ >= 800
+fromFunction :: HasCallStack => Int -> (Int -> a) -> Seq a
+#else
 fromFunction :: Int -> (Int -> a) -> Seq a
+#endif
 fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
                    | len == 0 = empty
                    | otherwise = Seq $ create (lift_elem f) 1 0 len
@@ -3419,7 +3463,11 @@ splitSuffixN i s pr m (Four a b c d)
 -- \( O \Bigl( \bigl(\frac{n}{c} - 1\bigr) (\log (c + 1)) + 1 \Bigr) \)
 --
 -- @since 0.5.8
+#if __GLASGOW_HASKELL__ >= 800
+chunksOf :: HasCallStack => Int -> Seq a -> Seq (Seq a)
+#else
 chunksOf :: Int -> Seq a -> Seq (Seq a)
+#endif
 chunksOf n xs | n <= 0 =
   if null xs
     then empty
