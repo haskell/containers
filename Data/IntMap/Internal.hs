@@ -359,6 +359,8 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 --   mask: The switching bit to determine if a key should follow the left
 --         or right subtree of a 'Bin'.
 -- Invariant: Nil is never found as a child of Bin.
+-- Invariant: The Mask is a power of 2. It is the largest bit position at which
+--            two keys of the map differ.
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
 -- Invariant: In Bin prefix mask left right, left consists of the elements that

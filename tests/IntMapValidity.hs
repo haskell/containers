@@ -3,6 +3,7 @@ module IntMapValidity (valid) where
 import Data.Bits (xor, (.&.))
 import Data.IntMap.Internal
 import Test.QuickCheck (Property, counterexample, property, (.&&.))
+import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
   Assertions
@@ -27,6 +28,16 @@ nilNeverChildOfBin t =
         Nil -> False
         Tip _ _ -> True
         Bin _ _ l' r' -> noNilInSet l' && noNilInSet r'
+
+-- Invariant: The Mask is a power of 2. It is the largest bit position at which
+--            two keys of the map differ.
+maskPowerOfTwo :: IntMap a -> Bool
+maskPowerOfTwo t =
+  case t of
+    Nil -> True
+    Tip _ _ -> True
+    Bin _ m l r ->
+      bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
 
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
