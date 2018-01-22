@@ -16,19 +16,23 @@
 -- Portability :  portable
 --
 --
--- = Strict Maps (aka dictionaries)
+-- = Finite Maps (strict interface)
 --
--- The @'Map' k v@ type represents an /ordered/ map indexed by keys of type @k@
--- containing /strict/ values of type @v@.
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys and
+-- values.
+--
+-- The functions in "Data.Map.Lazy" are careful to avoid forcing values before
+-- installing them in a 'Map'. This is occasionally more efficient in cases
+-- where laziness avoids unnecessary value computation. The functions in this
+-- module do not do so.
 --
 -- When deciding if this is the correct data structure to use, consider:
 --
--- * The API of this module is strict in both the keys and the values. If you
--- need /value-lazy/ maps, use "Data.Map.Lazy" instead.
+-- * If you are using 'Int' keys, you will get much better performance for most
+-- operations using "Data.IntMap.Strict".
 --
--- * If your key type is @Int@, use "Data.IntMap.Strict" instead.
---
--- * If you don't care about ordering, use @Data.HashMap.Strict@ from the
+-- * If you don't care about ordering, consider use @Data.HashMap.Strict@ from the
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
 -- package instead.
 --
@@ -40,9 +44,9 @@
 --
 -- > import qualified Data.Map.Strict as Map
 --
--- Note that the implementation is /left-biased/, the elements of a first
--- argument are always preferred to the second, for example in 'union' or
--- 'insert'.
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
 --
 --
 -- == Detailed performance information
@@ -54,34 +58,17 @@
 -- can be found at https://github.com/haskell-perf/dictionaries.
 --
 --
--- == Strictness propertios
---
--- This module satisfies the following strictness properties:
---
--- 1. Key arguments are evaluated to WHNF;
---
--- 2. Keys and values are evaluated to WHNF before they are stored in
---    the map.
---
--- Here's an example illustrating the first property:
---
--- > delete undefined m  ==  undefined
---
--- Here are some examples that illustrate the second property:
---
--- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
--- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
---
---
 -- == Warning
 --
 -- The size of a 'Map' must not exceed @maxBound::Int@. Violation of this
 -- condition is not detected and if the size limit is exceeded, its behaviour is
 -- undefined.
 --
--- Be aware that the 'Functor', 'Traversable' and 'Data' instances are the same
--- as for the "Data.Map.Lazy" module, so if they are used on strict maps, the
--- resulting maps will be lazy.
+-- The 'Map' type is shared between the lazy and strict modules, meaning that
+-- the same 'Map' value can be passed to functions in both modules. This means
+-- that the 'Functor', 'Traversable' and 'Data' instances are the same as for
+-- the "Data.Map.Lazy" module, so if they are used on strict maps, the resulting
+-- maps will be lazy.
 --
 --
 -- == Implementation
@@ -103,9 +90,6 @@
 --      \"/Just Join for Parallel Ordered Sets/\",
 --      <https://arxiv.org/abs/1602.02120v3>.
 --
--- The 'Map' type is shared between the lazy and strict modules,
--- meaning that the same 'Map' value can be passed to functions in
--- both modules (although that is rarely needed).
 --
 -----------------------------------------------------------------------------
 

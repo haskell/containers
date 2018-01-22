@@ -15,19 +15,22 @@
 -- Portability :  portable
 --
 --
--- = Lazy Maps (aka dictionaries)
+-- = Finite Maps (lazy interface)
 --
--- The @'Map' k v@ type represents an /ordered/ map indexed by keys of type @k@
--- containing /lazy/ values of type @v@.
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys but lazy
+-- in its values.
+--
+-- The functions in "Data.Map.Strict" are careful to force values before
+-- installing them in a 'Map'. This is usually more efficient in cases where
+-- laziness is not essential. The functions in this module do not do so.
 --
 -- When deciding if this is the correct data structure to use, consider:
 --
--- * The API of this module is strict in the keys but lazy in the values. If you
--- don't need /value-lazy/ maps, use "Data.Map.Strict" instead.
+-- * If you are using 'Int' keys, you will get much better performance for most
+-- operations using "Data.IntMap.Lazy".
 --
--- * If your key type is @Int@, use "Data.IntMap.Lazy" instead.
---
--- * If you don't care about ordering, use @Data.HashMap.Lazy@ from the
+-- * If you don't care about ordering, consider using @Data.HashMap.Lazy@ from the
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
 -- package instead.
 --
@@ -39,9 +42,9 @@
 --
 -- > import qualified Data.Map.Lazy as Map
 --
--- Note that the implementation is /left-biased/, the elements of a first
--- argument are always preferred to the second, for example in 'union' or
--- 'insert'.
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
 --
 --
 -- == Detailed performance information
@@ -51,19 +54,6 @@
 --
 -- Benchmarks comparing "Data.Map.Lazy" with other dictionary implementations
 -- can be found at https://github.com/haskell-perf/dictionaries.
---
---
--- == Strictness propertios
---
--- This module satisfies the following strictness property:
---
--- * Key arguments are evaluated to WHNF
---
--- Here are some examples that illustrate the property:
---
--- > insertWith (\ new old -> old) undefined v m  ==  undefined
--- > insertWith (\ new old -> old) k undefined m  ==  OK
--- > delete undefined m  ==  undefined
 --
 --
 -- == Warning
