@@ -73,12 +73,14 @@ Library
         Data.Graph
         Data.Sequence
         Data.Sequence.Internal
+        Data.Sequence.Internal.Sorting
         Data.Tree
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.StrictPair
 
     other-modules:
+        Utils.Containers.Internal.State
         Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
