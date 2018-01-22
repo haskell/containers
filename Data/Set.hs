@@ -13,13 +13,36 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- An efficient implementation of sets.
+--
+-- = Sets
+--
+-- The @'Set' e@ type represents a set of /unique/, /ordered/ elements of type
+-- @e@.
+--
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
+--
+-- Note that the implementation is /left-biased/ -- the elements of a
+-- first argument are always preferred to the second, for example in
+-- 'union' or 'insert'.  Of course, left-biasing can only be observed
+-- when equality is an equivalence relation instead of structural
+-- equality.
 --
 -- These modules are intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.
 --
 -- >  import Data.Set (Set)
 -- >  import qualified Data.Set as Set
+--
+--
+-- == Warning
+--
+-- The size of the set must not exceed @maxBound::Int@. Violation of
+-- this condition is not detected and if the size limit is exceeded, its
+-- behaviour is undefined.
+--
+--
+-- == Implementation
 --
 -- The implementation of 'Set' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -38,15 +61,6 @@
 --      \"/Just Join for Parallel Ordered Sets/\",
 --      <https://arxiv.org/abs/1602.02120v3>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.  Of course, left-biasing can only be observed
--- when equality is an equivalence relation instead of structural
--- equality.
---
--- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
 -----------------------------------------------------------------------------
 
 module Data.Set (
