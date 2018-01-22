@@ -16,9 +16,9 @@
 --
 -- = Finite Sets
 --
--- The @'Set' e@ type represents a set of elements of type @e@. A 'Set' is
--- strict in the element type and most operations require that @e@ be an
--- instance of the 'Ord' class.
+-- The @'Set' e@ type represents a set of elements of type @e@. Most operations
+-- require that @e@ be an instance of the 'Ord' class. A 'Set' is strict in its
+-- elements.
 --
 -- For a walkthrough of the most commonly used functions see the
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
