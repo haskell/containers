@@ -257,7 +257,7 @@ mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
 -- @unroll (Q x ts) = (mergeQs ts, x)@
 --
 -- The reason the call to @mergeQs@ is lazy is that it will be bottom
--- the last element in the queue, preventing us from evaluating the
+-- for the last element in the queue, preventing us from evaluating the
 -- fully sorted sequence.
 ------------------------------------------------------------------------
 
