@@ -35,6 +35,17 @@
 -- >  import qualified Data.Set as Set
 --
 --
+-- == Strictness properties
+--
+-- This module satisfies the following strictness property:
+--
+-- * Key arguments are evaluated to WHNF
+--
+-- Here are some examples that illustrate the property:
+--
+-- > delete undefined s  ==  undefined
+--
+--
 -- == Warning
 --
 -- The size of the set must not exceed @maxBound::Int@. Violation of
@@ -64,9 +75,6 @@
 -----------------------------------------------------------------------------
 
 module Data.Set (
-            -- * Strictness properties
-            -- $strictness
-
             -- * Set type
 #if !defined(TESTING)
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
@@ -178,13 +186,3 @@ module Data.Set (
             ) where
 
 import Data.Set.Internal as S
-
--- $strictness
---
--- This module satisfies the following strictness property:
---
--- * Key arguments are evaluated to WHNF
---
--- Here are some examples that illustrate the property:
---
--- > delete undefined s  ==  undefined
