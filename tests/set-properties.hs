@@ -67,6 +67,7 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
+                   , testProperty "prop_disjoint" prop_disjoint
                    , testProperty "prop_size" prop_size
                    , testProperty "prop_lookupMax" prop_lookupMax
                    , testProperty "prop_lookupMin" prop_lookupMin
@@ -425,6 +426,9 @@ prop_IntValid = forValidUnitTree $ \t1 ->
 prop_Int :: [Int] -> [Int] -> Bool
 prop_Int xs ys = toAscList (intersection (fromList xs) (fromList ys))
                  == List.sort (nub ((List.intersect) (xs)  (ys)))
+
+prop_disjoint :: Set Int -> Set Int -> Bool
+prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
 
 {--------------------------------------------------------------------
   Lists
