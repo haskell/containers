@@ -278,7 +278,7 @@ mergeITQ cmp q1@(ITQ i1 x1 y1 ts1) q2@(ITQ i2 x2 y2 ts2) =
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator.
 popMinQ :: (e -> e -> Ordering) -> Queue e -> (Queue e, e)
-popMinQ cmp (Q x xs) = (mergeQs ts, x)
+popMinQ cmp (Q x xs) = (mergeQs xs, x)
   where
     mergeQs (t `QCons` Nil) = t
     mergeQs (t1 `QCons` t2 `QCons` Nil) = t1 <+> t2
@@ -290,7 +290,7 @@ popMinQ cmp (Q x xs) = (mergeQs ts, x)
 -- comparator, deferring to the item's original position when the
 -- comparator returns 'EQ'.
 popMinIQ :: (e -> e -> Ordering) -> IndexedQueue e -> (IndexedQueue e, e)
-popMinIQ cmp (IQ _ x ts) = (mergeQs ts, x)
+popMinIQ cmp (IQ _ x xs) = (mergeQs xs, x)
   where
     mergeQs (t `IQCons` IQNil) = t
     mergeQs (t1 `IQCons` t2 `IQCons` IQNil) = t1 <+> t2
@@ -301,7 +301,7 @@ popMinIQ cmp (IQ _ x ts) = (mergeQs ts, x)
 -- | Pop the smallest element from the queue, using the supplied
 -- comparator on the tag.
 popMinTQ :: (a -> a -> Ordering) -> TaggedQueue a b -> (TaggedQueue a b, b)
-popMinTQ cmp (TQ _ x ts) = (mergeQs ts, x)
+popMinTQ cmp (TQ _ x xs) = (mergeQs xs, x)
   where
     mergeQs (t `TQCons` TQNil) = t
     mergeQs (t1 `TQCons` t2 `TQCons` TQNil) = t1 <+> t2
@@ -315,7 +315,7 @@ popMinTQ cmp (TQ _ x ts) = (mergeQs ts, x)
 popMinITQ :: (e -> e -> Ordering)
           -> IndexedTaggedQueue e b
           -> (IndexedTaggedQueue e b, b)
-popMinITQ cmp (ITQ _ _ x ts) = (mergeQs ts, x)
+popMinITQ cmp (ITQ _ _ x xs) = (mergeQs xs, x)
   where
     mergeQs (t `ITQCons` ITQNil) = t
     mergeQs (t1 `ITQCons` t2 `ITQCons` ITQNil) = t1 <+> t2
