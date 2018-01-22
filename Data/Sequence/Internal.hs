@@ -213,6 +213,7 @@ import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..), ap)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
+import Utils.Containers.Internal.State (State(..), execState)
 #if MIN_VERSION_base(4,6,0)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
 #else
@@ -1170,27 +1171,6 @@ instance Applicative Identity where
     pure = Identity
     Identity f <*> Identity x = Identity (f x)
 #endif
-
--- | This is essentially a clone of Control.Monad.State.Strict.
-newtype State s a = State {runState :: s -> (s, a)}
-
-instance Functor (State s) where
-    fmap = liftA
-
-instance Monad (State s) where
-    {-# INLINE return #-}
-    {-# INLINE (>>=) #-}
-    return = pure
-    m >>= k = State $ \ s -> case runState m s of
-        (s', x) -> runState (k x) s'
-
-instance Applicative (State s) where
-    {-# INLINE pure #-}
-    pure x = State $ \ s -> (s, x)
-    (<*>) = ap
-
-execState :: State s a -> s -> a
-execState m x = snd (runState m x)
 
 -- | 'applicativeTree' takes an Applicative-wrapped construction of a
 -- piece of a FingerTree, assumed to always have the same size (which

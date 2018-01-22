@@ -57,9 +57,9 @@ module Data.Sequence.Internal.Sorting
 
 import Data.Sequence.Internal
        (Elem(..), Seq(..), Node(..), Digit(..), Sized(..), FingerTree(..),
-        State(..), execState, replicateA, foldDigit, foldNode,
-        foldWithIndexDigit, foldWithIndexNode)
-
+        replicateA, foldDigit, foldNode, foldWithIndexDigit,
+        foldWithIndexNode)
+import Utils.Containers.Internal.State (State(..), execState)
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.  If stability is not
 -- required, 'unstableSort' can be slightly faster.
