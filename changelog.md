@@ -2,7 +2,9 @@
 
 ## 0.5.11
 
-### New functions and classes
+* Released with GHC 8.4.
+
+### New functions and class instances
 
 * Add a `MonadFix` instance for `Data.Sequence`.
 
@@ -16,13 +18,26 @@
 * Add `unzip` and `unzipWith` to `Data.Sequence`. Make unzipping
   build its results in lockstep to avoid certain space leaks.
 
+* Add carefully optimized implementations of `sortOn` and `unstableSortOn`
+  to `Data.Sequence` (Thanks, Donnacha Oisín Kidney!)
+
 ### Changes to existing functions and features
 
 * Make `Data.Sequence.replicateM` a synonym for `replicateA`
   for post-AMP `base`.
 
 * Rewrite the `IsString` instance head for sequences, improving compatibility
-  with the list instance and also improving type inference.
+  with the list instance and also improving type inference. We used to have
+  
+  ```haskell
+  instance IsString (Seq Char)
+  ```
+  
+  Now we commit more eagerly with
+  
+  ```haskell
+  instance a ~ Char => IsString (Seq a)
+  ```
 
 * Make `>>=` for `Data.Tree` strict in the result of its second argument;
   being too lazy here is almost useless, and violates one of the monad identity
@@ -31,7 +46,7 @@
 
 ### Performance improvement
 
-* Speed up unstable sorting for `Data.Sequence` (Thanks, Donnacha
+* Speed up both stable and unstable sorting for `Data.Sequence` by (Thanks, Donnacha
   Oisín Kidney!)
 
 ### Other changes
