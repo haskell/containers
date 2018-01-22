@@ -547,7 +547,7 @@ prop_sortOn :: Fun A OrdB -> Seq A -> Bool
 prop_sortOn (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
   where
-#if MIN_VERSION_BASE(4,8,0)
+#if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
 #else
     listSortOn k = Data.List.sortBy (compare `on` k)
