@@ -19,13 +19,28 @@
 -- = Finite Maps (strict interface)
 --
 -- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
--- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys and
--- values.
+-- from keys of type @k@ to values of type @v@.
 --
--- The functions in "Data.Map.Lazy" are careful to avoid forcing values before
--- installing them in a 'Map'. This is occasionally more efficient in cases
--- where laziness avoids unnecessary value computation. The functions in this
--- module do not do so.
+-- Each function in this module is careful to force values before installing
+-- them in a 'Map'. This is usually more efficient when laziness is not
+-- necessary. When laziness /is/ required, use the functions in "Data.Map.Lazy".
+--
+-- In particular, the functions in this module obey the following law:
+--
+--  - If all values stored in all maps in the arguments are in WHNF, then all
+--    values stored in all maps in the results will be in WHNF once those maps
+--    are evaluated.
+--
+-- /Examples:/
+--
+-- @
+-- 'insert' k undefined m == undefined
+-- 'insert' 1 'a' $ "Data.Map.Lazy".'Data.Map.Lazy.fromList' ((2,undefined) : zip [3 .. 9] ['b'..])
+--   == "Data.Map.Lazy".'Data.Map.Lazy.fromList' ((1,'a') : (2, undefined) : zip [3..9] ['b'..])
+-- 'union' ('fromList' $ zip [1..10] ['a'..]) ("Data.Map.Lazy".'Data.Map.Lazy.fromList' $ zip [1..10] (repeat undefined)) == 'fromList' $ zip [1..10] ['a'..])
+-- 'unionWith' (\_ _ -> undefined) m1 m2 == undefined
+-- 'alterF' (\_ -> pure (Just undefined)) k m == pure undefined
+-- @
 --
 -- When deciding if this is the correct data structure to use, consider:
 --
@@ -68,7 +83,7 @@
 -- the same 'Map' value can be passed to functions in both modules. This means
 -- that the 'Functor', 'Traversable' and 'Data' instances are the same as for
 -- the "Data.Map.Lazy" module, so if they are used on strict maps, the resulting
--- maps will be lazy.
+-- maps may contain suspended values (thunks).
 --
 --
 -- == Implementation
