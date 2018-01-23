@@ -29,9 +29,9 @@
 -- * Many functions in this module have the same names as functions in
 -- the "Prelude" or in "Data.List". In almost all cases, these functions
 -- behave analogously. For example, 'filter' filters a sequence in exactly the
--- same way that 'Prelude.filter' filters a sequence. The only major exception
--- is the 'lookup' function, which is based on the function by that name in
---  "Data.Map" rather than the one from "Data.List".
+-- same way that @"Prelude".'Prelude.filter'@ filters a list. The only major
+-- exception is the 'lookup' function, which is based on the function by
+-- that name in "Data.IntMap" rather than the one in "Prelude".
 --
 -- There are two major differences between sequences and lists:
 --
@@ -40,12 +40,17 @@
 --
 --     * Constant-time access to both the front and the rear with
 --     '<|', '|>', 'viewl', 'viewr'. For recent GHC versions, this can
---     be done more conveniently using the bidirectional
---     [pattern synonyms](#patterns) 'Empty', ':<|', and ':|>'.
+--     be done more conveniently using the bidirectional patterns 'Empty',
+--     ':<|', and ':|>'. See the detailed explanation in the \"Pattern synonyms\"
+--     section.
 --     * Logarithmic-time concatenation with '><'
 --     * Logarithmic-time splitting with 'splitAt', 'take' and 'drop'
 --     * Logarithmic-time access to any element with
 --     'lookup', '!?', 'index', 'insertAt', 'deleteAt', 'adjust'', and 'update'
+--
+--   Note that sequences are typically /slower/ than lists when using only
+--   operations for which they have the same big-\(O\) complexity: sequences
+--   make rather mediocre stacks!
 --
 -- * Whereas lists can be either finite or infinite, sequences are
 -- always finite. As a result, a sequence is strict in its
@@ -56,11 +61,20 @@
 --     This means that many operations on sequences are stricter than
 --     those on lists. For example,
 --
---     @ ([1] ++ undefined) !! 0 = 1 @
+--     @ (1 : undefined) !! 0 = 1 @
 --
 --     but
 --
---     @ (fromList [1] >< undefined) `index` 0 = undefined @
+--     @ (1 :<| undefined) `index` 0 = undefined @
+--
+-- Sequences may also be compared to immutable
+-- [arrays](https://hackage.haskell.org/package/array)
+-- or [vectors](https://hackage.haskell.org/package/vector).
+-- Like these structures, sequences support fast indexing,
+-- although not as fast. But editing an immutable array or vector,
+-- or combining it with another, generally requires copying the
+-- entire structure; sequences generally avoid that, copying only
+-- the portion that has changed.
 --
 -- == Detailed performance information
 --
@@ -234,7 +248,8 @@ import Data.Functor (Functor (..))
 #endif
 
 {- $patterns
-== #pat-syn-note#Pattern synonyms
+
+== Pattern synonyms
 
 Much like lists can be constructed and matched using the
 @:@ and @[]@ constructors, sequences can be constructed and
@@ -247,7 +262,7 @@ and version 8.2 works better with them. When writing for such recent
 versions of GHC, the patterns can be used in place of 'empty',
 '<|', '|>', 'viewl', and 'viewr'.
 
-=== Examples
+=== __Pattern synonym examples__
 
 Import the patterns:
 
