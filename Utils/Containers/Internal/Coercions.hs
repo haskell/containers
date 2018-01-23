@@ -9,7 +9,7 @@ module Utils.Containers.Internal.Coercions where
 import Data.Coerce
 #endif
 
-infixr 9 .#
+infixl 8 .#
 #if __GLASGOW_HASKELL__ >= 708
 (.#) :: Coercible b a => (b -> c) -> (a -> b) -> a -> c
 (.#) f _ = coerce f
