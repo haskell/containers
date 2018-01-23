@@ -438,7 +438,7 @@ instance Foldable Seq where
     foldl f z (Seq xs) = foldl (foldl f) z xs
 #if MIN_VERSION_base(4,6,0)
     {-# INLINE foldl' #-}
-    foldl' f z (Seq xs) = foldlTreeE (lift_elem f) z xs
+    foldl' f z (Seq xs) = foldl' (lift_elem f) z xs
       where
         lift_elem :: (b -> a -> b) -> b -> Elem a -> b
 #if __GLASGOW_HASKELL__ >= 708
@@ -447,29 +447,6 @@ instance Foldable Seq where
         lift_elem g = \bs (Elem a) -> g bs a
 #endif
         {-# INLINE lift_elem #-}
-        foldlTreeE :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b
-        foldlTreeE _ b EmptyT = b
-        foldlTreeE f b (Single xs) = (f $! b) xs
-        foldlTreeE f b (Deep _ pr m sf) =
-              (foldlDigitE f $! ((foldlTreeN (foldlNodeE f) $! ((foldlDigitE f $! b) pr)) m)) sf
-
-        foldlTreeN :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
-        foldlTreeN _ b EmptyT = b
-        foldlTreeN f b (Single xs) = f b xs
-        foldlTreeN f b (Deep _ pr m sf) =
-              (foldlDigitN f $! ((foldlTreeN (foldlNodeN f) $! (foldlDigitN f b pr)) m)) sf
-
-        foldlDigitE :: (b -> Elem a -> b) -> b -> Digit (Elem a) -> b
-        foldlDigitE f b t = foldl' f b t
-
-        foldlDigitN :: (b -> Node a -> b) -> b -> Digit (Node a) -> b
-        foldlDigitN f b t = foldl' f b t
-
-        foldlNodeE :: (b -> Elem a -> b) -> b -> Node (Elem a) -> b
-        foldlNodeE f b t = foldl' f b t
-
-        foldlNodeN :: (b -> Node a -> b) -> b -> Node (Node a) -> b
-        foldlNodeN f b t = foldl' f b t
 #endif
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
@@ -983,14 +960,27 @@ instance Foldable FingerTree where
     foldr' _ z EmptyT = z
     foldr' f z (Single x) = f x z
     foldr' f z (Deep _ pr m sf) = foldr' f mres pr
-        where !sfRes = foldr' f z sf
-              !mres = foldr' (flip (foldr' f)) sfRes m
+      where
+        !sfRes = foldr' f z sf
+        !mres = foldr' (flip (foldr' f)) sfRes m
 
-    foldl' _ z EmptyT = z
-    foldl' f z (Single x) = z `f` x
-    foldl' f z (Deep _ pr m sf) = foldl' f mres sf
-        where !prRes = foldl' f z pr
-              !mres = foldl' (foldl' f) prRes m
+    foldl' _ b EmptyT = b
+    foldl' f b (Single xs) = (f $! b) xs
+    foldl' f b (Deep _ pr m sf) =
+        (foldlDigit' f $!
+         (foldlTree' (foldlNode' f) $! (foldlDigit' f $! b) pr) m)
+            sf
+      where
+        foldlTree' :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
+        foldlTree' _ b EmptyT = b
+        foldlTree' f b (Single xs) = f b xs
+        foldlTree' f b (Deep _ pr m sf) =
+            (foldl' f $! (foldlTree' (foldl' f) $! foldl' f b pr) m) sf
+        foldlDigit' :: (b -> a -> b) -> b -> Digit a -> b
+        foldlDigit' f b t = foldl' f b t
+        foldlNode' :: (b -> a -> b) -> b -> Node a -> b
+        foldlNode' f b t = foldl' f b t
+    {-# INLINE foldl' #-}
 #endif
 
     foldr1 _ EmptyT = error "foldr1: empty sequence"
