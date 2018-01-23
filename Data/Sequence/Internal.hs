@@ -918,7 +918,7 @@ instance Sized a => Sized (FingerTree a) where
 
 instance Foldable FingerTree where
     foldMap _ EmptyT = mempty
-    foldMap f' (Single xs) = f' xs
+    foldMap f' (Single x') = f' x'
     foldMap f' (Deep _ pr' m' sf') = 
         foldMapDigit f' pr' <>
         foldMapTree (foldMapNode f') m' <>
@@ -926,7 +926,7 @@ instance Foldable FingerTree where
       where
         foldMapTree :: Monoid m => (Node a -> m) -> FingerTree (Node a) -> m
         foldMapTree _ EmptyT = mempty
-        foldMapTree f (Single xs) = f xs
+        foldMapTree f (Single x) = f x
         foldMapTree f (Deep _ pr m sf) = 
             foldMapDigitN f pr <>
             foldMapTree (foldMapNodeN f) m <>
@@ -947,8 +947,8 @@ instance Foldable FingerTree where
     {-# INLINABLE foldMap #-}
 #endif
 
-    foldr _ z EmptyT = z
-    foldr f' z' (Single x) = f' x z'
+    foldr _ z' EmptyT = z'
+    foldr f' z' (Single x') = x' `f'` z'
     foldr f' z' (Deep _ pr' m' sf') =
         foldrDigit f' (foldrTree (foldrNode f') (foldrDigit f' z' sf') m') pr'
       where
@@ -959,21 +959,21 @@ instance Foldable FingerTree where
             foldrDigitN f (foldrTree (foldrNodeN f) (foldrDigitN f z sf) m) pr
 
         foldrDigit :: (a -> b -> b) -> b -> Digit a -> b
-        foldrDigit f b t = foldr f b t
+        foldrDigit f z t = foldr f z t
 
         foldrDigitN :: (Node a -> b -> b) -> b -> Digit (Node a) -> b
-        foldrDigitN f b t = foldr f b t
+        foldrDigitN f z t = foldr f z t
 
         foldrNode :: (a -> b -> b) -> Node a -> b -> b
-        foldrNode f t b = foldr f b t
+        foldrNode f t z = foldr f z t
 
         foldrNodeN :: (Node a -> b -> b) -> Node (Node a) -> b -> b
-        foldrNodeN f t b = foldr f b t
+        foldrNodeN f t z = foldr f z t
     {-# INLINE foldr #-}
 
 
-    foldl _ z EmptyT = z
-    foldl f z (Single x) = z `f` x
+    foldl _ z' EmptyT = z'
+    foldl f' z' (Single x') = z' `f'` x'
     foldl f' z' (Deep _ pr' m' sf') =
         foldlDigit f' (foldlTree (foldlNode f') (foldlDigit f' z' pr') m') sf'
       where
@@ -984,22 +984,22 @@ instance Foldable FingerTree where
             foldlDigitN f (foldlTree (foldlNodeN f) (foldlDigitN f z pr) m) sf
 
         foldlDigit :: (b -> a -> b) -> b -> Digit a -> b
-        foldlDigit f b t = foldl f b t
+        foldlDigit f z t = foldl f z t
 
         foldlDigitN :: (b -> Node a -> b) -> b -> Digit (Node a) -> b
-        foldlDigitN f b t = foldl f b t
+        foldlDigitN f z t = foldl f z t
 
         foldlNode :: (b -> a -> b) -> b -> Node a -> b
-        foldlNode f b t = foldl f b t
+        foldlNode f z t = foldl f z t
 
         foldlNodeN :: (b -> Node a -> b) -> b -> Node (Node a) -> b
-        foldlNodeN f b t = foldl f b t
+        foldlNodeN f z t = foldl f z t
     {-# INLINE foldl #-}
 
 
 #if MIN_VERSION_base(4,6,0)
-    foldr' _ z EmptyT = z
-    foldr' f z (Single x) = f x $! z
+    foldr' _ z' EmptyT = z'
+    foldr' f' z' (Single x') = f' x' $! z'
     foldr' f' z' (Deep _ pr' m' sf') =
         (foldrDigit' f' $! (foldrTree' (foldrNode' f') $! (foldrDigit' f' $! z') sf') m') pr'
       where
@@ -1010,33 +1010,33 @@ instance Foldable FingerTree where
             (foldr' f $! (foldrTree' (foldrNodeN' f) $! (foldr' f $! z) sf) m) pr
 
         foldrDigit' :: (a -> b -> b) -> b -> Digit a -> b
-        foldrDigit' f b t = foldr' f b t
+        foldrDigit' f z t = foldr' f z t
 
         foldrNode' :: (a -> b -> b) -> Node a -> b -> b
-        foldrNode' f t b = foldr' f b t
+        foldrNode' f t z = foldr' f z t
 
         foldrNodeN' :: (Node a -> b -> b) -> Node (Node a) -> b -> b
-        foldrNodeN' f t b = foldr' f b t
+        foldrNodeN' f t z = foldr' f z t
     {-# INLINE foldr' #-}
 
-    foldl' _ b EmptyT = b
-    foldl' f b (Single xs) = (f $! b) xs
-    foldl' f' b' (Deep _ pr' m' sf') =
+    foldl' _ z' EmptyT = z'
+    foldl' f' z' (Single x') = (f' $! z') x'
+    foldl' f' z' (Deep _ pr' m' sf') =
         (foldlDigit' f' $!
-         (foldlTree' (foldlNode' f') $! (foldlDigit' f' $! b') pr') m')
+         (foldlTree' (foldlNode' f') $! (foldlDigit' f' $! z') pr') m')
             sf'
       where
         foldlTree' :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
-        foldlTree' _ b EmptyT = b
-        foldlTree' f b (Single xs) = f b xs
-        foldlTree' f b (Deep _ pr m sf) =
-            (foldl' f $! (foldlTree' (foldl' f) $! foldl' f b pr) m) sf
+        foldlTree' _ z EmptyT = z
+        foldlTree' f z (Single xs) = f z xs
+        foldlTree' f z (Deep _ pr m sf) =
+            (foldl' f $! (foldlTree' (foldl' f) $! foldl' f z pr) m) sf
 
         foldlDigit' :: (b -> a -> b) -> b -> Digit a -> b
-        foldlDigit' f b t = foldl' f b t
+        foldlDigit' f z t = foldl' f z t
 
         foldlNode' :: (b -> a -> b) -> b -> Node a -> b
-        foldlNode' f b t = foldl' f b t
+        foldlNode' f z t = foldl' f z t
     {-# INLINE foldl' #-}
 #endif
 
