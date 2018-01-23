@@ -248,6 +248,7 @@ import qualified Data.Array
 import qualified GHC.Arr
 #endif
 
+import Utils.Containers.Internal.Coercions ((.#))
 -- Coercion on GHC 7.8+
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
@@ -384,16 +385,6 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
 #endif
-
-#if __GLASGOW_HASKELL__ >= 708
-(.#) :: Coercible a b => (b -> c) -> (a -> b) -> a -> c
-(.#) f _ = coerce f
-#else
-(.#) :: (b -> c) -> (a -> b) -> a -> c
-(.#) f g = \x -> f (g x)
-#endif
-{-# INLINE (.#) #-}
-infixr 9 .#
 
 getSeq :: Seq a -> FingerTree (Elem a)
 getSeq (Seq xs) = xs
