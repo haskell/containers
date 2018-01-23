@@ -248,7 +248,7 @@ import qualified Data.Array
 import qualified GHC.Arr
 #endif
 
-import Utils.Containers.Internal.Coercions ((.#))
+import Utils.Containers.Internal.Coercions ((.#), (.^#))
 -- Coercion on GHC 7.8+
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
@@ -392,14 +392,7 @@ getSeq (Seq xs) = xs
 instance Foldable Seq where
     foldMap f = foldMap (f .# getElem) .# getSeq
     foldr f z = foldr (f .# getElem) z .# getSeq
-    foldl f z = foldl (lift_elem f) z .# getSeq
-      where
-        lift_elem :: (b -> a -> b) -> b -> Elem a -> b
-#if __GLASGOW_HASKELL__ >= 708
-        lift_elem = coerce
-#else
-        lift_elem g = \bs (Elem a) -> g bs a
-#endif
+    foldl f z = foldl (f .^# getElem) z .# getSeq
 
 #if __GLASGOW_HASKELL__
     {-# INLINABLE foldMap #-}
@@ -409,14 +402,7 @@ instance Foldable Seq where
 
 #if MIN_VERSION_base(4,6,0)
     foldr' f z = foldr' (f .# getElem) z .# getSeq
-    foldl' f z = foldl' (lift_elem f) z .# getSeq
-      where
-        lift_elem :: (b -> a -> b) -> b -> Elem a -> b
-#if __GLASGOW_HASKELL__ >= 708
-        lift_elem = coerce
-#else
-        lift_elem g = \bs (Elem a) -> g bs a
-#endif
+    foldl' f z = foldl' (f .^# getElem) z .# getSeq
 
 #if __GLASGOW_HASKELL__
     {-# INLINABLE foldr' #-}
