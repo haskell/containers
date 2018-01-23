@@ -15,19 +15,67 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- An efficient implementation of ordered maps from keys to values
--- (dictionaries).
 --
--- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use "Data.Map.Lazy" instead.
--- The 'Map' type is shared between the lazy and strict modules,
--- meaning that the same 'Map' value can be passed to functions in
--- both modules (although that is rarely needed).
+-- = Finite Maps (strict interface)
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@.
 --
--- >  import qualified Data.Map.Strict as Map
+-- Each function in this module is careful to force values before installing
+-- them in a 'Map'. This is usually more efficient when laziness is not
+-- necessary. When laziness /is/ required, use the functions in "Data.Map.Lazy".
+--
+-- In particular, the functions in this module obey the following law:
+--
+--  - If all values stored in all maps in the arguments are in WHNF, then all
+--    values stored in all maps in the results will be in WHNF once those maps
+--    are evaluated.
+--
+-- When deciding if this is the correct data structure to use, consider:
+--
+-- * If you are using 'Int' keys, you will get much better performance for most
+-- operations using "Data.IntMap.Strict".
+--
+-- * If you don't care about ordering, consider use @Data.HashMap.Strict@ from the
+-- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
+-- package instead.
+--
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
+--
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions:
+--
+-- > import qualified Data.Map.Strict as Map
+--
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
+--
+--
+-- == Detailed performance information
+--
+-- The amortized running time is given for each operation, with /n/ referring to
+-- the number of entries in the map.
+--
+-- Benchmarks comparing "Data.Map.Strict" with other dictionary implementations
+-- can be found at https://github.com/haskell-perf/dictionaries.
+--
+--
+-- == Warning
+--
+-- The size of a 'Map' must not exceed @maxBound::Int@. Violation of this
+-- condition is not detected and if the size limit is exceeded, its behaviour is
+-- undefined.
+--
+-- The 'Map' type is shared between the lazy and strict modules, meaning that
+-- the same 'Map' value can be passed to functions in both modules. This means
+-- that the 'Functor', 'Traversable' and 'Data' instances are the same as for
+-- the "Data.Map.Lazy" module, so if they are used on strict maps, the resulting
+-- maps may contain suspended values (thunks).
+--
+--
+-- == Implementation
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -46,29 +94,13 @@
 --      \"/Just Join for Parallel Ordered Sets/\",
 --      <https://arxiv.org/abs/1602.02120v3>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
 --
--- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
---
--- Operation comments contain the operation time complexity in
--- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
---
--- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the "Data.Map.Lazy" module, so if they are used
--- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 -- See the notes at the beginning of Data.Map.Internal.
 
 module Data.Map.Strict
     (
-    -- * Strictness properties
-    -- $strictness
-
     -- * Map type
     Map              -- instance Eq,Show,Read
 
@@ -245,21 +277,3 @@ module Data.Map.Strict
 
 import Data.Map.Strict.Internal
 import Prelude ()
-
--- $strictness
---
--- This module satisfies the following strictness properties:
---
--- 1. Key arguments are evaluated to WHNF;
---
--- 2. Keys and values are evaluated to WHNF before they are stored in
---    the map.
---
--- Here's an example illustrating the first property:
---
--- > delete undefined m  ==  undefined
---
--- Here are some examples that illustrate the second property:
---
--- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
--- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
