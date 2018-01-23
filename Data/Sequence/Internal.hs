@@ -390,10 +390,11 @@ instance Foldable Seq where
       where
         lift_elem :: (a -> m) -> (Elem a -> m)
 #if __GLASGOW_HASKELL__ >= 708
-        lift_elem g = coerce g
+        lift_elem = coerce
 #else
         lift_elem g = \(Elem a) -> g a
 #endif
+        {-# INLINE lift_elem #-}
         foldMapTreeE :: Monoid m => (Elem a -> m) -> FingerTree (Elem a) -> m
         foldMapTreeE _ EmptyT = mempty
         foldMapTreeE f (Single xs) = f xs
@@ -436,7 +437,39 @@ instance Foldable Seq where
 #endif
     foldl f z (Seq xs) = foldl (foldl f) z xs
 #if MIN_VERSION_base(4,6,0)
-    foldl' f z (Seq xs) = foldl' (foldl' f) z xs
+    {-# INLINE foldl' #-}
+    foldl' f z (Seq xs) = foldlTreeE (lift_elem f) z xs
+      where
+        lift_elem :: (b -> a -> b) -> b -> Elem a -> b
+#if __GLASGOW_HASKELL__ >= 708
+        lift_elem = coerce
+#else
+        lift_elem g = \bs (Elem a) -> g bs a
+#endif
+        {-# INLINE lift_elem #-}
+        foldlTreeE :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b
+        foldlTreeE _ b EmptyT = b
+        foldlTreeE f b (Single xs) = (f $! b) xs
+        foldlTreeE f b (Deep _ pr m sf) =
+              (foldlDigitE f $! ((foldlTreeN (foldlNodeE f) $! ((foldlDigitE f $! b) pr)) m)) sf
+
+        foldlTreeN :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
+        foldlTreeN _ b EmptyT = b
+        foldlTreeN f b (Single xs) = f b xs
+        foldlTreeN f b (Deep _ pr m sf) =
+              (foldlDigitN f $! ((foldlTreeN (foldlNodeN f) $! (foldlDigitN f b pr)) m)) sf
+
+        foldlDigitE :: (b -> Elem a -> b) -> b -> Digit (Elem a) -> b
+        foldlDigitE f b t = foldl' f b t
+
+        foldlDigitN :: (b -> Node a -> b) -> b -> Digit (Node a) -> b
+        foldlDigitN f b t = foldl' f b t
+
+        foldlNodeE :: (b -> Elem a -> b) -> b -> Node (Elem a) -> b
+        foldlNodeE f b t = foldl' f b t
+
+        foldlNodeN :: (b -> Node a -> b) -> b -> Node (Node a) -> b
+        foldlNodeN f b t = foldl' f b t
 #endif
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
@@ -1045,6 +1078,7 @@ instance Foldable Digit where
     foldl' f z (Two a b) = (f $! f z a) b
     foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
     foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
+    {-# INLINE foldl' #-}
 #endif
 
     foldr1 _ (One a) = a
@@ -1126,6 +1160,7 @@ instance Foldable Node where
 
     foldl' f z (Node2 _ a b) = (f $! f z a) b
     foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
+    {-# INLINE foldl' #-}
 #endif
 
 instance Functor Node where
