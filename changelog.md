@@ -46,6 +46,9 @@
   laws. Specifically, `return () >>= \_ -> undefined` should always be
   `undefined`, but this was not the case.
 
+* Harmonize laziness details for `minView` and `maxView` between
+  `Data.IntMap` and `Data.Map`.
+
 ### Performance improvement
 
 * Speed up both stable and unstable sorting for `Data.Sequence` by (Thanks, Donnacha
@@ -56,12 +59,19 @@
 * Update for recent and upcoming GHC and Cabal versions (Thanks, Herbert
   Valerio Reidel, Simon Jakobi, and Ryan Scott.)
 
-* Improve documentation (Thanks, Oleg Grenrus and Benjamin Hodgson.)
+* Improve external and internal documentation (Thanks, Oleg Grenrus
+  and Benjamin Hodgson.)
+
+* Add tutorial-style documentation.
 
 * Add Haddock `@since` annotations for changes made since version
   0.5.4 (Thanks, Simon Jakobi.)
 
 * Add a (very incomplete) test suite for `Data.Tree`.
+
+* Add structural validity checks to the test suites for `Data.IntMap`
+  and `Data.IntSet` (Thanks to Joachim Breitner for catching an error
+  in a first draft.)
 
 ## 0.5.10.2
 
