@@ -386,7 +386,7 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 #endif
 
 instance Foldable Seq where
-    foldMap f' (Seq xs') = foldMapTreeE (lift_elem f') xs'
+    foldMap f' (Seq xs') = foldMap (lift_elem f') xs'
       where
         lift_elem :: (a -> m) -> (Elem a -> m)
 #if __GLASGOW_HASKELL__ >= 708
@@ -395,33 +395,6 @@ instance Foldable Seq where
         lift_elem g = \(Elem a) -> g a
 #endif
         {-# INLINE lift_elem #-}
-        foldMapTreeE :: Monoid m => (Elem a -> m) -> FingerTree (Elem a) -> m
-        foldMapTreeE _ EmptyT = mempty
-        foldMapTreeE f (Single xs) = f xs
-        foldMapTreeE f (Deep _ pr m sf) = 
-            foldMapDigitE f pr <>
-            foldMapTreeN (foldMapNodeE f) m <>
-            foldMapDigitE f sf
-
-        foldMapTreeN :: Monoid m => (Node a -> m) -> FingerTree (Node a) -> m
-        foldMapTreeN _ EmptyT = mempty
-        foldMapTreeN f (Single xs) = f xs
-        foldMapTreeN f (Deep _ pr m sf) = 
-            foldMapDigitN f pr <>
-            foldMapTreeN (foldMapNodeN f) m <>
-            foldMapDigitN f sf
-
-        foldMapDigitE :: Monoid m => (Elem a -> m) -> Digit (Elem a) -> m
-        foldMapDigitE f t = foldDigit (<>) f t
-
-        foldMapDigitN :: Monoid m => (Node a -> m) -> Digit (Node a) -> m
-        foldMapDigitN f t = foldDigit (<>) f t
-
-        foldMapNodeE :: Monoid m => (Elem a -> m) -> Node (Elem a) -> m
-        foldMapNodeE f t = foldNode (<>) f t
-
-        foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
-        foldMapNodeN f t = foldNode (<>) f t
 #if __GLASGOW_HASKELL__
     {-# INLINABLE foldMap #-}
 #endif
@@ -942,9 +915,34 @@ instance Sized a => Sized (FingerTree a) where
 
 instance Foldable FingerTree where
     foldMap _ EmptyT = mempty
-    foldMap f (Single x) = f x
-    foldMap f (Deep _ pr m sf) =
-        foldMap f pr <> foldMap (foldMap f) m <> foldMap f sf
+    foldMap f (Single xs) = f xs
+    foldMap f (Deep _ pr m sf) = 
+        foldMapDigit f pr <>
+        foldMapTree (foldMapNode f) m <>
+        foldMapDigit f sf
+      where
+        foldMapTree :: Monoid m => (Node a -> m) -> FingerTree (Node a) -> m
+        foldMapTree _ EmptyT = mempty
+        foldMapTree f (Single xs) = f xs
+        foldMapTree f (Deep _ pr m sf) = 
+            foldMapDigitN f pr <>
+            foldMapTree (foldMapNodeN f) m <>
+            foldMapDigitN f sf
+
+        foldMapDigit :: Monoid m => (a -> m) -> Digit a -> m
+        foldMapDigit f t = foldDigit (<>) f t
+
+        foldMapDigitN :: Monoid m => (Node a -> m) -> Digit (Node a) -> m
+        foldMapDigitN f t = foldDigit (<>) f t
+
+        foldMapNode :: Monoid m => (a -> m) -> Node a -> m
+        foldMapNode f t = foldNode (<>) f t
+
+        foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
+        foldMapNodeN f t = foldNode (<>) f t
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE foldMap #-}
+#endif
 
     foldr _ z EmptyT = z
     foldr f z (Single x) = x `f` z
