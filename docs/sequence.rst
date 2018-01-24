@@ -188,7 +188,7 @@ Adding to an existing sequence
     (><) :: Seq a -> Seq a -> Seq a
     l >< r = ...
 
-- ``x <| xs`` places the element ``x`` at the beginning of the sequence ``xs``..
+- ``x <| xs`` places the element ``x`` at the beginning of the sequence ``xs``.
 
 - ``xs |> x`` places the element ``x`` at the end of the sequence ``xs``.
 
