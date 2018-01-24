@@ -985,9 +985,9 @@ instance Foldable FingerTree where
 
 #if MIN_VERSION_base(4,6,0)
     foldr' _ z' EmptyT = z'
-    foldr' f' z' (Single x') = f' x' $! z'
+    foldr' f' z' (Single x') = f' x' z'
     foldr' f' z' (Deep _ pr' m' sf') =
-        (foldrDigit' f' $! (foldrTree' (foldrNode' f') $! (foldrDigit' f' $! z') sf') m') pr'
+        (foldrDigit' f' $! (foldrTree' (foldrNode' f') $! (foldrDigit' f' z') sf') m') pr'
       where
         foldrTree' :: (Node a -> b -> b) -> b -> FingerTree (Node a) -> b
         foldrTree' _ z EmptyT = z
@@ -1006,10 +1006,10 @@ instance Foldable FingerTree where
     {-# INLINE foldr' #-}
 
     foldl' _ z' EmptyT = z'
-    foldl' f' z' (Single x') = (f' $! z') x'
+    foldl' f' z' (Single x') = f' z' x'
     foldl' f' z' (Deep _ pr' m' sf') =
         (foldlDigit' f' $!
-         (foldlTree' (foldlNode' f') $! (foldlDigit' f' $! z') pr') m')
+         (foldlTree' (foldlNode' f') $! (foldlDigit' f' z') pr') m')
             sf'
       where
         foldlTree' :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
@@ -1104,16 +1104,16 @@ instance Foldable Digit where
     {-# INLINE foldl #-}
 
 #if MIN_VERSION_base(4,6,0)
-    foldr' f z (One a) = f a $! z
-    foldr' f z (Two a b) = f a $! f b $! z
-    foldr' f z (Three a b c) = f a $! f b $! f c $! z
-    foldr' f z (Four a b c d) = f a $! f b $! f c $! f d $! z
+    foldr' f z (One a) = f a z
+    foldr' f z (Two a b) = f a $! f b z
+    foldr' f z (Three a b c) = f a $! f b $! f c z
+    foldr' f z (Four a b c d) = f a $! f b $! f c $! f d z
     {-# INLINE foldr' #-}
 
-    foldl' f z (One a) = (f $! z) a
-    foldl' f z (Two a b) = (f $! (f $! z) a) b
-    foldl' f z (Three a b c) = (f $! (f $! (f $! z) a) b) c
-    foldl' f z (Four a b c d) = (f $! (f $! (f $! (f $! z) a) b) c) d
+    foldl' f z (One a) = f z a
+    foldl' f z (Two a b) = (f $! f z a) b
+    foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
+    foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
     {-# INLINE foldl' #-}
 #endif
 
@@ -1193,12 +1193,12 @@ instance Foldable Node where
     {-# INLINE foldl #-}
 
 #if MIN_VERSION_base(4,6,0)
-    foldr' f z (Node2 _ a b) = f a $! f b $! z
+    foldr' f z (Node2 _ a b) = f a $! f b z
     foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
     {-# INLINE foldr' #-}
 
-    foldl' f z (Node2 _ a b) = (f $! (f $! z) a) b
-    foldl' f z (Node3 _ a b c) = (f $! (f $! (f $! z) a) b) c
+    foldl' f z (Node2 _ a b) = (f $! f z a) b
+    foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
     {-# INLINE foldl' #-}
 #endif
 
