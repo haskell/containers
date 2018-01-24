@@ -54,9 +54,11 @@ main = defaultMain
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
        , testProperty "foldr'" prop_foldr'
+       , testProperty "lazy foldr'" prop_lazyfoldr'
        , testProperty "foldr1" prop_foldr1
        , testProperty "foldl" prop_foldl
        , testProperty "foldl'" prop_foldl'
+       , testProperty "lazy foldl'" prop_lazyfoldl'
        , testProperty "foldl1" prop_foldl1
        , testProperty "(==)" prop_equals
        , testProperty "compare" prop_compare
@@ -306,6 +308,16 @@ prop_foldr' xs =
     f = (:)
     z = []
 
+prop_lazyfoldr' :: Seq () -> Property
+prop_lazyfoldr' xs =
+    not (null xs) ==>
+    foldr'
+        (\e _ ->
+              e)
+        (error "Data.Sequence.foldr': should be lazy in initial accumulator")
+        xs ===
+    ()
+
 prop_foldr1 :: Seq Int -> Property
 prop_foldr1 xs =
     not (null xs) ==> foldr1 f xs == Data.List.foldr1 f (toList xs)
@@ -324,6 +336,16 @@ prop_foldl' xs =
   where
     f = flip (:)
     z = []
+
+prop_lazyfoldl' :: Seq () -> Property
+prop_lazyfoldl' xs =
+    not (null xs) ==>
+    foldl'
+        (\_ e ->
+              e)
+        (error "Data.Sequence.foldl': should be lazy in initial accumulator")
+        xs ===
+    ()
 
 prop_foldl1 :: Seq Int -> Property
 prop_foldl1 xs =
