@@ -606,6 +606,7 @@ prop_sortOnStable xs =
     (fmap . fmap) unignore (toList' (sortOn ordKey xs)) ~=
     fmap unignore (listSortOn ordKey (toList xs))
   where
+    unignore (UnstableOrd x y) = (x, y)
 #if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
 #else
