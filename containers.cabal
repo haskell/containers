@@ -49,6 +49,7 @@ Library
     other-extensions: CPP, BangPatterns
 
     exposed-modules:
+        Data.Containers.ListUtils
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
