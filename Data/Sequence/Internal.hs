@@ -248,6 +248,7 @@ import qualified Data.Array
 import qualified GHC.Arr
 #endif
 
+import Utils.Containers.Internal.Coercions ((.#), (.^#))
 -- Coercion on GHC 7.8+
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
@@ -385,20 +386,29 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
  #-}
 #endif
 
+getSeq :: Seq a -> FingerTree (Elem a)
+getSeq (Seq xs) = xs
+
 instance Foldable Seq where
-    foldMap f (Seq xs) = foldMap (foldMap f) xs
-#if __GLASGOW_HASKELL__ >= 708
-    foldr f z (Seq xs) = foldr (coerce f) z xs
-    foldr' f z (Seq xs) = foldr' (coerce f) z xs
-#else
-    foldr f z (Seq xs) = foldr (flip (foldr f)) z xs
-#if MIN_VERSION_base(4,6,0)
-    foldr' f z (Seq xs) = foldr' (flip (foldr' f)) z xs
+    foldMap f = foldMap (f .# getElem) .# getSeq
+    foldr f z = foldr (f .# getElem) z .# getSeq
+    foldl f z = foldl (f .^# getElem) z .# getSeq
+
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE foldMap #-}
+    {-# INLINABLE foldr #-}
+    {-# INLINABLE foldl #-}
 #endif
-#endif
-    foldl f z (Seq xs) = foldl (foldl f) z xs
+
 #if MIN_VERSION_base(4,6,0)
-    foldl' f z (Seq xs) = foldl' (foldl' f) z xs
+    foldr' f z = foldr' (f .# getElem) z .# getSeq
+    foldl' f z = foldl' (f .^# getElem) z .# getSeq
+
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE foldr' #-}
+    {-# INLINABLE foldl' #-}
+#endif
+
 #endif
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
@@ -894,32 +904,126 @@ instance Sized a => Sized (FingerTree a) where
 
 instance Foldable FingerTree where
     foldMap _ EmptyT = mempty
-    foldMap f (Single x) = f x
-    foldMap f (Deep _ pr m sf) =
-        foldMap f pr <> foldMap (foldMap f) m <> foldMap f sf
+    foldMap f' (Single x') = f' x'
+    foldMap f' (Deep _ pr' m' sf') = 
+        foldMapDigit f' pr' <>
+        foldMapTree (foldMapNode f') m' <>
+        foldMapDigit f' sf'
+      where
+        foldMapTree :: Monoid m => (Node a -> m) -> FingerTree (Node a) -> m
+        foldMapTree _ EmptyT = mempty
+        foldMapTree f (Single x) = f x
+        foldMapTree f (Deep _ pr m sf) = 
+            foldMapDigitN f pr <>
+            foldMapTree (foldMapNodeN f) m <>
+            foldMapDigitN f sf
 
-    foldr _ z EmptyT = z
-    foldr f z (Single x) = x `f` z
-    foldr f z (Deep _ pr m sf) =
-        foldr f (foldr (flip (foldr f)) (foldr f z sf) m) pr
+        foldMapDigit :: Monoid m => (a -> m) -> Digit a -> m
+        foldMapDigit f t = foldDigit (<>) f t
 
-    foldl _ z EmptyT = z
-    foldl f z (Single x) = z `f` x
-    foldl f z (Deep _ pr m sf) =
-        foldl f (foldl (foldl f) (foldl f z pr) m) sf
+        foldMapDigitN :: Monoid m => (Node a -> m) -> Digit (Node a) -> m
+        foldMapDigitN f t = foldDigit (<>) f t
+
+        foldMapNode :: Monoid m => (a -> m) -> Node a -> m
+        foldMapNode f t = foldNode (<>) f t
+
+        foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
+        foldMapNodeN f t = foldNode (<>) f t
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE foldMap #-}
+#endif
+
+    foldr _ z' EmptyT = z'
+    foldr f' z' (Single x') = x' `f'` z'
+    foldr f' z' (Deep _ pr' m' sf') =
+        foldrDigit f' (foldrTree (foldrNode f') (foldrDigit f' z' sf') m') pr'
+      where
+        foldrTree :: (Node a -> b -> b) -> b -> FingerTree (Node a) -> b
+        foldrTree _ z EmptyT = z
+        foldrTree f z (Single x) = x `f` z
+        foldrTree f z (Deep _ pr m sf) =
+            foldrDigitN f (foldrTree (foldrNodeN f) (foldrDigitN f z sf) m) pr
+
+        foldrDigit :: (a -> b -> b) -> b -> Digit a -> b
+        foldrDigit f z t = foldr f z t
+
+        foldrDigitN :: (Node a -> b -> b) -> b -> Digit (Node a) -> b
+        foldrDigitN f z t = foldr f z t
+
+        foldrNode :: (a -> b -> b) -> Node a -> b -> b
+        foldrNode f t z = foldr f z t
+
+        foldrNodeN :: (Node a -> b -> b) -> Node (Node a) -> b -> b
+        foldrNodeN f t z = foldr f z t
+    {-# INLINE foldr #-}
+
+
+    foldl _ z' EmptyT = z'
+    foldl f' z' (Single x') = z' `f'` x'
+    foldl f' z' (Deep _ pr' m' sf') =
+        foldlDigit f' (foldlTree (foldlNode f') (foldlDigit f' z' pr') m') sf'
+      where
+        foldlTree :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
+        foldlTree _ z EmptyT = z
+        foldlTree f z (Single x) = z `f` x
+        foldlTree f z (Deep _ pr m sf) =
+            foldlDigitN f (foldlTree (foldlNodeN f) (foldlDigitN f z pr) m) sf
+
+        foldlDigit :: (b -> a -> b) -> b -> Digit a -> b
+        foldlDigit f z t = foldl f z t
+
+        foldlDigitN :: (b -> Node a -> b) -> b -> Digit (Node a) -> b
+        foldlDigitN f z t = foldl f z t
+
+        foldlNode :: (b -> a -> b) -> b -> Node a -> b
+        foldlNode f z t = foldl f z t
+
+        foldlNodeN :: (b -> Node a -> b) -> b -> Node (Node a) -> b
+        foldlNodeN f z t = foldl f z t
+    {-# INLINE foldl #-}
+
 
 #if MIN_VERSION_base(4,6,0)
-    foldr' _ z EmptyT = z
-    foldr' f z (Single x) = f x z
-    foldr' f z (Deep _ pr m sf) = foldr' f mres pr
-        where !sfRes = foldr' f z sf
-              !mres = foldr' (flip (foldr' f)) sfRes m
+    foldr' _ z' EmptyT = z'
+    foldr' f' z' (Single x') = f' x' z'
+    foldr' f' z' (Deep _ pr' m' sf') =
+        (foldrDigit' f' $! (foldrTree' (foldrNode' f') $! (foldrDigit' f' z') sf') m') pr'
+      where
+        foldrTree' :: (Node a -> b -> b) -> b -> FingerTree (Node a) -> b
+        foldrTree' _ z EmptyT = z
+        foldrTree' f z (Single x) = f x $! z
+        foldrTree' f z (Deep _ pr m sf) =
+            (foldr' f $! (foldrTree' (foldrNodeN' f) $! (foldr' f $! z) sf) m) pr
 
-    foldl' _ z EmptyT = z
-    foldl' f z (Single x) = z `f` x
-    foldl' f z (Deep _ pr m sf) = foldl' f mres sf
-        where !prRes = foldl' f z pr
-              !mres = foldl' (foldl' f) prRes m
+        foldrDigit' :: (a -> b -> b) -> b -> Digit a -> b
+        foldrDigit' f z t = foldr' f z t
+
+        foldrNode' :: (a -> b -> b) -> Node a -> b -> b
+        foldrNode' f t z = foldr' f z t
+
+        foldrNodeN' :: (Node a -> b -> b) -> Node (Node a) -> b -> b
+        foldrNodeN' f t z = foldr' f z t
+    {-# INLINE foldr' #-}
+
+    foldl' _ z' EmptyT = z'
+    foldl' f' z' (Single x') = f' z' x'
+    foldl' f' z' (Deep _ pr' m' sf') =
+        (foldlDigit' f' $!
+         (foldlTree' (foldlNode' f') $! (foldlDigit' f' z') pr') m')
+            sf'
+      where
+        foldlTree' :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
+        foldlTree' _ z EmptyT = z
+        foldlTree' f z (Single xs) = f z xs
+        foldlTree' f z (Deep _ pr m sf) =
+            (foldl' f $! (foldlTree' (foldl' f) $! foldl' f z pr) m) sf
+
+        foldlDigit' :: (b -> a -> b) -> b -> Digit a -> b
+        foldlDigit' f z t = foldl' f z t
+
+        foldlNode' :: (b -> a -> b) -> b -> Node a -> b
+        foldlNode' f z t = foldl' f z t
+    {-# INLINE foldl' #-}
 #endif
 
     foldr1 _ EmptyT = error "foldr1: empty sequence"
@@ -991,22 +1095,26 @@ instance Foldable Digit where
     foldr f z (Two a b) = a `f` (b `f` z)
     foldr f z (Three a b c) = a `f` (b `f` (c `f` z))
     foldr f z (Four a b c d) = a `f` (b `f` (c `f` (d `f` z)))
+    {-# INLINE foldr #-}
 
     foldl f z (One a) = z `f` a
     foldl f z (Two a b) = (z `f` a) `f` b
     foldl f z (Three a b c) = ((z `f` a) `f` b) `f` c
     foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
+    {-# INLINE foldl #-}
 
 #if MIN_VERSION_base(4,6,0)
-    foldr' f z (One a) = a `f` z
+    foldr' f z (One a) = f a z
     foldr' f z (Two a b) = f a $! f b z
     foldr' f z (Three a b c) = f a $! f b $! f c z
     foldr' f z (Four a b c d) = f a $! f b $! f c $! f d z
+    {-# INLINE foldr' #-}
 
     foldl' f z (One a) = f z a
     foldl' f z (Two a b) = (f $! f z a) b
     foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
     foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
+    {-# INLINE foldl' #-}
 #endif
 
     foldr1 _ (One a) = a
@@ -1078,16 +1186,20 @@ instance Foldable Node where
 
     foldr f z (Node2 _ a b) = a `f` (b `f` z)
     foldr f z (Node3 _ a b c) = a `f` (b `f` (c `f` z))
+    {-# INLINE foldr #-}
 
     foldl f z (Node2 _ a b) = (z `f` a) `f` b
     foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
+    {-# INLINE foldl #-}
 
 #if MIN_VERSION_base(4,6,0)
     foldr' f z (Node2 _ a b) = f a $! f b z
     foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
+    {-# INLINE foldr' #-}
 
     foldl' f z (Node2 _ a b) = (f $! f z a) b
     foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
+    {-# INLINE foldl' #-}
 #endif
 
 instance Functor Node where

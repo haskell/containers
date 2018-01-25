@@ -159,15 +159,15 @@ main = do
          ]
       , bgroup "unstableSortOn"
          [ bgroup "already sorted"
-            [ bench "10" $ nf S.unstableSortOn id s10
-            , bench "100" $ nf S.unstableSortOn id s100
-            , bench "1000" $ nf S.unstableSortOn id s1000
-            , bench "10000" $ nf S.unstableSortOn id s10000]
+            [ bench "10"    $ nf (S.unstableSortOn id) s10
+            , bench "100"   $ nf (S.unstableSortOn id) s100
+            , bench "1000"  $ nf (S.unstableSortOn id) s1000
+            , bench "10000" $ nf (S.unstableSortOn id) s10000]
          , bgroup "random"
-            [ bench "10" $ nf S.unstableSortOn id rs10
-            , bench "100" $ nf S.unstableSortOn id rs100
-            , bench "1000" $ nf S.unstableSortOn id rs1000
-            , bench "10000" $ nf S.unstableSortOn id rs10000]
+            [ bench "10"    $ nf (S.unstableSortOn id) rs10
+            , bench "100"   $ nf (S.unstableSortOn id) rs100
+            , bench "1000"  $ nf (S.unstableSortOn id) rs1000
+            , bench "10000" $ nf (S.unstableSortOn id) rs10000]
          ]
       ]
 
