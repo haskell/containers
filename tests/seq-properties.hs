@@ -564,8 +564,11 @@ prop_sort xs =
 
 data UnstableOrd = UnstableOrd
     { ordKey :: OrdA
-    , _val :: A
-    } deriving (Eq,Show)
+    , _ignored :: A
+    } deriving (Show)
+
+instance Eq UnstableOrd where
+    UnstableOrd x _ == UnstableOrd y _ = x == y
 
 instance Ord UnstableOrd where
     compare (UnstableOrd x _) (UnstableOrd y _) = compare x y
@@ -577,7 +580,11 @@ instance Arbitrary UnstableOrd where
         | (x',y') <- shrink (x, y) ]
 
 prop_sortStable :: Seq UnstableOrd -> Bool
-prop_sortStable xs = toList' (sort xs) ~= Data.List.sort (toList xs)
+prop_sortStable xs =
+    (fmap . fmap) unignore (toList' (sort xs)) ~=
+    fmap unignore (Data.List.sort (toList xs))
+  where
+    unignore (UnstableOrd x y) = (x, y)
 
 prop_sortBy :: Seq (OrdA, B) -> Bool
 prop_sortBy xs =
@@ -596,7 +603,8 @@ prop_sortOn (Fun _ f) xs =
 
 prop_sortOnStable :: Seq UnstableOrd -> Bool
 prop_sortOnStable xs =
-    toList' (sortOn ordKey xs) ~= listSortOn ordKey (toList xs)
+    (fmap . fmap) unignore (toList' (sortOn ordKey xs)) ~=
+    fmap unignore (listSortOn ordKey (toList xs))
   where
 #if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
