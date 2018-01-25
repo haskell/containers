@@ -97,8 +97,10 @@ main = defaultMain
        , testProperty "partition" prop_partition
        , testProperty "filter" prop_filter
        , testProperty "sort" prop_sort
+       , testProperty "sortStable" prop_sortStable
        , testProperty "sortBy" prop_sortBy
        , testProperty "sortOn" prop_sortOn
+       , testProperty "sortOnStable" prop_sortOnStable
        , testProperty "unstableSort" prop_unstableSort
        , testProperty "unstableSortBy" prop_unstableSortBy
        , testProperty "unstableSortOn" prop_unstableSortOn
@@ -560,6 +562,23 @@ prop_sort :: Seq OrdA -> Bool
 prop_sort xs =
     toList' (sort xs) ~= Data.List.sort (toList xs)
 
+data UnstableOrd = UnstableOrd
+    { ordKey :: OrdA
+    , _val :: A
+    } deriving (Eq,Show)
+
+instance Ord UnstableOrd where
+    compare (UnstableOrd x _) (UnstableOrd y _) = compare x y
+
+instance Arbitrary UnstableOrd where
+    arbitrary = liftA2 UnstableOrd arbitrary arbitrary
+    shrink (UnstableOrd x y) =
+        [ UnstableOrd x' y'
+        | (x',y') <- shrink (x, y) ]
+
+prop_sortStable :: Seq UnstableOrd -> Bool
+prop_sortStable xs = toList' (sort xs) ~= Data.List.sort (toList xs)
+
 prop_sortBy :: Seq (OrdA, B) -> Bool
 prop_sortBy xs =
     toList' (sortBy f xs) ~= Data.List.sortBy f (toList xs)
@@ -568,6 +587,16 @@ prop_sortBy xs =
 prop_sortOn :: Fun A OrdB -> Seq A -> Bool
 prop_sortOn (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
+  where
+#if MIN_VERSION_base(4,8,0)
+    listSortOn = Data.List.sortOn
+#else
+    listSortOn k = Data.List.sortBy (compare `on` k)
+#endif
+
+prop_sortOnStable :: Seq UnstableOrd -> Bool
+prop_sortOnStable xs =
+    toList' (sortOn ordKey xs) ~= listSortOn ordKey (toList xs)
   where
 #if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
