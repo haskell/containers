@@ -435,14 +435,35 @@ instance Foldable Seq where
 -- `FingerTree a`, stripping off all the Elem junk, then use a weird FingerTree
 -- traversing function that coerces back to Seq within the functor.
 instance Traversable Seq where
-    traverse f xs = traverseFTE f (coerce xs)
+    traverse f' (Seq EmptyT) = pure (Seq EmptyT)
+    traverse f' (Seq (Single x')) = (Seq #. Single .# Elem) <$> f' x'
+    traverse f' (Seq (Deep s' pr' m' sf')) =
+        liftA3 (\pr'' m'' sf'' -> Seq (Deep s' pr'' m'' sf''))
+            (traverseDigit f' pr')
+            (traverseTree f' (traverseNode f') m')
+            (traverseDigit f' sf')
+      where
+        traverseTree :: Applicative f => (Node a -> f (Node b)) -> FingerTree (Node a) -> f (FingerTree (Node b))
+        traverseTree _ EmptyT = pure EmptyT
+        traverseTree f (Single x) = Single <$> f x
+        traverseTree f (Deep s pr m sf) = 
+            liftA3 (Deep s) 
+                (traverseDigitN f pr)
+                (traverseTree (traverseNodeN f))
+                (traverseDigitN f sf)
 
-traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
-traverseFTE _f EmptyT = pure empty
-traverseFTE f (Single x) = Seq . Single . Elem <$> f x
-traverseFTE f (Deep s pr m sf) =
-  liftA3 (\pr' m' sf' -> coerce $ Deep s pr' m' sf')
-     (traverse f pr) (traverse (traverse f) m) (traverse f sf)
+        traverseDigit :: Applicative f => (a -> f b) -> Digit a -> f (Digit b)
+        traverseDigit f t = traverse f t
+
+        traverseDigitN :: Applicative f => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
+        traverseDigitN f t = traverse f t
+
+        traverseNode :: Applicative f => (a -> f b) -> Node a -> f (Node b)
+        traverseNode f t = traverse f t
+
+        traverseNodeN :: Applicative f => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
+        traverseNodeN f t = traverse f t
+
 #else
 instance Traversable Seq where
     traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
