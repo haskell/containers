@@ -248,7 +248,7 @@ import qualified Data.Array
 import qualified GHC.Arr
 #endif
 
-import Utils.Containers.Internal.Coercions ((.#), (.^#), (#.))
+import Utils.Containers.Internal.Coercions ((.#), (.^#))
 -- Coercion on GHC 7.8+
 #if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
@@ -427,37 +427,75 @@ instance Foldable Seq where
 instance Traversable Seq where
     {-# INLINE traverse #-}
     traverse f' (Seq EmptyT) = pure (Seq EmptyT)
-    traverse f' (Seq (Single (Elem x'))) = (Seq . Single . Elem) <$> f' x'
+    traverse f' (Seq (Single (Elem x'))) =
+        (\x'' -> Seq (Single (Elem x''))) <$> f' x'
     traverse f' (Seq (Deep s' pr' m' sf')) =
-        liftA3 (\pr'' m'' sf'' -> Seq (Deep s' pr'' m'' sf''))
+        liftA3
+            (\pr'' m'' sf'' -> Seq (Deep s' pr'' m'' sf''))
             (traverseDigitE f' pr')
             (traverseTree (traverseNodeE f') m')
             (traverseDigitE f' sf')
       where
-        traverseTree :: Applicative f => (Node a -> f (Node b)) -> FingerTree (Node a) -> f (FingerTree (Node b))
+        traverseTree
+            :: Applicative f
+            => (Node a -> f (Node b))
+            -> FingerTree (Node a)
+            -> f (FingerTree (Node b))
         traverseTree _ EmptyT = pure EmptyT
         traverseTree f (Single x) = Single <$> f x
-        traverseTree f (Deep s pr m sf) = 
-            liftA3 (Deep s) 
+        traverseTree f (Deep s pr m sf) =
+            liftA3
+                (Deep s)
                 (traverseDigitN f pr)
                 (traverseTree (traverseNodeN f) m)
                 (traverseDigitN f sf)
-
-        traverseDigitE :: Applicative f => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
-        traverseDigitE f (One (Elem a)) = One . Elem <$> f a
-        traverseDigitE f (Two (Elem a) (Elem b)) = liftA2 (\a' b' -> Two (Elem a') (Elem b')) (f a) (f b)
-        traverseDigitE f (Three (Elem a) (Elem b) (Elem c)) = liftA3 (\a' b' c' -> Three (Elem a') (Elem b') (Elem c')) (f a) (f b) (f c)
-        traverseDigitE f (Four (Elem a) (Elem b) (Elem c) (Elem d)) = liftA3 (\a' b' c' d' -> Four (Elem a') (Elem b') (Elem c') (Elem d')) (f a) (f b) (f c) <*> f d
-
-        traverseDigitN :: Applicative f => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
+        traverseDigitE
+            :: Applicative f
+            => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
+        traverseDigitE f (One (Elem a)) =
+            (\a' -> One (Elem a')) <$>
+            f a
+        traverseDigitE f (Two (Elem a) (Elem b)) =
+            liftA2
+                (\a' b' -> Two (Elem a') (Elem b'))
+                (f a)
+                (f b)
+        traverseDigitE f (Three (Elem a) (Elem b) (Elem c)) =
+            liftA3
+                (\a' b' c' ->
+                      Three (Elem a') (Elem b') (Elem c'))
+                (f a)
+                (f b)
+                (f c)
+        traverseDigitE f (Four (Elem a) (Elem b) (Elem c) (Elem d)) =
+            liftA3
+                (\a' b' c' d' -> Four (Elem a') (Elem b') (Elem c') (Elem d'))
+                (f a)
+                (f b)
+                (f c) <*> 
+                (f d)
+        traverseDigitN
+            :: Applicative f
+            => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
         traverseDigitN f t = traverse f t
-
-        traverseNodeE :: Applicative f => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
-        traverseNodeE f (Node2 s (Elem a) (Elem b)) = liftA2 (\a' b' -> Node2 s (Elem a') (Elem b')) (f a) (f b)
-        traverseNodeE f (Node3 s (Elem a) (Elem b) (Elem c)) = liftA3 (\a' b' c' -> Node3 s (Elem a') (Elem b') (Elem c')) (f a) (f b) (f c)
-
-
-        traverseNodeN :: Applicative f => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
+        traverseNodeE
+            :: Applicative f
+            => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
+        traverseNodeE f (Node2 s (Elem a) (Elem b)) =
+            liftA2
+                (\a' b' -> Node2 s (Elem a') (Elem b'))
+                (f a)
+                (f b)
+        traverseNodeE f (Node3 s (Elem a) (Elem b) (Elem c)) =
+            liftA3
+                (\a' b' c' ->
+                      Node3 s (Elem a') (Elem b') (Elem c'))
+                (f a)
+                (f b)
+                (f c)
+        traverseNodeN
+            :: Applicative f
+            => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
         traverseNodeN f t = traverse f t
 
 instance NFData a => NFData (Seq a) where
