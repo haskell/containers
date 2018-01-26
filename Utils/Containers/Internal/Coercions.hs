@@ -16,7 +16,7 @@ infixr 9 #.
 (.#) f _ = coerce f
 
 (#.) :: Coercible c b => (b -> c) -> (a -> b) -> a -> c
-(#.) _ = coerce (\x -> x :: b) :: forall a b. Coercible b a => a -> b
+(#.) _ = coerce
 #else
 (.#) :: (b -> c) -> (a -> b) -> a -> c
 (.#) = (.)
