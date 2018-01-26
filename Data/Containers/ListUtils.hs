@@ -28,16 +28,16 @@ import qualified Data.IntSet as IntSet
 -- In particular, it keeps only the first occurrence of each element. By using a 'Set' internally
 -- it has better asymptotics than the standard 'nub' function.
 nubOrd :: (Ord a) => [a] -> [a]
-nubOrd l = go Set.empty l
+nubOrd = go Set.empty
   where
     go _ [] = []
     go s (x:xs) = if x `Set.member` s then go s xs
                                       else x : go (Set.insert x s) xs
 
--- | The `nubOrdOn` function behaves just like `nubOrd` except it preforms comparisons not on the
+-- | The `nubOrdOn` function behaves just like `nubOrd` except it performs comparisons not on the
 -- original datatype, but a user-specified projection from that datatype.
 nubOrdOn :: (Ord b) => (a -> b) -> [a] -> [a]
-nubOrdOn f l = go Set.empty l
+nubOrdOn f = go Set.empty
   where
     go _ [] = []
     go s (x:xs) = let fx = f x
@@ -48,16 +48,16 @@ nubOrdOn f l = go Set.empty l
 -- In particular, it keeps only the first occurrence of each element. By using an 'IntSet' internally
 -- it has better asymptotics than the standard 'nub' function.
 nubInt :: [Int] -> [Int]
-nubInt l = go IntSet.empty l
+nubInt = go IntSet.empty
   where
     go _ [] = []
     go s (x:xs) = if x `IntSet.member` s then go s xs
                                          else x : go (IntSet.insert x s) xs
 
--- | The `nubIntOn` function behaves just like 'nubInt' except it preforms comparisons not on the
+-- | The `nubIntOn` function behaves just like 'nubInt' except it performs comparisons not on the
 -- original datatype, but a user-specified projection from that datatype to 'Int'.
 nubIntOn :: (a -> Int) -> [a] -> [a]
-nubIntOn f l = go IntSet.empty l
+nubIntOn f = go IntSet.empty
   where
     go _ [] = []
     go s (x:xs) = let fx = f x

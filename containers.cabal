@@ -619,3 +619,22 @@ test-suite intset-strictness-properties
 
   ghc-options: -Wall
   include-dirs: include
+
+test-suite listutils-properties
+  hs-source-dirs: tests, .
+  main-is: listutils-properties.hs
+  other-modules:
+      Data.Containers.ListUtils
+  type: exitcode-stdio-1.0
+
+  build-depends:
+    base >= 4.3 && < 5,
+    ChasingBottoms,
+    deepseq >= 1.2 && < 1.5,
+    QuickCheck >= 2.7.1,
+    ghc-prim,
+    test-framework >= 0.3.3,
+    test-framework-quickcheck2 >= 0.2.9
+
+  ghc-options: -Wall
+  include-dirs: include
