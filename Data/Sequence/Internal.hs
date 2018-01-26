@@ -425,7 +425,7 @@ instance Foldable Seq where
 #endif
 
 instance Traversable Seq where
-    {-# INLINE traverse #-}
+    {-# INLINABLE traverse #-}
     traverse f' (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
