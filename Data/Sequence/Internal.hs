@@ -428,37 +428,7 @@ instance Traversable Seq where
 #if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
 #endif
-    traverse _ (Seq EmptyT) = pure (Seq EmptyT)
-    traverse f' (Seq (Single (Elem x'))) =
-        (\x'' -> Seq (Single (Elem x''))) <$> f' x'
-    traverse f' (Seq (Deep s' pr' m' sf')) =
-        liftA3
-            (\pr'' m'' sf'' -> Seq (Deep s' pr'' m'' sf''))
-            (traverseDigitE f' pr')
-            (traverseTree (traverseNodeE f') m')
-            (traverseDigitE f' sf')
-      where
-        traverseTree
-            :: Applicative f
-            => (Node a -> f (Node b))
-            -> FingerTree (Node a)
-            -> f (FingerTree (Node b))
-        traverseTree _ EmptyT = pure EmptyT
-        traverseTree f (Single x) = Single <$> f x
-        traverseTree f (Deep s pr m sf) =
-            liftA3
-                (Deep s)
-                (traverse f pr)
-                (traverseTree (traverse f) m)
-                (traverse f sf)
-        traverseDigitE
-            :: Applicative f
-            => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
-        traverseDigitE f t = traverse (traverse f) t
-        traverseNodeE
-            :: Applicative f
-            => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
-        traverseNodeE f t = traverse (traverse f) t
+    traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
@@ -1055,11 +1025,29 @@ instance Functor FingerTree where
         Deep v (fmap f pr) (fmap (fmap f) m) (fmap f sf)
 
 instance Traversable FingerTree where
+    {-# INLINE traverse #-}
     traverse _ EmptyT = pure EmptyT
-    traverse f (Single x) = Single <$> f x
-    traverse f (Deep v pr m sf) =
-        liftA3 (Deep v) (traverse f pr) (traverse (traverse f) m)
-            (traverse f sf)
+    traverse f' (Single x') = Single <$> f' x'
+    traverse f' (Deep s' pr' m' sf') =
+        liftA3
+            (Deep s')
+            (traverse f' pr')
+            (traverseTree (traverse f') m')
+            (traverse f' sf')
+      where
+        traverseTree
+            :: Applicative f
+            => (Node a -> f (Node b))
+            -> FingerTree (Node a)
+            -> f (FingerTree (Node b))
+        traverseTree _ EmptyT = pure EmptyT
+        traverseTree f (Single x) = Single <$> f x
+        traverseTree f (Deep s pr m sf) =
+            liftA3
+                (Deep s)
+                (traverse f pr)
+                (traverseTree (traverse f) m)
+                (traverse f sf)
 
 instance NFData a => NFData (FingerTree a) where
     rnf EmptyT = ()
