@@ -428,7 +428,7 @@ instance Traversable Seq where
 #if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
 #endif
-    traverse f' (Seq EmptyT) = pure (Seq EmptyT)
+    traverse _ (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
     traverse f' (Seq (Deep s' pr' m' sf')) =
