@@ -424,29 +424,81 @@ instance Foldable Seq where
     {-# INLINE null #-}
 #endif
 
-#if __GLASGOW_HASKELL__ >= 708
--- The natural definition of traverse, used for implementations that don't
--- support coercions, `fmap`s into each `Elem`, then `fmap`s again over the
--- result to turn it from a `FingerTree` to a `Seq`. None of this mapping is
--- necessary! We could avoid it without coercions, I believe, by writing a
--- bunch of traversal functions to deal with the `Elem` stuff specially (for
--- FingerTrees, Digits, and Nodes), but using coercions we only need to
--- duplicate code at the FingerTree level. We coerce the `Seq a` to a
--- `FingerTree a`, stripping off all the Elem junk, then use a weird FingerTree
--- traversing function that coerces back to Seq within the functor.
 instance Traversable Seq where
-    traverse f xs = traverseFTE f (coerce xs)
-
-traverseFTE :: Applicative f => (a -> f b) -> FingerTree a -> f (Seq b)
-traverseFTE _f EmptyT = pure empty
-traverseFTE f (Single x) = Seq . Single . Elem <$> f x
-traverseFTE f (Deep s pr m sf) =
-  liftA3 (\pr' m' sf' -> coerce $ Deep s pr' m' sf')
-     (traverse f pr) (traverse (traverse f) m) (traverse f sf)
-#else
-instance Traversable Seq where
-    traverse f (Seq xs) = Seq <$> traverse (traverse f) xs
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE traverse #-}
 #endif
+    traverse _ (Seq EmptyT) = pure (Seq EmptyT)
+    traverse f' (Seq (Single (Elem x'))) =
+        (\x'' -> Seq (Single (Elem x''))) <$> f' x'
+    traverse f' (Seq (Deep s' pr' m' sf')) =
+        liftA3
+            (\pr'' m'' sf'' -> Seq (Deep s' pr'' m'' sf''))
+            (traverseDigitE f' pr')
+            (traverseTree (traverseNodeE f') m')
+            (traverseDigitE f' sf')
+      where
+        traverseTree
+            :: Applicative f
+            => (Node a -> f (Node b))
+            -> FingerTree (Node a)
+            -> f (FingerTree (Node b))
+        traverseTree _ EmptyT = pure EmptyT
+        traverseTree f (Single x) = Single <$> f x
+        traverseTree f (Deep s pr m sf) =
+            liftA3
+                (Deep s)
+                (traverseDigitN f pr)
+                (traverseTree (traverseNodeN f) m)
+                (traverseDigitN f sf)
+        traverseDigitE
+            :: Applicative f
+            => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
+        traverseDigitE f (One (Elem a)) =
+            (\a' -> One (Elem a')) <$>
+            f a
+        traverseDigitE f (Two (Elem a) (Elem b)) =
+            liftA2
+                (\a' b' -> Two (Elem a') (Elem b'))
+                (f a)
+                (f b)
+        traverseDigitE f (Three (Elem a) (Elem b) (Elem c)) =
+            liftA3
+                (\a' b' c' ->
+                      Three (Elem a') (Elem b') (Elem c'))
+                (f a)
+                (f b)
+                (f c)
+        traverseDigitE f (Four (Elem a) (Elem b) (Elem c) (Elem d)) =
+            liftA3
+                (\a' b' c' d' -> Four (Elem a') (Elem b') (Elem c') (Elem d'))
+                (f a)
+                (f b)
+                (f c) <*> 
+                (f d)
+        traverseDigitN
+            :: Applicative f
+            => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
+        traverseDigitN f t = traverse f t
+        traverseNodeE
+            :: Applicative f
+            => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
+        traverseNodeE f (Node2 s (Elem a) (Elem b)) =
+            liftA2
+                (\a' b' -> Node2 s (Elem a') (Elem b'))
+                (f a)
+                (f b)
+        traverseNodeE f (Node3 s (Elem a) (Elem b) (Elem c)) =
+            liftA3
+                (\a' b' c' ->
+                      Node3 s (Elem a') (Elem b') (Elem c'))
+                (f a)
+                (f b)
+                (f c)
+        traverseNodeN
+            :: Applicative f
+            => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
+        traverseNodeN f t = traverse f t
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
