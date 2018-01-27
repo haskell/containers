@@ -568,7 +568,7 @@ data UnstableOrd = UnstableOrd
     } deriving (Show)
 
 instance Eq UnstableOrd where
-    UnstableOrd x _ == UnstableOrd y _ = x == y
+    x == y = compare x y == EQ
 
 instance Ord UnstableOrd where
     compare (UnstableOrd x _) (UnstableOrd y _) = compare x y
