@@ -428,7 +428,7 @@ instance Traversable Seq where
 #if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
 #endif
-    traverse f' (Seq EmptyT) = pure (Seq EmptyT)
+    traverse _ (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
     traverse f' (Seq (Deep s' pr' m' sf')) =
@@ -448,25 +448,17 @@ instance Traversable Seq where
         traverseTree f (Deep s pr m sf) =
             liftA3
                 (Deep s)
-                (traverseDigitN f pr)
-                (traverseTree (traverseNodeN f) m)
-                (traverseDigitN f sf)
+                (traverse f pr)
+                (traverseTree (traverse f) m)
+                (traverse f sf)
         traverseDigitE
             :: Applicative f
             => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
         traverseDigitE f t = traverse (traverse f) t
-        traverseDigitN
-            :: Applicative f
-            => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
-        traverseDigitN f t = traverse f t
         traverseNodeE
             :: Applicative f
             => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
         traverseNodeE f t = traverse (traverse f) t
-        traverseNodeN
-            :: Applicative f
-            => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
-        traverseNodeN f t = traverse f t
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
