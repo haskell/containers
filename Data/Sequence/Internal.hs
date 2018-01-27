@@ -454,28 +454,7 @@ instance Traversable Seq where
         traverseDigitE
             :: Applicative f
             => (a -> f b) -> Digit (Elem a) -> f (Digit (Elem b))
-        traverseDigitE f (One (Elem a)) =
-            (\a' -> One (Elem a')) <$>
-            f a
-        traverseDigitE f (Two (Elem a) (Elem b)) =
-            liftA2
-                (\a' b' -> Two (Elem a') (Elem b'))
-                (f a)
-                (f b)
-        traverseDigitE f (Three (Elem a) (Elem b) (Elem c)) =
-            liftA3
-                (\a' b' c' ->
-                      Three (Elem a') (Elem b') (Elem c'))
-                (f a)
-                (f b)
-                (f c)
-        traverseDigitE f (Four (Elem a) (Elem b) (Elem c) (Elem d)) =
-            liftA3
-                (\a' b' c' d' -> Four (Elem a') (Elem b') (Elem c') (Elem d'))
-                (f a)
-                (f b)
-                (f c) <*> 
-                (f d)
+        traverseDigitE f t = traverse (traverse f) t
         traverseDigitN
             :: Applicative f
             => (Node a -> f (Node b)) -> Digit (Node a) -> f (Digit (Node b))
@@ -483,18 +462,7 @@ instance Traversable Seq where
         traverseNodeE
             :: Applicative f
             => (a -> f b) -> Node (Elem a) -> f (Node (Elem b))
-        traverseNodeE f (Node2 s (Elem a) (Elem b)) =
-            liftA2
-                (\a' b' -> Node2 s (Elem a') (Elem b'))
-                (f a)
-                (f b)
-        traverseNodeE f (Node3 s (Elem a) (Elem b) (Elem c)) =
-            liftA3
-                (\a' b' c' ->
-                      Node3 s (Elem a') (Elem b') (Elem c'))
-                (f a)
-                (f b)
-                (f c)
+        traverseNodeE f t = traverse (traverse f) t
         traverseNodeN
             :: Applicative f
             => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
