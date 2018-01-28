@@ -78,12 +78,16 @@ import Utils.Containers.Internal.State (State(..), execState)
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
 -- ordering of its elements.  The sort is stable.  If stability is not
 -- required, 'unstableSort' can be slightly faster.
+--
+-- @since 0.3.0
 sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
 -- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
 -- specified comparator.  The sort is stable.  If stability is not required,
 -- 'unstableSortBy' can be slightly faster.
+--
+-- @since 0.3.0
 sortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 sortBy cmp (Seq xs) =
     maybe
@@ -110,6 +114,8 @@ sortBy cmp (Seq xs) =
 -- If @f@ is very cheap (for example a record selector, or 'fst'),
 -- @'sortBy' ('compare' ``Data.Function.on`` f)@ will be faster than
 -- @'sortOn' f@.
+--
+-- @since 0.5.11
 sortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 sortOn f (Seq xs) =
     maybe
@@ -123,6 +129,8 @@ sortOn f (Seq xs) =
 
 -- Notes on the implementation and choice of heap are available in
 -- the file sorting.md (in this directory).
+--
+-- @since 0.3.0
 unstableSort :: Ord a => Seq a -> Seq a
 unstableSort = unstableSortBy compare
 
@@ -130,6 +138,8 @@ unstableSort = unstableSortBy compare
 -- takes an arbitrary comparator and sorts the specified sequence.
 -- The sort is not stable.  This algorithm is frequently faster and
 -- uses less memory than 'sortBy'.
+--
+-- @since 0.3.0
 unstableSortBy :: (a -> a -> Ordering) -> Seq a -> Seq a
 unstableSortBy cmp (Seq xs) =
     maybe
@@ -156,6 +166,8 @@ unstableSortBy cmp (Seq xs) =
 -- If @f@ is very cheap (for example a record selector, or 'fst'),
 -- @'unstableSortBy' ('compare' ``Data.Function.on`` f)@ will be faster than
 -- @'unstableSortOn' f@.
+--
+-- @since 0.5.11
 unstableSortOn :: Ord b => (a -> b) -> Seq a -> Seq a
 unstableSortOn f (Seq xs) =
     maybe
