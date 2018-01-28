@@ -61,8 +61,8 @@
 -- The 'IntMap' type is shared between the lazy and strict modules, meaning that
 -- the same 'IntMap' value can be passed to functions in both modules. This
 -- means that the 'Functor', 'Traversable' and 'Data' instances are the same as
--- for the "Data.IntMap.Lazy" module, so if they are used on strict maps, the
--- resulting maps may contain suspended values (thunks).
+-- for the "Data.IntMap.Lazy" module, so if they are used the resulting map may
+-- contain suspended values (thunks).
 --
 --
 -- == Implementation

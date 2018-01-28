@@ -18,7 +18,7 @@
 -- = Finite Int Maps (lazy interface)
 --
 -- The @'IntMap' v@ type represents a finite map (sometimes called a dictionary)
--- from key of type @Int@ to values of type @v@.
+-- from keys of type @Int@ to values of type @v@.
 --
 -- The functions in "Data.IntMap.Strict" are careful to force values before
 -- installing them in an 'IntMap'. This is usually more efficient in cases where
