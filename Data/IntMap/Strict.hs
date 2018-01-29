@@ -15,26 +15,63 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- An efficient implementation of maps from integer keys to values
--- (dictionaries).
 --
--- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use "Data.IntMap.Lazy" instead.
--- The 'IntMap' type itself is shared between the lazy and strict modules,
--- meaning that the same 'IntMap' value can be passed to functions in
--- both modules (although that is rarely needed).
+-- = Finite Int Maps (strict interface)
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- The @'IntMap' v@ type represents a finite map (sometimes called a dictionary)
+-- from key of type @Int@ to values of type @v@.
 --
--- >  import Data.IntMap.Strict (IntMap)
--- >  import qualified Data.IntMap.Strict as IntMap
+-- Each function in this module is careful to force values before installing
+-- them in a 'Map'. This is usually more efficient when laziness is not
+-- necessary. When laziness /is/ required, use the functions in
+-- "Data.IntMap.Lazy".
+--
+-- In particular, the functions in this module obey the following law:
+--
+--  - If all values stored in all maps in the arguments are in WHNF, then all
+--    values stored in all maps in the results will be in WHNF once those maps
+--    are evaluated.
+--
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
+--
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions:
+--
+-- > import Data.IntMap.Strict (IntMap)
+-- > import qualified Data.IntMap.Strict as IntMap
+--
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
+--
+--
+-- == Detailed performance information
+--
+-- The amortized running time is given for each operation, with /n/ referring to
+-- the number of entries in the map and /W/ referring to the number of bits in
+-- an 'Int' (32 or 64).
+--
+-- Benchmarks comparing "Data.IntMap.Strict" with other dictionary
+-- implementations can be found at https://github.com/haskell-perf/dictionaries.
+--
+--
+-- == Warning
+--
+-- The 'IntMap' type is shared between the lazy and strict modules, meaning that
+-- the same 'IntMap' value can be passed to functions in both modules. This
+-- means that the 'Functor', 'Traversable' and 'Data' instances are the same as
+-- for the "Data.IntMap.Lazy" module, so if they are used the resulting map may
+-- contain suspended values (thunks).
+--
+--
+-- == Implementation
 --
 -- The implementation is based on /big-endian patricia trees/.  This data
--- structure performs especially well on binary operations like 'union'
--- and 'intersection'.  However, my benchmarks show that it is also
--- (much) faster on insertions and deletions when compared to a generic
--- size-balanced map implementation (see "Data.Map").
+-- structure performs especially well on binary operations like 'union' and
+-- 'intersection'. Additionally, benchmarks show that it is also (much) faster
+-- on insertions and deletions when compared to a generic size-balanced map
+-- implementation (see "Data.Map").
 --
 --    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
@@ -44,24 +81,11 @@
 --      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
 --      October 1968, pages 514-534.
 --
--- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
--- Many operations have a worst-case complexity of /O(min(n,W))/.
--- This means that the operation can become linear in the number of
--- elements with a maximum of /W/ -- the number of bits in an 'Int'
--- (32 or 64).
---
--- Be aware that the 'Functor', 'Traversable' and 'Data' instances
--- are the same as for the "Data.IntMap.Lazy" module, so if they are used
--- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 -- See the notes at the beginning of Data.IntMap.Internal.
 
 module Data.IntMap.Strict (
-    -- * Strictness properties
-    -- $strictness
-
     -- * Map type
 #if !defined(TESTING)
     IntMap, Key          -- instance Eq,Show
@@ -309,24 +333,6 @@ import Utils.Containers.Internal.StrictPair
 import Data.Functor((<$>))
 #endif
 import Control.Applicative (Applicative (..), liftA2)
-
--- $strictness
---
--- This module satisfies the following strictness properties:
---
--- 1. Key arguments are evaluated to WHNF;
---
--- 2. Keys and values are evaluated to WHNF before they are stored in
---    the map.
---
--- Here's an example illustrating the first property:
---
--- > delete undefined m  ==  undefined
---
--- Here are some examples that illustrate the second property:
---
--- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
--- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
 
 {--------------------------------------------------------------------
   Query

@@ -14,13 +14,30 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- An efficient implementation of integer sets.
+--
+-- = Finite Int Sets
+--
+-- The @'IntSet'@ type represents a set of elements of type @Int@.
+--
+-- For a walkthrough of the most commonly used functions see their
+-- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
 --
 -- These modules are intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.
 --
 -- >  import Data.IntSet (IntSet)
 -- >  import qualified Data.IntSet as IntSet
+--
+--
+-- == Performance information
+--
+-- Many operations have a worst-case complexity of /O(min(n,W))/.
+-- This means that the operation can become linear in the number of
+-- elements with a maximum of /W/ -- the number of bits in an 'Int'
+-- (32 or 64).
+--
+--
+-- == Implementation
 --
 -- The implementation is based on /big-endian patricia trees/.  This data
 -- structure performs especially well on binary operations like 'union'
@@ -38,14 +55,10 @@
 --
 -- Additionally, this implementation places bitmaps in the leaves of the tree.
 -- Their size is the natural size of a machine word (32 or 64 bits) and greatly
--- reduce memory footprint and execution times for dense sets, e.g. sets where
--- it is likely that many values lie close to each other. The asymptotics are
--- not affected by this optimization.
+-- reduces the memory footprint and execution times for dense sets, e.g. sets
+-- where it is likely that many values lie close to each other. The asymptotics
+-- are not affected by this optimization.
 --
--- Many operations have a worst-case complexity of /O(min(n,W))/.
--- This means that the operation can become linear in the number of
--- elements with a maximum of /W/ -- the number of bits in an 'Int'
--- (32 or 64).
 -----------------------------------------------------------------------------
 
 module Data.IntSet (
