@@ -29,7 +29,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'containers'
-copyright = u'2017, Matt Renaud'
+copyright = u'2018, Matt Renaud'
 author = u'Matt Renaud'
 
 # The short X.Y version.
