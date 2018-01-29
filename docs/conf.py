@@ -14,10 +14,12 @@ import sys
 
 # Add the _extenions dir to the search path.
 sys.path.insert(0, os.path.abspath('.') + '/_extensions')
+sys.path.insert(0, os.path.abspath('.') + '/_extensions/haddock-autolink')
 
 extensions = ['sphinx.ext.intersphinx',
               'sphinx.ext.ifconfig',
-              'haddock-autolink']
+              'haddock-autolink',
+              'hs-theme']
 
 templates_path = ['_templates']
 
@@ -27,7 +29,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'containers'
-copyright = u'2017, Matt Renaud'
+copyright = u'2018, Matt Renaud'
 author = u'Matt Renaud'
 
 # The short X.Y version.
@@ -73,7 +75,7 @@ if not on_rtd:  # only import and set the theme if we're building docs locally
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_logo = '_static/images/haskell-logo-black.svg'
+html_logo = '_static/images/haskell-logo-green.svg'
 html_static_path = ['_static']
 html_context = {
     'source_url_prefix': "https://github.com/haskell/containers/tree/master/docs/",

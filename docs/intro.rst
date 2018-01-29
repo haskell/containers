@@ -1,5 +1,5 @@
-Introduction
-============
+``containers`` Introduction
+===========================
 
 The ``containers`` package provides implementations of various immutable data
 structures.
