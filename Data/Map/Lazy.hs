@@ -88,24 +88,28 @@ module Data.Map.Lazy (
     -- * Map type
     Map              -- instance Eq,Show,Read
 
+    -- * Construction
+    , empty
+    , singleton
+    , fromList
+    , fromListWith
+    , fromListWithKey
+
     -- * Operators
-    , (!), (!?), (\\)
 
     -- * Query
-    , null
-    , size
+    , lookup
+    , (!?)
+    , findWithDefault
     , member
     , notMember
-    , lookup
-    , findWithDefault
     , lookupLT
     , lookupGT
     , lookupLE
     , lookupGE
-
-    -- * Construction
-    , empty
-    , singleton
+    , null
+    , size
+    , (!)
 
     -- ** Insertion
     , insert
@@ -134,6 +138,7 @@ module Data.Map.Lazy (
 
     -- ** Difference
     , difference
+    , (\\)
     , differenceWith
     , differenceWithKey
 
@@ -184,9 +189,6 @@ module Data.Map.Lazy (
 
     -- ** Lists
     , toList
-    , fromList
-    , fromListWith
-    , fromListWithKey
 
     -- ** Ordered lists
     , toAscList
