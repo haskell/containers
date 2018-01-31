@@ -71,8 +71,8 @@
 -- The 'Map' type is shared between the lazy and strict modules, meaning that
 -- the same 'Map' value can be passed to functions in both modules. This means
 -- that the 'Functor', 'Traversable' and 'Data' instances are the same as for
--- the "Data.Map.Lazy" module, so if they are used on strict maps, the resulting
--- maps may contain suspended values (thunks).
+-- the "Data.Map.Lazy" module, so if they are used the resulting maps may contain
+-- suspended values (thunks).
 --
 --
 -- == Implementation
