@@ -3,6 +3,11 @@
 #if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
+#if __GLASGOW_HASKELL__ >= 802
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedSums #-}
+{-# LANGUAGE UnboxedTuples #-}
+#endif
 
 #include "containers.h"
 
@@ -303,6 +308,9 @@ import Data.IntMap.Internal
 import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
+#if __GLASGOW_HASKELL__ >= 802
+import Utils.Containers.Internal.PtrEquality (ptrEq)
+#endif
 import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 #if !MIN_VERSION_base(4,8,0)
@@ -559,6 +567,46 @@ updateLookupWithKey f0 !k0 t0 = toPair $ go f0 k0 t0
 -- | /O(min(n,W))/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in an 'IntMap'.
 -- In short : @'lookup' k ('alter' f k m) = f ('lookup' k m)@.
+#if __GLASGOW_HASKELL__ >= 802
+alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
+alter f !k t = case alter# f k t of
+  (# (# #) | #) -> t
+  (# | t' #) -> t'
+{-# INLINE alter #-}
+
+
+-- Internal implementation which keeps track of whether or not the intmap was
+-- modified using an unboxed sum (Maybe).
+--
+-- If no modifications are made to the map (# (# #) | #) is returned, otherwise
+-- (# | newMap #) is returned.
+alter# :: (Maybe a -> Maybe a) -> Key -> IntMap a -> (# (# #) | IntMap a #)
+alter# f !k t@(Bin p m l r)
+  | nomatch k p m = case f Nothing of
+                      Nothing -> (# (# #) | #)
+                      Just !x -> (# | link k (Tip k x) p t #)
+  | zero k m = case alter# f k l of
+      (# (# #) | #) -> (# (# #) | #)
+      (# | l' #) -> (# | binCheckLeft p m l' r #)
+
+  | otherwise = case alter# f k r of
+      (# (# #) | #) -> (# (# #) | #)
+      (# | r' #) -> (# | binCheckRight p m l r' #)
+
+alter# f k t@(Tip ky y)
+  | k==ky         = case f (Just y) of
+                      Just x -> if x `ptrEq` y
+                                then (# (# #) | #)
+                                else (# | Tip ky x #)
+                      Nothing -> (# | Nil #)
+  | otherwise     = case f Nothing of
+                      Just !x -> (# | link k (Tip k x) ky t #)
+                      Nothing -> (# (# #) | #)
+alter# f k Nil     = case f Nothing of
+                      Just !x -> (# | Tip k x #)
+                      Nothing -> (# (# #) | #)
+
+#else
 alter :: (Maybe a -> Maybe a) -> Key -> IntMap a -> IntMap a
 alter f !k t =
   case t of
@@ -578,6 +626,7 @@ alter f !k t =
     Nil               -> case f Nothing of
                            Just !x -> Tip k x
                            Nothing -> Nil
+#endif
 
 -- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at
 -- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
