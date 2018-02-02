@@ -208,7 +208,6 @@ benchmark lookupge-intmap
       Data.IntSet.Internal
       LookupGE_IntMap
       Utils.Containers.Internal.BitUtil
-      -- Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictPair
   ghc-options: -O2
   cpp-options: -DTESTING
