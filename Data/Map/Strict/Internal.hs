@@ -406,7 +406,6 @@ import Control.Applicative (Applicative (..), (<$>))
 #endif
 import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
-import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 
 import Data.Bits (shiftL, shiftR)
@@ -417,6 +416,8 @@ import Data.Coerce
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
 #endif
+
+import qualified Data.Foldable as Foldable
 
 
 -- $strictness
@@ -951,9 +952,9 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
-unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
+unionsWith :: (Foldable f, Ord k) => (a->a->a) -> f (Map k a) -> Map k a
 unionsWith f ts
-  = foldlStrict (unionWith f) empty ts
+  = Foldable.foldl' (unionWith f) empty ts
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionsWith #-}
 #endif
@@ -1487,7 +1488,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
     not_ordered kx ((ky,_) : _) = kx >= ky
     {-# INLINE not_ordered #-}
 
-    fromList' t0 xs = foldlStrict ins t0 xs
+    fromList' t0 xs = Foldable.foldl' ins t0 xs
       where ins t (k,x) = insert k x t
 
     go !_ t [] = t
@@ -1536,7 +1537,7 @@ fromListWith f xs
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
 #if __GLASGOW_HASKELL__

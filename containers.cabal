@@ -82,7 +82,6 @@ Library
 
     other-modules:
         Utils.Containers.Internal.State
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.Coercions
@@ -209,7 +208,7 @@ benchmark lookupge-intmap
       Data.IntSet.Internal
       LookupGE_IntMap
       Utils.Containers.Internal.BitUtil
-      Utils.Containers.Internal.StrictFold
+      -- Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictPair
   ghc-options: -O2
   cpp-options: -DTESTING
@@ -238,7 +237,6 @@ benchmark lookupge-map
       Utils.Containers.Internal.BitQueue
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.PtrEquality
-      Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictMaybe
       Utils.Containers.Internal.StrictPair
   ghc-options: -O2
@@ -273,7 +271,6 @@ Test-suite map-lazy-properties
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
@@ -307,7 +304,6 @@ Test-suite map-strict-properties
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
@@ -355,7 +351,6 @@ Test-suite set-properties
         Data.Set.Internal
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
@@ -385,7 +380,6 @@ Test-suite intmap-lazy-properties
         Data.IntSet.Internal
         IntMapValidity
         Utils.Containers.Internal.BitUtil
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
@@ -414,7 +408,6 @@ Test-suite intmap-strict-properties
         Data.IntSet.Internal
         IntMapValidity
         Utils.Containers.Internal.BitUtil
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
@@ -442,7 +435,6 @@ Test-suite intset-properties
         IntSetValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
@@ -480,7 +472,6 @@ Test-suite deprecated-properties
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictFold
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
@@ -549,7 +540,6 @@ test-suite map-strictness-properties
       Utils.Containers.Internal.BitQueue
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.PtrEquality
-      Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictMaybe
       Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
@@ -577,7 +567,6 @@ test-suite intmap-strictness-properties
       Data.IntMap.Strict
       Data.IntSet.Internal
       Utils.Containers.Internal.BitUtil
-      Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns
@@ -602,7 +591,6 @@ test-suite intset-strictness-properties
       Data.IntSet
       Data.IntSet.Internal
       Utils.Containers.Internal.BitUtil
-      Utils.Containers.Internal.StrictFold
       Utils.Containers.Internal.StrictPair
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns

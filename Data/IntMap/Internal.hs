@@ -310,7 +310,6 @@ import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 import Data.IntSet.Internal (Key)
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
-import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 
 #if __GLASGOW_HASKELL__
@@ -1003,18 +1002,18 @@ alterF f k m = (<$> f mv) $ \fres ->
 -- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
 -- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
 
-unions :: [IntMap a] -> IntMap a
+unions :: Foldable f => f (IntMap a) -> IntMap a
 unions xs
-  = foldlStrict union empty xs
+  = Foldable.foldl' union empty xs
 
 -- | The union of a list of maps, with a combining operation.
 --
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
-unionsWith :: (a->a->a) -> [IntMap a] -> IntMap a
+unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
-  = foldlStrict (unionWith f) empty ts
+  = Foldable.foldl' (unionWith f) empty ts
 
 -- | /O(n+m)/. The (left-biased) union of two maps.
 -- It prefers the first map when duplicate keys are encountered,
@@ -3031,7 +3030,7 @@ foldlFB = foldlWithKey
 
 fromList :: [(Key,a)] -> IntMap a
 fromList xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x)  = insert k x t
 
@@ -3052,7 +3051,7 @@ fromListWith f xs
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
 fromListWithKey f xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
 

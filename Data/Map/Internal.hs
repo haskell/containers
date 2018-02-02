@@ -384,7 +384,6 @@ import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, d
 import qualified Data.Set.Internal as Set
 import Data.Set.Internal (Set)
 import Utils.Containers.Internal.PtrEquality (ptrEq)
-import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.StrictMaybe
 import Utils.Containers.Internal.BitQueue
@@ -1782,9 +1781,9 @@ maxView t = case maxViewWithKey t of
 -- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
 -- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
 
-unions :: Ord k => [Map k a] -> Map k a
+unions :: (Foldable f, Ord k) => f (Map k a) -> Map k a
 unions ts
-  = foldlStrict union empty ts
+  = Foldable.foldl' union empty ts
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unions #-}
 #endif
@@ -1795,9 +1794,9 @@ unions ts
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
-unionsWith :: Ord k => (a->a->a) -> [Map k a] -> Map k a
+unionsWith :: (Foldable f, Ord k) => (a->a->a) -> f (Map k a) -> Map k a
 unionsWith f ts
-  = foldlStrict (unionWith f) empty ts
+  = Foldable.foldl' (unionWith f) empty ts
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionsWith #-}
 #endif
@@ -3348,7 +3347,7 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = fromList' (Bin 1 kx0 x0 Tip T
     not_ordered kx ((ky,_) : _) = kx >= ky
     {-# INLINE not_ordered #-}
 
-    fromList' t0 xs = foldlStrict ins t0 xs
+    fromList' t0 xs = Foldable.foldl' ins t0 xs
       where ins t (k,x) = insert k x t
 
     go !_ t [] = t
@@ -3397,7 +3396,7 @@ fromListWith f xs
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
 #if __GLASGOW_HASKELL__

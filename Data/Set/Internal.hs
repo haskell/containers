@@ -246,7 +246,6 @@ import Data.Foldable (Foldable (foldMap))
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
-import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
 
@@ -705,8 +704,8 @@ deleteMax Tip             = Tip
   Union.
 --------------------------------------------------------------------}
 -- | The union of a list of sets: (@'unions' == 'foldl' 'union' 'empty'@).
-unions :: Ord a => [Set a] -> Set a
-unions = foldlStrict union empty
+unions :: (Foldable f, Ord a) => f (Set a) -> Set a
+unions = Foldable.foldl' union empty
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unions #-}
 #endif
@@ -973,7 +972,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
     not_ordered x (y : _) = x >= y
     {-# INLINE not_ordered #-}
 
-    fromList' t0 xs = foldlStrict ins t0 xs
+    fromList' t0 xs = Foldable.foldl' ins t0 xs
       where ins t x = insert x t
 
     go !_ t [] = t
