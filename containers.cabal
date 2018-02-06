@@ -88,6 +88,9 @@ Library
         Utils.Containers.Internal.Coercions
         Data.Map.Internal.DeprecatedShowTree
         Data.IntMap.Internal.DeprecatedDebug
+    if impl(ghc)
+      other-modules:
+        Utils.Containers.Internal.BitVec
 
     include-dirs: include
 

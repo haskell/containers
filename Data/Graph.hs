@@ -72,7 +72,7 @@ module Data.Graph(
 -- Extensions
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST (STArray, newArray, readArray, writeArray)
+import Utils.Containers.Internal.BitVec (BitVecM, readBitM, setBitM, newBitVecM)
 #else
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
@@ -372,35 +372,39 @@ chop (Node v ts : us)
 
 -- Use the ST monad if available, for constant-time primitives.
 
-newtype SetM s a = SetM { runSetM :: STArray s Vertex Bool -> ST s a }
+newtype SetM s a = SetM
+  { runSetM :: Int -- The lowest vertex. Subtracting this from
+                   -- the desired bit gives the index into the BitVecM
+            -> BitVecM s
+            -> ST s a }
 
 instance Monad (SetM s) where
     return = pure
     {-# INLINE return #-}
-    SetM v >>= f = SetM $ \s -> do { x <- v s; runSetM (f x) s }
+    SetM v >>= f = SetM $ \lo s -> do { x <- v lo s; runSetM (f x) lo s }
     {-# INLINE (>>=) #-}
 
 instance Functor (SetM s) where
-    f `fmap` SetM v = SetM $ \s -> f `fmap` v s
+    f `fmap` SetM v = SetM $ \lo s -> f `fmap` v lo s
     {-# INLINE fmap #-}
 
 instance Applicative (SetM s) where
-    pure x = SetM $ const (return x)
+    pure x = SetM $ \ _ _ -> return x
     {-# INLINE pure #-}
-    SetM f <*> SetM v = SetM $ \s -> f s >>= (`fmap` v s)
+    SetM f <*> SetM v = SetM $ \lo s -> f lo s >>= (`fmap` v lo s)
     -- We could also use the following definition
     --   SetM f <*> SetM v = SetM $ \s -> f s <*> v s
     -- but Applicative (ST s) instance is present only in GHC 7.2+
     {-# INLINE (<*>) #-}
 
 run          :: Bounds -> (forall s. SetM s a) -> a
-run bnds act  = runST (newArray bnds False >>= runSetM act)
+run (lo, hi) act = runST (newBitVecM (hi - lo + 1) >>= runSetM act lo)
 
 contains     :: Vertex -> SetM s Bool
-contains v    = SetM $ \ m -> readArray m v
+contains v    = SetM $ \ lo m -> readBitM m (v - lo)
 
 include      :: Vertex -> SetM s ()
-include v     = SetM $ \ m -> writeArray m v True
+include v     = SetM $ \ lo m -> setBitM m (v - lo)
 
 #else /* !USE_ST_MONAD */
 
