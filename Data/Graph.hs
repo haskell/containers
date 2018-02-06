@@ -72,7 +72,7 @@ module Data.Graph(
 -- Extensions
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST (STArray, newArray, readArray, writeArray)
+import Data.Array.ST (STUArray, newArray, readArray, writeArray)
 #else
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
@@ -372,7 +372,7 @@ chop (Node v ts : us)
 
 -- Use the ST monad if available, for constant-time primitives.
 
-newtype SetM s a = SetM { runSetM :: STArray s Vertex Bool -> ST s a }
+newtype SetM s a = SetM { runSetM :: STUArray s Vertex Bool -> ST s a }
 
 instance Monad (SetM s) where
     return = pure
