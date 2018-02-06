@@ -437,9 +437,15 @@ deriving instance Lift a => Lift (IntMap a)
 #else
 (!) :: IntMap a -> Key -> a
 #endif
-(!) m k
-  | Just a <- lookup k m = a
-  | otherwise = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
+(!) m0 !k = go m0
+  where
+    go (Bin p m l r) | nomatch k p m = not_found
+                     | zero k m  = go l
+                     | otherwise = go r
+    go (Tip kx x) | k == kx   = x
+                  | otherwise = not_found
+    go Nil = not_found
+    not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | \(O(\min(n,W))\). Find the value at a key.
 -- Returns 'Nothing' when the element can not be found.

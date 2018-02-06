@@ -448,9 +448,13 @@ infixl 9 !,!?,\\ --
 #else
 (!) :: Ord k => Map k a -> k -> a
 #endif
-(!) m k
-  | Just a <- lookup k m = a
-  | otherwise = error "Map.!: given key is not an element in the map"
+(!) m !k = go m
+  where
+    go Tip = error "Map.!: given key is not an element in the map"
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> x
 #if __GLASGOW_HASKELL__
 {-# INLINE (!) #-}
 #endif
