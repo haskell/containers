@@ -91,11 +91,20 @@ module Data.Map.Lazy (
     -- * Construction
     , empty
     , singleton
+    , fromSet
+
+    -- ** From Lists
     , fromList
     , fromListWith
     , fromListWithKey
-
-    -- * Operators
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Query
     , lookup
@@ -185,7 +194,6 @@ module Data.Map.Lazy (
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
@@ -193,14 +201,6 @@ module Data.Map.Lazy (
     -- ** Ordered lists
     , toAscList
     , toDescList
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
-    , fromDescList
-    , fromDescListWith
-    , fromDescListWithKey
-    , fromDistinctDescList
 
     -- * Filter
     , filter

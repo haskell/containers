@@ -107,9 +107,20 @@ module Data.Map.Strict
     -- * Construction
     , empty
     , singleton
+    , fromSet
+
+    -- ** From Lists
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
 
     -- * Query
     , lookup
@@ -199,7 +210,6 @@ module Data.Map.Strict
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
@@ -207,14 +217,6 @@ module Data.Map.Strict
     -- ** Ordered lists
     , toAscList
     , toDescList
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
-    , fromDescList
-    , fromDescListWith
-    , fromDescListWithKey
-    , fromDistinctDescList
 
     -- * Filter
     , filter
