@@ -69,32 +69,29 @@ module Data.IntMap.Strict (
     IntMap(..), Key          -- instance Eq,Show
 #endif
 
-    -- * Operators
-    , (!), (!?), (\\)
-
-    -- * Query
-    , null
-    , size
-    , member
-    , notMember
-    , lookup
-    , findWithDefault
-    , lookupLT
-    , lookupGT
-    , lookupLE
-    , lookupGE
-
     -- * Construction
     , empty
     , singleton
+    , fromSet
 
-    -- ** Insertion
+    -- ** From Unordered Lists
+    , fromList
+    , fromListWith
+    , fromListWithKey
+
+    -- ** From Ascending Lists
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
+
+    -- * Insertion
     , insert
     , insertWith
     , insertWithKey
     , insertLookupWithKey
 
-    -- ** Delete\/Update
+    -- * Deletion\/Update
     , delete
     , adjust
     , adjustWithKey
@@ -103,6 +100,20 @@ module Data.IntMap.Strict (
     , updateLookupWithKey
     , alter
     , alterF
+
+    -- * Query
+    , lookup
+    , (!?)
+    , (!)
+    , findWithDefault
+    , member
+    , notMember
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
+    , null
+    , size
 
     -- * Combine
 
@@ -115,6 +126,7 @@ module Data.IntMap.Strict (
 
     -- ** Difference
     , difference
+    , (\\)
     , differenceWith
     , differenceWithKey
 
@@ -156,21 +168,13 @@ module Data.IntMap.Strict (
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
-    , fromList
-    , fromListWith
-    , fromListWithKey
 
-    -- ** Ordered lists
+-- ** Ordered lists
     , toAscList
     , toDescList
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
 
     -- * Filter
     , filter

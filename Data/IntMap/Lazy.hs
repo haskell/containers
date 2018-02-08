@@ -62,32 +62,29 @@ module Data.IntMap.Lazy (
     IntMap(..), Key          -- instance Eq,Show
 #endif
 
-    -- * Operators
-    , (!), (!?), (\\)
-
-    -- * Query
-    , IM.null
-    , size
-    , member
-    , notMember
-    , IM.lookup
-    , findWithDefault
-    , lookupLT
-    , lookupGT
-    , lookupLE
-    , lookupGE
-
     -- * Construction
     , empty
     , singleton
+    , fromSet
 
-    -- ** Insertion
+    -- ** From Unordered Lists
+    , fromList
+    , fromListWith
+    , fromListWithKey
+
+    -- ** From Ascending Lists
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
+
+    -- * Insertion
     , insert
     , insertWith
     , insertWithKey
     , insertLookupWithKey
 
-    -- ** Delete\/Update
+    -- * Deletion\/Update
     , delete
     , adjust
     , adjustWithKey
@@ -96,6 +93,20 @@ module Data.IntMap.Lazy (
     , updateLookupWithKey
     , alter
     , alterF
+
+    -- * Query
+    , IM.lookup
+    , (!?)
+    , (!)
+    , findWithDefault
+    , member
+    , notMember
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
+    , IM.null
+    , size
 
     -- * Combine
 
@@ -108,6 +119,7 @@ module Data.IntMap.Lazy (
 
     -- ** Difference
     , difference
+    , (\\)
     , differenceWith
     , differenceWithKey
 
@@ -149,21 +161,13 @@ module Data.IntMap.Lazy (
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
-    , fromList
-    , fromListWith
-    , fromListWithKey
 
     -- ** Ordered lists
     , toAscList
     , toDescList
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
 
     -- * Filter
     , IM.filter
