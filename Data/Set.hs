@@ -82,7 +82,13 @@ module Data.Set (
             , fromDistinctDescList
             , powerSet
 
-            -- * Queries
+            -- * Insertion
+            , insert
+
+            -- * Deletion
+            , delete
+
+            -- * Query
             , member
             , notMember
             , lookupLT
@@ -94,12 +100,6 @@ module Data.Set (
             , isSubsetOf
             , isProperSubsetOf
             , disjoint
-
-            -- ** Insertion
-            , insert
-
-            -- ** Delete
-            , delete
 
             -- * Combine
             , union
@@ -159,8 +159,6 @@ module Data.Set (
             -- ** List
             , elems
             , toList
-
-            -- ** Ordered list
             , toAscList
             , toDescList
 

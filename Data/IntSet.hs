@@ -80,24 +80,24 @@ module Data.IntSet (
             , fromAscList
             , fromDistinctAscList
 
-            -- * Queries
-            , IS.null
-            , size
+            -- * Insertion
+            , insert
+
+            -- * Deletion
+            , delete
+
+            -- * Query
             , member
             , notMember
             , lookupLT
             , lookupGT
             , lookupLE
             , lookupGE
+            , IS.null
+            , size
             , isSubsetOf
             , isProperSubsetOf
             , disjoint
-
-            -- ** Insertion
-            , insert
-
-            -- * Delete
-            , delete
 
             -- * Combine
             , union
@@ -140,8 +140,6 @@ module Data.IntSet (
             -- ** List
             , elems
             , toList
-
-            -- ** Ordered list
             , toAscList
             , toDescList
 
