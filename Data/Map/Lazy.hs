@@ -93,14 +93,18 @@ module Data.Map.Lazy (
     , singleton
     , fromSet
 
-    -- ** From Lists
+    -- ** From Unordered Lists
     , fromList
     , fromListWith
     , fromListWithKey
+
+    -- ** From Ascending Lists
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+
+    -- ** From Descending Lists
     , fromDescList
     , fromDescListWith
     , fromDescListWithKey
@@ -109,6 +113,7 @@ module Data.Map.Lazy (
     -- * Query
     , lookup
     , (!?)
+    , (!)
     , findWithDefault
     , member
     , notMember
@@ -118,7 +123,6 @@ module Data.Map.Lazy (
     , lookupGE
     , null
     , size
-    , (!)
 
     -- ** Insertion
     , insert

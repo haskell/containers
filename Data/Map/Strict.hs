@@ -109,14 +109,18 @@ module Data.Map.Strict
     , singleton
     , fromSet
 
-    -- ** From Lists
+    -- ** From Unordered Lists
     , fromList
     , fromListWith
     , fromListWithKey
+
+    -- ** From Ascending Lists
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+
+    -- ** From Descending Lists
     , fromDescList
     , fromDescListWith
     , fromDescListWithKey
@@ -125,6 +129,7 @@ module Data.Map.Strict
     -- * Query
     , lookup
     , (!?)
+    , (!)
     , findWithDefault
     , member
     , notMember
@@ -134,7 +139,6 @@ module Data.Map.Strict
     , lookupGE
     , null
     , size
-    , (!)
 
     -- ** Insertion
     , insert
