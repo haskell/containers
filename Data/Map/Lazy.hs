@@ -110,6 +110,22 @@ module Data.Map.Lazy (
     , fromDescListWithKey
     , fromDistinctDescList
 
+    -- * Insertion
+    , insert
+    , insertWith
+    , insertWithKey
+    , insertLookupWithKey
+
+    -- * Deletion\/Update
+    , delete
+    , adjust
+    , adjustWithKey
+    , update
+    , updateWithKey
+    , updateLookupWithKey
+    , alter
+    , alterF
+
     -- * Query
     , lookup
     , (!?)
@@ -123,22 +139,6 @@ module Data.Map.Lazy (
     , lookupGE
     , null
     , size
-
-    -- ** Insertion
-    , insert
-    , insertWith
-    , insertWithKey
-    , insertLookupWithKey
-
-    -- ** Delete\/Update
-    , delete
-    , adjust
-    , adjustWithKey
-    , update
-    , updateWithKey
-    , updateLookupWithKey
-    , alter
-    , alterF
 
     -- * Combine
 
