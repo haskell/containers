@@ -73,10 +73,14 @@ module Data.IntSet (
 #endif
             , Key
 
-            -- * Operators
-            , (\\)
+            -- * Construction
+            , empty
+            , singleton
+            , fromList
+            , fromAscList
+            , fromDistinctAscList
 
-            -- * Query
+            -- * Queries
             , IS.null
             , size
             , member
@@ -89,16 +93,17 @@ module Data.IntSet (
             , isProperSubsetOf
             , disjoint
 
-            -- * Construction
-            , empty
-            , singleton
+            -- ** Insertion
             , insert
+
+            -- * Delete
             , delete
 
             -- * Combine
             , union
             , unions
             , difference
+            , (\\)
             , intersection
 
             -- * Filter
@@ -135,13 +140,10 @@ module Data.IntSet (
             -- ** List
             , elems
             , toList
-            , fromList
 
             -- ** Ordered list
             , toAscList
             , toDescList
-            , fromAscList
-            , fromDistinctAscList
 
             -- * Debugging
             , showTree
