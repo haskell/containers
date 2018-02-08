@@ -72,33 +72,40 @@ module Data.Set (
               Set(..)
 #endif
 
-            -- * Operators
-            , (\\)
+            -- * Construction
+            , empty
+            , singleton
+            , fromList
+            , fromAscList
+            , fromDescList
+            , fromDistinctAscList
+            , fromDistinctDescList
+            , powerSet
+
+            -- * Insertion
+            , insert
+
+            -- * Deletion
+            , delete
 
             -- * Query
-            , S.null
-            , size
             , member
             , notMember
             , lookupLT
             , lookupGT
             , lookupLE
             , lookupGE
+            , S.null
+            , size
             , isSubsetOf
             , isProperSubsetOf
             , disjoint
-
-            -- * Construction
-            , empty
-            , singleton
-            , insert
-            , delete
-            , powerSet
 
             -- * Combine
             , union
             , unions
             , difference
+            , (\\)
             , intersection
             , cartesianProduct
             , disjointUnion
@@ -152,15 +159,8 @@ module Data.Set (
             -- ** List
             , elems
             , toList
-            , fromList
-
-            -- ** Ordered list
             , toAscList
             , toDescList
-            , fromAscList
-            , fromDescList
-            , fromDistinctAscList
-            , fromDistinctDescList
 
             -- * Debugging
             , showTree
