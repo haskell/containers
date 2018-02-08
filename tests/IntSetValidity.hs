@@ -49,10 +49,10 @@ commonPrefix t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    b@(Bin p _ _ _) -> all (sharedPrefix p) (elems b)
+    b@(Bin p _ l r) -> all (sharedPrefix p) (elems b) && commonPrefix l && commonPrefix r
   where
     sharedPrefix :: Prefix -> Int -> Bool
-    sharedPrefix p a = 0 == (p `xor` (p .&. a))
+    sharedPrefix p a = p == p .&. a
 
 -- Invariant: In Bin prefix mask left right, left consists of the elements that
 --            don't have the mask bit set; right is all the elements that do.
@@ -63,7 +63,9 @@ maskRespected t =
     Tip _ _ -> True
     Bin _ binMask l r ->
       all (\x -> zero x binMask) (elems l) &&
-      all (\x -> not (zero x binMask)) (elems r)
+      all (\x -> not (zero x binMask)) (elems r) &&
+      maskRespected l &&
+      maskRespected r
 
 -- Invariant: The Prefix is zero for the last 5 (on 32 bit arches) or 6 bits
 --            (on 64 bit arches). The values of the set represented by a tip
