@@ -270,8 +270,8 @@ type Vertex  = Int
 type Table a = Array Vertex a
 -- | Adjacency list representation of a graph, mapping each vertex to its
 -- list of successors.
-type Graph   = Table [Vertex]
--- | The bounds of a 'Table'.
+type Graph   = Array Vertex [Vertex]
+-- | The bounds of an @Array@.
 type Bounds  = (Vertex, Vertex)
 -- | An edge from the first vertex to the second.
 type Edge    = (Vertex, Vertex)
@@ -296,7 +296,7 @@ vertices  = indices
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 
-mapT    :: (Vertex -> a -> b) -> Table a -> Table b
+mapT    :: (Vertex -> a -> b) -> Array Vertex a -> Array Vertex b
 mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 
 -- | Build a graph from a list of edges.
@@ -330,7 +330,7 @@ reverseE g   = [ (w, v) | (v, w) <- edges g ]
 -- > outdegree (buildG (0,-1) []) == array (0,-1) []
 --
 -- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
-outdegree :: Graph -> Table Int
+outdegree :: Graph -> Array Vertex Int
 outdegree  = mapT numEdges
              where numEdges _ ws = length ws
 
@@ -341,7 +341,7 @@ outdegree  = mapT numEdges
 -- > indegree (buildG (0,-1) []) == array (0,-1) []
 --
 -- > indegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,0),(1,1),(2,1)]
-indegree :: Graph -> Table Int
+indegree :: Graph -> Array Vertex Int
 indegree  = outdegree . transposeG
 
 -- | Identical to 'graphFromEdges', except that the return value
@@ -537,10 +537,10 @@ preorderF' ts = foldr (.) id $ map preorder' ts
 preorderF :: Forest a -> [a]
 preorderF ts = preorderF' ts []
 
-tabulate        :: Bounds -> [Vertex] -> Table Int
+tabulate        :: Bounds -> [Vertex] -> Array Vertex Int
 tabulate bnds vs = array bnds (zipWith (,) vs [1..])
 
-preArr          :: Bounds -> Forest Vertex -> Table Int
+preArr          :: Bounds -> Forest Vertex -> Array Vertex Int
 preArr bnds      = tabulate bnds . preorderF
 
 ------------------------------------------------------------
@@ -644,7 +644,7 @@ bcc g = (concat . map bicomps . map (do_label g dnum)) forest
  where forest = dff g
        dnum   = preArr (bounds g) forest
 
-do_label :: Graph -> Table Int -> Tree Vertex -> Tree (Vertex,Int,Int)
+do_label :: Graph -> Array Vertex Int -> Tree Vertex -> Tree (Vertex,Int,Int)
 do_label g dnum (Node v ts) = Node (v,dnum!v,lv) us
  where us = map (do_label g dnum) ts
        lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
