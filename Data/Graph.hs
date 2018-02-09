@@ -23,45 +23,67 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- A version of the graph algorithms described in:
+-- = Finite Graphs and Strongly Connected Components
 --
---   /Structuring Depth-First Search Algorithms in Haskell/,
---   by David King and John Launchbury.
+-- The @'Graph'@ type is an adjacency list representation of a finite, directed
+-- graph with @Int@ vertices.
+--
+-- The @'SCC'@ type represents a strongly-connected component of a graph.
+--
+-- == Implementation
+--
+-- The implementation is based on
+--
+--   * /Structuring Depth-First Search Algorithms in Haskell/,
+--     by David King and John Launchbury.
 --
 -----------------------------------------------------------------------------
 
-module Data.Graph(
+module Data.Graph (
 
-        -- * External interface
+    -- * Graphs
+      Graph
+    , Table
+    , Bounds
+    , Edge
+    , Vertex
 
-        -- At present the only one with a "nice" external interface
-        stronglyConnComp, stronglyConnCompR, SCC(..), flattenSCC, flattenSCCs,
+    -- ** Graph Construction
+    , graphFromEdges
+    , graphFromEdges'
+    , buildG
+    , transposeG
 
-        -- * Graphs
+    -- ** Graph Properties
+    , vertices
+    , edges
+    , outdegree
+    , indegree
 
-        Graph, Table, Bounds, Edge, Vertex,
+    -- ** Graph Algorithms
+    , dfs
+    , dff
+    , topSort
+    , components
+    , scc
+    , bcc
+    , reachable
+    , path
 
-        -- ** Building graphs
 
-        graphFromEdges, graphFromEdges', buildG, transposeG,
-        -- reverseE,
+    -- * Strongly Connected Components
+    , SCC(..)
 
-        -- ** Graph properties
+    -- ** Construction
+    , stronglyConnComp
+    , stronglyConnCompR
 
-        vertices, edges,
-        outdegree, indegree,
+    -- ** Conversion
+    , flattenSCC
+    , flattenSCCs
 
-        -- * Algorithms
-
-        dfs, dff,
-        topSort,
-        components,
-        scc,
-        bcc,
-        -- tree, back, cross, forward,
-        reachable, path,
-
-        module Data.Tree
+    -- * Trees
+    , module Data.Tree
 
     ) where
 
@@ -69,7 +91,6 @@ module Data.Graph(
 # define USE_ST_MONAD 1
 #endif
 
--- Extensions
 #if USE_ST_MONAD
 import Control.Monad.ST
 import Data.Array.ST (STUArray, newArray, readArray, writeArray)
@@ -108,7 +129,7 @@ import Data.Typeable
 
 -------------------------------------------------------------------------
 --                                                                      -
---      External interface
+--      Strongly Connected Components
 --                                                                      -
 -------------------------------------------------------------------------
 
@@ -255,22 +276,44 @@ type Bounds  = (Vertex, Vertex)
 -- | An edge from the first vertex to the second.
 type Edge    = (Vertex, Vertex)
 
--- | All vertices of a graph.
+-- | Returns the list of vertices in the graph.
+--
+-- ==== __Examples__
+--
+-- > vertices (buildG (0,-1) []) == []
+--
+-- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1]
 vertices :: Graph -> [Vertex]
 vertices  = indices
 
--- | All edges of a graph.
+-- | Returns the list of edges in the graph.
+--
+-- ==== __Examples__
+--
+-- > edges (buildG (0,-1) []) == []
+--
+-- > edges (buildG (0,2) [(0,1),(1,2)]) == [(0,1),(1,2)]
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 
 mapT    :: (Vertex -> a -> b) -> Table a -> Table b
 mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 
--- | Build a graph from a list of edges.
+-- | Builds a graph from a list of edges.
+--
+-- ==== __Examples__
+--
+-- > buildG (0,-1) [] == array (0,-1) []
+-- > buildG (0,2) [(0,1), (1,2)] == array (0,1) [(0,[1]),(1,[2])]
+-- > buildG (0,2) [(0,1), (0,2), (1,2)] == array (0,2) [(0,[2,1]),(1,[2]),(2,[])]
 buildG :: Bounds -> [Edge] -> Graph
 buildG bounds0 edges0 = accumArray (flip (:)) [] bounds0 edges0
 
 -- | The graph obtained by reversing all edges.
+--
+-- ==== __Examples__
+--
+-- > transposeG (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,[]),(1,[0]),(2,[1])]
 transposeG  :: Graph -> Graph
 transposeG g = buildG (bounds g) (reverseE g)
 
@@ -278,11 +321,23 @@ reverseE    :: Graph -> [Edge]
 reverseE g   = [ (w, v) | (v, w) <- edges g ]
 
 -- | A table of the count of edges from each node.
+--
+-- ==== __Examples__
+--
+-- > outdegree (buildG (0,-1) []) == array (0,-1) []
+--
+-- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
 outdegree :: Graph -> Table Int
 outdegree  = mapT numEdges
              where numEdges _ ws = length ws
 
 -- | A table of the count of edges into each node.
+--
+-- ==== __Examples__
+--
+-- > indegree (buildG (0,-1) []) == array (0,-1) []
+--
+-- > indegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,0),(1,1),(2,1)]
 indegree :: Graph -> Table Int
 indegree  = outdegree . transposeG
 
@@ -298,8 +353,35 @@ graphFromEdges' x = (a,b) where
 
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
--- The out-list may contain keys that don't correspond to
--- nodes of the graph; they are ignored.
+--
+-- - @node@ is the type of data held at each vertex
+-- - @key@ is uniquely identifies each node in the graph
+--
+-- @(graph, nodeFromVertex, vertexFromKey) = graphFromEdges edgeList@
+--
+-- * @graph@ is the raw, array based adjacency list for the graph.
+-- * @nodeFromVertex@ returns the node associated with the given 0-based @Int@
+--   vertex, see /warning/ below.
+-- * @vertexFromKey@ returns the @Int@ vertex for the key if it exists in the
+--   graph, @Nothing@ otherwise.
+--
+-- Note: The out-list may contain keys that don't correspond to nodes of the
+-- graph; they are ignored.
+--
+-- Warning: The @nodeFromVertex@ function is partial and will cause a runtime
+-- exception if the given @Vertex@ does not exist.
+--
+-- ==== __Examples__
+--
+-- An empty graph.
+-- > (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges []
+-- > graph = array (0,-1) []
+--
+-- > (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
+-- > graph == array (0,2) [(0,[1]),(1,[2]),(2,[])]
+-- > nodeFromVertex 0 == ("a",'a',"b")
+-- > vertexFromKey 'a' == Just 0
+--
 graphFromEdges
         :: Ord key
         => [(node, key, [key])]
@@ -525,12 +607,26 @@ forward g tree' pre = mapT select g
 -- Algorithm 6: Finding reachable vertices
 ------------------------------------------------------------
 
--- | A list of vertices reachable from a given vertex.
-reachable    :: Graph -> Vertex -> [Vertex]
+-- | Returns the list of vertices reachable from a given vertex.
+--
+-- ==== __Examples__
+--
+-- > reachable (buildG (0,0) []) 0 == [0]
+--
+-- > reachable (buildG (0,2) [(0,1), (1,2)]) 0 == [0,1,2]
+reachable :: Graph -> Vertex -> [Vertex]
 reachable g v = preorderF (dfs g [v])
 
--- | Is the second vertex reachable from the first?
-path         :: Graph -> Vertex -> Vertex -> Bool
+-- | Returns @True@ if the second vertex reachable from the first.
+--
+-- ==== __Examples__
+--
+-- > path (buildG (0,0) []) 0 0 == True
+--
+-- > path (buildG (0,2) [(0,1), (1,2)]) 0 2 == True
+--
+-- > path (buildG (0,2) [(0,1), (1,2)]) 2 0 == False
+path :: Graph -> Vertex -> Vertex -> Bool
 path g v w    = w `elem` (reachable g v)
 
 ------------------------------------------------------------
