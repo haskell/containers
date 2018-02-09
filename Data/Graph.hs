@@ -267,6 +267,8 @@ stronglyConnCompR edges0
 -- | Abstract representation of vertices.
 type Vertex  = Int
 -- | Table indexed by a contiguous set of vertices.
+--
+-- /Note: This is included for backwards compatibility./
 type Table a = Array Vertex a
 -- | Adjacency list representation of a graph, mapping each vertex to its
 -- list of successors.
