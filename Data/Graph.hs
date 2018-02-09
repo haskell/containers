@@ -359,16 +359,23 @@ graphFromEdges' x = (a,b) where
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
 --
--- - @node@ is the type of data held at each vertex
--- - @key@ is uniquely identifies each node in the graph
+-- This function takes an adjacency list representing a graph with vertices of
+-- type @key@ labeled by values of type @node@ and produces a @Graph@-based
+-- representation of that list. The @Graph@ result represents the /shape/ of the
+-- graph, and the functions describe how to access the vertices and associated
+-- labels given a key.
 --
 -- @(graph, nodeFromVertex, vertexFromKey) = graphFromEdges edgeList@
 --
--- * @graph@ is the raw, array based adjacency list for the graph.
--- * @nodeFromVertex@ returns the node associated with the given 0-based @Int@
---   vertex, see /warning/ below.
--- * @vertexFromKey@ returns the @Int@ vertex for the key if it exists in the
---   graph, @Nothing@ otherwise.
+-- * @graph :: Graph@ is the raw, array based adjacency list for the graph.
+-- * @nodeFromVertex :: Vertex -> (node, key, [key])@ returns the node
+--   associated with the given 0-based @Int@ vertex; see /warning/ below.
+-- * @vertexFromKey :: key -> Maybe Vertex@ returns the @Int@ vertex for the
+--   key if it exists in the graph, @Nothing@ otherwise.
+--
+-- To safely use this API you must first call @vertexFromKey k@ to check if a
+-- vertex corresponds to the key @k@ given, and then use @nodeFromVertex@ to
+-- access the labelled node. See below for examples.
 --
 -- Note: The out-list may contain keys that don't correspond to nodes of the
 -- graph; they are ignored.
@@ -379,13 +386,22 @@ graphFromEdges' x = (a,b) where
 -- ==== __Examples__
 --
 -- An empty graph.
+--
 -- > (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges []
 -- > graph = array (0,-1) []
+--
+-- A graph with 3 vertices: ("a") -> ("b") -> ("c")
 --
 -- > (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
 -- > graph == array (0,2) [(0,[1]),(1,[2]),(2,[])]
 -- > nodeFromVertex 0 == ("a",'a',"b")
 -- > vertexFromKey 'a' == Just 0
+--
+-- How to use the API to get the label for a given key.
+--
+-- > let getNodePart (n, _, _) = n
+-- > (graph, nodeFromVertex, vertexFromKey) = G.graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
+-- > getNodePart . nodeFromVertex <$> vertexFromKey 'a' == Just "A"
 --
 graphFromEdges
         :: Ord key
