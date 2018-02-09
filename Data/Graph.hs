@@ -303,8 +303,8 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 
 -- | Build a graph from a list of edges.
 --
--- Warning: This function is partial and will cause a runtime exception if
--- a vertex in the edge list is not within the given @Bounds@.
+-- Warning: This function will cause a runtime exception if a vertex in the edge
+-- list is not within the given @Bounds@.
 --
 -- ==== __Examples__
 --
