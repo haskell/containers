@@ -47,6 +47,7 @@ module Data.Graph (
     , Bounds
     , Edge
     , Vertex
+    , SCC(..)
 
     -- ** Graph Construction
     , graphFromEdges
@@ -72,7 +73,6 @@ module Data.Graph (
 
 
     -- * Strongly Connected Components
-    , SCC(..)
 
     -- ** Construction
     , stronglyConnComp
@@ -282,7 +282,7 @@ type Edge    = (Vertex, Vertex)
 --
 -- > vertices (buildG (0,-1) []) == []
 --
--- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1]
+-- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1,2]
 vertices :: Graph -> [Vertex]
 vertices  = indices
 
@@ -299,7 +299,10 @@ edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 mapT    :: (Vertex -> a -> b) -> Table a -> Table b
 mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 
--- | Builds a graph from a list of edges.
+-- | Build a graph from a list of edges.
+--
+-- Warning: This function is partial and will cause a runtime exception if
+-- a vertex in the edge list is not within the given @Bounds@.
 --
 -- ==== __Examples__
 --
