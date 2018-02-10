@@ -21,10 +21,10 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- = Multi-way (aka. Rose Trees) and Forests
+-- = Multi-way Trees and Forests
 --
 -- The @'Tree' a@ type represents a lazy, possibly infinite, multi-way tree
--- (/aka./ rose tree).
+-- (also known as a /rose tree/).
 --
 -- The @'Forest' a@ type represents a forest of @'Tree' a@s.
 --
