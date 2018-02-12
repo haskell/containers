@@ -127,6 +127,7 @@ module Data.Map.Lazy (
     , alterF
 
     -- * Query
+    -- ** Lookup
     , lookup
     , (!?)
     , (!)
@@ -137,6 +138,8 @@ module Data.Map.Lazy (
     , lookupGT
     , lookupLE
     , lookupGE
+
+    -- ** Size
     , null
     , size
 

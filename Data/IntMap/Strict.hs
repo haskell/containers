@@ -102,6 +102,7 @@ module Data.IntMap.Strict (
     , alterF
 
     -- * Query
+    -- ** Lookup
     , lookup
     , (!?)
     , (!)
@@ -112,6 +113,8 @@ module Data.IntMap.Strict (
     , lookupGT
     , lookupLE
     , lookupGE
+
+    -- ** Size
     , null
     , size
 

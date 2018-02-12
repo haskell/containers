@@ -95,6 +95,7 @@ module Data.IntMap.Lazy (
     , alterF
 
     -- * Query
+    -- ** Lookup
     , IM.lookup
     , (!?)
     , (!)
@@ -105,6 +106,8 @@ module Data.IntMap.Lazy (
     , lookupGT
     , lookupLE
     , lookupGE
+
+    -- ** Size
     , IM.null
     , size
 

@@ -143,6 +143,7 @@ module Data.Map.Strict
     , alterF
 
     -- * Query
+    -- ** Lookup
     , lookup
     , (!?)
     , (!)
@@ -153,6 +154,8 @@ module Data.Map.Strict
     , lookupGT
     , lookupLE
     , lookupGE
+
+    -- ** Size
     , null
     , size
 
