@@ -88,32 +88,35 @@ module Data.Map.Lazy (
     -- * Map type
     Map              -- instance Eq,Show,Read
 
-    -- * Operators
-    , (!), (!?), (\\)
-
-    -- * Query
-    , null
-    , size
-    , member
-    , notMember
-    , lookup
-    , findWithDefault
-    , lookupLT
-    , lookupGT
-    , lookupLE
-    , lookupGE
-
     -- * Construction
     , empty
     , singleton
+    , fromSet
 
-    -- ** Insertion
+    -- ** From Unordered Lists
+    , fromList
+    , fromListWith
+    , fromListWithKey
+
+    -- ** From Ascending Lists
+    , fromAscList
+    , fromAscListWith
+    , fromAscListWithKey
+    , fromDistinctAscList
+
+    -- ** From Descending Lists
+    , fromDescList
+    , fromDescListWith
+    , fromDescListWithKey
+    , fromDistinctDescList
+
+    -- * Insertion
     , insert
     , insertWith
     , insertWithKey
     , insertLookupWithKey
 
-    -- ** Delete\/Update
+    -- * Deletion\/Update
     , delete
     , adjust
     , adjustWithKey
@@ -122,6 +125,23 @@ module Data.Map.Lazy (
     , updateLookupWithKey
     , alter
     , alterF
+
+    -- * Query
+    -- ** Lookup
+    , lookup
+    , (!?)
+    , (!)
+    , findWithDefault
+    , member
+    , notMember
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
+
+    -- ** Size
+    , null
+    , size
 
     -- * Combine
 
@@ -134,6 +154,7 @@ module Data.Map.Lazy (
 
     -- ** Difference
     , difference
+    , (\\)
     , differenceWith
     , differenceWithKey
 
@@ -180,25 +201,13 @@ module Data.Map.Lazy (
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
-    , fromList
-    , fromListWith
-    , fromListWithKey
 
     -- ** Ordered lists
     , toAscList
     , toDescList
-    , fromAscList
-    , fromAscListWith
-    , fromAscListWithKey
-    , fromDistinctAscList
-    , fromDescList
-    , fromDescListWith
-    , fromDescListWithKey
-    , fromDistinctDescList
 
     -- * Filter
     , filter
