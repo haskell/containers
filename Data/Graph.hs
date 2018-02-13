@@ -43,23 +43,24 @@ module Data.Graph (
 
     -- * Graphs
       Graph
-    , Table
     , Bounds
     , Edge
     , Vertex
-    , SCC(..)
+    , Table
 
     -- ** Graph Construction
     , graphFromEdges
     , graphFromEdges'
     , buildG
-    , transposeG
 
     -- ** Graph Properties
     , vertices
     , edges
     , outdegree
     , indegree
+
+    -- ** Graph Transformations
+    , transposeG
 
     -- ** Graph Algorithms
     , dfs
@@ -73,6 +74,7 @@ module Data.Graph (
 
 
     -- * Strongly Connected Components
+    , SCC(..)
 
     -- ** Construction
     , stronglyConnComp
