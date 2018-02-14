@@ -371,9 +371,6 @@ unfoldForest :: (b -> (a, [b])) -> [b] -> Forest a
 unfoldForest f = map (unfoldTree f)
 
 -- | Monadic tree builder, in depth-first order.
---
--- Warning: This will hang forever if trying to construct an infinite tree,
--- consider using 'unfoldTreeM_BF'.
 unfoldTreeM :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
 unfoldTreeM f b = do
     (a, bs) <- f b
@@ -381,9 +378,6 @@ unfoldTreeM f b = do
     return (Node a ts)
 
 -- | Monadic forest builder, in depth-first order
---
--- Warning: This will hang forever if trying to construct an infinite forest,
--- consider using 'unfoldForestM_BF'.
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
