@@ -242,9 +242,11 @@ module Data.IntMap.Strict (
     , minViewWithKey
     , maxViewWithKey
 
+#ifdef __GLASGOW_HASKELL__
     -- * Debugging
     , showTree
     , showTreeWith
+#endif
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
@@ -331,7 +333,9 @@ import Data.IntMap.Internal
   , unions
   , withoutKeys
   )
+#ifdef __GLASGOW_HASKELL__
 import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
+#endif
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair

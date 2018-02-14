@@ -7,6 +7,22 @@
 * Add `Data.Containers.ListUtils` offering `nub`-like functions. (Thanks to
   Gershom Bazerman for starting the process of writing these.)
 
+### Death of deprecated functions
+
+The following functions have been disabled. As an experiment
+in function removal technology, the functions are still temporarily present,
+but any attempts to use them will result in type errors advising on
+replacement.
+
+* `Data.IntMap`: `insertWith'`, `insertWithKey'`, `fold`, and `foldWithKey`.
+
+* `Data.Map`: `insertWith'`, `insertWithKey'`, `insertLookupWithKey'`,
+   `fold`, and `foldWithKey`.
+
+The same has been done for the deprecated exports of `showTree` and
+`showTreeWith`. These function remain available in the internal `Debug`
+modules.
+
 ### Changes to existing functions
 
 * Generalize the types of `unions` and `unionsWith`. (Thanks, jwaldmann.)
