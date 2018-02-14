@@ -348,14 +348,28 @@ foldTree f = go where
 --
 -- ==== __Examples__
 --
--- Construct an infinite tree with a single chain of 1's.
+-- Construct the tree of @Integer@s where each node has two children:
+-- left = 2*x and right = 2*x + 1. Stop when the values get greater than 7.
 --
--- > take 3 $ levels $ unfoldTree (\x -> (x, [x])) 1 = [[1],[1],[1]]
+-- > let buildNode x = if 2*x + 1 > 7 then (x, []) else (x, [2*x, 2*x+1])
+-- > putStr $ drawTree $ fmap show $ unfoldTree buildNode 1
 --
--- Construct the infinite tree of @Integer@s where each node has two children:
--- left = 2*x and right = 2*x + 1.
+-- @
 --
--- > take 3 $ levels $ unfoldTree (\x -> (x, [2*x, 2*x+1])) 1 == [[1],[2,3],[4,5,6,7]]
+-- 1
+-- |
+-- +- 2
+-- |  |
+-- |  +- 4
+-- |  |
+-- |  `- 5
+-- |
+-- `- 3
+--    |
+--    +- 6
+--    |
+--    `- 7
+-- @
 --
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a
 unfoldTree f b = let (a, bs) = f b in Node a (unfoldForest f bs)
