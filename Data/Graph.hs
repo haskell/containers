@@ -23,12 +23,14 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- = Finite Graphs and Strongly Connected Components
+-- = Finite Graphs
 --
 -- The @'Graph'@ type is an adjacency list representation of a finite, directed
--- graph with @Int@ vertices.
+-- graph with vertices of type @Int@.
 --
--- The @'SCC'@ type represents a strongly-connected component of a graph.
+-- The @'SCC'@ type represents a
+-- <https://en.wikipedia.org/wiki/Strongly_connected_component strongly-connected component>
+-- of a graph.
 --
 -- == Implementation
 --
@@ -384,8 +386,8 @@ graphFromEdges' x = (a,b) where
 -- Note: The out-list may contain keys that don't correspond to nodes of the
 -- graph; they are ignored.
 --
--- Warning: The @nodeFromVertex@ function is partial and will cause a runtime
--- exception if the given @Vertex@ does not exist.
+-- Warning: The @nodeFromVertex@ function will cause a runtime exception if the
+-- given @Vertex@ does not exist.
 --
 -- ==== __Examples__
 --
@@ -408,7 +410,7 @@ graphFromEdges' x = (a,b) where
 -- > nodeFromVertex 0 == ("a",'a',"b")
 -- > vertexFromKey 'a' == Just 0
 --
--- How to use the API to get the label for a given key.
+-- Get the label for a given key.
 --
 -- > let getNodePart (n, _, _) = n
 -- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
