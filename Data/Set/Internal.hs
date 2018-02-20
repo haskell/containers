@@ -715,8 +715,8 @@ unions = foldlStrict union empty
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
-union t1 (Bin _ x Tip Tip) = insertR x t1
-union (Bin _ x Tip Tip) t2 = insert x t2
+union t1 (Bin 1 x _ _) = insertR x t1
+union (Bin 1 x _ _) t2 = insert x t2
 union Tip t2  = t2
 union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
   (l2 :*: r2)
