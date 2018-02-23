@@ -217,7 +217,7 @@ import GHC.Prim (indexInt8OffAddr#)
 #endif
 
 import qualified Data.Foldable as Foldable
-
+import Data.Foldable (Foldable())
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 

@@ -303,6 +303,7 @@ import Data.Functor.Classes
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
+import Data.Foldable (Foldable())
 import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)

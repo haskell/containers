@@ -418,7 +418,7 @@ import Data.Functor.Identity (Identity (..))
 #endif
 
 import qualified Data.Foldable as Foldable
-
+import Data.Foldable (Foldable())
 
 -- $strictness
 --

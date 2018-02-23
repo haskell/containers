@@ -378,6 +378,7 @@ import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
+import Data.Foldable (Foldable())
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 

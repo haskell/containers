@@ -333,6 +333,7 @@ import Data.Functor((<$>))
 #endif
 import Control.Applicative (Applicative (..), liftA2)
 import qualified Data.Foldable as Foldable
+import Data.Foldable (Foldable())
 
 {--------------------------------------------------------------------
   Query
