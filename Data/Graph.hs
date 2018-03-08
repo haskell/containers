@@ -348,7 +348,7 @@ outdegree  = mapT numEdges
 --
 -- > indegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,0),(1,1),(2,1)]
 indegree :: Graph -> Array Vertex Int
-indegree  = outdegree . transposeG
+indegree g = accumArray (+) 0 (bounds g) [(v, 1) | (_, outs) <- assocs g, v <- outs]
 
 -- | Identical to 'graphFromEdges', except that the return value
 -- does not include the function which maps keys to vertices.  This
