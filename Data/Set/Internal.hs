@@ -604,7 +604,7 @@ isProperSubsetOf s1 s2
 
 
 -- | /O(n+m)/. Is this a subset?
--- @(s1 `isSubsetOf` s2)@ tells whether @s1@ is a subset of @s2@.
+-- @(s1 \`isSubsetOf\` s2)@ tells whether @s1@ is a subset of @s2@.
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = (size t1 <= size t2) && (isSubsetOfX t1 t2)
@@ -1695,7 +1695,7 @@ splitRoot orig =
 -- | Calculate the power set of a set: the set of all its subsets.
 --
 -- @
--- t `member` powerSet s == t `isSubsetOf` s
+-- t \`member\` powerSet s == t \`isSubsetOf\` s
 -- @
 --
 -- Example:
@@ -1750,7 +1750,7 @@ instance Monoid (MergeSet a) where
 
 -- | Calculate the disjoin union of two sets.
 --
--- @ disjointUnion xs ys = map Left xs `union` map Right ys @
+-- @ disjointUnion xs ys = map Left xs \`union\` map Right ys @
 --
 -- Example:
 --
