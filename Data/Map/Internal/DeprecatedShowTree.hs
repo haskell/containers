@@ -1,56 +1,29 @@
-{-# LANGUAGE CPP #-}
+{-# LANGUAGE CPP, FlexibleContexts, DataKinds #-}
+#if __GLASGOW_HASKELL__ >= 800
+{-# LANGUAGE MonoLocalBinds #-}
+#endif
+#if __GLASGOW_HASKELL__ < 710
+-- Why do we need this? Guess it doesn't matter; this is all
+-- going away soon.
+{-# LANGUAGE Trustworthy #-}
+#endif
 
 #include "containers.h"
 
--- | This module simply holds deprecated copies of functions from
+-- | This module simply holds disabled copies of functions from
 -- Data.Map.Internal.Debug.
 module Data.Map.Internal.DeprecatedShowTree where
 
-import qualified Data.Map.Internal.Debug as Debug
 import Data.Map.Internal (Map)
+import Utils.Containers.Internal.TypeError
 
--- | /O(n)/. Show the tree that implements the map. The tree is shown
--- in a compressed, hanging format. See 'showTreeWith'.
-{-# DEPRECATED showTree "'showTree' is now in \"Data.Map.Internal.Debug\"" #-}
-showTree :: (Show k,Show a) => Map k a -> String
-showTree = Debug.showTree
+-- | This function has moved to 'Data.Map.Internal.Debug.showTree'.
+showTree :: Whoops "showTree has moved to Data.Map.Internal.Debug.showTree."
+         => Map k a -> String
+showTree _ = undefined
 
-{- | /O(n)/. The expression (@'showTreeWith' showelem hang wide map@) shows
- the tree that implements the map. Elements are shown using the @showElem@ function. If @hang@ is
- 'True', a /hanging/ tree is shown otherwise a rotated tree is shown. If
- @wide@ is 'True', an extra wide version is shown.
-
->  Map> let t = fromDistinctAscList [(x,()) | x <- [1..5]]
->  Map> putStrLn $ showTreeWith (\k x -> show (k,x)) True False t
->  (4,())
->  +--(2,())
->  |  +--(1,())
->  |  +--(3,())
->  +--(5,())
->
->  Map> putStrLn $ showTreeWith (\k x -> show (k,x)) True True t
->  (4,())
->  |
->  +--(2,())
->  |  |
->  |  +--(1,())
->  |  |
->  |  +--(3,())
->  |
->  +--(5,())
->
->  Map> putStrLn $ showTreeWith (\k x -> show (k,x)) False True t
->  +--(5,())
->  |
->  (4,())
->  |
->  |  +--(3,())
->  |  |
->  +--(2,())
->     |
->     +--(1,())
-
--}
-{-# DEPRECATED showTreeWith "'showTreeWith' is now in \"Data.Map.Internal.Debug\"" #-}
-showTreeWith :: (k -> a -> String) -> Bool -> Bool -> Map k a -> String
-showTreeWith = Debug.showTreeWith
+-- | This function has moved to 'Data.Map.Internal.Debug.showTreeWith'.
+showTreeWith ::
+      Whoops "showTreeWith has moved to Data.Map.Internal.Debug.showTreeWith."
+   => (k -> a -> String) -> Bool -> Bool -> Map k a -> String
+showTreeWith _ _ _ _ = undefined

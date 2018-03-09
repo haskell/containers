@@ -49,9 +49,7 @@ instance Arbitrary a => Arbitrary (Tree a) where
         (st, tl) <- go (n - sh)
         pure (sh + st, hd : tl)
 
--- genericShrink only became available when generics did, so it's
--- not available under GHC 7.0.
-#if __GLASGOW_HASKELL__ >= 704
+#if defined(__GLASGOW_HASKELL__)
   shrink = genericShrink
 #endif
 

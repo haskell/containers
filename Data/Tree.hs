@@ -2,11 +2,7 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 
@@ -21,20 +17,38 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- Multi-way trees (/aka/ rose trees) and forests.
+-- = Multi-way Trees and Forests
+--
+-- The @'Tree' a@ type represents a lazy, possibly infinite, multi-way tree
+-- (also known as a /rose tree/).
+--
+-- The @'Forest' a@ type represents a forest of @'Tree' a@s.
 --
 -----------------------------------------------------------------------------
 
 module Data.Tree(
-    Tree(..), Forest,
-    -- * Two-dimensional drawing
-    drawTree, drawForest,
-    -- * Extraction
-    flatten, levels, foldTree,
-    -- * Building trees
-    unfoldTree, unfoldForest,
-    unfoldTreeM, unfoldForestM,
-    unfoldTreeM_BF, unfoldForestM_BF,
+
+    -- * Trees and Forests
+      Tree(..)
+    , Forest
+
+    -- * Construction
+    , unfoldTree
+    , unfoldForest
+    , unfoldTreeM
+    , unfoldForestM
+    , unfoldTreeM_BF
+    , unfoldForestM_BF
+
+    -- * Elimination
+    , foldTree
+    , flatten
+    , levels
+
+    -- * Ascii Drawings
+    , drawTree
+    , drawForest
+
     ) where
 
 #if MIN_VERSION_base(4,8,0)
@@ -56,16 +70,10 @@ import Control.DeepSeq (NFData(rnf))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
-#endif
-#if __GLASGOW_HASKELL__ >= 706
 import GHC.Generics (Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-import GHC.Generics (Generic)
 #endif
 
-#if MIN_VERSION_base(4,4,0)
 import Control.Monad.Zip (MonadZip (..))
-#endif
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Coerce
@@ -80,13 +88,12 @@ import Data.Semigroup (Semigroup (..))
 import Data.Functor ((<$))
 #endif
 
--- | Multi-way trees, also known as /rose trees/.
+-- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value
         subForest :: Forest a   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 802
   deriving ( Eq
            , Read
            , Show
@@ -94,16 +101,10 @@ data Tree a = Node {
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
            )
-#elif __GLASGOW_HASKELL__ >= 706
-  deriving (Eq, Read, Show, Data, Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-  deriving (Eq, Read, Show, Data, Generic)
-#else
-  deriving (Eq, Read, Show, Data)
-#endif
 #else
   deriving (Eq, Read, Show)
 #endif
+
 type Forest a = [Tree a]
 
 #if MIN_VERSION_base(4,9,0)
@@ -204,20 +205,48 @@ instance Foldable Tree where
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 
-#if MIN_VERSION_base(4,4,0)
 instance MonadZip Tree where
   mzipWith f (Node a as) (Node b bs)
     = Node (f a b) (mzipWith (mzipWith f) as bs)
 
   munzip (Node (a, b) ts) = (Node a as, Node b bs)
     where (as, bs) = munzip (map munzip ts)
-#endif
 
--- | Neat 2-dimensional drawing of a tree.
+-- | 2-dimensional ASCII drawing of a tree.
+--
+-- ==== __Examples__
+--
+-- > putStr $ drawTree $ fmap show (Node 1 [Node 2 [], Node 3 []])
+--
+-- @
+-- 1
+-- |
+-- +- 2
+-- |
+-- `- 3
+-- @
+--
 drawTree :: Tree String -> String
 drawTree  = unlines . draw
 
--- | Neat 2-dimensional drawing of a forest.
+-- | 2-dimensional ASCII drawing of a forest.
+--
+-- ==== __Examples__
+--
+-- > putStr $ drawForest $ map (fmap show) [(Node 1 [Node 2 [], Node 3 []]), (Node 10 [Node 20 []])]
+--
+-- @
+-- 1
+-- |
+-- +- 2
+-- |
+-- `- 3
+--
+-- 10
+-- |
+-- `- 20
+-- @
+--
 drawForest :: Forest String -> String
 drawForest  = unlines . map drawTree
 
@@ -232,34 +261,112 @@ draw (Node x ts0) = lines x ++ drawSubTrees ts0
 
     shift first other = zipWith (++) (first : repeat other)
 
--- | The elements of a tree in pre-order.
+-- | Returns the elements of a tree in pre-order.
+--
+-- @
+--
+--   a
+--  / \\    => [a,b,c]
+-- b   c
+-- @
+--
+-- ==== __Examples__
+--
+-- > flatten (Node 1 [Node 2 [], Node 3 []]) == [1,2,3]
 flatten :: Tree a -> [a]
 flatten t = squish t []
   where squish (Node x ts) xs = x:Prelude.foldr squish xs ts
 
--- | Lists of nodes at each level of the tree.
+-- | Returns the list of nodes at each level of the tree.
+--
+-- @
+--
+--   a
+--  / \\    => [[a], [b,c]]
+-- b   c
+-- @
+--
+-- ==== __Examples__
+--
+-- > levels (Node 1 [Node 2 [], Node 3 []]) == [[1],[2,3]]
+--
 levels :: Tree a -> [[a]]
 levels t =
     map (map rootLabel) $
         takeWhile (not . null) $
         iterate (concatMap subForest) [t]
 
--- | Catamorphism on trees.
+-- | Fold a tree into a "summary" value in depth-first order.
+--
+-- For each node in the tree, apply @f@ to the @rootLabel@ and the result
+-- of applying @f@ to each @subForent@.
+--
+-- This is also known as the catamorphism on trees.
+--
+-- ==== __Examples__
+--
+-- Sum the values in a tree:
+--
+-- > foldTree (\x xs -> sum (x:xs)) (Node 1 [Node 2 [], Node 3 []]) == 6
+--
+-- Find the maximum value in the tree:
+--
+-- > foldTree (\x xs -> maximum (x:xs)) (Node 1 [Node 2 [], Node 3 []]) == 3
+--
 --
 -- @since 0.5.8
 foldTree :: (a -> [b] -> b) -> Tree a -> b
 foldTree f = go where
     go (Node x ts) = f x (map go ts)
 
--- | Build a tree from a seed value
+-- | Build a (possibly infinite) tree from a seed value in breadth-first order.
+--
+-- @unfoldTree f b@ constructs a tree by starting with the tree
+-- @Node { rootLabel=b, subForest=[] }@ and repeatedly applying @f@ to each
+-- 'rootLabel' value in the tree's leaves to generate its 'subForest'.
+--
+-- For a monadic version see 'unfoldTreeM_BF'.
+--
+-- ==== __Examples__
+--
+-- Construct the tree of @Integer@s where each node has two children:
+-- @left = 2*x@ and @right = 2*x + 1@, where @x@ is the 'rootLabel' of the node.
+-- Stop when the values exceed 7.
+--
+-- > let buildNode x = if 2*x + 1 > 7 then (x, []) else (x, [2*x, 2*x+1])
+-- > putStr $ drawTree $ fmap show $ unfoldTree buildNode 1
+--
+-- @
+--
+-- 1
+-- |
+-- +- 2
+-- |  |
+-- |  +- 4
+-- |  |
+-- |  `- 5
+-- |
+-- `- 3
+--    |
+--    +- 6
+--    |
+--    `- 7
+-- @
+--
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a
 unfoldTree f b = let (a, bs) = f b in Node a (unfoldForest f bs)
 
--- | Build a forest from a list of seed values
+-- | Build a (possibly infinite) forest from a list of seed values in
+-- breadth-first order.
+--
+-- @unfoldForest f seeds@ invokes 'unfoldTree' on each seed value.
+--
+-- For a monadic version see 'unfoldForestM_BF'.
+--
 unfoldForest :: (b -> (a, [b])) -> [b] -> Forest a
 unfoldForest f = map (unfoldTree f)
 
--- | Monadic tree builder, in depth-first order
+-- | Monadic tree builder, in depth-first order.
 unfoldTreeM :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
 unfoldTreeM f b = do
     (a, bs) <- f b
@@ -270,10 +377,12 @@ unfoldTreeM f b = do
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
--- | Monadic tree builder, in breadth-first order,
--- using an algorithm adapted from
--- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
--- by Chris Okasaki, /ICFP'00/.
+-- | Monadic tree builder, in breadth-first order.
+--
+-- See 'unfoldTree' for more info.
+--
+-- Implemented using an algorithm adapted from /Breadth-First Numbering: Lessons
+-- from a Small Exercise in Algorithm Design/, by Chris Okasaki, /ICFP'00/.
 unfoldTreeM_BF :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
 unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
   where
@@ -281,15 +390,17 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
         x :< _ -> x
         EmptyL -> error "unfoldTreeM_BF"
 
--- | Monadic forest builder, in breadth-first order,
--- using an algorithm adapted from
--- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
--- by Chris Okasaki, /ICFP'00/.
+-- | Monadic forest builder, in breadth-first order
+--
+-- See 'unfoldForest' for more info.
+--
+-- Implemented using an algorithm adapted from /Breadth-First Numbering: Lessons
+-- from a Small Exercise in Algorithm Design/, by Chris Okasaki, /ICFP'00/.
 unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
 unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
 
--- takes a sequence (queue) of seeds
--- produces a sequence (reversed queue) of trees of the same length
+-- Takes a sequence (queue) of seeds and produces a sequence (reversed queue) of
+-- trees of the same length.
 unfoldForestQ :: Monad m => (b -> m (a, [b])) -> Seq b -> m (Seq (Tree a))
 unfoldForestQ f aQ = case viewl aQ of
     EmptyL -> return empty

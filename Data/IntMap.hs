@@ -1,6 +1,12 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
+#endif
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DataKinds, FlexibleContexts #-}
+#endif
+#if __GLASGOW_HASKELL__ >= 800
+{-# LANGUAGE MonoLocalBinds #-}
 #endif
 
 #include "containers.h"
@@ -54,43 +60,42 @@
 
 module Data.IntMap
     ( module Data.IntMap.Lazy
+#ifdef __GLASGOW_HASKELL__
+-- For GHC, we disable these, pending removal. For anything else,
+-- we just don't define them at all.
     , insertWith'
     , insertWithKey'
     , fold
     , foldWithKey
+#endif
     ) where
 
-import Prelude ()  -- hide foldr
-import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
--- | /O(log n)/. Same as 'insertWith', but the result of the combining function
--- is evaluated to WHNF before inserted to the map.
+#ifdef __GLASGOW_HASKELL__
+import Utils.Containers.Internal.TypeError
 
-{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWith'." #-}
-insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith' = Strict.insertWith
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Strict.insertWith'
+insertWith' :: Whoops "Data.IntMap.insertWith' is gone. Use Data.IntMap.Strict.insertWith."
+            => (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWith' _ _ _ _ = undefined
 
--- | /O(log n)/. Same as 'insertWithKey', but the result of the combining
--- function is evaluated to WHNF before inserted to the map.
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Strict.insertWithKey'.
+insertWithKey' :: Whoops "Data.IntMap.insertWithKey' is gone. Use Data.IntMap.Strict.insertWithKey."
+               => (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWithKey' _ _ _ _ = undefined
 
-{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWithKey'." #-}
-insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey' = Strict.insertWithKey
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Lazy.foldr'.
+fold :: Whoops "Data.IntMap.fold' is gone. Use Data.IntMap.foldr or Prelude.foldr."
+     => (a -> b -> b) -> b -> IntMap a -> b
+fold _ _ _ = undefined
 
--- | /O(n)/. Fold the values in the map using the given
--- right-associative binary operator. This function is an equivalent
--- of 'foldr' and is present for compatibility only.
-{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
-fold :: (a -> b -> b) -> b -> IntMap a -> b
-fold = foldr
-{-# INLINE fold #-}
-
--- | /O(n)/. Fold the keys and values in the map using the given
--- right-associative binary operator. This function is an equivalent
--- of 'foldrWithKey' and is present for compatibility only.
-
-{-# DEPRECATED foldWithKey "As of version 0.5, replaced by 'foldrWithKey'." #-}
-foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldWithKey = foldrWithKey
-{-# INLINE foldWithKey #-}
+-- | This function is being removed and is no longer usable.
+-- Use 'foldrWithKey'.
+foldWithKey :: Whoops "Data.IntMap.foldWithKey is gone. Use foldrWithKey."
+            => (Key -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey _ _ _ = undefined
+#endif

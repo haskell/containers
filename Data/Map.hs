@@ -1,6 +1,13 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DataKinds, FlexibleContexts #-}
+#endif
+#if __GLASGOW_HASKELL__ >= 800
+{-# LANGUAGE MonoLocalBinds #-}
 #endif
 
 #include "containers.h"
@@ -60,72 +67,48 @@
 
 module Data.Map
     ( module Data.Map.Lazy
+#ifdef __GLASGOW_HASKELL__
     , insertWith'
     , insertWithKey'
     , insertLookupWithKey'
     , fold
     , foldWithKey
+#endif
     ) where
 
-import Prelude hiding (foldr)
 import Data.Map.Lazy
-import qualified Data.Map.Strict as Strict
 
--- | /O(log n)/. Same as 'insertWith', but the value being inserted to the map is
--- evaluated to WHNF beforehand.
---
--- For example, to update a counter:
---
--- > insertWith' (+) k 1 m
---
-{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.Map.Strict.insertWith'." #-}
-insertWith' :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith' = Strict.insertWith
-#if __GLASGOW_HASKELL__
-{-# INLINABLE insertWith' #-}
-#else
-{-# INLINE insertWith' #-}
-#endif
+#ifdef __GLASGOW_HASKELL__
+import Utils.Containers.Internal.TypeError
 
--- | /O(log n)/. Same as 'insertWithKey', but the value being inserted to the map is
--- evaluated to WHNF beforehand.
-{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.Map.Strict.insertWithKey'." #-}
-insertWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
--- We do not reuse Data.Map.Strict.insertWithKey, because it is stricter -- it
--- forces evaluation of the given value.
-insertWithKey' = Strict.insertWithKey
-#if __GLASGOW_HASKELL__
-{-# INLINABLE insertWithKey' #-}
-#else
-{-# INLINE insertWithKey' #-}
-#endif
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.Map.Strict.insertWith'.
+insertWith' :: Whoops "Data.Map.insertWith' is gone. Use Data.Map.Strict.insertWith."
+            => (a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWith' _ _ _ _ = undefined
 
--- | /O(log n)/. Same as 'insertLookupWithKey', but the value being inserted to
--- the map is evaluated to WHNF beforehand.
-{-# DEPRECATED insertLookupWithKey' "As of version 0.5, replaced by 'Data.Map.Strict.insertLookupWithKey'." #-}
-insertLookupWithKey' :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.Map.Strict.insertWithKey'.
+insertWithKey' :: Whoops "Data.Map.insertWithKey' is gone. Use Data.Map.Strict.insertWithKey."
+               => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
+insertWithKey' _ _ _ _ = undefined
+
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.Map.Strict.insertLookupWithKey'.
+insertLookupWithKey' :: Whoops "Data.Map.insertLookupWithKey' is gone. Use Data.Map.Strict.insertLookupWithKey."
+                     => (k -> a -> a -> a) -> k -> a -> Map k a
                      -> (Maybe a, Map k a)
--- We do not reuse Data.Map.Strict.insertLookupWithKey, because it is stricter -- it
--- forces evaluation of the given value.
-insertLookupWithKey' = Strict.insertLookupWithKey
-#if __GLASGOW_HASKELL__
-{-# INLINABLE insertLookupWithKey' #-}
-#else
-{-# INLINE insertLookupWithKey' #-}
+insertLookupWithKey' _ _ _ _ = undefined
+
+-- | This function is being removed and is no longer usable.
+-- Use 'foldr'.
+fold :: Whoops "Data.Map.fold is gone. Use foldr."
+     => (a -> b -> b) -> b -> Map k a -> b
+fold _ _ _ = undefined
+
+-- | This function is being removed and is no longer usable.
+-- Use 'foldrWithKey'.
+foldWithKey :: Whoops "Data.Map.foldWithKey is gone. Use foldrWithKey."
+            => (k -> a -> b -> b) -> b -> Map k a -> b
+foldWithKey _ _ _ = undefined
 #endif
-
--- | /O(n)/. Fold the values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
-{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
-fold :: (a -> b -> b) -> b -> Map k a -> b
-fold = foldr
-{-# INLINE fold #-}
-
--- | /O(n)/. Fold the keys and values in the map using the given right-associative
--- binary operator. This function is an equivalent of 'foldrWithKey' and is present
--- for compatibility only.
-{-# DEPRECATED foldWithKey "As of version 0.4, replaced by 'foldrWithKey'." #-}
-foldWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
-foldWithKey = foldrWithKey
-{-# INLINE foldWithKey #-}

@@ -2,7 +2,7 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash #-}
 #endif
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -39,11 +39,7 @@ module Utils.Containers.Internal.BitUtil
     ) where
 
 import Data.Bits ((.|.), xor)
-#if MIN_VERSION_base(4,5,0)
 import Data.Bits (popCount, unsafeShiftL, unsafeShiftR)
-#else
-import Data.Bits ((.&.), shiftL, shiftR)
-#endif
 #if MIN_VERSION_base(4,7,0)
 import Data.Bits (finiteBitSize)
 #else
@@ -67,13 +63,7 @@ import Data.Word (Word)
 ----------------------------------------------------------------------}
 
 bitcount :: Int -> Word -> Int
-#if MIN_VERSION_base(4,5,0)
 bitcount a x = a + popCount x
-#else
-bitcount a0 x0 = go a0 x0
-  where go a 0 = a
-        go a x = go (a + 1) (x .&. (x-1))
-#endif
 {-# INLINE bitcount #-}
 
 -- The highestBitMask implementation is based on
@@ -97,13 +87,8 @@ highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
 
 -- Right and left logical shifts.
 shiftRL, shiftLL :: Word -> Int -> Word
-#if MIN_VERSION_base(4,5,0)
 shiftRL = unsafeShiftR
 shiftLL = unsafeShiftL
-#else
-shiftRL = shiftR
-shiftLL = shiftL
-#endif
 
 {-# INLINE wordSize #-}
 wordSize :: Int

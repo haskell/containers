@@ -1,15 +1,14 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE StandaloneDeriving #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+# if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE Safe #-}
+# else
+{-# LANGUAGE Trustworthy #-}
+# endif
 #endif
 
 #include "containers.h"
@@ -23,56 +22,82 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- A version of the graph algorithms described in:
+-- = Finite Graphs
 --
---   /Structuring Depth-First Search Algorithms in Haskell/,
---   by David King and John Launchbury.
+-- The @'Graph'@ type is an adjacency list representation of a finite, directed
+-- graph with vertices of type @Int@.
+--
+-- The @'SCC'@ type represents a
+-- <https://en.wikipedia.org/wiki/Strongly_connected_component strongly-connected component>
+-- of a graph.
+--
+-- == Implementation
+--
+-- The implementation is based on
+--
+--   * /Structuring Depth-First Search Algorithms in Haskell/,
+--     by David King and John Launchbury.
 --
 -----------------------------------------------------------------------------
 
-module Data.Graph(
+module Data.Graph (
 
-        -- * External interface
+    -- * Graphs
+      Graph
+    , Bounds
+    , Edge
+    , Vertex
+    , Table
 
-        -- At present the only one with a "nice" external interface
-        stronglyConnComp, stronglyConnCompR, SCC(..), flattenSCC, flattenSCCs,
+    -- ** Graph Construction
+    , graphFromEdges
+    , graphFromEdges'
+    , buildG
 
-        -- * Graphs
+    -- ** Graph Properties
+    , vertices
+    , edges
+    , outdegree
+    , indegree
 
-        Graph, Table, Bounds, Edge, Vertex,
+    -- ** Graph Transformations
+    , transposeG
 
-        -- ** Building graphs
+    -- ** Graph Algorithms
+    , dfs
+    , dff
+    , topSort
+    , components
+    , scc
+    , bcc
+    , reachable
+    , path
 
-        graphFromEdges, graphFromEdges', buildG, transposeG,
-        -- reverseE,
 
-        -- ** Graph properties
+    -- * Strongly Connected Components
+    , SCC(..)
 
-        vertices, edges,
-        outdegree, indegree,
+    -- ** Construction
+    , stronglyConnComp
+    , stronglyConnCompR
 
-        -- * Algorithms
+    -- ** Conversion
+    , flattenSCC
+    , flattenSCCs
 
-        dfs, dff,
-        topSort,
-        components,
-        scc,
-        bcc,
-        -- tree, back, cross, forward,
-        reachable, path,
-
-        module Data.Tree
+    -- * Trees
+    , module Data.Tree
 
     ) where
 
-#if __GLASGOW_HASKELL__
-# define USE_ST_MONAD 1
-#endif
-
--- Extensions
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST (STUArray, newArray, readArray, writeArray)
+import Data.Array.ST.Safe (newArray, readArray, writeArray)
+# if USE_UNBOXED_ARRAYS
+import Data.Array.ST.Safe (STUArray)
+# else
+import Data.Array.ST.Safe (STArray)
+# endif
 #else
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
@@ -90,25 +115,29 @@ import Data.Foldable as F
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
+#if USE_UNBOXED_ARRAYS
+import qualified Data.Array.Unboxed as UA
+import Data.Array.Unboxed ( UArray )
+#else
+import qualified Data.Array as UA
+#endif
 import Data.List
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
 import Data.Semigroup (Semigroup (..))
 #endif
-#if __GLASGOW_HASKELL__ >= 706
-import GHC.Generics (Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-import GHC.Generics (Generic)
-#endif
 #ifdef __GLASGOW_HASKELL__
+import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
-#endif
 import Data.Typeable
+#endif
 
+-- Make sure we don't use Integer by mistake.
+default ()
 
 -------------------------------------------------------------------------
 --                                                                      -
---      External interface
+--      Strongly Connected Components
 --                                                                      -
 -------------------------------------------------------------------------
 
@@ -131,14 +160,10 @@ INSTANCE_TYPEABLE1(SCC)
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
-#endif
 
-#if __GLASGOW_HASKELL__ >= 706
 -- | @since 0.5.9
 deriving instance Generic1 SCC
-#endif
 
-#if __GLASGOW_HASKELL__ >= 702
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
 #endif
@@ -246,31 +271,59 @@ stronglyConnCompR edges0
 -- | Abstract representation of vertices.
 type Vertex  = Int
 -- | Table indexed by a contiguous set of vertices.
+--
+-- /Note: This is included for backwards compatibility./
 type Table a = Array Vertex a
 -- | Adjacency list representation of a graph, mapping each vertex to its
 -- list of successors.
-type Graph   = Table [Vertex]
--- | The bounds of a 'Table'.
+type Graph   = Array Vertex [Vertex]
+-- | The bounds of an @Array@.
 type Bounds  = (Vertex, Vertex)
 -- | An edge from the first vertex to the second.
 type Edge    = (Vertex, Vertex)
 
--- | All vertices of a graph.
+#if !USE_UNBOXED_ARRAYS
+type UArray i a = Array i a
+#endif
+
+-- | Returns the list of vertices in the graph.
+--
+-- ==== __Examples__
+--
+-- > vertices (buildG (0,-1) []) == []
+--
+-- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1,2]
 vertices :: Graph -> [Vertex]
 vertices  = indices
 
--- | All edges of a graph.
+-- | Returns the list of edges in the graph.
+--
+-- ==== __Examples__
+--
+-- > edges (buildG (0,-1) []) == []
+--
+-- > edges (buildG (0,2) [(0,1),(1,2)]) == [(0,1),(1,2)]
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 
-mapT    :: (Vertex -> a -> b) -> Table a -> Table b
-mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
-
 -- | Build a graph from a list of edges.
+--
+-- Warning: This function will cause a runtime exception if a vertex in the edge
+-- list is not within the given @Bounds@.
+--
+-- ==== __Examples__
+--
+-- > buildG (0,-1) [] == array (0,-1) []
+-- > buildG (0,2) [(0,1), (1,2)] == array (0,1) [(0,[1]),(1,[2])]
+-- > buildG (0,2) [(0,1), (0,2), (1,2)] == array (0,2) [(0,[2,1]),(1,[2]),(2,[])]
 buildG :: Bounds -> [Edge] -> Graph
 buildG bounds0 edges0 = accumArray (flip (:)) [] bounds0 edges0
 
 -- | The graph obtained by reversing all edges.
+--
+-- ==== __Examples__
+--
+-- > transposeG (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,[]),(1,[0]),(2,[1])]
 transposeG  :: Graph -> Graph
 transposeG g = buildG (bounds g) (reverseE g)
 
@@ -278,13 +331,28 @@ reverseE    :: Graph -> [Edge]
 reverseE g   = [ (w, v) | (v, w) <- edges g ]
 
 -- | A table of the count of edges from each node.
-outdegree :: Graph -> Table Int
-outdegree  = mapT numEdges
-             where numEdges _ ws = length ws
+--
+-- ==== __Examples__
+--
+-- > outdegree (buildG (0,-1) []) == array (0,-1) []
+--
+-- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
+outdegree :: Graph -> Array Vertex Int
+-- This is bizarrely lazy. We build an array filled with thunks, instead
+-- of actually calculating anything. This is the historical behavior, and I
+-- suppose someone *could* be relying on it, but it might be worth finding
+-- out. Note that we *can't* be so lazy with indegree.
+outdegree  = fmap length
 
 -- | A table of the count of edges into each node.
-indegree :: Graph -> Table Int
-indegree  = outdegree . transposeG
+--
+-- ==== __Examples__
+--
+-- > indegree (buildG (0,-1) []) == array (0,-1) []
+--
+-- > indegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,0),(1,1),(2,1)]
+indegree :: Graph -> Array Vertex Int
+indegree g = accumArray (+) 0 (bounds g) [(v, 1) | (_, outs) <- assocs g, v <- outs]
 
 -- | Identical to 'graphFromEdges', except that the return value
 -- does not include the function which maps keys to vertices.  This
@@ -298,8 +366,60 @@ graphFromEdges' x = (a,b) where
 
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
--- The out-list may contain keys that don't correspond to
--- nodes of the graph; they are ignored.
+--
+-- This function takes an adjacency list representing a graph with vertices of
+-- type @key@ labeled by values of type @node@ and produces a @Graph@-based
+-- representation of that list. The @Graph@ result represents the /shape/ of the
+-- graph, and the functions describe a) how to retrieve the label and adjacent
+-- vertices of a given vertex, and b) how to retrive a vertex given a key.
+--
+-- @(graph, nodeFromVertex, vertexFromKey) = graphFromEdges edgeList@
+--
+-- * @graph :: Graph@ is the raw, array based adjacency list for the graph.
+-- * @nodeFromVertex :: Vertex -> (node, key, [key])@ returns the node
+--   associated with the given 0-based @Int@ vertex; see /warning/ below.
+-- * @vertexFromKey :: key -> Maybe Vertex@ returns the @Int@ vertex for the
+--   key if it exists in the graph, @Nothing@ otherwise.
+--
+-- To safely use this API you must either extract the list of vertices directly
+-- from the graph or first call @vertexFromKey k@ to check if a vertex
+-- corresponds to the key @k@. Once it is known that a vertex exists you can use
+-- @nodeFromVertex@ to access the labelled node and adjacent vertices. See below
+-- for examples.
+--
+-- Note: The out-list may contain keys that don't correspond to nodes of the
+-- graph; they are ignored.
+--
+-- Warning: The @nodeFromVertex@ function will cause a runtime exception if the
+-- given @Vertex@ does not exist.
+--
+-- ==== __Examples__
+--
+-- An empty graph.
+--
+-- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges []
+-- > graph = array (0,-1) []
+--
+-- A graph where the out-list references unspecified nodes (@'c'@), these are
+-- ignored.
+--
+-- > (graph, _, _) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c'])]
+-- > array (0,1) [(0,[1]),(1,[])]
+--
+--
+-- A graph with 3 vertices: ("a") -> ("b") -> ("c")
+--
+-- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
+-- > graph == array (0,2) [(0,[1]),(1,[2]),(2,[])]
+-- > nodeFromVertex 0 == ("a",'a',"b")
+-- > vertexFromKey 'a' == Just 0
+--
+-- Get the label for a given key.
+--
+-- > let getNodePart (n, _, _) = n
+-- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
+-- > getNodePart . nodeFromVertex <$> vertexFromKey 'a' == Just "A"
+--
 graphFromEdges
         :: Ord key
         => [(node, key, [key])]
@@ -372,7 +492,11 @@ chop (Node v ts : us)
 
 -- Use the ST monad if available, for constant-time primitives.
 
+#if USE_UNBOXED_ARRAYS
 newtype SetM s a = SetM { runSetM :: STUArray s Vertex Bool -> ST s a }
+#else
+newtype SetM s a = SetM { runSetM :: STArray  s Vertex Bool -> ST s a }
+#endif
 
 instance Monad (SetM s) where
     return = pure
@@ -452,10 +576,14 @@ preorderF' ts = foldr (.) id $ map preorder' ts
 preorderF :: Forest a -> [a]
 preorderF ts = preorderF' ts []
 
-tabulate        :: Bounds -> [Vertex] -> Table Int
-tabulate bnds vs = array bnds (zipWith (,) vs [1..])
+tabulate        :: Bounds -> [Vertex] -> UArray Vertex Int
+tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
+-- Why zipWith (flip (,)) instead of just using zip with the
+-- arguments in the other order? We want the [1..] to fuse
+-- away, and these days that only happens when it's the first
+-- list argument.
 
-preArr          :: Bounds -> Forest Vertex -> Table Int
+preArr          :: Bounds -> Forest Vertex -> UArray Vertex Int
 preArr bnds      = tabulate bnds . preorderF
 
 ------------------------------------------------------------
@@ -519,18 +647,35 @@ cross g pre post   = mapT select g
 forward           :: Graph -> Graph -> Table Int -> Graph
 forward g tree' pre = mapT select g
  where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree' ! v
+
+mapT    :: (Vertex -> a -> b) -> Array Vertex a -> Array Vertex b
+mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 -}
 
 ------------------------------------------------------------
 -- Algorithm 6: Finding reachable vertices
 ------------------------------------------------------------
 
--- | A list of vertices reachable from a given vertex.
-reachable    :: Graph -> Vertex -> [Vertex]
+-- | Returns the list of vertices reachable from a given vertex.
+--
+-- ==== __Examples__
+--
+-- > reachable (buildG (0,0) []) 0 == [0]
+--
+-- > reachable (buildG (0,2) [(0,1), (1,2)]) 0 == [0,1,2]
+reachable :: Graph -> Vertex -> [Vertex]
 reachable g v = preorderF (dfs g [v])
 
--- | Is the second vertex reachable from the first?
-path         :: Graph -> Vertex -> Vertex -> Bool
+-- | Returns @True@ if the second vertex reachable from the first.
+--
+-- ==== __Examples__
+--
+-- > path (buildG (0,0) []) 0 0 == True
+--
+-- > path (buildG (0,2) [(0,1), (1,2)]) 0 2 == True
+--
+-- > path (buildG (0,2) [(0,1), (1,2)]) 2 0 == False
+path :: Graph -> Vertex -> Vertex -> Bool
 path g v w    = w `elem` (reachable g v)
 
 ------------------------------------------------------------
@@ -545,10 +690,10 @@ bcc g = (concat . map bicomps . map (do_label g dnum)) forest
  where forest = dff g
        dnum   = preArr (bounds g) forest
 
-do_label :: Graph -> Table Int -> Tree Vertex -> Tree (Vertex,Int,Int)
-do_label g dnum (Node v ts) = Node (v,dnum!v,lv) us
+do_label :: Graph -> UArray Vertex Int -> Tree Vertex -> Tree (Vertex,Int,Int)
+do_label g dnum (Node v ts) = Node (v, dnum UA.! v, lv) us
  where us = map (do_label g dnum) ts
-       lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
+       lv = minimum ([dnum UA.! v] ++ [dnum UA.! w | w <- g!v]
                      ++ [lu | Node (_,_,lu) _ <- us])
 
 bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]

@@ -1,5 +1,59 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## Next
+
+### New functions and class instances
+
+* Add `Data.Containers.ListUtils` offering `nub`-like functions. (Thanks to
+  Gershom Bazerman for starting the process of writing these.)
+
+* Add `Generic` and `Generic1` instances for key `Data.Sequence.Internal` types:
+  `Node`, `Digit`, `Elem`, and `FingerTree`.
+
+### Death of deprecated functions
+
+The following functions have been disabled. As an experiment
+in function removal technology, the functions are still temporarily present,
+but any attempts to use them will result in type errors advising on
+replacement.
+
+* `Data.IntMap`: `insertWith'`, `insertWithKey'`, `fold`, and `foldWithKey`.
+
+* `Data.Map`: `insertWith'`, `insertWithKey'`, `insertLookupWithKey'`,
+   `fold`, and `foldWithKey`.
+
+The same has been done for the deprecated exports of `showTree` and
+`showTreeWith`. These function remain available in the internal `Debug`
+modules.
+
+### Changes to existing functions
+
+* Generalize the types of `unions` and `unionsWith`. (Thanks, jwaldmann.)
+
+### Performance improvements
+
+* Speed up folds and `traverse` on sequences. (Thanks, Donnacha Oisín Kidney.)
+
+* Speed up `Data.Set.union`. (Thanks, Joachim Breitner.)
+
+* Speed up several algorithms in `Data.Graph` a bit by using unboxed arrays
+  where appropriate.
+
+* Implement `Data.Graph.indegree` directly instead of taking the transpose
+  and calculating its `outdegree`. This may not lead to an immediate performance
+  improvement (see [GHC Trac #14785](https://ghc.haskell.org/trac/ghc/ticket/14785))
+  but it should be better eventually.
+
+### Other package changes
+
+* Drop support for GHC versions before 7.6.
+
+* Improve `Data.Graph` documentation, and reorganize map and set documentation.
+
+* Remove the `Data.Map.Lazy.Merge` and `Data.Map.Strict.Merge` modules. These
+  were renamed and deprecated almost as soon as they were introduced.
+
+
 ## 0.5.11
 
 * Released with GHC 8.4.

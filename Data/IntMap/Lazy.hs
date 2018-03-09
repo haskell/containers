@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -223,10 +223,14 @@ module Data.IntMap.Lazy (
     , minViewWithKey
     , maxViewWithKey
 
+#ifdef __GLASGOW_HASKELL__
     -- * Debugging
     , showTree
     , showTreeWith
+#endif
     ) where
 
 import Data.IntMap.Internal as IM hiding (showTree, showTreeWith)
+#ifdef __GLASGOW_HASKELL__
 import Data.IntMap.Internal.DeprecatedDebug
+#endif
