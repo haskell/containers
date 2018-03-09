@@ -1082,7 +1082,7 @@ differenceWithKey f m1 m2
 -- | /O(n+m)/. Remove all the keys in a given set from a map.
 --
 -- @
--- m `withoutKeys` s = 'filterWithKey' (\k _ -> k `'IntSet.notMember'` s) m
+-- m \`withoutKeys\` s = 'filterWithKey' (\k _ -> k ``IntSet.notMember`` s) m
 -- @
 --
 -- @since 0.5.8
@@ -1160,7 +1160,7 @@ intersection m1 m2
 -- | /O(n+m)/. The restriction of a map to the keys in a set.
 --
 -- @
--- m `restrictKeys` s = 'filterWithKey' (\k _ -> k `'IntSet.member'` s) m
+-- m \`restrictKeys\` s = 'filterWithKey' (\k _ -> k ``IntSet.member`` s) m
 -- @
 --
 -- @since 0.5.8
