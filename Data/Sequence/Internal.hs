@@ -3,16 +3,12 @@
 {-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeFamilies #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 702
-{-# LANGUAGE DeriveGeneric #-}
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
@@ -214,11 +210,7 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
-#if MIN_VERSION_base(4,6,0)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
-#else
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap), foldl', toList)
-#endif
 
 #if MIN_VERSION_base(4,9,0)
 import qualified Data.Semigroup as Semigroup
@@ -235,10 +227,8 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
 import Data.Data
 import Data.String (IsString(..))
 #endif
-#if __GLASGOW_HASKELL__ >= 706
+#if __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-import GHC.Generics (Generic)
 #endif
 
 -- Array stuff, with GHC.Arr on GHC
@@ -266,9 +256,7 @@ import Data.Word (Word)
 #endif
 
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
-#if MIN_VERSION_base(4,4,0)
 import Control.Monad.Zip (MonadZip (..))
-#endif
 import Control.Monad.Fix (MonadFix (..), fix)
 
 default ()
@@ -400,15 +388,12 @@ instance Foldable Seq where
     {-# INLINABLE foldl #-}
 #endif
 
-#if MIN_VERSION_base(4,6,0)
     foldr' f z = foldr' (f .# getElem) z .# getSeq
     foldl' f z = foldl' (f .^# getElem) z .# getSeq
 
 #if __GLASGOW_HASKELL__
     {-# INLINABLE foldr' #-}
     {-# INLINABLE foldl' #-}
-#endif
-
 #endif
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
@@ -1034,8 +1019,6 @@ instance Foldable FingerTree where
         foldlNodeN f z t = foldl f z t
     {-# INLINE foldl #-}
 
-
-#if MIN_VERSION_base(4,6,0)
     foldr' _ z' EmptyT = z'
     foldr' f' z' (Single x') = f' x' z'
     foldr' f' z' (Deep _ pr' m' sf') =
@@ -1076,7 +1059,6 @@ instance Foldable FingerTree where
         foldlNode' :: (b -> a -> b) -> b -> Node a -> b
         foldlNode' f z t = foldl' f z t
     {-# INLINE foldl' #-}
-#endif
 
     foldr1 _ EmptyT = error "foldr1: empty sequence"
     foldr1 _ (Single x) = x
@@ -1155,7 +1137,6 @@ instance Foldable Digit where
     foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
     {-# INLINE foldl #-}
 
-#if MIN_VERSION_base(4,6,0)
     foldr' f z (One a) = f a z
     foldr' f z (Two a b) = f a $! f b z
     foldr' f z (Three a b c) = f a $! f b $! f c z
@@ -1167,7 +1148,6 @@ instance Foldable Digit where
     foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
     foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
     {-# INLINE foldl' #-}
-#endif
 
     foldr1 _ (One a) = a
     foldr1 f (Two a b) = a `f` b
@@ -1244,7 +1224,6 @@ instance Foldable Node where
     foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
     {-# INLINE foldl #-}
 
-#if MIN_VERSION_base(4,6,0)
     foldr' f z (Node2 _ a b) = f a $! f b z
     foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
     {-# INLINE foldr' #-}
@@ -1252,7 +1231,6 @@ instance Foldable Node where
     foldl' f z (Node2 _ a b) = (f $! f z a) b
     foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
     {-# INLINE foldl' #-}
-#endif
 
 instance Functor Node where
     {-# INLINE fmap #-}
@@ -1311,9 +1289,7 @@ instance Foldable Elem where
 #else
     foldMap f (Elem x) = f x
     foldl f z (Elem x) = f z x
-#if MIN_VERSION_base(4,6,0)
     foldl' f z (Elem x) = f z x
-#endif
 #endif
 
 instance Traversable Elem where
@@ -1864,12 +1840,10 @@ data ViewL a
 
 #if __GLASGOW_HASKELL__
 deriving instance Data a => Data (ViewL a)
-#endif
-#if __GLASGOW_HASKELL__ >= 706
+
 -- | @since 0.5.8
 deriving instance Generic1 ViewL
-#endif
-#if __GLASGOW_HASKELL__ >= 702
+
 -- | @since 0.5.8
 deriving instance Generic (ViewL a)
 #endif
@@ -1931,12 +1905,10 @@ data ViewR a
 
 #if __GLASGOW_HASKELL__
 deriving instance Data a => Data (ViewR a)
-#endif
-#if __GLASGOW_HASKELL__ >= 706
+
 -- | @since 0.5.8
 deriving instance Generic1 ViewR
-#endif
-#if __GLASGOW_HASKELL__ >= 702
+
 -- | @since 0.5.8
 deriving instance Generic (ViewR a)
 #endif
@@ -4332,8 +4304,6 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
 -- Zipping
 ------------------------------------------------------------------------
 
--- MonadZip appeared in base 4.4.0
-#if MIN_VERSION_base(4,4,0)
 -- We use a custom definition of munzip to avoid retaining
 -- memory longer than necessary. Using the default definition, if
 -- we write
@@ -4352,7 +4322,6 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
 instance MonadZip Seq where
   mzipWith = zipWith
   munzip = unzip
-#endif
 
 -- | Unzip a sequence of pairs.
 --

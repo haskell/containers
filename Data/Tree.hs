@@ -2,11 +2,7 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 703
 {-# LANGUAGE Trustworthy #-}
 #endif
 
@@ -56,16 +52,10 @@ import Control.DeepSeq (NFData(rnf))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
-#endif
-#if __GLASGOW_HASKELL__ >= 706
 import GHC.Generics (Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-import GHC.Generics (Generic)
 #endif
 
-#if MIN_VERSION_base(4,4,0)
 import Control.Monad.Zip (MonadZip (..))
-#endif
 
 #if MIN_VERSION_base(4,8,0)
 import Data.Coerce
@@ -86,7 +76,6 @@ data Tree a = Node {
         subForest :: Forest a   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ >= 802
   deriving ( Eq
            , Read
            , Show
@@ -94,16 +83,10 @@ data Tree a = Node {
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
            )
-#elif __GLASGOW_HASKELL__ >= 706
-  deriving (Eq, Read, Show, Data, Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-  deriving (Eq, Read, Show, Data, Generic)
-#else
-  deriving (Eq, Read, Show, Data)
-#endif
 #else
   deriving (Eq, Read, Show)
 #endif
+
 type Forest a = [Tree a]
 
 #if MIN_VERSION_base(4,9,0)
@@ -204,14 +187,12 @@ instance Foldable Tree where
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 
-#if MIN_VERSION_base(4,4,0)
 instance MonadZip Tree where
   mzipWith f (Node a as) (Node b bs)
     = Node (f a b) (mzipWith (mzipWith f) as bs)
 
   munzip (Node (a, b) ts) = (Node a as, Node b bs)
     where (as, bs) = munzip (map munzip ts)
-#endif
 
 -- | Neat 2-dimensional drawing of a tree.
 drawTree :: Tree String -> String

@@ -5,7 +5,7 @@
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 #endif
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 708
@@ -444,13 +444,10 @@ instance Foldable.Foldable IntMap where
           go (Tip _ v) = f v
           go (Bin _ _ l r) = go l `mappend` go r
   {-# INLINE foldMap #-}
-
-#if MIN_VERSION_base(4,6,0)
   foldl' = foldl'
   {-# INLINE foldl' #-}
   foldr' = foldr'
   {-# INLINE foldr' #-}
-#endif
 #if MIN_VERSION_base(4,8,0)
   length = size
   {-# INLINE length #-}

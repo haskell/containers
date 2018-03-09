@@ -51,22 +51,11 @@ import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, wordSize)
 import Data.Bits ((.|.), (.&.), testBit)
 #if MIN_VERSION_base(4,8,0)
 import Data.Bits (countTrailingZeros)
-#elif MIN_VERSION_base(4,5,0)
+#else
 import Data.Bits (popCount)
 #endif
 
-#if !MIN_VERSION_base(4,5,0)
--- We could almost certainly improve this fall-back (copied straight from the
--- default definition in Data.Bits), but it hardly seems worth the trouble
--- to speed things up on GHC 7.4 and below.
-countTrailingZeros :: Word -> Int
-countTrailingZeros x = go 0
-      where
-        go i | i >= wordSize      = i
-             | testBit x i = i
-             | otherwise   = go (i+1)
-
-#elif !MIN_VERSION_base(4,8,0)
+#if !MIN_VERSION_base(4,8,0)
 countTrailingZeros :: Word -> Int
 countTrailingZeros x = popCount ((x .&. (-x)) - 1)
 {-# INLINE countTrailingZeros #-}

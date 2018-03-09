@@ -1,15 +1,10 @@
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE Rank2Types #-}
+{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE StandaloneDeriving #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 703
-{-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 702
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE Trustworthy #-}
 #endif
 
 #include "containers.h"
@@ -120,15 +115,11 @@ import Data.List
 import Data.Functor.Classes
 import Data.Semigroup (Semigroup (..))
 #endif
-#if __GLASGOW_HASKELL__ >= 706
-import GHC.Generics (Generic, Generic1)
-#elif __GLASGOW_HASKELL__ >= 702
-import GHC.Generics (Generic)
-#endif
 #ifdef __GLASGOW_HASKELL__
+import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
-#endif
 import Data.Typeable
+#endif
 
 
 -------------------------------------------------------------------------
@@ -156,14 +147,10 @@ INSTANCE_TYPEABLE1(SCC)
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
-#endif
 
-#if __GLASGOW_HASKELL__ >= 706
 -- | @since 0.5.9
 deriving instance Generic1 SCC
-#endif
 
-#if __GLASGOW_HASKELL__ >= 702
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
 #endif
