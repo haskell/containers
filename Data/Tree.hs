@@ -44,10 +44,10 @@ module Data.Tree(
     , unfoldTreeM_BF
     , unfoldForestM_BF
 
-    -- * Extraction
+    -- * Elimination
+    , foldTree
     , flatten
     , levels
-    , foldTree
 
     -- * Ascii Drawings
     , drawTree
