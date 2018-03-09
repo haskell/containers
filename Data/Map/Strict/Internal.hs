@@ -292,8 +292,10 @@ module Data.Map.Strict.Internal
     , maxViewWithKey
 
     -- * Debugging
+#if defined(__GLASGOW_HASKELL__)
     , showTree
     , showTreeWith
+#endif
     , valid
     ) where
 
@@ -397,7 +399,9 @@ import Data.Map.Internal
   , unions
   , withoutKeys )
 
+#if defined(__GLASGOW_HASKELL__)
 import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
+#endif
 import Data.Map.Internal.Debug (valid)
 
 import Control.Applicative (Const (..), liftA3)

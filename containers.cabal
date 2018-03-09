@@ -83,6 +83,9 @@ Library
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.Coercions
+    if impl(ghc)
+      other-modules:
+        Utils.Containers.Internal.TypeError
         Data.Map.Internal.DeprecatedShowTree
         Data.IntMap.Internal.DeprecatedDebug
 
@@ -207,6 +210,7 @@ benchmark lookupge-intmap
       LookupGE_IntMap
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.StrictPair
+      Utils.Containers.Internal.TypeError
   ghc-options: -O2
   cpp-options: -DTESTING
   other-modules:
@@ -378,6 +382,7 @@ Test-suite intmap-lazy-properties
         IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictPair
+        Utils.Containers.Internal.TypeError
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -406,6 +411,7 @@ Test-suite intmap-strict-properties
         IntMapValidity
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.StrictPair
+        Utils.Containers.Internal.TypeError
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
@@ -446,42 +452,6 @@ Test-suite intset-properties
         QuickCheck >= 2.7.1,
         test-framework,
         test-framework-hunit,
-        test-framework-quickcheck2
-
-Test-suite deprecated-properties
-    hs-source-dirs: tests, .
-    main-is: deprecated-properties.hs
-    other-modules:
-        Data.IntMap
-        Data.IntMap.Internal
-        Data.IntMap.Internal.DeprecatedDebug
-        Data.IntMap.Lazy
-        Data.IntMap.Strict
-        Data.IntSet.Internal
-        Data.Map
-        Data.Map.Internal
-        Data.Map.Internal.Debug
-        Data.Map.Internal.DeprecatedShowTree
-        Data.Map.Lazy
-        Data.Map.Strict
-        Data.Map.Strict.Internal
-        Data.Set.Internal
-        Utils.Containers.Internal.BitQueue
-        Utils.Containers.Internal.BitUtil
-        Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.StrictMaybe
-        Utils.Containers.Internal.StrictPair
-    type: exitcode-stdio-1.0
-    cpp-options: -DTESTING
-
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
-    ghc-options: -O2
-    other-extensions: CPP, BangPatterns
-    include-dirs: include
-
-    build-depends:
-        QuickCheck >= 2.7.1,
-        test-framework,
         test-framework-quickcheck2
 
 Test-suite seq-properties
@@ -565,6 +535,7 @@ test-suite intmap-strictness-properties
       Data.IntSet.Internal
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.StrictPair
+      Utils.Containers.Internal.TypeError
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns
 
