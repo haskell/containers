@@ -334,12 +334,13 @@ import Data.IntMap.Internal
 import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
-import Utils.Containers.Internal.StrictFold
 import Utils.Containers.Internal.StrictPair
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor((<$>))
 #endif
 import Control.Applicative (Applicative (..), liftA2)
+import qualified Data.Foldable as Foldable
+import Data.Foldable (Foldable())
 
 {--------------------------------------------------------------------
   Query
@@ -638,9 +639,9 @@ alterF f k m = (<$> f mv) $ \fres ->
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
 
-unionsWith :: (a->a->a) -> [IntMap a] -> IntMap a
+unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
-  = foldlStrict (unionWith f) empty ts
+  = Foldable.foldl' (unionWith f) empty ts
 
 -- | /O(n+m)/. The union with a combining function.
 --
@@ -1049,7 +1050,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 
 fromList :: [(Key,a)] -> IntMap a
 fromList xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x)  = insert k x t
 
@@ -1069,7 +1070,7 @@ fromListWith f xs
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
 fromListWithKey f xs
-  = foldlStrict ins empty xs
+  = Foldable.foldl' ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
 
