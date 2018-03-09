@@ -4357,7 +4357,7 @@ instance MonadZip Seq where
 -- | Unzip a sequence of pairs.
 --
 -- @
--- unzip ps = ps `'seq'` ('fmap' 'fst' ps) ('fmap' 'snd' ps)
+-- unzip ps = ps ``seq`` ('fmap' 'fst' ps) ('fmap' 'snd' ps)
 -- @
 --
 -- Example:
