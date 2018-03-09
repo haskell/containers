@@ -65,7 +65,7 @@
 --
 --     but
 --
---     @ (1 :<| undefined) `index` 0 = undefined @
+--     @ (1 :<| undefined) \`index\` 0 = undefined @
 --
 -- Sequences may also be compared to immutable
 -- [arrays](https://hackage.haskell.org/package/array)
