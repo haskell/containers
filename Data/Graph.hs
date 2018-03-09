@@ -4,7 +4,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
+# if __GLASGOW_HASKELL__ >= 710
+{-# LANGUAGE Safe #-}
+# else
 {-# LANGUAGE Trustworthy #-}
+# endif
 #endif
 
 #include "containers.h"
@@ -86,13 +90,14 @@ module Data.Graph (
 
     ) where
 
-#if __GLASGOW_HASKELL__
-# define USE_ST_MONAD 1
-#endif
-
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST (STUArray, newArray, readArray, writeArray)
+import Data.Array.ST.Safe (newArray, readArray, writeArray)
+# if USE_UNBOXED_ARRAYS
+import Data.Array.ST.Safe (STUArray)
+# else
+import Data.Array.ST.Safe (STArray)
+# endif
 #else
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
@@ -110,6 +115,12 @@ import Data.Foldable as F
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
+#if USE_UNBOXED_ARRAYS
+import qualified Data.Array.Unboxed as UA
+import Data.Array.Unboxed ( UArray )
+#else
+import qualified Data.Array as UA
+#endif
 import Data.List
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
@@ -121,6 +132,8 @@ import Data.Data (Data)
 import Data.Typeable
 #endif
 
+-- Make sure we don't use Integer by mistake.
+default ()
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -269,6 +282,10 @@ type Bounds  = (Vertex, Vertex)
 -- | An edge from the first vertex to the second.
 type Edge    = (Vertex, Vertex)
 
+#if !USE_UNBOXED_ARRAYS
+type UArray i a = Array i a
+#endif
+
 -- | Returns the list of vertices in the graph.
 --
 -- ==== __Examples__
@@ -288,9 +305,6 @@ vertices  = indices
 -- > edges (buildG (0,2) [(0,1),(1,2)]) == [(0,1),(1,2)]
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
-
-mapT    :: (Vertex -> a -> b) -> Array Vertex a -> Array Vertex b
-mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 
 -- | Build a graph from a list of edges.
 --
@@ -324,8 +338,11 @@ reverseE g   = [ (w, v) | (v, w) <- edges g ]
 --
 -- > outdegree (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,1),(1,1),(2,0)]
 outdegree :: Graph -> Array Vertex Int
-outdegree  = mapT numEdges
-             where numEdges _ ws = length ws
+-- This is bizarrely lazy. We build an array filled with thunks, instead
+-- of actually calculating anything. This is the historical behavior, and I
+-- suppose someone *could* be relying on it, but it might be worth finding
+-- out. Note that we *can't* be so lazy with indegree.
+outdegree  = fmap length
 
 -- | A table of the count of edges into each node.
 --
@@ -475,7 +492,11 @@ chop (Node v ts : us)
 
 -- Use the ST monad if available, for constant-time primitives.
 
+#if USE_UNBOXED_ARRAYS
 newtype SetM s a = SetM { runSetM :: STUArray s Vertex Bool -> ST s a }
+#else
+newtype SetM s a = SetM { runSetM :: STArray  s Vertex Bool -> ST s a }
+#endif
 
 instance Monad (SetM s) where
     return = pure
@@ -555,10 +576,14 @@ preorderF' ts = foldr (.) id $ map preorder' ts
 preorderF :: Forest a -> [a]
 preorderF ts = preorderF' ts []
 
-tabulate        :: Bounds -> [Vertex] -> Array Vertex Int
-tabulate bnds vs = array bnds (zipWith (,) vs [1..])
+tabulate        :: Bounds -> [Vertex] -> UArray Vertex Int
+tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
+-- Why zipWith (flip (,)) instead of just using zip with the
+-- arguments in the other order? We want the [1..] to fuse
+-- away, and these days that only happens when it's the first
+-- list argument.
 
-preArr          :: Bounds -> Forest Vertex -> Array Vertex Int
+preArr          :: Bounds -> Forest Vertex -> UArray Vertex Int
 preArr bnds      = tabulate bnds . preorderF
 
 ------------------------------------------------------------
@@ -622,6 +647,9 @@ cross g pre post   = mapT select g
 forward           :: Graph -> Graph -> Table Int -> Graph
 forward g tree' pre = mapT select g
  where select v ws = [ w | w <- ws, pre!v < pre!w ] \\ tree' ! v
+
+mapT    :: (Vertex -> a -> b) -> Array Vertex a -> Array Vertex b
+mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 -}
 
 ------------------------------------------------------------
@@ -662,10 +690,10 @@ bcc g = (concat . map bicomps . map (do_label g dnum)) forest
  where forest = dff g
        dnum   = preArr (bounds g) forest
 
-do_label :: Graph -> Array Vertex Int -> Tree Vertex -> Tree (Vertex,Int,Int)
-do_label g dnum (Node v ts) = Node (v,dnum!v,lv) us
+do_label :: Graph -> UArray Vertex Int -> Tree Vertex -> Tree (Vertex,Int,Int)
+do_label g dnum (Node v ts) = Node (v, dnum UA.! v, lv) us
  where us = map (do_label g dnum) ts
-       lv = minimum ([dnum!v] ++ [dnum!w | w <- g!v]
+       lv = minimum ([dnum UA.! v] ++ [dnum UA.! w | w <- g!v]
                      ++ [lu | Node (_,_,lu) _ <- us])
 
 bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]
