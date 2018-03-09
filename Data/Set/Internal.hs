@@ -1695,7 +1695,7 @@ splitRoot orig =
 -- | Calculate the power set of a set: the set of all its subsets.
 --
 -- @
--- t \`member\` powerSet s == t \`isSubsetOf\` s
+-- t ``member`` powerSet s == t ``isSubsetOf`` s
 -- @
 --
 -- Example:
@@ -1750,7 +1750,7 @@ instance Monoid (MergeSet a) where
 
 -- | Calculate the disjoin union of two sets.
 --
--- @ disjointUnion xs ys = map Left xs \`union\` map Right ys @
+-- @ disjointUnion xs ys = map Left xs ``union`` map Right ys @
 --
 -- Example:
 --
