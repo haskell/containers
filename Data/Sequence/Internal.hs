@@ -932,6 +932,14 @@ data FingerTree a
     deriving Show
 #endif
 
+#ifdef __GLASGOW_HASKELL__
+-- | @since 0.6.1
+deriving instance Generic1 FingerTree
+
+-- | @since 0.6.1
+deriving instance Generic (FingerTree a)
+#endif
+
 instance Sized a => Sized (FingerTree a) where
     {-# SPECIALIZE instance Sized (FingerTree (Elem a)) #-}
     {-# SPECIALIZE instance Sized (FingerTree (Node a)) #-}
@@ -1115,6 +1123,14 @@ data Digit a
     deriving Show
 #endif
 
+#ifdef __GLASGOW_HASKELL__
+-- | @since 0.6.1
+deriving instance Generic1 Digit
+
+-- | @since 0.6.1
+deriving instance Generic (Digit a)
+#endif
+
 foldDigit :: (b -> b -> b) -> (a -> b) -> Digit a -> b
 foldDigit _     f (One a) = f a
 foldDigit (<+>) f (Two a b) = f a <+> f b
@@ -1208,6 +1224,14 @@ data Node a
     deriving Show
 #endif
 
+#ifdef __GLASGOW_HASKELL__
+-- | @since 0.6.1
+deriving instance Generic1 Node
+
+-- | @since 0.6.1
+deriving instance Generic (Node a)
+#endif
+
 foldNode :: (b -> b -> b) -> (a -> b) -> Node a -> b
 foldNode (<+>) f (Node2 _ a b) = f a <+> f b
 foldNode (<+>) f (Node3 _ a b c) = f a <+> f b <+> f c
@@ -1267,6 +1291,14 @@ nodeToDigit (Node3 _ a b c) = Three a b c
 newtype Elem a  =  Elem { getElem :: a }
 #ifdef TESTING
     deriving Show
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+-- | @since 0.6.1
+deriving instance Generic1 Elem
+
+-- | @since 0.6.1
+deriving instance Generic (Elem a)
 #endif
 
 instance Sized (Elem a) where
@@ -1838,7 +1870,7 @@ data ViewL a
     | a :< Seq a    -- ^ leftmost element and the rest of the sequence
     deriving (Eq, Ord, Show, Read)
 
-#if __GLASGOW_HASKELL__
+#ifdef __GLASGOW_HASKELL__
 deriving instance Data a => Data (ViewL a)
 
 -- | @since 0.5.8
@@ -1903,7 +1935,7 @@ data ViewR a
             -- and the rightmost element
     deriving (Eq, Ord, Show, Read)
 
-#if __GLASGOW_HASKELL__
+#ifdef __GLASGOW_HASKELL__
 deriving instance Data a => Data (ViewR a)
 
 -- | @since 0.5.8

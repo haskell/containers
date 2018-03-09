@@ -7,6 +7,9 @@
 * Add `Data.Containers.ListUtils` offering `nub`-like functions. (Thanks to
   Gershom Bazerman for starting the process of writing these.)
 
+* Add `Generic` and `Generic1` instances for key `Data.Sequence.Internal` types:
+  `Node`, `Digit`, `Elem`, and `FingerTree`.
+
 ### Death of deprecated functions
 
 The following functions have been disabled. As an experiment
