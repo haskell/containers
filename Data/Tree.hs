@@ -349,7 +349,8 @@ foldTree f = go where
 -- ==== __Examples__
 --
 -- Construct the tree of @Integer@s where each node has two children:
--- left = 2*x and right = 2*x + 1. Stop when the values get greater than 7.
+-- @left = 2*x@ and @right = 2*x + 1@, where @x@ is the 'rootLabel' of the node.
+-- Stop when the values exceed 7.
 --
 -- > let buildNode x = if 2*x + 1 > 7 then (x, []) else (x, [2*x, 2*x+1])
 -- > putStr $ drawTree $ fmap show $ unfoldTree buildNode 1
