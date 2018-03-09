@@ -4,7 +4,7 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #endif
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 708
@@ -317,13 +317,10 @@ instance Foldable.Foldable Set where
             go (Bin 1 k _ _) = f k
             go (Bin _ k l r) = go l `mappend` (f k `mappend` go r)
     {-# INLINE foldMap #-}
-
-#if MIN_VERSION_base(4,6,0)
     foldl' = foldl'
     {-# INLINE foldl' #-}
     foldr' = foldr'
     {-# INLINE foldr' #-}
-#endif
 #if MIN_VERSION_base(4,8,0)
     length = size
     {-# INLINE length #-}
