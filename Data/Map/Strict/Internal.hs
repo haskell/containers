@@ -1379,7 +1379,7 @@ mapWithKey f (Bin sx kx x l r) =
 #endif
 
 -- | /O(n)/.
--- @'traverseWithKey' f m == 'fromList' <$> 'traverse' (\(k, v) -> (\v' -> v' ``seq`` (k,v')) <$> f k v) ('toList' m)@
+-- @'traverseWithKey' f m == 'fromList' <$> 'traverse' (\(k, v) -> (\v' -> v' \`seq\` (k,v')) <$> f k v) ('toList' m)@
 -- That is, it behaves much like a regular 'traverse' except that the traversing
 -- function also has access to the key associated with a value and the values are
 -- forced before they are installed in the result map.
