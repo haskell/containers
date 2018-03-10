@@ -643,7 +643,7 @@ subsetCmp Nil Nil = EQ
 subsetCmp Nil _   = LT
 
 -- | /O(n+m)/. Is this a subset?
--- @(s1 `isSubsetOf` s2)@ tells whether @s1@ is a subset of @s2@.
+-- @(s1 \`isSubsetOf\` s2)@ tells whether @s1@ is a subset of @s2@.
 
 isSubsetOf :: IntSet -> IntSet -> Bool
 isSubsetOf t1@(Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
