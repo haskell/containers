@@ -1744,7 +1744,7 @@ instance Monoid (MergeSet a) where
   mappend (MergeSet xs) (MergeSet ys) = MergeSet (merge xs ys)
 #endif
 
--- | Calculate the disjoin union of two sets.
+-- | Calculate the disjoint union of two sets.
 --
 -- @ disjointUnion xs ys = map Left xs ``union`` map Right ys @
 --
