@@ -38,6 +38,13 @@
 --   * /Structuring Depth-First Search Algorithms in Haskell/,
 --     by David King and John Launchbury.
 --
+-- == Complexity notations
+--
+-- The following conventions are used when documenting complexities:
+--
+-- * @E@ = Count of edges
+-- * @V@ = Count of vertices
+--
 -----------------------------------------------------------------------------
 
 module Data.Graph (
@@ -52,6 +59,8 @@ module Data.Graph (
     -- ** Graph Construction
     , graphFromEdges
     , graphFromEdges'
+    , graphFromConsecutiveKeys
+    , graphFromConsecutiveAscKeys
     , buildG
 
     -- ** Graph Properties
@@ -367,11 +376,14 @@ graphFromEdges' x = (a,b) where
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
 --
+-- Time complexity : O( (V+E) * log V )
+-- Memory complexity : O( V+E )
+--
 -- This function takes an adjacency list representing a graph with vertices of
 -- type @key@ labeled by values of type @node@ and produces a @Graph@-based
 -- representation of that list. The @Graph@ result represents the /shape/ of the
 -- graph, and the functions describe a) how to retrieve the label and adjacent
--- vertices of a given vertex, and b) how to retrive a vertex given a key.
+-- vertices of a given vertex, and b) how to retrieve a vertex given a key.
 --
 -- @(graph, nodeFromVertex, vertexFromKey) = graphFromEdges edgeList@
 --
@@ -420,18 +432,22 @@ graphFromEdges' x = (a,b) where
 -- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
 -- > getNodePart . nodeFromVertex <$> vertexFromKey 'a' == Just "A"
 --
-graphFromEdges
+graphFromEdges -- should be named 'graphFromNodes' ?
         :: Ord key
         => [(node, key, [key])]
+        -- ^ Nodes
         -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
+        -- ^ Time complexities of lookup functions are O(1) for the first one
+        -- and O(log V) for the second one.
 graphFromEdges edges0
   = (graph, \v -> vertex_map ! v, key_vertex)
   where
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
-    sorted_edges    = sortBy lt edges0
-    edges1          = zipWith (,) [0..] sorted_edges
+    sorted_edges    = sortBy lt edges0 -- time complexity : O (V * log V)
+    edges1          = zip [0..] sorted_edges
 
+    -- 'mapMaybe key_vertex ks' induces the O(E * log V) time complexity
     graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
     key_map         = array bounds0 [(,) v k                       | (,) v (_,    k, _ ) <- edges1]
     vertex_map      = array bounds0 edges1
@@ -440,7 +456,7 @@ graphFromEdges edges0
 
     -- key_vertex :: key -> Maybe Vertex
     --  returns Nothing for non-interesting vertices
-    key_vertex k   = findVertex 0 max_v
+    key_vertex k   = findVertex 0 max_v -- Binary search on vertices: time complexity O(log V)
                    where
                      findVertex a b | a > b
                               = Nothing
@@ -450,6 +466,63 @@ graphFromEdges edges0
                                    GT -> findVertex (mid+1) b
                               where
                                 mid = a + (b - a) `div` 2
+
+
+-- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
+-- and consecutive.
+--
+-- Time complexity : O(E + (V*log V))
+-- Memory complexity : O(V+E)
+graphFromConsecutiveKeys
+        :: Integral key
+        => [(node, key, [key])]
+        -- ^ The keys that are the middle elements of the tuples are
+        -- expected to be a set of consecutive values.
+        -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
+        -- ^ Both lookup functions have a time complexity of O(1).
+graphFromConsecutiveKeys
+  = graphFromConsecutiveAscKeys . sortBy (\(_,k1,_) (_,k2,_) -> compare k1 k2)
+
+
+-- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
+-- consecutive and strictly ascending.
+--
+-- Time complexity : O(V+E)
+-- Memory complexity : O(V+E)
+graphFromConsecutiveAscKeys
+        :: Integral key
+        => [(node, key, [key])]
+        -- ^ The keys that are the middle elements of the tuples are
+        -- expected to be strictly ascending and consecutive (i.e with no gaps
+        -- between them). More formaly, if the first key is @k@,
+        -- the i-th key, is expected to be @k@ + i. This condition is not checked
+        -- by the function. Violation of this condition results in unexpected behaviour.
+        -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
+        -- ^ Both lookup functions have a time complexity of O(1).
+graphFromConsecutiveAscKeys edges0
+  = (graph, \v -> vertex_map ! v, key_vertex)
+  where
+    may_min_k = case edges0 of
+      [] -> Nothing
+      (_,k,_):_ -> Just k
+
+    max_v           = length edges0 - 1
+    bounds0         = (0,max_v) :: (Vertex, Vertex)
+    edges1          = zip [0..] edges0
+
+    graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_, _, ks) <- edges1]
+    vertex_map      = array bounds0 edges1
+
+    -- key_vertex :: key -> Maybe Vertex
+    key_vertex k = maybe Nothing kv may_min_k -- O(1) time complexity
+     where
+      kv min_k
+        | v >= max_v = Nothing
+        | v < 0 = Nothing
+        | otherwise = Just v
+       where
+        v = fromIntegral $ k - min_k
+
 
 -------------------------------------------------------------------------
 --                                                                      -

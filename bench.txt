@@ -1,0 +1,318 @@
+
+Benchmark graph-creation: RUNNING...
+benchmarking Degree_LinearInVertices/10_ascending_graphFEConsecutiveAsc
+time                 1.326 μs   (1.268 μs .. 1.399 μs)
+                     0.985 R²   (0.970 R² .. 0.996 R²)
+mean                 1.347 μs   (1.309 μs .. 1.401 μs)
+std dev              146.8 ns   (102.4 ns .. 204.6 ns)
+variance introduced by outliers: 90% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/10_ascending_graphFEConsecutive
+time                 1.626 μs   (1.571 μs .. 1.684 μs)
+                     0.993 R²   (0.990 R² .. 0.997 R²)
+mean                 1.664 μs   (1.634 μs .. 1.702 μs)
+std dev              114.9 ns   (90.21 ns .. 158.5 ns)
+variance introduced by outliers: 78% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/10_ascending_graphFE
+time                 2.368 μs   (2.249 μs .. 2.545 μs)
+                     0.985 R²   (0.975 R² .. 0.996 R²)
+mean                 2.430 μs   (2.376 μs .. 2.493 μs)
+std dev              212.4 ns   (179.9 ns .. 274.0 ns)
+variance introduced by outliers: 85% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/10_unsorted_graphFEConsecutive
+time                 2.257 μs   (2.216 μs .. 2.313 μs)
+                     0.995 R²   (0.993 R² .. 0.997 R²)
+mean                 2.350 μs   (2.304 μs .. 2.408 μs)
+std dev              175.4 ns   (142.8 ns .. 256.4 ns)
+variance introduced by outliers: 80% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/10_unsorted_graphFE
+time                 3.183 μs   (3.074 μs .. 3.282 μs)
+                     0.994 R²   (0.992 R² .. 0.996 R²)
+mean                 3.093 μs   (3.037 μs .. 3.169 μs)
+std dev              212.2 ns   (176.8 ns .. 262.0 ns)
+variance introduced by outliers: 77% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/100_ascending_graphFEConsecutiveAsc
+time                 95.35 μs   (91.58 μs .. 99.38 μs)
+                     0.986 R²   (0.980 R² .. 0.991 R²)
+mean                 98.45 μs   (95.36 μs .. 102.1 μs)
+std dev              11.81 μs   (9.321 μs .. 17.18 μs)
+variance introduced by outliers: 86% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/100_ascending_graphFEConsecutive
+time                 86.11 μs   (84.91 μs .. 87.53 μs)
+                     0.996 R²   (0.993 R² .. 0.997 R²)
+mean                 92.39 μs   (90.17 μs .. 95.00 μs)
+std dev              8.142 μs   (7.231 μs .. 9.407 μs)
+variance introduced by outliers: 78% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/100_ascending_graphFE
+time                 298.6 μs   (290.3 μs .. 306.0 μs)
+                     0.996 R²   (0.994 R² .. 0.997 R²)
+mean                 296.4 μs   (292.4 μs .. 301.3 μs)
+std dev              15.42 μs   (11.97 μs .. 19.33 μs)
+variance introduced by outliers: 48% (moderately inflated)
+               
+benchmarking Degree_LinearInVertices/100_unsorted_graphFEConsecutive
+time                 120.7 μs   (114.9 μs .. 127.0 μs)
+                     0.969 R²   (0.937 R² .. 0.989 R²)
+mean                 122.4 μs   (117.3 μs .. 132.5 μs)
+std dev              23.47 μs   (12.80 μs .. 41.56 μs)
+variance introduced by outliers: 94% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/100_unsorted_graphFE
+time                 324.5 μs   (317.0 μs .. 333.2 μs)
+                     0.992 R²   (0.987 R² .. 0.996 R²)
+mean                 357.2 μs   (344.2 μs .. 380.8 μs)
+std dev              58.70 μs   (28.78 μs .. 109.1 μs)
+variance introduced by outliers: 91% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/1000_ascending_graphFEConsecutiveAsc
+time                 20.32 ms   (19.66 ms .. 20.95 ms)
+                     0.996 R²   (0.994 R² .. 0.998 R²)
+mean                 20.69 ms   (20.27 ms .. 21.42 ms)
+std dev              1.315 ms   (833.2 μs .. 1.894 ms)
+variance introduced by outliers: 27% (moderately inflated)
+               
+benchmarking Degree_LinearInVertices/1000_ascending_graphFEConsecutive
+time                 24.34 ms   (20.09 ms .. 29.02 ms)
+                     0.833 R²   (0.612 R² .. 0.969 R²)
+mean                 25.05 ms   (23.38 ms .. 29.04 ms)
+std dev              5.234 ms   (2.551 ms .. 9.448 ms)
+variance introduced by outliers: 77% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/1000_ascending_graphFE
+time                 51.27 ms   (42.52 ms .. 55.98 ms)
+                     0.954 R²   (0.888 R² .. 0.990 R²)
+mean                 59.97 ms   (54.66 ms .. 67.60 ms)
+std dev              11.17 ms   (6.375 ms .. 14.67 ms)
+variance introduced by outliers: 65% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/1000_unsorted_graphFEConsecutive
+time                 24.79 ms   (22.97 ms .. 26.26 ms)
+                     0.978 R²   (0.955 R² .. 0.991 R²)
+mean                 28.68 ms   (27.18 ms .. 30.88 ms)
+std dev              3.802 ms   (2.619 ms .. 5.025 ms)
+variance introduced by outliers: 54% (severely inflated)
+               
+benchmarking Degree_LinearInVertices/1000_unsorted_graphFE
+time                 63.52 ms   (53.57 ms .. 72.01 ms)
+                     0.971 R²   (0.943 R² .. 0.995 R²)
+mean                 59.53 ms   (57.10 ms .. 62.74 ms)
+std dev              5.074 ms   (3.690 ms .. 7.192 ms)
+variance introduced by outliers: 24% (moderately inflated)
+               
+benchmarking Degree_Constant/10_ascending_graphFEConsecutiveAsc
+time                 1.244 μs   (1.218 μs .. 1.285 μs)
+                     0.994 R²   (0.985 R² .. 0.999 R²)
+mean                 1.239 μs   (1.220 μs .. 1.283 μs)
+std dev              89.88 ns   (37.00 ns .. 160.4 ns)
+variance introduced by outliers: 81% (severely inflated)
+               
+benchmarking Degree_Constant/10_ascending_graphFEConsecutive
+time                 1.547 μs   (1.470 μs .. 1.647 μs)
+                     0.980 R²   (0.957 R² .. 0.998 R²)
+mean                 1.516 μs   (1.486 μs .. 1.590 μs)
+std dev              149.3 ns   (73.91 ns .. 281.2 ns)
+variance introduced by outliers: 88% (severely inflated)
+               
+benchmarking Degree_Constant/10_ascending_graphFE
+time                 2.317 μs   (2.301 μs .. 2.340 μs)
+                     0.998 R²   (0.995 R² .. 1.000 R²)
+mean                 2.343 μs   (2.306 μs .. 2.523 μs)
+std dev              191.5 ns   (67.77 ns .. 426.1 ns)
+variance introduced by outliers: 83% (severely inflated)
+               
+benchmarking Degree_Constant/10_unsorted_graphFEConsecutive
+time                 2.317 μs   (2.226 μs .. 2.425 μs)
+                     0.991 R²   (0.984 R² .. 0.999 R²)
+mean                 2.233 μs   (2.196 μs .. 2.292 μs)
+std dev              155.8 ns   (80.66 ns .. 256.8 ns)
+variance introduced by outliers: 78% (severely inflated)
+               
+benchmarking Degree_Constant/10_unsorted_graphFE
+time                 2.980 μs   (2.936 μs .. 3.037 μs)
+                     0.998 R²   (0.996 R² .. 0.999 R²)
+mean                 2.998 μs   (2.956 μs .. 3.092 μs)
+std dev              194.4 ns   (113.0 ns .. 351.3 ns)
+variance introduced by outliers: 75% (severely inflated)
+               
+benchmarking Degree_Constant/100_ascending_graphFEConsecutiveAsc
+time                 14.95 μs   (13.97 μs .. 15.94 μs)
+                     0.979 R²   (0.966 R² .. 0.995 R²)
+mean                 14.03 μs   (13.65 μs .. 14.67 μs)
+std dev              1.617 μs   (1.035 μs .. 2.338 μs)
+variance introduced by outliers: 89% (severely inflated)
+               
+benchmarking Degree_Constant/100_ascending_graphFEConsecutive
+time                 15.42 μs   (15.33 μs .. 15.49 μs)
+                     0.999 R²   (0.998 R² .. 1.000 R²)
+mean                 15.73 μs   (15.48 μs .. 16.35 μs)
+std dev              1.163 μs   (378.6 ns .. 2.106 μs)
+variance introduced by outliers: 76% (severely inflated)
+               
+benchmarking Degree_Constant/100_ascending_graphFE
+time                 41.75 μs   (40.23 μs .. 43.67 μs)
+                     0.990 R²   (0.980 R² .. 0.998 R²)
+mean                 41.04 μs   (40.25 μs .. 42.38 μs)
+std dev              3.122 μs   (2.103 μs .. 4.777 μs)
+variance introduced by outliers: 74% (severely inflated)
+               
+benchmarking Degree_Constant/100_unsorted_graphFEConsecutive
+time                 32.20 μs   (31.74 μs .. 32.81 μs)
+                     0.997 R²   (0.996 R² .. 0.998 R²)
+mean                 33.19 μs   (32.65 μs .. 34.11 μs)
+std dev              2.247 μs   (1.483 μs .. 3.517 μs)
+variance introduced by outliers: 71% (severely inflated)
+               
+benchmarking Degree_Constant/100_unsorted_graphFE
+time                 61.28 μs   (58.31 μs .. 64.39 μs)
+                     0.987 R²   (0.975 R² .. 0.997 R²)
+mean                 57.99 μs   (57.08 μs .. 59.92 μs)
+std dev              4.380 μs   (2.615 μs .. 7.623 μs)
+variance introduced by outliers: 74% (severely inflated)
+               
+benchmarking Degree_Constant/1000_ascending_graphFEConsecutiveAsc
+time                 171.8 μs   (170.3 μs .. 173.0 μs)
+                     0.999 R²   (0.999 R² .. 0.999 R²)
+mean                 169.9 μs   (168.9 μs .. 170.9 μs)
+std dev              3.111 μs   (2.765 μs .. 3.762 μs)
+variance introduced by outliers: 12% (moderately inflated)
+               
+benchmarking Degree_Constant/1000_ascending_graphFEConsecutive
+time                 211.5 μs   (197.2 μs .. 228.5 μs)
+                     0.978 R²   (0.963 R² .. 0.996 R²)
+mean                 198.8 μs   (195.3 μs .. 206.3 μs)
+std dev              16.67 μs   (8.062 μs .. 29.10 μs)
+variance introduced by outliers: 73% (severely inflated)
+               
+benchmarking Degree_Constant/1000_ascending_graphFE
+time                 667.5 μs   (661.1 μs .. 677.0 μs)
+                     0.998 R²   (0.995 R² .. 0.999 R²)
+mean                 693.2 μs   (678.6 μs .. 741.3 μs)
+std dev              85.73 μs   (22.12 μs .. 177.4 μs)
+variance introduced by outliers: 82% (severely inflated)
+               
+benchmarking Degree_Constant/1000_unsorted_graphFEConsecutive
+time                 699.1 μs   (629.6 μs .. 779.9 μs)
+                     0.943 R²   (0.921 R² .. 0.987 R²)
+mean                 625.5 μs   (602.8 μs .. 672.0 μs)
+std dev              106.8 μs   (66.32 μs .. 159.8 μs)
+variance introduced by outliers: 91% (severely inflated)
+               
+benchmarking Degree_Constant/1000_unsorted_graphFE
+time                 1.278 ms   (1.233 ms .. 1.331 ms)
+                     0.982 R²   (0.962 R² .. 0.994 R²)
+mean                 1.303 ms   (1.267 ms .. 1.357 ms)
+std dev              148.4 μs   (98.74 μs .. 218.5 μs)
+variance introduced by outliers: 76% (severely inflated)
+               
+benchmarking Degree_Zero/10_ascending_graphFEConsecutiveAsc
+time                 498.0 ns   (457.0 ns .. 541.7 ns)
+                     0.972 R²   (0.958 R² .. 0.993 R²)
+mean                 472.3 ns   (455.8 ns .. 495.4 ns)
+std dev              61.92 ns   (48.92 ns .. 90.20 ns)
+variance introduced by outliers: 94% (severely inflated)
+               
+benchmarking Degree_Zero/10_ascending_graphFEConsecutive
+time                 742.8 ns   (721.5 ns .. 761.0 ns)
+                     0.993 R²   (0.990 R² .. 0.996 R²)
+mean                 713.7 ns   (696.1 ns .. 749.1 ns)
+std dev              77.67 ns   (45.16 ns .. 133.4 ns)
+variance introduced by outliers: 91% (severely inflated)
+               
+benchmarking Degree_Zero/10_ascending_graphFE
+time                 712.7 ns   (678.2 ns .. 746.8 ns)
+                     0.986 R²   (0.982 R² .. 0.992 R²)
+mean                 732.2 ns   (702.2 ns .. 791.6 ns)
+std dev              128.5 ns   (70.12 ns .. 207.4 ns)
+variance introduced by outliers: 97% (severely inflated)
+               
+benchmarking Degree_Zero/10_unsorted_graphFEConsecutive
+time                 1.395 μs   (1.357 μs .. 1.443 μs)
+                     0.992 R²   (0.989 R² .. 0.995 R²)
+mean                 1.473 μs   (1.427 μs .. 1.553 μs)
+std dev              197.7 ns   (139.0 ns .. 280.5 ns)
+variance introduced by outliers: 93% (severely inflated)
+               
+benchmarking Degree_Zero/10_unsorted_graphFE
+time                 1.434 μs   (1.378 μs .. 1.502 μs)
+                     0.988 R²   (0.982 R² .. 0.994 R²)
+mean                 1.460 μs   (1.415 μs .. 1.510 μs)
+std dev              155.3 ns   (128.9 ns .. 206.8 ns)
+variance introduced by outliers: 90% (severely inflated)
+               
+benchmarking Degree_Zero/100_ascending_graphFEConsecutiveAsc
+time                 4.502 μs   (4.346 μs .. 4.636 μs)
+                     0.993 R²   (0.991 R² .. 0.996 R²)
+mean                 4.457 μs   (4.341 μs .. 4.596 μs)
+std dev              398.1 ns   (297.0 ns .. 555.9 ns)
+variance introduced by outliers: 85% (severely inflated)
+               
+benchmarking Degree_Zero/100_ascending_graphFEConsecutive
+time                 6.268 μs   (6.053 μs .. 6.451 μs)
+                     0.991 R²   (0.988 R² .. 0.994 R²)
+mean                 6.154 μs   (5.955 μs .. 6.397 μs)
+std dev              692.1 ns   (593.6 ns .. 855.7 ns)
+variance introduced by outliers: 90% (severely inflated)
+               
+benchmarking Degree_Zero/100_ascending_graphFE
+time                 6.156 μs   (6.012 μs .. 6.316 μs)
+                     0.995 R²   (0.993 R² .. 0.997 R²)
+mean                 6.229 μs   (6.102 μs .. 6.370 μs)
+std dev              443.1 ns   (373.0 ns .. 539.4 ns)
+variance introduced by outliers: 77% (severely inflated)
+               
+benchmarking Degree_Zero/100_unsorted_graphFEConsecutive
+time                 23.78 μs   (23.11 μs .. 24.67 μs)
+                     0.990 R²   (0.985 R² .. 0.994 R²)
+mean                 24.92 μs   (24.14 μs .. 25.84 μs)
+std dev              2.719 μs   (2.230 μs .. 3.670 μs)
+variance introduced by outliers: 87% (severely inflated)
+               
+benchmarking Degree_Zero/100_unsorted_graphFE
+time                 24.31 μs   (23.72 μs .. 24.92 μs)
+                     0.993 R²   (0.989 R² .. 0.995 R²)
+mean                 24.93 μs   (24.22 μs .. 26.14 μs)
+std dev              3.082 μs   (2.172 μs .. 4.562 μs)
+variance introduced by outliers: 90% (severely inflated)
+               
+benchmarking Degree_Zero/1000_ascending_graphFEConsecutiveAsc
+time                 54.99 μs   (53.43 μs .. 56.42 μs)
+                     0.995 R²   (0.993 R² .. 0.997 R²)
+mean                 53.63 μs   (52.40 μs .. 54.98 μs)
+std dev              4.123 μs   (3.445 μs .. 5.061 μs)
+variance introduced by outliers: 74% (severely inflated)
+               
+benchmarking Degree_Zero/1000_ascending_graphFEConsecutive
+time                 70.48 μs   (68.85 μs .. 72.44 μs)
+                     0.993 R²   (0.989 R² .. 0.996 R²)
+mean                 71.15 μs   (69.34 μs .. 73.33 μs)
+std dev              6.444 μs   (4.965 μs .. 9.045 μs)
+variance introduced by outliers: 80% (severely inflated)
+               
+benchmarking Degree_Zero/1000_ascending_graphFE
+time                 74.36 μs   (71.52 μs .. 77.64 μs)
+                     0.987 R²   (0.979 R² .. 0.994 R²)
+mean                 73.55 μs   (71.74 μs .. 76.33 μs)
+std dev              6.978 μs   (4.920 μs .. 9.604 μs)
+variance introduced by outliers: 81% (severely inflated)
+               
+benchmarking Degree_Zero/1000_unsorted_graphFEConsecutive
+time                 437.2 μs   (422.3 μs .. 451.9 μs)
+                     0.989 R²   (0.984 R² .. 0.993 R²)
+mean                 466.8 μs   (451.8 μs .. 487.4 μs)
+std dev              58.99 μs   (44.42 μs .. 89.45 μs)
+variance introduced by outliers: 84% (severely inflated)
+               
+benchmarking Degree_Zero/1000_unsorted_graphFE
+time                 436.9 μs   (423.9 μs .. 449.0 μs)
+                     0.995 R²   (0.992 R² .. 0.997 R²)
+mean                 444.4 μs   (435.4 μs .. 454.8 μs)
+std dev              31.75 μs   (25.71 μs .. 38.71 μs)
+variance introduced by outliers: 62% (severely inflated)
+               
+Benchmark graph-creation: FINISH
