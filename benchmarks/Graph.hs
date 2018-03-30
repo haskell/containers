@@ -13,7 +13,7 @@ import System.Random.Shuffle(shuffle')
 -- evaluation of the graph will not terminate.
 data DegreeDistribution =
     Zero -- every node has 0 neighbour.
-  | Constant -- every node hase up to a constant number of neighbours
+  | Constant -- every node has up to a constant number of neighbours
   | LinearInVertices -- every node has a count of neigbours that is (up to)
                      -- proportional to the number of nodes.
   deriving (Show)
