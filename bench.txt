@@ -1,13 +1,13 @@
 
 Benchmark graph-creation: RUNNING...
-benchmarking Degree_LinearInVertices/10_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_LinearInVertices/10_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 1.508 μs   (1.435 μs .. 1.602 μs)
                      0.972 R²   (0.951 R² .. 0.991 R²)
 mean                 1.653 μs   (1.521 μs .. 1.994 μs)
 std dev              705.3 ns   (257.4 ns .. 1.284 μs)
 variance introduced by outliers: 99% (severely inflated)
 
-benchmarking Degree_LinearInVertices/10_ascending_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/10_ascending_graphFromEdgesWithConsecutiveKeys
 time                 1.957 μs   (1.853 μs .. 2.079 μs)
                      0.977 R²   (0.961 R² .. 0.993 R²)
 mean                 1.968 μs   (1.895 μs .. 2.065 μs)
@@ -21,7 +21,7 @@ mean                 2.672 μs   (2.609 μs .. 2.770 μs)
 std dev              262.8 ns   (160.3 ns .. 422.7 ns)
 variance introduced by outliers: 88% (severely inflated)
 
-benchmarking Degree_LinearInVertices/10_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/10_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 3.040 μs   (2.913 μs .. 3.203 μs)
                      0.975 R²   (0.962 R² .. 0.985 R²)
 mean                 3.283 μs   (3.053 μs .. 3.634 μs)
@@ -35,14 +35,14 @@ mean                 3.584 μs   (3.497 μs .. 3.669 μs)
 std dev              273.5 ns   (229.0 ns .. 350.2 ns)
 variance introduced by outliers: 80% (severely inflated)
 
-benchmarking Degree_LinearInVertices/100_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_LinearInVertices/100_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 107.3 μs   (101.6 μs .. 113.9 μs)
                      0.979 R²   (0.966 R² .. 0.993 R²)
 mean                 105.5 μs   (101.8 μs .. 110.4 μs)
 std dev              14.33 μs   (10.33 μs .. 18.32 μs)
 variance introduced by outliers: 89% (severely inflated)
 
-benchmarking Degree_LinearInVertices/100_ascending_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/100_ascending_graphFromEdgesWithConsecutiveKeys
 time                 102.8 μs   (99.51 μs .. 106.1 μs)
                      0.994 R²   (0.991 R² .. 0.997 R²)
 mean                 99.02 μs   (97.31 μs .. 101.4 μs)
@@ -56,7 +56,7 @@ mean                 380.4 μs   (367.7 μs .. 394.8 μs)
 std dev              47.17 μs   (39.80 μs .. 64.34 μs)
 variance introduced by outliers: 85% (severely inflated)
 
-benchmarking Degree_LinearInVertices/100_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/100_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 130.1 μs   (126.7 μs .. 134.0 μs)
                      0.991 R²   (0.986 R² .. 0.995 R²)
 mean                 132.2 μs   (128.5 μs .. 138.1 μs)
@@ -70,14 +70,14 @@ mean                 381.9 μs   (369.0 μs .. 396.9 μs)
 std dev              46.03 μs   (34.48 μs .. 58.97 μs)
 variance introduced by outliers: 83% (severely inflated)
 
-benchmarking Degree_LinearInVertices/1000_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_LinearInVertices/1000_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 20.60 ms   (19.17 ms .. 21.85 ms)
                      0.983 R²   (0.968 R² .. 0.995 R²)
 mean                 24.36 ms   (23.00 ms .. 26.23 ms)
 std dev              3.636 ms   (1.692 ms .. 5.363 ms)
 variance introduced by outliers: 62% (severely inflated)
 
-benchmarking Degree_LinearInVertices/1000_ascending_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/1000_ascending_graphFromEdgesWithConsecutiveKeys
 time                 27.99 ms   (24.73 ms .. 32.16 ms)
                      0.952 R²   (0.922 R² .. 0.991 R²)
 mean                 24.00 ms   (23.05 ms .. 25.84 ms)
@@ -91,7 +91,7 @@ mean                 57.22 ms   (55.98 ms .. 59.45 ms)
 std dev              2.836 ms   (1.813 ms .. 3.968 ms)
 variance introduced by outliers: 15% (moderately inflated)
 
-benchmarking Degree_LinearInVertices/1000_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_LinearInVertices/1000_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 30.17 ms   (26.56 ms .. 33.33 ms)
                      0.966 R²   (0.929 R² .. 0.992 R²)
 mean                 28.90 ms   (27.89 ms .. 30.34 ms)
@@ -105,14 +105,14 @@ mean                 68.81 ms   (65.90 ms .. 72.40 ms)
 std dev              5.419 ms   (4.311 ms .. 6.789 ms)
 variance introduced by outliers: 26% (moderately inflated)
 
-benchmarking Degree_Constant/10_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Constant/10_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 1.535 μs   (1.460 μs .. 1.615 μs)
                      0.980 R²   (0.970 R² .. 0.990 R²)
 mean                 1.440 μs   (1.383 μs .. 1.516 μs)
 std dev              207.6 ns   (161.9 ns .. 271.7 ns)
 variance introduced by outliers: 94% (severely inflated)
 
-benchmarking Degree_Constant/10_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Constant/10_ascending_graphFromEdgesWithConsecutiveKeys
 time                 1.716 μs   (1.656 μs .. 1.780 μs)
                      0.991 R²   (0.988 R² .. 0.995 R²)
 mean                 1.681 μs   (1.644 μs .. 1.734 μs)
@@ -126,7 +126,7 @@ mean                 2.694 μs   (2.592 μs .. 2.865 μs)
 std dev              452.4 ns   (313.0 ns .. 652.8 ns)
 variance introduced by outliers: 96% (severely inflated)
 
-benchmarking Degree_Constant/10_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Constant/10_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 2.432 μs   (2.349 μs .. 2.518 μs)
                      0.990 R²   (0.985 R² .. 0.996 R²)
 mean                 2.356 μs   (2.300 μs .. 2.429 μs)
@@ -140,14 +140,14 @@ mean                 3.215 μs   (3.140 μs .. 3.299 μs)
 std dev              261.7 ns   (217.7 ns .. 314.9 ns)
 variance introduced by outliers: 83% (severely inflated)
 
-benchmarking Degree_Constant/100_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Constant/100_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 14.24 μs   (13.86 μs .. 14.67 μs)
                      0.992 R²   (0.988 R² .. 0.996 R²)
 mean                 14.63 μs   (14.19 μs .. 15.23 μs)
 std dev              1.723 μs   (1.214 μs .. 2.708 μs)
 variance introduced by outliers: 89% (severely inflated)
 
-benchmarking Degree_Constant/100_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Constant/100_ascending_graphFromEdgesWithConsecutiveKeys
 time                 17.49 μs   (16.64 μs .. 18.30 μs)
                      0.985 R²   (0.978 R² .. 0.992 R²)
 mean                 17.86 μs   (17.07 μs .. 19.08 μs)
@@ -161,7 +161,7 @@ mean                 41.75 μs   (40.53 μs .. 43.59 μs)
 std dev              4.869 μs   (3.518 μs .. 6.654 μs)
 variance introduced by outliers: 87% (severely inflated)
 
-benchmarking Degree_Constant/100_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Constant/100_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 35.74 μs   (34.54 μs .. 37.01 μs)
                      0.990 R²   (0.986 R² .. 0.995 R²)
 mean                 34.92 μs   (34.18 μs .. 35.96 μs)
@@ -175,14 +175,14 @@ mean                 61.10 μs   (59.81 μs .. 62.63 μs)
 std dev              4.557 μs   (3.817 μs .. 5.762 μs)
 variance introduced by outliers: 73% (severely inflated)
 
-benchmarking Degree_Constant/1000_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Constant/1000_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 203.9 μs   (195.7 μs .. 214.5 μs)
                      0.984 R²   (0.969 R² .. 0.994 R²)
 mean                 199.1 μs   (193.1 μs .. 209.7 μs)
 std dev              25.15 μs   (16.79 μs .. 36.09 μs)
 variance introduced by outliers: 87% (severely inflated)
 
-benchmarking Degree_Constant/1000_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Constant/1000_ascending_graphFromEdgesWithConsecutiveKeys
 time                 209.5 μs   (205.1 μs .. 214.6 μs)
                      0.993 R²   (0.990 R² .. 0.996 R²)
 mean                 217.3 μs   (212.5 μs .. 224.6 μs)
@@ -196,7 +196,7 @@ mean                 762.4 μs   (728.2 μs .. 811.5 μs)
 std dev              132.9 μs   (88.39 μs .. 209.6 μs)
 variance introduced by outliers: 90% (severely inflated)
 
-benchmarking Degree_Constant/1000_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Constant/1000_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 622.1 μs   (603.4 μs .. 641.5 μs)
                      0.987 R²   (0.980 R² .. 0.993 R²)
 mean                 665.2 μs   (637.5 μs .. 713.6 μs)
@@ -210,14 +210,14 @@ mean                 1.307 ms   (1.265 ms .. 1.384 ms)
 std dev              175.7 μs   (109.4 μs .. 316.1 μs)
 variance introduced by outliers: 82% (severely inflated)
 
-benchmarking Degree_Zero/10_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Zero/10_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 484.1 ns   (468.8 ns .. 501.6 ns)
                      0.992 R²   (0.988 R² .. 0.996 R²)
 mean                 488.9 ns   (474.1 ns .. 522.7 ns)
 std dev              69.70 ns   (38.61 ns .. 118.7 ns)
 variance introduced by outliers: 95% (severely inflated)
 
-benchmarking Degree_Zero/10_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Zero/10_ascending_graphFromEdgesWithConsecutiveKeys
 time                 747.4 ns   (731.5 ns .. 765.6 ns)
                      0.994 R²   (0.991 R² .. 0.997 R²)
 mean                 764.7 ns   (742.9 ns .. 795.7 ns)
@@ -231,7 +231,7 @@ mean                 740.0 ns   (716.4 ns .. 781.2 ns)
 std dev              101.3 ns   (65.36 ns .. 167.7 ns)
 variance introduced by outliers: 94% (severely inflated)
 
-benchmarking Degree_Zero/10_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Zero/10_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 1.499 μs   (1.464 μs .. 1.529 μs)
                      0.994 R²   (0.991 R² .. 0.996 R²)
 mean                 1.510 μs   (1.468 μs .. 1.565 μs)
@@ -245,14 +245,14 @@ mean                 1.439 μs   (1.399 μs .. 1.507 μs)
 std dev              168.9 ns   (109.7 ns .. 273.1 ns)
 variance introduced by outliers: 92% (severely inflated)
 
-benchmarking Degree_Zero/100_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Zero/100_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 4.451 μs   (4.315 μs .. 4.594 μs)
                      0.990 R²   (0.985 R² .. 0.994 R²)
 mean                 4.477 μs   (4.321 μs .. 4.675 μs)
 std dev              577.2 ns   (444.3 ns .. 904.2 ns)
 variance introduced by outliers: 92% (severely inflated)
 
-benchmarking Degree_Zero/100_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Zero/100_ascending_graphFromEdgesWithConsecutiveKeys
 time                 6.169 μs   (5.902 μs .. 6.442 μs)
                      0.987 R²   (0.981 R² .. 0.992 R²)
 mean                 6.473 μs   (6.215 μs .. 6.834 μs)
@@ -266,7 +266,7 @@ mean                 6.484 μs   (6.290 μs .. 6.721 μs)
 std dev              711.1 ns   (562.7 ns .. 902.2 ns)
 variance introduced by outliers: 89% (severely inflated)
 
-benchmarking Degree_Zero/100_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Zero/100_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 26.30 μs   (25.19 μs .. 27.33 μs)
                      0.990 R²   (0.986 R² .. 0.994 R²)
 mean                 25.76 μs   (25.09 μs .. 26.89 μs)
@@ -280,14 +280,14 @@ mean                 26.21 μs   (25.32 μs .. 27.24 μs)
 std dev              3.396 μs   (2.821 μs .. 4.107 μs)
 variance introduced by outliers: 90% (severely inflated)
 
-benchmarking Degree_Zero/1000_ascending_graphFromConsecutiveAscKeys
+benchmarking Degree_Zero/1000_ascending_graphFromEdgesWithConsecutiveAscKeys
 time                 53.55 μs   (52.44 μs .. 54.76 μs)
                      0.991 R²   (0.986 R² .. 0.995 R²)
 mean                 57.41 μs   (55.02 μs .. 61.75 μs)
 std dev              10.64 μs   (5.100 μs .. 17.09 μs)
 variance introduced by outliers: 95% (severely inflated)
 
-benchmarking Degree_Zero/1000_ascending_graphFromConsecutiveKeys
+benchmarking Degree_Zero/1000_ascending_graphFromEdgesWithConsecutiveKeys
 time                 75.34 μs   (73.79 μs .. 76.85 μs)
                      0.992 R²   (0.987 R² .. 0.995 R²)
 mean                 74.67 μs   (72.29 μs .. 77.47 μs)
@@ -301,7 +301,7 @@ mean                 77.91 μs   (75.79 μs .. 80.02 μs)
 std dev              7.518 μs   (6.337 μs .. 9.200 μs)
 variance introduced by outliers: 81% (severely inflated)
 
-benchmarking Degree_Zero/1000_unsorted_graphFromConsecutiveKeys
+benchmarking Degree_Zero/1000_unsorted_graphFromEdgesWithConsecutiveKeys
 time                 462.8 μs   (448.7 μs .. 477.1 μs)
                      0.991 R²   (0.987 R² .. 0.995 R²)
 mean                 465.5 μs   (452.6 μs .. 483.9 μs)

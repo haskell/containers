@@ -3,7 +3,7 @@ module Main where
 import Control.DeepSeq (force, NFData(..))
 import Control.Exception (evaluate)
 import Criterion.Main (bench, bgroup, defaultMain, nf)
-import Data.Graph(graphFromEdges, graphFromConsecutiveKeys, graphFromConsecutiveAscKeys)
+import Data.Graph(graphFromEdges, graphFromEdgesWithConsecutiveKeys, graphFromEdgesWithConsecutiveAscKeys)
 import Data.Maybe(mapMaybe)
 import System.Random (mkStdGen)
 import System.Random.Shuffle(shuffle')
@@ -75,14 +75,14 @@ main = do
   _ <- evaluate $ force tests
 
   -- The tests verifies that to create a graph from a list of nodes with consecutive keys,
-  -- graphFromConsecutiveKeys and graphFromConsecutiveAscKeys
-  -- outperform graphFromEdges.
+  -- graphFromEdgesWithConsecutiveKeys and graphFromEdgesWithConsecutiveAscKeys
+  -- are faster than graphFromEdges.
   --
   -- Respective time complexities are:
   --
-  -- graphFromEdges              :   O( (E+V) * log V )
-  -- graphFromConsecutiveKeys    :   O( E + (V*log V) )
-  -- graphFromConsecutiveAscKeys :   O( E + V )
+  -- graphFromEdges                       :   O( (E+V) * log V )
+  -- graphFromEdgesWithConsecutiveKeys    :   O( E + (V*log V) )
+  -- graphFromEdgesWithConsecutiveAscKeys :   O( E + V )
   --
   -- The test also shows that the bigger the degree of the graph (see 'DegreeDistribution'),
   -- the more pronounced the time difference is, which is to be expected given the complexities.
@@ -90,10 +90,10 @@ main = do
     (\(degree, testsForDegree) -> bgroup ("Degree_" ++ show degree) $ concatMap
       (\mkKeys ->
         let ascendingCompatible =
-              (graphFromConsecutiveAscKeys, "graphFromConsecutiveAscKeys") :
+              (graphFromEdgesWithConsecutiveAscKeys, "graphFromEdgesWithConsecutiveAscKeys") :
               randomCompatible
             randomCompatible =
-              [ (graphFromConsecutiveKeys, "graphFromConsecutiveKeys")
+              [ (graphFromEdgesWithConsecutiveKeys, "graphFromEdgesWithConsecutiveKeys")
               , (graphFromEdges, "graphFromEdges")
               ]
             mkBench nameKeys keys createGraph label =

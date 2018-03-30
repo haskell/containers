@@ -59,8 +59,8 @@ module Data.Graph (
     -- ** Graph Construction
     , graphFromEdges
     , graphFromEdges'
-    , graphFromConsecutiveKeys
-    , graphFromConsecutiveAscKeys
+    , graphFromEdgesWithConsecutiveKeys
+    , graphFromEdgesWithConsecutiveAscKeys
     , buildG
 
     -- ** Graph Properties
@@ -432,10 +432,9 @@ graphFromEdges' x = (a,b) where
 -- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c']), ("c", 'c', [])]
 -- > getNodePart . nodeFromVertex <$> vertexFromKey 'a' == Just "A"
 --
-graphFromEdges -- should be named 'graphFromNodes' ?
+graphFromEdges
         :: Ord key
         => [(node, key, [key])]
-        -- ^ Nodes
         -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
         -- ^ Time complexities of lookup functions are O(1) for the first one
         -- and O(log V) for the second one.
@@ -473,15 +472,15 @@ graphFromEdges edges0
 --
 -- Time complexity : O(E + (V*log V))
 -- Memory complexity : O(V+E)
-graphFromConsecutiveKeys
+graphFromEdgesWithConsecutiveKeys
         :: Integral key
         => [(node, key, [key])]
         -- ^ The keys that are the middle elements of the tuples are
         -- expected to be a set of consecutive values.
         -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
         -- ^ Both lookup functions have a time complexity of O(1).
-graphFromConsecutiveKeys
-  = graphFromConsecutiveAscKeys . sortBy (\(_,k1,_) (_,k2,_) -> compare k1 k2)
+graphFromEdgesWithConsecutiveKeys
+  = graphFromEdgesWithConsecutiveAscKeys . sortBy (\(_,k1,_) (_,k2,_) -> compare k1 k2)
 
 
 -- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
@@ -489,7 +488,7 @@ graphFromConsecutiveKeys
 --
 -- Time complexity : O(V+E)
 -- Memory complexity : O(V+E)
-graphFromConsecutiveAscKeys
+graphFromEdgesWithConsecutiveAscKeys
         :: Integral key
         => [(node, key, [key])]
         -- ^ The keys that are the middle elements of the tuples are
@@ -499,7 +498,7 @@ graphFromConsecutiveAscKeys
         -- by the function. Violation of this condition results in unexpected behaviour.
         -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
         -- ^ Both lookup functions have a time complexity of O(1).
-graphFromConsecutiveAscKeys edges0
+graphFromEdgesWithConsecutiveAscKeys edges0
   = (graph, \v -> vertex_map ! v, key_vertex)
   where
     may_min_k = case edges0 of
