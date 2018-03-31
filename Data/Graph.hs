@@ -516,7 +516,7 @@ graphFromEdgesWithConsecutiveAscKeys edges0
     key_vertex k = maybe Nothing kv may_min_k -- O(1) time complexity
      where
       kv min_k
-        | v >= max_v = Nothing
+        | v > max_v = Nothing
         | v < 0 = Nothing
         | otherwise = Just v
        where
