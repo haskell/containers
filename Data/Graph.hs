@@ -42,8 +42,8 @@
 --
 -- The following conventions are used when documenting complexities:
 --
--- * @E@ = Count of edges
--- * @V@ = Count of vertices
+-- * @|E|@ = Count of edges
+-- * @|V|@ = Count of vertices
 --
 -----------------------------------------------------------------------------
 
@@ -376,8 +376,8 @@ graphFromEdges' x = (a,b) where
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
 --
--- Time complexity : O( (V+E) * log V )
--- Memory complexity : O( V+E )
+-- Time complexity : O( (|V|+|E|) * log |V| )
+-- Memory complexity : O( |V|+|E| )
 --
 -- This function takes an adjacency list representing a graph with vertices of
 -- type @key@ labeled by values of type @node@ and produces a @Graph@-based
@@ -437,16 +437,16 @@ graphFromEdges
         => [(node, key, [key])]
         -> (Graph, Vertex -> (node, key, [key]), key -> Maybe Vertex)
         -- ^ Time complexities of lookup functions are O(1) for the first one
-        -- and O(log V) for the second one.
+        -- and O(log |V|) for the second one.
 graphFromEdges edges0
   = (graph, \v -> vertex_map ! v, key_vertex)
   where
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
-    sorted_edges    = sortBy lt edges0 -- time complexity : O (V * log V)
+    sorted_edges    = sortBy lt edges0 -- time complexity : O (|V| * log |V|)
     edges1          = zip [0..] sorted_edges
 
-    -- 'mapMaybe key_vertex ks' induces the O(E * log V) time complexity
+    -- 'mapMaybe key_vertex ks' induces the O(|E| * log |V|) time complexity
     graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
     key_map         = array bounds0 [(,) v k                       | (,) v (_,    k, _ ) <- edges1]
     vertex_map      = array bounds0 edges1
@@ -455,7 +455,7 @@ graphFromEdges edges0
 
     -- key_vertex :: key -> Maybe Vertex
     --  returns Nothing for non-interesting vertices
-    key_vertex k   = findVertex 0 max_v -- Binary search on vertices: time complexity O(log V)
+    key_vertex k   = findVertex 0 max_v -- Binary search on vertices: time complexity O(log |V|)
                    where
                      findVertex a b | a > b
                               = Nothing
@@ -470,8 +470,8 @@ graphFromEdges edges0
 -- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
 -- and consecutive.
 --
--- Time complexity : O(E + (V*log V))
--- Memory complexity : O(V+E)
+-- Time complexity : O(|E| + (|V|*log |V|))
+-- Memory complexity : O(|V|+|E|)
 graphFromEdgesWithConsecutiveKeys
         :: Integral key
         => [(node, key, [key])]
@@ -486,8 +486,8 @@ graphFromEdgesWithConsecutiveKeys
 -- | Same as 'graphFromEdges' except the keys are expected to be 'Integral'
 -- consecutive and strictly ascending.
 --
--- Time complexity : O(V+E)
--- Memory complexity : O(V+E)
+-- Time complexity : O(|V|+|E|)
+-- Memory complexity : O(|V|+|E|)
 graphFromEdgesWithConsecutiveAscKeys
         :: Integral key
         => [(node, key, [key])]
