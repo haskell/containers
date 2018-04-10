@@ -431,7 +431,7 @@ insertWith f k x t
 -- > insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
 --
--- If the key exists in the map, this function is lazy in @x@ but strict
+-- If the key exists in the map, this function is lazy in @value@ but strict
 -- in the result of @f@.
 
 insertWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
