@@ -1,6 +1,8 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## Next
+## 0.6.0.1
+
+* Released with GHC 8.6
 
 ### New functions and class instances
 
