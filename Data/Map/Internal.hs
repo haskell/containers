@@ -2854,7 +2854,7 @@ dropWhileAntitone p (Bin _ kx x l r)
 --
 -- @
 -- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
--- spanAntitone p xs = partition p xs
+-- spanAntitone p xs = partitionWithKey (\k _ -> p k) xs
 -- @
 --
 -- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the map
