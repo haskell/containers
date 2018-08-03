@@ -321,6 +321,11 @@ levels t =
 --
 -- > foldTree (\_ xs -> if null xs then 0 else 1 + maximum xs) (Node 1 [Node 2[], Node 3 []]) == 1
 --
+-- You can even implement traverse using foldTree:
+--
+-- > traverse' f = foldTree (\x xs -> liftA2 Node (f x) (sequenceA xs))
+-- > fmap sum (traverse' Just (Node 1 [Node 2 [], Node 3[]])) == Just 6
+--
 --
 -- @since 0.5.8
 foldTree :: (a -> [b] -> b) -> Tree a -> b
