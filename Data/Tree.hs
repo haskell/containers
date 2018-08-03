@@ -313,6 +313,14 @@ levels t =
 --
 -- > foldTree (\x xs -> maximum (x:xs)) (Node 1 [Node 2 [], Node 3 []]) == 3
 --
+-- Count the number of leaves in the tree:
+--
+-- > foldTree (\_ xs -> if null xs then 1 else sum xs) (Node 1 [Node 2 [], Node 3 []]) == 2
+--
+-- Find depth of the tree; i.e. the number of branches from the root of the tree to the furthest leaf:
+--
+-- > foldTree (\_ xs -> if null xs then 0 else 1 + maximum xs) (Node 1 [Node 2[], Node 3 []]) == 1
+--
 --
 -- @since 0.5.8
 foldTree :: (a -> [b] -> b) -> Tree a -> b
