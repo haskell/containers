@@ -324,7 +324,6 @@ levels t =
 -- You can even implement traverse using foldTree:
 --
 -- > traverse' f = foldTree (\x xs -> liftA2 Node (f x) (sequenceA xs))
--- > fmap sum (traverse' Just (Node 1 [Node 2 [], Node 3[]])) == Just 6
 --
 --
 -- @since 0.5.8
