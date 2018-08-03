@@ -299,7 +299,7 @@ levels t =
 -- | Fold a tree into a "summary" value in depth-first order.
 --
 -- For each node in the tree, apply @f@ to the @rootLabel@ and the result
--- of applying @f@ to each @subForent@.
+-- of applying @f@ to each @subForest@.
 --
 -- This is also known as the catamorphism on trees.
 --
