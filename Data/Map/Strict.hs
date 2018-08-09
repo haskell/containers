@@ -33,8 +33,8 @@
 --
 -- When deciding if this is the correct data structure to use, consider:
 --
--- * If you are using 'Int' keys, you will get much better performance for most
--- operations using "Data.IntMap.Strict".
+-- * If you are using 'Prelude.Int' keys, you will get much better performance for
+-- most operations using "Data.IntMap.Strict".
 --
 -- * If you don't care about ordering, consider use @Data.HashMap.Strict@ from the
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
@@ -70,9 +70,9 @@
 --
 -- The 'Map' type is shared between the lazy and strict modules, meaning that
 -- the same 'Map' value can be passed to functions in both modules. This means
--- that the 'Functor', 'Traversable' and 'Data' instances are the same as for
--- the "Data.Map.Lazy" module, so if they are used the resulting maps may contain
--- suspended values (thunks).
+-- that the 'Data.Functor.Functor', 'Data.Traversable.Traversable' and
+-- 'Data.Data.Data' instances are the same as for the "Data.Map.Lazy" module, so
+-- if they are used the resulting maps may contain suspended values (thunks).
 --
 --
 -- == Implementation

@@ -72,7 +72,7 @@
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
 --
--- Be aware that the 'Functor', 'Traversable' and 'Data' instances
+-- Be aware that the 'Functor', 'Traversable' and 'Data.Data.Data' instances
 -- are the same as for the "Data.Map.Lazy" module, so if they are used
 -- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
@@ -841,8 +841,8 @@ alter = go
 -- a very large fraction of the time, you might consider using a
 -- private copy of the 'Identity' type.
 --
--- Note: 'alterF' is a flipped version of the 'at' combinator from
--- 'Control.Lens.At'.
+-- Note: 'alterF' is a flipped version of the @at@ combinator from
+-- @Control.Lens.At@.
 alterF :: (Functor f, Ord k)
        => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
 alterF f k m = atKeyImpl Strict k f m

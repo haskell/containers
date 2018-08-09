@@ -101,7 +101,7 @@ insertLookupWithKey' :: Whoops "Data.Map.insertLookupWithKey' is gone. Use Data.
 insertLookupWithKey' _ _ _ _ = undefined
 
 -- | This function is being removed and is no longer usable.
--- Use 'foldr'.
+-- Use 'Data.Map.Strict.foldr'.
 fold :: Whoops "Data.Map.fold is gone. Use foldr."
      => (a -> b -> b) -> b -> Map k a -> b
 fold _ _ _ = undefined

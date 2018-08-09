@@ -27,7 +27,7 @@
 --
 -- When deciding if this is the correct data structure to use, consider:
 --
--- * If you are using 'Int' keys, you will get much better performance for most
+-- * If you are using 'Prelude.Int' keys, you will get much better performance for most
 -- operations using "Data.IntMap.Lazy".
 --
 -- * If you don't care about ordering, consider using @Data.HashMap.Lazy@ from the
@@ -58,9 +58,9 @@
 --
 -- == Warning
 --
--- The size of a 'Map' must not exceed @maxBound::Int@. Violation of this
--- condition is not detected and if the size limit is exceeded, its behaviour is
--- undefined.
+-- The size of a 'Map' must not exceed @'Prelude.maxBound' :: 'Prelude.Int'@.
+-- Violation of this condition is not detected and if the size limit is exceeded,
+-- its behaviour is undefined.
 --
 --
 -- == Implementation

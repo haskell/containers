@@ -400,7 +400,7 @@ graphFromEdges' x = (a,b) where
 -- > (graph, nodeFromVertex, vertexFromKey) = graphFromEdges []
 -- > graph = array (0,-1) []
 --
--- A graph where the out-list references unspecified nodes (@'c'@), these are
+-- A graph where the out-list references unspecified nodes (@\'c\'@), these are
 -- ignored.
 --
 -- > (graph, _, _) = graphFromEdges [("a", 'a', ['b']), ("b", 'b', ['c'])]

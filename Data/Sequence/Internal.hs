@@ -645,10 +645,10 @@ type Digit23 a = Node a
 -- gets to the bottom, it turns the tree into a 2-3 tree, applies 'mapMulFT' to
 -- produce the main body, and glues all the pieces together.
 --
--- 'map23' itself is a bit horrifying because of the nested types involved. Its
+-- @map23@ itself is a bit horrifying because of the nested types involved. Its
 -- job is to map over the *elements* of a 2-3 tree, rather than the subtrees.
 -- If we used a higher-order nested type with MPTC, we could probably use a
--- class, but as it is we have to build up 'map23' explicitly through the
+-- class, but as it is we have to build up @map23@ explicitly through the
 -- recursion.
 aptyMiddle
   :: (b -> c)

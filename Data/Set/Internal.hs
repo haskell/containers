@@ -1715,8 +1715,8 @@ powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
 -- Example:
 --
 -- @
--- cartesianProduct (fromList [1,2]) (fromList ['a','b']) =
---   fromList [(1,'a'), (1,'b'), (2,'a'), (2,'b')]
+-- cartesianProduct (fromList [1,2]) (fromList [\'a\',\'b\']) =
+--   fromList [(1,\'a\'), (1,\'b\'), (2,\'a\'), (2,\'b\')]
 -- @
 --
 -- @since 0.5.11

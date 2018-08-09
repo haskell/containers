@@ -1194,8 +1194,8 @@ data AreWeStrict = Strict | Lazy
 -- a very large fraction of the time, you might consider using a
 -- private copy of the 'Identity' type.
 --
--- Note: 'alterF' is a flipped version of the 'at' combinator from
--- 'Control.Lens.At'.
+-- Note: 'alterF' is a flipped version of the @at@ combinator from
+-- @Control.Lens.At@.
 --
 -- @since 0.5.8
 alterF :: (Functor f, Ord k)
@@ -1982,7 +1982,7 @@ intersection t1@(Bin _ k x l1 r1) t2
 --
 -- @
 -- m \`restrictKeys\` s = 'filterWithKey' (\k _ -> k ``Set.member`` s) m
--- m \`restrictKeys\` s = m ``intersect`` 'fromSet' (const ()) s
+-- m \`restrictKeys\` s = m ``intersection`` 'fromSet' (const ()) s
 -- @
 --
 -- @since 0.5.8
@@ -2461,7 +2461,7 @@ traverseMaybeMissing f = WhenMissing
 
 -- | Merge two maps.
 --
--- @merge@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- 'merge' takes two 'WhenMissing' tactics, a 'WhenMatched'
 -- tactic and two maps. It uses the tactics to merge the maps.
 -- Its behavior is best understood via its fundamental tactics,
 -- 'mapMaybeMissing' and 'zipWithMaybeMatched'.
@@ -2478,22 +2478,22 @@ traverseMaybeMissing f = WhenMissing
 -- Take, for example,
 --
 -- @
--- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m1 = [(0, \'a\'), (1, \'b\'), (3, \'c\'), (4, \'d\')]
 -- m2 = [(1, "one"), (2, "two"), (4, "three")]
 -- @
 --
--- @merge@ will first ''align'' these maps by key:
+-- 'merge' will first \"align\" these maps by key:
 --
 -- @
--- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
--- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- m1 = [(0, \'a\'), (1, \'b\'),               (3, \'c\'), (4, \'d\')]
+-- m2 =           [(1, "one"), (2, "two"),           (4, "three")]
 -- @
 --
 -- It will then pass the individual entries and pairs of entries
 -- to @g1@, @g2@, or @f@ as appropriate:
 --
 -- @
--- maybes = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- maybes = [g1 0 \'a\', f 1 \'b\' "one", g2 2 "two", g1 3 \'c\', f 4 \'d\' "three"]
 -- @
 --
 -- This produces a 'Maybe' for each key:
@@ -2542,7 +2542,7 @@ merge g1 g2 f m1 m2 = runIdentity $
 
 -- | An applicative version of 'merge'.
 --
--- @mergeA@ takes two 'WhenMissing' tactics, a 'WhenMatched'
+-- 'mergeA' takes two 'WhenMissing' tactics, a 'WhenMatched'
 -- tactic and two maps. It uses the tactics to merge the maps.
 -- Its behavior is best understood via its fundamental tactics,
 -- 'traverseMaybeMissing' and 'zipWithMaybeAMatched'.
@@ -2559,22 +2559,22 @@ merge g1 g2 f m1 m2 = runIdentity $
 -- Take, for example,
 --
 -- @
--- m1 = [(0, 'a'), (1, 'b'), (3,'c'), (4, 'd')]
+-- m1 = [(0, \'a\'), (1, \'b\'), (3, \'c\'), (4, \'d\')]
 -- m2 = [(1, "one"), (2, "two"), (4, "three")]
 -- @
 --
--- @mergeA@ will first ''align'' these maps by key:
+-- @mergeA@ will first \"align\" these maps by key:
 --
 -- @
--- m1 = [(0, 'a'), (1, 'b'),               (3,'c'), (4, 'd')]
--- m2 =           [(1, "one"), (2, "two"),          (4, "three")]
+-- m1 = [(0, \'a\'), (1, \'b\'),               (3, \'c\'), (4, \'d\')]
+-- m2 =           [(1, "one"), (2, "two"),           (4, "three")]
 -- @
 --
 -- It will then pass the individual entries and pairs of entries
 -- to @g1@, @g2@, or @f@ as appropriate:
 --
 -- @
--- actions = [g1 0 'a', f 1 'b' "one", g2 2 "two", g1 3 'c', f 4 'd' "three"]
+-- actions = [g1 0 \'a\', f 1 \'b\' "one", g2 2 "two", g1 3 \'c\', f 4 \'d\' "three"]
 -- @
 --
 -- Next, it will perform the actions in the @actions@ list in order from
