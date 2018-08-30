@@ -380,6 +380,8 @@ import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
 import Data.Foldable (Foldable())
 import Data.Typeable
+import qualified Language.Haskell.TH as TH
+import Language.Haskell.TH.Syntax (Lift, lift)
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
 import qualified Data.Set.Internal as Set
@@ -503,6 +505,20 @@ mapDataType :: DataType
 mapDataType = mkDataType "Data.Map.Internal.Map" [fromListConstr]
 
 #endif
+
+{--------------------------------------------------------------------
+  A Lift instance
+--------------------------------------------------------------------}
+
+-- | @since 6.0.1.0
+instance (Lift k, Lift a) => Lift (Map k a) where
+  lift m = do
+    fromListNameMay <- TH.lookupValueName "fromList"
+    case fromListNameMay of
+      Nothing ->
+        fail "Could not find Data.Map.fromList."
+      Just fromListName ->
+        TH.appE (TH.varE fromListName) (lift $ toList m)
 
 {--------------------------------------------------------------------
   Query

@@ -1,5 +1,5 @@
 name: containers
-version: 0.6.0.1
+version: 0.6.1.0
 license: BSD3
 license-file: LICENSE
 maintainer: libraries@haskell.org
@@ -40,7 +40,7 @@ source-repository head
     location: http://github.com/haskell/containers.git
 
 Library
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, template-haskell
     if impl(ghc)
         build-depends: ghc-prim
 
@@ -220,6 +220,7 @@ benchmark lookupge-intmap
     containers,
     criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
+    template-haskell,
     ghc-prim
 
 benchmark lookupge-map
@@ -249,7 +250,8 @@ benchmark lookupge-map
     containers,
     criterion >= 0.4.0 && < 1.3,
     deepseq >= 1.1.0.0 && < 1.5,
-    ghc-prim
+    ghc-prim,
+    template-haskell
 
 -------------------
 -- T E S T I N G --
@@ -277,7 +279,7 @@ Test-suite map-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -310,7 +312,7 @@ Test-suite map-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -356,7 +358,7 @@ Test-suite set-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -386,7 +388,7 @@ Test-suite intmap-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -415,7 +417,7 @@ Test-suite intmap-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -442,7 +444,7 @@ Test-suite intset-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -464,7 +466,7 @@ Test-suite seq-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -483,7 +485,7 @@ Test-suite tree-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim, template-haskell
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -518,6 +520,7 @@ test-suite map-strictness-properties
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
     ghc-prim,
+    template-haskell,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -546,6 +549,7 @@ test-suite intmap-strictness-properties
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
     ghc-prim,
+    template-haskell,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -570,6 +574,7 @@ test-suite intset-strictness-properties
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
     ghc-prim,
+    template-haskell,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
