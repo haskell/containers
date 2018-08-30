@@ -88,6 +88,9 @@ import Data.Semigroup (Semigroup (..))
 import Data.Functor ((<$))
 #endif
 
+import qualified Language.Haskell.TH as TH
+import Language.Haskell.TH.Syntax (Lift, lift)
+
 -- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value
@@ -211,6 +214,18 @@ instance MonadZip Tree where
 
   munzip (Node (a, b) ts) = (Node a as, Node b bs)
     where (as, bs) = munzip (map munzip ts)
+
+-- | @since 6.0.1.0
+instance (Lift a) => Lift (Tree a) where
+  lift (Node a as) = do
+    nodeNameMay <- TH.lookupValueName "Node"
+    case nodeNameMay of
+      Nothing ->
+        fail "Could not find Data.Tree.Node."
+      Just nodeName ->
+        TH.appE
+          (TH.appE (TH.varE nodeName) (lift a))
+          (lift as)
 
 -- | 2-dimensional ASCII drawing of a tree.
 --

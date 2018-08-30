@@ -1,5 +1,9 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## next
+
+* Add `Lift` instances for `Map`, `Set`, `Seq`, `Tree`, `IntMap`, and `IntSet`.
+
 ## 0.6.0.1
 
 * Released with GHC 8.6

@@ -330,6 +330,9 @@ import qualified Control.Category as Category
 import Data.Coerce
 #endif
 
+import qualified Language.Haskell.TH as TH
+import qualified Language.Haskell.TH.Syntax as TH
+
 
 -- A "Nat" is a natural machine word (an unsigned Int)
 type Nat = Word
@@ -518,6 +521,20 @@ intMapDataType :: DataType
 intMapDataType = mkDataType "Data.IntMap.Internal.IntMap" [fromListConstr]
 
 #endif
+
+{--------------------------------------------------------------------
+  A Lift instance
+--------------------------------------------------------------------}
+
+-- | @since 6.0.1.0
+instance (TH.Lift a) => TH.Lift (IntMap a) where
+  lift m = do
+    fromListNameMay <- TH.lookupValueName "fromList"
+    case fromListNameMay of
+      Nothing ->
+        fail "Could not find Data.IntMap.fromList."
+      Just fromListName ->
+        TH.appE (TH.varE fromListName) (TH.lift $ toList m)
 
 {--------------------------------------------------------------------
   Query

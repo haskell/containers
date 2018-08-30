@@ -219,6 +219,9 @@ import GHC.Prim (indexInt8OffAddr#)
 import qualified Data.Foldable as Foldable
 import Data.Foldable (Foldable())
 
+import Language.Haskell.TH.Quote (dataToExpQ)
+import Language.Haskell.TH.Syntax (Lift, lift)
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -308,6 +311,14 @@ intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Internal.IntSet" [fromListConstr]
 
 #endif
+
+{--------------------------------------------------------------------
+  A Lift instance
+--------------------------------------------------------------------}
+
+-- | @since 6.0.1.0
+instance Lift IntSet where
+  lift = dataToExpQ (\ _ ->  Nothing)
 
 {--------------------------------------------------------------------
   Query

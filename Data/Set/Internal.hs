@@ -245,6 +245,8 @@ import Data.Foldable (Foldable (foldMap))
 #endif
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
+import qualified Language.Haskell.TH as TH
+import Language.Haskell.TH.Syntax (Lift, lift)
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -368,6 +370,21 @@ setDataType :: DataType
 setDataType = mkDataType "Data.Set.Internal.Set" [fromListConstr]
 
 #endif
+
+
+{--------------------------------------------------------------------
+  A Lift instance
+--------------------------------------------------------------------}
+
+-- | @since 6.0.1.0
+instance (Lift a) => Lift (Set a) where
+  lift m = do
+    fromListNameMay <- TH.lookupValueName "fromList"
+    case fromListNameMay of
+      Nothing ->
+        fail "Could not find Data.Set.fromList."
+      Just fromListName ->
+        TH.appE (TH.varE fromListName) (lift $ toList m)
 
 {--------------------------------------------------------------------
   Query

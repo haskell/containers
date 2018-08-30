@@ -255,6 +255,9 @@ import Data.Functor.Identity (Identity(..))
 import Data.Word (Word)
 #endif
 
+import qualified Language.Haskell.TH as TH
+import Language.Haskell.TH.Syntax (Lift, lift)
+
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
 import Control.Monad.Fix (MonadFix (..), fix)
@@ -921,6 +924,16 @@ consConstr  = mkConstr seqDataType "<|" [] Infix
 seqDataType :: DataType
 seqDataType = mkDataType "Data.Sequence.Seq" [emptyConstr, consConstr]
 #endif
+
+-- | @since 6.0.1.0
+instance (Lift a) => Lift (Seq a) where
+  lift m = do
+    fromListNameMay <- TH.lookupValueName "fromList"
+    case fromListNameMay of
+      Nothing ->
+        fail "Could not find Data.Sequence.fromList."
+      Just fromListName ->
+        TH.appE (TH.varE fromListName) (lift $ toList m)
 
 -- Finger trees
 
