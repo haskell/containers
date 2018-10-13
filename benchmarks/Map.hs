@@ -5,7 +5,7 @@ module Main where
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Criterion.Main (bench, defaultMain, whnf, nf)
+import Gauge (bench, defaultMain, whnf, nf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M

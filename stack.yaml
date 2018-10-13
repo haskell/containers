@@ -4,7 +4,7 @@ packages:
 
 ### Uncoment the resolver you want to use and re-run `stack build/test/bench`.
 # resolver: lts-10.0
-resolver: lts-9.20
+resolver: lts-12.13
 
 ### ChasingBottoms is only in Stackage snapshots lts-7.24 and below.
 extra-deps:

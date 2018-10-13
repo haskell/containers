@@ -4,7 +4,7 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Criterion.Main (bench, defaultMain, whnf)
+import Gauge (bench, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.Set as S
 
