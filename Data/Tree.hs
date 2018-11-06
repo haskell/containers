@@ -81,6 +81,8 @@ import Data.Coerce
 
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
+#endif
+#if (!MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup (..))
 #endif
 

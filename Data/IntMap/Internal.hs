@@ -296,14 +296,22 @@ import Data.Traversable (Traversable(traverse))
 import Data.Word (Word)
 #endif
 #if MIN_VERSION_base(4,9,0)
-import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+import Data.Semigroup (Semigroup(stimes))
+#endif
+#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>)))
+#endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
 #endif
 
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
+#if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
+#endif
 import Data.Maybe (fromMaybe)
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)

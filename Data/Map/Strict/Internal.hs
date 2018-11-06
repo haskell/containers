@@ -422,7 +422,9 @@ import Data.Functor.Identity (Identity (..))
 #endif
 
 import qualified Data.Foldable as Foldable
+#if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
+#endif
 
 -- $strictness
 --

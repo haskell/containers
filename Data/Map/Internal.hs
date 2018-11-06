@@ -372,13 +372,21 @@ import Data.Traversable (Traversable(traverse))
 #endif
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
-import Data.Semigroup (Semigroup((<>), stimes), stimesIdempotentMonoid)
+import Data.Semigroup (stimesIdempotentMonoid)
+#endif
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup(stimes))
+#endif
+#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+import Data.Semigroup (Semigroup((<>)))
 #endif
 import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
+#if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
+#endif
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
