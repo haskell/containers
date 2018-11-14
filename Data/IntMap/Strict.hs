@@ -344,7 +344,9 @@ import Data.Functor((<$>))
 #endif
 import Control.Applicative (Applicative (..), liftA2)
 import qualified Data.Foldable as Foldable
+#if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
+#endif
 
 {--------------------------------------------------------------------
   Query
