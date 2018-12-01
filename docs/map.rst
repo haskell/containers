@@ -436,7 +436,7 @@ Modifying a map entry
     Map.adjust :: Ord k => (v -> v) -> k -> Map k v -> Map k v
     Map.adjust f key m = ...
 
-:haddock_short:`/Data.Map.Strict#abjust` applies the value transformation
+:haddock_short:`/Data.Map.Strict#adjust` applies the value transformation
 function ``f`` to the entry with given ``key``. If no entry for that key exists
 then the map is left unchanged.
 
