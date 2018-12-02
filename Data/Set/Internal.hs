@@ -1704,7 +1704,7 @@ splitRoot orig =
 --
 -- @
 -- powerSet (fromList [1,2,3]) =
---   fromList [[], [1], [2], [3], [1,2], [1,3], [2,3], [1,2,3]]
+--   fromList $ map fromList [[],[1],[1,2],[1,2,3],[1,3],[2],[2,3],[3]]
 -- @
 --
 -- @since 0.5.11
