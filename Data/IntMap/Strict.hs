@@ -22,7 +22,7 @@
 -- from key of type @Int@ to values of type @v@.
 --
 -- Each function in this module is careful to force values before installing
--- them in a 'Map'. This is usually more efficient when laziness is not
+-- them in an 'IntMap'. This is usually more efficient when laziness is not
 -- necessary. When laziness /is/ required, use the functions in
 -- "Data.IntMap.Lazy".
 --
@@ -60,9 +60,9 @@
 --
 -- The 'IntMap' type is shared between the lazy and strict modules, meaning that
 -- the same 'IntMap' value can be passed to functions in both modules. This
--- means that the 'Functor', 'Traversable' and 'Data' instances are the same as
--- for the "Data.IntMap.Lazy" module, so if they are used the resulting map may
--- contain suspended values (thunks).
+-- means that the 'Functor', 'Traversable' and 'Data.Data.Data' instances are
+-- the same as for the "Data.IntMap.Lazy" module, so if they are used the
+-- resulting map may contain suspended values (thunks).
 --
 --
 -- == Implementation

@@ -91,7 +91,7 @@
 -- * The 'Functor' methods 'fmap' and '<$', along with 'mapWithIndex'
 -- * The 'Applicative' methods '<*>', '*>', and '<*'
 -- * The zips: 'zipWith', 'zip', etc.
--- * 'heads' and 'tails'
+-- * 'inits', 'tails'
 -- * 'fromFunction', 'replicate', 'intersperse', and 'cycleTaking'
 -- * 'reverse'
 -- * 'chunksOf'
@@ -156,7 +156,7 @@ module Data.Sequence (
     unfoldl,        -- :: (b -> Maybe (b, a)) -> b -> Seq a
     -- * Deconstruction
     -- | Additional functions for deconstructing sequences are available
-    -- via the 'Foldable' instance of 'Seq'.
+    -- via the 'Data.Foldable.Foldable' instance of 'Seq'.
 
     -- ** Queries
     null,           -- :: Seq a -> Bool
@@ -218,7 +218,8 @@ module Data.Sequence (
     findIndexR,     -- :: (a -> Bool) -> Seq a -> Maybe Int
     findIndicesR,   -- :: (a -> Bool) -> Seq a -> [Int]
     -- * Folds
-    -- | General folds are available via the 'Foldable' instance of 'Seq'.
+    -- | General folds are available via the 'Data.Foldable.Foldable' instance
+    -- of 'Seq'.
     foldMapWithIndex, -- :: Monoid m => (Int -> a -> m) -> Seq a -> m
     foldlWithIndex, -- :: (b -> Int -> a -> b) -> b -> Seq a -> b
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
