@@ -86,7 +86,7 @@ Importing Set and IntSet
 
 When using ``Set`` or ``IntSet`` in a Haskell source file you should always use
 a ``qualified`` import because these modules export names that clash with the
-standard Prelude. You can import the type constructor and addional functions
+standard Prelude. You can import the type constructor and additional functions
 that you care about unqualified.
 
 ::
