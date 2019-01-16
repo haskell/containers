@@ -3689,8 +3689,10 @@ tailsTree f (Deep n pr m sf) =
         (tailsTree f' m)
         (fmap (f . digitToTree) (tailsDigit sf))
   where
-    f' ms = let ConsLTree node m' = viewLTree ms in
-        fmap (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
+    f' ms = case viewLTree ms of
+              EmptyLTree -> error "tailsTree: viewLTree returned an empty tree."
+              ConsLTree node m' ->
+                fmap (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
 
 {-# SPECIALIZE initsTree :: (FingerTree (Elem a) -> Elem b) -> FingerTree (Elem a) -> FingerTree (Elem b) #-}
 {-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
@@ -3704,8 +3706,10 @@ initsTree f (Deep n pr m sf) =
         (initsTree f' m)
         (fmap (f . deep pr m) (initsDigit sf))
   where
-    f' ms =  let SnocRTree m' node = viewRTree ms in
-             fmap (\ sf' -> f (deep pr m' sf')) (initsNode node)
+    f' ms = case viewRTree ms of
+               EmptyRTree -> error "initsTree: viewRTree returned an empty tree."
+               SnocRTree m' node ->
+                 fmap (\ sf' -> f (deep pr m' sf')) (initsNode node)
 
 {-# INLINE foldlWithIndex #-}
 -- | 'foldlWithIndex' is a version of 'foldl' that also provides access
