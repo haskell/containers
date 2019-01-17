@@ -1,12 +1,18 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 
 module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, whnf)
+import Gauge (bench, defaultMain, whnf, nf)
 import Data.List (foldl')
 import qualified Data.Set as S
+import Data.Functor.Identity
+#if __GLASGOW_HASKELL__ >= 710
+import Control.Monad.ST
+import Data.STRef
+#endif
 
 main = do
     let s = S.fromAscList elems :: S.Set Int
@@ -21,6 +27,22 @@ main = do
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
         , bench "fold" $ whnf (S.fold (:) []) s
+#if __GLASGOW_HASKELL__ >= 710
+        , bench "forM (Identity)" $ nf (\s -> runIdentity $ S.forM s (\e -> pure $ e + 1)) s
+        , bench "for (Identity)" $ nf (\s -> runIdentity $ S.for s (\e -> pure $ e + 1)) s
+        , bench "forM (ST)" $ nf (\s -> runST $ do
+              ref <- newSTRef 0
+              S.forM s (\e -> do
+                              modifySTRef ref (+ 1)
+                              x <- readSTRef ref
+                              pure $ x + e * 36 `mod` 11)) (S.map (`mod` 51) s)
+        , bench "for (ST)" $ nf (\s -> runST $ do
+              ref <- newSTRef 0
+              S.for s (\e -> do
+                             modifySTRef ref (+ 1)
+                             x <- readSTRef ref
+                             pure $ x + e * 36 `mod` 11)) (S.map (`mod` 51) s)
+#endif
         , bench "delete" $ whnf (del elems) s
         , bench "findMin" $ whnf S.findMin s
         , bench "findMax" $ whnf S.findMax s

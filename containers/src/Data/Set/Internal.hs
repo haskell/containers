@@ -181,6 +181,12 @@ module Data.Set.Internal (
             -- * Map
             , map
             , mapMonotonic
+#if __GLASGOW_HASKELL__ >= 710
+            , mapM
+            , forM
+            , traverse
+            , for
+#endif
 
             -- * Folds
             , foldr
@@ -230,7 +236,8 @@ module Data.Set.Internal (
             , merge
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
+import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt,mapM,traverse)
+import qualified Prelude
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
@@ -952,6 +959,33 @@ map f = fromList . List.map f . toList
 mapMonotonic :: (a->b) -> Set a -> Set b
 mapMonotonic _ Tip = Tip
 mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
+
+
+#if __GLASGOW_HASKELL__ >= 710
+-- | /O(n*log n)/.
+--
+-- Like 'traverse' from Data.Traversable. This is less generic, since 'Set'
+-- does not have a Traversable instance.
+traverse :: (Ord b, Applicative m) => (a -> m b) -> Set a -> m (Set b)
+-- This implementation is significantly faster. We don't know why.
+traverse f s0 = fmap (GHCExts.fromListN (size s0)) . Prelude.traverse f . toList $ s0
+
+-- | 'for' is 'traverse' with its arguments flipped.
+for :: (Ord b, Applicative m) => Set a -> (a -> m b) -> m (Set b)
+for = flip traverse
+
+-- | /O(n*log n)/.
+--
+-- Like 'mapM' from Data.Traversable. This is less generic, since 'Set'
+-- does not have a Traversable instance.
+mapM :: (Ord b, Monad m) => (a -> m b) -> Set a -> m (Set b)
+mapM = traverse
+
+-- | 'forM' is 'mapM' with its arguments flipped.
+forM :: (Ord b, Monad m) => Set a -> (a -> m b) -> m (Set b)
+forM = flip mapM
+#endif
+
 
 {--------------------------------------------------------------------
   Fold

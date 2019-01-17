@@ -136,6 +136,12 @@ module Data.Set (
             -- * Map
             , S.map
             , mapMonotonic
+#if __GLASGOW_HASKELL__ >= 710
+            , S.forM
+            , S.for
+            , S.mapM
+            , S.traverse
+#endif
 
             -- * Folds
             , S.foldr

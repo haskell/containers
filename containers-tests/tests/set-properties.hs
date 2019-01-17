@@ -5,7 +5,7 @@ import qualified Data.List as List
 import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, all, take, drop, splitAt)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, forM, all, take, drop, splitAt)
 import Test.Framework
 import Test.Framework.Providers.HUnit
 import Test.Framework.Providers.QuickCheck2
@@ -88,6 +88,10 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_map" prop_map
                    , testProperty "prop_map2" prop_map2
                    , testProperty "prop_mapMonotonic" prop_mapMonotonic
+#if __GLASGOW_HASKELL__ >= 710
+                   , testProperty "prop_forM" prop_forM
+                   , testProperty "prop_for" prop_for
+#endif
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
@@ -590,6 +594,14 @@ prop_map2 f g s = map (apply f) (map (apply g) s) === map (apply f . apply g) s
 
 prop_mapMonotonic :: Set Int -> Property
 prop_mapMonotonic s = mapMonotonic id s === s
+
+#if __GLASGOW_HASKELL__ >= 710
+prop_forM :: Set Int -> Bool
+prop_forM s = runIdentity (forM s (pure . id)) == map id s
+
+prop_for :: Set Int -> Bool
+prop_for s = runIdentity (for s (pure . id)) == map id s
+#endif
 
 prop_maxView :: Set Int -> Bool
 prop_maxView s = case maxView s of
