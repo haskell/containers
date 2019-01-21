@@ -15,7 +15,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import qualified Data.Foldable (foldMap, traverse_)
 import Data.Function
-import Data.Traversable (Traversable(traverse))
+import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
@@ -30,16 +30,6 @@ import Test.QuickCheck
 import Test.QuickCheck.Function (Fun(..), apply)
 
 default (Int)
-
-newtype Consty a b = Consty { getConsty :: a}
-  deriving (Eq)
-
-instance Functor (Consty a) where
-  fmap _ (Consty a) = Consty a
-
-instance Monoid m => Applicative (Consty m) where
-  pure = const (Consty mempty)
-  (Consty l) <*> (Consty r) = Consty (l `mappend` r)
 
 main :: IO ()
 main = defaultMain
@@ -193,7 +183,9 @@ main = defaultMain
              , testProperty
                  "foldrWithKey==foldMapWithKey"
                  prop_foldrWithKeyEqFoldMapWithKey
-             , testProperty "traverse==traverse_"  prop_traverseEqTraverse_
+             , testProperty
+                 "prop_FoldableTraversableCompat"
+                 prop_FoldableTraversableCompat
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
@@ -1184,11 +1176,9 @@ prop_foldrWithKeyEqFoldMapWithKey ys = property $
   let m  = fromList ys
   in  foldrWithKey (\k v -> ((k,v):)) [] m == foldMapWithKey (\k v -> ([(k,v)])) m
 
-prop_traverseEqTraverse_ :: [(Int, String)] -> Property
-prop_traverseEqTraverse_ ys = property $
-  let m  = fromList ys
-  in  getConsty (Data.Traversable.traverse (Consty . (:[])) m)
-      == getConsty (Data.Foldable.traverse_ (Consty . (:[])) m)
+prop_FoldableTraversableCompat :: Fun String [Int] -> IntMap String -> Property
+prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
+  where f = apply fun
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
