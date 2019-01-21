@@ -204,10 +204,7 @@ apply3 f a b c = apply f (a, b, c)
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = do{ ks <- arbitrary
-                ; xs <- arbitrary
-                ; return (fromList (zip xs ks))
-                }
+  arbitrary = fmap fromList arbitrary
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
