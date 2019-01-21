@@ -13,8 +13,9 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
-import qualified Data.Foldable as Foldable (traverse_)
+import qualified Data.Foldable (foldMap, traverse_)
 import Data.Function
+import Data.Traversable (Traversable(traverse))
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
@@ -1177,7 +1178,7 @@ prop_foldrEqFoldMap :: Int -> [(Int, String)] -> Property
 prop_foldrEqFoldMap n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldr (:) [] m == foldMap (:[]) m
+  in  foldr (:) [] m == Data.Foldable.foldMap (:[]) m
 
 prop_foldrWithKeyEqFoldMapWithKey :: Int -> [(Int, String)] -> Property
 prop_foldrWithKeyEqFoldMapWithKey n ys = length ys > 0 ==>
@@ -1189,8 +1190,8 @@ prop_traverseEqTraverse_ :: Int -> [(Int, String)] -> Property
 prop_traverseEqTraverse_ n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  getConsty (traverse (Consty . (:[])) m)
-      == getConsty (Foldable.traverse_ (Consty . (:[])) m)
+  in  getConsty (Data.Traversable.traverse (Consty . (:[])) m)
+      == getConsty (Data.Foldable.traverse_ (Consty . (:[])) m)
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
