@@ -12,7 +12,7 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
-import qualified Data.Foldable (foldMap)
+import Data.Foldable (foldMap)
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
