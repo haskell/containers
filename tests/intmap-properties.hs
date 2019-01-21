@@ -28,6 +28,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun(..), apply)
+import Test.QuickCheck.Poly (A, B)
 
 default (Int)
 
@@ -1167,16 +1168,16 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
 
 prop_foldrEqFoldMap :: [(Int, String)] -> Property
-prop_foldrEqFoldMap ys = property $
+prop_foldrEqFoldMap ys =
   let m  = fromList ys
-  in  foldr (:) [] m == Data.Foldable.foldMap (:[]) m
+  in  foldr (:) [] m === Data.Foldable.foldMap (:[]) m
 
 prop_foldrWithKeyEqFoldMapWithKey :: [(Int, String)] -> Property
-prop_foldrWithKeyEqFoldMapWithKey ys = property $
+prop_foldrWithKeyEqFoldMapWithKey ys =
   let m  = fromList ys
-  in  foldrWithKey (\k v -> ((k,v):)) [] m == foldMapWithKey (\k v -> ([(k,v)])) m
+  in  foldrWithKey (\k v -> ((k,v):)) [] m === foldMapWithKey (\k v -> ([(k,v)])) m
 
-prop_FoldableTraversableCompat :: Fun String [Int] -> IntMap String -> Property
+prop_FoldableTraversableCompat :: Fun A [B] -> IntMap A -> Property
 prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
   where f = apply fun
 
