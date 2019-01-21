@@ -8,6 +8,7 @@ import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
 
+import Control.Applicative (Applicative(..))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
