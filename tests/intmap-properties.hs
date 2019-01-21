@@ -1174,22 +1174,19 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
 
-prop_foldrEqFoldMap :: Int -> [(Int, String)] -> Property
-prop_foldrEqFoldMap n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
+prop_foldrEqFoldMap :: [(Int, String)] -> Property
+prop_foldrEqFoldMap ys = property $
+  let m  = fromList ys
   in  foldr (:) [] m == Data.Foldable.foldMap (:[]) m
 
-prop_foldrWithKeyEqFoldMapWithKey :: Int -> [(Int, String)] -> Property
-prop_foldrWithKeyEqFoldMapWithKey n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
+prop_foldrWithKeyEqFoldMapWithKey :: [(Int, String)] -> Property
+prop_foldrWithKeyEqFoldMapWithKey ys = property $
+  let m  = fromList ys
   in  foldrWithKey (\k v -> ((k,v):)) [] m == foldMapWithKey (\k v -> ([(k,v)])) m
 
-prop_traverseEqTraverse_ :: Int -> [(Int, String)] -> Property
-prop_traverseEqTraverse_ n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
+prop_traverseEqTraverse_ :: [(Int, String)] -> Property
+prop_traverseEqTraverse_ ys = property $
+  let m  = fromList ys
   in  getConsty (Data.Traversable.traverse (Consty . (:[])) m)
       == getConsty (Data.Foldable.traverse_ (Consty . (:[])) m)
 
