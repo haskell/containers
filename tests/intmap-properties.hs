@@ -1184,7 +1184,7 @@ prop_foldrWithKeyEqFoldMapWithKey :: Int -> [(Int, String)] -> Property
 prop_foldrWithKeyEqFoldMapWithKey n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
-  in  foldrWithKey (\_ -> (:)) [] m == foldMapWithKey (\_ -> (:[])) m
+  in  foldrWithKey (\k v -> ((k,v):)) [] m == foldMapWithKey (\k v -> ([(k,v)])) m
 
 prop_traverseEqTraverse_ :: Int -> [(Int, String)] -> Property
 prop_traverseEqTraverse_ n ys = length ys > 0 ==>
