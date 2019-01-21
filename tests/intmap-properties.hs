@@ -12,6 +12,7 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
+import qualified Data.Foldable as Foldable (traverse_)
 import Data.Function
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
@@ -27,6 +28,16 @@ import Test.QuickCheck
 import Test.QuickCheck.Function (Fun(..), apply)
 
 default (Int)
+
+newtype Consty a b = Consty { getConsty :: a}
+  deriving (Eq)
+
+instance Functor (Consty a) where
+  fmap _ (Consty a) = Consty a
+
+instance Monoid m => Applicative (Consty m) where
+  pure = const (Consty mempty)
+  (Consty l) <*> (Consty r) = Consty (l `mappend` r)
 
 main :: IO ()
 main = defaultMain
@@ -176,6 +187,11 @@ main = defaultMain
              , testProperty "foldr'"               prop_foldr'
              , testProperty "foldl"                prop_foldl
              , testProperty "foldl'"               prop_foldl'
+             , testProperty "foldr==foldMap"       prop_foldrEqFoldMap
+             , testProperty
+                 "foldrWithKey==foldMapWithKey"
+                 prop_foldrWithKeyEqFoldMapWithKey
+             , testProperty "traverse==traverse_"  prop_traverseEqTraverse_
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
@@ -1155,6 +1171,25 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+
+prop_foldrEqFoldMap :: Int -> [(Int, String)] -> Property
+prop_foldrEqFoldMap n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldr (:) [] m == foldMap (:[]) m
+
+prop_foldrWithKeyEqFoldMapWithKey :: Int -> [(Int, String)] -> Property
+prop_foldrWithKeyEqFoldMapWithKey n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldrWithKey (\_ -> (:)) [] m == foldMapWithKey (\_ -> (:[])) m
+
+prop_traverseEqTraverse_ :: Int -> [(Int, String)] -> Property
+prop_traverseEqTraverse_ n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  getConsty (traverse (Consty . (:[])) m)
+      == getConsty (Foldable.traverse_ (Consty . (:[])) m)
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
