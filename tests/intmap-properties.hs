@@ -1167,15 +1167,13 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
 
-prop_foldrEqFoldMap :: [(Int, String)] -> Property
-prop_foldrEqFoldMap ys =
-  let m  = fromList ys
-  in  foldr (:) [] m === Data.Foldable.foldMap (:[]) m
+prop_foldrEqFoldMap :: IntMap Int -> Property
+prop_foldrEqFoldMap m =
+  foldr (:) [] m === Data.Foldable.foldMap (:[]) m
 
-prop_foldrWithKeyEqFoldMapWithKey :: [(Int, String)] -> Property
-prop_foldrWithKeyEqFoldMapWithKey ys =
-  let m  = fromList ys
-  in  foldrWithKey (\k v -> ((k,v):)) [] m === foldMapWithKey (\k v -> ([(k,v)])) m
+prop_foldrWithKeyEqFoldMapWithKey :: IntMap Int -> Property
+prop_foldrWithKeyEqFoldMapWithKey m =
+  foldrWithKey (\k v -> ((k,v):)) [] m === foldMapWithKey (\k v -> ([(k,v)])) m
 
 prop_FoldableTraversableCompat :: Fun A [B] -> IntMap A -> Property
 prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
