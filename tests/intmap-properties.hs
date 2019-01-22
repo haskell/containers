@@ -12,7 +12,9 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
+import Data.Foldable (foldMap)
 import Data.Function
+import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
@@ -25,6 +27,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun(..), apply)
+import Test.QuickCheck.Poly (A, B)
 
 default (Int)
 
@@ -176,6 +179,13 @@ main = defaultMain
              , testProperty "foldr'"               prop_foldr'
              , testProperty "foldl"                prop_foldl
              , testProperty "foldl'"               prop_foldl'
+             , testProperty "foldr==foldMap"       prop_foldrEqFoldMap
+             , testProperty
+                 "foldrWithKey==foldMapWithKey"
+                 prop_foldrWithKeyEqFoldMapWithKey
+             , testProperty
+                 "prop_FoldableTraversableCompat"
+                 prop_FoldableTraversableCompat
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
@@ -1155,6 +1165,18 @@ prop_foldl' n ys = length ys > 0 ==>
       foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+
+prop_foldrEqFoldMap :: IntMap Int -> Property
+prop_foldrEqFoldMap m =
+  foldr (:) [] m === Data.Foldable.foldMap (:[]) m
+
+prop_foldrWithKeyEqFoldMapWithKey :: IntMap Int -> Property
+prop_foldrWithKeyEqFoldMapWithKey m =
+  foldrWithKey (\k v -> ((k,v):)) [] m === foldMapWithKey (\k v -> ([(k,v)])) m
+
+prop_FoldableTraversableCompat :: Fun A [B] -> IntMap A -> Property
+prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
+  where f = apply fun
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =

@@ -441,7 +441,9 @@ instance Foldable.Foldable IntMap where
   fold = go
     where go Nil = mempty
           go (Tip _ v) = v
-          go (Bin _ _ l r) = go l `mappend` go r
+          go (Bin _ m l r)
+            | m < 0     = go r `mappend` go l
+            | otherwise = go l `mappend` go r
   {-# INLINABLE fold #-}
   foldr = foldr
   {-# INLINE foldr #-}
@@ -450,7 +452,9 @@ instance Foldable.Foldable IntMap where
   foldMap f t = go t
     where go Nil = mempty
           go (Tip _ v) = f v
-          go (Bin _ _ l r) = go l `mappend` go r
+          go (Bin _ m l r)
+            | m < 0     = go r `mappend` go l
+            | otherwise = go l `mappend` go r
   {-# INLINE foldMap #-}
   foldl' = foldl'
   {-# INLINE foldl' #-}
@@ -2416,7 +2420,9 @@ traverseWithKey f = go
   where
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
-    go (Bin p m l r) = liftA2 (Bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (Bin p m) (go r) (go l)
+      | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
@@ -2875,7 +2881,9 @@ foldMapWithKey f = go
   where
     go Nil           = mempty
     go (Tip kx x)    = f kx x
-    go (Bin _ _ l r) = go l `mappend` go r
+    go (Bin _ m l r)
+      | m < 0     = go r `mappend` go l
+      | otherwise = go l `mappend` go r
 {-# INLINE foldMapWithKey #-}
 
 {--------------------------------------------------------------------
