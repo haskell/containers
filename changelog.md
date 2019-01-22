@@ -1,5 +1,11 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.6.0.2
+
+* Fix Foldable instance for IntMap, which previously placed positively
+  keyed entries before negatively keyed ones for `fold`, `foldMap`, and
+  `traverse`.
+
 ## 0.6.0.1
 
 * Released with GHC 8.6
