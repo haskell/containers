@@ -56,7 +56,7 @@ The following GHCi session shows some of the basic map functionality::
     -- Add (4, "four") to our original map.
     let moreNums = Map.insert 4 "four" nums
 
-    Map.member moreNums 4
+    Map.member 4 moreNums
     > True
 
 
