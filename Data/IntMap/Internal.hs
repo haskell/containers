@@ -1114,7 +1114,7 @@ withoutKeys t1@(Bin p1 m1 _ _) (IntSet.Tip p2 bm2) =
     let minbit = bitmapOf p1
         lt_minbit = minbit - 1
         maxbit = bitmapOf (p1 .|. (m1 .|. (m1 - 1)))
-        gt_maxbit = maxbit `xor` complement (maxbit - 1)
+        gt_maxbit = (-maxbit) `xor` maxbit
     -- TODO(wrengr): should we manually inline/unroll 'updatePrefix'
     -- and 'withoutBM' here, in order to avoid redundant case analyses?
     in updatePrefix p2 t1 $ withoutBM (bm2 .|. lt_minbit .|. gt_maxbit)
@@ -3333,7 +3333,7 @@ mask i m
 -- bit @m@.
 maskW :: Nat -> Nat -> Prefix
 maskW i m
-  = intFromNat (i .&. (complement (m-1) `xor` m))
+  = intFromNat (i .&. ((-m) `xor` m))
 {-# INLINE maskW #-}
 
 -- | Does the left switching bit specify a shorter prefix?
