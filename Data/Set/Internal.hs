@@ -1712,7 +1712,7 @@ powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
 
--- | Calculate the Cartesian product of two sets.
+-- | /O(m*n)/ (conjectured). Calculate the Cartesian product of two sets.
 --
 -- @
 -- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
@@ -1727,10 +1727,21 @@ powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
 --
 -- @since 0.5.11
 cartesianProduct :: Set a -> Set b -> Set (a, b)
--- We don't know if this implementation (slightly modified from one
--- that Edward Kmett hacked together) is optimal. It would be interesting
--- to find out. TODO: try to get some clue about the big-O performance
--- so we can advise users.
+-- I don't know for sure if this implementation (slightly modified from one
+-- that Edward Kmett hacked together) is optimal. TODO: try to prove or
+-- refute it.
+--
+-- We could definitely get big-O optimal (O(m * n)) in a rather simple way:
+--
+--   cartesianProduct _as Tip = Tip
+--   cartesianProduct as bs = fromDistinctAscList
+--     [(a,b) | a <- toList as, b <- toList bs]
+--
+-- Unfortunately, this is much slower in practice, at least when the sets are
+-- constructed from ascending lists. I tried doing the same thing using a
+-- known-length (perfect balancing) variant of fromDistinctAscList, but it
+-- still didn't come close to the performance of Kmett's version in my very
+-- informal tests.
 
 -- When the second argument has at most one element, we can be a little
 -- clever.
