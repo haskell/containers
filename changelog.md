@@ -6,6 +6,9 @@
   keyed entries before negatively keyed ones for `fold`, `foldMap`, and
   `traverse`.
 
+* Improve the performance of `Data.Set.cartesianProduct` when the first
+  argument is much larger than the second.
+
 ## 0.6.0.1
 
 * Released with GHC 8.6

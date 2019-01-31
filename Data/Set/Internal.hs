@@ -1727,8 +1727,21 @@ powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
 --
 -- @since 0.5.11
 cartesianProduct :: Set a -> Set b -> Set (a, b)
-cartesianProduct as bs =
-  getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
+cartesianProduct as bs
+  -- When the sizes are very different (e.g., 10 vs. 2000), it's quite a bit
+  -- better to fold over the smaller set. I'm not exactly sure why that is so
+  -- in non-degenerate cases, but we might as well do it the fast way.
+  -- Note: Edward Kmett came up with this implementation (without the size
+  -- check) off the top of his head; he does not claim it is optimal. It might
+  -- be worth trying to find a better one, but it's definitely not obvious
+  -- how one might do so.
+  --
+  -- TODO: Attempt to calculate, or at least empirically estimate, the big-O
+  -- performance of this function.
+  | size as <= size bs
+  = getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
+  | otherwise
+  = getMergeSet $ foldMap (\b -> MergeSet $ mapMonotonic (flip (,) b) as) bs
 
 -- A version of Set with peculiar Semigroup and Monoid instances.
 -- The result of xs <> ys will only be a valid set if the greatest
