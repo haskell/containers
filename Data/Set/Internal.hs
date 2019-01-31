@@ -1727,6 +1727,15 @@ powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
 --
 -- @since 0.5.11
 cartesianProduct :: Set a -> Set b -> Set (a, b)
+-- We don't know if this implementation (slightly modified from one
+-- that Edward Kmett hacked together) is optimal. It would be interesting
+-- to find out. TODO: try to get some clue about the big-O performance
+-- so we can advise users.
+
+-- When the second argument has at most one element, we can be a little
+-- clever.
+cartesianProduct !_as Tip = Tip
+cartesianProduct as (Bin 1 b _ _) = mapMonotonic (flip (,) b) as
 cartesianProduct as bs =
   getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
 
