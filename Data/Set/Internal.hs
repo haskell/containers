@@ -940,6 +940,18 @@ foldlFB :: (a -> b -> a) -> a -> Set b -> a
 foldlFB = foldl
 {-# INLINE[0] foldlFB #-}
 
+-- Used for write-back. Thanks to GHC Trac #16261, we can't actually match on [] in
+-- RULES. We actually get a bit more write-back this way: toAscList s ++ l will
+-- become toAscListThen s l. We NOINLINE these functions because it seems extremely
+-- unlikely that inlining them will ever be helpful in practice, and bloating code is bad.
+toAscListThen :: Set a -> [a] -> [a]
+toAscListThen s l = foldr (:) l s
+{-# NOINLINE toAscListThen #-}
+
+toDescListThen :: Set a -> [a] -> [a]
+toDescListThen s l = foldl (flip (:)) l s
+{-# NOINLINE toDescListThen #-}
+
 -- Inline elems and toList, so that we need to fuse only toAscList.
 {-# INLINE elems #-}
 {-# INLINE toList #-}
@@ -947,15 +959,15 @@ foldlFB = foldl
 -- The fusion is enabled up to phase 2 included. If it does not succeed,
 -- convert in phase 1 the expanded to{Asc,Desc}List calls back to
 -- to{Asc,Desc}List.  In phase 0, we inline fold{lr}FB (which were used in
--- a list fusion, otherwise it would go away in phase 1), and let compiler do
--- whatever it wants with to{Asc,Desc}List -- it was forbidden to inline it
--- before phase 0, otherwise the fusion rules would not fire at all.
-{-# NOINLINE[0] toAscList #-}
-{-# NOINLINE[0] toDescList #-}
+-- a list fusion, otherwise it would go away in phase 1). We NOINLINE
+-- toAscList and toDescList in all phases because it seems pretty unlikely
+-- that inlining them will ever help anyone.
+{-# NOINLINE toAscList #-}
+{-# NOINLINE toDescList #-}
 {-# RULES "Set.toAscList" [~1] forall s . toAscList s = build (\c n -> foldrFB c n s) #-}
-{-# RULES "Set.toAscListBack" [1] foldrFB (:) [] = toAscList #-}
+{-# RULES "Set.toAscListBack" [1] forall q xs. foldrFB (:) q xs = toAscListThen xs q #-}
 {-# RULES "Set.toDescList" [~1] forall s . toDescList s = build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
-{-# RULES "Set.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
+{-# RULES "Set.toDescListBack" [1] forall q xs. foldlFB (\xs x -> x : xs) q xs = toDescListThen xs q #-}
 #endif
 
 -- | /O(n*log n)/. Create a set from a list of elements.
