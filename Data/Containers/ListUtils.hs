@@ -13,6 +13,10 @@
 -- Portability :  portable
 --
 -- This module provides efficient containers-based functions on the list type.
+--
+-- In the documentation, \(n\) is the number of elements in the list while
+-- \(d\) is the number of distinct elements in the list. \(W\) is the number
+-- of bits in an 'Int'.
 -----------------------------------------------------------------------------
 
 module Data.Containers.ListUtils (
@@ -33,10 +37,10 @@ import GHC.Exts ( build )
 -- *** Ord-based nubbing ***
 
 
--- | \( O(n \log n \). The @nubOrd@ function removes duplicate elements from a list.
--- In particular, it keeps only the first occurrence of each element. By using a
--- 'Set' internally it has better asymptotics than the standard 'Data.List.nub'
--- function.
+-- | \( O(n \log d) \). The @nubOrd@ function removes duplicate elements from a
+-- list. In particular, it keeps only the first occurrence of each element. By
+-- using a 'Set' internally it has better asymptotics than the standard
+-- 'Data.List.nub' function.
 --
 -- ==== Strictness
 --
@@ -44,8 +48,9 @@ import GHC.Exts ( build )
 --
 -- ==== Efficiency note
 --
--- When applicable, it is almost always better to use 'nubInt' or 'nubIntOn' instead
--- of this function. For example, the best way to nub a list of characters is
+-- When applicable, it is almost always better to use 'nubInt' or 'nubIntOn'
+-- instead of this function, although it can be a little worse in certain
+-- pathological cases. For example, to nub a list of characters, use
 --
 -- @ nubIntOn fromEnum xs @
 nubOrd :: Ord a => [a] -> [a]
@@ -114,7 +119,7 @@ constNubOn x _ = x
 -- *** Int-based nubbing ***
 
 
--- | \( O(n \min(n,W)) \). The @nubInt@ function removes duplicate 'Int'
+-- | \( O(n \min(d,W)) \). The @nubInt@ function removes duplicate 'Int'
 -- values from a list. In particular, it keeps only the first occurrence
 -- of each element. By using an 'IntSet' internally, it attains better
 -- asymptotics than the standard 'Data.List.nub' function.
@@ -130,7 +135,8 @@ nubInt = nubIntOn id
 
 -- | The @nubIntOn@ function behaves just like 'nubInt' except it performs
 -- comparisons not on the original datatype, but a user-specified projection
--- from that datatype.
+-- from that datatype. For example, @nubIntOn 'fromEnum'@ can be used to
+-- nub characters and typical fixed-with numerical types efficiently.
 --
 -- ==== Strictness
 --
