@@ -463,6 +463,11 @@ m1 \\ m2 = difference m1 m2
   Size balanced trees.
 --------------------------------------------------------------------}
 -- | A Map from keys @k@ to values @a@.
+--
+-- The 'Semigroup' operation for 'Map' is 'union', which prefers
+-- values from the left operand. If @m1@ maps a key @k@ to a value
+-- @a1@, and @m2@ maps the same key to a different value @a2@, then
+-- their union @m1 <> m2@ maps @k@ to @a1@.
 
 -- See Note: Order of constructors
 data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
