@@ -462,7 +462,7 @@ alter can be used to insert, update, or delete a value.
     Map.alter addValueIfMissing "new_key" (Map.fromList [("key", 0)])
     > fromList [("key",0),("new_key",1)]
 
-The function ``doubleIfPositivie`` below will need to be placed in a Haskell
+The function ``doubleIfPositive`` below will need to be placed in a Haskell
 source file.
 
 ::
