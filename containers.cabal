@@ -53,6 +53,7 @@ Library
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
+        Data.IntMap.Strict.Internal
         Data.IntMap.Internal
         Data.IntMap.Internal.Debug
         Data.IntMap.Merge.Lazy
@@ -206,6 +207,7 @@ benchmark lookupge-intmap
       Data.IntMap.Internal.DeprecatedDebug
       Data.IntMap.Lazy
       Data.IntMap.Strict
+      Data.IntMap.Strict.Internal
       Data.IntSet.Internal
       LookupGE_IntMap
       Utils.Containers.Internal.BitUtil
@@ -406,6 +408,7 @@ Test-suite intmap-strict-properties
         Data.IntMap.Internal.Debug
         Data.IntMap.Internal.DeprecatedDebug
         Data.IntMap.Strict
+        Data.IntMap.Strict.Internal
         Data.IntSet
         Data.IntSet.Internal
         IntMapValidity
@@ -532,6 +535,7 @@ test-suite intmap-strictness-properties
       Data.IntMap.Internal
       Data.IntMap.Internal.DeprecatedDebug
       Data.IntMap.Strict
+      Data.IntMap.Strict.Internal
       Data.IntSet.Internal
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.StrictPair

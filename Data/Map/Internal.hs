@@ -202,6 +202,7 @@ module Data.Map.Internal (
     , mapMaybeMissing
     , dropMissing
     , preserveMissing
+    , preserveMissing'
     , mapMissing
     , filterMissing
 
@@ -2366,6 +2367,29 @@ preserveMissing = WhenMissing
   { missingSubtree = pure
   , missingKey = \_ v -> pure (Just v) }
 {-# INLINE preserveMissing #-}
+
+-- | Force the entries whose keys are missing from
+-- the other map and otherwise preserve them unchanged.
+--
+-- @
+-- preserveMissing' :: SimpleWhenMissing k x x
+-- @
+--
+-- prop> preserveMissing' = Merge.Lazy.mapMaybeMissing (\_ x -> Just $! x)
+--
+-- but @preserveMissing'@ is quite a bit faster.
+--
+-- @since 0.5.9
+preserveMissing' :: Applicative f => WhenMissing f k x x
+preserveMissing' = WhenMissing
+  { missingSubtree = \t -> pure $! forceTree t `seq` t
+  , missingKey = \_ v -> pure $! Just $! v }
+{-# INLINE preserveMissing' #-}
+
+-- Force all the values in a tree.
+forceTree :: Map k a -> ()
+forceTree (Bin _ _ v l r) = v `seq` forceTree l `seq` forceTree r `seq` ()
+forceTree Tip = ()
 
 -- | Map over the entries whose keys are missing from the other map.
 --
