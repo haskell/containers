@@ -173,6 +173,7 @@ module Data.IntMap.Internal (
     , map
     , mapWithKey
     , traverseWithKey
+    , traverseMaybeWithKey
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey

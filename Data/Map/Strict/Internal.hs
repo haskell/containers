@@ -157,6 +157,7 @@ module Data.Map.Strict.Internal
     , mapMaybeMissing
     , dropMissing
     , preserveMissing
+    , preserveMissing'
     , mapMissing
     , filterMissing
 
@@ -311,6 +312,7 @@ import Data.Map.Internal
   , SimpleWhenMissing
   , SimpleWhenMatched
   , preserveMissing
+  , preserveMissing'
   , dropMissing
   , filterMissing
   , filterAMissing

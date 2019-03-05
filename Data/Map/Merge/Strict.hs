@@ -37,6 +37,11 @@
 -- inserted. If you use 'Data.Map.Merge.Lazy.mapMissing' from
 -- "Data.Map.Merge.Lazy" then they will not.
 --
+-- == 'preserveMissing' inconsistency
+--
+-- For historical reasons, the preserved values are //not// forced. To force
+-- them, use 'preserveMissing''.
+--
 -- == Efficiency note
 --
 -- The 'Control.Category.Category', 'Applicative', and 'Monad' instances for
@@ -62,6 +67,7 @@ module Data.Map.Merge.Strict (
     , mapMaybeMissing
     , dropMissing
     , preserveMissing
+    , preserveMissing'
     , mapMissing
     , filterMissing
 
