@@ -254,9 +254,12 @@ setFromList :: [a] -> Gen (Set a)
 setFromList xs = flip evalStateT xs $ mkArb step (length xs)
   where
     step = do
-      x : xs <- get
-      put xs
-      pure x
+      xxs <- get
+      case xxs of
+        x : xs -> do
+          put xs
+          pure x
+        [] -> error "setFromList"
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
