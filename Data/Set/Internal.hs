@@ -599,7 +599,7 @@ delete = go
 -- | /O(n+m)/. Is this a proper subset? (ie. a subset but not equal).
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
-    = (size s1 < size s2) && (isSubsetOf s1 s2)
+    = (size s1 < size s2) && (isSubsetOfX s1 s2)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
 #endif
@@ -614,11 +614,24 @@ isSubsetOf t1 t2
 {-# INLINABLE isSubsetOf #-}
 #endif
 
+-- Test whether a set is a subset of another without the *initial*
+-- size test.
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
-isSubsetOfX Tip _ = True
+isSubsetOfX Tip !_ = True
+-- Does this second case actually win us anything at all? It certainly
+-- can't win us much.
 isSubsetOfX _ Tip = False
+-- Skip the final split when we hit a leaf.
+isSubsetOfX (Bin 1 x _ _) t = member x t
 isSubsetOfX (Bin _ x l r) t
-  = found && isSubsetOfX l lt && isSubsetOfX r gt
+  = found &&
+    -- Cheap size checks can save expensive recursive calls. Suppose we check
+    -- whether [1..10] (with root 4) is a subset of [0..9]. After the first
+    -- split, we have to check if [1..3] is a subset of [0..3] and if [5..10]
+    -- is a subset of [5..9]. But we can bail immediately because size [5..10]
+    -- > size [5..9].
+    size l <= size lt && size r <= size rt &&
+    isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
 #if __GLASGOW_HASKELL__
