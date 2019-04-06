@@ -596,41 +596,66 @@ delete = go
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | /O(n+m)/. Is this a proper subset? (ie. a subset but not equal).
+-- | /O(m*log(n\/m + 1)), m <= n/.
+-- @(s1 \`isProperSubsetOf\` s2)@ indicates whether @s1@ is a
+-- proper subset of @s2@.
+--
+-- @
+-- s1 \`isProperSubsetOf\` s2 = s1 ``isSubsetOf`` s2 && s1 /= s2
+-- @
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
-    = (size s1 < size s2) && (isSubsetOfX s1 s2)
+    = size s1 < size s2 && isSubsetOfX s1 s2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
 #endif
 
 
--- | /O(n+m)/. Is this a subset?
--- @(s1 \`isSubsetOf\` s2)@ tells whether @s1@ is a subset of @s2@.
+-- | /O(m*log(n\/m + 1)), m <= n/.
+-- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
+--
+-- @
+-- s1 \`isSubsetOf\` s2 = all (``member`` s2) s1
+-- s1 \`isSubsetOf\` s2 = null (s1 ``difference`` s2)
+-- s1 \`isSubsetOf\` s2 = s1 ``union`` s2 == s2
+-- s1 \`isSubsetOf\` s2 = s1 ``intersection`` s2 == s1
+-- @
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
-  = (size t1 <= size t2) && (isSubsetOfX t1 t2)
+  = size t1 <= size t2 && isSubsetOfX t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOf #-}
 #endif
 
 -- Test whether a set is a subset of another without the *initial*
 -- size test.
+--
+-- This function is structured very much like `difference`, `union`,
+-- and `intersection`. Whereas the bounds proofs for those in Blelloch
+-- et al needed to accound for both "split work" and "merge work", we
+-- only have to worry about split work here, which is the same as in
+-- those functions.
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
-isSubsetOfX Tip !_ = True
--- Does this second case actually win us anything at all? It certainly
--- can't win us much.
+isSubsetOfX Tip _ = True
 isSubsetOfX _ Tip = False
--- Skip the final split when we hit a leaf.
+-- Skip the final split when we hit a singleton.
 isSubsetOfX (Bin 1 x _ _) t = member x t
 isSubsetOfX (Bin _ x l r) t
   = found &&
-    -- Cheap size checks can save expensive recursive calls. Suppose we check
-    -- whether [1..10] (with root 4) is a subset of [0..9]. After the first
-    -- split, we have to check if [1..3] is a subset of [0..3] and if [5..10]
-    -- is a subset of [5..9]. But we can bail immediately because size [5..10]
-    -- > size [5..9].
-    size l <= size lt && size r <= size rt &&
+    -- Cheap size checks can sometimes save expensive recursive calls when the
+    -- result will be False. Suppose we check whether [1..10] (with root 4) is
+    -- a subset of [0..9]. After the first split, we have to check if [1..3] is
+    -- a subset of [0..3] and if [5..10] is a subset of [5..9]. But we can bail
+    -- immediately because size [5..10] > size [5..9].
+    --
+    -- Why not just call `isSubsetOf` on each side to do the size checks?
+    -- Because that could make a recursive call on the left even though the
+    -- size check would fail on the right. In principle, we could take this to
+    -- extremes by maintaining a queue of pairs of sets to be checked, working
+    -- through the tree level-wise. But that would impose higher administrative
+    -- costs without obvious benefits. It might be worth considering if we find
+    -- a way to use it to tighten the bounds in some useful/comprehensible way.
+    size l <= size lt && size r <= size gt &&
     isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
@@ -641,19 +666,25 @@ isSubsetOfX (Bin _ x l r) t
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | /O(n+m)/. Check whether two sets are disjoint (i.e. their intersection
---   is empty).
+-- | /O(m*log(n\/m + 1)), m <= n/. Check whether two sets are disjoint
+-- (i.e., their intersection is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
 -- > disjoint (fromList [2,4,6,8]) (fromList [2,3,5,7]) == False
 -- > disjoint (fromList [1,2])     (fromList [1,2,3,4]) == False
 -- > disjoint (fromList [])        (fromList [])        == True
 --
+-- @
+-- xs ``disjoint`` ys = null (xs ``intersection`` ys)
+-- @
+--
 -- @since 0.5.11
 
 disjoint :: Ord a => Set a -> Set a -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
+-- Avoid a split for the singleton case.
+disjoint (Bin 1 x _ _) t = x `notMember` t
 disjoint (Bin _ x l r) t
   -- Analogous implementation to `subsetOfX`
   = not found && disjoint l lt && disjoint r gt
