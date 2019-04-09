@@ -2727,22 +2727,33 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
  > isSubmapOfBy (<)  (fromList [('a',1)]) (fromList [('a',1),('b',2)])
  > isSubmapOfBy (==) (fromList [('a',1),('b',2)]) (fromList [('a',1)])
 
+ Note that @isSubmapOfBy (\_ _ -> True) m1 m2@ tests whether all the keys
+ in @m1@ are also keys in @m2@.
 
 -}
 isSubmapOfBy :: Ord k => (a->b->Bool) -> Map k a -> Map k b -> Bool
 isSubmapOfBy f t1 t2
-  = (size t1 <= size t2) && (submap' f t1 t2)
+  = size t1 <= size t2 && submap' f t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isSubmapOfBy #-}
 #endif
 
+-- Test whether a map is a submap of another without the *initial*
+-- size test. See Data.Set.Internal.isSubsetOfX for notes on
+-- implementation and analysis.
 submap' :: Ord a => (b -> c -> Bool) -> Map a b -> Map a c -> Bool
 submap' _ Tip _ = True
 submap' _ _ Tip = False
+submap' f (Bin 1 kx x _ _) t
+  = case lookup kx t of
+      Just y -> f x y
+      Nothing -> False
 submap' f (Bin _ kx x l r) t
   = case found of
       Nothing -> False
-      Just y  -> f x y && submap' f l lt && submap' f r gt
+      Just y  -> f x y
+                 && size l <= size lt && size r <= size gt
+                 && submap' f l lt && submap' f r gt
   where
     (lt,found,gt) = splitLookup kx t
 #if __GLASGOW_HASKELL__
@@ -2778,7 +2789,7 @@ isProperSubmapOf m1 m2
 -}
 isProperSubmapOfBy :: Ord k => (a -> b -> Bool) -> Map k a -> Map k b -> Bool
 isProperSubmapOfBy f t1 t2
-  = (size t1 < size t2) && (submap' f t1 t2)
+  = size t1 < size t2 && submap' f t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubmapOfBy #-}
 #endif
