@@ -2742,8 +2742,8 @@ isSubmapOfBy f t1 t2
 -- size test. See Data.Set.Internal.isSubsetOfX for notes on
 -- implementation and analysis.
 submap' :: Ord a => (b -> c -> Bool) -> Map a b -> Map a c -> Bool
-submap' f Tip _ = True
-submap' f _ Tip = False
+submap' _ Tip _ = True
+submap' _ _ Tip = False
 submap' f (Bin 1 kx x _ _) t
   = case lookup kx t of
       Just y -> f x y
