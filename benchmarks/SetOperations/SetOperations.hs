@@ -1,32 +1,54 @@
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module SetOperations (benchmark) where
 
 import Gauge (bench, defaultMain, whnf)
 import Data.List (partition)
+import Data.Tuple as Tuple
 
-benchmark :: ([Int] -> container) -> Bool -> [(String, container -> container -> container)] -> IO ()
+-- | Benchmark a set operation for the given container.
+-- Takes the following arguments:
+-- * A way to construct the container
+-- * Flag if we should benchmark the operations with reversed arguments.
+-- * A list of operations.
+benchmark :: forall container. (Show container, Eq container) => ([Int] -> container) -> Bool -> [(String, container -> container -> container)] -> IO ()
 benchmark fromList swap methods = do
-  defaultMain $ [ bench (method_str++"-"++input_str) $ whnf (method input1) input2 | (method_str, method) <- methods, (input_str, input1, input2) <- inputs ]
+
+  defaultMain $ [ bench (method_str++"-"++input_str ++ "_" ++ data_sizes) $
+                        whnf (method input1) input2
+
+                | (method_str, method) <- methods
+                , (input_str, data_sizes, (input1, input2)) <- base_inputs ++ swapped_input
+                ]
 
   where
+    -- Data size descriptions, also used in the benchmark names.
+    -- They are used to describe how large the input data is, but NOT the data itself.
+    -- So for example nn_swap /= nn since the data size for both arguments is the same
+    -- but the actual data is different.
     n, s, t :: Int
     n = 100000
     s {-small-} = n `div` 10
     t {-tiny-} = round $ sqrt $ fromIntegral n
 
-    inputs = [ (mode_str, left, right)
-             | (mode_str, (left, right)) <- [ ("disj_nn", disj_nn), ("disj_ns", disj_ns), ("disj_nt", disj_nt)
-                                            , ("common_nn", common_nn), ("common_ns", common_ns), ("common_nt", common_nt)
-                                            , ("mix_nn", mix_nn), ("mix_ns", mix_ns), ("mix_nt", mix_nt)
-                                            , ("block_nn", block_nn), ("block_ns", block_ns)
+    base_inputs :: [(String,String,(container,container))]
+    base_inputs = [ ("disj", "nn", disj_nn), ("disj","ns", disj_ns), ("disj","nt", disj_nt)
+                                            , ("common","nn", common_nn), ("common","ns", common_ns), ("common","nt", common_nt)
+                                            , ("mix","nn", mix_nn), ("mix","ns", mix_ns), ("mix","nt", mix_nt)
+                                            , ("block","nn", block_nn), ("block","ns", block_ns)
                                             ]
 
-             , (mode_str, left, right) <- replicate 2 (mode_str, left, right) ++
-                                          replicate (if swap && take 4 mode_str /= "diff" && last mode_str /= last (init mode_str) then 2 else 0)
-                                            (init (init mode_str) ++ [last mode_str] ++ [last (init mode_str)], right, left)
-             ]
+    -- Input with set arguments swapped.
+    swapped_input
+      | swap = map swap_input base_inputs
+      | otherwise = []
 
+    -- Reverse arguments
+    swap_input (name, data_sizes, input_data) =
+        (name, reverse data_sizes ++ "_swap", Tuple.swap input_data)
+
+    -- Data variants
     all_n = fromList [1..n]
 
     !disj_nn = seqPair $ (all_n, fromList [n+1..n+n])
