@@ -891,6 +891,7 @@ instance Monoid (Seq a) where
 -- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
+    stimes = cycleNTimes . fromIntegral
 #endif
 
 INSTANCE_TYPEABLE1(Seq)

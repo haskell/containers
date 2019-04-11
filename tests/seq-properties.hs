@@ -25,6 +25,9 @@ import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
+#if MIN_VERSION_base(4,9,0)
+import Data.Semigroup (stimes, stimesMonoid)
+#endif
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   lookup, null, length, take, drop, splitAt,
@@ -151,6 +154,9 @@ main = defaultMain
        , testProperty "Left view constructor" prop_viewl_con
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
+#endif
+#if MIN_VERSION_base(4,9,0)
+       , testProperty "stimes" prop_stimes
 #endif
        ]
 
@@ -877,6 +883,14 @@ prop_viewr_con xs x = xs :|> x === xs |> x
 prop_bind :: Seq A -> Fun A (Seq B) -> Bool
 prop_bind xs (Fun _ f) =
     toList' (xs >>= f) ~= (toList xs >>= toList . f)
+
+-- Semigroup operations
+
+#if MIN_VERSION_base(4,9,0)
+prop_stimes :: NonNegative Int -> Seq A -> Property
+prop_stimes (NonNegative n) s =
+  stimes n s === stimesMonoid n s
+#endif
 
 -- MonadFix operation
 

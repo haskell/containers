@@ -1,10 +1,13 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.6.0.2
+## 0.6.0.2?
 
 * Fix Foldable instance for IntMap, which previously placed positively
   keyed entries before negatively keyed ones for `fold`, `foldMap`, and
   `traverse`.
+
+* Make `stimes` for sequences work with 0 arguments, and make it more
+  efficient.
 
 ## 0.6.0.1
 
