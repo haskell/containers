@@ -1426,9 +1426,9 @@ replicateM n x
 --
 -- prop> cycleTaking k = fromList . take k . cycle . toList
 
--- If you wish to concatenate a non-empty sequence @xs@ with itself precisely
--- @k@ times, you can use @cycleTaking (k * length xs)@ or just
--- @replicate k () *> xs@.
+-- If you wish to concatenate a possibly empty sequence @xs@ with
+-- itself precisely @k@ times, use @'stimes' k xs@ instead of this
+-- function.
 --
 -- @since 0.5.8
 cycleTaking :: Int -> Seq a -> Seq a
