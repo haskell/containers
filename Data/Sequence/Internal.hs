@@ -2974,7 +2974,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsab = sPsa + size b
 
 
-{-# INLINE [1] traverseWithIndex #-}
+{-# INLINABLE [1] traverseWithIndex #-}
 #ifdef __GLASGOW_HASKELL__
 {-# RULES
 "travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
