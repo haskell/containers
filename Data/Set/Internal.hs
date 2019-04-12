@@ -308,6 +308,7 @@ instance Ord a => Semigroup (Set a) where
 #endif
 
 
+-- | Folds in order of increasing key.
 instance Foldable.Foldable Set where
     fold = go
       where go Tip = mempty

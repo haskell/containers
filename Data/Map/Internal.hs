@@ -4166,10 +4166,12 @@ instance Functor (Map k) where
   a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
 #endif
 
+-- | Traverses in order of increasing key.
 instance Traversable (Map k) where
   traverse f = traverseWithKey (\_ -> f)
   {-# INLINE traverse #-}
 
+-- | Folds in order of increasing key.
 instance Foldable.Foldable (Map k) where
   fold = go
     where go Tip = mempty

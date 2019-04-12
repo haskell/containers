@@ -438,6 +438,7 @@ instance Semigroup (IntMap a) where
     stimes  = stimesIdempotentMonoid
 #endif
 
+-- | Folds in order of increasing key.
 instance Foldable.Foldable IntMap where
   fold = go
     where go Nil = mempty
@@ -497,6 +498,7 @@ instance Foldable.Foldable IntMap where
   {-# INLINABLE product #-}
 #endif
 
+-- | Traverses in order of increasing key.
 instance Traversable IntMap where
     traverse f = traverseWithKey (\_ -> f)
     {-# INLINE traverse #-}
