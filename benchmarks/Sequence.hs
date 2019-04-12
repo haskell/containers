@@ -90,6 +90,11 @@ main = do
          , bench "100" $ nf multiplyDown s100
          , bench "1000" $ nf multiplyDown s1000
          ]
+      , bgroup "sequenceA.mapWithIndex/State"
+         [ bench "10" $ nf multiplyDownMap s10
+         , bench "100" $ nf multiplyDownMap s100
+         , bench "1000" $ nf multiplyDownMap s1000
+         ]
       , bgroup "traverse/State"
          [ bench "10" $ nf multiplyUp s10
          , bench "100" $ nf multiplyUp s100
@@ -238,6 +243,13 @@ multiplyUp = flip evalState 0 . traverse go where
 
 multiplyDown :: S.Seq Int -> S.Seq Int
 multiplyDown = flip evalState 0 . S.traverseWithIndex go where
+  go i x = do
+    s <- get
+    put (s - 1)
+    return (s * i * x)
+
+multiplyDownMap :: S.Seq Int -> S.Seq Int
+multiplyDownMap = flip evalState 0 . sequenceA . S.mapWithIndex go where
   go i x = do
     s <- get
     put (s - 1)
