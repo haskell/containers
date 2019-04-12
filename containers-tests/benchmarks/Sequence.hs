@@ -8,7 +8,7 @@ import Gauge (bench, bgroup, defaultMain, nf)
 import Data.Foldable (foldl', foldr')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
-import Data.Traversable (traverse)
+import Data.Traversable (traverse, sequenceA)
 import System.Random (mkStdGen, randoms)
 
 main = do

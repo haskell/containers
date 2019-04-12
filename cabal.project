@@ -1,0 +1,9 @@
+packages:
+  containers/
+  containers-tests/
+
+tests: True
+benchmarks: True
+
+-- package containers-tests
+--   ghc-options: -Werror

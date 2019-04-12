@@ -1,0 +1,14 @@
+-- configuration for haskell-ci
+-- so we don't need to pass all via command line arguments
+
+-- build only master branch, or PRs to master branch
+branches: master
+
+-- don't install --dep as cabal doesn't handle it for this project
+install-dependencies: False
+
+-- on GHC-7.10.3 we need to reinstall binary?
+installed: +all -binary
+
+-- gauge works only with newer GHC
+benchmarks: >=7.8.4
