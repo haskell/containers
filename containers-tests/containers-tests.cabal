@@ -1,0 +1,500 @@
+name:               containers-tests
+version:            0
+license:            BSD3
+license-file:       LICENSE
+maintainer:         libraries@haskell.org
+bug-reports:        https://github.com/haskell/containers/issues
+synopsis:           Assorted concrete container types: Tests
+category:           Data Structures
+description:
+  .
+  This package contains tests and benchmarks for @containers-package
+
+build-type:         Simple
+cabal-version:      >=1.8
+extra-source-files:
+  include/containers.h
+  tests/Makefile
+  tests/*.hs
+  benchmarks/Makefile
+  benchmarks/bench-cmp.pl
+  benchmarks/bench-cmp.sh
+  benchmarks/*.hs
+  benchmarks/SetOperations/Makefile
+  benchmarks/SetOperations/*.hs
+  benchmarks/LookupGE/Makefile
+  benchmarks/LookupGE/*.hs
+
+tested-with:
+  GHC ==7.6.3 || ==7.8.4 || ==7.10.3 || ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.4
+
+source-repository head
+  type:     git
+  location: http://github.com/haskell/containers.git
+
+-- Copy of containers library,
+library
+  -- this is important for testing; may it affect benchmarks?
+  cpp-options:      -DTESTING
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  include-dirs:     include
+  hs-source-dirs:   src
+  ghc-options:      -O2 -Wall
+  other-extensions:
+    BangPatterns
+    CPP
+
+  exposed-modules:
+    Data.Containers.ListUtils
+    Data.Graph
+    Data.IntMap
+    Data.IntMap.Internal
+    Data.IntMap.Internal.Debug
+    Data.IntMap.Lazy
+    Data.IntMap.Merge.Lazy
+    Data.IntMap.Merge.Strict
+    Data.IntMap.Strict
+    Data.IntMap.Strict.Internal
+    Data.IntSet
+    Data.IntSet.Internal
+    Data.Map
+    Data.Map.Internal
+    Data.Map.Internal.Debug
+    Data.Map.Lazy
+    Data.Map.Merge.Lazy
+    Data.Map.Merge.Strict
+    Data.Map.Strict
+    Data.Map.Strict.Internal
+    Data.Sequence
+    Data.Sequence.Internal
+    Data.Sequence.Internal.Sorting
+    Data.Set
+    Data.Set.Internal
+    Data.Tree
+    Utils.Containers.Internal.BitQueue
+    Utils.Containers.Internal.BitUtil
+    Utils.Containers.Internal.StrictPair
+
+  other-modules:
+    Utils.Containers.Internal.Coercions
+    Utils.Containers.Internal.PtrEquality
+    Utils.Containers.Internal.State
+    Utils.Containers.Internal.StrictMaybe
+
+  if impl(ghc)
+    other-modules:
+      Data.IntMap.Internal.DeprecatedDebug
+      Data.Map.Internal.DeprecatedShowTree
+      Utils.Containers.Internal.TypeError
+
+-----------------------------
+-- B E N C H M A R K I N G --
+-----------------------------
+
+benchmark intmap-benchmarks
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        IntMap.hs
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6     && <5
+    , containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+
+benchmark intset-benchmarks
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        IntSet.hs
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6     && <5
+    , containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+
+benchmark map-benchmarks
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        Map.hs
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6     && <5
+    , containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+    , transformers
+
+benchmark sequence-benchmarks
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        Sequence.hs
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6     && <5
+    , containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+    , random            >=0       && <1.2
+    , transformers
+
+benchmark set-benchmarks
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        Set.hs
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6     && <5
+    , containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+
+benchmark set-operations-intmap
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is:        SetOperations-IntMap.hs
+  other-modules:  SetOperations
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6   && <5
+    , containers-tests
+    , gauge             >=0.2.3 && <0.3
+
+benchmark set-operations-intset
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is:        SetOperations-IntSet.hs
+  other-modules:  SetOperations
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6   && <5
+    , containers-tests
+    , gauge             >=0.2.3 && <0.3
+
+benchmark set-operations-map
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is:        SetOperations-Map.hs
+  other-modules:  SetOperations
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6   && <5
+    , containers-tests
+    , gauge             >=0.2.3 && <0.3
+
+benchmark set-operations-set
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/SetOperations
+  main-is:        SetOperations-Set.hs
+  other-modules:  SetOperations
+  ghc-options:    -O2
+  build-depends:
+      base              >=4.6   && <5
+    , containers-tests
+    , gauge             >=0.2.3 && <0.3
+
+benchmark lookupge-intmap
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/LookupGE
+  main-is:        IntMap.hs
+  other-modules:  LookupGE_IntMap
+  build-depends:  containers-tests
+  build-depends:
+      base     >=4.6     && <5
+    , deepseq  >=1.1.0.0 && <1.5
+    , gauge    >=0.2.3   && <0.3
+
+benchmark lookupge-map
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks/LookupGE
+  main-is:        Map.hs
+  other-modules:  LookupGE_Map
+  build-depends:  containers-tests
+  ghc-options:    -O2
+  build-depends:
+      base     >=4.6     && <5
+    , deepseq  >=1.1.0.0 && <1.5
+    , gauge    >=0.2.3   && <0.3
+
+-------------------
+-- T E S T I N G --
+-------------------
+
+-- Every test-suite contains the build-depends and options of the library,
+-- plus the testing stuff.
+
+test-suite map-lazy-properties
+  hs-source-dirs:   tests
+  main-is:          map-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+    , transformers
+
+test-suite map-strict-properties
+  hs-source-dirs:   tests
+  main-is:          map-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+    , transformers
+
+test-suite bitqueue-properties
+  hs-source-dirs:   tests
+  main-is:          bitqueue-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    base >=4.6 && <5
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-quickcheck2
+
+test-suite set-properties
+  hs-source-dirs:   tests
+  main-is:          set-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+    , transformers
+
+test-suite intmap-lazy-properties
+  hs-source-dirs:   tests
+  main-is:          intmap-properties.hs
+  type:             exitcode-stdio-1.0
+  other-modules:    IntMapValidity
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+
+test-suite intmap-strict-properties
+  hs-source-dirs:   tests
+  main-is:          intmap-properties.hs
+  type:             exitcode-stdio-1.0
+  cpp-options:      -DSTRICT
+  other-modules:    IntMapValidity
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+
+test-suite intset-properties
+  hs-source-dirs:   tests
+  main-is:          intset-properties.hs
+  type:             exitcode-stdio-1.0
+  other-modules:    IntSetValidity
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      HUnit
+    , QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-hunit
+    , test-framework-quickcheck2
+
+test-suite seq-properties
+  hs-source-dirs:   tests
+  main-is:          seq-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-quickcheck2
+    , transformers
+
+test-suite tree-properties
+  hs-source-dirs:   tests
+  main-is:          tree-properties.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    containers-tests
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.6     && <5
+    , deepseq  >=1.2     && <1.5
+
+  ghc-options:      -O2
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      QuickCheck                  >=2.7.1
+    , test-framework
+    , test-framework-quickcheck2
+    , transformers
+
+test-suite map-strictness-properties
+  hs-source-dirs:   tests
+  main-is:          map-strictness.hs
+  type:             exitcode-stdio-1.0
+  build-depends:    containers-tests
+  build-depends:
+      array                       >=0.4.0.0
+    , base                        >=4.6     && <5
+    , ChasingBottoms
+    , deepseq                     >=1.2     && <1.5
+    , QuickCheck                  >=2.7.1
+    , test-framework              >=0.3.3
+    , test-framework-quickcheck2  >=0.2.9
+
+  ghc-options:      -Wall
+  other-extensions:
+    BangPatterns
+    CPP
+
+test-suite intmap-strictness-properties
+  hs-source-dirs:   tests
+  main-is:          intmap-strictness.hs
+  type:             exitcode-stdio-1.0
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      array                       >=0.4.0.0
+    , base                        >=4.6     && <5
+    , ChasingBottoms
+    , deepseq                     >=1.2     && <1.5
+    , QuickCheck                  >=2.7.1
+    , test-framework              >=0.3.3
+    , test-framework-quickcheck2  >=0.2.9
+
+  ghc-options:      -Wall
+
+test-suite intset-strictness-properties
+  hs-source-dirs:   tests
+  main-is:          intset-strictness.hs
+  type:             exitcode-stdio-1.0
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:    containers-tests
+  build-depends:
+      array                       >=0.4.0.0
+    , base                        >=4.6     && <5
+    , ChasingBottoms
+    , deepseq                     >=1.2     && <1.5
+    , QuickCheck                  >=2.7.1
+    , test-framework              >=0.3.3
+    , test-framework-quickcheck2  >=0.2.9
+
+  ghc-options:      -Wall
+
+test-suite listutils-properties
+  hs-source-dirs: tests
+  main-is:        listutils-properties.hs
+  type:           exitcode-stdio-1.0
+  build-depends:  containers-tests
+  build-depends:
+      base                        >=4.6   && <5
+    , ChasingBottoms
+    , deepseq                     >=1.2   && <1.5
+    , QuickCheck                  >=2.7.1
+    , test-framework              >=0.3.3
+    , test-framework-quickcheck2  >=0.2.9
+
+  ghc-options:    -Wall

@@ -1,0 +1,83 @@
+name: containers
+version: 0.6.0.1
+license: BSD3
+license-file: LICENSE
+maintainer: libraries@haskell.org
+bug-reports: https://github.com/haskell/containers/issues
+synopsis: Assorted concrete container types
+category: Data Structures
+description:
+    .
+    This package contains efficient general-purpose implementations
+    of various immutable container types including sets, maps, sequences,
+    trees, and graphs.
+    .
+    For a walkthrough of what this package provides with examples of common
+    operations see the [containers
+    introduction](https://haskell-containers.readthedocs.io).
+    .
+    The declared cost of each operation is either worst-case or amortized, but
+    remains valid even if structures are shared.
+
+build-type: Simple
+cabal-version:  >=1.8
+extra-source-files:
+    include/containers.h
+    changelog.md
+
+tested-with: GHC==8.6.4, GHC==8.4.4, GHC==8.2.2, GHC==8.0.2, GHC==7.10.3, GHC==7.8.4, GHC==7.6.3
+
+source-repository head
+    type:     git
+    location: http://github.com/haskell/containers.git
+
+Library
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
+    hs-source-dirs: src
+    ghc-options: -O2 -Wall
+
+    other-extensions: CPP, BangPatterns
+
+    exposed-modules:
+        Data.Containers.ListUtils
+        Data.IntMap
+        Data.IntMap.Lazy
+        Data.IntMap.Strict
+        Data.IntMap.Strict.Internal
+        Data.IntMap.Internal
+        Data.IntMap.Internal.Debug
+        Data.IntMap.Merge.Lazy
+        Data.IntMap.Merge.Strict
+        Data.IntSet.Internal
+        Data.IntSet
+        Data.Map
+        Data.Map.Lazy
+        Data.Map.Merge.Lazy
+        Data.Map.Strict.Internal
+        Data.Map.Strict
+        Data.Map.Merge.Strict
+        Data.Map.Internal
+        Data.Map.Internal.Debug
+        Data.Set.Internal
+        Data.Set
+        Data.Graph
+        Data.Sequence
+        Data.Sequence.Internal
+        Data.Sequence.Internal.Sorting
+        Data.Tree
+        Utils.Containers.Internal.BitUtil
+        Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.StrictPair
+
+    other-modules:
+        Utils.Containers.Internal.State
+        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.PtrEquality
+        Utils.Containers.Internal.Coercions
+    if impl(ghc)
+      other-modules:
+        Utils.Containers.Internal.TypeError
+        Data.Map.Internal.DeprecatedShowTree
+        Data.IntMap.Internal.DeprecatedDebug
+
+    include-dirs: include
