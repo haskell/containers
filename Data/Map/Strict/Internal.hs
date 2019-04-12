@@ -1471,7 +1471,6 @@ fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l)
 
 {--------------------------------------------------------------------
   Lists
-  use [foldlStrict] to reduce demand on the control-stack
 --------------------------------------------------------------------}
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
 -- If the list contains more than one value for the same key, the last value
