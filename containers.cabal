@@ -41,8 +41,6 @@ source-repository head
 
 Library
     build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
-    if impl(ghc)
-        build-depends: ghc-prim
 
     ghc-options: -O2 -Wall
 
@@ -221,8 +219,7 @@ benchmark lookupge-intmap
     base >= 4.6 && < 5,
     containers,
     gauge >= 0.2.3 && < 0.3,
-    deepseq >= 1.1.0.0 && < 1.5,
-    ghc-prim
+    deepseq >= 1.1.0.0 && < 1.5
 
 benchmark lookupge-map
   type: exitcode-stdio-1.0
@@ -250,8 +247,7 @@ benchmark lookupge-map
     base >= 4.6 && < 5,
     containers,
     gauge >= 0.2.3 && < 0.3,
-    deepseq >= 1.1.0.0 && < 1.5,
-    ghc-prim
+    deepseq >= 1.1.0.0 && < 1.5
 
 -------------------
 -- T E S T I N G --
@@ -280,7 +276,7 @@ Test-suite map-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -314,7 +310,7 @@ Test-suite map-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -336,7 +332,7 @@ Test-suite bitqueue-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, ghc-prim
+    build-depends: base >= 4.6 && < 5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -360,7 +356,7 @@ Test-suite set-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -390,7 +386,7 @@ Test-suite intmap-lazy-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -420,7 +416,7 @@ Test-suite intmap-strict-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -447,7 +443,7 @@ Test-suite intset-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -472,7 +468,7 @@ Test-suite seq-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -496,7 +492,7 @@ Test-suite tree-properties
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, ghc-prim
+    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     ghc-options: -O2
     other-extensions: CPP, BangPatterns
     include-dirs: include
@@ -531,7 +527,6 @@ test-suite map-strictness-properties
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
-    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -560,7 +555,6 @@ test-suite intmap-strictness-properties
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
-    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -585,7 +579,6 @@ test-suite intset-strictness-properties
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
-    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 
@@ -605,7 +598,6 @@ test-suite listutils-properties
     ChasingBottoms,
     deepseq >= 1.2 && < 1.5,
     QuickCheck >= 2.7.1,
-    ghc-prim,
     test-framework >= 0.3.3,
     test-framework-quickcheck2 >= 0.2.9
 

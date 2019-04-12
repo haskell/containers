@@ -219,7 +219,7 @@ import GHC.Exts (Int(..), build)
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
-import GHC.Prim (indexInt8OffAddr#)
+import GHC.Exts (indexInt8OffAddr#)
 #endif
 
 import qualified Data.Foldable as Foldable
