@@ -39,7 +39,11 @@ module Utils.Containers.Internal.BitUtil
     ) where
 
 import Data.Bits ((.|.), xor)
-import Data.Bits (popCount, unsafeShiftL, unsafeShiftR)
+import Data.Bits (popCount, unsafeShiftL, unsafeShiftR
+#if MIN_VERSION_base(4,8,0)
+    , countLeadingZeros
+#endif
+    )
 #if MIN_VERSION_base(4,7,0)
 import Data.Bits (finiteBitSize)
 #else
@@ -72,6 +76,9 @@ bitcount a x = a + popCount x
 
 -- | Return a word where only the highest bit is set.
 highestBitMask :: Word -> Word
+#if MIN_VERSION_base(4,8,0)
+highestBitMask w = shiftLL 1 (wordSize - 1 - countLeadingZeros w)
+#else
 highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
                         x3 = x2 .|. x2 `shiftRL` 2
                         x4 = x3 .|. x3 `shiftRL` 4
@@ -82,6 +89,7 @@ highestBitMask x1 = let x2 = x1 .|. x1 `shiftRL` 1
                      in x7 `xor` (x7 `shiftRL` 1)
 #else
                      in x6 `xor` (x6 `shiftRL` 1)
+#endif
 #endif
 {-# INLINE highestBitMask #-}
 
