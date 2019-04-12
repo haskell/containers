@@ -276,6 +276,7 @@ Test-suite map-lazy-properties
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.StrictPair
+        Utils.Containers.Internal.TypeError
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -309,6 +310,7 @@ Test-suite map-strict-properties
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.StrictPair
+        Utils.Containers.Internal.TypeError
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING -DSTRICT
 
@@ -464,6 +466,9 @@ Test-suite seq-properties
         Data.Sequence
         Data.Sequence.Internal
         Utils.Containers.Internal.StrictPair
+        Data.Sequence.Internal.Sorting
+        Utils.Containers.Internal.Coercions
+        Utils.Containers.Internal.State
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -483,6 +488,11 @@ Test-suite tree-properties
     main-is: tree-properties.hs
     other-modules:
         Data.Tree
+        Data.Sequence
+        Data.Sequence.Internal.Sorting
+        Utils.Containers.Internal.Coercions
+        Utils.Containers.Internal.State
+        Utils.Containers.Internal.StrictPair
     type: exitcode-stdio-1.0
     cpp-options: -DTESTING
 
@@ -512,6 +522,7 @@ test-suite map-strictness-properties
       Utils.Containers.Internal.PtrEquality
       Utils.Containers.Internal.StrictMaybe
       Utils.Containers.Internal.StrictPair
+      Utils.Containers.Internal.TypeError
   type: exitcode-stdio-1.0
 
   build-depends:
@@ -564,6 +575,7 @@ test-suite intset-strictness-properties
       Data.IntSet.Internal
       Utils.Containers.Internal.BitUtil
       Utils.Containers.Internal.StrictPair
+      Utils.Containers.Internal.TypeError
   type: exitcode-stdio-1.0
   other-extensions: CPP, BangPatterns
 
@@ -585,6 +597,7 @@ test-suite listutils-properties
   main-is: listutils-properties.hs
   other-modules:
       Data.Containers.ListUtils
+      Utils.Containers.Internal.TypeError
   type: exitcode-stdio-1.0
 
   build-depends:
