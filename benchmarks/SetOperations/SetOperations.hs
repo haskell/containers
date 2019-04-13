@@ -4,7 +4,8 @@
 module SetOperations (benchmark) where
 
 import Gauge (bench, defaultMain, whnf)
-import Data.List (partition)
+import Data.List (partition, sortBy)
+import Data.Ord (comparing)
 import Data.Tuple as Tuple
 
 -- | Benchmark a set operation for the given container.
@@ -19,10 +20,13 @@ benchmark fromList swap methods = do
                         whnf (method input1) input2
 
                 | (method_str, method) <- methods
-                , (input_str, data_sizes, (input1, input2)) <- base_inputs ++ swapped_input
+                , (input_str, data_sizes, (input1, input2)) <- sortBenchs (base_inputs ++ swapped_input)
                 ]
 
   where
+    -- Sort benchmark inputs by (data variant, data sizes)
+    sortBenchs = sortBy (comparing (\(name,size,_) -> (name,size)))
+
     -- Data size descriptions, also used in the benchmark names.
     -- They are used to describe how large the input data is, but NOT the data itself.
     -- So for example nn_swap /= nn since the data size for both arguments is the same
