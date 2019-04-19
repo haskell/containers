@@ -294,6 +294,7 @@ type Size     = Int
 
 #if __GLASGOW_HASKELL__ >= 708
 type role Set nominal
+type role NonEmptySet nominal
 #endif
 
 instance Ord a => Monoid (Set a) where
@@ -384,30 +385,50 @@ setDataType = mkDataType "Data.Set.Internal.Set" [fromListConstr]
 --------------------------------------------------------------------}
 -- | /O(1)/. Is this the empty set?
 null :: Set a -> Bool
-null Tip      = True
-null (NE (Bin {})) = False
+null Tip = True
+null (NE _) = False
 {-# INLINE null #-}
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
 size Tip = 0
-size (NE (Bin sz _ _ _)) = sz
+size (NE ne) = sizeNE ne
 {-# INLINE size #-}
+
+sizeNE :: NonEmptySet a -> Int
+sizeNE (Bin sz _ _ _) = sz
+{-# INLINE sizeNE #-}
 
 -- | /O(log n)/. Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
-member = go
+member = fst . makeMember
+
+memberNE :: Ord a => a -> NonEmptySet a -> Bool
+memberNE = snd . makeMember
+
+makeMember
+  :: Ord a
+  => a
+  -> ( Set a -> Bool
+     , NonEmptySet a -> Bool
+     )
+makeMember !x = (go, go')
   where
-    go !_ Tip = False
-    go x (NE (Bin _ y l r)) = case compare x y of
-      LT -> go x l
-      GT -> go x r
+    go Tip = False
+    go (NE ne) = go' ne
+
+    go' (Bin _ y l r) = case compare x y of
+      LT -> go l
+      GT -> go r
       EQ -> True
 #if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
+{-# INLINABLE memberNE #-}
 #else
 {-# INLINE member #-}
+{-# INLINE memberNE #-}
 #endif
+{-# INLINE makeMember #-}
 
 -- | /O(log n)/. Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
@@ -418,51 +439,95 @@ notMember a t = not $ member a t
 {-# INLINE notMember #-}
 #endif
 
+notMemberNE :: Ord a => a -> NonEmptySet a -> Bool
+notMemberNE a t = not $ memberNE a t
+#if __GLASGOW_HASKELL__
+{-# INLINABLE notMemberNE #-}
+#else
+{-# INLINE notMemberNE #-}
+#endif
+
 -- | /O(log n)/. Find largest element smaller than the given one.
 --
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
 lookupLT :: Ord a => a -> Set a -> Maybe a
-lookupLT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (NE (Bin _ y l r))
-        | x <= y = goNothing x l
-        | otherwise = goJust x y r
+lookupLT = fst . makeLookupLT
 
-    goJust !_ best Tip = Just best
-    goJust x best (NE (Bin _ y l r))
-      | x <= y = goJust x best l
-      | otherwise = goJust x y r
+lookupLTNE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupLTNE = snd . makeLookupLT
+
+makeLookupLT
+  :: Ord a
+  => a
+  -> ( Set a -> Maybe a
+     , NonEmptySet a -> Maybe a
+     )
+makeLookupLT !x = (goNothing, goNothing')
+  where
+    goNothing Tip = Nothing
+    goNothing (NE ne) = goNothing' ne
+
+    goNothing' (Bin _ y l r)
+        | x <= y = goNothing l
+        | otherwise = goJust y r
+
+    goJust best Tip = Just best
+    goJust best (NE ne) = goJust' best ne
+
+    goJust' best (Bin _ y l r)
+        | x <= y = goJust best l
+        | otherwise = goJust y r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
+{-# INLINABLE lookupLTNE #-}
 #else
 {-# INLINE lookupLT #-}
+{-# INLINE lookupLTNE #-}
 #endif
+{-# INLINE makeLookupLT #-}
 
 -- | /O(log n)/. Find smallest element greater than the given one.
 --
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
 lookupGT :: Ord a => a -> Set a -> Maybe a
-lookupGT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (NE (Bin _ y l r))
-        | x < y = goJust x y l
-        | otherwise = goNothing x r
+lookupGT = fst . makeLookupGT
 
-    goJust !_ best Tip = Just best
-    goJust x best (NE (Bin _ y l r))
-        | x < y = goJust x y l
-        | otherwise = goJust x best r
+lookupGTNE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupGTNE = snd . makeLookupGT
+
+makeLookupGT
+  :: Ord a
+  => a
+  -> ( Set a -> Maybe a
+     , NonEmptySet a -> Maybe a
+     )
+makeLookupGT !x = (goNothing, goNothing')
+  where
+    goNothing Tip = Nothing
+    goNothing (NE ne) = goNothing' ne
+
+    goNothing' (Bin _ y l r)
+        | x < y = goJust y l
+        | otherwise = goNothing r
+
+    goJust best Tip = Just best
+    goJust best (NE ne) = goJust' best ne
+
+    goJust' best (Bin _ y l r)
+        | x < y = goJust y l
+        | otherwise = goJust best r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
+{-# INLINABLE lookupGTNE #-}
 #else
 {-# INLINE lookupGT #-}
+{-# INLINE lookupGTNE #-}
 #endif
+{-# INLINE makeLookupGT #-}
 
 -- | /O(log n)/. Find largest element smaller or equal to the given one.
 --
@@ -470,25 +535,43 @@ lookupGT = goNothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
 -- > lookupLE 5 (fromList [3, 5]) == Just 5
 lookupLE :: Ord a => a -> Set a -> Maybe a
-lookupLE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (NE (Bin _ y l r)) = case compare x y of
-        LT -> goNothing x l
-        EQ -> Just y
-        GT -> goJust x y r
+lookupLE = fst . makeLookupLE
 
-    goJust !_ best Tip = Just best
-    goJust x best (NE (Bin _ y l r)) = case compare x y of
-        LT -> goJust x best l
+lookupLENE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupLENE = snd . makeLookupLE
+
+makeLookupLE
+  :: Ord a
+  => a
+  -> ( Set a -> Maybe a
+     , NonEmptySet a -> Maybe a
+     )
+makeLookupLE !x = (goNothing, goNothing')
+  where
+    goNothing Tip = Nothing
+    goNothing (NE ne) = goNothing' ne
+
+    goNothing' (Bin _ y l r) = case compare x y of
+        LT -> goNothing l
         EQ -> Just y
-        GT -> goJust x y r
+        GT -> goJust y r
+
+    goJust best Tip = Just best
+    goJust best (NE ne) = goJust' best ne
+
+    goJust' best (Bin _ y l r) = case compare x y of
+        LT -> goJust best l
+        EQ -> Just y
+        GT -> goJust y r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
+{-# INLINABLE lookupLENE #-}
 #else
 {-# INLINE lookupLE #-}
+{-# INLINE lookupLENE #-}
 #endif
+{-# INLINE makeLookupLE #-}
 
 -- | /O(log n)/. Find smallest element greater or equal to the given one.
 --
@@ -496,25 +579,43 @@ lookupLE = goNothing
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
 -- > lookupGE 6 (fromList [3, 5]) == Nothing
 lookupGE :: Ord a => a -> Set a -> Maybe a
-lookupGE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (NE (Bin _ y l r)) = case compare x y of
-        LT -> goJust x y l
-        EQ -> Just y
-        GT -> goNothing x r
+lookupGE = fst . makeLookupGE
 
-    goJust !_ best Tip = Just best
-    goJust x best (NE (Bin _ y l r)) = case compare x y of
-        LT -> goJust x y l
+lookupGENE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupGENE = snd . makeLookupGE
+
+makeLookupGE
+  :: Ord a
+  => a
+  -> ( Set a -> Maybe a
+     , NonEmptySet a -> Maybe a
+     )
+makeLookupGE !x = (goNothing, goNothing')
+  where
+    goNothing Tip = Nothing
+    goNothing (NE ne) = goNothing' ne
+
+    goNothing' (Bin _ y l r) = case compare x y of
+        LT -> goJust y l
         EQ -> Just y
-        GT -> goJust x best r
+        GT -> goNothing r
+
+    goJust best Tip = Just best
+    goJust best (NE ne) = goJust' best ne
+
+    goJust' best (Bin _ y l r) = case compare x y of
+        LT -> goJust y l
+        EQ -> Just y
+        GT -> goJust best r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
+{-# INLINABLE lookupGENE #-}
 #else
 {-# INLINE lookupGE #-}
+{-# INLINE lookupGENE #-}
 #endif
+{-# INLINE makeLookupGE #-}
 
 {--------------------------------------------------------------------
   Construction
@@ -526,8 +627,12 @@ empty = Tip
 
 -- | /O(1)/. Create a singleton set.
 singleton :: a -> Set a
-singleton x = NE $ Bin 1 x Tip Tip
+singleton = NE . singletonNE
 {-# INLINE singleton #-}
+
+singletonNE :: a -> NonEmptySet a
+singletonNE x = Bin 1 x Tip Tip
+{-# INLINE singletonNE #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
