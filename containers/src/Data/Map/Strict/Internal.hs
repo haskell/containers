@@ -1469,7 +1469,8 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
-fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` NE (Bin sz x v (fromSet f l) (fromSet f r))
+fromSet f (Set.NE (Set.Bin sz x l r)) = case f x of
+  v -> v `seq` NE (Bin sz x v (fromSet f l) (fromSet f r))
 
 {--------------------------------------------------------------------
   Lists

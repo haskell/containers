@@ -1929,7 +1929,7 @@ difference t1 (NE (Bin _ k _ l2 r2)) = case split k t1 of
 withoutKeys :: Ord k => Map k a -> Set k -> Map k a
 withoutKeys Tip _ = Tip
 withoutKeys m Set.Tip = m
-withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
+withoutKeys m (Set.NE (Set.Bin _ k ls rs)) = case splitMember k m of
   (lm, b, rm)
      | not b && lm' `ptrEq` lm && rm' `ptrEq` rm -> m
      | otherwise -> link2 lm' rm'
@@ -3356,7 +3356,8 @@ assocs m
 
 keysSet :: Map k a -> Set.Set k
 keysSet Tip = Set.Tip
-keysSet (NE (Bin sz kx _ l r)) = Set.Bin sz kx (keysSet l) (keysSet r)
+keysSet (NE (Bin sz kx _ l r)) = Set.NE $
+  Set.Bin sz kx (keysSet l) (keysSet r)
 
 -- | /O(n)/. Build a map from a set of keys and a function which for each key
 -- computes its value.
@@ -3366,7 +3367,7 @@ keysSet (NE (Bin sz kx _ l r)) = Set.Bin sz kx (keysSet l) (keysSet r)
 
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
-fromSet f (Set.Bin sz x l r) = NE $ Bin sz x (f x) (fromSet f l) (fromSet f r)
+fromSet f (Set.NE (Set.Bin sz x l r)) = NE $ Bin sz x (f x) (fromSet f l) (fromSet f r)
 
 {--------------------------------------------------------------------
   Lists

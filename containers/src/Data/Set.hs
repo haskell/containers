@@ -70,6 +70,7 @@ module Data.Set (
               Set          -- instance Eq,Ord,Show,Read,Data,Typeable
 #else
               Set(..)
+            , NonEmptySet(..)
 #endif
 
             -- * Construction
