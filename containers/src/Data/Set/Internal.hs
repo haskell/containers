@@ -479,8 +479,8 @@ lookupGT x (NE ne) = lookupGTNE x ne
 
 lookupGTNE :: Ord a => a -> NonEmptySet a -> Maybe a
 lookupGTNE x (Bin _ y l r)
-    | x >= y = lookupGT x l
-    | otherwise = lookupGTWithDefault x y r
+    | x < y = lookupGTWithDefault x y l
+    | otherwise = lookupGT x r
 
 lookupGTWithDefault :: Ord a => a -> a -> Set a -> Maybe a
 lookupGTWithDefault !_ best Tip = Just best
@@ -488,8 +488,8 @@ lookupGTWithDefault x best (NE ne) = lookupGTWithDefaultNE x best ne
 
 lookupGTWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
 lookupGTWithDefaultNE x best (Bin _ y l r)
-    | x >= y = lookupGTWithDefault x best l
-    | otherwise = lookupGTWithDefault x y r
+    | x < y = lookupGTWithDefault x y l
+    | otherwise = lookupGTWithDefault x best r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
@@ -547,9 +547,9 @@ lookupGE x (NE ne) = lookupGENE x ne
 
 lookupGENE :: Ord a => a -> NonEmptySet a -> Maybe a
 lookupGENE x (Bin _ y l r) = case compare x y of
-    LT -> lookupGEWithDefault x y r
+    LT -> lookupGEWithDefault x y l
     EQ -> Just y
-    GT -> lookupGE x l
+    GT -> lookupGE x r
 
 lookupGEWithDefault :: Ord a => a -> a -> Set a -> Maybe a
 lookupGEWithDefault !_ best Tip = Just best
@@ -557,9 +557,9 @@ lookupGEWithDefault x best (NE ne) = lookupGEWithDefaultNE x best ne
 
 lookupGEWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
 lookupGEWithDefaultNE x best (Bin _ y l r) = case compare x y of
-    LT -> lookupGEWithDefault x y r
+    LT -> lookupGEWithDefault x y l
     EQ -> Just y
-    GT -> lookupGEWithDefault x best l
+    GT -> lookupGEWithDefault x best r
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
