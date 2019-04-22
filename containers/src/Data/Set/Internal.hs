@@ -148,7 +148,7 @@ module Data.Set.Internal (
             , empty
             , singleton, singletonNE
             , insert, insertNE
-            , delete
+            , delete, deleteNE
             , powerSet
 
             -- * Combine
@@ -624,14 +624,18 @@ insertReturningDifferentNE orig !x (Bin sz y l r) = case compare x y of
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
+{-# INLINABLE insertNE #-}
 #else
 {-# INLINE insert #-}
+{-# INLINE insertNE #-}
 #endif
 
 #ifndef __GLASGOW_HASKELL__
 lazy :: a -> a
 lazy a = a
 #endif
+
+--------------------------------------------------------------------
 
 -- Insert an element to the set only if it is not in the set.
 -- Used by `union`.
@@ -657,26 +661,41 @@ insertR x0 = go x0 x0
 {-# INLINE insertR #-}
 #endif
 
+--------------------------------------------------------------------
+
 -- | /O(log n)/. Delete an element from a set.
 
--- See Note: Type of local 'go' function
 delete :: Ord a => a -> Set a -> Set a
-delete = go
-  where
-    go :: Ord a => a -> Set a -> Set a
-    go !_ Tip = Tip
-    go x t@(NE (Bin _ y l r)) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceR y l' r
-           where !l' = go x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceL y l r'
-           where !r' = go x r
-        EQ -> glue l r
+delete !_ Tip = Tip
+delete x s0 = case deleteReturningDifferent x s0 of
+  Nothing -> s0
+  Just s -> s
+
+deleteNE :: Ord a => a -> NonEmptySet a -> Set a
+deleteNE x s0 = case deleteReturningDifferentNE x s0 of
+  Nothing -> NE s0
+  Just s -> s
+
+deleteReturningDifferent :: Ord a => a -> Set a -> Maybe (Set a)
+deleteReturningDifferent !_ Tip = Nothing
+deleteReturningDifferent x (NE ne) = deleteReturningDifferentNE x ne
+
+deleteReturningDifferentNE :: Ord a => a -> NonEmptySet a -> Maybe (Set a)
+deleteReturningDifferentNE !x (Bin _ y l r) = case compare x y of
+  LT -> case deleteReturningDifferent x l of
+    Nothing -> Nothing
+    Just l' -> Just $ balanceR y l' r
+  GT -> case deleteReturningDifferent x r of
+    Nothing -> Nothing
+    Just r' -> Just $ balanceL y l r'
+  EQ -> Just $ glue l r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE delete #-}
+{-# INLINABLE deleteNE #-}
 #else
 {-# INLINE delete #-}
+{-# INLINE deleteNE #-}
 #endif
 
 {--------------------------------------------------------------------
