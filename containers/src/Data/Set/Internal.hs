@@ -1726,35 +1726,52 @@ balanceL :: a -> Set a -> Set a -> Set a
 balanceL x l r = case r of
   Tip -> case l of
     Tip -> NE $ Bin 1 x Tip Tip
-    (NE (Bin _ _ Tip Tip)) ->
-      NE $ Bin 2 x l Tip
-    (NE (Bin _ lx Tip (NE (Bin _ lrx _ _)))) ->
-      NE $ Bin 3 lrx (NE $ Bin 1 lx Tip Tip) (NE $ Bin 1 x Tip Tip)
-    (NE (Bin _ lx ll@(NE (Bin _ _ _ _)) Tip)) ->
-      NE $ Bin 3 lx ll (NE $ Bin 1 x Tip Tip)
-    (NE (Bin ls lx ll@(NE (Bin lls _ _ _))
-                            lr@(NE (Bin lrs lrx lrl lrr))))
-      | lrs < ratio*lls ->
-        NE $ Bin (1+ls) lx ll (NE $ Bin (1+lrs) x lr Tip)
-      | otherwise ->
-        NE $ Bin (1+ls) lrx
-          (NE $ Bin (1+lls+size lrl) lx ll lrl)
-          (NE $ Bin (1+size lrr) x lrr Tip)
+    (NE nel) -> NE $ balanceLNEE x nel
 
-  (NE (Bin rs _ _ _)) -> case l of
+  (NE ner@(Bin rs _ _ _)) -> case l of
     Tip -> NE $ Bin (1+rs) x Tip r
-    (NE (Bin ls lx ll lr))
-      | ls > delta*rs  -> case (ll, lr) of
-          (NE (Bin lls _ _ _), NE (Bin lrs lrx lrl lrr))
-            | lrs < ratio*lls -> NE $ Bin (1+ls+rs) lx
-              ll
-              (NE $ Bin (1+rs+lrs) x lr r)
-            | otherwise -> NE $ Bin (1+ls+rs) lrx
-              (NE $ Bin (1+lls+size lrl) lx ll lrl)
-              (NE $ Bin (1+rs+size lrr) x lrr r)
-          (_, _) -> error "Failure in Data.Set.balanceL"
-      | otherwise -> NE $ Bin (1+ls+rs) x l r
+    (NE nel) -> NE $ balanceLNENE x nel ner
 {-# NOINLINE balanceL #-}
+
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceLNEE :: a -> NonEmptySet a -> NonEmptySet a
+balanceLNEE x nel = case nel of
+  (Bin _ _ Tip Tip) ->
+    Bin 2 x (NE nel) Tip
+  (Bin _ lx Tip (NE (Bin _ lrx _ _))) ->
+    Bin 3 lrx (NE $ Bin 1 lx Tip Tip) (NE $ Bin 1 x Tip Tip)
+  (Bin _ lx ll@(NE (Bin _ _ _ _)) Tip) ->
+    Bin 3 lx ll (NE $ Bin 1 x Tip Tip)
+  (Bin ls lx ll@(NE (Bin lls _ _ _))
+                          lr@(NE (Bin lrs lrx lrl lrr)))
+    | lrs < ratio*lls ->
+      Bin (1+ls) lx ll (NE $ Bin (1+lrs) x lr Tip)
+    | otherwise ->
+      Bin (1+ls) lrx
+        (NE $ Bin (1+lls+size lrl) lx ll lrl)
+        (NE $ Bin (1+size lrr) x lrr Tip)
+{-# INLINE balanceLNEE #-}
+
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceLNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+balanceLNENE x l@(Bin ls lx ll lr) r@(Bin rs _ _ _)
+  | ls > delta*rs = case (ll, lr) of
+    (NE (Bin lls _ _ _), NE (Bin lrs lrx lrl lrr))
+      | lrs < ratio*lls -> Bin (1+ls+rs) lx
+        ll
+        (NE $ Bin (1+rs+lrs) x lr $ NE r)
+      | otherwise -> Bin (1+ls+rs) lrx
+        (NE $ Bin (1+lls+size lrl) lx ll lrl)
+        (NE $ Bin (1+rs+size lrr) x lrr $ NE r)
+    (_, _) -> error "Failure in Data.Set.balanceL"
+  | otherwise = Bin (1+ls+rs) x (NE l) (NE r)
+{-# INLINE balanceLNENE #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
@@ -1762,39 +1779,56 @@ balanceR :: a -> Set a -> Set a -> Set a
 balanceR x l r = case l of
   Tip -> case r of
     Tip -> NE $ Bin 1 x Tip Tip
-    (NE (Bin _ _ Tip Tip)) ->
-      NE $ Bin 2 x Tip r
-    (NE (Bin _ rx Tip rr@(NE (Bin _ _ _ _)))) ->
-      NE $ Bin 3 rx (NE (Bin 1 x Tip Tip)) rr
-    (NE (Bin _ rx (NE (Bin _ rlx _ _)) Tip)) ->
-      NE $ Bin 3 rlx
-        (NE (Bin 1 x Tip Tip))
-        (NE (Bin 1 rx Tip Tip))
-    (NE (Bin rs rx
-           rl@(NE (Bin rls rlx rll rlr))
-           rr@(NE (Bin rrs _ _ _))))
-      | rls < ratio*rrs -> NE $ Bin (1+rs) rx
-        (NE (Bin (1+rls) x Tip rl))
-        rr
-      | otherwise -> NE $ Bin (1+rs) rlx
-        (NE (Bin (1+size rll) x Tip rll))
-        (NE (Bin (1+rrs+size rlr) rx rlr rr))
+    (NE ner) -> NE $ balanceRNEE x ner
 
-  (NE (Bin ls _ _ _)) -> case r of
+  (NE nel@(Bin ls _ _ _)) -> case r of
     Tip -> NE $ Bin (1+ls) x l Tip
-
-    (NE (Bin rs rx rl rr))
-      | rs > delta*ls  -> case (rl, rr) of
-        (NE (Bin rls rlx rll rlr), NE (Bin rrs _ _ _))
-          | rls < ratio*rrs -> NE $ Bin (1+ls+rs) rx
-            (NE (Bin (1+ls+rls) x l rl))
-            rr
-          | otherwise -> NE $ Bin (1+ls+rs) rlx
-            (NE $ Bin (1+ls+size rll) x l rll)
-            (NE $ Bin (1+rrs+size rlr) rx rlr rr)
-        (_, _) -> error "Failure in Data.Set.balanceR"
-          | otherwise -> NE $ Bin (1+ls+rs) x l r
+    (NE ner) -> NE $ balanceRNENE x nel ner
 {-# NOINLINE balanceR #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceRNEE :: a -> NonEmptySet a -> NonEmptySet a
+balanceRNEE x ner = case ner of
+  (Bin _ _ Tip Tip) ->
+    Bin 2 x Tip (NE ner)
+  (Bin _ rx Tip rr@(NE (Bin _ _ _ _))) ->
+    Bin 3 rx (NE (Bin 1 x Tip Tip)) rr
+  (Bin _ rx (NE (Bin _ rlx _ _)) Tip) ->
+    Bin 3 rlx
+      (NE (Bin 1 x Tip Tip))
+      (NE (Bin 1 rx Tip Tip))
+  (Bin rs rx
+         rl@(NE (Bin rls rlx rll rlr))
+         rr@(NE (Bin rrs _ _ _)))
+    | rls < ratio*rrs -> Bin (1+rs) rx
+      (NE (Bin (1+rls) x Tip rl))
+      rr
+    | otherwise -> Bin (1+rs) rlx
+      (NE (Bin (1+size rll) x Tip rll))
+      (NE (Bin (1+rrs+size rlr) rx rlr rr))
+{-# INLINE balanceRNEE #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceRNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+balanceRNENE x l@(Bin ls _ _ _) r@(Bin rs rx rl rr)
+  | rs > delta*ls = case (rl, rr) of
+    (NE (Bin rls rlx rll rlr), NE (Bin rrs _ _ _))
+      | rls < ratio*rrs -> Bin (1+ls+rs) rx
+        (NE (Bin (1+ls+rls) x (NE l) rl))
+        rr
+      | otherwise -> Bin (1+ls+rs) rlx
+        (NE $ Bin (1+ls+size rll) x (NE l) rll)
+        (NE $ Bin (1+rrs+size rlr) rx rlr rr)
+    (_, _) -> error "Failure in Data.Set.balanceR"
+  | otherwise = Bin (1+ls+rs) x (NE l) (NE r)
+{-# INLINE balanceRNENE #-}
+
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
