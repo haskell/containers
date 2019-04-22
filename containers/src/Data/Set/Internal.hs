@@ -596,9 +596,9 @@ singletonNE x = Bin 1 x Tip Tip
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insert :: Ord a => a -> Set a -> Set a
-insert x0 s0 = case NE <$> insertReturningDifferent x0 x0 s0 of
+insert x0 s0 = case insertReturningDifferent x0 x0 s0 of
   Nothing -> s0
-  Just q -> q
+  Just q -> NE q
 
 insertNE :: Ord a => a -> NonEmptySet a -> NonEmptySet a
 insertNE x0 s0 = case insertReturningDifferentNE x0 x0 s0 of
