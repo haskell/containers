@@ -134,12 +134,12 @@ module Data.Set.Internal (
             -- * Query
             , null
             , size
-            , member
-            , notMember
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
+            , member, memberNE
+            , notMember, notMemberNE
+            , lookupLT, lookupLTNE
+            , lookupGT, lookupGTNE
+            , lookupLE, lookupLENE
+            , lookupGE, lookupGENE
             , isSubsetOf
             , isProperSubsetOf
             , disjoint
@@ -221,7 +221,7 @@ module Data.Set.Internal (
             -- * Debugging
             , showTree
             , showTreeWith
-            , valid
+            , valid, validNE
 
             -- Internals (for testing)
             , bin
@@ -2107,6 +2107,10 @@ validsize = fst makeValidsize
 validsizeNE :: NonEmptySet a -> Bool
 validsizeNE = snd makeValidsize
 
+makeValidsize
+  :: ( Set a -> Bool
+     , NonEmptySet a1 -> Bool
+     )
 makeValidsize
   = ( \t -> realsize t == Just (size t)
     , \t -> realsizeNE t == Just (sizeNE t)
