@@ -146,8 +146,8 @@ module Data.Set.Internal (
 
             -- * Construction
             , empty
-            , singleton
-            , insert
+            , singleton, singletonNE
+            , insert, insertNE
             , delete
             , powerSet
 
@@ -596,19 +596,32 @@ singletonNE x = Bin 1 x Tip Tip
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insert :: Ord a => a -> Set a -> Set a
-insert x0 = go x0 x0
-  where
-    go :: Ord a => a -> a -> Set a -> Set a
-    go orig !_ Tip = singleton (lazy orig)
-    go orig !x t@(NE (Bin sz y l r)) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceL y l' r
-           where !l' = go orig x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceR y l r'
-           where !r' = go orig x r
-        EQ | lazy orig `seq` (orig `ptrEq` y) -> t
-           | otherwise -> NE $ Bin sz (lazy orig) l r
+insert x0 s0 = case NE <$> insertReturningDifferent x0 x0 s0 of
+  Nothing -> s0
+  Just q -> q
+
+insertNE :: Ord a => a -> NonEmptySet a -> NonEmptySet a
+insertNE x0 s0 = case insertReturningDifferentNE x0 x0 s0 of
+  Nothing -> s0
+  Just q -> q
+
+-- | Returns 'Nothing' if the element is already in the Set, and 'Just s' if a
+-- new set had to be created to contain it.
+insertReturningDifferent :: Ord a => a -> a -> Set a -> Maybe (NonEmptySet a)
+insertReturningDifferent orig !_ Tip = Just $ singletonNE (lazy orig)
+insertReturningDifferent orig !x (NE ne) = insertReturningDifferentNE orig x ne
+
+insertReturningDifferentNE :: Ord a => a -> a -> NonEmptySet a -> Maybe (NonEmptySet a)
+insertReturningDifferentNE orig !x (Bin sz y l r) = case compare x y of
+    LT -> case insertReturningDifferent orig x l of
+       Nothing -> Nothing
+       Just l' -> Just $ balanceLNE y l' r
+    GT -> case insertReturningDifferent orig x r of
+       Nothing -> Nothing
+       Just r' -> Just $ balanceRNE y l r'
+    EQ | lazy orig `seq` (orig `ptrEq` y) -> Nothing
+       | otherwise -> Just $ Bin sz (lazy orig) l r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
@@ -1733,6 +1746,12 @@ balanceL x l r = case r of
     (NE nel) -> NE $ balanceLNENE x nel ner
 {-# NOINLINE balanceL #-}
 
+balanceLNE :: a -> NonEmptySet a -> Set a -> NonEmptySet a
+balanceLNE x nel r = case r of
+  Tip -> balanceLNEE x nel
+  (NE ner) -> balanceLNENE x nel ner
+{-# NOINLINE balanceLNE #-}
+
 -- | Balance helper where:
 -- - Left child might be too big
 -- - Left child is non-empty
@@ -1785,6 +1804,16 @@ balanceR x l r = case l of
     Tip -> NE $ Bin (1+ls) x l Tip
     (NE ner) -> NE $ balanceRNENE x nel ner
 {-# NOINLINE balanceR #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is empty
+-- - Right child is non-empty
+balanceRNE :: a -> Set a -> NonEmptySet a -> NonEmptySet a
+balanceRNE x l ner = case l of
+  Tip -> balanceRNEE x ner
+  (NE nel) -> balanceRNENE x nel ner
+{-# NOINLINE balanceRNE #-}
 
 -- | Balance helper where:
 -- - Right child might be too big
