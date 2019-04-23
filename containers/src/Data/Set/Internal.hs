@@ -192,16 +192,16 @@ module Data.Set.Internal (
             , fold
 
             -- * Min\/Max
-            , lookupMin
-            , lookupMax
+            , lookupMin, lookupMinNE
+            , lookupMax, lookupMaxNE
             , findMin
             , findMax
-            , deleteMin
-            , deleteMax
+            , deleteMin, deleteMinNE
+            , deleteMax, deleteMaxNE
             , deleteFindMin
             , deleteFindMax
-            , maxView
-            , minView
+            , maxView, maxViewNE
+            , minView, minViewNE
 
             -- * Conversion
 
@@ -225,7 +225,7 @@ module Data.Set.Internal (
 
             -- Internals (for testing)
             , bin
-            , balanced
+            , balanced, balancedNE
             , link
             , merge
             ) where
@@ -787,7 +787,7 @@ disjoint (NE (Bin _ x l r)) t
 
 lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
-lookupMinSure _ (NE (Bin _ x l _)) = lookupMinSure x l
+lookupMinSure _ (NE ne) = lookupMinNE ne
 
 -- | /O(log n)/. The minimal element of a set.
 --
@@ -796,6 +796,9 @@ lookupMinSure _ (NE (Bin _ x l _)) = lookupMinSure x l
 lookupMin :: Set a -> Maybe a
 lookupMin Tip = Nothing
 lookupMin (NE (Bin _ x l _)) = Just $! lookupMinSure x l
+
+lookupMinNE :: NonEmptySet a -> a
+lookupMinNE (Bin _ x l _) = lookupMinSure x l
 
 -- | /O(log n)/. The minimal element of a set.
 findMin :: Set a -> a
@@ -815,6 +818,9 @@ lookupMax :: Set a -> Maybe a
 lookupMax Tip = Nothing
 lookupMax (NE (Bin _ x _ r)) = Just $! lookupMaxSure x r
 
+lookupMaxNE :: NonEmptySet a -> a
+lookupMaxNE (Bin _ x l _) = lookupMaxSure x l
+
 -- | /O(log n)/. The maximal element of a set.
 findMax :: Set a -> a
 findMax t
@@ -823,15 +829,21 @@ findMax t
 
 -- | /O(log n)/. Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
-deleteMin (NE (Bin _ _ Tip r)) = r
-deleteMin (NE (Bin _ x l r))   = balanceR x (deleteMin l) r
-deleteMin Tip             = Tip
+deleteMin (NE ne) = deleteMinNE ne
+deleteMin Tip = Tip
+
+deleteMinNE :: NonEmptySet a -> Set a
+deleteMinNE (Bin _ _ Tip r) = r
+deleteMinNE (Bin _ x (NE l) r) = balanceR x (deleteMinNE l) r
 
 -- | /O(log n)/. Delete the maximal element. Returns an empty set if the set is empty.
 deleteMax :: Set a -> Set a
-deleteMax (NE (Bin _ _ l Tip)) = l
-deleteMax (NE (Bin _ x l r))   = balanceL x l (deleteMax r)
-deleteMax Tip             = Tip
+deleteMax (NE ne) = deleteMaxNE ne
+deleteMax Tip = Tip
+
+deleteMaxNE :: NonEmptySet a -> Set a
+deleteMaxNE (Bin _ _ l Tip) = l
+deleteMaxNE (Bin _ x l (NE r)) = balanceL x l (deleteMaxNE r)
 
 {--------------------------------------------------------------------
   Union.
@@ -1569,28 +1581,47 @@ spanAntitone p0 m = toPair (go p0 m)
 {--------------------------------------------------------------------
   Link
 --------------------------------------------------------------------}
+
 link :: a -> Set a -> Set a -> Set a
-link x Tip r  = insertMin x r
-link x l Tip  = insertMax x l
-link x l@(NE (Bin sizeL y ly ry)) r@(NE (Bin sizeR z lz rz))
-  | delta*sizeL < sizeR  = balanceL z (link x l lz) rz
-  | delta*sizeR < sizeL  = balanceR y ly (link x ry r)
-  | otherwise            = bin x l r
+link x l r = NE $ linkNE x l r
+
+linkNE :: a -> Set a -> Set a -> NonEmptySet a
+linkNE x Tip r  = insertMinNE x r
+linkNE x l Tip  = insertMaxNE x l
+linkNE x (NE l) (NE r) = linkNENE x l r
+
+linkXNE :: a -> Set a -> NonEmptySet a -> NonEmptySet a
+linkXNE x Tip r  = insertMinNE x (NE r)
+linkXNE x (NE l) r = linkNENE x l r
+
+linkNEX :: a -> NonEmptySet a -> Set a -> NonEmptySet a
+linkNEX x l Tip  = insertMaxNE x (NE l)
+linkNEX x l (NE r) = linkNENE x l r
+
+linkNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+linkNENE x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
+  | delta*sizeL < sizeR  = balanceLNE z (linkNEX x l lz) rz
+  | delta*sizeR < sizeL  = balanceRNE y ly (linkXNE x ry r)
+  | otherwise            = binNE x (NE l) (NE r)
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: a -> Set a -> Set a
-insertMax x t
-  = case t of
-      Tip -> singleton x
-      NE (Bin _ y l r)
-          -> balanceR y l (insertMax x r)
+insertMax, insertMin :: a -> Set a -> Set a
+insertMaxNE, insertMinNE :: a -> Set a -> NonEmptySet a
 
-insertMin x t
+insertMax x t = NE $ insertMaxNE x t
+insertMaxNE x t
   = case t of
-      Tip -> singleton x
+      Tip -> singletonNE x
       NE (Bin _ y l r)
-          -> balanceL y (insertMin x l) r
+          -> balanceRNE y l (insertMaxNE x r)
+
+insertMin x t = NE $ insertMinNE x t
+insertMinNE x t
+  = case t of
+      Tip -> singletonNE x
+      NE (Bin _ y l r)
+          -> balanceLNE y (insertMinNE x l) r
 
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
@@ -1643,7 +1674,10 @@ minViewSure = go
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
-minView (NE (Bin _ x l r)) = Just $! toPair $ minViewSure x l r
+minView (NE ne) = Just $! minViewNE ne
+
+minViewNE :: NonEmptySet a -> (a, Set a)
+minViewNE (Bin _ x l r) = toPair $ minViewSure x l r
 
 maxViewSure :: a -> Set a -> Set a -> StrictPair a (Set a)
 maxViewSure = go
@@ -1657,7 +1691,10 @@ maxViewSure = go
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
-maxView (NE (Bin _ x l r)) = Just $! toPair $ maxViewSure x l r
+maxView (NE ne) = Just $! maxViewNE ne
+
+maxViewNE :: NonEmptySet a -> (a, Set a)
+maxViewNE (Bin _ x l r) = toPair $ maxViewSure x l r
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.
@@ -1862,11 +1899,15 @@ balanceRNENE x l@(Bin ls _ _ _) r@(Bin rs rx rl rr)
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
 --------------------------------------------------------------------}
+
 bin :: a -> Set a -> Set a -> Set a
 bin x l r
   = NE $ Bin (size l + size r + 1) x l r
 {-# INLINE bin #-}
 
+binNE :: a -> Set a -> Set a -> NonEmptySet a
+binNE x l r = Bin (size l + size r + 1) x l r
+{-# INLINE binNE #-}
 
 {--------------------------------------------------------------------
   Utilities
