@@ -140,9 +140,9 @@ module Data.Set.Internal (
             , lookupGT, lookupGTNE
             , lookupLE, lookupLENE
             , lookupGE, lookupGENE
-            , isSubsetOf
-            , isProperSubsetOf
-            , disjoint
+            , isSubsetOf, isSubsetOfNE
+            , isProperSubsetOf, isProperSubsetOfNE
+            , disjoint, disjointNE
 
             -- * Construction
             , empty
@@ -152,7 +152,7 @@ module Data.Set.Internal (
             , powerSet
 
             -- * Combine
-            , union
+            , union, unionNE
             , unions
             , difference
             , intersection
@@ -615,10 +615,10 @@ insertReturningDifferentNE :: Ord a => a -> a -> NonEmptySet a -> Maybe (NonEmpt
 insertReturningDifferentNE orig !x (Bin sz y l r) = case compare x y of
     LT -> case insertReturningDifferent orig x l of
        Nothing -> Nothing
-       Just l' -> Just $ balanceLNE y l' r
+       Just l' -> Just $! balanceLNE y l' r
     GT -> case insertReturningDifferent orig x r of
        Nothing -> Nothing
-       Just r' -> Just $ balanceRNE y l r'
+       Just r' -> Just $! balanceRNE y l r'
     EQ | lazy orig `seq` (orig `ptrEq` y) -> Nothing
        | otherwise -> Just $ Bin sz (lazy orig) l r
 
@@ -643,22 +643,35 @@ lazy a = a
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insertR :: Ord a => a -> Set a -> Set a
-insertR x0 = go x0 x0
-  where
-    go :: Ord a => a -> a -> Set a -> Set a
-    go orig !_ Tip = singleton (lazy orig)
-    go orig !x t@(NE (Bin _ y l r)) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceL y l' r
-           where !l' = go orig x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceR y l r'
-           where !r' = go orig x r
-        EQ -> t
+insertR x0 s0 = case insertRReturningDifferent x0 x0 s0 of
+  Nothing -> s0
+  Just s -> NE s
+
+insertRNE :: Ord a => a -> NonEmptySet a -> NonEmptySet a
+insertRNE x0 s0 = case insertRReturningDifferentNE x0 x0 s0 of
+  Nothing -> s0
+  Just s -> s
+
+insertRReturningDifferent :: Ord a => a -> a -> Set a -> Maybe (NonEmptySet a)
+insertRReturningDifferent orig !_ Tip = Just $ singletonNE (lazy orig)
+insertRReturningDifferent orig !x (NE ne) = insertRReturningDifferentNE orig x ne
+
+insertRReturningDifferentNE :: Ord a => a -> a -> NonEmptySet a -> Maybe (NonEmptySet a)
+insertRReturningDifferentNE orig !x (Bin _ y l r) = case compare x y of
+    LT -> case insertRReturningDifferent orig x l of
+      Nothing -> Nothing
+      Just l' -> Just $! balanceLNE y l' r
+    GT -> case insertRReturningDifferent orig x r of
+       Nothing -> Nothing
+       Just r' -> Just $! balanceRNE y l r'
+    EQ -> Nothing
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
+{-# INLINABLE insertRNE #-}
 #else
 {-# INLINE insertR #-}
+{-# INLINE insertRNE #-}
 #endif
 
 --------------------------------------------------------------------
@@ -710,11 +723,17 @@ deleteReturningDifferentNE !x (Bin _ y l r) = case compare x y of
 -- @
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
-    = size s1 < size s2 && isSubsetOfX s1 s2
+    = size s1 < size s2 && isSubsetOfSkipSize s1 s2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
 #endif
 
+isProperSubsetOfNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+isProperSubsetOfNE s1 s2
+    = sizeNE s1 < sizeNE s2 && isSubsetOfSkipSizeNE s1 (NE s2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE isProperSubsetOfNE #-}
+#endif
 
 -- | /O(m*log(n\/m + 1)), m <= n/.
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
@@ -727,9 +746,16 @@ isProperSubsetOf s1 s2
 -- @
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
-  = size t1 <= size t2 && isSubsetOfX t1 t2
+  = size t1 <= size t2 && isSubsetOfSkipSize t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOf #-}
+#endif
+
+isSubsetOfNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+isSubsetOfNE t1 t2
+  = sizeNE t1 <= sizeNE t2 && isSubsetOfSkipSizeNE t1 (NE t2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE isSubsetOfNE #-}
 #endif
 
 -- Test whether a set is a subset of another without the *initial*
@@ -740,12 +766,15 @@ isSubsetOf t1 t2
 -- et al needed to accound for both "split work" and "merge work", we
 -- only have to worry about split work here, which is the same as in
 -- those functions.
-isSubsetOfX :: Ord a => Set a -> Set a -> Bool
-isSubsetOfX Tip _ = True
-isSubsetOfX _ Tip = False
+isSubsetOfSkipSize :: Ord a => Set a -> Set a -> Bool
+isSubsetOfSkipSize Tip _ = True
+isSubsetOfSkipSize _ Tip = False
+isSubsetOfSkipSize (NE ne) t = isSubsetOfSkipSizeNE ne t
+
 -- Skip the final split when we hit a singleton.
-isSubsetOfX (NE (Bin 1 x _ _)) t = member x t
-isSubsetOfX (NE (Bin _ x l r)) t
+isSubsetOfSkipSizeNE :: Ord a => NonEmptySet a -> Set a -> Bool
+isSubsetOfSkipSizeNE (Bin 1 x _ _) t = member x t
+isSubsetOfSkipSizeNE (Bin _ x l r) t
   = found &&
     -- Cheap size checks can sometimes save expensive recursive calls when the
     -- result will be False. Suppose we check whether [1..10] (with root 4) is
@@ -761,11 +790,12 @@ isSubsetOfX (NE (Bin _ x l r)) t
     -- costs without obvious benefits. It might be worth considering if we find
     -- a way to use it to tighten the bounds in some useful/comprehensible way.
     size l <= size lt && size r <= size gt &&
-    isSubsetOfX l lt && isSubsetOfX r gt
+    isSubsetOfSkipSize l lt && isSubsetOfSkipSize r gt
   where
     (lt,found,gt) = splitMember x t
 #if __GLASGOW_HASKELL__
-{-# INLINABLE isSubsetOfX #-}
+{-# INLINABLE isSubsetOfSkipSize #-}
+{-# INLINABLE isSubsetOfSkipSizeNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -788,9 +818,15 @@ isSubsetOfX (NE (Bin _ x l r)) t
 disjoint :: Ord a => Set a -> Set a -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
+disjoint (NE ne) t = disjointNEX ne t
+
+disjointNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+disjointNE ne0 ne1 = disjointNEX ne0 $ NE ne1
+
 -- Avoid a split for the singleton case.
-disjoint (NE (Bin 1 x _ _)) t = x `notMember` t
-disjoint (NE (Bin _ x l r)) t
+disjointNEX :: Ord a => NonEmptySet a -> Set a -> Bool
+disjointNEX (Bin 1 x _ _) t = x `notMember` t
+disjointNEX (Bin _ x l r) t
   -- Analogous implementation to `subsetOfX`
   = not found && disjoint l lt && disjoint r gt
   where
@@ -890,6 +926,20 @@ union t1@(NE (Bin _ x l1 r1)) t2 = case splitS x t2 of
 #if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
 #endif
+
+unionNE :: Ord a => NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+unionNE t1 (Bin _ x Tip Tip) = insertRNE x t1
+unionNE (Bin _ x Tip Tip) t2 = insertNE x t2
+unionNE t1@(Bin _ x l1 r1) t2 = case splitS x (NE t2) of
+  (l2 :*: r2)
+    | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
+    | otherwise -> linkNE x l1l2 r1r2
+    where !l1l2 = union l1 l2
+          !r1r2 = union r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE unionNE #-}
+#endif
+
 
 {--------------------------------------------------------------------
   Difference
