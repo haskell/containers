@@ -134,7 +134,7 @@ module Data.Set.Internal (
             -- * Query
             , null
             , nonEmpty
-            , size
+            , size, sizeNE
             , member, memberNE
             , notMember, notMemberNE
             , lookupLT, lookupLTNE
@@ -155,19 +155,19 @@ module Data.Set.Internal (
             -- * Combine
             , union, unionNE
             , unions
-            , difference
-            , intersection
+            , difference, differenceNE
+            , intersection, intersectionNE
             , cartesianProduct
             , disjointUnion
 
             -- * Filter
-            , filter
+            , filter, filterNE
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
-            , partition
-            , split
-            , splitMember
+            , partition, partitionNE
+            , split, splitNE
+            , splitMember, splitMemberNE
             , splitRoot
 
             -- * Indexed
@@ -181,7 +181,7 @@ module Data.Set.Internal (
 
             -- * Map
             , map
-            , mapMonotonic
+            , mapMonotonic, mapMonotonicNE
 
             -- * Folds
             , foldr
@@ -955,14 +955,25 @@ unionNE t1@(Bin _ x l1 r1) t2 = case splitS x (NE t2) of
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (NE (Bin _ x l2 r2)) = case split x t1 of
-   (l1, r1)
+difference t1 (NE (Bin _ x l2 r2)) = case splitS x t1 of
+   (l1 :*: r1)
      | size l1l2 + size r1r2 == size t1 -> t1
      | otherwise -> merge l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
+#endif
+
+differenceNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
+differenceNE t1 (Bin _ x l2 r2) = case splitS x (NE t1) of
+   (l1 :*: r1)
+     | size l1l2 + size r1r2 == sizeNE t1 -> NE t1
+     | otherwise -> merge l1l2 r1r2
+     where !l1l2 = difference l1 l2
+           !r1r2 = difference r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE differenceNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -995,15 +1006,32 @@ intersection t1@(NE (Bin _ x l1 r1)) t2
 {-# INLINABLE intersection #-}
 #endif
 
+intersectionNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
+intersectionNE t1@(Bin _ x l1 r1) t2
+  | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
+        then NE t1
+        else link x l1l2 r1r2
+  | otherwise = merge l1l2 r1r2
+  where
+    !(l2, b, r2) = splitMemberNE x t2
+    !l1l2 = intersection l1 l2
+    !r1r2 = intersection r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE intersectionNE #-}
+#endif
+
 {--------------------------------------------------------------------
   Filter and partition
 --------------------------------------------------------------------}
 -- | /O(n)/. Filter all elements that satisfy the predicate.
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
-filter p t@(NE (Bin _ x l r))
+filter p (NE ne) = filterNE p ne
+
+filterNE :: (a -> Bool) -> NonEmptySet a -> Set a
+filterNE p t@(Bin _ x l r)
     | p x = if l `ptrEq` l' && r `ptrEq` r'
-            then t
+            then NE t
             else link x l' r'
     | otherwise = merge l' r'
     where
@@ -1013,19 +1041,26 @@ filter p t@(NE (Bin _ x l r))
 -- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
-partition :: (a -> Bool) -> Set a -> (Set a,Set a)
-partition p0 t0 = toPair $ go p0 t0
-  where
-    go _ Tip = (Tip :*: Tip)
-    go p t@(NE (Bin _ x l r)) = case (go p l, go p r) of
-      ((l1 :*: l2), (r1 :*: r2))
-        | p x       -> (if l1 `ptrEq` l && r1 `ptrEq` r
-                        then t
-                        else link x l1 r1) :*: merge l2 r2
-        | otherwise -> merge l1 r1 :*:
-                       (if l2 `ptrEq` l && r2 `ptrEq` r
-                        then t
-                        else link x l2 r2)
+partition :: (a -> Bool) -> Set a -> (Set a, Set a)
+partition p0 t0 = toPair $ partitionS p0 t0
+
+partitionNE :: (a -> Bool) -> NonEmptySet a -> (Set a, Set a)
+partitionNE p0 t0 = toPair $ partitionSNE p0 t0
+
+partitionS :: (a -> Bool) -> Set a -> StrictPair (Set a) (Set a)
+partitionS _ Tip = Tip :*: Tip
+partitionS p (NE ne) = partitionSNE p ne
+
+partitionSNE :: (a -> Bool) -> NonEmptySet a -> StrictPair (Set a) (Set a)
+partitionSNE p t@(Bin _ x l r) = case partitionS p l :*: partitionS p r of
+  (l1 :*: l2) :*: (r1 :*: r2)
+    | p x       -> (NE $ if l1 `ptrEq` l && r1 `ptrEq` r
+                    then t
+                    else linkNE x l1 r1) :*: merge l2 r2
+    | otherwise -> merge l1 r1 :*:
+                   (NE $ if l2 `ptrEq` l && r2 `ptrEq` r
+                    then t
+                    else linkNE x l2 r2)
 
 {----------------------------------------------------------------------
   Map
@@ -1053,9 +1088,12 @@ map f = fromList . List.map f . toList
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
 
-mapMonotonic :: (a->b) -> Set a -> Set b
+mapMonotonic :: (a -> b) -> Set a -> Set b
 mapMonotonic _ Tip = Tip
-mapMonotonic f (NE (Bin sz x l r)) = NE $ Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
+mapMonotonic p (NE ne) = NE $ mapMonotonicNE p ne
+
+mapMonotonicNE :: (a -> b) -> NonEmptySet a -> NonEmptySet b
+mapMonotonicNE f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
 
 {--------------------------------------------------------------------
   Fold
@@ -1387,20 +1425,34 @@ split :: Ord a => a -> Set a -> (Set a,Set a)
 split x t = toPair $ splitS x t
 {-# INLINABLE split #-}
 
+splitNE :: Ord a => a -> NonEmptySet a -> (Set a,Set a)
+splitNE x t = toPair $ splitSNE x t
+{-# INLINABLE splitNE #-}
+
 splitS :: Ord a => a -> Set a -> StrictPair (Set a) (Set a)
 splitS _ Tip = (Tip :*: Tip)
-splitS x (NE (Bin _ y l r))
+splitS x (NE ne) = splitSNE x ne
+{-# INLINABLE splitS #-}
+
+splitSNE :: Ord a => a -> NonEmptySet a -> StrictPair (Set a) (Set a)
+splitSNE x (Bin _ y l r)
       = case compare x y of
           LT -> let (lt :*: gt) = splitS x l in (lt :*: link y gt r)
           GT -> let (lt :*: gt) = splitS x r in (link y l lt :*: gt)
           EQ -> (l :*: r)
-{-# INLINABLE splitS #-}
+{-# INLINABLE splitSNE #-}
 
 -- | /O(log n)/. Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember _ Tip = (Tip, False, Tip)
-splitMember x (NE (Bin _ y l r))
+splitMember x (NE ne) = splitMemberNE x ne
+#if __GLASGOW_HASKELL__
+{-# INLINABLE splitMember #-}
+#endif
+
+splitMemberNE :: Ord a => a -> NonEmptySet a -> (Set a, Bool, Set a)
+splitMemberNE x (Bin _ y l r)
    = case compare x y of
        LT -> let (lt, found, gt) = splitMember x l
                  !gt' = link y gt r
@@ -1410,7 +1462,7 @@ splitMember x (NE (Bin _ y l r))
              in (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__
-{-# INLINABLE splitMember #-}
+{-# INLINABLE splitMemberNE #-}
 #endif
 
 {--------------------------------------------------------------------
