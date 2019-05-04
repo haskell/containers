@@ -133,6 +133,7 @@ module Data.Set.Internal (
 
             -- * Query
             , null
+            , nonEmpty
             , size
             , member, memberNE
             , notMember, notMemberNE
@@ -388,6 +389,12 @@ null :: Set a -> Bool
 null Tip = True
 null (NE _) = False
 {-# INLINE null #-}
+
+-- | /O(1)/. Return 'Just' if the set is not empty.
+nonEmpty :: Set a -> Maybe (NonEmptySet a)
+nonEmpty Tip = Nothing
+nonEmpty (NE ne) = Just ne
+{-# INLINE nonEmpty #-}
 
 -- | /O(1)/. The number of elements in the set.
 size :: Set a -> Int
