@@ -166,22 +166,22 @@ module Data.Set.Internal (
 
             -- * Filter
             , filter, filterNE
-            , takeWhileAntitone
-            , dropWhileAntitone
-            , spanAntitone
+            , takeWhileAntitone, takeWhileAntitoneNE
+            , dropWhileAntitone, dropWhileAntitoneNE
+            , spanAntitone, spanAntitoneNE
             , partition, partitionNE
             , split, splitNE
             , splitMember, splitMemberNE
             , splitRoot
 
             -- * Indexed
-            , lookupIndex
-            , findIndex
-            , elemAt
-            , deleteAt
-            , take
-            , drop
-            , splitAt
+            , lookupIndex, lookupIndexNE
+            , findIndex, findIndexNE
+            , elemAt, elemAtNE
+            , deleteAt, deleteAtNE
+            , take, takeNE
+            , drop, dropNE
+            , splitAt, splitAtNE
 
             -- * Map
             , map
@@ -1490,17 +1490,26 @@ splitMemberNE x (Bin' _ y l r)
 
 -- See Note: Type of local 'go' function
 findIndex :: Ord a => a -> Set a -> Int
-findIndex = go 0
-  where
-    go :: Ord a => Int -> a -> Set a -> Int
-    go !_ !_ Tip  = error "Set.findIndex: element is not in the set"
-    go idx x (NE (Bin' _ kx l r)) = case compare x kx of
-      LT -> go idx x l
-      GT -> go (idx + size l + 1) x r
-      EQ -> idx + size l
+findIndex = findIndexS 0
 #if __GLASGOW_HASKELL__
 {-# INLINABLE findIndex #-}
 #endif
+
+findIndexNE :: Ord a => a -> NonEmptySet a -> Int
+findIndexNE = findIndexSNE 0
+#if __GLASGOW_HASKELL__
+{-# INLINABLE findIndexNE #-}
+#endif
+
+findIndexS :: Ord a => Int -> a -> Set a -> Int
+findIndexS !_ !_ Tip  = error "Set.findIndex: element is not in the set"
+findIndexS idx x (NE ne) = findIndexSNE idx x ne
+
+findIndexSNE :: Ord a => Int -> a -> NonEmptySet a -> Int
+findIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
+  LT -> findIndexS idx x l
+  GT -> findIndexS (idx + size l + 1) x r
+  EQ -> idx + size l
 
 -- | /O(log n)/. Lookup the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
@@ -1515,17 +1524,26 @@ findIndex = go 0
 
 -- See Note: Type of local 'go' function
 lookupIndex :: Ord a => a -> Set a -> Maybe Int
-lookupIndex = go 0
-  where
-    go :: Ord a => Int -> a -> Set a -> Maybe Int
-    go !_ !_ Tip  = Nothing
-    go idx x (NE (Bin' _ kx l r)) = case compare x kx of
-      LT -> go idx x l
-      GT -> go (idx + size l + 1) x r
-      EQ -> Just $! idx + size l
+lookupIndex = lookupIndexS 0
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupIndex #-}
 #endif
+
+lookupIndexNE :: Ord a => a -> NonEmptySet a -> Maybe Int
+lookupIndexNE = lookupIndexSNE 0
+#if __GLASGOW_HASKELL__
+{-# INLINABLE lookupIndexNE #-}
+#endif
+
+lookupIndexS :: Ord a => Int -> a -> Set a -> Maybe Int
+lookupIndexS !_ !_ Tip  = Nothing
+lookupIndexS idx x (NE ne) = lookupIndexSNE idx x ne
+
+lookupIndexSNE :: Ord a => Int -> a -> NonEmptySet a -> Maybe Int
+lookupIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
+  LT -> lookupIndexS idx x l
+  GT -> lookupIndexS (idx + size l + 1) x r
+  EQ -> Just $! idx + size l
 
 -- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
@@ -1539,7 +1557,10 @@ lookupIndex = go 0
 
 elemAt :: Int -> Set a -> a
 elemAt !_ Tip = error "Set.elemAt: index out of range"
-elemAt i (NE (Bin' _ x l r))
+elemAt i (NE ne) = elemAtNE i ne
+
+elemAtNE :: Int -> NonEmptySet a -> a
+elemAtNE i (Bin' _ x l r)
   = case compare i sizeL of
       LT -> elemAt i l
       GT -> elemAt (i-sizeL-1) r
@@ -1559,15 +1580,16 @@ elemAt i (NE (Bin' _ x l r))
 -- @since 0.5.4
 
 deleteAt :: Int -> Set a -> Set a
-deleteAt !i t =
-  case t of
-    Tip -> error "Set.deleteAt: index out of range"
-    NE (Bin' _ x l r) -> case compare i sizeL of
-      LT -> balanceR x (deleteAt i l) r
-      GT -> balanceL x l (deleteAt (i-sizeL-1) r)
-      EQ -> glue l r
-      where
-        sizeL = size l
+deleteAt !_ Tip = error "Set.deleteAt: index out of range"
+deleteAt i (NE ne) = deleteAtNE i ne
+
+deleteAtNE :: Int -> NonEmptySet a -> Set a
+deleteAtNE !i (Bin' _ x l r) = case compare i sizeL of
+    LT -> balanceR x (deleteAt i l) r
+    GT -> balanceL x l (deleteAt (i-sizeL-1) r)
+    EQ -> glue l r
+    where
+      sizeL = size l
 
 -- | Take a given number of elements in order, beginning
 -- with the smallest ones.
@@ -1579,16 +1601,25 @@ deleteAt !i t =
 -- @since 0.5.8
 take :: Int -> Set a -> Set a
 take i m | i >= size m = m
-take i0 m0 = go i0 m0
-  where
-    go i !_ | i <= 0 = Tip
-    go !_ Tip = Tip
-    go i (NE (Bin' _ x l r)) =
-      case compare i sizeL of
-        LT -> go i l
-        GT -> link x l (go (i - sizeL - 1) r)
-        EQ -> l
-      where sizeL = size l
+take i0 m0 = takeS i0 m0
+
+takeNE :: Int -> NonEmptySet a -> Set a
+takeNE i m | i >= sizeNE m = NE m
+takeNE i !_ | i <= 0 = Tip
+takeNE i0 m0 = takeSNE i0 m0
+
+takeS :: Int -> Set a -> Set a
+takeS i !_ | i <= 0 = Tip
+takeS !_ Tip = Tip
+takeS i (NE ne) = takeSNE i ne
+
+takeSNE :: Int -> NonEmptySet a -> Set a
+takeSNE i (Bin' _ x l r) =
+  case compare i sizeL of
+    LT -> takeS i l
+    GT -> link x l (takeS (i - sizeL - 1) r)
+    EQ -> l
+  where sizeL = size l
 
 -- | Drop a given number of elements in order, beginning
 -- with the smallest ones.
@@ -1600,16 +1631,25 @@ take i0 m0 = go i0 m0
 -- @since 0.5.8
 drop :: Int -> Set a -> Set a
 drop i m | i >= size m = Tip
-drop i0 m0 = go i0 m0
-  where
-    go i m | i <= 0 = m
-    go !_ Tip = Tip
-    go i (NE (Bin' _ x l r)) =
-      case compare i sizeL of
-        LT -> link x (go i l) r
-        GT -> go (i - sizeL - 1) r
-        EQ -> insertMin x r
-      where sizeL = size l
+drop i0 m0 = dropS i0 m0
+
+dropNE :: Int -> NonEmptySet a -> Set a
+dropNE i m | i >= sizeNE m = Tip
+dropNE i m | i <= 0 = NE m
+dropNE i0 m0 = dropSNE i0 m0
+
+dropS :: Int -> Set a -> Set a
+dropS i m | i <= 0 = m
+dropS !_ Tip = Tip
+dropS i (NE ne) = dropSNE i ne
+
+dropSNE :: Int -> NonEmptySet a -> Set a
+dropSNE i (Bin' _ x l r) =
+  case compare i sizeL of
+    LT -> link x (dropS i l) r
+    GT -> dropS (i - sizeL - 1) r
+    EQ -> insertMin x r
+  where sizeL = size l
 
 -- | /O(log n)/. Split a set at a particular index.
 --
@@ -1619,18 +1659,28 @@ drop i0 m0 = go i0 m0
 splitAt :: Int -> Set a -> (Set a, Set a)
 splitAt i0 m0
   | i0 >= size m0 = (m0, Tip)
-  | otherwise = toPair $ go i0 m0
-  where
-    go i m | i <= 0 = Tip :*: m
-    go !_ Tip = Tip :*: Tip
-    go i (NE (Bin' _ x l r))
-      = case compare i sizeL of
-          LT -> case go i l of
-                  ll :*: lr -> ll :*: link x lr r
-          GT -> case go (i - sizeL - 1) r of
-                  rl :*: rr -> link x l rl :*: rr
-          EQ -> l :*: insertMin x r
-      where sizeL = size l
+  | otherwise = toPair $ splitAtS i0 m0
+
+splitAtNE :: Int -> NonEmptySet a -> (Set a, Set a)
+splitAtNE i0 m0
+  | i0 >= sizeNE m0 = (NE m0, Tip)
+  | i0 <= 0 = (Tip, NE m0)
+  | otherwise = toPair $ splitAtSNE i0 m0
+
+splitAtS :: Int -> Set a -> StrictPair (Set a) (Set a)
+splitAtS i m | i <= 0 = Tip :*: m
+splitAtS !_ Tip = Tip :*: Tip
+splitAtS i (NE ne) = splitAtSNE i ne
+
+splitAtSNE :: Int -> NonEmptySet a -> StrictPair (Set a) (Set a)
+splitAtSNE i (Bin' _ x l r)
+  = case compare i sizeL of
+      LT -> case splitAtS i l of
+              ll :*: lr -> ll :*: link x lr r
+      GT -> case splitAtS (i - sizeL - 1) r of
+              rl :*: rr -> link x l rl :*: rr
+      EQ -> l :*: insertMin x r
+  where sizeL = size l
 
 -- | /O(log n)/. Take while a predicate on the elements holds.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
@@ -1645,7 +1695,10 @@ splitAt i0 m0
 
 takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
 takeWhileAntitone _ Tip = Tip
-takeWhileAntitone p (NE (Bin' _ x l r))
+takeWhileAntitone p (NE ne) = takeWhileAntitoneNE p ne
+
+takeWhileAntitoneNE :: (a -> Bool) -> NonEmptySet a -> Set a
+takeWhileAntitoneNE p (Bin' _ x l r)
   | p x = link x l (takeWhileAntitone p r)
   | otherwise = takeWhileAntitone p l
 
@@ -1662,7 +1715,10 @@ takeWhileAntitone p (NE (Bin' _ x l r))
 
 dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
 dropWhileAntitone _ Tip = Tip
-dropWhileAntitone p (NE (Bin' _ x l r))
+dropWhileAntitone p (NE ne) = dropWhileAntitoneNE p ne
+
+dropWhileAntitoneNE :: (a -> Bool) -> NonEmptySet a -> Set a
+dropWhileAntitoneNE p (Bin' _ x l r)
   | p x = dropWhileAntitone p r
   | otherwise = link x (dropWhileAntitone p l) r
 
@@ -1683,12 +1739,19 @@ dropWhileAntitone p (NE (Bin' _ x l r))
 -- @since 0.5.8
 
 spanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
-spanAntitone p0 m = toPair (go p0 m)
-  where
-    go _ Tip = Tip :*: Tip
-    go p (NE (Bin' _ x l r))
-      | p x = let u :*: v = go p r in link x l u :*: v
-      | otherwise = let u :*: v = go p l in u :*: link x v r
+spanAntitone p m = toPair $ spanAntitoneS p m
+
+spanAntitoneNE :: (a -> Bool) -> NonEmptySet a -> (Set a, Set a)
+spanAntitoneNE p m = toPair $ spanAntitoneSNE p m
+
+spanAntitoneS :: (a -> Bool) -> Set a -> StrictPair (Set a) (Set a)
+spanAntitoneS _ Tip = Tip :*: Tip
+spanAntitoneS p (NE ne) = spanAntitoneSNE p ne
+
+spanAntitoneSNE :: (a -> Bool) -> NonEmptySet a -> StrictPair (Set a) (Set a)
+spanAntitoneSNE p (Bin' _ x l r)
+  | p x = let u :*: v = spanAntitoneS p r in link x l u :*: v
+  | otherwise = let u :*: v = spanAntitoneS p l in u :*: link x v r
 
 
 {--------------------------------------------------------------------
