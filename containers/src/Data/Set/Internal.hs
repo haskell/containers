@@ -231,8 +231,8 @@ module Data.Set.Internal (
             -- Internals (for testing)
             , bin, binNE
             , balanced, balancedNE
-            , link
-            , merge
+            , link, linkNE
+            , merge, mergeNE
             ) where
 
 import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
@@ -1829,10 +1829,21 @@ insertMinNE x t
 merge :: Set a -> Set a -> Set a
 merge Tip r   = r
 merge l Tip   = l
-merge l@(NE (Bin' sizeL x lx rx)) r@(NE (Bin' sizeR y ly ry))
-  | delta*sizeL < sizeR = balanceL y (merge l ly) ry
-  | delta*sizeR < sizeL = balanceR x lx (merge rx r)
-  | otherwise           = glue l r
+merge (NE l) (NE r) = NE $ mergeNE l r
+
+mergeXNE :: Set a -> NonEmptySet a -> NonEmptySet a
+mergeXNE Tip r = r
+mergeXNE (NE l) r = mergeNE l r
+
+mergeNEX :: NonEmptySet a -> Set a -> NonEmptySet a
+mergeNEX l Tip = l
+mergeNEX l (NE r) = mergeNE l r
+
+mergeNE :: NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+mergeNE l@(Bin' sizeL x lx rx) r@(Bin' sizeR y ly ry)
+  | delta*sizeL < sizeR = balanceLNE y (mergeNEX l ly) ry
+  | delta*sizeR < sizeL = balanceRNE x lx (mergeXNE rx r)
+  | otherwise           = glueNE l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -1841,9 +1852,12 @@ merge l@(NE (Bin' sizeL x lx rx)) r@(NE (Bin' sizeR y ly ry))
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
-glue l@(NE (Bin' sl xl ll lr)) r@(NE (Bin' sr xr rl rr))
-  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceR m l' r
-  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceL m l r'
+glue (NE l) (NE r) = NE $ glueNE l r
+
+glueNE :: NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+glueNE l@(Bin' sl xl ll lr) r@(Bin' sr xr rl rr)
+  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceRNE m l' r
+  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceLNE m l r'
 
 -- | /O(log n)/. Delete and find the minimal element.
 --
