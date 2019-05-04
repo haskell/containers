@@ -297,8 +297,10 @@ data NonEmptySet a = Bin' {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL__ >= 708
+#if __GLASGOW_HASKELL__ >= 710
 pattern Bin :: Size -> a -> Set a -> Set a -> Set a
+#endif
+#if __GLASGOW_HASKELL__ >= 708
 pattern Bin s a l r = NE (Bin' s a l r)
 
 type role Set nominal
