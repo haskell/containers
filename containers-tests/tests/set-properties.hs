@@ -238,15 +238,15 @@ mkArb step n
      p <- step
      q <- step
      if dir
-       then return (NE $ Bin 2 q (singleton p) Tip)
-       else return (NE $ Bin 2 p Tip (singleton q))
+       then return (NE $ Bin' 2 q (singleton p) Tip)
+       else return (NE $ Bin' 2 p Tip (singleton q))
   | otherwise = do
       -- This assumes a balance factor of delta = 3
       let upper = (3*(n - 1)) `quot` 4
       let lower = (n + 2) `quot` 4
       ln <- liftGen $ choose (lower, upper)
       let rn = n - ln - 1
-      liftM3 (\lt x rt -> NE $ Bin n x lt rt) (mkArb step ln) step (mkArb step rn)
+      liftM3 (\lt x rt -> NE $ Bin' n x lt rt) (mkArb step ln) step (mkArb step rn)
 
 -- | Given a strictly increasing list of elements, produce an arbitrarily
 -- shaped set with exactly those elements.
