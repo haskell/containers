@@ -224,12 +224,12 @@ module Data.Set.Internal (
             , fromDistinctDescList
 
             -- * Debugging
-            , showTree
-            , showTreeWith
+            , showTree, showTreeNE
+            , showTreeWith, showTreeWithNE
             , valid, validNE
 
             -- Internals (for testing)
-            , bin
+            , bin, binNE
             , balanced, balancedNE
             , link
             , merge
@@ -2241,6 +2241,10 @@ showTree :: Show a => Set a -> String
 showTree s
   = showTreeWith True False s
 
+showTreeNE :: Show a => NonEmptySet a -> String
+showTreeNE s
+  = showTreeWithNE True False s
+
 
 {- | /O(n)/. The expression (@showTreeWith hang wide map@) shows
  the tree that implements the set. If @hang@ is
@@ -2282,13 +2286,23 @@ showTreeWith hang wide t
   | hang      = (showsTreeHang wide [] t) ""
   | otherwise = (showsTree wide [] [] t) ""
 
+showTreeWithNE :: Show a => Bool -> Bool -> NonEmptySet a -> String
+showTreeWithNE hang wide t
+  | hang      = (showsTreeHangNE wide [] t) ""
+  | otherwise = (showsTreeNE wide [] [] t) ""
+
 showsTree :: Show a => Bool -> [String] -> [String] -> Set a -> ShowS
 showsTree wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      NE (Bin' _ x Tip Tip)
+      NE ne -> showsTreeNE wide lbars rbars ne
+
+showsTreeNE :: Show a => Bool -> [String] -> [String] -> NonEmptySet a -> ShowS
+showsTreeNE wide lbars rbars t
+  = case t of
+      Bin' _ x Tip Tip
           -> showsBars lbars . shows x . showString "\n"
-      NE (Bin' _ x l r)
+      Bin' _ x l r
           -> showsTree wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . shows x . showString "\n" .
@@ -2299,9 +2313,14 @@ showsTreeHang :: Show a => Bool -> [String] -> Set a -> ShowS
 showsTreeHang wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n"
-      NE (Bin' _ x Tip Tip)
+      NE ne -> showsTreeHangNE wide bars ne
+
+showsTreeHangNE :: Show a => Bool -> [String] -> NonEmptySet a -> ShowS
+showsTreeHangNE wide bars t
+  = case t of
+      Bin' _ x Tip Tip
           -> showsBars bars . shows x . showString "\n"
-      NE (Bin' _ x l r)
+      Bin' _ x l r
           -> showsBars bars . shows x . showString "\n" .
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
