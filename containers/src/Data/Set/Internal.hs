@@ -861,7 +861,7 @@ partition p0 t0 = toPair $ go p0 t0
 -- | /O(n*log n)/.
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
 --
--- It's worth noting that the size of the result may be smaller if,
+-- It's worth nothing that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
 map :: Ord b => (a->b) -> Set a -> Set b

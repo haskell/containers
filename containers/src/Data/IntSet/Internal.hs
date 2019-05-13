@@ -905,7 +905,7 @@ deleteMax = maybe Nil snd . maxView
 -- | /O(n*min(n,W))/.
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
 --
--- It's worth noting that the size of the result may be smaller if,
+-- It's worth nothing that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
 map :: (Key -> Key) -> IntSet -> IntSet
