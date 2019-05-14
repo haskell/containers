@@ -143,6 +143,7 @@ main = defaultMain
        , testProperty "<*> NOINLINE" prop_ap_NOINLINE
        , testProperty "liftA2" prop_liftA2
        , testProperty "*>" prop_then
+       , testProperty "<*" prop_after
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
@@ -842,6 +843,10 @@ prop_liftA2 xs ys = valid q .&&.
 prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =
     toList' (xs *> ys) ~= (toList xs *> toList ys)
+
+prop_after :: Seq A -> Seq B -> Bool
+prop_after xs ys =
+    toList' (xs <* ys) ~= (toList xs <* toList ys)
 
 prop_intersperse :: A -> Seq A -> Bool
 prop_intersperse x xs =
