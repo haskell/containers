@@ -138,6 +138,11 @@ main = do
          , bench "nf2500/100/ff" $
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (2500,100)
          ]
+      , bgroup "<*"
+        [ bench "10/10" $ nf (uncurry (<*)) (s10,s10)
+        , bench "1000/10" $ nf (uncurry (<*)) (s1000,s10)
+        , bench "10/1000" $ nf (uncurry (<*)) (s10,s1000)
+        ]
       , bgroup "sort"
          [ bgroup "already sorted"
             [ bench "10" $ nf S.sort s10
