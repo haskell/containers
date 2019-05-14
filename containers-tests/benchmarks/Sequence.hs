@@ -142,6 +142,9 @@ main = do
         [ bench "10/10" $ nf (uncurry (<*)) (s10,s10)
         , bench "1000/10" $ nf (uncurry (<*)) (s1000,s10)
         , bench "10/1000" $ nf (uncurry (<*)) (s10,s1000)
+        , bench "10000/10" $ nf (uncurry (<*)) (s10000,s10)
+        , bench "10/10000" $ nf (uncurry (<*)) (s10,s10000)
+        , bench "1000/1000" $ nf (uncurry (<*)) (s1000,s1000)
         ]
       , bgroup "sort"
          [ bgroup "already sorted"
