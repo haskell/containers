@@ -148,6 +148,7 @@ module Data.Set.Internal (
             , singleton
             , insert
             , delete
+            , alterF
             , powerSet
 
             -- * Combine
@@ -597,23 +598,31 @@ delete = go
 data AlterResult = Inserted | Changed | Deleted
 
 alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
-alterF f x0 origs = go x0 x0 origs (\x _ -> x)
+alterF f0 x0 origs0 = go f0 x0 origs0 x0 origs0 (\x _ -> x)
   where
-    go orig !_ Tip k = fmap k' (f False)
+    go :: (Ord a, Functor f)
+       => (Bool -> f Bool)
+       -> a
+       -> Set a
+       -> a
+       -> Set a
+       -> (Set a -> AlterResult -> Set a)
+       -> f (Set a)
+    go f orig origs !_ Tip k = fmap k' (f False)
       where
         k' False = origs
         k' True = k (singleton (lazy orig)) Inserted
-    go orig !x t@(Bin sz y l r) k = case compare x y of
-        LT -> go orig x l k'
+    go f orig origs !x (Bin sz y l r) k = case compare x y of
+        LT -> go f orig origs x l k'
           where
             k' !l' Inserted = k (balanceL y l' r) Inserted
-            k' !l' Deleted = k (balanceR y l' r) Deleted
-            k' !l' Changed = k (Bin sz y l' r) Changed
-        GT -> go orig x r k'
+            k' !l' Deleted  = k (balanceR y l' r) Deleted
+            k' !l' Changed  = k (Bin sz y l' r) Changed
+        GT -> go f orig origs x r k'
           where
             k' !r' Inserted = k (balanceR y l r') Inserted
-            k' !r' Deleted = k (balanceL y l r') Deleted
-            k' !r' Changed = k (Bin sz y l r') Changed
+            k' !r' Deleted  = k (balanceL y l r') Deleted
+            k' !r' Changed  = k (Bin sz y l r') Changed
         EQ -> fmap k' (f True)
           where
             k' True | lazy orig `seq` (orig `ptrEq` y) = origs
