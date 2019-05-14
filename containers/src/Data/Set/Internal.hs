@@ -594,6 +594,32 @@ delete = go
 {-# INLINE delete #-}
 #endif
 
+data AlterResult = Inserted | Changed | Deleted
+
+alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
+alterF f x0 origs = go x0 x0 origs (\x _ -> x)
+  where
+    go orig !_ Tip k = fmap k' (f False)
+      where
+        k' False = origs
+        k' True = k (singleton (lazy orig)) Inserted
+    go orig !x t@(Bin sz y l r) k = case compare x y of
+        LT -> go orig x l k'
+          where
+            k' !l' Inserted = k (balanceL y l' r) Inserted
+            k' !l' Deleted = k (balanceR y l' r) Deleted
+            k' !l' Changed = k (Bin sz y l' r) Changed
+        GT -> go orig x r k'
+          where
+            k' !r' Inserted = k (balanceR y l r') Inserted
+            k' !r' Deleted = k (balanceL y l r') Deleted
+            k' !r' Changed = k (Bin sz y l r') Changed
+        EQ -> fmap k' (f True)
+          where
+            k' True | lazy orig `seq` (orig `ptrEq` y) = origs
+                    | otherwise = k (Bin sz (lazy orig) l r) Changed
+            k' False = k (glue l r) Deleted
+
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}

@@ -88,6 +88,9 @@ module Data.Set (
             -- * Deletion
             , delete
 
+            -- * Alter
+            , alterF
+
             -- * Query
             , member
             , notMember
