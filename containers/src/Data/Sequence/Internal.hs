@@ -511,6 +511,9 @@ instance Applicative Seq where
     pure = singleton
     xs *> ys = cycleNTimes (length xs) ys
     (<*>) = apSeq
+    xs <* ys = xs >>= replicate n
+      where
+        !n = length ys
 #if MIN_VERSION_base(4,10,0)
     liftA2 = liftA2Seq
 #endif
