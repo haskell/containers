@@ -4164,10 +4164,13 @@ instance (Ord k, Read k) => Read1 (Map k) where
   Functor
 --------------------------------------------------------------------}
 instance Functor (Map k) where
-  fmap f m  = map f m
+  fmap = map
+  {-# INLINE fmap #-}
 #ifdef __GLASGOW_HASKELL__
-  _ <$ Tip = Tip
-  a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
+  (<$) a = go
+    where
+      go Tip = Tip
+      go (Bin sx kx _ l r) = Bin sx kx a (go l) (go r)
 #endif
 
 -- | Traverses in order of increasing key.
