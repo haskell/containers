@@ -67,6 +67,7 @@ module Data.Graph (
     , dfs
     , dff
     , topSort
+    , revTopSort
     , components
     , scc
     , bcc
@@ -616,6 +617,10 @@ postOrd g = postorderF (dff g) []
 -- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
 topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
+
+-- | Reverse ordering of `topSort`.
+revTopSort      :: Graph -> [Vertex]
+revTopSort       = postOrd
 
 ------------------------------------------------------------
 -- Algorithm 3: connected components
