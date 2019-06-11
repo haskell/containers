@@ -60,9 +60,9 @@ showsTree :: (k -> a -> String) -> Bool -> [String] -> [String] -> Map k a -> Sh
 showsTree showelem wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      NE (Bin _ kx x Tip Tip)
+      NE (Bin' _ kx x Tip Tip)
           -> showsBars lbars . showString (showelem kx x) . showString "\n"
-      NE (Bin _ kx x l r)
+      NE (Bin' _ kx x l r)
           -> showsTree showelem wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . showString (showelem kx x) . showString "\n" .
@@ -73,9 +73,9 @@ showsTreeHang :: (k -> a -> String) -> Bool -> [String] -> Map k a -> ShowS
 showsTreeHang showelem wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n"
-      NE (Bin _ kx x Tip Tip)
+      NE (Bin' _ kx x Tip Tip)
           -> showsBars bars . showString (showelem kx x) . showString "\n"
-      NE (Bin _ kx x l r)
+      NE (Bin' _ kx x l r)
           -> showsBars bars . showString (showelem kx x) . showString "\n" .
              showWide wide bars .
              showsTreeHang showelem wide (withBar bars) l .
@@ -120,7 +120,7 @@ ordered t
     bounded lo hi t'
       = case t' of
           Tip -> True
-          NE (Bin _ kx _ l r)
+          NE (Bin' _ kx _ l r)
               -> (lo kx) && (hi kx) && bounded lo (<kx) l && bounded (>kx) hi r
 
 -- | Test if a map obeys the balance invariants.
@@ -129,7 +129,7 @@ balanced t
   = case t of
       Tip
           -> True
-      NE (Bin _ _ _ l r)
+      NE (Bin' _ _ _ l r)
         -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
                         balanced l && balanced r
 
@@ -140,7 +140,7 @@ validsize t = case slowSize t of
       Just _ -> True
   where
     slowSize Tip = Just 0
-    slowSize (NE (Bin sz _ _ l r)) = do
+    slowSize (NE (Bin' sz _ _ l r)) = do
             ls <- slowSize l
             rs <- slowSize r
             guard (sz == ls + rs + 1)

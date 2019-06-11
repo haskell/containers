@@ -475,7 +475,7 @@ findWithDefault :: Ord k => a -> k -> Map k a -> a
 findWithDefault def k = k `seq` go
   where
     go Tip = def
-    go (NE (Bin _ kx x l r)) = case compare k kx of
+    go (NE (Bin' _ kx x l r)) = case compare k kx of
       LT -> go l
       GT -> go r
       EQ -> x
@@ -495,7 +495,7 @@ findWithDefault def k = k `seq` go
 -- > size (singleton 1 'a') == 1
 
 singleton :: k -> a -> Map k a
-singleton k x = x `seq` NE (Bin 1 k x Tip Tip)
+singleton k x = x `seq` NE (Bin' 1 k x Tip Tip)
 {-# INLINE singleton #-}
 
 {--------------------------------------------------------------------
@@ -516,11 +516,11 @@ insert = go
   where
     go :: Ord k => k -> a -> Map k a -> Map k a
     go !kx !x Tip = singleton kx x
-    go kx x (NE (Bin sz ky y l r)) =
+    go kx x (NE (Bin' sz ky y l r)) =
         case compare kx ky of
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
-            EQ -> NE $ Bin sz kx x l r
+            EQ -> NE $ Bin' sz kx x l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
@@ -542,11 +542,11 @@ insertWith = go
   where
     go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
     go _ !kx x Tip = singleton kx x
-    go f !kx x (NE (Bin sy ky y l r)) =
+    go f !kx x (NE (Bin' sy ky y l r)) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
-            EQ -> let !y' = f x y in NE $ Bin sy kx y' l r
+            EQ -> let !y' = f x y in NE $ Bin' sy kx y' l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
 #else
@@ -558,11 +558,11 @@ insertWithR = go
   where
     go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
     go _ !kx x Tip = singleton kx x
-    go f !kx x (NE (Bin sy ky y l r)) =
+    go f !kx x (NE (Bin' sy ky y l r)) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
-            EQ -> let !y' = f y x in NE $ Bin sy ky y' l r
+            EQ -> let !y' = f y x in NE $ Bin' sy ky y' l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithR #-}
 #else
@@ -589,12 +589,12 @@ insertWithKey = go
     -- Forcing `kx` may look redundant, but it's possible `compare` will
     -- be lazy.
     go _ !kx x Tip = singleton kx x
-    go f kx x (NE (Bin sy ky y l r)) =
+    go f kx x (NE (Bin' sy ky y l r)) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !x' = f kx x y
-                  in NE $ Bin sy kx x' l r
+                  in NE $ Bin' sy kx x' l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey #-}
 #else
@@ -608,12 +608,12 @@ insertWithKeyR = go
     -- Forcing `kx` may look redundant, but it's possible `compare` will
     -- be lazy.
     go _ !kx x Tip = singleton kx x
-    go f kx x (NE (Bin sy ky y l r)) =
+    go f kx x (NE (Bin' sy ky y l r)) =
         case compare kx ky of
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !y' = f ky y x
-                  in NE $ Bin sy ky y' l r
+                  in NE $ Bin' sy ky y' l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKeyR #-}
 #else
@@ -643,14 +643,14 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
   where
     go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
     go _ !kx x Tip = Nothing :*: singleton kx x
-    go f kx x (NE (Bin sy ky y l r)) =
+    go f kx x (NE (Bin' sy ky y l r)) =
         case compare kx ky of
             LT -> let (found :*: l') = go f kx x l
                   in found :*: balanceL ky y l' r
             GT -> let (found :*: r') = go f kx x r
                   in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
-                  in x' `seq` (Just y :*: NE (Bin sy kx x' l r))
+                  in x' `seq` (Just y :*: NE (Bin' sy kx x' l r))
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey #-}
 #else
@@ -690,11 +690,11 @@ adjustWithKey = go
   where
     go :: Ord k => (k -> a -> a) -> k -> Map k a -> Map k a
     go _ !_ Tip = Tip
-    go f k (NE (Bin sx kx x l r)) =
+    go f k (NE (Bin' sx kx x l r)) =
         case compare k kx of
-           LT -> NE $ Bin sx kx x (go f k l) r
-           GT -> NE $ Bin sx kx x l (go f k r)
-           EQ -> NE $ Bin sx kx x' l r
+           LT -> NE $ Bin' sx kx x (go f k l) r
+           GT -> NE $ Bin' sx kx x l (go f k r)
+           EQ -> NE $ Bin' sx kx x' l r
              where !x' = f kx x
 #if __GLASGOW_HASKELL__
 {-# INLINABLE adjustWithKey #-}
@@ -735,12 +735,12 @@ updateWithKey = go
   where
     go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> Map k a
     go _ !_ Tip = Tip
-    go f k(NE (Bin sx kx x l r)) =
+    go f k(NE (Bin' sx kx x l r)) =
         case compare k kx of
            LT -> balanceR kx x (go f k l) r
            GT -> balanceL kx x l (go f k r)
            EQ -> case f kx x of
-                   Just x' -> x' `seq` NE (Bin sx kx x' l r)
+                   Just x' -> x' `seq` NE (Bin' sx kx x' l r)
                    Nothing -> glue l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE updateWithKey #-}
@@ -763,14 +763,14 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
  where
    go :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> StrictPair (Maybe a) (Map k a)
    go _ !_ Tip = (Nothing :*: Tip)
-   go f k (NE (Bin sx kx x l r)) =
+   go f k (NE (Bin' sx kx x l r)) =
           case compare k kx of
                LT -> let (found :*: l') = go f k l
                      in found :*: balanceR kx x l' r
                GT -> let (found :*: r') = go f k r
                      in found :*: balanceL kx x l r'
                EQ -> case f kx x of
-                       Just x' -> x' `seq` (Just x' :*: NE (Bin sx kx x' l r))
+                       Just x' -> x' `seq` (Just x' :*: NE (Bin' sx kx x' l r))
                        Nothing -> (Just x :*: glue l r)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE updateLookupWithKey #-}
@@ -799,11 +799,11 @@ alter = go
                Nothing -> Tip
                Just x  -> singleton k x
 
-    go f k (NE (Bin sx kx x l r)) = case compare k kx of
+    go f k (NE (Bin' sx kx x l r)) = case compare k kx of
                LT -> balance kx x (go f k l) r
                GT -> balance kx x l (go f k r)
                EQ -> case f (Just x) of
-                       Just x' -> x' `seq` NE (Bin sx kx x' l r)
+                       Just x' -> x' `seq` NE (Bin' sx kx x' l r)
                        Nothing -> glue l r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE alter #-}
@@ -896,11 +896,11 @@ updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f i t = i `seq`
   case t of
     Tip -> error "Map.updateAt: index out of range"
-    NE (Bin sx kx x l r) -> case compare i sizeL of
+    NE (Bin' sx kx x l r) -> case compare i sizeL of
       LT -> balanceR kx x (updateAt f i l) r
       GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
       EQ -> case f kx x of
-              Just x' -> x' `seq` NE (Bin sx kx x' l r)
+              Just x' -> x' `seq` NE (Bin' sx kx x' l r)
               Nothing -> glue l r
       where
         sizeL = size l
@@ -935,10 +935,10 @@ updateMax f m
 
 updateMinWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMinWithKey _ Tip                               = Tip
-updateMinWithKey f (NE (Bin sx kx x Tip r)) = case f kx x of
+updateMinWithKey f (NE (Bin' sx kx x Tip r)) = case f kx x of
     Nothing -> r
-    Just x' -> x' `seq` NE (Bin sx kx x' Tip r)
-updateMinWithKey f (NE (Bin _ kx x l r)) = balanceR kx x (updateMinWithKey f l) r
+    Just x' -> x' `seq` NE (Bin' sx kx x' Tip r)
+updateMinWithKey f (NE (Bin' _ kx x l r)) = balanceR kx x (updateMinWithKey f l) r
 
 -- | /O(log n)/. Update the value at the maximal key.
 --
@@ -947,10 +947,10 @@ updateMinWithKey f (NE (Bin _ kx x l r)) = balanceR kx x (updateMinWithKey f l) 
 
 updateMaxWithKey :: (k -> a -> Maybe a) -> Map k a -> Map k a
 updateMaxWithKey _ Tip = Tip
-updateMaxWithKey f (NE (Bin sx kx x l Tip)) = case f kx x of
+updateMaxWithKey f (NE (Bin' sx kx x l Tip)) = case f kx x of
   Nothing -> l
-  Just x' -> x' `seq` NE (Bin sx kx x' l Tip)
-updateMaxWithKey f (NE (Bin _ kx x l r)) = balanceL kx x l (updateMaxWithKey f r)
+  Just x' -> x' `seq` NE (Bin' sx kx x' l Tip)
+updateMaxWithKey f (NE (Bin' _ kx x l r)) = balanceL kx x l (updateMaxWithKey f r)
 
 {--------------------------------------------------------------------
   Union.
@@ -978,10 +978,10 @@ unionsWith f ts
 
 unionWith :: Ord k => (a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWith _f t1 Tip = t1
-unionWith f t1 (NE (Bin _ k x Tip Tip)) = insertWithR f k x t1
-unionWith f (NE (Bin _ k x Tip Tip)) t2 = insertWith f k x t2
+unionWith f t1 (NE (Bin' _ k x Tip Tip)) = insertWithR f k x t1
+unionWith f (NE (Bin' _ k x Tip Tip)) t2 = insertWith f k x t2
 unionWith _f Tip t2 = t2
-unionWith f (NE (Bin _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
+unionWith f (NE (Bin' _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
   (l2, mb, r2) -> link k1 x1' (unionWith f l1 l2) (unionWith f r1 r2)
     where !x1' = maybe x1 (f x1) mb
 #if __GLASGOW_HASKELL__
@@ -996,10 +996,10 @@ unionWith f (NE (Bin _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
 
 unionWithKey :: Ord k => (k -> a -> a -> a) -> Map k a -> Map k a -> Map k a
 unionWithKey _f t1 Tip = t1
-unionWithKey f t1 (NE (Bin _ k x Tip Tip)) = insertWithKeyR f k x t1
-unionWithKey f (NE (Bin _ k x Tip Tip)) t2 = insertWithKey f k x t2
+unionWithKey f t1 (NE (Bin' _ k x Tip Tip)) = insertWithKeyR f k x t1
+unionWithKey f (NE (Bin' _ k x Tip Tip)) t2 = insertWithKey f k x t2
 unionWithKey _f Tip t2 = t2
-unionWithKey f (NE (Bin _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
+unionWithKey f (NE (Bin' _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
   (l2, mb, r2) -> link k1 x1' (unionWithKey f l1 l2) (unionWithKey f r1 r2)
     where !x1' = maybe x1 (f k1 x1) mb
 #if __GLASGOW_HASKELL__
@@ -1053,7 +1053,7 @@ differenceWithKey f = merge preserveMissing dropMissing (zipWithMaybeMatched f)
 intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWith _f Tip _ = Tip
 intersectionWith _f _ Tip = Tip
-intersectionWith f (NE (Bin _ k x1 l1 r1)) t2 = case mb of
+intersectionWith f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
     Just x2 -> let !x1' = f x1 x2 in link k x1' l1l2 r1r2
     Nothing -> link2 l1l2 r1r2
   where
@@ -1072,7 +1072,7 @@ intersectionWith f (NE (Bin _ k x1 l1 r1)) t2 = case mb of
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey _f Tip _ = Tip
 intersectionWithKey _f _ Tip = Tip
-intersectionWithKey f (NE (Bin _ k x1 l1 r1)) t2 = case mb of
+intersectionWithKey f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
     Just x2 -> let !x1' = f k x1 x2 in link k x1' l1l2 r1r2
     Nothing -> link2 l1l2 r1r2
   where
@@ -1245,11 +1245,11 @@ mergeWithKey f g1 g2 = go
   where
     go Tip t2 = g2 t2
     go t1 Tip = g1 t1
-    go (NE (Bin _ kx x l1 r1)) t2 =
+    go (NE (Bin' _ kx x l1 r1)) t2 =
       case found of
         Nothing -> case g1 (singleton kx x) of
                      Tip -> link2 l' r'
-                     (NE (Bin _ _ x' Tip Tip)) -> link kx x' l' r'
+                     (NE (Bin' _ _ x' Tip Tip)) -> link kx x' l' r'
                      _ -> error "mergeWithKey: Given function only1 does not fulfill required conditions (see documentation)"
         Just x2 -> case f kx x x2 of
                      Nothing -> link2 l' r'
@@ -1279,7 +1279,7 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
-mapMaybeWithKey f (NE (Bin _ kx x l r)) = case f kx x of
+mapMaybeWithKey f (NE (Bin' _ kx x l r)) = case f kx x of
   Just y  -> y `seq` link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
 
@@ -1292,8 +1292,8 @@ traverseMaybeWithKey :: Applicative f
 traverseMaybeWithKey = go
   where
     go _ Tip = pure Tip
-    go f (NE (Bin _ kx x Tip Tip)) = maybe Tip (\ !x' -> NE $ Bin 1 kx x' Tip Tip) <$> f kx x
-    go f (NE (Bin _ kx x l r)) = liftA3 combine (go f l) (f kx x) (go f r)
+    go f (NE (Bin' _ kx x Tip Tip)) = maybe Tip (\ !x' -> NE $ Bin' 1 kx x' Tip Tip) <$> f kx x
+    go f (NE (Bin' _ kx x l r)) = liftA3 combine (go f l) (f kx x) (go f r)
       where
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
@@ -1325,7 +1325,7 @@ mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
     go _ Tip = (Tip :*: Tip)
-    go f (NE (Bin _ kx x l r)) = case f kx x of
+    go f (NE (Bin' _ kx x l r)) = case f kx x of
       Left y  -> y `seq` (link kx y l1 r1 :*: link2 l2 r2)
       Right z -> z `seq` (link2 l1 r1 :*: link kx z l2 r2)
      where
@@ -1343,7 +1343,7 @@ map :: (a -> b) -> Map k a -> Map k b
 map f = go
   where
     go Tip = Tip
-    go (NE (Bin sx kx x l r)) = let !x' = f x in NE $ Bin sx kx x' (go l) (go r)
+    go (NE (Bin' sx kx x l r)) = let !x' = f x in NE $ Bin' sx kx x' (go l) (go r)
 -- We use `go` to let `map` inline. This is important if `f` is a constant
 -- function.
 
@@ -1362,9 +1362,9 @@ map f = go
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
-mapWithKey f (NE (Bin sx kx x l r)) =
+mapWithKey f (NE (Bin' sx kx x l r)) =
   let x' = f kx x
-  in x' `seq` NE $ Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
+  in x' `seq` NE $ Bin' sx kx x' (mapWithKey f l) (mapWithKey f r)
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] mapWithKey #-}
@@ -1396,8 +1396,8 @@ traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
 traverseWithKey f = go
   where
     go Tip = pure Tip
-    go (NE (Bin 1 k v _ _)) = (\ !v' -> NE $ Bin 1 k v' Tip Tip) <$> f k v
-    go (NE (Bin s k v l r)) = liftA3 (\ l' !v' r' -> NE $ Bin s k v' l' r') (go l) (f k v) (go r)
+    go (NE (Bin' 1 k v _ _)) = (\ !v' -> NE $ Bin' 1 k v' Tip Tip) <$> f k v
+    go (NE (Bin' s k v l r)) = liftA3 (\ l' !v' r' -> NE $ Bin' s k v' l' r') (go l) (f k v) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
@@ -1424,21 +1424,21 @@ mapAccumWithKey f a t
 -- argument through the map in ascending order of keys.
 mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumL _ a Tip                             = (a,Tip)
-mapAccumL f a (NE (Bin sx kx x l r)) =
+mapAccumL f a (NE (Bin' sx kx x l r)) =
   let (a1,l') = mapAccumL f a l
       (a2,x') = f a1 kx x
       (a3,r') = mapAccumL f a2 r
-  in x' `seq` (a3, NE $ Bin sx kx x' l' r')
+  in x' `seq` (a3, NE $ Bin' sx kx x' l' r')
 
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
-mapAccumRWithKey f a (NE (Bin sx kx x l r)) =
+mapAccumRWithKey f a (NE (Bin' sx kx x l r)) =
   let (a1,r') = mapAccumRWithKey f a r
       (a2,x') = f a1 kx x
       (a3,l') = mapAccumRWithKey f a2 l
-  in x' `seq` (a3, NE $ Bin sx kx x' l' r')
+  in x' `seq` (a3, NE $ Bin' sx kx x' l' r')
 
 -- | /O(n*log n)/.
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -1470,7 +1470,7 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
 fromSet f (Set.NE (Set.Bin' sz x l r)) = case f x of
-  v -> v `seq` NE (Bin sz x v (fromSet f l) (fromSet f r))
+  v -> v `seq` NE (Bin' sz x v (fromSet f l) (fromSet f r))
 
 {--------------------------------------------------------------------
   Lists
@@ -1490,9 +1490,9 @@ fromSet f (Set.NE (Set.Bin' sz x l r)) = case f x of
 -- create, it is not inlined, so we inline it manually.
 fromList :: Ord k => [(k,a)] -> Map k a
 fromList [] = Tip
-fromList [(kx, x)] = x `seq` NE (Bin 1 kx x Tip Tip)
-fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (NE $ Bin 1 kx0 x0 Tip Tip) xs0
-                           | otherwise = x0 `seq` go (1::Int) (NE $ Bin 1 kx0 x0 Tip Tip) xs0
+fromList [(kx, x)] = x `seq` NE (Bin' 1 kx x Tip Tip)
+fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (NE $ Bin' 1 kx0 x0 Tip Tip) xs0
+                           | otherwise = x0 `seq` go (1::Int) (NE $ Bin' 1 kx0 x0 Tip Tip) xs0
   where
     not_ordered _ [] = False
     not_ordered kx ((ky,_) : _) = kx >= ky
@@ -1515,8 +1515,8 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (NE $ Bin 
     -- ordered so far.
     create !_ [] = (Tip, [], [])
     create s xs@(xp : xss)
-      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> x `seq` (NE $ Bin 1 kx x Tip Tip, [], xss)
-                                    | otherwise -> x `seq` (NE $ Bin 1 kx x Tip Tip, xss, [])
+      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> x `seq` (NE $ Bin' 1 kx x Tip Tip, [], xss)
+                                    | otherwise -> x `seq` (NE $ Bin' 1 kx x Tip Tip, xss, [])
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, [], _) -> res
                       (l, [(ky, y)], zs) -> y `seq` (insertMax ky y l, [], zs)
@@ -1689,7 +1689,7 @@ fromDescListWithKey f xs
 -- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList [] = Tip
-fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE $ Bin 1 kx0 x0 Tip Tip) xs0
+fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE $ Bin' 1 kx0 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s l ((kx, x) : xs) =
@@ -1699,7 +1699,7 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE $ Bin 1 kx0 x0 
 
     create !_ [] = (Tip :*: [])
     create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (NE (Bin 1 kx x Tip Tip) :*: xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (NE (Bin' 1 kx x Tip Tip) :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_ :*: []) -> res
                       (l :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
@@ -1716,7 +1716,7 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE $ Bin 1 kx0 x0 
 -- create, it is not inlined, so we inline it manually.
 fromDistinctDescList :: [(k,a)] -> Map k a
 fromDistinctDescList [] = Tip
-fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE (Bin 1 kx0 x0 Tip Tip)) xs0
+fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE (Bin' 1 kx0 x0 Tip Tip)) xs0
   where
     go !_ t [] = t
     go s r ((kx, x) : xs) =
@@ -1726,7 +1726,7 @@ fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (NE (Bin 1 kx0 x0 
 
     create !_ [] = (Tip :*: [])
     create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (NE (Bin 1 kx x Tip Tip) :*: xs')
+      | s == 1 = case x' of (kx, x) -> x `seq` (NE (Bin' 1 kx x Tip Tip) :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_ :*: []) -> res
                       (r :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
