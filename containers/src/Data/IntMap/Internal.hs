@@ -90,6 +90,7 @@ module Data.IntMap.Internal (
     , lookupGT
     , lookupLE
     , lookupGE
+    , disjoint
 
     -- * Construction
     , empty
@@ -372,7 +373,7 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 --            two keys of the map differ.
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
--- Invariant: In Bin prefix mask left right, left consists of the elements that
+-- Invariant: In (Bin prefix mask left right), left consists of the elements that
 --            don't have the mask bit set; right is all the elements that do.
               | Tip {-# UNPACK #-} !Key a
               | Nil
@@ -727,6 +728,42 @@ unsafeFindMax :: IntMap a -> Maybe (Key, a)
 unsafeFindMax Nil = Nothing
 unsafeFindMax (Tip ky y) = Just (ky, y)
 unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
+
+{--------------------------------------------------------------------
+  Disjoint
+--------------------------------------------------------------------}
+-- | /O(n+m)/. Check whether the key sets of two maps are disjoint
+-- (i.e. their intersection is empty).
+--
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,'a'), (2,'b')]) == False
+-- > disjoint (fromList [])        (fromList [])                 == True
+--
+-- > disjoint a b == null (intersection a b)
+--
+-- @since UNRELEASED
+disjoint :: IntMap a -> IntMap b -> Bool
+disjoint Nil _ = True
+disjoint _ Nil = True
+disjoint (Tip kx _) (Tip ky _) = kx /= ky
+disjoint (Tip k _) (Bin p m l r) | nomatch k p m = True
+                                 | zero k m      = notMember k l
+                                 | otherwise     = notMember k r
+disjoint (Bin p m l r) (Tip k _) | nomatch k p m = True
+                                 | zero k m      = notMember k l
+                                 | otherwise     = notMember k r
+disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+  | shorter m1 m2 = disjoint1
+  | shorter m2 m1 = disjoint2
+  | p1 == p2      = disjoint l1 l2 && disjoint r1 r2
+  | otherwise     = True
+  where
+    disjoint1 | nomatch p2 p1 m1 = True
+              | zero p2 m1       = disjoint l1 t2
+              | otherwise        = disjoint r1 t2
+    disjoint2 | nomatch p1 p2 m2 = True
+              | zero p1 m2       = disjoint t1 l2
+              | otherwise        = disjoint t1 r2
 
 {--------------------------------------------------------------------
   Construction

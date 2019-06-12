@@ -162,6 +162,9 @@ module Data.IntMap.Strict (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** Universal combining function
     , mergeWithKey
 
