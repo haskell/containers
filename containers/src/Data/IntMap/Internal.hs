@@ -733,7 +733,7 @@ unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
   Disjoint
 --------------------------------------------------------------------}
 -- | /O(n+m)/. Check whether the key sets of two maps are disjoint
--- (i.e. their intersection is empty).
+-- (i.e. their 'intersection' is empty).
 --
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,'a'), (2,'b')]) == False

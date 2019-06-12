@@ -2062,7 +2062,7 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
   Disjoint
 --------------------------------------------------------------------}
 -- | /O(m*log(n\/m + 1)), m <= n/. Check whether the key sets of two
--- maps are disjoint (i.e., their intersection is empty).
+-- maps are disjoint (i.e., their 'intersection' is empty).
 --
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,'a'), (2,'b')]) == False
