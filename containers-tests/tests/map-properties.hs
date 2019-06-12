@@ -172,6 +172,7 @@ main = defaultMain
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "disjoint"             prop_disjoint
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
@@ -1069,6 +1070,9 @@ prop_intersectionWithKeyModel xs ys
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
+
+prop_disjoint :: UMap -> UMap -> Property
+prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
 
 prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_mergeWithKeyModel xs ys
