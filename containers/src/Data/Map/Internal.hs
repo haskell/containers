@@ -2073,6 +2073,9 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 -- @
 --
 -- @since UNRELEASED
+
+-- See 'Data.Set.Internal.isSubsetOfX' for some background
+-- on the implementation design.
 disjoint :: Ord k => Map k a -> Map k b -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
