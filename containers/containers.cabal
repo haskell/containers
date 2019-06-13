@@ -34,7 +34,7 @@ source-repository head
 Library
     build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
     hs-source-dirs: src
-    ghc-options: -O2 -Wall
+    ghc-options: -O2 -Wall -Werror
 
     other-extensions: CPP, BangPatterns
 
