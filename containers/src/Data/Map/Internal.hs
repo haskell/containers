@@ -2562,8 +2562,8 @@ traverseMaybeMissing f = WhenMissing
 -- prop> unionWithKey f = merge preserveMissing preserveMissing (zipWithMatched f)
 -- prop> intersectionWithKey f = merge dropMissing dropMissing (zipWithMatched f)
 -- prop> differenceWith f = merge preserveMissing dropMissing (zipWithMatched f)
--- prop> symmetricDifference = merge preserveMissing preserveMissing (zipWithMatched $ \ _ _ _ -> Nothing)
--- prop> mapEachPiece f g h = merge (diffMapWithKey f) (diffMapWithKey g) (zipWithMatched h)
+-- prop> symmetricDifference = merge preserveMissing preserveMissing (zipWithMaybeMatched $ \ _ _ _ -> Nothing)
+-- prop> mapEachPiece f g h = merge (mapMissing f) (mapMissing g) (zipWithMatched h)
 --
 -- @since 0.5.9
 merge :: Ord k
