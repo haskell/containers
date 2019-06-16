@@ -743,6 +743,10 @@ unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
 --
 -- @since UNRELEASED
 disjoint :: IntMap a -> IntMap b -> Bool
+disjoint Nil _ = True
+disjoint _ Nil = True
+disjoint (Tip kx _) ys = notMember kx ys
+disjoint xs (Tip ky _) = notMember ky xs
 disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | shorter m1 m2 = disjoint1
   | shorter m2 m1 = disjoint2
@@ -755,10 +759,6 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
     disjoint2 | nomatch p1 p2 m2 = True
               | zero p1 m2       = disjoint t1 l2
               | otherwise        = disjoint t1 r2
-disjoint (Tip kx _) ys = notMember kx ys
-disjoint xs (Tip ky _) = notMember ky xs
-disjoint Nil _ = True
-disjoint _ Nil = True
 
 {--------------------------------------------------------------------
   Construction
