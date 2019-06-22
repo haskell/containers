@@ -1,13 +1,39 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.6.0.2?
+## 0.6.1.1
 
 * Fix Foldable instance for IntMap, which previously placed positively
   keyed entries before negatively keyed ones for `fold`, `foldMap`, and
   `traverse`.
 
+* Make strict `IntMap` merges strict.
+
+* Make `Data.IntMap.Merge.Strict` tactics (except `preserveMissing`)
+  strict.
+
+* Add a strict `Data.Map.Merge.Strict.preserveMissing'` tactic.
+
 * Make `stimes` for sequences work with 0 arguments, and make it more
   efficient.
+
+* Speed up `cartesianProduct` for `Data.Set`.
+
+* Speed up `Data.Set.isSubsetOf`, `Data.Map.isSubmapOf`, and `Data.Set.disjoint`.
+
+* Allow inlining for `Data.Sequence.traverseWithIndex`, making it faster
+  than `sequence` combined with `mapWithIndex`.
+
+* Produce more concise assembly from `maskW`. (Thanks, Mateusz Kowalczyk)
+
+* Use `countLeadingZeros` to implement `highestBitMask` (Thanks, Dmitry
+  Ivanov)
+
+* Improve documentation. (Thanks to jwaldmann, Yuji Yamamoto, David Sanders,
+  Alec Theriault, Vaibhav Sagar, Boro Sitnikovski, Morten Kolstad, Vados,
+  Benjamin Web, Chris Martin, Alexandre Esteves).
+
+* Clean up packaging and testing. (Thanks, David Eichmann, Simon Jakobi,
+  Oleg Grenrus, Andreas Klebinger)
 
 ## 0.6.0.1
 

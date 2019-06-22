@@ -38,7 +38,9 @@ module Utils.Containers.Internal.BitUtil
     , wordSize
     ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Data.Bits ((.|.), xor)
+#endif
 import Data.Bits (popCount, unsafeShiftL, unsafeShiftR
 #if MIN_VERSION_base(4,8,0)
     , countLeadingZeros
