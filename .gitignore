@@ -3,6 +3,7 @@
 *.o
 *.p_hi
 *.prof
+*.swo
 *.tix
 .hpc/
 /dist/*

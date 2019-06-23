@@ -159,6 +159,9 @@ module Data.IntMap.Strict.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** Universal combining function
     , mergeWithKey
 
@@ -296,6 +299,7 @@ import Data.IntMap.Internal
   , difference
   , elems
   , intersection
+  , disjoint
   , isProperSubmapOf
   , isProperSubmapOfBy
   , isSubmapOf
