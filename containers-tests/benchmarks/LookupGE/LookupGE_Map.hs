@@ -14,11 +14,11 @@ lookupGE2 :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupGE2 = go
   where
     go !_ Tip = Nothing
-    go !k (NE (Bin _ kx x l r)) =
+    go !k (NE (Bin' _ kx x l r)) =
         case compare k kx of
             LT -> case go k l of
                     Nothing -> Just (kx,x)
-                    ret -> ret
+                    ret     -> ret
             GT -> go k r
             EQ -> Just (kx,x)
 {-# INLINABLE lookupGE2 #-}
@@ -27,7 +27,7 @@ lookupGE3 :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupGE3 = go Nothing
   where
     go def !_ Tip = def
-    go def !k (NE (Bin _ kx x l r)) =
+    go def !k (NE (Bin' _ kx x l r)) =
         case compare k kx of
             LT -> go (Just (kx,x)) k l
             GT -> go def k r
@@ -38,13 +38,13 @@ lookupGE4 :: Ord k => k -> Map k a -> Maybe (k,a)
 lookupGE4 k = k `seq` goNothing
   where
     goNothing Tip = Nothing
-    goNothing (NE (Bin _ kx x l r)) = case compare k kx of
+    goNothing (NE (Bin' _ kx x l r)) = case compare k kx of
         LT -> goJust kx x l
         EQ -> Just (kx, x)
         GT -> goNothing r
 
     goJust ky y Tip = Just (ky, y)
-    goJust ky y (NE (Bin _ kx x l r)) = case compare k kx of
+    goJust ky y (NE (Bin' _ kx x l r)) = case compare k kx of
         LT -> goJust kx x l
         EQ -> Just (kx, x)
         GT -> goJust ky y r
@@ -55,9 +55,9 @@ lookupGE4 k = k `seq` goNothing
 -------------------------------------------------------------------------------
 
 findMinMaybe :: Map k a -> Maybe (k,a)
-findMinMaybe (NE (Bin _ kx x Tip _))  = Just (kx,x)
-findMinMaybe (NE (Bin _ _  _ l _))    = findMinMaybe l
-findMinMaybe Tip                               = Nothing
+findMinMaybe (NE (Bin' _ kx x Tip _)) = Just (kx,x)
+findMinMaybe (NE (Bin' _ _  _ l _))   = findMinMaybe l
+findMinMaybe Tip                      = Nothing
 
 #ifdef TESTING
 -------------------------------------------------------------------------------
