@@ -137,7 +137,7 @@ module Data.Map.Internal (
 #if __GLASGOW_HASKELL__ >= 708
     , pattern Bin
 #endif
-    , NonEmptyMap (..) -- instance Eq,Show,Read
+    , NonEmptyMap(..)  -- instance Eq,Show,Read
     , Size
 
     -- * Operators
@@ -146,18 +146,28 @@ module Data.Map.Internal (
     -- * Query
     , null
     , size
+    , sizeNE
     , member
+    , memberNE
     , notMember
+    , notMemberNE
     , lookup
+    , lookupNE
     , findWithDefault
+    , findWithDefaultNE
     , lookupLT
+    , lookupLTNE
     , lookupGT
+    , lookupGTNE
     , lookupLE
+    , lookupLENE
     , lookupGE
+    , lookupGENE
 
     -- * Construction
     , empty
     , singleton
+    , singletonNE
 
     -- ** Insertion
     , insert
@@ -553,10 +563,12 @@ null (NE (Bin' {})) = False
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
 
 size :: Map k a -> Int
-size Tip              = 0
-size (NE (Bin' sz _ _ _ _)) = sz
+size Tip     = 0
+size (NE ne) = sizeNE ne
 {-# INLINE size #-}
 
+sizeNE :: NonEmptyMap k a -> Int
+sizeNE (Bin' sz _ _ _ _) = sz
 
 -- | /O(log n)/. Lookup the value at a key in the map.
 --
@@ -587,36 +599,38 @@ size (NE (Bin' sz _ _ _ _)) = sz
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 lookup :: Ord k => k -> Map k a -> Maybe a
-lookup = go
-  where
-    go !_ Tip = Nothing
-    go k (NE (Bin' _ kx x l r)) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> Just x
+lookup !_ Tip = Nothing
+lookup k (NE ne) = lookupNE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookup #-}
 #else
 {-# INLINE lookup #-}
 #endif
 
+lookupNE :: Ord k => k -> NonEmptyMap k a -> Maybe a
+lookupNE k (Bin' _ kx x l r) = case compare k kx of
+  LT -> lookup k l
+  GT -> lookup k r
+  EQ -> Just x
+
 -- | /O(log n)/. Is the key a member of the map? See also 'notMember'.
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 member :: Ord k => k -> Map k a -> Bool
-member = go
-  where
-    go !_ Tip = False
-    go k (NE (Bin' _ kx _ l r)) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> True
+member !_ Tip = False
+member k (NE ne) = memberNE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
 #else
 {-# INLINE member #-}
 #endif
+
+memberNE :: Ord k => k -> NonEmptyMap k a -> Bool
+memberNE k (Bin' _ kx _ l r) = case compare k kx of
+  LT -> member k l
+  GT -> member k r
+  EQ -> True
 
 -- | /O(log n)/. Is the key not a member of the map? See also 'member'.
 --
@@ -631,21 +645,25 @@ notMember k m = not $ member k m
 {-# INLINE notMember #-}
 #endif
 
+notMemberNE :: Ord k => k -> NonEmptyMap k a -> Bool
+notMemberNE k m = not $ memberNE k m
+
 -- | /O(log n)/. Find the value at a key.
 -- Calls 'error' when the element can not be found.
 find :: Ord k => k -> Map k a -> a
-find = go
-  where
-    go !_ Tip = error "Map.!: given key is not an element in the map"
-    go k (NE (Bin' _ kx x l r)) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> x
+find !_ Tip = error "Map.!: given key is not an element in the map"
+find k (NE ne) = findNE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE find #-}
 #else
 {-# INLINE find #-}
 #endif
+
+findNE :: Ord k => k -> NonEmptyMap k a -> a
+findNE k (Bin' _ kx x l r) = case compare k kx of
+  LT -> find k l
+  GT -> find k r
+  EQ -> x
 
 -- | /O(log n)/. The expression @('findWithDefault' def k map)@ returns
 -- the value at key @k@ or returns default value @def@
@@ -654,18 +672,19 @@ find = go
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault = go
-  where
-    go def !_ Tip = def
-    go def k (NE (Bin' _ kx x l r)) = case compare k kx of
-      LT -> go def k l
-      GT -> go def k r
-      EQ -> x
+findWithDefault def !_ Tip = def
+findWithDefault def k (NE ne) = findWithDefaultNE def k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE findWithDefault #-}
 #else
 {-# INLINE findWithDefault #-}
 #endif
+
+findWithDefaultNE :: Ord k => a -> k -> NonEmptyMap k a -> a
+findWithDefaultNE def k (Bin' _ kx x l r) = case compare k kx of
+  LT -> findWithDefault def k l
+  GT -> findWithDefault def k r
+  EQ -> x
 
 -- | /O(log n)/. Find largest key smaller than the given one and return the
 -- corresponding (key, value) pair.
@@ -673,20 +692,21 @@ findWithDefault = go
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 lookupLT :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupLT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing k (NE (Bin' _ kx x l r)) | k <= kx = goNothing k l
-                                 | otherwise = goJust k kx x r
-
-    goJust !_ kx' x' Tip = Just (kx', x')
-    goJust k kx' x' (NE (Bin' _ kx x l r)) | k <= kx = goJust k kx' x' l
-                                     | otherwise = goJust k kx x r
+lookupLT !_ Tip = Nothing
+lookupLT k (NE ne) = lookupLTNE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
 #else
 {-# INLINE lookupLT #-}
 #endif
+
+lookupLTNE :: Ord k => k -> NonEmptyMap k v -> Maybe (k, v)
+lookupLTNE k (Bin' _ kx x l r) | k <= kx = lookupLT k l
+                               | otherwise = go kx x r
+  where
+    go kx' x' Tip = Just (kx', x')
+    go kx' x' (NE (Bin' _ ky y l' r')) | k <= ky = go kx' x' l'
+                                       | otherwise = go ky y r'
 
 -- | /O(log n)/. Find smallest key greater than the given one and return the
 -- corresponding (key, value) pair.
@@ -694,20 +714,21 @@ lookupLT = goNothing
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
 lookupGT :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupGT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing k (NE (Bin' _ kx x l r)) | k < kx = goJust k kx x l
-                                 | otherwise = goNothing k r
-
-    goJust !_ kx' x' Tip = Just (kx', x')
-    goJust k kx' x' (NE (Bin' _ kx x l r)) | k < kx = goJust k kx x l
-                                     | otherwise = goJust k kx' x' r
+lookupGT !_ Tip = Nothing
+lookupGT k (NE ne) = lookupGTNE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
 #else
 {-# INLINE lookupGT #-}
 #endif
+
+lookupGTNE :: Ord k => k -> NonEmptyMap k v -> Maybe (k, v)
+lookupGTNE k (Bin' _ kx x l r) | k < kx = go kx x l
+                               | otherwise = lookupGT k r
+  where
+    go kx' x' Tip = Just (kx', x')
+    go kx' x' (NE (Bin' _ ky y l' r')) | k < ky = go ky y l'
+                                       | otherwise = go kx' x' r'
 
 -- | /O(log n)/. Find largest key smaller or equal to the given one and return
 -- the corresponding (key, value) pair.
@@ -716,24 +737,25 @@ lookupGT = goNothing
 -- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 lookupLE :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupLE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing k (NE (Bin' _ kx x l r)) = case compare k kx of
-        LT -> goNothing k l
-        EQ -> Just (kx, x)
-        GT -> goJust k kx x r
-
-    goJust !_ kx' x' Tip = Just (kx', x')
-    goJust k kx' x' (NE (Bin' _ kx x l r)) = case compare k kx of
-        LT -> goJust k kx' x' l
-        EQ -> Just (kx, x)
-        GT -> goJust k kx x r
+lookupLE !_ Tip = Nothing
+lookupLE k (NE ne) = lookupLENE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
 #else
 {-# INLINE lookupLE #-}
 #endif
+
+lookupLENE :: Ord k => k -> NonEmptyMap k v -> Maybe (k, v)
+lookupLENE k (Bin' _ kx x l r) = case compare k kx of
+  LT -> lookupLE k l
+  EQ -> Just (kx, x)
+  GT -> go kx x r
+  where
+    go kx' x' Tip = Just (kx', x')
+    go kx' x' (NE (Bin' _ ky y l' r')) = case compare k ky of
+      LT -> go kx' x' l'
+      EQ -> Just (ky, y)
+      GT -> go ky y r'
 
 -- | /O(log n)/. Find smallest key greater or equal to the given one and return
 -- the corresponding (key, value) pair.
@@ -742,24 +764,25 @@ lookupLE = goNothing
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
 lookupGE :: Ord k => k -> Map k v -> Maybe (k, v)
-lookupGE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing k (NE (Bin' _ kx x l r)) = case compare k kx of
-        LT -> goJust k kx x l
-        EQ -> Just (kx, x)
-        GT -> goNothing k r
-
-    goJust !_ kx' x' Tip = Just (kx', x')
-    goJust k kx' x' (NE (Bin' _ kx x l r)) = case compare k kx of
-        LT -> goJust k kx x l
-        EQ -> Just (kx, x)
-        GT -> goJust k kx' x' r
+lookupGE !_ Tip = Nothing
+lookupGE k (NE ne) = lookupGENE k ne
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
 #else
 {-# INLINE lookupGE #-}
 #endif
+
+lookupGENE :: Ord k => k -> NonEmptyMap k v -> Maybe (k, v)
+lookupGENE k (Bin' _ kx x l r) = case compare k kx of
+  LT -> go kx x l
+  EQ -> Just (kx, x)
+  GT -> lookupGE k r
+  where
+    go kx' x' Tip = Just (kx', x')
+    go kx' x' (NE (Bin' _ ky y l' r')) = case compare k ky of
+      LT -> go ky y l'
+      EQ -> Just (ky, y)
+      GT -> go kx' x' r'
 
 {--------------------------------------------------------------------
   Construction
@@ -781,6 +804,9 @@ empty = Tip
 singleton :: k -> a -> Map k a
 singleton k x = NE $ Bin' 1 k x Tip Tip
 {-# INLINE singleton #-}
+
+singletonNE :: k -> a -> NonEmptyMap k a
+singletonNE k x = Bin' 1 k x Tip Tip
 
 {--------------------------------------------------------------------
   Insertion
