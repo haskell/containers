@@ -741,7 +741,7 @@ unsafeFindMax (Bin _ _ _ r) = unsafeFindMax r
 --
 -- > disjoint a b == null (intersection a b)
 --
--- @since UNRELEASED
+-- @since 0.6.2.1
 disjoint :: IntMap a -> IntMap b -> Bool
 disjoint Nil _ = True
 disjoint _ Nil = True

@@ -2072,7 +2072,7 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 -- xs ``disjoint`` ys = null (xs ``intersection`` ys)
 -- @
 --
--- @since UNRELEASED
+-- @since 0.6.2.1
 
 -- See 'Data.Set.Internal.isSubsetOfX' for some background
 -- on the implementation design.
