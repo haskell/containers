@@ -4165,42 +4165,63 @@ balanceR :: k -> a -> Map k a -> Map k a -> Map k a
 balanceR k x l r = case l of
   Tip -> case r of
     Tip -> NE $ Bin' 1 k x Tip Tip
-    (NE (Bin' _ _ _ Tip Tip)) ->
-      NE $ Bin' 2 k x Tip r
-    (NE (Bin' _ rk rx Tip rr@(NE (Bin' _ _ _ _ _)))) ->
-      NE $ Bin' 3 rk rx
-        (NE $ Bin' 1 k x Tip Tip)
-        rr
-    (NE (Bin' _ rk rx (NE (Bin' _ rlk rlx _ _)) Tip)) ->
-      NE $ Bin' 3 rlk rlx
-        (NE $ Bin' 1 k x Tip Tip)
-        (NE $ Bin' 1 rk rx Tip Tip)
-    (NE (Bin' rs rk rx
-           rl@(NE (Bin' rls rlk rlx rll rlr))
-           rr@(NE (Bin' rrs _ _ _ _))))
-      | rls < ratio*rrs -> NE $ Bin' (1+rs) rk rx
-        (NE $ Bin' (1+rls) k x Tip rl)
-        rr
-      | otherwise -> NE $ Bin' (1+rs) rlk rlx
-        (NE $ Bin' (1+size rll) k x Tip rll)
-        (NE $ Bin' (1+rrs+size rlr) rk rx rlr rr)
+    (NE ner) -> NE $ balanceRNEE k x ner
 
-  (NE (Bin' ls _ _ _ _)) -> case r of
+  (NE nel@(Bin' ls _ _ _ _)) -> case r of
     Tip -> NE $ Bin' (1+ls) k x l Tip
-
-    (NE (Bin' rs rk rx rl rr))
-      | rs > delta*ls  -> case (rl, rr) of
-        (NE (Bin' rls rlk rlx rll rlr), NE (Bin' rrs _ _ _ _))
-          | rls < ratio*rrs -> NE $ Bin' (1+ls+rs) rk rx
-            (NE $ Bin' (1+ls+rls) k x l rl)
-            rr
-          | otherwise -> NE $ Bin' (1+ls+rs) rlk rlx
-            (NE $ Bin' (1+ls+size rll) k x l rll)
-            (NE $ Bin' (1+rrs+size rlr) rk rx rlr rr)
-        (_, _) -> error "Failure in Data.Map.balanceR"
-          | otherwise -> NE $ Bin' (1+ls+rs) k x l r
+    (NE ner) -> NE $ balanceRNENE k x nel ner
 {-# NOINLINE balanceR #-}
 
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is empty
+-- - Right child is non-empty
+balanceRNE :: k -> a -> Map k a -> NonEmptyMap k a -> NonEmptyMap k a
+balanceRNE k x l ner = case l of
+  Tip -> balanceRNEE k x ner
+  NE nel -> balanceRNENE k x nel ner
+{-# NOINLINE balanceRNE #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceRNEE :: k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+balanceRNEE k x ner = case ner of
+  Bin' _ _ _ Tip Tip ->
+    Bin' 2 k x Tip (NE ner)
+  Bin' _ rk rx Tip rr@(NE (Bin' _ _ _ _ _)) ->
+    Bin' 3 rk rx (NE $ Bin' 1 k x Tip Tip) rr
+  Bin' _ rk rx (NE (Bin' _ rlk rlx _ _)) Tip ->
+    Bin' 3 rlk rlx
+      (NE (Bin' 1 k x Tip Tip))
+      (NE (Bin' 1 rk rx Tip Tip))
+  Bin' rs rk rx rl@(NE (Bin' rls rlk rlx rll rlr)) rr@(NE (Bin' rrs _ _ _ _))
+    | rls < ratio*rrs -> Bin' (1+rs) rk rx
+      (NE (Bin' (1+rls) k x Tip rl))
+      rr
+    | otherwise -> Bin' (1+rs) rlk rlx
+      (NE (Bin' (1+size rll) k x Tip rll))
+      (NE (Bin' (1+rrs+size rlr) rk rx rlr rr))
+{-# INLINE balanceRNEE #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceRNENE :: k -> a -> NonEmptyMap k a -> NonEmptyMap k a -> NonEmptyMap k a
+balanceRNENE k x l@(Bin' ls _ _ _ _) r@(Bin' rs rk rx rl rr)
+  | rs > delta*ls = case (rl, rr) of
+    (NE (Bin' rls rlk rlx rll rlr), NE (Bin' rrs _ _ _ _))
+      | rls < ratio*rrs -> Bin' (1+ls+rs) rk rx
+        (NE (Bin' (1+ls+rls) k x (NE l) rl))
+        rr
+      | otherwise -> Bin' (1+ls+rs) rlk rlx
+        (NE $ Bin' (1+ls+size rll) k x (NE l) rll)
+        (NE $ Bin' (1+rrs+size rlr) rk rx rlr rr)
+    (_, _) -> error "Failure in Data.Set.balanceR"
+  | otherwise = Bin' (1+ls+rs) k x (NE l) (NE r)
+{-# INLINE balanceRNENE #-}
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
