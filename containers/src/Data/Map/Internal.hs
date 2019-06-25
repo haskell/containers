@@ -4107,35 +4107,57 @@ balanceL :: k -> a -> Map k a -> Map k a -> Map k a
 balanceL k x l r = case r of
   Tip -> case l of
     Tip -> NE $ Bin' 1 k x Tip Tip
-    (NE (Bin' _ _ _ Tip Tip)) ->
-      NE $ Bin' 2 k x l Tip
-    (NE (Bin' _ lk lx Tip (NE (Bin' _ lrk lrx _ _)))) ->
-      NE $ Bin' 3 lrk lrx (NE (Bin' 1 lk lx Tip Tip)) (NE (Bin' 1 k x Tip Tip))
-    (NE (Bin' _ lk lx ll@(NE (Bin' _ _ _ _ _)) Tip)) ->
-      NE $ Bin' 3 lk lx ll (NE (Bin' 1 k x Tip Tip))
-    (NE (Bin' ls lk lx ll@(NE (Bin' lls _ _ _ _))
-                               lr@(NE (Bin' lrs lrk lrx lrl lrr))))
-      | lrs < ratio*lls ->
-        NE $ Bin' (1+ls) lk lx ll (NE $ Bin' (1+lrs) k x lr Tip)
-      | otherwise ->
-        NE $ Bin' (1+ls) lrk lrx
+    NE nel -> NE $ balanceLNEE k x nel
+
+  NE ner@(Bin' rs _ _ _ _) -> case l of
+    Tip -> NE $ Bin' (1+rs) k x Tip r
+    NE nel -> NE $ balanceLNENE k x nel ner
+{-# NOINLINE balanceL #-}
+
+balanceLNE :: k -> a -> NonEmptyMap k a -> Map k a -> NonEmptyMap k a
+balanceLNE k x nel r = case r of
+  Tip -> balanceLNEE k x nel
+  NE ner -> balanceLNENE k x nel ner
+{-# NOINLINE balanceLNE #-}
+
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceLNEE :: k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+balanceLNEE k x nel = case nel of
+  Bin' _ _ _ Tip Tip ->
+    Bin' 2 k x (NE nel) Tip
+  Bin' _ lk lx Tip (NE (Bin' _ lrk lrx _ _)) ->
+    Bin' 3 lrk lrx (NE (Bin' 1 lk lx Tip Tip)) (NE (Bin' 1 k x Tip Tip))
+  Bin' _ lk lx ll@(NE (Bin' _ _ _ _ _)) Tip ->
+    Bin' 3 lk lx ll (NE (Bin' 1 k x Tip Tip))
+  Bin' ls lk lx ll@(NE (Bin' lls _ _ _ _)) lr@(NE (Bin' lrs lrk lrx lrl lrr))
+    | lrs < ratio*lls ->
+        Bin' (1+ls) lk lx ll (NE $ Bin' (1+lrs) k x lr Tip)
+    | otherwise ->
+        Bin' (1+ls) lrk lrx
           (NE $ Bin' (1+lls+size lrl) lk lx ll lrl)
           (NE $ Bin' (1+size lrr) k x lrr Tip)
+{-# INLINE balanceLNEE #-}
 
-  (NE (Bin' rs _ _ _ _)) -> case l of
-    Tip -> NE $ Bin' (1+rs) k x Tip r
-    (NE (Bin' ls lk lx ll lr))
-      | ls > delta*rs  -> case (ll, lr) of
-          (NE (Bin' lls _ _ _ _), NE (Bin' lrs lrk lrx lrl lrr))
-            | lrs < ratio*lls -> NE $ Bin' (1+ls+rs) lk lx
-              ll
-              (NE $ Bin' (1+rs+lrs) k x lr r)
-            | otherwise -> NE $ Bin' (1+ls+rs) lrk lrx
-              (NE $ Bin' (1+lls+size lrl) lk lx ll lrl)
-              (NE $ Bin' (1+rs+size lrr) k x lrr r)
-          (_, _) -> error "Failure in Data.Map.balanceL"
-      | otherwise -> NE $ Bin' (1+ls+rs) k x l r
-{-# NOINLINE balanceL #-}
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceLNENE :: k -> a -> NonEmptyMap k a -> NonEmptyMap k a -> NonEmptyMap k a
+balanceLNENE k x l@(Bin' ls lk lx ll lr) r@(Bin' rs _ _ _ _)
+  | ls > delta*rs = case (ll, lr) of
+      (NE (Bin' lls _ _ _ _), NE (Bin' lrs lrk lrx lrl lrr))
+        | lrs < ratio*lls -> Bin' (1+ls+rs) lk lx
+          ll
+          (NE $ Bin' (1+rs+lrs) k x lr $ NE r)
+        | otherwise -> Bin' (1+ls+rs) lrk lrx
+          (NE $ Bin' (1+lls+size lrl) lk lx ll lrl)
+          (NE $ Bin' (1+rs+size lrr) k x lrr $ NE r)
+      (_, _) -> error "Failure in Data.Map.balanceL"
+  | otherwise = Bin' (1+ls+rs) k x (NE l) (NE r)
+{-# INLINE balanceLNENE #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
