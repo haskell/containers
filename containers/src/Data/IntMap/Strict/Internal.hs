@@ -1068,6 +1068,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 
 fromList :: [(Key,a)] -> IntMap a
 fromList = insertAll Nil
+{-# NOINLINE fromList #-}
 
 data Inserted a = Inserted !(IntMap a) ![(Key, a)]
 
@@ -1110,7 +1111,7 @@ insertMany t@(Bin p m _ _) kxs@((k, x) : kxs')
   | otherwise
   = insertSome t k x kxs'
 insertMany t@(Tip ky _) kxs@((k, x) : kxs')
-  | k==ky         = x `seq` insertMany (Tip k x) kxs'
+  | k==ky         = insertSome t k x kxs'
   | otherwise     = Inserted t kxs
 insertMany Nil kxs = Inserted Nil kxs
 
@@ -1130,6 +1131,7 @@ fromListWith f xs
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
 fromListWithKey f = insertAllWithKey f Nil
+{-# NOINLINE fromListWithKey #-}
 
 insertAllWithKey
   :: (Key -> a -> a -> a)
@@ -1176,10 +1178,9 @@ insertManyWithKey f t@(Bin p m _ _) kxs@((k, x) : kxs')
   = Inserted t kxs
   | otherwise
   = insertSomeWithKey f t k x kxs'
-insertManyWithKey f t@(Tip ky y) kxs@((k, x) : kxs')
+insertManyWithKey f t@(Tip ky _) kxs@((k, x) : kxs')
   | k==ky
-  , !y' <- f k x y
-  = insertManyWithKey f (Tip k y') kxs'
+  = insertSomeWithKey f t k x kxs'
   | otherwise     = Inserted t kxs
 insertManyWithKey _f Nil kxs = Inserted Nil kxs
 

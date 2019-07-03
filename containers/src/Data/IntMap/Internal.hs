@@ -3079,6 +3079,9 @@ foldlFB = foldlWithKey
 
 fromList :: [(Key,a)] -> IntMap a
 fromList = insertAll Nil
+-- GHC wants to inline this, because it's tiny, but that doesn't accomplish
+-- anything because it expands to a recursive function.
+{-# NOINLINE fromList #-}
 
 -- [Note: fromList]
 --
@@ -3096,9 +3099,9 @@ insertAll m ((k,x) : kxs)
   | Inserted m' r <- insertSome m k x kxs
   = insertAll m' r
 
--- | Insert at least one entry into an 'IntMap'. If others fit
--- inside, insert them too. Return the new map and remaining
--- values.
+-- | Insert at least one entry into an 'IntMap' or subtree. If
+-- others fit in the same resulting subtree, insert them too.
+-- Return the new map and remaining values.
 insertSome :: IntMap a -> Key -> a -> [(Key, a)] -> Inserted a
 insertSome t@(Bin p m l r) !k x kxs
   | nomatch k p m
@@ -3119,8 +3122,9 @@ insertSome t@(Tip ky _) k x kxs
 
 insertSome Nil k x kxs = insertMany (Tip k x) kxs
 
--- | Try to insert some entries into an 'IntMap', but only if
--- they fit
+
+-- | Try to insert some entries into a subtree of an 'IntMap'. If
+-- they belong in some other subtree, just don't insert them.
 insertMany :: IntMap a -> [(Key, a)] -> Inserted a
 insertMany t [] = Inserted t []
 insertMany t@(Bin p m _ _) kxs@((k, x) : kxs')
@@ -3129,9 +3133,9 @@ insertMany t@(Bin p m _ _) kxs@((k, x) : kxs')
   | otherwise
   = insertSome t k x kxs'
 insertMany t@(Tip ky _) kxs@((k, x) : kxs')
-  | k==ky         = insertMany (Tip k x) kxs'
+  | k==ky         = insertSome t k x kxs'
   | otherwise     = Inserted t kxs
-insertMany Nil kxs = Inserted Nil kxs
+insertMany Nil kxs = Inserted Nil kxs -- Unused case
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -3151,6 +3155,9 @@ fromListWith f xs
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
 -- See [Note: fromList]
 fromListWithKey f = insertAllWithKey f Nil
+-- GHC wants to inline this because it's tiny, but doing so is useless
+-- because it inlines to a recursive function.
+{-# NOINLINE fromListWithKey #-}
 
 insertAllWithKey
   :: (Key -> a -> a -> a)
@@ -3197,10 +3204,8 @@ insertManyWithKey f t@(Bin p m _ _) kxs@((k, x) : kxs')
   = Inserted t kxs
   | otherwise
   = insertSomeWithKey f t k x kxs'
-insertManyWithKey f t@(Tip ky y) kxs@((k, x) : kxs')
-  | k==ky
-  , y' <- f k x y
-  = insertManyWithKey f (Tip k y') kxs'
+insertManyWithKey f t@(Tip ky _) kxs@((k, x) : kxs')
+  | k==ky = insertSomeWithKey f t k x kxs'
   | otherwise     = Inserted t kxs
 insertManyWithKey _f Nil kxs = Inserted Nil kxs
 
