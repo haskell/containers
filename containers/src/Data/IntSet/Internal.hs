@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -1052,10 +1053,56 @@ foldlFB = foldl
 
 -- | /O(n*min(n,W))/. Create a set from a list of integers.
 fromList :: [Key] -> IntSet
-fromList xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t x  = insert x t
+-- See [Note: fromList] in Data.IntMap.Internal
+fromList = insertAll Nil
+{-# NOINLINE fromList #-}
+
+data Inserted = Inserted !IntSet ![Key]
+
+insertAll :: IntSet -> [Key] -> IntSet
+insertAll m [] = m
+insertAll m (k : kxs)
+  | Inserted m' r <- insertSome m (prefixOf k) (bitmapOf k) kxs
+  = insertAll m' r
+
+-- | Insert at least one entry into an 'IntSet' or subtree. If
+-- others fit in the same resulting subtree, insert them too.
+-- Return the new set and remaining values.
+insertSome :: IntSet -> Prefix -> BitMap -> [Key] -> Inserted
+insertSome t@(Bin p m l r) !k !x kxs
+  | nomatch k p m
+  = insertMany (link k (Tip k x) p t) kxs
+
+  | zero k m
+  , Inserted l' kxs' <- insertSome l k x kxs
+  = insertMany (Bin p m l' r) kxs'
+
+  | Inserted r' kxs' <- insertSome r k x kxs
+  = insertMany (Bin p m l r') kxs'
+
+insertSome t@(Tip ky y) k x kxs
+  | k == ky
+  = insertMany (Tip k (x .|. y)) kxs
+  | otherwise
+  = insertMany (link k (Tip k x) ky t) kxs
+
+insertSome Nil k x kxs = insertMany (Tip k x) kxs
+
+-- | Try to insert some entries into a subtree of an 'IntMap'. If
+-- they belong in some other subtree, just don't insert them.
+insertMany :: IntSet -> [Key] -> Inserted
+insertMany t [] = Inserted t []
+insertMany t@(Bin p m _ _) kxs@(kx : kxs')
+  | nomatch (prefixOf kx) p m
+  = Inserted t kxs
+  | otherwise
+  = insertSome t (prefixOf kx) (bitmapOf kx) kxs'
+insertMany t@(Tip ky _) kxs@(kx : kxs')
+  | prefixOf kx==ky
+  = insertSome t (prefixOf kx) (bitmapOf kx) kxs'
+  | otherwise
+  = Inserted t kxs
+insertMany Nil kxs = Inserted Nil kxs -- Unused case
 
 -- | /O(n)/. Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./
