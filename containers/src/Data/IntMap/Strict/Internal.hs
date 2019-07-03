@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 
 #include "containers.h"
 
@@ -1066,10 +1067,52 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
 fromList :: [(Key,a)] -> IntMap a
-fromList xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x)  = insert k x t
+fromList = insertAll Nil
+
+data Inserted a = Inserted !(IntMap a) ![(Key, a)]
+
+insertAll :: IntMap a -> [(Key, a)] -> IntMap a
+insertAll m [] = m
+insertAll m ((k,x) : kxs)
+  | Inserted m' r <- insertSome m k x kxs
+  = insertAll m' r
+
+-- | Insert at least one entry into an 'IntMap'. If others fit
+-- inside, insert them too. Return the new map and remaining
+-- values.
+insertSome :: IntMap a -> Key -> a -> [(Key, a)] -> Inserted a
+insertSome t@(Bin p m l r) !k x kxs
+  | nomatch k p m
+  = insertMany (link k (Tip k x) p t) kxs
+
+  | zero k m
+  , Inserted l' kxs' <- insertSome l k x kxs
+  = insertMany (Bin p m l' r) kxs'
+
+  | Inserted r' kxs' <- insertSome r k x kxs
+  = insertMany (Bin p m l r') kxs'
+
+insertSome t@(Tip ky _) k !x kxs
+  | k == ky
+  = insertMany (Tip k x) kxs
+  | otherwise
+  = insertMany (link k (Tip k x) ky t) kxs
+
+insertSome Nil k x kxs = insertMany (Tip k x) kxs
+
+-- | Try to insert some entries into an 'IntMap', but only if
+-- they fit
+insertMany :: IntMap a -> [(Key, a)] -> Inserted a
+insertMany t [] = Inserted t []
+insertMany t@(Bin p m _ _) kxs@((k, x) : kxs')
+  | nomatch k p m
+  = Inserted t kxs
+  | otherwise
+  = insertSome t k x kxs'
+insertMany t@(Tip ky _) kxs@((k, x) : kxs')
+  | k==ky         = x `seq` insertMany (Tip k x) kxs'
+  | otherwise     = Inserted t kxs
+insertMany Nil kxs = Inserted Nil kxs
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -1086,10 +1129,59 @@ fromListWith f xs
 -- > fromListWith (++) [] == empty
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromListWithKey f xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x) = insertWithKey f k x t
+fromListWithKey f = insertAllWithKey f Nil
+
+insertAllWithKey
+  :: (Key -> a -> a -> a)
+  -> IntMap a -> [(Key, a)] -> IntMap a
+insertAllWithKey _f m [] = m
+insertAllWithKey f m ((k,x) : kxs)
+  | Inserted m' r <- insertSomeWithKey f m k x kxs
+  = insertAllWithKey f m' r
+
+-- | Insert at least one entry into an 'IntMap'. If others fit
+-- inside, insert them too. Return the new map and remaining
+-- values.
+insertSomeWithKey
+  :: (Key -> a -> a -> a)
+  -> IntMap a -> Key -> a -> [(Key, a)] -> Inserted a
+insertSomeWithKey f t@(Bin p m l r) !k x kxs
+  | nomatch k p m
+  = insertManyWithKey f (link k (Tip k x) p t) kxs
+
+  | zero k m
+  , Inserted l' kxs' <- insertSomeWithKey f l k x kxs
+  = insertManyWithKey f (Bin p m l' r) kxs'
+
+  | Inserted r' kxs' <- insertSomeWithKey f r k x kxs
+  = insertManyWithKey f (Bin p m l r') kxs'
+
+insertSomeWithKey f t@(Tip ky y) k x kxs
+  | k == ky
+  , !y' <- f k x y
+  = insertManyWithKey f (Tip k y') kxs
+  | otherwise
+  = x `seq` insertManyWithKey f (link k (Tip k x) ky t) kxs
+
+insertSomeWithKey f Nil k x kxs = x `seq` insertManyWithKey f (Tip k x) kxs
+
+-- | Try to insert some entries into an 'IntMap', but only if
+-- they fit
+insertManyWithKey
+  :: (Key -> a -> a -> a)
+  -> IntMap a -> [(Key, a)] -> Inserted a
+insertManyWithKey _f t [] = Inserted t []
+insertManyWithKey f t@(Bin p m _ _) kxs@((k, x) : kxs')
+  | nomatch k p m
+  = Inserted t kxs
+  | otherwise
+  = insertSomeWithKey f t k x kxs'
+insertManyWithKey f t@(Tip ky y) kxs@((k, x) : kxs')
+  | k==ky
+  , !y' <- f k x y
+  = insertManyWithKey f (Tip k y') kxs'
+  | otherwise     = Inserted t kxs
+insertManyWithKey _f Nil kxs = Inserted Nil kxs
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
