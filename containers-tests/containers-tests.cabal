@@ -460,14 +460,19 @@ test-suite map-strictness-properties
     , base                        >=4.6     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
+    , HUnit
     , QuickCheck                  >=2.7.1
     , test-framework              >=0.3.3
     , test-framework-quickcheck2  >=0.2.9
+    , test-framework-hunit
 
   ghc-options:      -Wall
   other-extensions:
     BangPatterns
     CPP
+
+  other-modules:
+    Utils.IsUnit
 
 test-suite intmap-strictness-properties
   default-language: Haskell2010
@@ -484,11 +489,16 @@ test-suite intmap-strictness-properties
     , base                        >=4.6     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
+    , HUnit
     , QuickCheck                  >=2.7.1
     , test-framework              >=0.3.3
     , test-framework-quickcheck2  >=0.2.9
+    , test-framework-hunit
 
   ghc-options:      -Wall
+
+  other-modules:
+    Utils.IsUnit
 
 test-suite intset-strictness-properties
   default-language: Haskell2010
