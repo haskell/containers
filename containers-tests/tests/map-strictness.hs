@@ -3,13 +3,18 @@
 module Main (main) where
 
 import Test.ChasingBottoms.IsBottom
-import Test.Framework (Test, defaultMain, testGroup)
+import Test.Framework (Test, TestName, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Arbitrary(arbitrary))
 import Test.QuickCheck.Function (Fun(..), apply)
+import Test.Framework.Providers.HUnit
+import Test.HUnit hiding (Test)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import qualified Data.Map as L
+
+import Utils.IsUnit
 
 instance (Arbitrary k, Arbitrary v, Ord k) =>
          Arbitrary (Map k v) where
@@ -78,6 +83,60 @@ pInsertLookupWithKeyValueStrict f k v m
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
 ------------------------------------------------------------------------
+-- check for extra thunks
+--
+-- These tests distinguish between `()`, a fully evaluated value, and
+-- things like `id ()` which are extra thunks that should be avoided
+-- in most cases. An exception is `L.fromListWith const`, which cannot
+-- evaluate the `const` calls.
+
+tExtraThunksM :: Test
+tExtraThunksM = testGroup "Map.Strict - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for strict maps, all the values should be evaluated to ()
+    [ check "singleton"           $ m0
+    , check "insert"              $ M.insert 42 () m0
+    , check "insertWith"          $ M.insertWith const 42 () m0
+    , check "fromList"            $ M.fromList [(42,()),(42,())]
+    , check "fromListWith"        $ M.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"         $ M.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith"     $ M.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" $ M.fromAscList [(42,())]
+    ]
+  where
+    m0 = M.singleton 42 ()
+    check :: TestName -> M.Map Int () -> Test
+    check n m = testCase n $ case M.lookup 42 m of
+        Just v -> assertBool msg (isUnit v)
+        _      -> assertString "key not found"
+      where
+        msg = "too lazy -- expected fully evaluated ()"
+
+tExtraThunksL :: Test
+tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for lazy maps, the *With functions should leave `const () ()` thunks,
+    -- but the other functions should produce fully evaluated ().
+    [ check "singleton"       True  $ m0
+    , check "insert"          True  $ L.insert 42 () m0
+    , check "insertWith"      False $ L.insertWith const 42 () m0
+    , check "fromList"        True  $ L.fromList [(42,()),(42,())]
+    , check "fromListWith"    False $ L.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"     True  $ L.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith" False $ L.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" True $ L.fromAscList [(42,())]
+    ]
+  where
+    m0 = L.singleton 42 ()
+    check :: TestName -> Bool -> L.Map Int () -> Test
+    check n e m = testCase n $ case L.lookup 42 m of
+        Just v -> assertBool msg (e == isUnit v)
+        _      -> assertString "key not found"
+      where
+        msg | e         = "too lazy -- expected fully evaluated ()"
+            | otherwise = "too strict -- expected a thunk"
+
+------------------------------------------------------------------------
 -- * Test list
 
 tests :: [Test]
@@ -104,6 +163,8 @@ tests =
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
       ]
+      , tExtraThunksM
+      , tExtraThunksL
     ]
 
 ------------------------------------------------------------------------
