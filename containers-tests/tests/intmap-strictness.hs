@@ -10,6 +10,8 @@ import Test.QuickCheck.Function (Fun(..), apply)
 
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
+import qualified Data.IntMap as L
+import Data.Containers.ListUtils
 
 instance Arbitrary v => Arbitrary (IntMap v) where
     arbitrary = M.fromList `fmap` arbitrary
@@ -77,6 +79,25 @@ pInsertLookupWithKeyValueStrict f k v m
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
 ------------------------------------------------------------------------
+-- test a corner case of fromAscList
+--
+-- If the list contains duplicate keys, then (only) the first of the
+-- given values is not evaluated. This may change in the future, see
+-- also https://github.com/haskell/containers/issues/473
+
+pFromAscListLazy :: [Int] -> Bool
+pFromAscListLazy ks = not . isBottom $ M.fromAscList elems
+  where
+    elems = [(k, v) | k <- nubInt ks, v <- [undefined, ()]]
+
+pFromAscListStrict :: [Int] -> Bool
+pFromAscListStrict ks
+    | null ks   = not . isBottom $ M.fromAscList elems
+    | otherwise = isBottom $ M.fromAscList elems
+  where
+    elems = [(k, v) | k <- nubInt ks, v <- [undefined, undefined, ()]]
+
+------------------------------------------------------------------------
 -- * Test list
 
 tests :: [Test]
@@ -103,6 +124,8 @@ tests =
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
+      , testProperty "fromAscList is somewhat value-lazy" pFromAscListLazy
+      , testProperty "fromAscList is somewhat value-strict" pFromAscListStrict
       ]
     ]
 
