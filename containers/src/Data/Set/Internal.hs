@@ -188,11 +188,11 @@ module Data.Set.Internal (
             , mapMonotonic, mapMonotonicNE
 
             -- * Folds
-            , foldr
-            , foldl
+            , foldr, foldr1
+            , foldl, foldl1
             -- ** Strict folds
-            , foldr'
-            , foldl'
+            , foldr', foldr1'
+            , foldl', foldl1'
             -- ** Legacy folds
             , fold
 
@@ -235,7 +235,7 @@ module Data.Set.Internal (
             , merge, mergeNE
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
+import Prelude hiding (filter,foldl,foldl1,foldr,foldr1,null,map,take,drop,splitAt)
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 #if !MIN_VERSION_base(4,8,0)
@@ -1132,6 +1132,13 @@ foldr f z = go z
     go z' (NE (Bin' _ x l r)) = go (f x (go z' r)) l
 {-# INLINE foldr #-}
 
+foldr1 :: (b -> b -> b) -> NonEmptySet b -> b
+foldr1 f = go
+  where
+    go (Bin' _ x l Tip) = foldr f x l
+    go (Bin' _ x l (NE r)) = foldr f (f x (go r)) l
+{-# INLINE foldr1 #-}
+
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
@@ -1141,6 +1148,13 @@ foldr' f z = go z
     go !z' Tip           = z'
     go z' (NE (Bin' _ x l r)) = go (f x (go z' r)) l
 {-# INLINE foldr' #-}
+
+foldr1' :: (b -> b -> b) -> NonEmptySet b -> b
+foldr1' f = go
+  where
+    go (Bin' _ x l Tip) = foldr' f x l
+    go (Bin' _ x l (NE r)) = foldr' f (f x (go r)) l
+{-# INLINE foldr1' #-}
 
 -- | /O(n)/. Fold the elements in the set using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'toAscList'@.
@@ -1155,6 +1169,13 @@ foldl f z = go z
     go z' (NE (Bin' _ x l r)) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
 
+foldl1 :: (b -> b -> b) -> NonEmptySet b -> b
+foldl1 f = go
+  where
+    go (Bin' _ x Tip r) = foldl f x r
+    go (Bin' _ x (NE l) r) = foldl f (f (go l) x) r
+{-# INLINE foldl1 #-}
+
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
@@ -1164,6 +1185,13 @@ foldl' f z = go z
     go !z' Tip           = z'
     go z' (NE (Bin' _ x l r)) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
+
+foldl1' :: (b -> b -> b) -> NonEmptySet b -> b
+foldl1' f = go
+  where
+    go (Bin' _ x Tip r) = foldl' f x r
+    go (Bin' _ x (NE l) r) = foldl' f (f (go l) x) r
+{-# INLINE foldl1' #-}
 
 {--------------------------------------------------------------------
   List variations
