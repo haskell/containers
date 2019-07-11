@@ -2124,8 +2124,8 @@ intersectionWithKey f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
 disjoint :: Ord k => Map k a -> Map k b -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
-disjoint (Bin 1 k _ _ _) t = k `notMember` t
-disjoint (Bin _ k _ l r) t
+disjoint (NE (Bin' 1 k _ _ _)) t = k `notMember` t
+disjoint (NE (Bin' _ k _ l r)) t
   = not found && disjoint l lt && disjoint r gt
   where
     (lt,found,gt) = splitMember k t
