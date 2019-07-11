@@ -1,5 +1,13 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.6.2.1
+
+* Add `disjoint` for `Map` and `IntMap` (Thanks, Simon Jakobi).
+
+* Fix documentation bugs (Thanks, olligobber).
+
+* Fix unused imports (Thanks, Ben Gamari).
+
 ## 0.6.1.1
 
 * Fix Foldable instance for IntMap, which previously placed positively

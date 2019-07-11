@@ -204,6 +204,9 @@ module Data.Map.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
@@ -2100,6 +2103,33 @@ intersectionWithKey f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
 {-# INLINABLE intersectionWithKey #-}
 #endif
 
+{--------------------------------------------------------------------
+  Disjoint
+--------------------------------------------------------------------}
+-- | /O(m*log(n\/m + 1)), m <= n/. Check whether the key sets of two
+-- maps are disjoint (i.e., their 'intersection' is empty).
+--
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,'a'), (2,'b')]) == False
+-- > disjoint (fromList [])        (fromList [])                 == True
+--
+-- @
+-- xs ``disjoint`` ys = null (xs ``intersection`` ys)
+-- @
+--
+-- @since 0.6.2.1
+
+-- See 'Data.Set.Internal.isSubsetOfX' for some background
+-- on the implementation design.
+disjoint :: Ord k => Map k a -> Map k b -> Bool
+disjoint Tip _ = True
+disjoint _ Tip = True
+disjoint (Bin 1 k _ _ _) t = k `notMember` t
+disjoint (Bin _ k _ l r) t
+  = not found && disjoint l lt && disjoint r gt
+  where
+    (lt,found,gt) = splitMember k t
+
 #if !MIN_VERSION_base (4,8,0)
 -- | The identity type.
 newtype Identity a = Identity { runIdentity :: a }
@@ -2845,7 +2875,7 @@ isProperSubmapOf m1 m2
 
 {- | /O(m*log(n\/m + 1)), m <= n/. Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
- @m1@ and @m2@ are not equal,
+ @keys m1@ and @keys m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following
  expressions are all 'True':

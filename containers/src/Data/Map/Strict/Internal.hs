@@ -143,6 +143,9 @@ module Data.Map.Strict.Internal
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
@@ -341,6 +344,7 @@ import Data.Map.Internal
   , deleteMin
   , deleteMax
   , difference
+  , disjoint
   , drop
   , dropWhileAntitone
   , filter

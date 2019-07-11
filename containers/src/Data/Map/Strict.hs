@@ -179,6 +179,9 @@ module Data.Map.Strict
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** General combining functions
     -- | See "Data.Map.Merge.Strict"
 
