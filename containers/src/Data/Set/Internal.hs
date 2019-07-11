@@ -1305,6 +1305,7 @@ fromList (x : xs) = NE $ fromListNE' x xs
 #if MIN_VERSION_base(4,9,0)
 fromListNE :: Ord a => NEL.NonEmpty a -> NonEmptySet a
 fromListNE (x NEL.:| xs) = fromListNE' x xs
+{-# INLINABLE fromListNE #-}
 #endif
 
 fromListNE' :: Ord a => a -> [a] -> NonEmptySet a
@@ -1343,7 +1344,7 @@ fromListNE' x0 xs0
                                          | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link y l r, zs, ws)
 #if __GLASGOW_HASKELL__
-{-# INLINABLE fromListNE #-}
+{-# INLINABLE fromListNE' #-}
 #endif
 
 {--------------------------------------------------------------------
