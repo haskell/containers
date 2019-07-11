@@ -214,6 +214,11 @@ module Data.Set.Internal (
             , elems
             , toList
             , fromList
+#if MIN_VERSION_base(4,9,0)
+            , elemsNE
+            , toListNE
+            , fromListNE
+#endif
 
             -- ** Ordered list
             , toAscList
@@ -222,6 +227,12 @@ module Data.Set.Internal (
             , fromDistinctAscList
             , fromDescList
             , fromDistinctDescList
+#if MIN_VERSION_base(4,9,0)
+            , toAscListNE
+            , toDescListNE
+            , fromDistinctAscListNE
+            , fromDistinctDescListNE
+#endif
 
             -- * Debugging
             , showTree, showTreeNE
@@ -254,6 +265,9 @@ import Data.Functor.Classes
 import qualified Data.Foldable as Foldable
 #if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable (foldMap))
+#endif
+#if MIN_VERSION_base(4,9,0)
+import qualified Data.List.NonEmpty as NEL
 #endif
 import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
@@ -1201,6 +1215,11 @@ foldl1' f = go
 elems :: Set a -> [a]
 elems = toAscList
 
+#if MIN_VERSION_base(4,9,0)
+elemsNE :: NonEmptySet a -> NEL.NonEmpty a
+elemsNE = toAscListNE
+#endif
+
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
@@ -1216,14 +1235,29 @@ instance (Ord a) => GHCExts.IsList (Set a) where
 toList :: Set a -> [a]
 toList = toAscList
 
+#if MIN_VERSION_base(4,9,0)
+toListNE :: NonEmptySet a -> NEL.NonEmpty a
+toListNE = toAscListNE
+#endif
+
 -- | /O(n)/. Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
+
+#if MIN_VERSION_base(4,9,0)
+toAscListNE :: NonEmptySet a -> NEL.NonEmpty a
+toAscListNE = foldr1 (<>) . mapMonotonicNE pure
+#endif
 
 -- | /O(n)/. Convert the set to a descending list of elements. Subject to list
 -- fusion.
 toDescList :: Set a -> [a]
 toDescList = foldl (flip (:)) []
+
+#if MIN_VERSION_base(4,9,0)
+toDescListNE :: NonEmptySet a -> NEL.NonEmpty a
+toDescListNE = foldl1 (<>) . mapMonotonicNE pure
+#endif
 
 -- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
@@ -1263,23 +1297,35 @@ foldlFB = foldl
 -- create, it is not inlined, so we inline it manually.
 fromList :: Ord a => [a] -> Set a
 fromList [] = Tip
-fromList [x] = NE $ Bin' 1 x Tip Tip
-fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (NE (Bin' 1 x0 Tip Tip)) xs0
-                    | otherwise = go (1::Int) (NE (Bin' 1 x0 Tip Tip)) xs0
+fromList (x : xs) = NE $ fromListNE' x xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromList #-}
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+fromListNE :: Ord a => NEL.NonEmpty a -> NonEmptySet a
+fromListNE (x NEL.:| xs) = fromListNE' x xs
+#endif
+
+fromListNE' :: Ord a => a -> [a] -> NonEmptySet a
+fromListNE' x [] = Bin' 1 x Tip Tip
+fromListNE' x0 xs0
+    | not_ordered x0 xs0 = fromList' (Bin' 1 x0 Tip Tip) xs0
+    | otherwise = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     not_ordered _ [] = False
     not_ordered x (y : _) = x >= y
     {-# INLINE not_ordered #-}
 
     fromList' t0 xs = Foldable.foldl' ins t0 xs
-      where ins t x = insert x t
+      where ins t x = insertNE x t
 
     go !_ t [] = t
-    go _ t [x] = insertMax x t
+    go _ t [x] = insertMaxNE x (NE t)
     go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
                         | otherwise = case create s xss of
-                            (r, ys, []) -> go (s `shiftL` 1) (link x l r) ys
-                            (r, _,  ys) -> fromList' (link x l r) ys
+                            (r, ys, []) -> go (s `shiftL` 1) (linkNE x (NE l) r) ys
+                            (r, _,  ys) -> fromList' (linkNE x (NE l) r) ys
 
     -- The create is returning a triple (tree, xs, ys). Both xs and ys
     -- represent not yet processed elements and only one of them can be nonempty.
@@ -1297,7 +1343,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (NE (Bin' 1 x0 Tip Tip)) xs
                                          | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link y l r, zs, ws)
 #if __GLASGOW_HASKELL__
-{-# INLINABLE fromList #-}
+{-# INLINABLE fromListNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1345,11 +1391,19 @@ combineEq (x : xs) = combineEq' x xs
 -- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList [] = Tip
-fromDistinctAscList (x0 : xs0) = go (1::Int) (NE $ Bin' 1 x0 Tip Tip) xs0
+fromDistinctAscList (x0 : xs0) = NE $ fromDistinctAscListNE' x0 xs0
+
+#if MIN_VERSION_base(4,9,0)
+fromDistinctAscListNE :: NEL.NonEmpty a -> NonEmptySet a
+fromDistinctAscListNE (x NEL.:| xs) = fromDistinctAscListNE' x xs
+#endif
+
+fromDistinctAscListNE' :: a -> [a] -> NonEmptySet a
+fromDistinctAscListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s l (x : xs) = case create s xs of
-                        (r :*: ys) -> let !t' = link x l r
+                        (r :*: ys) -> let !t' = linkNE x (NE l) r
                                       in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
@@ -1369,11 +1423,19 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (NE $ Bin' 1 x0 Tip Tip) xs0
 -- @since 0.5.8
 fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
-fromDistinctDescList (x0 : xs0) = go (1::Int) (NE (Bin' 1 x0 Tip Tip)) xs0
+fromDistinctDescList (x0 : xs0) = NE $ fromDistinctDescListNE' x0 xs0
+
+#if MIN_VERSION_base(4,9,0)
+fromDistinctDescListNE :: NEL.NonEmpty a -> NonEmptySet a
+fromDistinctDescListNE (x NEL.:| xs) = fromDistinctDescListNE' x xs
+#endif
+
+fromDistinctDescListNE' :: a -> [a] -> NonEmptySet a
+fromDistinctDescListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s r (x : xs) = case create s xs of
-                        (l :*: ys) -> let !t' = link x l r
+                        (l :*: ys) -> let !t' = linkNE x l (NE r)
                                       in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
