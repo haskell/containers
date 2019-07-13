@@ -145,35 +145,25 @@ module Data.Map.Internal (
 
     -- * Query
     , null
-    , size
-    , sizeNE
-    , member
-    , memberNE
-    , notMember
-    , notMemberNE
-    , lookup
-    , lookupNE
-    , findWithDefault
-    , findWithDefaultNE
-    , lookupLT
-    , lookupLTNE
-    , lookupGT
-    , lookupGTNE
-    , lookupLE
-    , lookupLENE
-    , lookupGE
-    , lookupGENE
+    , size, sizeNE
+    , member, memberNE
+    , notMember, notMemberNE
+    , lookup, lookupNE
+    , findWithDefault, findWithDefaultNE
+    , lookupLT, lookupLTNE
+    , lookupGT, lookupGTNE
+    , lookupLE, lookupLENE
+    , lookupGE, lookupGENE
 
     -- * Construction
     , empty
-    , singleton
-    , singletonNE
+    , singleton, singletonNE
 
     -- ** Insertion
-    , insert
-    , insertWith
-    , insertWithKey
-    , insertLookupWithKey
+    , insert, insertNE
+    , insertWith, insertWithNE
+    , insertWithKey, insertWithKeyNE
+    , insertLookupWithKey, insertLookupWithKeyNE
 
     -- ** Delete\/Update
     , delete
@@ -826,28 +816,42 @@ singletonNE k x = Bin' 1 k x Tip Tip
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper
 insert :: Ord k => k -> a -> Map k a -> Map k a
-insert kx0 = go kx0 kx0
-  where
-    -- Unlike insertR, we only get sharing here
-    -- when the inserted value is at the same address
-    -- as the present value. We try anyway; this condition
-    -- seems particularly likely to occur in 'union'.
-    go :: Ord k => k -> k -> a -> Map k a -> Map k a
-    go orig !_  x Tip = singleton (lazy orig) x
-    go orig !kx x t@(NE (Bin' sz ky y l r)) =
-        case compare kx ky of
-            LT | l' `ptrEq` l -> t
-               | otherwise -> balanceL ky y l' r
-               where !l' = go orig kx x l
-            GT | r' `ptrEq` r -> t
-               | otherwise -> balanceR ky y l r'
-               where !r' = go orig kx x r
-            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
-               | otherwise -> NE $ Bin' sz (lazy orig) x l r
+insert k x0 m0 = case insertReturningDifferent k k x0 m0 of
+  Nothing -> m0
+  Just q -> NE q
+
+insertNE :: Ord k => k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertNE k x0 m0 = case insertReturningDifferentNE k k x0 m0 of
+  Nothing -> m0
+  Just q -> q
+
+-- | Returns 'Nothing' if the element is already in the Map, and 'Just s' if a
+-- new set had to be created to contain it.
+--
+-- Unlike insertR, we only get sharing here when the inserted value is at the
+-- same address as the present value. We try anyway; this condition seems
+-- particularly likely to occur in 'union'.
+insertReturningDifferent :: Ord k => k -> k -> a -> Map k a -> Maybe (NonEmptyMap k a)
+insertReturningDifferent orig !_ x Tip = Just $ singletonNE (lazy orig) x
+insertReturningDifferent orig !k x (NE ne) = insertReturningDifferentNE orig k x ne
+
+insertReturningDifferentNE :: Ord k => k -> k -> a -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
+insertReturningDifferentNE orig !kx x (Bin' sz ky y l r) = case compare kx ky of
+    LT -> case insertReturningDifferent orig kx x l of
+       Nothing -> Nothing
+       Just l' -> Just $! balanceLNE ky y l' r
+    GT -> case insertReturningDifferent orig kx x r of
+       Nothing -> Nothing
+       Just r' -> Just $! balanceRNE ky y l r'
+    EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> Nothing
+       | otherwise -> Just $ Bin' sz (lazy orig) x l r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
+{-# INLINABLE insertNE #-}
 #else
 {-# INLINE insert #-}
+{-# INLINE insertNE #-}
 #endif
 
 #ifndef __GLASGOW_HASKELL__
@@ -875,23 +879,35 @@ lazy a = a
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper
 insertR :: Ord k => k -> a -> Map k a -> Map k a
-insertR kx0 = go kx0 kx0
-  where
-    go :: Ord k => k -> k -> a -> Map k a -> Map k a
-    go orig !_  x Tip = singleton (lazy orig) x
-    go orig !kx x t@(NE (Bin' _ ky y l r)) =
-        case compare kx ky of
-            LT | l' `ptrEq` l -> t
-               | otherwise -> balanceL ky y l' r
-               where !l' = go orig kx x l
-            GT | r' `ptrEq` r -> t
-               | otherwise -> balanceR ky y l r'
-               where !r' = go orig kx x r
-            EQ -> t
+insertR k x0 m0 = case insertRReturningDifferent k k x0 m0 of
+  Nothing -> m0
+  Just q -> NE q
+
+insertRNE :: Ord k => k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertRNE k x0 m0 = case insertRReturningDifferentNE k k x0 m0 of
+  Nothing -> m0
+  Just q -> q
+
+insertRReturningDifferent :: Ord k => k -> k -> a -> Map k a -> Maybe (NonEmptyMap k a)
+insertRReturningDifferent orig !_ x Tip = Just $ singletonNE (lazy orig) x
+insertRReturningDifferent orig !k x (NE ne) = insertRReturningDifferentNE orig k x ne
+
+insertRReturningDifferentNE :: Ord k => k -> k -> a -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
+insertRReturningDifferentNE orig !kx x (Bin' _ ky y l r) = case compare kx ky of
+    LT -> case insertRReturningDifferent orig kx x l of
+       Nothing -> Nothing
+       Just l' -> Just $! balanceLNE ky y l' r
+    GT -> case insertRReturningDifferent orig kx x r of
+       Nothing -> Nothing
+       Just r' -> Just $! balanceRNE ky y l r'
+    EQ -> Nothing
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
+{-# INLINABLE insertRNE #-}
 #else
 {-# INLINE insertR #-}
+{-# INLINE insertRNE #-}
 #endif
 
 -- | /O(log n)/. Insert with a function, combining new value and old value.
@@ -905,24 +921,30 @@ insertR kx0 = go kx0 kx0
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith = go
-  where
-    -- We have no hope of making pointer equality tricks work
-    -- here, because lazy insertWith *always* changes the tree,
-    -- either adding a new entry or replacing an element with a
-    -- thunk.
-    go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ !kx x Tip = singleton kx x
-    go f !kx x (NE (Bin' sy ky y l r)) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> NE $ Bin' sy kx (f x y) l r
+insertWith f k v m = NE $ insertWithToNE f k v m
+
+insertWithNE :: Ord k => (a -> a -> a) -> k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertWithNE f k v m = insertWithToNE f k v $ NE m
+
+-- We have no hope of making pointer equality tricks work
+-- here, because lazy insertWith *always* changes the tree,
+-- either adding a new entry or replacing an element with a
+-- thunk.
+insertWithToNE :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> NonEmptyMap k a
+insertWithToNE _ !kx x Tip = singletonNE kx x
+insertWithToNE f !kx x (NE (Bin' sy ky y l r)) =
+    case compare kx ky of
+        LT -> balanceLNE ky y (insertWithToNE f kx x l) r
+        GT -> balanceRNE ky y l (insertWithToNE f kx x r)
+        EQ -> Bin' sy kx (f x y) l r
+{-# INLINE insertWithToNE #-}
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
+{-# INLINABLE insertWithNE #-}
 #else
 {-# INLINE insertWith #-}
+{-# INLINE insertWithNE #-}
 #endif
 
 -- | A helper function for 'unionWith'. When the key is already in
@@ -931,19 +953,26 @@ insertWith = go
 -- new value.
 
 insertWithR :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithR = go
-  where
-    go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ !kx x Tip = singleton kx x
-    go f !kx x (NE (Bin' sy ky y l r)) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> NE $ Bin' sy ky (f y x) l r
+insertWithR f k v m = NE $ insertWithRToNE f k v m
+
+insertWithRNE :: Ord k => (a -> a -> a) -> k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertWithRNE f k v m = insertWithRToNE f k v $ NE m
+
+insertWithRToNE :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> NonEmptyMap k a
+insertWithRToNE _ !kx x Tip = singletonNE kx x
+insertWithRToNE f !kx x (NE (Bin' sy ky y l r)) =
+    case compare kx ky of
+        LT -> balanceLNE ky y (insertWithRToNE f kx x l) r
+        GT -> balanceRNE ky y l (insertWithRToNE f kx x r)
+        EQ -> Bin' sy ky (f y x) l r
+{-# INLINE insertWithRToNE #-}
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithR #-}
+{-# INLINABLE insertWithRNE #-}
 #else
 {-# INLINE insertWithR #-}
+{-# INLINE insertWithRNE #-}
 #endif
 
 -- | /O(log n)/. Insert with a function, combining key, new value and old value.
@@ -957,22 +986,31 @@ insertWithR = go
 -- > insertWithKey f 5 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "5:xxx|a")]
 -- > insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWithKey f 5 "xxx" empty                         == singleton 5 "xxx"
-
--- See Note: Type of local 'go' function
 insertWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKey = go
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ !kx x Tip = singleton kx x
-    go f kx x (NE (Bin' sy ky y l r)) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> NE $ Bin' sy kx (f kx x y) l r
+insertWithKey f k v m = NE $ insertWithKeyToNE f k v m
+
+insertWithKeyNE :: Ord k => (k -> a -> a -> a) -> k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertWithKeyNE f k v m = insertWithKeyToNE f k v $ NE m
+
+-- We have no hope of making pointer equality tricks work
+-- here, because lazy insertWithKey *always* changes the tree,
+-- either adding a new entry or replacing an element with a
+-- thunk.
+insertWithKeyToNE :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> NonEmptyMap k a
+insertWithKeyToNE _ !kx x Tip = singletonNE kx x
+insertWithKeyToNE f !kx x (NE (Bin' sy ky y l r)) =
+    case compare kx ky of
+        LT -> balanceLNE ky y (insertWithKeyToNE f kx x l) r
+        GT -> balanceRNE ky y l (insertWithKeyToNE f kx x r)
+        EQ -> Bin' sy kx (f kx x y) l r
+{-# INLINE insertWithKeyToNE #-}
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey #-}
+{-# INLINABLE insertWithKeyNE #-}
 #else
 {-# INLINE insertWithKey #-}
+{-# INLINE insertWithKeyNE #-}
 #endif
 
 -- | A helper function for 'unionWithKey'. When the key is already in
@@ -980,15 +1018,24 @@ insertWithKey = go
 -- function is flipped--it is applied to the old value and then the
 -- new value.
 insertWithKeyR :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKeyR = go
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ !kx x Tip = singleton kx x
-    go f kx x (NE (Bin' sy ky y l r)) =
-        case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> NE $ Bin' sy ky (f ky y x) l r
+insertWithKeyR f k v m = NE $ insertWithKeyRToNE f k v m
+
+insertWithKeyRNE :: Ord k => (k -> a -> a -> a) -> k -> a -> NonEmptyMap k a -> NonEmptyMap k a
+insertWithKeyRNE f k v m = insertWithKeyRToNE f k v $ NE m
+
+-- We have no hope of making pointer equality tricks work
+-- here, because lazy insertWithKeyR *always* changes the tree,
+-- either adding a new entry or replacing an element with a
+-- thunk.
+insertWithKeyRToNE :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> NonEmptyMap k a
+insertWithKeyRToNE _ !kx x Tip = singletonNE kx x
+insertWithKeyRToNE f !kx x (NE (Bin' sy ky y l r)) =
+    case compare kx ky of
+        LT -> balanceLNE ky y (insertWithKeyRToNE f kx x l) r
+        GT -> balanceRNE ky y l (insertWithKeyRToNE f kx x r)
+        EQ -> Bin' sy ky (f ky y x) l r
+{-# INLINE insertWithKeyRToNE #-}
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKeyR #-}
 #else
@@ -1014,23 +1061,30 @@ insertWithKeyR = go
 -- See Note: Type of local 'go' function
 insertLookupWithKey :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a
                     -> (Maybe a, Map k a)
-insertLookupWithKey f0 k0 x0 = toPair . go f0 k0 x0
-  where
-    go :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (Map k a)
-    go _ !kx x Tip = (Nothing :*: singleton kx x)
-    go f kx x (NE (Bin' sy ky y l r)) =
-        case compare kx ky of
-            LT -> let !(found :*: l') = go f kx x l
-                      !t' = balanceL ky y l' r
-                  in (found :*: t')
-            GT -> let !(found :*: r') = go f kx x r
-                      !t' = balanceR ky y l r'
-                  in (found :*: t')
-            EQ -> (Just y :*: NE (Bin' sy kx (f kx x y) l r))
+insertLookupWithKey f0 k0 x0 = fmap NE . toPair . insertLookupWithKeyToNE f0 k0 x0
+
+insertLookupWithKeyNE :: Ord k => (k -> a -> a -> a) -> k -> a -> NonEmptyMap k a
+                    -> (Maybe a, NonEmptyMap k a)
+insertLookupWithKeyNE f0 k0 x0 = toPair . insertLookupWithKeyToNE f0 k0 x0 . NE
+
+insertLookupWithKeyToNE :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> StrictPair (Maybe a) (NonEmptyMap k a)
+insertLookupWithKeyToNE _ !kx x Tip = (Nothing :*: singletonNE kx x)
+insertLookupWithKeyToNE f kx x (NE (Bin' sy ky y l r)) =
+    case compare kx ky of
+        LT -> let !(found :*: l') = insertLookupWithKeyToNE f kx x l
+                  !t' = balanceLNE ky y l' r
+              in (found :*: t')
+        GT -> let !(found :*: r') = insertLookupWithKeyToNE f kx x r
+                  !t' = balanceRNE ky y l r'
+              in (found :*: t')
+        EQ -> (Just y :*: Bin' sy kx (f kx x y) l r)
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey #-}
+{-# INLINABLE insertLookupWithKeyNE #-}
 #else
 {-# INLINE insertLookupWithKey #-}
+{-# INLINE insertLookupWithKeyNE #-}
 #endif
 
 {--------------------------------------------------------------------
