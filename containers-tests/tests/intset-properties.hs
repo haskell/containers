@@ -337,6 +337,11 @@ prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
 prop_map :: IntSet -> Bool
 prop_map s = map id s == s
 
+prop_mapMonotonic :: (Key -> Key) -> IntSet -> Property
+prop_mapMonotonic f s =
+  (\x y -> x < y ==> f x < f y) .&&.
+  (mapMonotonic f s == map f s)
+
 prop_maxView :: IntSet -> Bool
 prop_maxView s = case maxView s of
     Nothing -> null s
