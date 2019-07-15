@@ -1060,41 +1060,74 @@ fromList xs
 -- | /O(n)/. Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: [Key] -> IntSet
-fromAscList [] = Nil
-fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
-  where
-    combineEq x' [] = [x']
-    combineEq x' (x:xs)
-      | x==x'     = combineEq x' xs
-      | otherwise = x' : combineEq x xs
+fromAscList = fromMonoList
+{-# NOINLINE fromAscList #-}
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements.
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Key] -> IntSet
-fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work (prefixOf z0) (bitmapOf z0) zs0 Nada
+fromDistinctAscList = fromAscList
+{-# INLINE fromDistinctAscList #-}
+
+-- | /O(n)/. Build a set from a monotonic list of elements.
+--
+-- The precise conditions under which this function works are subtle:
+-- For any branch mask, keys with the same prefix w.r.t. the branch
+-- mask must occur consecutively in the list.
+fromMonoList :: [Key] -> IntSet
+fromMonoList []         = Nil
+fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
   where
-    -- 'work' accumulates all values that go into one tip, before passing this Tip
-    -- to 'reduce'
-    work kx bm []     stk = finish kx (Tip kx bm) stk
-    work kx bm (z:zs) stk | kx == prefixOf z = work kx (bm .|. bitmapOf z) zs stk
-    work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
+    -- `addAll'` collects all keys with the prefix `px` into a single
+    -- bitmap, and then proceeds with `addAll`.
+    addAll' !px !bm []
+        = Tip px bm
+    addAll' !px !bm (ky : zs)
+        | px == prefixOf ky
+        = addAll' px (bm .|. bitmapOf ky) zs
+        -- inlined: | otherwise = addAll px (Tip px bm) (ky : zs)
+        | py <- prefixOf ky
+        , m <- branchMask px py
+        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
+        = addAll px (linkWithMask m py ty {-px-} (Tip px bm)) zs'
 
-    reduce z zs _ px tx Nada = work (prefixOf z) (bitmapOf z) zs (Push px tx Nada)
-    reduce z zs m px tx stk@(Push py ty stk') =
-        let mxy = branchMask px py
-            pxy = mask px mxy
-        in  if shorter m mxy
-                 then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work (prefixOf z) (bitmapOf z) zs (Push px tx stk)
+    -- for `addAll` and `addMany`, px is /a/ prefix inside the tree `tx`
+    -- `addAll` consumes the rest of the list, adding to the tree `tx`
+    addAll !px !tx []
+        = tx
+    addAll !px !tx (ky : zs)
+        | py <- prefixOf ky
+        , m <- branchMask px py
+        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
+        = addAll px (linkWithMask m py ty {-px-} tx) zs'
 
-    finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
-        where m = branchMask px py
-              p = mask px m
+    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
+    addMany' !m !px !bm []
+        = Inserted (Tip px bm) []
+    addMany' !m !px !bm zs0@(ky : zs)
+        | px == prefixOf ky
+        = addMany' m px (bm .|. bitmapOf ky) zs
+        -- inlined: | otherwise = addMany m px (Tip px bm) (ky : zs)
+        | mask px m /= mask ky m
+        = Inserted (Tip (prefixOf px) bm) zs0
+        | py <- prefixOf ky
+        , mxy <- branchMask px py
+        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
+        = addMany m px (linkWithMask mxy py ty {-px-} (Tip px bm)) zs'
 
-data Stack = Push {-# UNPACK #-} !Prefix !IntSet !Stack | Nada
+    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `px`.
+    addMany !m !px tx []
+        = Inserted tx []
+    addMany !m !px tx zs0@(ky : zs)
+        | mask px m /= mask ky m
+        = Inserted tx zs0
+        | py <- prefixOf ky
+        , mxy <- branchMask px py
+        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
+        = addMany m px (linkWithMask mxy py ty {-px-} tx) zs'
+{-# INLINE fromMonoList #-}
 
+data Inserted = Inserted !IntSet ![Key]
 
 {--------------------------------------------------------------------
   Eq
@@ -1249,13 +1282,17 @@ withEmpty bars = "   ":bars
   Link
 --------------------------------------------------------------------}
 link :: Prefix -> IntSet -> Prefix -> IntSet -> IntSet
-link p1 t1 p2 t2
+link p1 t1 p2 t2 = linkWithMask (branchMask p1 p2) p1 t1 {-p2-} t2
+{-# INLINE link #-}
+
+-- `linkWithMask` is useful when the `branchMask` has already been computed
+linkWithMask :: Mask -> Prefix -> IntSet -> IntSet -> IntSet
+linkWithMask m p1 t1 {-p2-} t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
-    m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE link #-}
+{-# INLINE linkWithMask #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.

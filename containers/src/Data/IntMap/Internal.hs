@@ -266,6 +266,7 @@ module Data.IntMap.Internal (
     , natFromInt
     , intFromNat
     , link
+    , linkWithMask
     , bin
     , binCheckLeft
     , binCheckRight
@@ -3111,8 +3112,8 @@ fromListWithKey f xs
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
 fromAscList :: [(Key,a)] -> IntMap a
-fromAscList xs
-  = fromAscListWithKey (\_ x _ -> x) xs
+fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
+{-# NOINLINE fromAscList #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3121,8 +3122,8 @@ fromAscList xs
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWith f xs
-  = fromAscListWithKey (\_ x y -> f x y) xs
+fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
+{-# NOINLINE fromAscListWith #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3132,14 +3133,8 @@ fromAscListWith f xs
 -- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "5:b|a")]
 
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey _ []         = Nil
-fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
-  where
-    -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-    combineEq z [] = [z]
-    combineEq z@(kz,zz) (x@(kx,xx):xs)
-      | kx==kz    = let yy = f kx xx zz in combineEq (kx,yy) xs
-      | otherwise = z:combineEq x xs
+fromAscListWithKey f = fromMonoListWithKey Nondistinct f
+{-# NOINLINE fromAscListWithKey #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
@@ -3147,35 +3142,71 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-#if __GLASGOW_HASKELL__
-fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
-#else
-fromDistinctAscList ::            [(Key,a)] -> IntMap a
-#endif
-fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
+fromDistinctAscList :: [(Key,a)] -> IntMap a
+fromDistinctAscList = fromMonoListWithKey Distinct (\_ x _ -> x)
+{-# NOINLINE fromDistinctAscList #-}
+
+-- | /O(n)/. Build a map from a list of key\/value pairs with monotonic keys
+-- and a combining function.
+--
+-- The precise conditions under which this function works are subtle:
+-- For any branch mask, keys with the same prefix w.r.t. the branch
+-- mask must occur consecutively in the list.
+
+fromMonoListWithKey :: Distinct -> (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
+fromMonoListWithKey distinct f = go
   where
-    work (kx,vx) []            stk = finish kx (Tip kx vx) stk
-    work (kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
+    go []              = Nil
+    go ((kx,vx) : zs1) = addAll' kx vx zs1
 
-#if __GLASGOW_HASKELL__
-    reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
-#endif
-    reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
-    reduce z zs m px tx stk@(Push py ty stk') =
-        let mxy = branchMask px py
-            pxy = mask px mxy
-        in  if shorter m mxy
-            then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-            else work z zs (Push px tx stk)
+    -- `addAll'` collects all keys equal to `kx` into a single value,
+    -- and then proceeds with `addAll`.
+    addAll' !kx vx []
+        = Tip kx vx
+    addAll' !kx vx ((ky,vy) : zs)
+        | Nondistinct <- distinct, kx == ky
+        = let v = f kx vy vx in addAll' ky v zs
+        -- inlined: | otherwise = addAll kx (Tip kx vx) (ky : zs)
+        | m <- branchMask kx ky
+        , Inserted ty zs' <- addMany' m ky vy zs
+        = addAll kx (linkWithMask m ky ty {-kx-} (Tip kx vx)) zs'
 
-    finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
-        where m = branchMask px py
-              p = mask px m
+    -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
+    -- `addAll` consumes the rest of the list, adding to the tree `tx`
+    addAll !kx !tx []
+        = tx
+    addAll !kx !tx ((ky,vy) : zs)
+        | m <- branchMask kx ky
+        , Inserted ty zs' <- addMany' m ky vy zs
+        = addAll kx (linkWithMask m ky ty {-kx-} tx) zs'
 
-data Stack a = Push {-# UNPACK #-} !Prefix !(IntMap a) !(Stack a) | Nada
+    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
+    addMany' !m !kx vx []
+        = Inserted (Tip kx vx) []
+    addMany' !m !kx vx zs0@((ky,vy) : zs)
+        | Nondistinct <- distinct, kx == ky
+        = let v = f kx vy vx in addMany' m ky v zs
+        -- inlined: | otherwise = addMany m kx (Tip kx vx) (ky : zs)
+        | mask kx m /= mask ky m
+        = Inserted (Tip kx vx) zs0
+        | mxy <- branchMask kx ky
+        , Inserted ty zs' <- addMany' mxy ky vy zs
+        = addMany m kx (linkWithMask mxy ky ty {-kx-} (Tip kx vx)) zs'
 
+    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
+    addMany !m !kx tx []
+        = Inserted tx []
+    addMany !m !kx tx zs0@((ky,vy) : zs)
+        | mask kx m /= mask ky m
+        = Inserted tx zs0
+        | mxy <- branchMask kx ky
+        , Inserted ty zs' <- addMany' mxy ky vy zs
+        = addMany m kx (linkWithMask mxy ky ty {-kx-} tx) zs'
+{-# INLINE fromMonoListWithKey #-}
+
+data Inserted a = Inserted !(IntMap a) ![(Key,a)]
+
+data Distinct = Distinct | Nondistinct
 
 {--------------------------------------------------------------------
   Eq
@@ -3297,13 +3328,17 @@ INSTANCE_TYPEABLE1(IntMap)
   Link
 --------------------------------------------------------------------}
 link :: Prefix -> IntMap a -> Prefix -> IntMap a -> IntMap a
-link p1 t1 p2 t2
+link p1 t1 p2 t2 = linkWithMask (branchMask p1 p2) p1 t1 {-p2-} t2
+{-# INLINE link #-}
+
+-- `linkWithMask` is useful when the `branchMask` has already been computed
+linkWithMask :: Mask -> Prefix -> IntMap a -> IntMap a -> IntMap a
+linkWithMask m p1 t1 {-p2-} t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
-    m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE link #-}
+{-# INLINE linkWithMask #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.
