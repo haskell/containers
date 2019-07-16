@@ -337,10 +337,20 @@ prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
 prop_map :: IntSet -> Bool
 prop_map s = map id s == s
 
-prop_mapMonotonic :: (Key -> Key) -> IntSet -> Property
-prop_mapMonotonic f s =
-  (\x y -> x < y ==> f x < f y) .&&.
-  mapMonotonic f s === map f s
+-- Note: we could generate an arbitrary strictly monotonic function by
+-- restricting f using @\x y -> x < y ==> f x < f y@
+-- but this will be inefficient given the probability of actually finding
+-- a function that meets the criteria.
+-- For now we settle on identity function and arbitrary linear functions
+-- f x = a*x + b (with a being positive).
+-- This might be insufficient to support any fancier implementation.
+prop_mapMonotonicId :: IntSet -> Property
+prop_mapMonotonicId s = mapMonotonic id s === map id s
+
+prop_mapMonotonicLinear :: Positive Int -> Int -> IntSet -> Property
+prop_mapMonotonicLinear (Positive a) b s = mapMonotonic f s === map f s
+  where
+    f x = a*x + b
 
 prop_maxView :: IntSet -> Bool
 prop_maxView s = case maxView s of

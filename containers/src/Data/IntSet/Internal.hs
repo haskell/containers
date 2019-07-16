@@ -921,6 +921,8 @@ map f = fromList . List.map f . toList
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
+
+-- Note that for now the test is insufficient to support any fancier implementation.
 mapMonotonic :: (Key -> Key) -> IntSet -> IntSet
 mapMonotonic f = fromDistinctAscList . List.map f . toAscList
 
