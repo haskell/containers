@@ -981,24 +981,21 @@ unionNE t1@(Bin' _ x l1 r1) t2 = case splitS x (NE t2) of
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (NE (Bin' _ x l2 r2)) = case splitS x t1 of
+difference t1 (NE t2) = differenceNE' t1 t2
+
+differenceNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
+differenceNE t1 t2 = differenceNE' (NE t1) t2
+
+differenceNE' :: Ord a => Set a -> NonEmptySet a -> Set a
+differenceNE' t1 (Bin' _ x l2 r2) = case splitS x t1 of
    (l1 :*: r1)
      | size l1l2 + size r1r2 == size t1 -> t1
      | otherwise -> merge l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
-#endif
-
-differenceNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
-differenceNE t1 (Bin' _ x l2 r2) = case splitS x (NE t1) of
-   (l1 :*: r1)
-     | size l1l2 + size r1r2 == sizeNE t1 -> NE t1
-     | otherwise -> merge l1l2 r1r2
-     where !l1l2 = difference l1 l2
-           !r1r2 = difference r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceNE #-}
 #endif
 

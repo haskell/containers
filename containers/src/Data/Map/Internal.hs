@@ -186,24 +186,25 @@ module Data.Map.Internal (
     , unionsWith
 
     -- ** Difference
-    , difference
-    , differenceWith
-    , differenceWithKey
+    , difference, differenceNE
+    , differenceWith, differenceWithNE
+    , differenceWithKey, differenceWithKeyNE
 
     -- ** Intersection
-    , intersection
-    , intersectionWith
-    , intersectionWithKey
+    , intersection, intersectionNE
+    , intersectionWith, intersectionWithNE
+    , intersectionWithKey, intersectionWithKeyNE
 
     -- ** Disjoint
-    , disjoint
+    , disjoint, disjointNE
+
 
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
     , runWhenMatched
     , runWhenMissing
-    , merge
+    , merge, mergeNE
     -- *** @WhenMatched@ tactics
     , zipWithMaybeMatched
     , zipWithMatched
@@ -218,7 +219,7 @@ module Data.Map.Internal (
     -- ** Applicative general combining function
     , WhenMissing (..)
     , WhenMatched (..)
-    , mergeA
+    , mergeA, mergeANE
 
     -- *** @WhenMatched@ tactics
     -- | The tactics described for 'merge' work for
@@ -241,16 +242,16 @@ module Data.Map.Internal (
 
     -- * Traversal
     -- ** Map
-    , map
+    , map, mapNE
     , mapWithKey
-    , traverseWithKey
-    , traverseMaybeWithKey
-    , mapAccum
-    , mapAccumWithKey
-    , mapAccumRWithKey
+    , traverseWithKey, traverseWithKeyNE
+    , traverseMaybeWithKey, traverseMaybeWithKeyNE
+    , mapAccum, mapAccumNE
+    , mapAccumWithKey, mapAccumWithKeyNE
+    , mapAccumRWithKey, mapAccumRWithKeyNE
     , mapKeys
     , mapKeysWith
-    , mapKeysMonotonic
+    , mapKeysMonotonic, mapKeysMonotonicNE
 
     -- * Folds
     , foldr
@@ -298,7 +299,7 @@ module Data.Map.Internal (
     , dropWhileAntitone
     , spanAntitone
 
-    , restrictKeys
+    , restrictKeys, restrictKeysNE
     , withoutKeys
     , partition
     , partitionWithKey
@@ -2193,15 +2194,23 @@ unionWithKeyNE f (Bin' _ k1 x1 l1 r1) t2 = case splitLookupNE k1 t2 of
 difference :: Ord k => Map k a -> Map k b -> Map k a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (NE (Bin' _ k _ l2 r2)) = case split k t1 of
+difference t1 (NE t2) = differenceNE' t1 t2
+
+differenceNE :: Ord k => NonEmptyMap k a -> NonEmptyMap k a -> Maybe (NonEmptyMap k a)
+differenceNE t1 t2 = nonEmpty $ differenceNE' (NE t1) t2
+
+differenceNE' :: Ord k => Map k a -> NonEmptyMap k b -> Map k a
+differenceNE' t1 (Bin' _ k _ l2 r2) = case split k t1 of
   (l1, r1)
     | size l1l2 + size r1r2 == size t1 -> t1
     | otherwise -> link2 l1l2 r1r2
     where
       !l1l2 = difference l1 l2
       !r1r2 = difference r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
+{-# INLINABLE differenceNE #-}
 #endif
 
 -- | /O(m*log(n\/m + 1)), m <= n/. Remove all keys in a 'Set' from a 'Map'.
@@ -2239,8 +2248,14 @@ withoutKeys m (Set.NE (Set.Bin' _ k ls rs)) = case splitMember k m of
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f = merge preserveMissing dropMissing $
        zipWithMaybeMatched (\_ x y -> f x y)
+
+differenceWithNE :: Ord k => (a -> b -> Maybe a) -> NonEmptyMap k a -> NonEmptyMap k b -> Maybe (NonEmptyMap k a)
+differenceWithNE f = mergeNE preserveMissing dropMissing $
+       zipWithMaybeMatched (\_ x y -> f x y)
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
+{-# INLINABLE differenceWithNE #-}
 #endif
 
 -- | /O(n+m)/. Difference with a combining function. When two equal keys are
@@ -2255,8 +2270,14 @@ differenceWith f = merge preserveMissing dropMissing $
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f =
   merge preserveMissing dropMissing (zipWithMaybeMatched f)
+
+differenceWithKeyNE :: Ord k => (k -> a -> b -> Maybe a) -> NonEmptyMap k a -> NonEmptyMap k b -> Maybe (NonEmptyMap k a)
+differenceWithKeyNE f =
+  mergeNE preserveMissing dropMissing (zipWithMaybeMatched f)
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWithKey #-}
+{-# INLINABLE differenceWithKeyNE #-}
 #endif
 
 
@@ -2281,8 +2302,13 @@ intersection t1@(NE (Bin' _ k x l1 r1)) t2
     !(l2, mb, r2) = splitMember k t2
     !l1l2 = intersection l1 l2
     !r1r2 = intersection r1 r2
+
+intersectionNE :: Ord k => NonEmptyMap k a -> NonEmptyMap k b -> Maybe (NonEmptyMap k a)
+intersectionNE t1 t2 = nonEmpty $ intersection (NE t1) (NE t2)
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
+{-# INLINABLE intersectionNE #-}
 #endif
 
 -- | /O(m*log(n\/m + 1)), m <= n/. Restrict a 'Map' to only those keys
@@ -2297,7 +2323,13 @@ intersection t1@(NE (Bin' _ k x l1 r1)) t2
 restrictKeys :: Ord k => Map k a -> Set k -> Map k a
 restrictKeys Tip _ = Tip
 restrictKeys _ Set.Tip = Tip
-restrictKeys m@(NE (Bin' _ k x l1 r1)) s
+restrictKeys m0@(NE m) s = restrictKeysNE' m0 m s
+
+restrictKeysNE :: Ord k => NonEmptyMap k a -> Set k -> Maybe (NonEmptyMap k a)
+restrictKeysNE m s = nonEmpty $ restrictKeysNE' (NE m) m s
+
+restrictKeysNE' :: Ord k => Map k a -> NonEmptyMap k a -> Set k -> Map k a
+restrictKeysNE' m (Bin' _ k x l1 r1) s
   | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
         then m
         else link k x l1l2 r1r2
@@ -2306,8 +2338,11 @@ restrictKeys m@(NE (Bin' _ k x l1 r1)) s
     !(l2, b, r2) = Set.splitMember k s
     !l1l2 = restrictKeys l1 l2
     !r1r2 = restrictKeys r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE restrictKeys #-}
+{-# INLINABLE restrictKeysNE #-}
+{-# INLINABLE restrictKeysNE' #-}
 #endif
 
 -- | /O(m*log(n\/m + 1)), m <= n/. Intersection with a combining function.
@@ -2319,15 +2354,24 @@ intersectionWith :: Ord k => (a -> b -> c) -> Map k a -> Map k b -> Map k c
 -- element in the result will be a thunk.
 intersectionWith _f Tip _ = Tip
 intersectionWith _f _ Tip = Tip
-intersectionWith f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
+intersectionWith f (NE t1) t2 = intersectionWithNE' f t1 t2
+
+intersectionWithNE :: Ord k => (a -> b -> c) -> NonEmptyMap k a -> NonEmptyMap k b -> Maybe (NonEmptyMap k c)
+intersectionWithNE f t1 t2 = nonEmpty $ intersectionWithNE' f t1 (NE t2)
+
+intersectionWithNE' :: Ord k => (a -> b -> c) -> NonEmptyMap k a -> Map k b -> Map k c
+intersectionWithNE' f (Bin' _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f x1 x2) l1l2 r1r2
     Nothing -> link2 l1l2 r1r2
   where
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWith f l1 l2
     !r1r2 = intersectionWith f r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
+{-# INLINABLE intersectionWithNE #-}
+{-# INLINABLE intersectionWithNE' #-}
 #endif
 
 -- | /O(m*log(n\/m + 1)), m <= n/. Intersection with a combining function.
@@ -2338,15 +2382,24 @@ intersectionWith f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
 intersectionWithKey :: Ord k => (k -> a -> b -> c) -> Map k a -> Map k b -> Map k c
 intersectionWithKey _f Tip _ = Tip
 intersectionWithKey _f _ Tip = Tip
-intersectionWithKey f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
+intersectionWithKey f (NE t1) t2 = intersectionWithKeyNE' f t1 t2
+
+intersectionWithKeyNE :: Ord k => (k -> a -> b -> c) -> NonEmptyMap k a -> NonEmptyMap k b -> Maybe (NonEmptyMap k c)
+intersectionWithKeyNE f t1 t2 = nonEmpty $ intersectionWithKeyNE' f t1 (NE t2)
+
+intersectionWithKeyNE' :: Ord k => (k -> a -> b -> c) -> NonEmptyMap k a -> Map k b -> Map k c
+intersectionWithKeyNE' f (Bin' _ k x1 l1 r1) t2 = case mb of
     Just x2 -> link k (f k x1 x2) l1l2 r1r2
     Nothing -> link2 l1l2 r1r2
   where
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWithKey f l1 l2
     !r1r2 = intersectionWithKey f r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
+{-# INLINABLE intersectionWithKeyNE #-}
+{-# INLINABLE intersectionWithKeyNE' #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -2370,8 +2423,14 @@ intersectionWithKey f (NE (Bin' _ k x1 l1 r1)) t2 = case mb of
 disjoint :: Ord k => Map k a -> Map k b -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
-disjoint (NE (Bin' 1 k _ _ _)) t = k `notMember` t
-disjoint (NE (Bin' _ k _ l r)) t
+disjoint (NE t1) t2 = disjointNE' t1 t2
+
+disjointNE :: Ord k => NonEmptyMap k a -> NonEmptyMap k b -> Bool
+disjointNE t1 t2 = disjointNE' t1 (NE t2)
+
+disjointNE' :: Ord k => NonEmptyMap k a -> Map k b -> Bool
+disjointNE' (Bin' 1 k _ _ _) t = k `notMember` t
+disjointNE' (Bin' _ k _ l r) t
   = not found && disjoint l lt && disjoint r gt
   where
     (lt,found,gt) = splitMember k t
@@ -2898,6 +2957,18 @@ merge g1 g2 f m1 m2 = runIdentity $
   mergeA g1 g2 f m1 m2
 {-# INLINE merge #-}
 
+mergeNE
+  :: Ord k
+  => SimpleWhenMissing k a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> SimpleWhenMissing k b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> SimpleWhenMatched k a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> NonEmptyMap k a -- ^ Map @m1@
+  -> NonEmptyMap k b -- ^ Map @m2@
+  -> Maybe (NonEmptyMap k c)
+mergeNE g1 g2 f m1 m2 = runIdentity $
+  mergeANE g1 g2 f m1 m2
+{-# INLINE mergeNE #-}
+
 -- | An applicative version of 'merge'.
 --
 -- 'mergeA' takes two 'WhenMissing' tactics, a 'WhenMatched'
@@ -2986,6 +3057,31 @@ mergeA
           !l1l2 = go l1 l2
           !r1r2 = go r1 r2
 {-# INLINE mergeA #-}
+
+mergeANE
+  :: (Applicative f, Ord k)
+  => WhenMissing f k a c -- ^ What to do with keys in @m1@ but not @m2@
+  -> WhenMissing f k b c -- ^ What to do with keys in @m2@ but not @m1@
+  -> WhenMatched f k a b c -- ^ What to do with keys in both @m1@ and @m2@
+  -> NonEmptyMap k a -- ^ Map @m1@
+  -> NonEmptyMap k b -- ^ Map @m2@
+  -> f (Maybe (NonEmptyMap k c))
+mergeANE
+    (w0 @ WhenMissing{missingKey = g1k})
+    w1
+    (w2 @ (WhenMatched f))
+    (Bin' _ kx x1 l1 r1)
+    t2
+  = fmap nonEmpty $ case splitLookupNE kx t2 of
+      (l2, mx2, r2) -> case mx2 of
+          Nothing -> liftA3 (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        l1l2 (g1k kx x1) r1r2
+          Just x2 -> liftA3 (\l' mx' r' -> maybe link2 (link kx) mx' l' r')
+                        l1l2 (f kx x1 x2) r1r2
+        where
+          !l1l2 = mergeA w0 w1 w2 l1 l2
+          !r1r2 = mergeA w0 w1 w2 r1 r2
+{-# INLINE mergeANE #-}
 
 
 {--------------------------------------------------------------------
@@ -3301,11 +3397,24 @@ mapMaybeWithKey f (NE (Bin' _ kx x l r)) = case f kx x of
 -- @since 0.5.8
 traverseMaybeWithKey :: Applicative f
                      => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
-traverseMaybeWithKey = go
-  where
-    go _ Tip = pure Tip
-    go f (NE (Bin' _ kx x Tip Tip)) = maybe Tip (\x' -> NE $ Bin' 1 kx x' Tip Tip) <$> f kx x
-    go f (NE (Bin' _ kx x l r)) = liftA3 combine (go f l) (f kx x) (go f r)
+traverseMaybeWithKey f = traverseMaybeWithKey' f
+
+traverseMaybeWithKeyNE
+  :: Applicative f
+  => (k -> a -> f (Maybe b)) -> NonEmptyMap k a -> f (Maybe (NonEmptyMap k b))
+traverseMaybeWithKeyNE f = fmap nonEmpty . traverseMaybeWithKeyFromNE' f
+
+traverseMaybeWithKey'
+  :: Applicative f
+  => (k -> a -> f (Maybe b)) -> Map k a -> f (Map k b)
+traverseMaybeWithKey' _ Tip = pure Tip
+traverseMaybeWithKey' f (NE m) = traverseMaybeWithKeyFromNE' f m
+
+traverseMaybeWithKeyFromNE'
+  :: Applicative f
+  => (k -> a -> f (Maybe b)) -> NonEmptyMap k a -> f (Map k b)
+traverseMaybeWithKeyFromNE' f (Bin' _ kx x Tip Tip) = maybe Tip (\x' -> NE $ Bin' 1 kx x' Tip Tip) <$> f kx x
+traverseMaybeWithKeyFromNE' f (Bin' _ kx x l r) = liftA3 combine (traverseMaybeWithKey' f l) (f kx x) (traverseMaybeWithKey' f r)
       where
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
@@ -3352,12 +3461,23 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map f = go where
-  go Tip = Tip
-  go (NE (Bin' sx kx x l r)) = NE $ Bin' sx kx (f x) (go l) (go r)
--- We use a `go` function to allow `map` to inline. This makes
+map = map'
+
+mapNE :: (a -> b) -> NonEmptyMap k a -> NonEmptyMap k b
+mapNE = mapNE'
+
+map' :: (a -> b) -> Map k a -> Map k b
+map' _ Tip = Tip
+map' f (NE m) = NE $ mapNE' f m
+
+mapNE' :: (a -> b) -> NonEmptyMap k a -> NonEmptyMap k b
+mapNE' f (Bin' sx kx x l r) = Bin' sx kx (f x) (map' f l) (map' f r)
+
+-- We use a `map'` function to allow `map` to inline. This makes
 -- a big difference if someone uses `map (const x) m` instead
 -- of `x <$ m`; it doesn't seem to do any harm.
+--
+-- TODO(@Ericson2314) aren't we screwing this up with non-empty?
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] map #-}
@@ -3379,7 +3499,10 @@ map f = go where
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
-mapWithKey f (NE (Bin' sx kx x l r)) = NE $ Bin' sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
+mapWithKey f (NE m) = NE $ mapWithKeyNE f m
+
+mapWithKeyNE :: (k -> a -> b) -> NonEmptyMap k a -> NonEmptyMap k b
+mapWithKeyNE f (Bin' sx kx x l r) = Bin' sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
 
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] mapWithKey #-}
@@ -3401,12 +3524,19 @@ mapWithKey f (NE (Bin' sx kx x l r)) = NE $ Bin' sx kx (f kx x) (mapWithKey f l)
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
 traverseWithKey :: Applicative t => (k -> a -> t b) -> Map k a -> t (Map k b)
-traverseWithKey f = go
-  where
-    go Tip = pure Tip
-    go (NE (Bin' 1 k v _ _)) = (\v' -> NE $ Bin' 1 k v' Tip Tip) <$> f k v
-    go (NE (Bin' s k v l r)) = liftA3 (\l' v' -> NE . Bin' s k v' l') (go l) (f k v) (go r)
+traverseWithKey _ Tip = pure Tip
+traverseWithKey f (NE m) = NE <$> traverseWithKeyNE f m
+
+traverseWithKeyNE :: Applicative t => (k -> a -> t b) -> NonEmptyMap k a -> t (NonEmptyMap k b)
+traverseWithKeyNE f (Bin' 1 k v _ _) = (\v' -> Bin' 1 k v' Tip Tip) <$> f k v
+traverseWithKeyNE f (Bin' s k v l r) = liftA3
+  (\l' v' -> Bin' s k v' l')
+  (traverseWithKey f l)
+  (f k v)
+  (traverseWithKey f r)
+
 {-# INLINE traverseWithKey #-}
+{-# INLINE traverseWithKeyNE #-}
 
 -- | /O(n)/. The function 'mapAccum' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -3414,9 +3544,13 @@ traverseWithKey f = go
 -- > let f a b = (a ++ b, b ++ "X")
 -- > mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) == ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
 
-mapAccum :: (a -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccum :: (a -> b -> (a, c)) -> a -> Map k b -> (a, Map k c)
 mapAccum f a m
   = mapAccumWithKey (\a' _ x' -> f a' x') a m
+
+mapAccumNE :: (a -> b -> (a, c)) -> a -> NonEmptyMap k b -> (a, NonEmptyMap k c)
+mapAccumNE f a m
+  = mapAccumWithKeyNE (\a' _ x' -> f a' x') a m
 
 -- | /O(n)/. The function 'mapAccumWithKey' threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -3424,29 +3558,39 @@ mapAccum f a m
 -- > let f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 -- > mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) == ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
 
-mapAccumWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccumWithKey :: (a -> k -> b -> (a, c)) -> a -> Map k b -> (a, Map k c)
 mapAccumWithKey f a t
   = mapAccumL f a t
 
+mapAccumWithKeyNE :: (a -> k -> b -> (a, c)) -> a -> NonEmptyMap k b -> (a, NonEmptyMap k c)
+mapAccumWithKeyNE f a t
+  = mapAccumLNE f a t
+
 -- | /O(n)/. The function 'mapAccumL' threads an accumulating
 -- argument through the map in ascending order of keys.
-mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
-mapAccumL _ a Tip               = (a,Tip)
-mapAccumL f a (NE (Bin' sx kx x l r)) =
+mapAccumL :: (a -> k -> b -> (a, c)) -> a -> Map k b -> (a, Map k c)
+mapAccumL _ a Tip = (a, Tip)
+mapAccumL f a (NE m) = fmap NE $ mapAccumLNE f a m
+
+mapAccumLNE :: (a -> k -> b -> (a, c)) -> a -> NonEmptyMap k b -> (a, NonEmptyMap k c)
+mapAccumLNE f a (Bin' sx kx x l r) =
   let (a1,l') = mapAccumL f a l
       (a2,x') = f a1 kx x
       (a3,r') = mapAccumL f a2 r
-  in (a3, NE $ Bin' sx kx x' l' r')
+  in (a3, Bin' sx kx x' l' r')
 
 -- | /O(n)/. The function 'mapAccumR' threads an accumulating
 -- argument through the map in descending order of keys.
-mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
+mapAccumRWithKey :: (a -> k -> b -> (a, c)) -> a -> Map k b -> (a, Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
-mapAccumRWithKey f a (NE (Bin' sx kx x l r)) =
+mapAccumRWithKey f a (NE m) = NE <$> mapAccumRWithKeyNE f a m
+
+mapAccumRWithKeyNE :: (a -> k -> b -> (a, c)) -> a -> NonEmptyMap k b -> (a, NonEmptyMap k c)
+mapAccumRWithKeyNE f a (Bin' sx kx x l r) =
   let (a1,r') = mapAccumRWithKey f a r
       (a2,x') = f a1 kx x
       (a3,l') = mapAccumRWithKey f a2 l
-  in (a3, NE $ Bin' sx kx x' l' r')
+  in (a3, Bin' sx kx x' l' r')
 
 -- | /O(n*log n)/.
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -3501,10 +3645,13 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- > valid (mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")])) == True
 -- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
 
-mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
+mapKeysMonotonic :: (k1 -> k2) -> Map k1 a -> Map k2 a
 mapKeysMonotonic _ Tip = Tip
-mapKeysMonotonic f (NE (Bin' sz k x l r)) =
-    NE $ Bin' sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
+mapKeysMonotonic f (NE m) = NE $ mapKeysMonotonicNE f m
+
+mapKeysMonotonicNE :: (k1 -> k2) ->  NonEmptyMap k1 a -> NonEmptyMap k2 a
+mapKeysMonotonicNE f (Bin' sz k x l r) =
+  Bin' sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
 
 {--------------------------------------------------------------------
   Folds
