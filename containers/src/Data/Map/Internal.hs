@@ -179,9 +179,9 @@ module Data.Map.Internal (
     -- * Combine
 
     -- ** Union
-    , union
-    , unionWith
-    , unionWithKey
+    , union, unionNE
+    , unionWith, unionWithNE
+    , unionWithKey, unionWithKeyNE
     , unions
     , unionsWith
 
@@ -309,7 +309,7 @@ module Data.Map.Internal (
     , mapEitherWithKey
 
     , split
-    , splitLookup
+    , splitLookup, splitLookupNE
     , splitRoot
 
     -- * Submap
@@ -350,7 +350,7 @@ module Data.Map.Internal (
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
     , atKeyPlain
 #endif
-    , bin
+    , bin, binNE
     , balance
     , balanceL
     , balanceR
@@ -2091,6 +2091,19 @@ union t1@(NE (Bin' _ k1 x1 l1 r1)) t2 = case split k1 t2 of
 {-# INLINABLE union #-}
 #endif
 
+unionNE :: Ord k => NonEmptyMap k a -> NonEmptyMap k a -> NonEmptyMap k a
+unionNE t1 (Bin' _ k x Tip Tip) = insertRNE k x t1
+unionNE (Bin' _ k x Tip Tip) t2 = insertNE k x t2
+unionNE t1@(Bin' _ k x l1 r1) t2 = case split k (NE t2) of
+  (l2, r2)
+    | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
+    | otherwise -> linkNE k x l1l2 r1r2
+    where !l1l2 = union l1 l2
+          !r1r2 = union r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE unionNE #-}
+#endif
+
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
@@ -2114,6 +2127,20 @@ unionWith f (NE (Bin' _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
 {-# INLINABLE unionWith #-}
 #endif
 
+unionWithNE :: Ord k => (a -> a -> a) -> NonEmptyMap k a -> NonEmptyMap k a -> NonEmptyMap k a
+-- QuickCheck says pointer equality never happens here.
+unionWithNE f t1 (Bin' _ k x Tip Tip) = insertWithRNE f k x t1
+unionWithNE f (Bin' _ k x Tip Tip) t2 = insertWithNE f k x t2
+unionWithNE f (Bin' _ k1 x1 l1 r1) t2 = case splitLookupNE k1 t2 of
+  (l2, mb, r2) -> case mb of
+      Nothing -> linkNE k1 x1 l1l2 r1r2
+      Just x2 -> linkNE k1 (f x1 x2) l1l2 r1r2
+    where !l1l2 = unionWith f l1 l2
+          !r1r2 = unionWith f r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE unionWithNE #-}
+#endif
+
 -- | /O(m*log(n\/m + 1)), m <= n/.
 -- Union with a combining function.
 --
@@ -2133,6 +2160,19 @@ unionWithKey f (NE (Bin' _ k1 x1 l1 r1)) t2 = case splitLookup k1 t2 of
           !r1r2 = unionWithKey f r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE unionWithKey #-}
+#endif
+
+unionWithKeyNE :: Ord k => (k -> a -> a -> a) -> NonEmptyMap k a -> NonEmptyMap k a -> NonEmptyMap k a
+unionWithKeyNE f t1 (Bin' _ k x Tip Tip) = insertWithKeyRNE f k x t1
+unionWithKeyNE f (Bin' _ k x Tip Tip) t2 = insertWithKeyNE f k x t2
+unionWithKeyNE f (Bin' _ k1 x1 l1 r1) t2 = case splitLookupNE k1 t2 of
+  (l2, mb, r2) -> case mb of
+      Nothing -> linkNE k1 x1 l1l2 r1r2
+      Just x2 -> linkNE k1 (f k1 x1 x2) l1l2 r1r2
+    where !l1l2 = unionWithKey f l1 l2
+          !r1r2 = unionWithKey f r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE unionWithKeyNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -4061,24 +4101,32 @@ split !k0 t0 = toPair $ go k0 t0
 -- > splitLookup 4 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Nothing, singleton 5 "a")
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
-splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
-splitLookup k0 m = case go k0 m of
-     StrictTriple l mv r -> (l, mv, r)
-  where
-    go :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
-    go !k t =
-      case t of
-        Tip                          -> StrictTriple Tip Nothing Tip
-        NE (Bin' _ kx x l r) -> case compare k kx of
-          LT -> let StrictTriple lt z gt = go k l
-                    !gt' = link kx x gt r
-                in StrictTriple lt z gt'
-          GT -> let StrictTriple lt z gt = go k r
-                    !lt' = link kx x l lt
-                in StrictTriple lt' z gt
-          EQ -> StrictTriple l (Just x) r
+splitLookup :: Ord k => k -> Map k a -> (Map k a, Maybe a, Map k a)
+splitLookup k0 m = case splitLookup' k0 m of
+  StrictTriple l mv r -> (l, mv, r)
+
+splitLookupNE :: Ord k => k -> NonEmptyMap k a -> (Map k a, Maybe a, Map k a)
+splitLookupNE k0 m = case splitLookupNE' k0 m of
+  StrictTriple l mv r -> (l, mv, r)
+
+splitLookup' :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
+splitLookup' !k t = case t of
+    Tip -> StrictTriple Tip Nothing Tip
+    NE t' -> splitLookupNE' k t'
+
+splitLookupNE' :: Ord k => k -> NonEmptyMap k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
+splitLookupNE' !k (Bin' _ kx x l r) = case compare k kx of
+      LT -> let StrictTriple lt z gt = splitLookup' k l
+                !gt' = link kx x gt r
+            in StrictTriple lt z gt'
+      GT -> let StrictTriple lt z gt = splitLookup' k r
+                !lt' = link kx x l lt
+            in StrictTriple lt' z gt
+      EQ -> StrictTriple l (Just x) r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitLookup #-}
+{-# INLINABLE splitLookupNE #-}
 #endif
 
 -- | A variant of 'splitLookup' that indicates only whether the
@@ -4133,27 +4181,30 @@ data StrictTriple a b c = StrictTriple !a !b !c
   Link
 --------------------------------------------------------------------}
 link :: k -> a -> Map k a -> Map k a -> Map k a
-link kx x Tip r  = insertMin kx x r
-link kx x l Tip  = insertMax kx x l
-link kx x l@(NE (Bin' sizeL ky y ly ry)) r@(NE (Bin' sizeR kz z lz rz))
-  | delta*sizeL < sizeR  = balanceL kz z (link kx x l lz) rz
-  | delta*sizeR < sizeL  = balanceR ky y ly (link kx x ry r)
-  | otherwise            = bin kx x l r
+link k x l r = NE $ linkNE k x l r
+
+linkNE :: k -> a -> Map k a -> Map k a -> NonEmptyMap k a
+linkNE kx x Tip r  = insertMinNE kx x r
+linkNE kx x l Tip  = insertMaxNE kx x l
+linkNE kx x l@(NE (Bin' sizeL ky y ly ry)) r@(NE (Bin' sizeR kz z lz rz))
+  | delta*sizeL < sizeR  = balanceLNE kz z (linkNE kx x l lz) rz
+  | delta*sizeR < sizeL  = balanceRNE ky y ly (linkNE kx x ry r)
+  | otherwise            = binNE kx x l r
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: k -> a -> Map k a -> Map k a
-insertMax kx x t
-  = case t of
-      Tip -> singleton kx x
-      NE (Bin'  _ ky y l r
-         ) -> balanceR ky y l (insertMax kx x r)
+insertMax, insertMin :: k -> a -> Map k a -> Map k a
+insertMax kx x t = NE $ insertMaxNE kx x t
+insertMin kx x t = NE $ insertMinNE kx x t
 
-insertMin kx x t
-  = case t of
-      Tip -> singleton kx x
-      NE (Bin'  _ ky y l r
-         ) -> balanceL ky y (insertMin kx x l) r
+insertMaxNE, insertMinNE :: k -> a -> Map k a -> NonEmptyMap k a
+insertMaxNE kx x t = case t of
+  Tip -> singletonNE kx x
+  NE (Bin' _ ky y l r) -> balanceRNE ky y l (insertMaxNE kx x r)
+
+insertMinNE kx x t = case t of
+  Tip -> singletonNE kx x
+  NE (Bin'  _ ky y l r) -> balanceLNE ky y (insertMinNE kx x l) r
 
 {--------------------------------------------------------------------
   [link2 l r]: merges two trees.
@@ -4463,9 +4514,13 @@ balanceRNENE k x l@(Bin' ls _ _ _ _) r@(Bin' rs rk rx rl rr)
   The bin constructor maintains the size of the tree
 --------------------------------------------------------------------}
 bin :: k -> a -> Map k a -> Map k a -> Map k a
-bin k x l r
-  = NE $ Bin' (size l + size r + 1) k x l r
+bin k x l r = NE $ binNE k x l r
 {-# INLINE bin #-}
+
+binNE :: k -> a -> Map k a -> Map k a -> NonEmptyMap k a
+binNE k x l r
+  = Bin' (size l + size r + 1) k x l r
+{-# INLINE binNE #-}
 
 
 {--------------------------------------------------------------------
