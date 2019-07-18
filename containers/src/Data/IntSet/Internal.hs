@@ -1436,12 +1436,11 @@ lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
 
 highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
 
-foldlBits prefix f z bitmap = go bitmap z
-  where go 0 acc = acc
-        go bm acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
-          where
-            !bitmask = lowestBitMask bm
-            !bi = indexOfTheOnlyBit bitmask
+foldlBits !prefix f z bitmap = go (revNat bitmap)
+  where go 0 = z
+        go bm = f (go (bm `xor` bitmask)) (prefix+(WORD_SIZE_IN_BITS-1)-bi)
+          where !bitmask = lowestBitMask bm
+                !bi = indexOfTheOnlyBit bitmask
 
 foldl'Bits prefix f z bitmap = go bitmap z
   where go 0 acc = acc
@@ -1449,12 +1448,11 @@ foldl'Bits prefix f z bitmap = go bitmap z
           where !bitmask = lowestBitMask bm
                 !bi = indexOfTheOnlyBit bitmask
 
-foldrBits prefix f z bitmap = go (revNat bitmap) z
-  where go 0 acc = acc
-        go bm acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
+foldrBits !prefix f z bitmap = go bitmap
+  where go 0 = z
+        go bm = f (prefix + bi) (go (bm `xor` bitmask))
           where !bitmask = lowestBitMask bm
                 !bi = indexOfTheOnlyBit bitmask
-
 
 foldr'Bits prefix f z bitmap = go (revNat bitmap) z
   where go 0 acc = acc
@@ -1489,10 +1487,11 @@ highestBitSet n0 =
     in b6
 
 foldlBits prefix f z bm = let lb = lowestBitSet bm
-                          in  go (prefix+lb) z (bm `shiftRL` lb)
-  where go !_ acc 0 = acc
-        go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
-                    | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
+                          in  go (prefix+lb) (bm `shiftRL` lb)
+  where
+        go !_ 0 = z
+        go bi n | n `testBit` 0 = f (go (bi + 1) (n `shiftRL` 1)) bi
+                | otherwise     = go (bi + 1) (n `shiftRL` 1)
 
 foldl'Bits prefix f z bm = let lb = lowestBitSet bm
                            in  go (prefix+lb) z (bm `shiftRL` lb)
