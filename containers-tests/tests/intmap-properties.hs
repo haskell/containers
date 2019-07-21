@@ -8,6 +8,7 @@ import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
 
+import Control.Monad ((>=>))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -163,6 +164,7 @@ main = defaultMain
              , testProperty "lookupLE"             prop_lookupLE
              , testProperty "lookupGE"             prop_lookupGE
              , testProperty "disjoint"             prop_disjoint
+             , testProperty "compose"              prop_compose
              , testProperty "lookupMin"            prop_lookupMin
              , testProperty "lookupMax"            prop_lookupMax
              , testProperty "findMin"              prop_findMin
@@ -883,6 +885,9 @@ prop_intersectionWithKeyModel xs ys
 
 prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
+
+prop_compose :: IMap -> IMap -> Int -> Property
+prop_compose bc ab k = (compose bc ab !? k) === (flip lookup ab >=> flip lookup bc) k
 
 -- TODO: the second argument should be simply an 'IntSet', but that
 -- runs afoul of our orphan instance.

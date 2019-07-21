@@ -166,6 +166,9 @@ module Data.Map.Lazy (
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** General combining functions
     -- | See "Data.Map.Merge.Lazy"
 

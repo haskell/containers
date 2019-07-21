@@ -145,6 +145,9 @@ module Data.Map.Strict.Internal
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
@@ -1199,6 +1202,25 @@ forceMaybe :: Maybe a -> Maybe a
 forceMaybe Nothing = Nothing
 forceMaybe m@(Just !_) = m
 {-# INLINE forceMaybe #-}
+
+{--------------------------------------------------------------------
+  Compose
+--------------------------------------------------------------------}
+-- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- the other, by using the values of the former as keys for lookups
+-- on the later.
+--
+-- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
+--
+-- @
+-- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
+-- @
+--
+-- @since UNRELEASED
+compose :: Ord b => Map b c -> Map a b -> Map a c
+compose bc ab = if null bc
+                then empty
+                else mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   MergeWithKey

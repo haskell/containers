@@ -131,6 +131,9 @@ module Data.IntMap.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Compose
+    , compose
+
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
@@ -760,6 +763,25 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
     disjoint2 | nomatch p1 p2 m2 = True
               | zero p1 m2       = disjoint t1 l2
               | otherwise        = disjoint t1 r2
+
+{--------------------------------------------------------------------
+  Compose
+--------------------------------------------------------------------}
+-- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- the other, by using the values of the former as keys for lookups
+-- on the later.
+--
+-- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
+--
+-- @
+-- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
+-- @
+--
+-- @since UNRELEASED
+compose :: IntMap c -> IntMap Int -> IntMap c
+compose bc ab = if null bc
+                then empty
+                else mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   Construction
