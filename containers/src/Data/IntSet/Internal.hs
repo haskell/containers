@@ -210,7 +210,8 @@ import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 
 #if __GLASGOW_HASKELL__
-import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, DataType, mkDataType)
+import qualified Data.Data
 import Text.Read
 #endif
 
@@ -310,7 +311,7 @@ instance Data IntSet where
   dataTypeOf _   = intSetDataType
 
 fromListConstr :: Constr
-fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
+fromListConstr = mkConstr intSetDataType "fromList" [] Data.Data.Prefix
 
 intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Internal.IntSet" [fromListConstr]
@@ -1157,8 +1158,145 @@ nequal _   _   = True
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
-    -- tentative implementation. See if more efficient exists.
+    compare s1 s2 = cis s1 s2
+
+cis :: IntSet -> IntSet -> Ordering
+cis a b = case relate a b of
+  Less -> LT
+  Prefix -> LT
+  Equals -> EQ
+  FlipPrefix -> GT
+  Greater -> GT
+
+-- | detailed outcome of lexicographic comparison of lists.
+-- w.r.t. Ordering, there are two extra cases,
+-- since (++) is not monotonic w.r.t. lex. order on lists
+-- (which is used by definition):
+-- consider comparison of  (Bin [0,3,4] [ 6] ) to  (Bin [0,3] [7] )
+-- where [0,3,4] > [0,3]  but [0,3,4,6] < [0,3,7].
+
+data Relation
+  = Less  -- ^ holds for [0,3,4] [0,3,5,1]
+  | Prefix -- ^ holds for [0,3,4] [0,3,4,5]
+  | Equals -- ^  holds for [0,3,4] [0,3,4]
+  | FlipPrefix -- ^ holds for [0,3,4] [0,3]
+  | Greater -- ^ holds for [0,3,4] [0,2,5]
+  deriving (Show, Eq)
+   
+-- The following gets complicated since integers are
+-- effectively handled (in the tree) by their binary representation:
+-- if a bit is zero, the left branch is taken.
+-- This also holds for the sign bit (the MSB),
+-- so negative numbers are in the right subtree:
+-- after    Bin p m l r = fromList [-1,0]
+-- we have  l = fromList [0], r = fromList [-1]
+
+relate :: IntSet -> IntSet -> Relation
+relate Nil Nil = Equals
+relate Nil t2 = Prefix
+relate t1 Nil = FlipPrefix
+relate (Tip p1 bm1) (Tip p2 bm2) = case compare p1 p2 of
+  LT -> Less
+  EQ -> relateBM bm1 bm2
+  GT -> Greater
+relate t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+  | mixed t1 && mixed t2 = combine (relate r1 r2) (relate l1 l2)
+  | mixed t1 = combine_left (relate r1 t2)
+  | mixed t2 = combine_right (relate t1 r2)
+  | otherwise = case compare (natFromInt m1) (natFromInt m2) of
+      GT -> combine_left (relate l1 t2)
+      EQ -> combine (relate l1 l2) (relate r1 r2)
+      LT -> combine_right (relate t1 l2)
+relate t1@(Bin p1 m1 l1 r1) t2@(Tip p2 bm2)
+  | mixed t1 = combine_left (relate r1 t2)
+  | upperbound t1 < lowerbound t2 = Less
+  | lowerbound t1 > upperbound t2 = Greater
+  | 0 == m1 .&. p2 = combine_left (relate l1 t2)
+  | otherwise = Less
+relate t1@(Tip p1 bm1) t2@(Bin p2 m2 l2 r2)
+  | mixed t2 = combine_right (relate t1 r2)
+  | upperbound t1 < lowerbound t2 = Less
+  | lowerbound t1 > upperbound t2 = Greater
+  | 0 == (p1 .&. m2) = combine_right (relate t1 l2)
+  | otherwise = Greater
+
+relateBM :: BitMap -> BitMap -> Relation
+{-# inline relateBM #-}
+relateBM w1 w2 | w1 == w2 = Equals
+relateBM w1 w2 =
+  let delta = xor w1 w2
+      lowest_diff_mask = delta .&. complement (delta-1)
+      prefix = (complement lowest_diff_mask + 1)
+            .&. (complement lowest_diff_mask)
+  in  if 0 == lowest_diff_mask .&. w1
+      then if 0 == w1 .&. prefix
+           then Prefix else Greater
+      else if 0 == w2 .&. prefix
+           then FlipPrefix else Less
+
+-- it is important that this is lazy in the second argument
+-- (we want to avoid useless comparison of right subtrees)
+combine :: Relation -> Relation -> Relation
+{-# inline combine #-}
+combine r eq = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> eq
+      FlipPrefix -> Less
+      Greater -> Greater
+
+{-
+prop_combine_left (Split l1 r1) (Split l2 _) = let r2 = [] in
+  rel (l1 <> r1) (l2 <> r2) == combine_left (rel l1 l2)
+-}
+
+combine_left :: Relation -> Relation
+{-# inline combine_left #-}
+combine_left r = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> FlipPrefix
+      FlipPrefix -> FlipPrefix
+      Greater -> Greater
+
+{-
+prop_combine_right (Split l1 _) (Split l2 r2) = let r1 = [] in
+  rel (l1 <> r1) (l2 <> r2) == combine_right (rel l1 l2)
+-}
+
+combine_right :: Relation -> Relation
+{-# inline combine_right #-}
+combine_right r = case r of
+      Less -> Less
+      Prefix -> Prefix
+      Equals -> Prefix
+      FlipPrefix -> Less
+      Greater -> Greater
+
+
+-- | does the set contain both numbers >= 0 and numbers < 0 ?
+mixed :: IntSet -> Bool
+mixed (Bin p m l r) = m == bit ( wordSize -1 )
+
+{-
+prop_lb xs =
+  Prelude.null xs || let s = fromList xs ; l = lowerbound s in  all (l <=) xs
+prop_ub xs =
+  Prelude.null xs || let s = fromList xs ; u = upperbound s in  all (<= u) xs
+-}
+
+lowerbound :: IntSet -> Int
+{-# INLINE lowerbound #-}
+lowerbound (Tip p _) = p
+lowerbound t@(Bin p m _ _) = if mixed t then m else p
+
+upperbound :: IntSet -> Int
+{-# INLINE upperbound #-}
+upperbound (Tip p _) = p + wordSize - 1
+upperbound t@(Bin p m _ _) =
+  if mixed t then complement (bit (wordSize - 1)) else p + m - 1
+
+
 
 {--------------------------------------------------------------------
   Show
