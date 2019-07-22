@@ -24,6 +24,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_EmptyValid" prop_EmptyValid
                    , testProperty "prop_SingletonValid" prop_SingletonValid
                    , testProperty "prop_InsertIntoEmptyValid" prop_InsertIntoEmptyValid
+                   , testProperty "prop_instanceEqIntSet" prop_instanceEqIntSet
+                   , testProperty "prop_instanceOrdIntSet" prop_instanceOrdIntSet
                    , testProperty "prop_Single" prop_Single
                    , testProperty "prop_Member" prop_Member
                    , testProperty "prop_NotMember" prop_NotMember
@@ -140,6 +142,16 @@ prop_SingletonValid x =
 prop_InsertIntoEmptyValid :: Int -> Property
 prop_InsertIntoEmptyValid x =
     valid (insert x empty)
+
+{--------------------------------------------------------------------
+  Instances for Eq and Ord
+--------------------------------------------------------------------}
+
+prop_instanceEqIntSet :: IntSet -> IntSet -> Bool
+prop_instanceEqIntSet x y = (x == y) == (toAscList x == toAscList y)
+
+prop_instanceOrdIntSet :: IntSet -> IntSet -> Bool
+prop_instanceOrdIntSet x y = (compare x y) == (compare (toAscList x) (toAscList y))
 
 {--------------------------------------------------------------------
   Single, Member, Insert, Delete, Member, FromList
