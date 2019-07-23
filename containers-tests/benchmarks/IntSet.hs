@@ -117,4 +117,4 @@ union_dfa a b = IM.unionWith (M.unionWith (error "WAT")) a b
 hard_nfa :: State -> Int -> NFA
 hard_nfa delta n = nfa
   $ [ (0, 0, 0), (0,1,0), (0, 1, delta) ]
-  <> do k <- [1 .. State n - 2] ; c <- [0,1] ; return (delta * k,c,delta *(k+1))
+  ++ do k <- [1 .. State n - 2] ; c <- [0,1] ; return (delta * k,c,delta *(k+1))
