@@ -76,7 +76,7 @@ instance Show State where show (State s) = show s
 newtype Sigma = Sigma Int deriving (Num, Enum, Eq)
 
 num_transitions :: DFA -> Int
-num_transitions = getSum . foldMap (Sum . length)
+num_transitions = getSum . foldMap (Sum . M.size)
 
 det :: Sigma -> State -> NFA -> DFA
 det sigma (State initial) aut =
