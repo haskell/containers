@@ -1253,9 +1253,9 @@ relateBM w1 w2 =
       else if 0 == w2 .&. prefix
            then FlipPrefix else Less
 
--- it is important that this is lazy in the second argument
--- (equivalently, each function call is inlined)
--- as we want to avoid useless comparison of right subtrees
+-- | This function has the property
+-- relate t1@(Bin p m l1 r1) t2@(Bin p m l2 r2) = combine (relate l1 l2) (relate r1 r2)
+-- It is important that `combine` is lazy in the second argument (achieved by inlining)
 combine :: Relation -> Relation -> Relation
 {-# inline combine #-}
 combine r eq = case r of
@@ -1265,11 +1265,10 @@ combine r eq = case r of
       FlipPrefix -> Less
       Greater -> Greater
 
-{-
-prop_combine_left (Split l1 r1) (Split l2 _) = let r2 = [] in
-  rel (l1 <> r1) (l2 <> r2) == combine_left (rel l1 l2)
--}
-
+-- | This function has the property
+-- relate t1@(Bin p1 m1 l1 r1) t2 = combine_left (relate l1 t2)
+-- under the precondition that the range of l1 contains the range of t2,
+-- and r1 is non-empty
 combine_left :: Relation -> Relation
 {-# inline combine_left #-}
 combine_left r = case r of
@@ -1279,11 +1278,10 @@ combine_left r = case r of
       FlipPrefix -> FlipPrefix
       Greater -> Greater
 
-{-
-prop_combine_right (Split l1 _) (Split l2 r2) = let r1 = [] in
-  rel (l1 <> r1) (l2 <> r2) == combine_right (rel l1 l2)
--}
-
+-- | This function has the property
+-- relate t1 t2@(Bin p2 m2 l2 r2) = combine_right (relate t1 l2)
+-- under the precondition that the range of t1 is included in the range of l2,
+-- and r2 is non-empty
 combine_right :: Relation -> Relation
 {-# inline combine_right #-}
 combine_right r = case r of
@@ -1293,30 +1291,21 @@ combine_right r = case r of
       FlipPrefix -> Less
       Greater -> Greater
 
-
 -- | does the set contain both numbers >= 0 and numbers < 0 ?
 mixed :: IntSet -> Bool
 mixed (Bin p m l r) = m == bit ( wordSize -1 )
-
-{-
-prop_lb xs =
-  Prelude.null xs || let s = fromList xs ; l = lowerbound s in  all (l <=) xs
-prop_ub xs =
-  Prelude.null xs || let s = fromList xs ; u = upperbound s in  all (<= u) xs
--}
 
 -- | shall only be applied to non-mixed non-Nil trees
 lowerbound :: IntSet -> Int
 {-# INLINE lowerbound #-}
 lowerbound (Tip p _) = p
-lowerbound t@(Bin p m _ _) = {- if mixed t then m else -} p
+lowerbound t@(Bin p m _ _) = p
 
 -- | shall only be applied to non-mixed non-Nil trees
 upperbound :: IntSet -> Int
 {-# INLINE upperbound #-}
 upperbound (Tip p _) = p + wordSize - 1
-upperbound t@(Bin p m _ _) =
-  {- if mixed t then complement (bit (wordSize - 1)) else -} p + m - 1
+upperbound t@(Bin p m _ _) = p + m - 1
 
 
 
