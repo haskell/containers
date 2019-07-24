@@ -141,6 +141,7 @@ module Data.IntSet.Internal (
 
     -- * Map
     , map
+    , mapMonotonic
 
     -- * Folds
     , foldr
@@ -910,6 +911,21 @@ deleteMax = maybe Nil snd . maxView
 
 map :: (Key -> Key) -> IntSet -> IntSet
 map f = fromList . List.map f . toList
+
+-- | /O(n)/. The
+--
+-- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
+-- /The precondition is not checked./
+-- Semi-formally, we have:
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
+-- >                     ==> mapMonotonic f s == map f s
+-- >     where ls = toList s
+
+-- Note that for now the test is insufficient to support any fancier implementation.
+mapMonotonic :: (Key -> Key) -> IntSet -> IntSet
+mapMonotonic f = fromDistinctAscList . List.map f . toAscList
+
 
 {--------------------------------------------------------------------
   Fold
