@@ -15,6 +15,8 @@ main = do
     evaluate $ rnf [s, s_even, s_odd]
     defaultMain
         [ bench "member" $ whnf (member elems) s
+        , bench "foldr" $ whnf (sumUntilL (2^14 - 5)) fish
+        , bench "foldl" $ whnf (sumUntilR 5) fish
         , bench "insert" $ whnf (ins elems) S.empty
         , bench "map" $ whnf (S.map (+ 1)) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
@@ -38,9 +40,24 @@ main = do
         , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
         ]
   where
+    fish = S.fromDistinctAscList [7..2^14]
     elems = [1..2^12]
     elems_even = [2,4..2^12]
     elems_odd = [1,3..2^12]
+
+sumUntilL :: Int -> S.IntSet -> Int
+sumUntilL n = \xs -> S.foldr go id xs 0
+  where
+    go x r !acc
+      | x >= n = acc
+      | otherwise = r (acc + x)
+
+sumUntilR :: Int -> S.IntSet -> Int
+sumUntilR n = \xs -> S.foldl go id xs 0
+  where
+    go r x !acc
+      | x <= n = acc
+      | otherwise = r (acc + x)
 
 member :: [Int] -> S.IntSet -> Int
 member xs s = foldl' (\n x -> if S.member x s then n + 1 else n) 0 xs
