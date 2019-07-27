@@ -1158,7 +1158,20 @@ nequal _   _   = True
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = orderingOf $ relateTop s1 s2
+  compare Nil Nil = EQ
+  compare Nil _ = LT
+  compare _ Nil = GT
+  compare t1@(Tip _ _) t2@(Tip _ _)
+    = orderingOf $ relateTipTip t1 t2
+  compare xs ys
+    | (xsNeg, xsNonNeg) <- splitSign xs
+    , (ysNeg, ysNonNeg) <- splitSign ys
+    = case relate xsNeg ysNeg of
+       Less -> LT
+       Prefix -> if null xsNonNeg then LT else GT
+       Equals -> orderingOf (relate xsNonNeg ysNonNeg)
+       FlipPrefix -> if null ysNonNeg then GT else LT
+       Greater -> GT
 
 -- | detailed outcome of lexicographic comparison of lists.
 -- w.r.t. Ordering, there are two extra cases,
@@ -1184,51 +1197,25 @@ orderingOf r = case r of
   FlipPrefix -> GT
   Greater -> GT
 
--- The following gets complicated since integers are
--- effectively handled (in the tree) by their binary representation:
--- if a bit is zero, the left branch is taken.
--- This also holds for the sign bit (the MSB),
--- so negative numbers are in the right subtree:
--- after    Bin p m l r = fromList [-1,0]
--- we have  l = fromList [0], r = fromList [-1] .
--- This can only happen at the very top, so handle this separetely,
--- and avoid the check for the "mixed" case during recursion (function 'relate')
--- We also avoid checking for Nil in 'relate', since it cannot appear below Bin.
-
-relateTop :: IntSet -> IntSet -> Relation
-{-# INLINE relateTop #-}
-relateTop Nil Nil = Equals
-relateTop Nil t2 = Prefix
-relateTop t1 Nil = FlipPrefix
-relateTop t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
-  | mixed t1 && mixed t2 = combine (relate r1 r2) (relate l1 l2)
-  | mixed t1 = combine_left (relate r1 t2)
-  | mixed t2 = combine_right (relate t1 r2)
-  | otherwise = relate t1 t2
-relateTop t1@(Bin p1 m1 l1 r1) t2@(Tip p2 bm2)
-  | mixed t1 = combine_left (relate r1 t2)
-  | otherwise = relate t1 t2
-relateTop t1@(Tip p1 bm1) t2@(Bin p2 m2 l2 r2)
-  | mixed t2 = combine_right (relate t1 r2)
-  | otherwise = relate t1 t2
-relateTop t1@(Tip _ _) t2@(Tip _ _) = relateTipTip t1 t2
-
--- | precondition: each argument is non-Nil and non-mixed
+-- | precondition: each argument is non-mixed
 relate :: IntSet -> IntSet -> Relation
+relate Nil Nil = Equals
+relate Nil t2 = Prefix
+relate t1 Nil = FlipPrefix
 relate t1@(Tip p1 bm1) t2@(Tip p2 bm2) = relateTipTip t1 t2
 relate t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
   | otherwise = case compare (natFromInt m1) (natFromInt m2) of
       GT -> combine_left (relate l1 t2)
       EQ -> combine (relate l1 l2) (relate r1 r2)
       LT -> combine_right (relate t1 l2)
-relate t1@(Bin p1 m1 l1 r1) t2@(Tip p2 bm2)
-  | upperbound t1 < lowerbound t2 = Less
-  | lowerbound t1 > upperbound t2 = Greater
+relate t1@(Bin p1 m1 l1 r1) t2@(Tip p2 _)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
   | 0 == (m1 .&. p2) = combine_left (relate l1 t2)
   | otherwise = Less
-relate t1@(Tip p1 bm1) t2@(Bin p2 m2 l2 r2)
-  | upperbound t1 < lowerbound t2 = Less
-  | lowerbound t1 > upperbound t2 = Greater
+relate t1@(Tip p1 _) t2@(Bin p2 m2 l2 r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
   | 0 == (p1 .&. m2) = combine_right (relate t1 l2)
   | otherwise = Greater
 
@@ -1291,23 +1278,31 @@ combine_right r = case r of
       FlipPrefix -> Less
       Greater -> Greater
 
--- | does the set contain both numbers >= 0 and numbers < 0 ?
-mixed :: IntSet -> Bool
-mixed (Bin p m l r) = m == bit ( wordSize -1 )
-
 -- | shall only be applied to non-mixed non-Nil trees
 lowerbound :: IntSet -> Int
 {-# INLINE lowerbound #-}
 lowerbound (Tip p _) = p
-lowerbound t@(Bin p m _ _) = p
+lowerbound (Bin p _ _ _) = p
 
--- | shall only be applied to non-mixed non-Nil trees
-upperbound :: IntSet -> Int
-{-# INLINE upperbound #-}
-upperbound (Tip p _) = p + wordSize - 1
-upperbound t@(Bin p m _ _) = p + m - 1
+-- | this is one more than the actual upper bound (to save one operation)
+-- shall only be applied to non-mixed non-Nil trees
+succUpperbound :: IntSet -> Int
+{-# INLINE succUpperbound #-}
+succUpperbound (Tip p _) = p + wordSize 
+succUpperbound (Bin p m _ _) = p + shiftR m 1
 
-
+-- | split a set into subsets of negative and non-negative elements
+splitSign :: IntSet -> (IntSet,IntSet)
+{-# INLINE splitSign #-}
+splitSign t@(Tip kx _)
+  | kx >= 0 = (Nil, t)
+  | otherwise = (t, Nil)
+splitSign t@(Bin p m l r)
+  -- m < 0 is the usual way to find out if we have positives and negatives (see findMax)
+  | m < 0 = (r, l)
+  | p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
 
 {--------------------------------------------------------------------
   Show
