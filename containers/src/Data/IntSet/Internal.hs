@@ -1204,6 +1204,8 @@ relate Nil t2 = Prefix
 relate t1 Nil = FlipPrefix
 relate t1@(Tip p1 bm1) t2@(Tip p2 bm2) = relateTipTip t1 t2
 relate t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
   | otherwise = case compare (natFromInt m1) (natFromInt m2) of
       GT -> combine_left (relate l1 t2)
       EQ -> combine (relate l1 l2) (relate r1 r2)
