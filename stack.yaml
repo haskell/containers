@@ -1,6 +1,6 @@
 flags: {}
 packages:
-- containers
+# - containers  # Unnecessary for development. Uncomment to produce an sdist or similar.
 - containers-tests
 
 ### Uncoment the resolver you want to use and re-run `stack build/test/bench`.
