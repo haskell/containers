@@ -394,7 +394,6 @@ foldToMaybeTree (<+>) f (Deep _ pr m sf) =
     pr' = foldDigit (<+>) f pr
     sf' = foldDigit (<+>) f sf
     m' = foldToMaybeTree (<+>) (foldNode (<+>) f) m
-{-# INLINE foldToMaybeTree #-}
 
 -- | A 'Data.Sequence.foldMapWithIndex'-like function, specialized to the
 -- 'Data.Semigroup.Option' monoid, which takes advantage of the
