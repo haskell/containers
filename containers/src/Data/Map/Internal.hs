@@ -488,7 +488,7 @@ data NonEmptyMap k a = Bin' {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 type Size     = Int
 
 #if __GLASGOW_HASKELL__ >= 802
-{-# COMPLETE Bin #-}
+{-# COMPLETE Bin, Tip #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 710
 pattern Bin :: Size -> k -> a -> Map k a -> Map k a -> Map k a

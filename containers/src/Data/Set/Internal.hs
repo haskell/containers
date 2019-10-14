@@ -312,7 +312,7 @@ data NonEmptySet a = Bin' {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 type Size     = Int
 
 #if __GLASGOW_HASKELL__ >= 802
-{-# COMPLETE Bin #-}
+{-# COMPLETE Bin, Tip #-}
 #endif
 #if __GLASGOW_HASKELL__ >= 710
 pattern Bin :: Size -> a -> Set a -> Set a -> Set a
