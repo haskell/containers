@@ -769,7 +769,7 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 --------------------------------------------------------------------}
 -- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
--- on the later.
+-- in the latter.
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --

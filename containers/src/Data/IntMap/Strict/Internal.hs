@@ -725,7 +725,7 @@ intersectionWithKey f m1 m2
 --------------------------------------------------------------------}
 -- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
--- on the later.
+-- in the latter.
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --
