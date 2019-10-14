@@ -11,7 +11,7 @@ import Data.Map.Internal (Map (..), link2, link, bin)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
-import Control.Monad ((>=>))
+import Control.Monad ((<=<))
 import Data.Functor.Identity (Identity(runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
@@ -1077,7 +1077,7 @@ prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
 
 prop_compose :: IMap -> IMap -> Int -> Property
-prop_compose bc ab k = (compose bc ab !? k) === (flip lookup ab >=> flip lookup bc) k
+prop_compose bc ab k = (compose bc ab !? k) === ((bc !?) <=< (ab !?)) k
 
 prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_mergeWithKeyModel xs ys

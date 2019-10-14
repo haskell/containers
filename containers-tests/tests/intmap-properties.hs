@@ -8,7 +8,7 @@ import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
 
-import Control.Monad ((>=>))
+import Control.Monad ((<=<))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -887,7 +887,7 @@ prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
 
 prop_compose :: IMap -> IMap -> Int -> Property
-prop_compose bc ab k = (compose bc ab !? k) === (flip lookup ab >=> flip lookup bc) k
+prop_compose bc ab k = (compose bc ab !? k) === ((bc !?) <=< (ab !?)) k
 
 -- TODO: the second argument should be simply an 'IntSet', but that
 -- runs afoul of our orphan instance.
