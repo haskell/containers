@@ -1549,7 +1549,7 @@ deleteAlong' foom q (NE t) = deleteAlongFromNE' foom q t
 #ifdef USE_MAGIC_PROXY
 deleteAlongFromNE' :: Proxy# () -> BitQueue -> NonEmptyMap k a -> Map k a
 #else
-deleteAlongFromNE' :: any -> BitQueue -> Map k a -> Map k a
+deleteAlongFromNE' :: any -> BitQueue -> NonEmptyMap k a -> Map k a
 #endif
 deleteAlongFromNE' foom q (Bin' _ ky y l r) =
     case unconsQ q of
