@@ -117,7 +117,7 @@ Common API Functions
    ``size`` which is O(1) for ``Map`` and O(n) for ``IntMap``.
 
 .. NOTE::
-   A ``Map`` is printed as an association list preceeded by ``fromList``. For
+   A ``Map`` is printed as an association list preceded by ``fromList``. For
    example, it might look like ``fromList [(Key1,True),(Key2,False)]``.
 
 
