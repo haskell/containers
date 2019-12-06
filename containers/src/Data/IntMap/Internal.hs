@@ -2491,7 +2491,7 @@ mapAccumL f a t
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
--- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
+-- | /O(n)/. The function @'mapAccumRWithKey'@ threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumRWithKey f a t
