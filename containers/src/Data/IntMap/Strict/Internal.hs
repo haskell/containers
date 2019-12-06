@@ -941,7 +941,7 @@ mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
--- | /O(n)/. The function @'mapAccumR'@ threads an accumulating
+-- | /O(n)/. The function @'mapAccumRWithKey'@ threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
