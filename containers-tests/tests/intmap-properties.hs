@@ -14,6 +14,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
+import Data.Functor.Identity
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
