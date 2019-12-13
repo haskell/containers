@@ -2,8 +2,10 @@
 
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap hiding (showTree)
+import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 #else
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
+import Data.IntMap.Internal (traverseMaybeWithKey)
 #endif
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
