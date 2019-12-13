@@ -191,6 +191,8 @@ main = defaultMain
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
+             , testProperty "traverseWithKey"      prop_traverseWithKey
+             , testProperty "traverseMaybeWithKey" prop_traverseMaybeWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -1187,3 +1189,11 @@ prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+
+prop_traverseWithKey :: IntMap () -> Bool
+prop_traverseWithKey mp = mp == newMap
+  where Identity newMap = traverseWithKey (\_ -> Identity) mp
+
+prop_traverseMaybeWithKey :: IntMap () -> Bool
+prop_traverseMaybeWithKey mp = mp == newMap
+  where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
