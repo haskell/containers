@@ -2457,7 +2457,7 @@ traverseWithKey f = go
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
     go (Bin p m l r)
-      | m < 0     = liftA2 (Bin p m) (go r) (go l)
+      | m < 0     = liftA2 (flip (Bin p m)) (go r) (go l)
       | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
