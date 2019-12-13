@@ -16,7 +16,6 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
-import Data.Functor.Identity
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
@@ -1192,6 +1191,15 @@ prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+
+newtype Identity a = Identity a
+
+instance Functor Identity where
+  fmap f (Identity a) = Identity (f a)
+  
+instance Applicative Identity where
+  pure a = Identity a
+  Identity f <*> Identity a = Identity (f a)
 
 prop_traverseWithKey :: IntMap () -> Bool
 prop_traverseWithKey mp = mp == newMap
