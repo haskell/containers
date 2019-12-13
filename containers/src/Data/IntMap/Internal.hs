@@ -1868,7 +1868,9 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k) <$> f k x
-    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (bin p m)) (go r) (go l)
+      | otherwise = liftA2 (bin p m) (go l) (go r)
 
 
 -- | Merge two maps.

@@ -895,7 +895,9 @@ traverseWithKey f = go
   where
     go Nil = pure Nil
     go (Tip k v) = (\ !v' -> Tip k v') <$> f k v
-    go (Bin p m l r) = liftA2 (Bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (Bin p m)) (go r) (go l)
+      | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
@@ -905,7 +907,9 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k $!) <$> f k x
-    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (bin p m)) (go r) (go l)
+      | otherwise = liftA2 (bin p m) (go l) (go r)
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
