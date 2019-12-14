@@ -484,43 +484,58 @@ test_intersectionWithKey = intersectionWithKey f (fromList [(5, "a"), (3, "b")])
 -- Traversal
 
 test_map :: Assertion
-test_map = map (++ "x") (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "bx"), (5, "ax")]
+test_map =
+    map (++ "x") (fromList [(5,"a"), (3,"b"), (-1,"c")])
+            @?= fromList [(3, "bx"), (5, "ax"), (-1,"cx")]
 
 test_mapWithKey :: Assertion
-test_mapWithKey = mapWithKey f (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "3:b"), (5, "5:a")]
+test_mapWithKey =
+    mapWithKey f (fromList [(5,"a"), (3,"b"), (-1,"c")])
+            @?= fromList [(3, "3:b"), (5, "5:a"), (-1,"-1:c")]
   where
     f key x = (show key) ++ ":" ++ x
 
 test_mapAccum :: Assertion
-test_mapAccum = mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) @?= ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
+test_mapAccum =
+    mapAccum f "Everything: " (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: cba", fromList [(3, "bX"), (5, "aX"), (-1, "cX")])
   where
     f a b = (a ++ b, b ++ "X")
 
 test_mapAccumWithKey :: Assertion
-test_mapAccumWithKey = mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
+test_mapAccumWithKey =
+    mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: -1-c 3-b 5-a", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
   where
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
 test_mapAccumRWithKey :: Assertion
-test_mapAccumRWithKey = mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 5-a 3-b", fromList [(3, "bX"), (5, "aX")])
+test_mapAccumRWithKey =
+    mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: 5-a 3-b -1-c", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
   where
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
 test_mapKeys :: Assertion
 test_mapKeys = do
-    mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        @?= fromList [(4, "b"), (6, "a")]
-    mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "c"
-    mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "c"
+    mapKeys (+ 1) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+            @?= fromList [(4, "b"), (6, "a"), (-1,"c")]
+    mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (-4,"c")])
+            @?= singleton 1 "d"
+    mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (-3,"d"), (4,"c")])
+            @?= singleton 3 "c"
 
 test_mapKeysWith :: Assertion
 test_mapKeysWith = do
-    mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "cdab"
-    mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "cdab"
+    mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (-4,"c")]) @?= singleton 1 "dabc"
+    mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (-3,"d"), (4,"c")]) @?= singleton 3 "cabd"
 
 test_mapKeysMonotonic :: Assertion
 test_mapKeysMonotonic = do
-    mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b")])          @?= fromList [(4, "b"), (6, "a")]
-    mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
+    mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+        @?= fromList [(4, "b"), (6, "a"), (-1, "c")]
+    mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+        @?= fromList [(6, "b"), (10, "a"), (-4, "c")]
 
 ----------------------------------------------------------------
 -- Conversion
