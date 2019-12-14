@@ -939,9 +939,15 @@ mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
   where
     go f a t
       = case t of
-          Bin p m l r -> let (a1 :*: l') = go f a l
-                             (a2 :*: r') = go f a1 r
-                         in (a2 :*: Bin p m l' r')
+          Bin p m l r
+            | m < 0 ->
+                let (a1 :*: r') = go f a r
+                    (a2 :*: l') = go f a1 l
+                in (a2 :*: Bin p m l' r')
+            | otherwise ->
+                let (a1 :*: l') = go f a l
+                    (a2 :*: r') = go f a1 r
+                in (a2 :*: Bin p m l' r')
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
@@ -952,9 +958,15 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
   where
     go f a t
       = case t of
-          Bin p m l r -> let (a1 :*: r') = go f a r
-                             (a2 :*: l') = go f a1 l
-                         in (a2 :*: Bin p m l' r')
+          Bin p m l r
+            | m < 0 ->
+              let (a1 :*: l') = go f a l
+                  (a2 :*: r') = go f a1 r
+              in (a2 :*: Bin p m l' r')
+            | otherwise ->
+              let (a1 :*: r') = go f a r
+                  (a2 :*: l') = go f a1 l
+              in (a2 :*: Bin p m l' r')
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 

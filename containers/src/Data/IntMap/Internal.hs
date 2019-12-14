@@ -2487,9 +2487,15 @@ mapAccumWithKey f a t
 mapAccumL :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumL f a t
   = case t of
-      Bin p m l r -> let (a1,l') = mapAccumL f a l
-                         (a2,r') = mapAccumL f a1 r
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,r') = mapAccumL f a r
+                (a2,l') = mapAccumL f a1 l
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,l') = mapAccumL f a l
+                (a2,r') = mapAccumL f a1 r
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
@@ -2498,9 +2504,15 @@ mapAccumL f a t
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumRWithKey f a t
   = case t of
-      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
-                         (a2,l') = mapAccumRWithKey f a1 l
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,l') = mapAccumRWithKey f a l
+                (a2,r') = mapAccumRWithKey f a1 r
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,r') = mapAccumRWithKey f a r
+                (a2,l') = mapAccumRWithKey f a1 l
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
