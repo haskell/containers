@@ -608,7 +608,7 @@ test_showTree :: Assertion
 test_showTree =
        (let t = fromDistinctAscList [(x,()) | x <- [(-2)..2]]
         in showTree t) @?= tree
-  where tree = lines
+  where tree = unlines
             [ "*"
             , "+--*"
             , "|  +-- -2:=()"
@@ -618,7 +618,7 @@ test_showTree =
             , "   |  +-- 0:=()"
             , "   |  +-- 1:=()"
             , "   +-- 2:=()"
-            , ""
+            ]
 
 test_fromAscList :: Assertion
 test_fromAscList = do
