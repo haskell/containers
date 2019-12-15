@@ -130,6 +130,8 @@ main = defaultMain
              , testCase "maxView" test_maxView
              , testCase "minViewWithKey" test_minViewWithKey
              , testCase "maxViewWithKey" test_maxViewWithKey
+             , testCase "minimum" test_minimum
+             , testCase "maximum" test_maximum
              , testProperty "valid"                prop_valid
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
@@ -1212,7 +1214,7 @@ newtype Identity a = Identity a
 
 instance Functor Identity where
   fmap f (Identity a) = Identity (f a)
-  
+
 instance Applicative Identity where
   pure a = Identity a
   Identity f <*> Identity a = Identity (f a)
@@ -1224,3 +1226,25 @@ prop_traverseWithKey mp = mp == newMap
 prop_traverseMaybeWithKey :: IntMap () -> Bool
 prop_traverseMaybeWithKey mp = mp == newMap
   where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
+
+
+test_minimum :: Assertion
+test_minimum = do
+    getOW (minimum testOrdMap) @?= "min"
+    minimum (elems testOrdMap) @?= minimum testOrdMap
+  where getOW (OrdWith s _) = s
+
+test_maximum :: Assertion
+test_maximum = do
+    getOW (maximum testOrdMap) @?= "max"
+    maximum (elems testOrdMap) @?= maximum testOrdMap
+  where getOW (OrdWith s _) = s
+
+testOrdMap :: IntMap (OrdWith Int)
+testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
+
+data OrdWith a = OrdWith String a
+    deriving (Eq)
+
+instance Ord a => Ord (OrdWith a) where
+    OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2

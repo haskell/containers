@@ -479,7 +479,9 @@ instance Foldable.Foldable IntMap where
   maximum = start
     where start Nil = error "Data.Foldable.maximum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = max m y
@@ -488,7 +490,9 @@ instance Foldable.Foldable IntMap where
   minimum = start
     where start Nil = error "Data.Foldable.minimum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = min m y
