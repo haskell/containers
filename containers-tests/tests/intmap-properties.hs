@@ -1244,7 +1244,7 @@ testOrdMap :: IntMap (OrdWith Int)
 testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
 
 data OrdWith a = OrdWith String a
-    deriving (Eq)
+    deriving (Eq, Show)
 
 instance Ord a => Ord (OrdWith a) where
     OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2
