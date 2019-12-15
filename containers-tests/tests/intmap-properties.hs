@@ -604,8 +604,19 @@ test_toDescList = toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")
 
 test_showTree :: Assertion
 test_showTree =
-       (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
-        in showTree t) @?= "*\n+--*\n|  +-- 1:=()\n|  +--*\n|     +-- 2:=()\n|     +-- 3:=()\n+--*\n   +-- 4:=()\n   +-- 5:=()\n"
+       (let t = fromDistinctAscList [(x,()) | x <- [(-2)..2]]
+        in showTree t) @?= tree
+  where tree = lines
+            [ "*"
+            , "+--*"
+            , "|  +-- -2:=()"
+            , "|  +-- -1:=()"
+            , "+--*"
+            , "   +--*"
+            , "   |  +-- 0:=()"
+            , "   |  +-- 1:=()"
+            , "   +-- 2:=()"
+            , ""
 
 test_fromAscList :: Assertion
 test_fromAscList = do
