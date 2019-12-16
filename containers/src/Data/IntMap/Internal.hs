@@ -1830,8 +1830,9 @@ filterWithKeyA
   :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
 filterWithKeyA _ Nil           = pure Nil
 filterWithKeyA f t@(Tip k x)   = (\b -> if b then t else Nil) <$> f k x
-filterWithKeyA f (Bin p m l r) =
-    liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
+filterWithKeyA f (Bin p m l r)
+  | m < 0     = liftA2 (flip (bin p m)) (filterWithKeyA f r) (filterWithKeyA f l)
+  | otherwise = liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
