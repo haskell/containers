@@ -862,6 +862,31 @@ test_maxViewWithKey = do
     maxViewWithKey (fromList [(5,"a"), (-3,"b")]) @?= Just ((5,"a"), singleton (-3) "b")
     maxViewWithKey (empty :: SMap) @?= Nothing
 
+
+#if MIN_VERSION_base(4,8,0)
+test_minimum :: Assertion
+test_minimum = do
+    getOW (minimum testOrdMap) @?= "min"
+    minimum (elems testOrdMap) @?= minimum testOrdMap
+  where getOW (OrdWith s _) = s
+
+test_maximum :: Assertion
+test_maximum = do
+    getOW (maximum testOrdMap) @?= "max"
+    maximum (elems testOrdMap) @?= maximum testOrdMap
+  where getOW (OrdWith s _) = s
+
+testOrdMap :: IntMap (OrdWith Int)
+testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
+
+data OrdWith a = OrdWith String a
+    deriving (Eq, Show)
+
+instance Ord a => Ord (OrdWith a) where
+    OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2
+#endif
+
+
 ----------------------------------------------------------------
 -- Valid IntMaps
 ----------------------------------------------------------------
@@ -1285,26 +1310,3 @@ prop_traverseWithKey mp = mp == newMap
 prop_traverseMaybeWithKey :: IntMap () -> Bool
 prop_traverseMaybeWithKey mp = mp == newMap
   where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
-
-#if MIN_VERSION_base(4,8,0)
-test_minimum :: Assertion
-test_minimum = do
-    getOW (minimum testOrdMap) @?= "min"
-    minimum (elems testOrdMap) @?= minimum testOrdMap
-  where getOW (OrdWith s _) = s
-
-test_maximum :: Assertion
-test_maximum = do
-    getOW (maximum testOrdMap) @?= "max"
-    maximum (elems testOrdMap) @?= maximum testOrdMap
-  where getOW (OrdWith s _) = s
-
-testOrdMap :: IntMap (OrdWith Int)
-testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
-
-data OrdWith a = OrdWith String a
-    deriving (Eq, Show)
-
-instance Ord a => Ord (OrdWith a) where
-    OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2
-#endif
