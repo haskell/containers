@@ -557,7 +557,7 @@ test_unionWith = do
     unionWith (++) (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "aA"), (7, "C")]
 
 test_unionWithKey :: Assertion
-test_unionWithKey =
+test_unionWithKey = do
     unionWithKey f (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
     unionWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "5:a|A"), (7, "C")]
   where
@@ -669,7 +669,7 @@ test_mapAccumWithKey = do
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
 test_mapAccumRWithKey :: Assertion
-test_mapAccumRWithKey =
+test_mapAccumRWithKey = do
     mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 5-a 3-b", fromList [(3, "bX"), (5, "aX")])
     mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
         @?= ("Everything: 5-a 3-b -1-c", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
