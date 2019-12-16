@@ -3493,19 +3493,12 @@ showTreeWith hang wide t
 
 showsTree :: Show a => Bool -> [String] -> [String] -> IntMap a -> ShowS
 showsTree wide lbars rbars t = case t of
-  Bin p m l r
-    | m < 0 ->
-        showsTree wide (withBar lbars) (withEmpty lbars) l .
-        showWide wide lbars .
-        showsBars rbars . showString (showBin p m) . showString "\n" .
-        showWide wide rbars .
-        showsTree wide (withEmpty rbars) (withBar rbars) r
-    | otherwise ->
-        showsTree wide (withBar rbars) (withEmpty rbars) r .
-        showWide wide rbars .
-        showsBars lbars . showString (showBin p m) . showString "\n" .
-        showWide wide lbars .
-        showsTree wide (withEmpty lbars) (withBar lbars) l
+  Bin p m l r ->
+    showsTree wide (withBar rbars) (withEmpty rbars) r .
+    showWide wide rbars .
+    showsBars lbars . showString (showBin p m) . showString "\n" .
+    showWide wide lbars .
+    showsTree wide (withEmpty lbars) (withBar lbars) l
   Tip k x ->
     showsBars lbars .
     showString " " . shows k . showString ":=" . shows x . showString "\n"
@@ -3513,19 +3506,12 @@ showsTree wide lbars rbars t = case t of
 
 showsTreeHang :: Show a => Bool -> [String] -> IntMap a -> ShowS
 showsTreeHang wide bars t = case t of
-  Bin p m l r
-    | m < 0 ->
-        showsBars bars . showString (showBin p m) . showString "\n" .
-        showWide wide bars .
-        showsTreeHang wide (withBar bars) r .
-        showWide wide bars .
-        showsTreeHang wide (withEmpty bars) l
-    | otherwise ->
-        showsBars bars . showString (showBin p m) . showString "\n" .
-        showWide wide bars .
-        showsTreeHang wide (withBar bars) l .
-        showWide wide bars .
-        showsTreeHang wide (withEmpty bars) r
+  Bin p m l r ->
+    showsBars bars . showString (showBin p m) . showString "\n" .
+    showWide wide bars .
+    showsTreeHang wide (withBar bars) l .
+    showWide wide bars .
+    showsTreeHang wide (withEmpty bars) r
   Tip k x ->
     showsBars bars .
     showString " " . shows k . showString ":=" . shows x . showString "\n"
