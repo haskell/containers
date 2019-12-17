@@ -92,7 +92,10 @@ mapMissing f = WhenMissing (\k v -> pure (Just $! f k v)) (pure . goL) (pure . g
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
 mapMaybeMissing :: Applicative f => (Key -> a -> Maybe b) -> WhenMissing f a b
-mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
+mapMaybeMissing f = WhenMissing (\k v -> case f k v of
+    Nothing -> pure Nothing
+    Just !b -> pure (Just b)) (pure . goLKeep) (pure . goRKeep) (pure . start)
+  where
     start Empty = Empty
     start (NonEmpty min minV root) = case f min minV of
         Just !minV' -> NonEmpty min minV' (goLKeep root)
