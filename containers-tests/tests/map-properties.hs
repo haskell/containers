@@ -176,6 +176,7 @@ main = defaultMain
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
+         , testProperty "mergeA effects"       prop_mergeA_effects
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromDescList"         prop_rev_ordered
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
@@ -1108,6 +1109,17 @@ prop_mergeWithKeyModel xs ys
           -- optimalization. There are too many call patterns here so several
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
+
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeA_effects :: UMap -> UMap -> Property
+prop_mergeA_effects xs ys
+  = effects === sort effects
+  where
+    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
+    whenMissing = traverseMissing (\k _ -> ([k], ()))
+    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
 
 ----------------------------------------------------------------
 
