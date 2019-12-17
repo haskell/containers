@@ -3,9 +3,11 @@
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap hiding (showTree)
 import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
+import Data.IntMap.Merge.Strict
 #else
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Internal (traverseMaybeWithKey)
+import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
@@ -30,7 +32,7 @@ import Test.Framework.Providers.QuickCheck2
 import Test.HUnit hiding (Test, Testable)
 import Test.QuickCheck
 import Test.QuickCheck.Function (Fun(..), apply)
-import Test.QuickCheck.Poly (A, B)
+import Test.QuickCheck.Poly (A, B, C)
 
 default (Int)
 
@@ -150,6 +152,7 @@ main = defaultMain
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
+             , testProperty "merge valid"          prop_merge_valid
              , testProperty "fromAscList"          prop_ordered
              , testProperty "fromList then toList" prop_list
              , testProperty "toDescList"           prop_descList
@@ -1289,6 +1292,24 @@ prop_mergeWithKeyModel xs ys
           -- optimalization. There are too many call patterns here so several
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
+
+prop_merge_valid
+    :: Fun (Key, A) (Maybe C)
+    -> Fun (Key, B) (Maybe C)
+    -> Fun (Key, A, B) (Maybe C)
+    -> IntMap A
+    -> IntMap B
+    -> Property
+prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
+  = valid m
+  where
+    m =
+      merge
+        (mapMaybeMissing (applyFun2 whenMissingA))
+        (mapMaybeMissing (applyFun2 whenMissingB))
+        (zipWithMaybeMatched (applyFun3 whenMatched))
+        xs
+        ys
 
 ----------------------------------------------------------------
 
