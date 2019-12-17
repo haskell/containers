@@ -198,8 +198,10 @@ main = defaultMain
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
-             , testProperty "traverseWithKey"      prop_traverseWithKey
-             , testProperty "traverseMaybeWithKey" prop_traverseMaybeWithKey
+             , testProperty "traverseWithKey identity" prop_traverseWithKey_identity
+             , testProperty "traverseMaybeWithKey identity" prop_traverseMaybeWithKey_identity
+             , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
+             , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -247,7 +249,7 @@ tests = [ testGroup "Test Case" [
 
 test_index :: Assertion
 test_index = do
-    fromList [(5,'a'), (-3,'b')] ! 5 @?= 'a'
+    fromList [(5,'a'), (3,'b')] ! 5 @?= 'a'
 
     fromList [(5,'a'), (-3,'b')] ! (-3) @?= 'b'
 
@@ -774,6 +776,16 @@ test_fromListWithKey = do
 
 ----------------------------------------------------------------
 -- Ordered lists
+
+test_toAscList :: Assertion
+test_toAscList = do
+    toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+    toAscList (fromList [(5,"a"), (-3,"b")]) @?= [(-3,"b"), (5,"a")]
+
+test_toDescList :: Assertion
+test_toDescList = do
+    toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")]
+    toDescList (fromList [(5,"a"), (-3,"b")]) @?= [(5,"a"), (-3,"b")]
 
 test_showTree :: Assertion
 test_showTree = do
@@ -1531,6 +1543,7 @@ prop_fromSet ys =
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
 
 newtype Identity a = Identity a
+    deriving (Eq, Show)
 
 instance Functor Identity where
   fmap f (Identity a) = Identity (f a)
@@ -1539,10 +1552,23 @@ instance Applicative Identity where
   pure a = Identity a
   Identity f <*> Identity a = Identity (f a)
 
-prop_traverseWithKey :: IntMap () -> Bool
-prop_traverseWithKey mp = mp == newMap
+prop_traverseWithKey_identity :: IntMap () -> Bool
+prop_traverseWithKey_identity mp = mp == newMap
   where Identity newMap = traverseWithKey (\_ -> Identity) mp
 
-prop_traverseMaybeWithKey :: IntMap () -> Bool
-prop_traverseMaybeWithKey mp = mp == newMap
+prop_traverseMaybeWithKey_identity :: IntMap () -> Bool
+prop_traverseMaybeWithKey_identity mp = mp == newMap
   where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
+
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
+    mapMaybeWithKey f mp === newMap
+  where f k v = Just $ applyFun2 fun k v
+        g k v = Identity $ f k v
+        Identity newMap = traverseMaybeWithKey g mp
+
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
+    traverseWithKey f mp === traverseMaybeWithKey g mp
+  where f k v = Identity $ applyFun2 fun k v
+        g k v = fmap Just $ f k v
