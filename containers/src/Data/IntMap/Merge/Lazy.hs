@@ -66,7 +66,7 @@ import Data.IntMap.Merge.Internal
 --
 -- but @mapMissing@ is somewhat faster.
 mapMissing :: Applicative f => (Key -> a -> b) -> WhenMissing f a b
-mapMissing f = WhenMissing (\k v -> Just (f k v)) goL goR (pure . start) where
+mapMissing f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . goR) (pure . start) where
     start Empty = Empty
     start (NonEmpty min minV root) = NonEmpty min (f min minV) (goL root)
 
@@ -88,7 +88,7 @@ mapMissing f = WhenMissing (\k v -> Just (f k v)) goL goR (pure . start) where
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
 mapMaybeMissing :: Applicative f => (Key -> a -> Maybe b) -> WhenMissing f a b
-mapMaybeMissing f = WhenMissing f goLKeep goRKeep (pure . start) where
+mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
     start Empty = Empty
     start (NonEmpty min minV root) = case f min minV of
         Just minV' -> NonEmpty min minV' (goLKeep root)
