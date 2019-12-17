@@ -61,23 +61,6 @@ module Data.IntMap.Lazy (
     -- * Map type
       IntMap, Key
 
-    -- * Operators
-    , (!)
-    , (!?)
-    , (\\)
-
-    -- * Query
-    , null
-    , size
-    , member
-    , notMember
-    , lookup
-    , findWithDefault
-    , lookupLT
-    , lookupGT
-    , lookupLE
-    , lookupGE
-
     -- * Construction
     , empty
     , singleton
@@ -112,7 +95,7 @@ module Data.IntMap.Lazy (
 
     -- * Query
     -- ** Lookup
-    , IM.lookup
+    , lookup
     , (!?)
     , (!)
     , findWithDefault
@@ -124,7 +107,7 @@ module Data.IntMap.Lazy (
     , lookupGE
 
     -- ** Size
-    , IM.null
+    , null
     , size
 
     -- * Combine
@@ -225,12 +208,6 @@ module Data.IntMap.Lazy (
     , maxView
     , minViewWithKey
     , maxViewWithKey
-
-#ifdef __GLASGOW_HASKELL__
-    -- * Debugging
-    , showTree
-    , showTreeWith
-    , valid
 ) where
 
 import Data.IntMap.Internal

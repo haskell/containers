@@ -173,7 +173,6 @@ main = defaultMain
              , testProperty "lookupGT"             prop_lookupGT
              , testProperty "lookupLE"             prop_lookupLE
              , testProperty "lookupGE"             prop_lookupGE
-             , testProperty "disjoint"             prop_disjoint
              , testProperty "lookupMin"            prop_lookupMin
              , testProperty "lookupMax"            prop_lookupMax
              , testProperty "findMin"              prop_findMin
@@ -1136,7 +1135,7 @@ prop_valid = forValidUnitTree $ \t -> valid t
 -- QuickCheck
 ----------------------------------------------------------------
 
-prop_emptyValid :: Property
+prop_emptyValid :: Bool
 prop_emptyValid = valid empty
 
 prop_singleton :: Int -> Int -> Property
@@ -1214,9 +1213,6 @@ prop_intersectionWithKeyModel xs ys
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
-
-prop_disjoint :: UMap -> UMap -> Property
-prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
 
 -- TODO: the second argument should be simply an 'IntSet', but that
 -- runs afoul of our orphan instance.

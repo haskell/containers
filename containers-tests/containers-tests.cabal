@@ -55,10 +55,10 @@ library
     Data.IntMap.Internal
     Data.IntMap.Internal.Debug
     Data.IntMap.Lazy
+    Data.IntMap.Merge.Internal
     Data.IntMap.Merge.Lazy
     Data.IntMap.Merge.Strict
     Data.IntMap.Strict
-    Data.IntMap.Strict.Internal
     Data.IntSet
     Data.IntSet.Internal
     Data.Map
