@@ -907,6 +907,74 @@ intersection = start
 
     dummyV = error "impossible"
 
+-- | /O(n+m)/. Check whether the key sets of two maps are disjoint
+-- (i.e. their 'intersection' is empty).
+--
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
+-- > disjoint (fromList [(2,'a')]) (fromList [(1,'a'), (2,'b')]) == False
+-- > disjoint (fromList [])        (fromList [])                 == True
+--
+-- > disjoint a b == null (intersection a b)
+--
+-- @since 0.6.2.1
+disjoint :: IntMap a -> IntMap b -> Bool
+disjoint = start
+  where
+    start (IntMap Empty) !_ = True
+    start !_ (IntMap Empty) = True
+    start (IntMap (NonEmpty min1 _ root1)) (IntMap (NonEmpty min2 _ root2))
+        | min1 < min2 = goL min2 root2 min1 root1
+        | min1 > min2 = goL min1 root1 min2 root2
+        | otherwise = False
+
+    goL :: Key -> Node L x -> Key -> Node L y -> Bool
+    goL !_   !_  !_   Tip = True
+    goL min1 Tip min2 n2  = goLookupL min1 (xor min1 min2) n2
+    goL min1 (Bin _ _ _ _) _ (Bin max2 _ _ _) | min1 > max2 = True
+    goL min1 n1@(Bin max1 _ l1 r1) min2 n2@(Bin max2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
+        LT | xor min2 min1 < xor min1 max2 -> goL min1 n1 min2 l2 -- min1 is arbitrary here - we just need something from tree 1
+           | max1 > max2 -> goR max2 r2 max1 (Bin min1 dummyV l1 r1)
+           | max1 < max2 -> goR max1 (Bin min1 dummyV l1 r1) max2 r2
+           | otherwise -> False
+        EQ | max1 > max2 -> goL min1 l1 min2 l2 && goR max2 r2 max1 r1
+           | max1 < max2 -> goL min1 l1 min2 l2 && goR max1 r1 max2 r2
+           | otherwise -> False
+        GT -> goL min1 l1 min2 n2
+
+    goR :: Key -> Node R x -> Key -> Node R y -> Bool
+    goR !_   !_  !_   Tip = True
+    goR max1 Tip max2 n2  = goLookupR max1 (xor max1 max2) n2
+    goR max1 (Bin _ _ _ _) _ (Bin min2 _ _ _) | min2 > max1 = True
+    goR max1 n1@(Bin min1 _ l1 r1) max2 n2@(Bin min2 _ l2 r2) = case compareMSB (xor min1 max1) (xor min2 max2) of
+        LT | xor min2 max1 > xor max1 max2 -> goR max1 n1 max2 r2 -- max1 is arbitrary here - we just need something from tree 1
+           | min1 < min2 -> goL min2 l2 min1 (Bin max1 dummyV l1 r1)
+           | min1 > min2 -> goL min1 (Bin max1 dummyV l1 r1) min2 l2
+           | otherwise -> False
+        EQ | min1 < min2 -> goL min2 l2 min1 l1 && goR max1 r1 max2 r2
+           | min1 > min2 -> goL min1 l1 min2 l2 && goR max1 r1 max2 r2
+           | otherwise -> False
+        GT -> goR max1 r1 max2 n2
+
+    goLookupL !_ !_ Tip = True
+    goLookupL k !xorCache (Bin max _ l r)
+        | k < max = if xorCache < xorCacheMax
+                    then goLookupL k xorCache l
+                    else goLookupR k xorCacheMax r
+        | k > max = True
+        | otherwise = False
+      where xorCacheMax = xor k max
+
+    goLookupR !_ !_ Tip = True
+    goLookupR k !xorCache (Bin min _ l r)
+        | k > min = if xorCache < xorCacheMin
+                    then goLookupR k xorCache r
+                    else goLookupL k xorCacheMin l
+        | k < min = True
+        | otherwise = False
+      where xorCacheMin = xor min k
+
+    dummyV = error "impossible"
+
 -- | /O(n)/. Fold the values in the map using the given right-associative
 -- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'elems'@.
 --

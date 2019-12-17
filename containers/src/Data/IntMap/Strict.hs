@@ -149,6 +149,9 @@ module Data.IntMap.Strict (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** Deprecated, unsafe general combining function
     , mergeWithKey
 

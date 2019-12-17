@@ -129,6 +129,9 @@ module Data.IntMap.Lazy (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Disjoint
+    , disjoint
+
     -- ** Deprecated, unsafe general combining function
     , mergeWithKey
 
