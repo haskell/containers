@@ -479,7 +479,9 @@ instance Foldable.Foldable IntMap where
   maximum = start
     where start Nil = error "Data.Foldable.maximum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = max m y
@@ -488,7 +490,9 @@ instance Foldable.Foldable IntMap where
   minimum = start
     where start Nil = error "Data.Foldable.minimum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = min m y
@@ -1826,8 +1830,9 @@ filterWithKeyA
   :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
 filterWithKeyA _ Nil           = pure Nil
 filterWithKeyA f t@(Tip k x)   = (\b -> if b then t else Nil) <$> f k x
-filterWithKeyA f (Bin p m l r) =
-    liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
+filterWithKeyA f (Bin p m l r)
+  | m < 0     = liftA2 (flip (bin p m)) (filterWithKeyA f r) (filterWithKeyA f l)
+  | otherwise = liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1868,7 +1873,9 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k) <$> f k x
-    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (bin p m)) (go r) (go l)
+      | otherwise = liftA2 (bin p m) (go l) (go r)
 
 
 -- | Merge two maps.
@@ -2457,7 +2464,7 @@ traverseWithKey f = go
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
     go (Bin p m l r)
-      | m < 0     = liftA2 (Bin p m) (go r) (go l)
+      | m < 0     = liftA2 (flip (Bin p m)) (go r) (go l)
       | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
@@ -2485,9 +2492,15 @@ mapAccumWithKey f a t
 mapAccumL :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumL f a t
   = case t of
-      Bin p m l r -> let (a1,l') = mapAccumL f a l
-                         (a2,r') = mapAccumL f a1 r
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,r') = mapAccumL f a r
+                (a2,l') = mapAccumL f a1 l
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,l') = mapAccumL f a l
+                (a2,r') = mapAccumL f a1 r
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
@@ -2496,9 +2509,15 @@ mapAccumL f a t
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumRWithKey f a t
   = case t of
-      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
-                         (a2,l') = mapAccumRWithKey f a1 l
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,l') = mapAccumRWithKey f a l
+                (a2,r') = mapAccumRWithKey f a1 r
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,r') = mapAccumRWithKey f a r
+                (a2,l') = mapAccumRWithKey f a1 l
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 

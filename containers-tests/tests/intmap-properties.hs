@@ -2,12 +2,15 @@
 
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap hiding (showTree)
+import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 #else
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
+import Data.IntMap.Internal (traverseMaybeWithKey)
 #endif
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
 
+import Control.Applicative (Applicative(..))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -127,6 +130,10 @@ main = defaultMain
              , testCase "maxView" test_maxView
              , testCase "minViewWithKey" test_minViewWithKey
              , testCase "maxViewWithKey" test_maxViewWithKey
+#if MIN_VERSION_base(4,8,0)
+             , testCase "minimum" test_minimum
+             , testCase "maximum" test_maximum
+#endif
              , testProperty "valid"                prop_valid
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
@@ -191,6 +198,11 @@ main = defaultMain
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
+             , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
+             , testProperty "traverseWithKey->mapWithKey"           prop_traverseWithKey_degrade_to_mapWithKey
+             , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
+             , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
+             , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -237,12 +249,19 @@ tests = [ testGroup "Test Case" [
 -- Operators
 
 test_index :: Assertion
-test_index = fromList [(5,'a'), (3,'b')] ! 5 @?= 'a'
+test_index = do
+    fromList [(5,'a'), (3,'b')] ! 5 @?= 'a'
+
+    fromList [(5,'a'), (-3,'b')] ! (-3) @?= 'b'
 
 test_index_lookup :: Assertion
 test_index_lookup = do
     fromList [(5,'a'), (3,'b')] !? 1 @?= Nothing
     fromList [(5,'a'), (3,'b')] !? 5 @?= Just 'a'
+
+    fromList [(5,'a'), (-3,'b')] !? 1 @?= Nothing
+    fromList [(5,'a'), (-3,'b')] !? 5 @?= Just 'a'
+    fromList [(5,'a'), (-3,'b')] !? (-3) @?= Just 'b'
 
 ----------------------------------------------------------------
 -- Query
@@ -252,21 +271,33 @@ test_size = do
     null (empty)           @?= True
     null (singleton 1 'a') @?= False
 
+    null (singleton (-1) 'a') @?= False
+
 test_size2 :: Assertion
 test_size2 = do
     size empty                                   @?= 0
     size (singleton 1 'a')                       @?= 1
     size (fromList([(1,'a'), (2,'c'), (3,'b')])) @?= 3
 
+    size (fromList [(-2, '?'),(5,'a'), (3,'b')]) @?= 3
+
 test_member :: Assertion
 test_member = do
     member 5 (fromList [(5,'a'), (3,'b')]) @?= True
     member 1 (fromList [(5,'a'), (3,'b')]) @?= False
 
+    member 5    (fromList [(5,'a'), (-3,'b')]) @?= True
+    member 1    (fromList [(5,'a'), (-3,'b')]) @?= False
+    member (-3) (fromList [(5,'a'), (-3,'b')]) @?= True
+
 test_notMember :: Assertion
 test_notMember = do
     notMember 5 (fromList [(5,'a'), (3,'b')]) @?= False
     notMember 1 (fromList [(5,'a'), (3,'b')]) @?= True
+
+    notMember 5    (fromList [(5,'a'), (-3,'b')]) @?= False
+    notMember 1    (fromList [(5,'a'), (-3,'b')]) @?= True
+    notMember (-3) (fromList [(5,'a'), (-3,'b')]) @?= False
 
 test_lookup :: Assertion
 test_lookup = do
@@ -287,15 +318,31 @@ test_findWithDefault = do
     findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) @?= 'x'
     findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) @?= 'a'
 
+    findWithDefault 'x' 1    (fromList [(5,'a'), (-3,'b')]) @?= 'x'
+    findWithDefault 'x' 5    (fromList [(5,'a'), (-3,'b')]) @?= 'a'
+    findWithDefault 'x' (-3) (fromList [(5,'a'), (-3,'b')]) @?= 'b'
+
+
+
 test_lookupLT :: Assertion
 test_lookupLT = do
     lookupLT 3 (fromList [(3,'a'), (5,'b')]) @?= Nothing
     lookupLT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
 
+    lookupLT (-3) (fromList [(5,'a'), (-3,'b')]) @?= Nothing
+    lookupLT (-2) (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupLT 4    (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupLT 6    (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+
 test_lookupGT :: Assertion
 test_lookupGT = do
     lookupGT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
     lookupGT 5 (fromList [(3,'a'), (5,'b')]) @?= Nothing
+
+    lookupGT (-4) (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupGT (-3) (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+    lookupGT 4    (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+    lookupGT 5    (fromList [(5,'a'), (-3,'b')]) @?= Nothing
 
 test_lookupLE :: Assertion
 test_lookupLE = do
@@ -303,11 +350,23 @@ test_lookupLE = do
     lookupLE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
     lookupLE 5 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
 
+    lookupLE (-4) (fromList [(5,'a'), (-3,'b')]) @?= Nothing
+    lookupLE (-3) (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupLE 4    (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupLE 5    (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+    lookupLE 6    (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+
 test_lookupGE :: Assertion
 test_lookupGE = do
     lookupGE 3 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
     lookupGE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
     lookupGE 6 (fromList [(3,'a'), (5,'b')]) @?= Nothing
+
+    lookupGE (-4) (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupGE (-3) (fromList [(5,'a'), (-3,'b')]) @?= Just (-3, 'b')
+    lookupGE (-2) (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+    lookupGE 5    (fromList [(5,'a'), (-3,'b')]) @?= Just (5, 'a')
+    lookupGE 6    (fromList [(5,'a'), (-3,'b')]) @?= Nothing
 
 ----------------------------------------------------------------
 -- Construction
@@ -327,11 +386,20 @@ test_singleton = do
     singleton 1 'a'        @?= fromList [(1, 'a')]
     size (singleton 1 'a') @?= 1
 
+    singleton (-1) 'a'        @?= fromList [(-1, 'a')]
+    size (singleton (-1) 'a') @?= 1
+
 test_insert :: Assertion
 test_insert = do
     insert 5 'x' (fromList [(5,'a'), (3,'b')]) @?= fromList [(3, 'b'), (5, 'x')]
     insert 7 'x' (fromList [(5,'a'), (3,'b')]) @?= fromList [(3, 'b'), (5, 'a'), (7, 'x')]
     insert 5 'x' empty                         @?= singleton 5 'x'
+
+    insert 5    'x' (fromList [(5,'a'), (-3,'b')]) @?= fromList [(-3, 'b'), (5, 'x')]
+    insert 7    'x' (fromList [(5,'a'), (-3,'b')]) @?= fromList [(-3, 'b'), (5, 'a'), (7, 'x')]
+    insert (-3) 'x' empty                          @?= singleton (-3) 'x'
+    insert (-3) 'x' (fromList [(5,'a'), (-3,'b')]) @?= fromList [(-3, 'x'), (5, 'a')]
+    insert (-7) 'x' (fromList [(5,'a'), (-3,'b')]) @?= fromList [(-3, 'b'), (5, 'a'), (-7, 'x')]
 
 test_insertWith :: Assertion
 test_insertWith = do
@@ -339,11 +407,23 @@ test_insertWith = do
     insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
     insertWith (++) 5 "xxx" empty                         @?= singleton 5 "xxx"
 
+    insertWith (++) 5 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "xxxa")]
+    insertWith (++) 7 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (7, "xxx")]
+    insertWith (++) (-3) "xxx" empty                          @?= singleton (-3) "xxx"
+    insertWith (++) (-3) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "xxxb"), (5, "a")]
+    insertWith (++) (-7) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (-7, "xxx")]
+
 test_insertWithKey :: Assertion
 test_insertWithKey = do
     insertWithKey f 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:xxx|a")]
     insertWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
     insertWithKey f 5 "xxx" empty                         @?= singleton 5 "xxx"
+
+    insertWithKey f 5 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "5:xxx|a")]
+    insertWithKey f 7 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (7, "xxx")]
+    insertWithKey f (-3) "xxx" empty                          @?= singleton (-3) "xxx"
+    insertWithKey f (-3) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "-3:xxx|b"), (5, "a")]
+    insertWithKey f (-7) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (-7, "xxx")]
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 
@@ -353,6 +433,12 @@ test_insertLookupWithKey = do
     insertLookupWithKey f 2 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,fromList [(2,"xxx"),(3,"b"),(5,"a")])
     insertLookupWithKey f 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= (Nothing,  fromList [(3, "b"), (5, "a"), (7, "xxx")])
     insertLookupWithKey f 5 "xxx" empty                         @?= (Nothing,  singleton 5 "xxx")
+
+    insertLookupWithKey f 5 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= (Just "a", fromList [(-3, "b"), (5, "5:xxx|a")])
+    insertLookupWithKey f 7 "xxx"    (fromList [(5,"a"), (-3,"b")]) @?= (Nothing,  fromList [(-3, "b"), (5, "a"), (7, "xxx")])
+    insertLookupWithKey f (-3) "xxx" empty                          @?= (Nothing,  singleton (-3) "xxx")
+    insertLookupWithKey f (-3) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= (Just "b", fromList [(-3, "-3:xxx|b"), (5, "a")])
+    insertLookupWithKey f (-7) "xxx" (fromList [(5,"a"), (-3,"b")]) @?= (Nothing,  fromList [(-3, "b"), (5, "a"), (-7, "xxx")])
   where
     f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 
@@ -365,17 +451,35 @@ test_delete = do
     delete 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     delete 5 empty                         @?= (empty :: IMap)
 
+    delete 5    (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+    delete 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    delete (-3) empty                          @?= (empty :: IMap)
+    delete (-3) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+    delete (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+
 test_adjust :: Assertion
 test_adjust = do
     adjust ("new " ++) 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "new a")]
     adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     adjust ("new " ++) 7 empty                         @?= empty
 
+    adjust ("new " ++) 5    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "new a")]
+    adjust ("new " ++) 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    adjust ("new " ++) (-3) empty                          @?= empty
+    adjust ("new " ++) (-3) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "new b"), (5, "a")]
+    adjust ("new " ++) (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+
 test_adjustWithKey :: Assertion
 test_adjustWithKey = do
     adjustWithKey f 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:new a")]
     adjustWithKey f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     adjustWithKey f 7 empty                         @?= empty
+
+    adjustWithKey f 5    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "5:new a")]
+    adjustWithKey f 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    adjustWithKey f (-3) empty                          @?= empty
+    adjustWithKey f (-3) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "-3:new b"), (5, "a")]
+    adjustWithKey f (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
   where
     f key x = (show key) ++ ":new " ++ x
 
@@ -384,6 +488,11 @@ test_update = do
     update f 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "new a")]
     update f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     update f 3 (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+
+    update f 5    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "new a")]
+    update f 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    update f (-3) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+    update f (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
   where
     f x = if x == "a" then Just "new a" else Nothing
 
@@ -392,6 +501,11 @@ test_updateWithKey = do
     updateWithKey f 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:new a")]
     updateWithKey f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+
+    updateWithKey f 5    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "5:new a")]
+    updateWithKey f 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    updateWithKey f (-3) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+    updateWithKey f (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
  where
      f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
 
@@ -400,6 +514,11 @@ test_updateLookupWithKey = do
     updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) @?= (Just "a", fromList [(3, "b"), (5, "5:new a")])
     updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) @?= (Nothing,  fromList [(3, "b"), (5, "a")])
     updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) @?= (Just "b", singleton 5 "a")
+
+    updateLookupWithKey f 5    (fromList [(5,"a"), (-3,"b")]) @?= (Just "a", fromList [(-3, "b"), (5, "5:new a")])
+    updateLookupWithKey f 7    (fromList [(5,"a"), (-3,"b")]) @?= (Nothing,  fromList [(-3, "b"), (5, "a")])
+    updateLookupWithKey f (-3) (fromList [(5,"a"), (-3,"b")]) @?= (Just "b", singleton 5 "a")
+    updateLookupWithKey f (-7) (fromList [(5,"a"), (-3,"b")]) @?= (Nothing,  fromList [(-3, "b"), (5, "a")])
   where
     f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
 
@@ -409,6 +528,15 @@ test_alter = do
     alter f 5 (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
     alter g 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "c")]
     alter g 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "c")]
+
+    alter f 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    alter f 5    (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+    alter f (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a")]
+    alter f (-3) (fromList [(5,"a"), (-3,"b")]) @?= singleton (5) "a"
+    alter g 7    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (7, "c")]
+    alter g 5    (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "c")]
+    alter g (-7) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "a"), (-7, "c")]
+    alter g (-3) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "c"), (5, "a")]
   where
     f _ = Nothing
     g _ = Just "c"
@@ -417,16 +545,24 @@ test_alter = do
 -- Combine
 
 test_union :: Assertion
-test_union = union (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
+test_union = do
+    union (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
+    union (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
 
 test_mappend :: Assertion
-test_mappend = mappend (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
+test_mappend = do
+    mappend (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
+    mappend (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
 
 test_unionWith :: Assertion
-test_unionWith = unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "aA"), (7, "C")]
+test_unionWith = do
+    unionWith (++) (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "aA"), (7, "C")]
+    unionWith (++) (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "aA"), (7, "C")]
 
 test_unionWithKey :: Assertion
-test_unionWithKey = unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
+test_unionWithKey = do
+    unionWithKey f (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
+    unionWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "5:a|A"), (7, "C")]
   where
     f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 
@@ -437,6 +573,11 @@ test_unions = do
     unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
         @?= fromList [(3, "B3"), (5, "A3"), (7, "C")]
 
+    unions [(fromList [(5, "a"), (-3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (-3, "B3")])]
+        @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
+    unions [(fromList [(5, "A3"), (-3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (-3, "b")])]
+        @?= fromList [(-3, "B3"), (5, "A3"), (7, "C")]
+
 test_mconcat :: Assertion
 test_mconcat = do
     mconcat [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
@@ -444,34 +585,56 @@ test_mconcat = do
     mconcat [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
         @?= fromList [(3, "B3"), (5, "A3"), (7, "C")]
 
+    mconcat [(fromList [(5, "a"), (-3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (-3, "B3")])]
+        @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
+    mconcat [(fromList [(5, "A3"), (-3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (-3, "b")])]
+        @?= fromList [(-3, "B3"), (5, "A3"), (7, "C")]
+
 test_unionsWith :: Assertion
-test_unionsWith = unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
-     @?= fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
+test_unionsWith = do
+    unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
+        @?= fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
+    unionsWith (++) [(fromList [(5, "a"), (-3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (-3, "B3")])]
+        @?= fromList [(-3, "bB3"), (5, "aAA3"), (7, "C")]
 
 test_difference :: Assertion
-test_difference = difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 3 "b"
+test_difference = do
+    difference (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 3 "b"
+    difference (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton (-3) "b"
 
 test_differenceWith :: Assertion
-test_differenceWith = differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
-     @?= singleton 3 "b:B"
+test_differenceWith = do
+    differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
+        @?= singleton 3 "b:B"
+    differenceWith f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (-3, "B"), (7, "C")])
+        @?= singleton (-3) "b:B"
  where
    f al ar = if al== "b" then Just (al ++ ":" ++ ar) else Nothing
 
 test_differenceWithKey :: Assertion
-test_differenceWithKey = differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
-     @?= singleton 3 "3:b|B"
+test_differenceWithKey = do
+    differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
+        @?= singleton 3 "3:b|B"
+    differenceWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (-3, "B"), (10, "C")])
+        @?= singleton (-3) "-3:b|B"
   where
     f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
 
 test_intersection :: Assertion
-test_intersection = intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "a"
+test_intersection = do
+    intersection (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "a"
+    intersection (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "a"
 
 
 test_intersectionWith :: Assertion
-test_intersectionWith = intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "aA"
+test_intersectionWith = do
+    intersectionWith (++) (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "aA"
+    intersectionWith (++) (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "aA"
 
 test_intersectionWithKey :: Assertion
-test_intersectionWithKey = intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "5:a|A"
+test_intersectionWithKey = do
+    intersectionWithKey f (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "5:a|A"
+    intersectionWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "5:a|A"
   where
     f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 
@@ -479,25 +642,40 @@ test_intersectionWithKey = intersectionWithKey f (fromList [(5, "a"), (3, "b")])
 -- Traversal
 
 test_map :: Assertion
-test_map = map (++ "x") (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "bx"), (5, "ax")]
+test_map = do
+    map (++ "x") (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "bx"), (5, "ax")]
+    map (++ "x") (fromList [(5,"a"), (3,"b"), (-1,"c")])
+            @?= fromList [(3, "bx"), (5, "ax"), (-1,"cx")]
 
 test_mapWithKey :: Assertion
-test_mapWithKey = mapWithKey f (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "3:b"), (5, "5:a")]
+test_mapWithKey = do
+    mapWithKey f (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "3:b"), (5, "5:a")]
+    mapWithKey f (fromList [(5,"a"), (3,"b"), (-1,"c")])
+            @?= fromList [(3, "3:b"), (5, "5:a"), (-1,"-1:c")]
   where
     f key x = (show key) ++ ":" ++ x
 
 test_mapAccum :: Assertion
-test_mapAccum = mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) @?= ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
+test_mapAccum = do
+    mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) @?= ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
+    mapAccum f "Everything: " (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: cba", fromList [(3, "bX"), (5, "aX"), (-1, "cX")])
   where
     f a b = (a ++ b, b ++ "X")
 
 test_mapAccumWithKey :: Assertion
-test_mapAccumWithKey = mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
+test_mapAccumWithKey = do
+    mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
+    mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: -1-c 3-b 5-a", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
   where
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
 test_mapAccumRWithKey :: Assertion
-test_mapAccumRWithKey = mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 5-a 3-b", fromList [(3, "bX"), (5, "aX")])
+test_mapAccumRWithKey = do
+    mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 5-a 3-b", fromList [(3, "bX"), (5, "aX")])
+    mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
+        @?= ("Everything: 5-a 3-b -1-c", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
   where
     f a k b = (a ++ " " ++ (show k) ++ "-" ++ b, b ++ "X")
 
@@ -507,15 +685,30 @@ test_mapKeys = do
     mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "c"
     mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "c"
 
+    mapKeys (+ 1) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+            @?= fromList [(4, "b"), (6, "a"), (-1,"c")]
+    mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (-4,"c")])
+            @?= singleton 1 "d"
+    mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (-3,"d"), (4,"c")])
+            @?= singleton 3 "c"
+
 test_mapKeysWith :: Assertion
 test_mapKeysWith = do
     mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "cdab"
     mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "cdab"
 
+    mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (-4,"c")]) @?= singleton 1 "dabc"
+    mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (-2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "cdba"
+
 test_mapKeysMonotonic :: Assertion
 test_mapKeysMonotonic = do
     mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b")])          @?= fromList [(4, "b"), (6, "a")]
     mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
+
+    mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+        @?= fromList [(4, "b"), (6, "a"), (-1, "c")]
+    mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b"), (-2,"c")])
+        @?= fromList [(6, "b"), (10, "a"), (-4, "c")]
 
 ----------------------------------------------------------------
 -- Conversion
@@ -523,26 +716,31 @@ test_mapKeysMonotonic = do
 test_elems :: Assertion
 test_elems = do
     elems (fromList [(5,"a"), (3,"b")]) @?= ["b","a"]
+    elems (fromList [(5,"a"), (-3,"b")]) @?= ["b","a"]
     elems (empty :: UMap) @?= []
 
 test_keys :: Assertion
 test_keys = do
     keys (fromList [(5,"a"), (3,"b")]) @?= [3,5]
+    keys (fromList [(5,"a"), (-3,"b")]) @?= [-3,5]
     keys (empty :: UMap) @?= []
 
 test_assocs :: Assertion
 test_assocs = do
     assocs (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+    assocs (fromList [(5,"a"), (-3,"b")]) @?= [(-3,"b"), (5,"a")]
     assocs (empty :: UMap) @?= []
 
 test_keysSet :: Assertion
 test_keysSet = do
     keysSet (fromList [(5,"a"), (3,"b")]) @?= IntSet.fromList [3,5]
+    keysSet (fromList [(5,"a"), (-3,"b")]) @?= IntSet.fromList [-3,5]
     keysSet (empty :: UMap) @?= IntSet.empty
 
 test_fromSet :: Assertion
 test_fromSet = do
    fromSet (\k -> replicate k 'a') (IntSet.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
+   fromSet (\k -> replicate k 'a') (IntSet.fromList [-3, 2, 5]) @?= fromList [(5,"aaaaa"), (-3,""), (2,"aa")]
    fromSet undefined IntSet.empty @?= (empty :: IMap)
 
 ----------------------------------------------------------------
@@ -551,6 +749,7 @@ test_fromSet = do
 test_toList :: Assertion
 test_toList = do
     toList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+    toList (fromList [(5,"a"), (-3,"b")]) @?= [(-3,"b"), (5,"a")]
     toList (empty :: SMap) @?= []
 
 test_fromList :: Assertion
@@ -559,14 +758,19 @@ test_fromList = do
     fromList [(5,"a"), (3,"b"), (5, "c")] @?= fromList [(5,"c"), (3,"b")]
     fromList [(5,"c"), (3,"b"), (5, "a")] @?= fromList [(5,"a"), (3,"b")]
 
+    fromList [(5,"a"), (-3,"b"), (5, "c")] @?= fromList [(5,"c"), (-3,"b")]
+    fromList [(5,"c"), (-3,"b"), (5, "a")] @?= fromList [(5,"a"), (-3,"b")]
+
 test_fromListWith :: Assertion
 test_fromListWith = do
     fromListWith (++) [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] @?= fromList [(3, "ab"), (5, "aba")]
+    fromListWith (++) [(5,"a"), (5,"b"), (-3,"b"), (-3,"a"), (5,"a")] @?= fromList [(-3, "ab"), (5, "aba")]
     fromListWith (++) [] @?= (empty :: SMap)
 
 test_fromListWithKey :: Assertion
 test_fromListWithKey = do
     fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] @?= fromList [(3, "3ab"), (5, "5a5ba")]
+    fromListWithKey f [(5,"a"), (5,"b"), (-3,"b"), (-3,"a"), (5,"a")] @?= fromList [(-3, "-3ab"), (5, "5a5ba")]
     fromListWithKey f [] @?= (empty :: SMap)
   where
     f k a1 a2 = (show k) ++ a1 ++ a2
@@ -575,35 +779,70 @@ test_fromListWithKey = do
 -- Ordered lists
 
 test_toAscList :: Assertion
-test_toAscList = toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+test_toAscList = do
+    toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
+    toAscList (fromList [(5,"a"), (-3,"b")]) @?= [(-3,"b"), (5,"a")]
 
 test_toDescList :: Assertion
-test_toDescList = toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")]
+test_toDescList = do
+    toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")]
+    toDescList (fromList [(5,"a"), (-3,"b")]) @?= [(5,"a"), (-3,"b")]
 
 test_showTree :: Assertion
-test_showTree =
-       (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
-        in showTree t) @?= "*\n+--*\n|  +-- 1:=()\n|  +--*\n|     +-- 2:=()\n|     +-- 3:=()\n+--*\n   +-- 4:=()\n   +-- 5:=()\n"
+test_showTree = do
+    showTree posTree @?= expectedPosTree
+    showTree negTree @?= expectedNegTree
+  where mkAscTree ls = fromDistinctAscList [(x,()) | x <- ls]
+        posTree = mkAscTree [1..5]
+        negTree = mkAscTree [(-2)..2]
+        expectedPosTree = unlines
+            [ "*"
+            , "+--*"
+            , "|  +-- 1:=()"
+            , "|  +--*"
+            , "|     +-- 2:=()"
+            , "|     +-- 3:=()"
+            , "+--*"
+            , "   +-- 4:=()"
+            , "   +-- 5:=()"
+            ]
+        expectedNegTree = unlines
+            [ "*"
+            , "+--*"
+            , "|  +--*"
+            , "|  |  +-- 0:=()"
+            , "|  |  +-- 1:=()"
+            , "|  +-- 2:=()"
+            , "+--*"
+            , "   +-- -2:=()"
+            , "   +-- -1:=()"
+            ]
 
 test_fromAscList :: Assertion
 test_fromAscList = do
     fromAscList [(3,"b"), (5,"a")]          @?= fromList [(3, "b"), (5, "a")]
     fromAscList [(3,"b"), (5,"a"), (5,"b")] @?= fromList [(3, "b"), (5, "b")]
 
+    fromAscList [(-3,"b"), (5,"a")]          @?= fromList [(-3, "b"), (5, "a")]
+    fromAscList [(-3,"b"), (5,"a"), (5,"b")] @?= fromList [(-3, "b"), (5, "b")]
+
 
 test_fromAscListWith :: Assertion
 test_fromAscListWith = do
     fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] @?= fromList [(3, "b"), (5, "ba")]
+    fromAscListWith (++) [(-3,"b"), (5,"a"), (5,"b")] @?= fromList [(-3, "b"), (5, "ba")]
 
 test_fromAscListWithKey :: Assertion
 test_fromAscListWithKey = do
     fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")] @?= fromList [(3, "b"), (5, "5:b5:ba")]
+    fromAscListWithKey f [(-3,"b"), (5,"a"), (5,"b"), (5,"b")] @?= fromList [(-3, "b"), (5, "5:b5:ba")]
   where
     f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
 
 test_fromDistinctAscList :: Assertion
 test_fromDistinctAscList = do
     fromDistinctAscList [(3,"b"), (5,"a")] @?= fromList [(3, "b"), (5, "a")]
+    fromDistinctAscList [(-3,"b"), (5,"a")] @?= fromList [(-3, "b"), (5, "a")]
 
 ----------------------------------------------------------------
 -- Filter
@@ -614,8 +853,14 @@ test_filter = do
     filter (> "x") (fromList [(5,"a"), (3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (3,"b")]) @?= empty
 
+    filter (> "a") (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+    filter (> "x") (fromList [(5,"a"), (-3,"b")]) @?= empty
+    filter (< "a") (fromList [(5,"a"), (-3,"b")]) @?= empty
+
 test_filteWithKey :: Assertion
-test_filteWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+test_filteWithKey = do
+    filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
+    filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
 test_partition :: Assertion
 test_partition = do
@@ -623,19 +868,31 @@ test_partition = do
     partition (< "x") (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3, "b"), (5, "a")], empty)
     partition (> "x") (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3, "b"), (5, "a")])
 
+    partition (> "a") (fromList [(5,"a"), (-3,"b")]) @?= (singleton (-3) "b", singleton 5 "a")
+    partition (< "x") (fromList [(5,"a"), (-3,"b")]) @?= (fromList [(-3, "b"), (5, "a")], empty)
+    partition (> "x") (fromList [(5,"a"), (-3,"b")]) @?= (empty, fromList [(-3, "b"), (5, "a")])
+
 test_partitionWithKey :: Assertion
 test_partitionWithKey = do
     partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (3,"b")]) @?= (singleton 5 "a", singleton 3 "b")
     partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3, "b"), (5, "a")], empty)
     partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3, "b"), (5, "a")])
 
+    partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (-3,"b")]) @?= (singleton 5 "a", singleton (-3) "b")
+    partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (-3,"b")]) @?= (fromList [(-3, "b"), (5, "a")], empty)
+    partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (-3,"b")]) @?= (empty, fromList [(-3, "b"), (5, "a")])
+
 test_mapMaybe :: Assertion
-test_mapMaybe = mapMaybe f (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "new a"
+test_mapMaybe = do
+    mapMaybe f (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "new a"
+    mapMaybe f (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "new a"
   where
     f x = if x == "a" then Just "new a" else Nothing
 
 test_mapMaybeWithKey :: Assertion
-test_mapMaybeWithKey = mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "key : 3"
+test_mapMaybeWithKey = do
+    mapMaybeWithKey f (fromList [(5,"a"), (3,"b")])  @?= singleton 3 "key : 3"
+    mapMaybeWithKey f (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "key : -3"
   where
     f k _ = if k < 5 then Just ("key : " ++ (show k)) else Nothing
 
@@ -645,6 +902,11 @@ test_mapEither = do
         @?= (fromList [(3,"b"), (5,"a")], fromList [(1,"x"), (7,"z")])
     mapEither (\ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
         @?= ((empty :: SMap), fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
+
+    mapEither f (fromList [(5,"a"), (-3,"b"), (1,"x"), (7,"z")])
+        @?= (fromList [(-3,"b"), (5,"a")], fromList [(1,"x"), (7,"z")])
+    mapEither (\ a -> Right a) (fromList [(5,"a"), (-3,"b"), (1,"x"), (7,"z")])
+        @?= ((empty :: SMap), fromList [(5,"a"), (-3,"b"), (1,"x"), (7,"z")])
  where
    f a = if a < "c" then Left a else Right a
 
@@ -654,6 +916,11 @@ test_mapEitherWithKey = do
      @?= (fromList [(1,2), (3,6)], fromList [(5,"aa"), (7,"zz")])
     mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
      @?= ((empty :: SMap), fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
+
+    mapEitherWithKey f (fromList [(5,"a"), (-3,"b"), (1,"x"), (7,"z")])
+     @?= (fromList [(1,2), (-3,-6)], fromList [(5,"aa"), (7,"zz")])
+    mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (-3,"b"), (1,"x"), (7,"z")])
+     @?= ((empty :: SMap), fromList [(1,"x"), (-3,"b"), (5,"a"), (7,"z")])
   where
     f k a = if k < 5 then Left (k * 2) else Right (a ++ a)
 
@@ -665,6 +932,12 @@ test_split = do
     split 5 (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", empty)
     split 6 (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3,"b"), (5,"a")], empty)
 
+    split (-4) (fromList [(5,"a"), (-3,"b")]) @?= (empty, fromList [(-3,"b"), (5,"a")])
+    split (-3) (fromList [(5,"a"), (-3,"b")]) @?= (empty, singleton 5 "a")
+    split 4 (fromList [(5,"a"), (-3,"b")]) @?= (singleton (-3) "b", singleton 5 "a")
+    split 5 (fromList [(5,"a"), (-3,"b")]) @?= (singleton (-3) "b", empty)
+    split 6 (fromList [(5,"a"), (-3,"b")]) @?= (fromList [(-3,"b"), (5,"a")], empty)
+
 test_splitLookup :: Assertion
 test_splitLookup = do
     splitLookup 2 (fromList [(5,"a"), (3,"b")]) @?= (empty, Nothing, fromList [(3,"b"), (5,"a")])
@@ -672,6 +945,12 @@ test_splitLookup = do
     splitLookup 4 (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", Nothing, singleton 5 "a")
     splitLookup 5 (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", Just "a", empty)
     splitLookup 6 (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3,"b"), (5,"a")], Nothing, empty)
+
+    splitLookup (-4) (fromList [(5,"a"), (-3,"b")]) @?= (empty, Nothing, fromList [(-3,"b"), (5,"a")])
+    splitLookup (-3) (fromList [(5,"a"), (-3,"b")]) @?= (empty, Just "b", singleton 5 "a")
+    splitLookup 4 (fromList [(5,"a"), (-3,"b")]) @?= (singleton (-3) "b", Nothing, singleton 5 "a")
+    splitLookup 5 (fromList [(5,"a"), (-3,"b")]) @?= (singleton (-3) "b", Just "a", empty)
+    splitLookup 6 (fromList [(5,"a"), (-3,"b")]) @?= (fromList [(-3,"b"), (5,"a")], Nothing, empty)
 
 ----------------------------------------------------------------
 -- Submap
@@ -685,12 +964,25 @@ test_isSubmapOfBy = do
     isSubmapOfBy (<)  (fromList [(fromEnum 'a',1)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= False
     isSubmapOfBy (==) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) (fromList [(fromEnum 'a',1)]) @?= False
 
+    isSubmapOfBy (==) (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOfBy (<=) (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOfBy (==) (fromList [(-1,2)]) (fromList [(-1,1),(2,2)]) @?= False
+    isSubmapOfBy (>)  (fromList [(-1,2)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOfBy (<)  (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= False
+    isSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
+
 test_isSubmapOf :: Assertion
 test_isSubmapOf = do
     isSubmapOf (fromList [(fromEnum 'a',1)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOf (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOf (fromList [(fromEnum 'a',2)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= False
     isSubmapOf (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) (fromList [(fromEnum 'a',1)]) @?= False
+
+    isSubmapOf (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= True
+    isSubmapOf (fromList [(-1,2)]) (fromList [(-1,1),(2,2)]) @?= False
+    isSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
 
 test_isProperSubmapOfBy :: Assertion
 test_isProperSubmapOfBy = do
@@ -700,86 +992,149 @@ test_isProperSubmapOfBy = do
     isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)]) @?= False
     isProperSubmapOfBy (<)  (fromList [(1,1)])       (fromList [(1,1),(2,2)]) @?= False
 
+    isProperSubmapOfBy (==) (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isProperSubmapOfBy (<=) (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isProperSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= False
+    isProperSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
+    isProperSubmapOfBy (<)  (fromList [(-1,1)])       (fromList [(-1,1),(2,2)]) @?= False
+
 test_isProperSubmapOf :: Assertion
 test_isProperSubmapOf = do
     isProperSubmapOf (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
     isProperSubmapOf (fromList [(1,1),(2,2)]) (fromList [(1,1),(2,2)]) @?= False
     isProperSubmapOf (fromList [(1,1),(2,2)]) (fromList [(1,1)]) @?= False
 
+    isProperSubmapOf (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
+    isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= False
+    isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
+
 ----------------------------------------------------------------
 -- Min/Max
 
 test_lookupMin :: Assertion
 test_lookupMin = do
-  lookupMin (fromList [(5,"a"), (3,"b")]) @?= Just (3,"b")
+  lookupMin (fromList [(5,"a"), (3,"b")])  @?= Just (3,"b")
+  lookupMin (fromList [(5,"a"), (-3,"b")]) @?= Just (-3,"b")
   lookupMin (empty :: SMap) @?= Nothing
 
 test_lookupMax :: Assertion
 test_lookupMax = do
   lookupMax (fromList [(5,"a"), (3,"b")]) @?= Just (5,"a")
+  lookupMax (fromList [(5,"a"), (-3,"b")]) @?= Just (5,"a")
   lookupMax (empty :: SMap) @?= Nothing
 
 test_findMin :: Assertion
-test_findMin = findMin (fromList [(5,"a"), (3,"b")]) @?= (3,"b")
+test_findMin = do
+    findMin (fromList [(5,"a"), (3,"b")]) @?= (3,"b")
+    findMin (fromList [(5,"a"), (-3,"b")]) @?= (-3,"b")
 
 test_findMax :: Assertion
-test_findMax = findMax (fromList [(5,"a"), (3,"b")]) @?= (5,"a")
+test_findMax = do
+    findMax (fromList [(5,"a"), (3,"b")]) @?= (5,"a")
+    findMax (fromList [(5,"a"), (-3,"b")]) @?= (5,"a")
 
 test_deleteMin :: Assertion
 test_deleteMin = do
     deleteMin (fromList [(5,"a"), (3,"b"), (7,"c")]) @?= fromList [(5,"a"), (7,"c")]
+    deleteMin (fromList [(5,"a"), (-3,"b"), (7,"c")]) @?= fromList [(5,"a"), (7,"c")]
     deleteMin (empty :: SMap) @?= empty
 
 test_deleteMax :: Assertion
 test_deleteMax = do
     deleteMax (fromList [(5,"a"), (3,"b"), (7,"c")]) @?= fromList [(3,"b"), (5,"a")]
+    deleteMax (fromList [(5,"a"), (-3,"b"), (7,"c")]) @?= fromList [(-3,"b"), (5,"a")]
     deleteMax (empty :: SMap) @?= empty
 
 test_deleteFindMin :: Assertion
-test_deleteFindMin = deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((3,"b"), fromList[(5,"a"), (10,"c")])
+test_deleteFindMin = do
+    deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((3,"b"), fromList[(5,"a"), (10,"c")])
+    deleteFindMin (fromList [(5,"a"), (-3,"b"), (10,"c")]) @?= ((-3,"b"), fromList[(5,"a"), (10,"c")])
 
 test_deleteFindMax :: Assertion
-test_deleteFindMax = deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((10,"c"), fromList [(3,"b"), (5,"a")])
+test_deleteFindMax = do
+    deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) @?= ((10,"c"), fromList [(3,"b"), (5,"a")])
+    deleteFindMax (fromList [(5,"a"), (-3,"b"), (10,"c")]) @?= ((10,"c"), fromList [(-3,"b"), (5,"a")])
 
 test_updateMin :: Assertion
 test_updateMin = do
     updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "Xb"), (5, "a")]
     updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
 
+    updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "Xb"), (5, "a")]
+    updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+
 test_updateMax :: Assertion
 test_updateMax = do
     updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "Xa")]
     updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
+
+    updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "Xa")]
+    updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
 
 test_updateMinWithKey :: Assertion
 test_updateMinWithKey = do
     updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3,"3:b"), (5,"a")]
     updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
 
+    updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"-3:b"), (5,"a")]
+    updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+
 test_updateMaxWithKey :: Assertion
 test_updateMaxWithKey = do
     updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3,"b"), (5,"5:a")]
     updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
 
+    updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"b"), (5,"5:a")]
+    updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+
 test_minView :: Assertion
 test_minView = do
     minView (fromList [(5,"a"), (3,"b")]) @?= Just ("b", singleton 5 "a")
+    minView (fromList [(5,"a"), (-3,"b")]) @?= Just ("b", singleton 5 "a")
     minView (empty :: SMap) @?= Nothing
 
 test_maxView :: Assertion
 test_maxView = do
     maxView (fromList [(5,"a"), (3,"b")]) @?= Just ("a", singleton 3 "b")
+    maxView (fromList [(5,"a"), (-3,"b")]) @?= Just ("a", singleton (-3) "b")
     maxView (empty :: SMap) @?= Nothing
 
 test_minViewWithKey :: Assertion
 test_minViewWithKey = do
     minViewWithKey (fromList [(5,"a"), (3,"b")]) @?= Just ((3,"b"), singleton 5 "a")
+    minViewWithKey (fromList [(5,"a"), (-3,"b")]) @?= Just ((-3,"b"), singleton 5 "a")
     minViewWithKey (empty :: SMap) @?= Nothing
 
 test_maxViewWithKey :: Assertion
 test_maxViewWithKey = do
     maxViewWithKey (fromList [(5,"a"), (3,"b")]) @?= Just ((5,"a"), singleton 3 "b")
+    maxViewWithKey (fromList [(5,"a"), (-3,"b")]) @?= Just ((5,"a"), singleton (-3) "b")
     maxViewWithKey (empty :: SMap) @?= Nothing
+
+
+#if MIN_VERSION_base(4,8,0)
+test_minimum :: Assertion
+test_minimum = do
+    getOW (minimum testOrdMap) @?= "min"
+    minimum (elems testOrdMap) @?= minimum testOrdMap
+  where getOW (OrdWith s _) = s
+
+test_maximum :: Assertion
+test_maximum = do
+    getOW (maximum testOrdMap) @?= "max"
+    maximum (elems testOrdMap) @?= maximum testOrdMap
+  where getOW (OrdWith s _) = s
+
+testOrdMap :: IntMap (OrdWith Int)
+testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
+
+data OrdWith a = OrdWith String a
+    deriving (Eq, Show)
+
+instance Ord a => Ord (OrdWith a) where
+    OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2
+#endif
+
 
 ----------------------------------------------------------------
 -- Valid IntMaps
@@ -1187,3 +1542,43 @@ prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+
+newtype Identity a = Identity a
+    deriving (Eq, Show)
+
+instance Functor Identity where
+  fmap f (Identity a) = Identity (f a)
+
+instance Applicative Identity where
+  pure a = Identity a
+  Identity f <*> Identity a = Identity (f a)
+
+prop_traverseWithKey_identity :: IntMap A -> Property
+prop_traverseWithKey_identity mp = mp === newMap
+  where Identity newMap = traverseWithKey (\_ -> Identity) mp
+
+prop_traverseWithKey_degrade_to_mapWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseWithKey_degrade_to_mapWithKey fun mp =
+    mapWithKey f mp === newMap
+  where f = applyFun2 fun
+        g k v = Identity $ f k v
+        Identity newMap = traverseWithKey g mp
+
+prop_traverseMaybeWithKey_identity :: IntMap A -> Property
+prop_traverseMaybeWithKey_identity mp = mp === newMap
+  where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
+
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) (Maybe B) -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
+    mapMaybeWithKey f mp === newMap
+  where f = applyFun2 fun
+        g k v = Identity $ f k v
+        Identity newMap = traverseMaybeWithKey g mp
+
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
+    traverseWithKey f mp === traverseMaybeWithKey g mp
+        -- used (,) since its Applicative is monoidal in the left argument,
+        -- so this also checks the order of traversing is the same.
+  where f k v = (show k, applyFun2 fun k v)
+        g k v = fmap Just $ f k v
