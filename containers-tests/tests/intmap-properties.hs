@@ -2,11 +2,9 @@
 
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap hiding (showTree)
-import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Strict
 #else
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
-import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
@@ -16,6 +14,7 @@ import Control.Applicative (Applicative(..))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
+import Data.Functor.Identity
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
@@ -152,8 +151,10 @@ main = defaultMain
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
-             , testProperty "merge valid"          prop_merge_valid
-             , testProperty "mergeA effects"       prop_mergeA_effects
+             , testProperty "union==merge"         prop_unionEqMerge
+             , testProperty "difference==merge"    prop_differenceEqMerge
+             , testProperty "intersection==merge"  prop_intersectionEqMerge
+             , testProperty "merge==mergeA"        prop_mergeEqMergeA
              , testProperty "fromAscList"          prop_ordered
              , testProperty "fromList then toList" prop_list
              , testProperty "toDescList"           prop_descList
@@ -1261,34 +1262,20 @@ prop_mergeWithKeyModel f keep_x keep_y xs ys
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
 
-prop_merge_valid
-    :: Fun (Key, A) (Maybe C)
-    -> Fun (Key, B) (Maybe C)
-    -> Fun (Key, A, B) (Maybe C)
-    -> IntMap A
-    -> IntMap B
-    -> Property
-prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
-  = valid m
-  where
-    m =
-      merge
-        (mapMaybeMissing (applyFun2 whenMissingA))
-        (mapMaybeMissing (applyFun2 whenMissingB))
-        (zipWithMaybeMatched (applyFun3 whenMatched))
-        xs
-        ys
+prop_unionEqMerge :: UMap -> UMap -> Property
+prop_unionEqMerge m1 m2 = union m1 m2 === merge preserveMissing preserveMissing (zipWithMatched (\_ x _ -> x)) m1 m2
 
--- This uses the instance
---     Monoid a => Applicative ((,) a)
--- to test that effects are sequenced in ascending key order.
-prop_mergeA_effects :: UMap -> UMap -> Property
-prop_mergeA_effects xs ys
-  = effects === sort effects
-  where
-    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
-    whenMissing = traverseMissing (\k _ -> ([k], ()))
-    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
+prop_differenceEqMerge :: UMap -> UMap -> Property
+prop_differenceEqMerge m1 m2 = difference m1 m2 === merge preserveMissing dropMissing (zipWithMaybeMatched (\_ _ _ -> Nothing)) m1 m2
+
+prop_intersectionEqMerge :: UMap -> UMap -> Property
+prop_intersectionEqMerge m1 m2 = intersection m1 m2 === merge dropMissing dropMissing (zipWithMatched (\_ x _ -> x)) m1 m2
+
+prop_mergeEqMergeA :: Fun Int Bool -> Fun Int Bool -> Fun Int Bool -> UMap -> UMap -> Property
+prop_mergeEqMergeA pMiss1 pMiss2 pMatch m1 m2 = merge whenMiss1 whenMiss2 whenMatch m1 m2 === runIdentity (mergeA whenMiss1 whenMiss2 whenMatch m1 m2) where
+    whenMiss1 = mapMaybeMissing (\k _ -> if apply pMiss1 k then Just () else Nothing)
+    whenMiss2 = mapMaybeMissing (\k _ -> if apply pMiss2 k then Just () else Nothing)
+    whenMatch = zipWithMaybeMatched (\k _ _ -> if apply pMatch k then Just () else Nothing)
 
 ----------------------------------------------------------------
 

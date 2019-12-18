@@ -37,6 +37,7 @@ module Data.IntMap.Merge.Lazy (
 
     -- ** General combining function
     , merge
+    , mergeA
 
     -- ** @WhenMatched@ tactics
     , zipWithMaybeMatched

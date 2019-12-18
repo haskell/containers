@@ -37,6 +37,7 @@ module Data.IntMap.Merge.Strict (
 
     -- ** General combining function
     , merge
+    , mergeA
 
     -- ** @WhenMatched@ tactics
     , zipWithMaybeMatched
