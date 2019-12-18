@@ -1578,5 +1578,7 @@ prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
 prop_traverseMaybeWithKey_degrade_to_traverseWithKey :: Fun (Int, A) B -> IntMap A -> Property
 prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
     traverseWithKey f mp === traverseMaybeWithKey g mp
-  where f k v = Identity $ applyFun2 fun k v
+        -- used (,) since its Applicative is monoidal in the left argument,
+        -- so this also checks the order of traversing is the same.
+  where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
