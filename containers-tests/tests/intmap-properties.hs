@@ -198,8 +198,9 @@ main = defaultMain
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
-             , testProperty "traverseWithKey identity" prop_traverseWithKey_identity
-             , testProperty "traverseMaybeWithKey identity" prop_traverseMaybeWithKey_identity
+             , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
+             , testProperty "traverseWithKey->mapWithKey"           prop_traverseWithKey_degrade_to_mapWithKey
+             , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              ]
@@ -1552,18 +1553,25 @@ instance Applicative Identity where
   pure a = Identity a
   Identity f <*> Identity a = Identity (f a)
 
-prop_traverseWithKey_identity :: IntMap () -> Bool
-prop_traverseWithKey_identity mp = mp == newMap
+prop_traverseWithKey_identity :: IntMap A -> Property
+prop_traverseWithKey_identity mp = mp === newMap
   where Identity newMap = traverseWithKey (\_ -> Identity) mp
 
-prop_traverseMaybeWithKey_identity :: IntMap () -> Bool
-prop_traverseMaybeWithKey_identity mp = mp == newMap
+prop_traverseWithKey_degrade_to_mapWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseWithKey_degrade_to_mapWithKey fun mp =
+    mapWithKey f mp === newMap
+  where f = applyFun2 fun
+        g k v = Identity $ f k v
+        Identity newMap = traverseWithKey g mp
+
+prop_traverseMaybeWithKey_identity :: IntMap A -> Property
+prop_traverseMaybeWithKey_identity mp = mp === newMap
   where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
 
-prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) (Maybe B) -> IntMap A -> Property
 prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
     mapMaybeWithKey f mp === newMap
-  where f k v = Just $ applyFun2 fun k v
+  where f = applyFun2 fun
         g k v = Identity $ f k v
         Identity newMap = traverseMaybeWithKey g mp
 
