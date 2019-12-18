@@ -70,6 +70,10 @@ module Data.IntMap.Merge.Strict (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+
+    -- ** Miscellaneous functions on tactics
+    , runWhenMatched
+    , runWhenMissing
 ) where
 
 import Control.Applicative (Applicative(..))

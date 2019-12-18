@@ -70,6 +70,10 @@ module Data.IntMap.Merge.Lazy (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+
+    -- ** Miscellaneous functions on tactics
+    , runWhenMatched
+    , runWhenMissing
 ) where
 
 import Control.Applicative (Applicative(..))

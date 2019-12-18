@@ -90,6 +90,14 @@ data WhenMissing f a b = WhenMissing {
 -- of a function of type @ Key -> a -> Maybe c @.
 type SimpleWhenMissing = WhenMissing Identity
 
+-- | Along with 'traverseMaybeMissing', witnesses the isomorphism
+-- between @WhenMissing f x y@ and @Key -> x -> f (Maybe y)@.
+--
+-- @since 0.5.9
+{-# INLINE runWhenMissing #-}
+runWhenMissing :: WhenMissing f a b -> Key -> a -> f (Maybe b)
+runWhenMissing = missingSingle
+
 -- | Drop all the entries whose keys are missing from the other
 -- map.
 --
@@ -207,6 +215,14 @@ newtype WhenMatched f a b c = WhenMatched {
 -- A tactic of type @ SimpleWhenMatched a b c @ is an abstract representation
 -- of a function of type @ Key -> a -> b -> Maybe c @.
 type SimpleWhenMatched = WhenMatched Identity
+
+-- | Along with 'zipWithMaybeAMatched', witnesses the isomorphism
+-- between @WhenMatched f x y z@ and @Key -> x -> y -> f (Maybe z)@.
+--
+-- @since 0.5.9
+{-# INLINE runWhenMatched #-}
+runWhenMatched :: WhenMatched f a b c -> Key -> a -> b -> f (Maybe c)
+runWhenMatched = matchedSingle
 
 -- | Merge two maps.
 --
