@@ -32,14 +32,13 @@
 
 module Data.IntMap.Merge.Lazy (
     -- ** Simple merge tactic types
-      WhenMissing
-    , WhenMatched
+      SimpleWhenMissing
+    , SimpleWhenMatched
 
     -- ** General combining function
     , merge
-    , mergeA
 
-    -- ** @WhenMatched@ tactics
+    -- *** @WhenMatched@ tactics
     , zipWithMaybeMatched
     , zipWithMatched
 
@@ -49,6 +48,28 @@ module Data.IntMap.Merge.Lazy (
     , mapMissing
     , mapMaybeMissing
     , filterMissing
+
+    -- ** Applicative merge tactic types
+    , WhenMissing
+    , WhenMatched
+
+    -- ** Applicative general combining function
+    , mergeA
+
+    -- *** @WhenMatched@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , zipWithMaybeAMatched
+    , zipWithAMatched
+
+    -- *** @WhenMissing@ tactics
+    -- | The tactics described for 'merge' work for
+    -- 'mergeA' as well. Furthermore, the following
+    -- are available.
+    , traverseMaybeMissing
+    , traverseMissing
+    , filterAMissing
 ) where
 
 import Control.Applicative (Applicative(..))
@@ -148,3 +169,74 @@ zipWithMaybeMatched f = WhenMatched (\k a b -> pure (f k a b))
 {-# INLINE zipWithMatched #-}
 zipWithMatched :: Applicative f => (Key -> a -> b -> c) -> WhenMatched f a b c
 zipWithMatched f = zipWithMaybeMatched (\k a b -> Just (f k a b))
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values, perform the resulting action, and maybe use the
+-- result in the merged map.
+--
+-- This is the fundamental 'WhenMatched' tactic.
+--
+-- @since 0.5.9
+{-# INLINE zipWithMaybeAMatched #-}
+zipWithMaybeAMatched
+  :: (Key -> a -> b -> f (Maybe c))
+  -> WhenMatched f a b c
+zipWithMaybeAMatched f = WhenMatched (\k a b -> f k a b)
+
+-- | When a key is found in both maps, apply a function to the key
+-- and values to produce an action and use its result in the merged
+-- map.
+--
+-- @since 0.5.9
+{-# INLINE zipWithAMatched #-}
+zipWithAMatched
+  :: Applicative f
+  => (Key -> a -> b -> f c)
+  -> WhenMatched f a b c
+zipWithAMatched f = zipWithMaybeAMatched (\k a b -> Just <$> f k a b)
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map, optionally producing values to put in the result. This is
+-- the most powerful 'WhenMissing' tactic, but others are usually
+-- more efficient.
+--
+-- @since 0.5.9
+{-# INLINE traverseMaybeMissing #-}
+traverseMaybeMissing
+  :: Applicative f => (Key -> a -> f (Maybe b)) -> WhenMissing f a b
+traverseMaybeMissing f = WhenMissing
+    { missingAllL = start
+    , missingLeft = goL
+    , missingRight = goR
+    , missingSingle = f }
+  where
+    start Empty = pure Empty
+    start (NonEmpty min minV root) = maybe nodeToMapL (NonEmpty min) <$> f min minV <*> goL root
+
+    goL Tip = pure Tip
+    goL (Bin max maxV l r) = (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') <$> goL l <*> goR r <*> f max maxV
+
+    goR Tip = pure Tip
+    goR (Bin min minV l r) = (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') <$> f min minV <*> goL l <*> goR r
+
+-- | Traverse over the entries whose keys are missing from the other
+-- map.
+--
+-- @since 0.5.9
+{-# INLINE traverseMissing #-}
+traverseMissing
+  :: Applicative f => (Key -> a -> f b) -> WhenMissing f a b
+traverseMissing f = WhenMissing
+    { missingAllL = start
+    , missingLeft = goL
+    , missingRight = goR
+    , missingSingle = \k v -> Just <$> f k v }
+  where
+    start Empty = pure Empty
+    start (NonEmpty min minV root) = NonEmpty min <$> f min minV <*> goL root
+
+    goL Tip = pure Tip
+    goL (Bin max maxV l r) = (\l' r' maxV' -> Bin max maxV' l' r') <$> goL l <*> goR r <*> f max maxV
+
+    goR Tip = pure Tip
+    goR (Bin min minV l r) = (\minV' l' r' -> Bin min minV' l' r') <$> f min minV <*> goL l <*> goR r

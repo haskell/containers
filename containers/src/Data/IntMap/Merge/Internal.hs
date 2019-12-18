@@ -166,6 +166,33 @@ filterMissing p = WhenMissing (\k v -> pure (if p k v then Just v else Nothing))
             NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV (goLKeep l) r')
         | otherwise = binR (goL l) (goR r)
 
+-- | Filter the entries whose keys are missing from the other map
+-- using some 'Applicative' action.
+--
+-- > filterAMissing f = Merge.Lazy.traverseMaybeMissing $
+-- >   \k x -> (\b -> guard b *> Just x) <$> f k x
+--
+-- but this should be a little faster.
+--
+-- @since 0.5.9
+{-# INLINE filterAMissing #-}
+-- TODO: Use pointer equality to speed this up?
+filterAMissing  :: Applicative f => (Key -> a -> f Bool) -> WhenMissing f a a
+filterAMissing f = WhenMissing
+    { missingAllL = start
+    , missingLeft = goL
+    , missingRight = goR
+    , missingSingle = \k v -> fmap (\keep -> if keep then Just v else Nothing) (f k v) }
+  where
+    start Empty = pure Empty
+    start (NonEmpty min minV root) = (\keepV root' -> if keepV then NonEmpty min minV root' else nodeToMapL root') <$> f min minV <*> goL root
+
+    goL Tip = pure Tip
+    goL (Bin max maxV l r) = (\l' r' keepMax -> if keepMax then Bin max maxV l' r' else extractBinL l' r') <$> goL l <*> goR r <*> f max maxV
+
+    goR Tip = pure Tip
+    goR (Bin min minV l r) = (\keepMin l' r' -> if keepMin then Bin min minV l' r' else extractBinR l' r') <$> f min minV <*> goL l <*> goR r
+
 -- | A tactic for dealing with keys present in both
 -- maps in 'merge' or 'mergeA'.
 --
