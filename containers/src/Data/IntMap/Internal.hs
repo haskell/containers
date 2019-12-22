@@ -767,7 +767,7 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 {--------------------------------------------------------------------
   Compose
 --------------------------------------------------------------------}
--- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- | /O(|ab|*min(|bc|,W))/. Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --

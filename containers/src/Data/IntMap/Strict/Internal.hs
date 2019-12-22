@@ -723,7 +723,7 @@ intersectionWithKey f m1 m2
 {--------------------------------------------------------------------
   Compose
 --------------------------------------------------------------------}
--- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- | /O(|ab|*min(|bc|,W))/. Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --
