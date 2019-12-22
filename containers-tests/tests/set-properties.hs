@@ -44,6 +44,12 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_InsertDelete" prop_InsertDelete
                    , testProperty "prop_InsertBiased" prop_InsertBiased
                    , testProperty "prop_DeleteValid" prop_DeleteValid
+                   , testProperty "alterF" prop_alterF
+                   , testProperty "alterF/delete" prop_alterF_delete
+                   , testProperty "alterF/insert" prop_alterF_insert
+                   , testProperty "alterF/member" prop_alterF_member
+                   , testProperty "alterF/four" prop_alterF_four
+                   , testProperty "alterF/valid" prop_alterF_valid
                    , testProperty "prop_Link" prop_Link
                    , testProperty "prop_Merge" prop_Merge
                    , testProperty "prop_UnionValid" prop_UnionValid
@@ -367,6 +373,52 @@ prop_InsertBiased k t = (k, True) `member` kt
 
 prop_DeleteValid :: Int -> Property
 prop_DeleteValid k = forValidUnitTree $ \t -> valid (delete k (insert k t))
+
+{--------------------------------------------------------------------
+  alterF
+--------------------------------------------------------------------}
+
+newtype Ident a = Ident { runIdent :: a }
+instance Functor Ident where
+  fmap f (Ident a) = Ident (f a)
+
+newtype Consty a b = Consty { getConsty :: a}
+instance Functor (Consty a) where
+  fmap _ (Consty a) = Consty a
+
+data Four a = Four a a a a
+  deriving (Eq, Show)
+instance Functor Four where
+  fmap f (Four a b c d) = Four (f a) (f b) (f c) (f d)
+
+four :: Bool -> Four Bool
+               -- insert  delete  id     toggle
+four True  = Four True    False   True   False
+four False = Four True    False   False  True
+
+toggle :: Ord a => a -> Set a -> Set a
+toggle k s =
+    if member k s
+        then delete k s
+        else insert k s
+
+prop_alterF :: Fun Bool [Bool] -> Int -> Set Int -> Property
+prop_alterF f k s = fmap (member k) (alterF (apply f) k s) === apply f (member k s)
+
+prop_alterF_insert :: Int -> Set Int -> Property
+prop_alterF_insert k s = runIdent (alterF (const (Ident True)) k s) === insert k s
+
+prop_alterF_delete :: Int -> Set Int -> Property
+prop_alterF_delete k s = runIdent (alterF (const (Ident False)) k s) === delete k s
+
+prop_alterF_member :: Int -> Set Int -> Property
+prop_alterF_member k s = getConsty (alterF (\b -> Consty b) k s) === member k s
+
+prop_alterF_four :: Int -> Set Int -> Property
+prop_alterF_four k s = alterF four k s === Four (insert k s) (delete k s) s (toggle k s)
+
+prop_alterF_valid :: Int -> Set Int -> Property
+prop_alterF_valid k s = fmap valid (alterF four k s) === Four True True True True
 
 {--------------------------------------------------------------------
   Balance

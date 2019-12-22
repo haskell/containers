@@ -917,7 +917,9 @@ traverseWithKey f = go
   where
     go Nil = pure Nil
     go (Tip k v) = (\ !v' -> Tip k v') <$> f k v
-    go (Bin p m l r) = liftA2 (Bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (Bin p m)) (go r) (go l)
+      | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
@@ -927,7 +929,9 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k $!) <$> f k x
-    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (bin p m)) (go r) (go l)
+      | otherwise = liftA2 (bin p m) (go l) (go r)
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -957,9 +961,15 @@ mapAccumL f0 a0 t0 = toPair $ go f0 a0 t0
   where
     go f a t
       = case t of
-          Bin p m l r -> let (a1 :*: l') = go f a l
-                             (a2 :*: r') = go f a1 r
-                         in (a2 :*: Bin p m l' r')
+          Bin p m l r
+            | m < 0 ->
+                let (a1 :*: r') = go f a r
+                    (a2 :*: l') = go f a1 l
+                in (a2 :*: Bin p m l' r')
+            | otherwise ->
+                let (a1 :*: l') = go f a l
+                    (a2 :*: r') = go f a1 r
+                in (a2 :*: Bin p m l' r')
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
@@ -970,9 +980,15 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
   where
     go f a t
       = case t of
-          Bin p m l r -> let (a1 :*: r') = go f a r
-                             (a2 :*: l') = go f a1 l
-                         in (a2 :*: Bin p m l' r')
+          Bin p m l r
+            | m < 0 ->
+              let (a1 :*: l') = go f a l
+                  (a2 :*: r') = go f a1 r
+              in (a2 :*: Bin p m l' r')
+            | otherwise ->
+              let (a1 :*: r') = go f a r
+                  (a2 :*: l') = go f a1 l
+              in (a2 :*: Bin p m l' r')
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 

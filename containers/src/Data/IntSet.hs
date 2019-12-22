@@ -115,6 +115,7 @@ module Data.IntSet (
 
             -- * Map
             , IS.map
+            , mapMonotonic
 
             -- * Folds
             , IS.foldr
