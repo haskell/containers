@@ -1218,9 +1218,9 @@ forceMaybe m@(Just !_) = m
 --
 -- @since UNRELEASED
 compose :: Ord b => Map b c -> Map a b -> Map a c
-compose bc ab = if null bc
-                then empty
-                else mapMaybe (bc !?) ab
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   MergeWithKey

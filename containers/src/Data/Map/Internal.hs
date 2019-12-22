@@ -2103,9 +2103,9 @@ disjoint (Bin _ k _ l r) t
 --
 -- @since UNRELEASED
 compose :: Ord b => Map b c -> Map a b -> Map a c
-compose bc ab = if null bc
-                then empty
-                else mapMaybe (bc !?) ab
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 #if !MIN_VERSION_base (4,8,0)
 -- | The identity type.

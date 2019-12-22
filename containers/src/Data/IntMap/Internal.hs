@@ -779,9 +779,9 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 --
 -- @since UNRELEASED
 compose :: IntMap c -> IntMap Int -> IntMap c
-compose bc ab = if null bc
-                then empty
-                else mapMaybe (bc !?) ab
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   Construction

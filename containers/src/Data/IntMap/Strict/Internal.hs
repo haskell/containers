@@ -735,9 +735,9 @@ intersectionWithKey f m1 m2
 --
 -- @since UNRELEASED
 compose :: IntMap c -> IntMap Int -> IntMap c
-compose bc ab = if null bc
-                then empty
-                else mapMaybe (bc !?) ab
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   MergeWithKey
