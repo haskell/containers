@@ -211,7 +211,8 @@ import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 
 #if __GLASGOW_HASKELL__
-import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, DataType, mkDataType)
+import qualified Data.Data
 import Text.Read
 #endif
 
@@ -311,7 +312,7 @@ instance Data IntSet where
   dataTypeOf _   = intSetDataType
 
 fromListConstr :: Constr
-fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
+fromListConstr = mkConstr intSetDataType "fromList" [] Data.Data.Prefix
 
 intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Internal.IntSet" [fromListConstr]
@@ -1173,8 +1174,153 @@ nequal _   _   = True
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
-    -- tentative implementation. See if more efficient exists.
+  compare Nil Nil = EQ
+  compare Nil _ = LT
+  compare _ Nil = GT
+  compare t1@(Tip _ _) t2@(Tip _ _)
+    = orderingOf $ relateTipTip t1 t2
+  compare xs ys
+    | (xsNeg, xsNonNeg) <- splitSign xs
+    , (ysNeg, ysNonNeg) <- splitSign ys
+    = case relate xsNeg ysNeg of
+       Less -> LT
+       Prefix -> if null xsNonNeg then LT else GT
+       Equals -> orderingOf (relate xsNonNeg ysNonNeg)
+       FlipPrefix -> if null ysNonNeg then GT else LT
+       Greater -> GT
+
+-- | detailed outcome of lexicographic comparison of lists.
+-- w.r.t. Ordering, there are two extra cases,
+-- since (++) is not monotonic w.r.t. lex. order on lists
+-- (which is used by definition):
+-- consider comparison of  (Bin [0,3,4] [ 6] ) to  (Bin [0,3] [7] )
+-- where [0,3,4] > [0,3]  but [0,3,4,6] < [0,3,7].
+
+data Relation
+  = Less  -- ^ holds for [0,3,4] [0,3,5,1]
+  | Prefix -- ^ holds for [0,3,4] [0,3,4,5]
+  | Equals -- ^  holds for [0,3,4] [0,3,4]
+  | FlipPrefix -- ^ holds for [0,3,4] [0,3]
+  | Greater -- ^ holds for [0,3,4] [0,2,5]
+  deriving (Show, Eq)
+   
+orderingOf :: Relation -> Ordering
+{-# INLINE orderingOf #-}
+orderingOf r = case r of
+  Less -> LT
+  Prefix -> LT
+  Equals -> EQ
+  FlipPrefix -> GT
+  Greater -> GT
+
+-- | precondition: each argument is non-mixed
+relate :: IntSet -> IntSet -> Relation
+relate Nil Nil = Equals
+relate Nil t2 = Prefix
+relate t1 Nil = FlipPrefix
+relate t1@(Tip p1 bm1) t2@(Tip p2 bm2) = relateTipTip t1 t2
+relate t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | otherwise = case compare (natFromInt m1) (natFromInt m2) of
+      GT -> combine_left (relate l1 t2)
+      EQ -> combine (relate l1 l2) (relate r1 r2)
+      LT -> combine_right (relate t1 l2)
+relate t1@(Bin p1 m1 l1 r1) t2@(Tip p2 _)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | 0 == (m1 .&. p2) = combine_left (relate l1 t2)
+  | otherwise = Less
+relate t1@(Tip p1 _) t2@(Bin p2 m2 l2 r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | 0 == (p1 .&. m2) = combine_right (relate t1 l2)
+  | otherwise = Greater
+
+relateTipTip :: IntSet -> IntSet -> Relation
+{-# INLINE relateTipTip #-}
+relateTipTip t1@(Tip p1 bm1) t2@(Tip p2 bm2) = case compare p1 p2 of
+  LT -> Less
+  EQ -> relateBM bm1 bm2
+  GT -> Greater
+
+relateBM :: BitMap -> BitMap -> Relation
+{-# inline relateBM #-}
+relateBM w1 w2 | w1 == w2 = Equals
+relateBM w1 w2 =
+  let delta = xor w1 w2
+      lowest_diff_mask = delta .&. complement (delta-1)
+      prefix = (complement lowest_diff_mask + 1)
+            .&. (complement lowest_diff_mask)
+  in  if 0 == lowest_diff_mask .&. w1
+      then if 0 == w1 .&. prefix
+           then Prefix else Greater
+      else if 0 == w2 .&. prefix
+           then FlipPrefix else Less
+
+-- | This function has the property
+-- relate t1@(Bin p m l1 r1) t2@(Bin p m l2 r2) = combine (relate l1 l2) (relate r1 r2)
+-- It is important that `combine` is lazy in the second argument (achieved by inlining)
+combine :: Relation -> Relation -> Relation
+{-# inline combine #-}
+combine r eq = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> eq
+      FlipPrefix -> Less
+      Greater -> Greater
+
+-- | This function has the property
+-- relate t1@(Bin p1 m1 l1 r1) t2 = combine_left (relate l1 t2)
+-- under the precondition that the range of l1 contains the range of t2,
+-- and r1 is non-empty
+combine_left :: Relation -> Relation
+{-# inline combine_left #-}
+combine_left r = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> FlipPrefix
+      FlipPrefix -> FlipPrefix
+      Greater -> Greater
+
+-- | This function has the property
+-- relate t1 t2@(Bin p2 m2 l2 r2) = combine_right (relate t1 l2)
+-- under the precondition that the range of t1 is included in the range of l2,
+-- and r2 is non-empty
+combine_right :: Relation -> Relation
+{-# inline combine_right #-}
+combine_right r = case r of
+      Less -> Less
+      Prefix -> Prefix
+      Equals -> Prefix
+      FlipPrefix -> Less
+      Greater -> Greater
+
+-- | shall only be applied to non-mixed non-Nil trees
+lowerbound :: IntSet -> Int
+{-# INLINE lowerbound #-}
+lowerbound (Tip p _) = p
+lowerbound (Bin p _ _ _) = p
+
+-- | this is one more than the actual upper bound (to save one operation)
+-- shall only be applied to non-mixed non-Nil trees
+succUpperbound :: IntSet -> Int
+{-# INLINE succUpperbound #-}
+succUpperbound (Tip p _) = p + wordSize 
+succUpperbound (Bin p m _ _) = p + shiftR m 1
+
+-- | split a set into subsets of negative and non-negative elements
+splitSign :: IntSet -> (IntSet,IntSet)
+{-# INLINE splitSign #-}
+splitSign t@(Tip kx _)
+  | kx >= 0 = (Nil, t)
+  | otherwise = (t, Nil)
+splitSign t@(Bin p m l r)
+  -- m < 0 is the usual way to find out if we have positives and negatives (see findMax)
+  | m < 0 = (r, l)
+  | p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
 
 {--------------------------------------------------------------------
   Show
