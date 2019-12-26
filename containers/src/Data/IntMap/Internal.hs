@@ -32,6 +32,230 @@
 -- This defines the data structures and core (hidden) manipulations
 -- on representations.
 --
+-- = Tree Structure
+--
+-- This implementation is based on a tree structure isomorphic to /big-endian patricia
+-- trees/, saving space and time by not storing data in the leaves (so not needing to
+-- allocate memory for them) and not storing which bit to split on in nodes. Alternatively, it
+-- can be viewed as a vantage-point tree under the xor metric.
+--
+-- = Derivation
+--
+-- It may be instructive to build up the tree structure as a series of optimizations transforming
+-- a simple data structure (a bitwise trie).
+--
+-- == The basic integer map: the bitwise trie
+--
+-- We are trying to create an efficient, simple mapping from integers to values. The most common
+-- approaches for these are hash tables, which are not persistent (though we can come close with
+-- HAMTs), and binary search trees, which work well, but don't use any special properties of the
+-- integer. To come up with this mapping, we need to think of integers not as numbers but as
+-- strings of bits. With that perspective, we can use the standard /trie/ data structure to
+-- build our mapping. As bits are particularly simple, so is the resulting structure:
+--
+-- > data IntMap a = Bin (IntMap a) (IntMap a) | Tip a | Nil
+--
+-- The `Bin` constructor represents a bitwise branch, and the `Tip` constructor comes after (on a
+-- 64-bit machine) 64 `Bin` construtors in the tree. The associated basic operations navigate the
+-- tree by reading a key bit by bit, taking the branch associated with the current bit:
+--
+-- > lookup :: Int -> IntMap a -> Maybe a
+-- > lookup k = go (finiteBitSize k - 1)
+-- >   where
+-- >     go b (Bin l r) = if testBit k b
+-- >                      then go (b - 1) l
+-- >                      else go (b - 1) r
+-- >     go _ (Tip x) = Just x
+-- >     go _ Nil = Nothing
+-- >
+-- > insert :: Int -> a -> IntMap a -> IntMap a
+-- > insert k a = go (finiteBitSize k - 1)
+-- >   where
+-- >     go (-1) _ = Tip a
+-- >     go b (Bin l r) = if testBit k b
+-- >                      then Bin (go (b - 1) l) r
+-- >                      else Bin l (go (b - 1) r)
+-- >     go b _ = if testBit b k
+-- >              then Bin (go (b + 1) Nil) Nil
+-- >              else Bin Nil (go (b + 1) Nil)
+--
+-- 'delete' follows similarly, and the uniform structure means that even 'union' isn't too hard,
+-- a welcome fact given the complexity of merging binary search trees. Unfortunately, this
+-- approach is horribly slow and space-inefficient. To see why, look at the tree structure
+-- for @'singleton' 5 "hello"@:
+--
+-- > +-0-.
+-- > |   +-0-.
+-- > |   |   +-0-.
+-- > |   |   |   +-0-.
+-- > |   |   |   |   +-0-.
+-- > |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   |   |   |   |   +-0-.
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |   +-0-
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |   +-1-.
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |       +-0-.
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |       |   +-0-
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |       |   +-1- "hello"
+-- > |   |   |   |   |   |   |   |   |   |   |   |   |       +-1-
+-- > |   |   |   |   |   |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   |   +-1-
+-- > |   |   |   |   |   +-1-
+-- > |   |   |   |   +-1-
+-- > |   |   |   +-1-
+-- > |   |   +-1-
+-- > |   +-1-
+-- > +-1-
+--
+-- Note that, for brevity, the word size is 16 bits. The diagram would be 4 times longer for a
+-- 64-bit system. In this atrocious tree structure, there is one pointer for every bit, a 64-fold
+-- explosion in space. Arguably worse is the fact that every single 'lookup', 'insert', or
+-- 'delete' must traverse 64 pointers, resulting in 64 cache misses and a terrible runtime.
+--
+-- == Path compression: PATRICIA trees and the previous version of 'Data.IntMap'
+--
+-- To reduce the space usage, we can compress nodes that only have one child. Since they form a
+-- linear chain, we can concatenate the bits within that chain, storing what branches would be
+-- taken. For example, again temporarily shortening the word size to 16 bits:
+--
+-- >>> singleton 5 "hello"
+-- +-0000000000000101- "hello"
+--
+-- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
+-- +-0000000000000-.
+--                 +-001- "1"
+--                 +-10-.
+--                      +-0- "4"
+--                      +-1- "5"
+--
+-- This is much more space efficient, and the basic operations, while more complicated, are still
+-- straightforward. In Haskell, the structure is
+--
+-- > data IntMap a = Bin Prefix Mask (IntMap a) (IntMap a) | Tip Int a | Nil
+--
+-- The @Mask@ tells how long the @Prefix@ is, and the @Int@ in the @Tip@ nodes avoids using @Bin@
+-- for singletons. This representation is known as the big-endian PATRICIA tree and is what the
+-- previous iteration of 'IntMap' used.
+--
+-- == Implicit prefixes: a simpler representation
+--
+-- In the PATRICIA tree representation, we explicitly stored the common prefix of all the keys in
+-- a subtree. However, this prefix is not needed if we know what the minimum and maximum keys. The
+-- common prefix of a set of keys is the same as the common prefix of the minimum and maximum.
+-- Replacing the @Prefix@, @Mask@ pair with a minimum and maximum, we get
+--
+-- > data IntMap a = Bin MinBound MaxBound (IntMap a) (IntMap a) | Tip Int a | Nil
+--
+-- Some examples:
+-- >>> singleton 5 "hello"
+-- +-5- "hello"
+--
+-- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
+-- +-(1,5)-.
+--         +-1- "1"
+--         +-(4,5)-.
+--                 +-4- "4"
+--                 +-5- "5"
+--
+-- Traversing this tree efficiently is a bit more difficult, but still possible. See 'xor' for
+-- details. Moreover, since it gives exact minimums and maximums, 'lookup's can already be more
+-- efficient than in a PATRICIA tree since they can terminate with 'Nothing' as soon as a key
+-- is out of the bounds of a subtree, even if it matches the prefix of common bits. However,
+-- there are bigger gains to be had.
+--
+-- == Removing redundancy
+-- The above representation store many keys repeatedly. In the @{1,4,5}@ example, 1 was stored
+-- twice, 4 was stored twice, and 5 was stored three times. The minimum and maximum keys of a
+-- tree are necessarily keys stored in that tree and moreover are minima and maxima of subtrees.
+-- In the {1,4,5} example, we know from the root node that the minimum is 1 and the maximum is 5.
+-- At the first branch, we split the set into two parts, @{1}@ and @{4,5}@. However, the minimum
+-- of the set of smaller keys is exactly the minimum of the original set. Similarly, the maximum
+-- of the set of larger keys is exactly the maximum of the original set.
+--
+-- We can restructure the tree to only store 1 new value at each branch, removing the redundancy.
+-- In nodes storing a set of smaller keys, we already know the minimum when traversing the tree
+-- downward, so we only need to store the new maximum. In nodes storing a set of larger keys, we
+-- know the maximum and store the new minimum. The root still needs both the minimum and the
+-- maximum, so we need an extra layer to store that information:
+--
+-- > data IntMap a = Empty | NonEmpty Bound (Node a)
+-- > data Node a = Bin Bound (Node a) (Node a) | Tip a
+--
+-- The trees are no longer quite as easy to read at a glance, since keys are no longer available
+-- in order at the leaves, and it can be difficult to tell the difference at a glance between a node
+-- storing a minimum and a node storing a maximum (the actual implementation uses phantom types to
+-- ensure no code gets this wrong).
+--
+-- >>> singleton 5 "hello"
+-- 5
+-- +- "hello"
+--
+-- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
+-- 1
+-- +-5-.
+--     +- "1"
+--     +-4-.
+--         +- "4"
+--         +- "5"
+--
+-- Unfortunately, these nonuniformities do translate to code complexity, but we have already saved
+-- a whole word in every node and every leaf.
+--
+-- == Moving the values upward
+--
+-- The previous section removed the redundancy in keys perfectly, storing each key only once.
+-- However, the values are still stored at the leaf, now far away from their associated keys.
+-- There is no reason this has to be true now that keys have a unique location in the tree.
+-- By moving the values upward in the tree, we simplify:
+--
+-- > data IntMap a = Empty | NonEmpty Bound a (Node a)
+-- > data Node a = Bin Bound a (Node a) (Node a) | Tip
+--
+-- Although nodes still switch between minima and maxima, they can be visualized and manipulated
+-- much more cleanly since it is clear which keys are tied to which values.
+--
+-- >>> singleton 5 "hello"
+-- 5 "hello"
+-- +-
+--
+-- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
+-- 1 "1"
+-- +-5-. "5"
+--     +-
+--     +-4-. "4"
+--         +-
+--         +-
+--
+-- This simpler representation translates to even more savings in both space and time. Since
+-- the leaves no longer store any information, GHC will create a single static @Tip@ object
+-- and reuse it between all the leaves, the equivalent of representing leaves with a null pointer,
+-- saving on allocations and the metadata necessary for garbage collection and lazy evaluation.
+-- Additionally, successful lookups can terminate as soon as they see the correct key instead of
+-- dereferencing a chain of pointers all the way to the leaves. This means fewer cache misses and
+-- a shorter loop.
+--
+-- = References
+--
+--    * Chris Okasaki and Andy Gill, \"/Fast Mergeable Integer Maps/\",
+--      Workshop on ML, September 1998, pages 77-86,
+--      <https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>.
+--    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
+--      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
+--      October 1968, pages 514-534.
+--    * Edward Kmett, \"/Revisiting Matrix Multiplication, Part IV: IntMap!?/\",
+--      School of Haskell, 25 August 2013,
+--      <https://www.schoolofhaskell.com/user/edwardk/revisiting-matrix-multiplication/part-4>.
+--
 -- @since 0.5.9
 -----------------------------------------------------------------------------
 
@@ -71,11 +295,42 @@ type Key = Int
 i2w :: Int -> Word
 i2w = fromIntegral
 
--- We need to compare xors using unsigned comparisons
+-- | Xor a key with a bound for the purposes of navigation within the tree.
+--
+-- The navigation process is as follows. Suppose we are looking up a key `k` in a tree. We know
+-- the minimum key in the tree, `min`, and the maximum key, `max`. Represented in binary:
+--
+-- >           shared prefix   bit to split on
+-- >            /----------\  /
+-- > min:       010010010101 0 ????????
+-- > max:       010010010101 1 ????????
+-- > k:         010010010101 ? ????????
+--
+-- To figure out in which subtree might contain `k`, we need to know whether the bit to split on
+-- is zero or one. Now, if it is zero, then
+--
+-- > xor k min: 000000000000 0 ????????
+-- > xor k max: 000000000000 1 ????????
+--
+-- If it is one:
+--
+-- > xor k min: 000000000000 1 ????????
+-- > xor k max: 000000000000 0 ????????
+--
+-- Therefore, the splitting bit is set iff `xor k min > xor k max`. Put another way, the key
+-- shares more bits with the bound that it is closer to under the xor metric, since exclusive or
+-- maps shared bits to zero. The metric perspective also makes it clear why this works unmodified
+-- in the presence of negative numbers, despite storing negative numbers (with a set sign bit) in
+-- the left branch normally identified with an unset bit. As long as the comparison is done
+-- unsigned (metrics are always nonnegative), negative integers will be closer to other negative
+-- integers than they are to nonnegative integers.
 {-# INLINE xor #-}
 xor :: Key -> Bound t -> Word
 xor a (Bound b) = Data.Bits.xor (i2w a) (i2w b)
 
+-- | Xor the minimum and maximum keys of a tree. The most significant bit of the result indicates
+-- which bit to split on for navigation and is useful in merging maps to tell whether nodes from
+-- different maps branch at the same time.
 {-# INLINE xorBounds #-}
 xorBounds :: Bound L -> Bound R -> Word
 xorBounds (Bound min) (Bound max) = Data.Bits.xor (i2w min) (i2w max)
@@ -1797,10 +2052,13 @@ maxViewWithKey m = let (k, a) = findMax m
 -- | /O(1)/. Returns whether the most significant bit of its first
 -- argument is less significant than the most significant bit of its
 -- second argument.
+
+-- This works by measuring whether x is in between 0 and y but closer to 0 (in the xor metric).
 {-# INLINE ltMSB #-}
 ltMSB :: Word -> Word -> Bool
 ltMSB x y = x < y && x < Data.Bits.xor x y
 
+-- See 'ltMSB' for why this works
 {-# INLINE compareMSB #-}
 compareMSB :: Word -> Word -> Ordering
 compareMSB x y = case compare x y of
