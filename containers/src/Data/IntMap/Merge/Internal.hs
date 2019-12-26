@@ -2,13 +2,15 @@
 
 #include "containers.h"
 
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 #if MIN_VERSION_base(4,8,0) || __GLASGOW_HASKELL__ < 708
 {-# LANGUAGE Safe #-}
 #else
 {-# LANGUAGE Trustworthy #-}
 #endif
 #endif
+
+{-# OPTIONS_HADDOCK not-home #-}
 
 -----------------------------------------------------------------------------
 -- |

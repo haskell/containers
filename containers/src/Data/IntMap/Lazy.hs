@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP, BangPatterns #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
 

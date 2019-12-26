@@ -1,7 +1,12 @@
-{-# LANGUAGE CPP, BangPatterns, TypeFamilies #-}
-#if !defined(TESTING) && __GLASGOW_HASKELL__ >= 703
+{-# LANGUAGE CPP, BangPatterns #-}
+#if defined(__GLASGOW_HASKELL__)
+{-# LANGUAGE TypeFamilies #-}
+#if !defined(TESTING)
 {-# LANGUAGE Safe #-}
 #endif
+#endif
+
+{-# OPTIONS_HADDOCK not-home #-}
 
 #include "containers.h"
 
@@ -347,7 +352,7 @@ boundsDisjoint (Bound min) (Bound max) = min > max
 newtype L = L L
 newtype R = R R
 
-#if 1
+#if defined(__GLASGOW_HASKELL__)
 -- TODO: If we are relying on GHC features anyway, L and R could be a new kind.
 newtype Bound t = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 
