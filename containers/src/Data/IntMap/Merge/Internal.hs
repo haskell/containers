@@ -296,6 +296,8 @@ runWhenMatched = matchedSingle
 -- prop> mapEachPiece f g h = merge (mapMissing f) (mapMissing g) (zipWithMatched h)
 {-# INLINE merge #-}
 merge :: SimpleWhenMissing a c -> SimpleWhenMissing b c -> SimpleWhenMatched a b c -> IntMap a -> IntMap b -> IntMap c
+merge miss1 miss2 match = \m1 m2 -> runIdentity (mergeA miss1 miss2 match m1 m2)
+{- FIXME: The following is significantly faster, but incorrect.
 merge miss1 miss2 match = start where
     start (IntMap Empty) (IntMap Empty) = IntMap Empty
     start (IntMap Empty) (IntMap !m2) = IntMap (missAllL miss2 m2)
@@ -698,6 +700,7 @@ merge miss1 miss2 match = start where
 
     {-# INLINE matchSingle #-}
     matchSingle whenMatch k v1 v2 = runIdentity (matchedSingle whenMatch k v1 v2)
+-}
 
 -- | An applicative version of 'merge'. Due to the necessity of performing actions
 -- in order, this can be significantly slower than 'merge'.
