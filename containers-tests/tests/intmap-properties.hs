@@ -14,11 +14,15 @@ import Control.Applicative (Applicative(..))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
-import Data.Functor.Identity
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity(..))
+#else
+import Data.IntMap.Merge.Internal (Identity(..))
+#endif
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
@@ -205,9 +209,6 @@ main = defaultMain
              , testProperty "withoutKeys"          prop_withoutKeys
              , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
              , testProperty "traverseWithKey->mapWithKey"           prop_traverseWithKey_degrade_to_mapWithKey
-             , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
-             , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
-             , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -1540,16 +1541,6 @@ prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
 
-newtype Identity a = Identity a
-    deriving (Eq, Show)
-
-instance Functor Identity where
-  fmap f (Identity a) = Identity (f a)
-
-instance Applicative Identity where
-  pure a = Identity a
-  Identity f <*> Identity a = Identity (f a)
-
 prop_traverseWithKey_identity :: IntMap A -> Property
 prop_traverseWithKey_identity mp = mp === newMap
   where Identity newMap = traverseWithKey (\_ -> Identity) mp
@@ -1560,22 +1551,3 @@ prop_traverseWithKey_degrade_to_mapWithKey fun mp =
   where f = applyFun2 fun
         g k v = Identity $ f k v
         Identity newMap = traverseWithKey g mp
-
-prop_traverseMaybeWithKey_identity :: IntMap A -> Property
-prop_traverseMaybeWithKey_identity mp = mp === newMap
-  where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
-
-prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) (Maybe B) -> IntMap A -> Property
-prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
-    mapMaybeWithKey f mp === newMap
-  where f = applyFun2 fun
-        g k v = Identity $ f k v
-        Identity newMap = traverseMaybeWithKey g mp
-
-prop_traverseMaybeWithKey_degrade_to_traverseWithKey :: Fun (Int, A) B -> IntMap A -> Property
-prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
-    traverseWithKey f mp === traverseMaybeWithKey g mp
-        -- used (,) since its Applicative is monoidal in the left argument,
-        -- so this also checks the order of traversing is the same.
-  where f k v = (show k, applyFun2 fun k v)
-        g k v = fmap Just $ f k v
