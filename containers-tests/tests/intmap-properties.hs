@@ -229,6 +229,13 @@ newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} derivi
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
   arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
 
+newtype PrettyIntMap a = PIM { unPIM :: IntMap a } deriving (Eq)
+
+instance Arbitrary a => Arbitrary (PrettyIntMap a) where
+  arbitrary = fmap PIM arbitrary
+
+instance Show a => Show (PrettyIntMap a) where
+  show (PIM m) = (if valid m then "\n" else "\nINVALID:\n") ++ showTree m
 
 ------------------------------------------------------------------------
 
@@ -1272,7 +1279,10 @@ prop_intersectionEqMerge :: UMap -> UMap -> Property
 prop_intersectionEqMerge m1 m2 = intersection m1 m2 === merge dropMissing dropMissing (zipWithMatched (\_ x _ -> x)) m1 m2
 
 prop_mergeEqMergeA :: Fun Int Bool -> Fun Int Bool -> Fun Int Bool -> UMap -> UMap -> Property
-prop_mergeEqMergeA pMiss1 pMiss2 pMatch m1 m2 = merge whenMiss1 whenMiss2 whenMatch m1 m2 === runIdentity (mergeA whenMiss1 whenMiss2 whenMatch m1 m2) where
+prop_mergeEqMergeA pMiss1 pMiss2 pMatch m1 m2 = PIM merged === PIM mergedA where
+    merged = merge whenMiss1 whenMiss2 whenMatch m1 m2
+    mergedA = runIdentity (mergeA whenMiss1 whenMiss2 whenMatch m1 m2)
+
     whenMiss1 = mapMaybeMissing (\k _ -> if apply pMiss1 k then Just () else Nothing)
     whenMiss2 = mapMaybeMissing (\k _ -> if apply pMiss2 k then Just () else Nothing)
     whenMatch = zipWithMaybeMatched (\k _ _ -> if apply pMatch k then Just () else Nothing)
