@@ -320,7 +320,7 @@ i2w = fromIntegral
 -- > xor k min: 000000000000 1 ????????
 -- > xor k max: 000000000000 0 ????????
 --
--- Therefore, the splitting bit is set iff `xor k min > xor k max`. Put another way, the key
+-- Therefore, the splitting bit is set iff @'xor' k min > 'xor' k max@. Put another way, the key
 -- shares more bits with the bound that it is closer to under the xor metric, since exclusive or
 -- maps shared bits to zero. The metric perspective also makes it clear why this works unmodified
 -- in the presence of negative numbers, despite storing negative numbers (with a set sign bit) in
