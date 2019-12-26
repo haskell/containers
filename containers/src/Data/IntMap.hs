@@ -57,36 +57,33 @@ module Data.IntMap
 #endif
     ) where
 
-import Prelude hiding (foldr)
-import qualified Data.IntMap.Strict as Strict
 import Data.IntMap.Lazy
 
--- | /O(log n)/. Same as 'insertWith', but the result of the combining function
--- is evaluated to WHNF before inserted to the map.
-{-# DEPRECATED insertWith' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWith'." #-}
-{-# INLINE insertWith' #-}
-insertWith' :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith' = Strict.insertWith
+#ifdef __GLASGOW_HASKELL__
+import Utils.Containers.Internal.TypeError
 
--- | /O(log n)/. Same as 'insertWithKey', but the result of the combining
--- function is evaluated to WHNF before inserted to the map.
-{-# DEPRECATED insertWithKey' "As of version 0.5, replaced by 'Data.IntMap.Strict.insertWithKey'." #-}
-{-# INLINE insertWithKey' #-}
-insertWithKey' :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithKey' = Strict.insertWithKey
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Strict.insertWith'
+insertWith' :: Whoops "Data.IntMap.insertWith' is gone. Use Data.IntMap.Strict.insertWith."
+            => (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWith' _ _ _ _ = undefined
 
--- | /O(n)/. Fold the values in the map using the given
--- right-associative binary operator. This function is an equivalent
--- of 'foldr' and is present for compatibility only.
-{-# DEPRECATED fold "As of version 0.5, replaced by 'foldr'." #-}
-{-# INLINE fold #-}
-fold :: (a -> b -> b) -> b -> IntMap a -> b
-fold = foldr
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Strict.insertWithKey'.
+insertWithKey' :: Whoops "Data.IntMap.insertWithKey' is gone. Use Data.IntMap.Strict.insertWithKey."
+               => (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
+insertWithKey' _ _ _ _ = undefined
 
--- | /O(n)/. Fold the keys and values in the map using the given
--- right-associative binary operator. This function is an equivalent
--- of 'foldrWithKey' and is present for compatibility only.
-{-# DEPRECATED foldWithKey "As of version 0.5, replaced by 'foldrWithKey'." #-}
-{-# INLINE foldWithKey #-}
-foldWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldWithKey = foldrWithKey
+
+-- | This function is being removed and is no longer usable.
+-- Use 'Data.IntMap.Lazy.foldr'.
+fold :: Whoops "Data.IntMap.fold' is gone. Use Data.IntMap.foldr or Prelude.foldr."
+     => (a -> b -> b) -> b -> IntMap a -> b
+fold _ _ _ = undefined
+
+-- | This function is being removed and is no longer usable.
+-- Use 'foldrWithKey'.
+foldWithKey :: Whoops "Data.IntMap.foldWithKey is gone. Use foldrWithKey."
+            => (Key -> a -> b -> b) -> b -> IntMap a -> b
+foldWithKey _ _ _ = undefined
+#endif

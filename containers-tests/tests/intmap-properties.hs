@@ -155,6 +155,8 @@ main = defaultMain
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
+             , testProperty "merge valid"          prop_merge_valid
+             , testProperty "mergeA effects"       prop_mergeA_effects
              , testProperty "union==merge"         prop_unionEqMerge
              , testProperty "difference==merge"    prop_differenceEqMerge
              , testProperty "intersection==merge"  prop_intersectionEqMerge
@@ -230,6 +232,8 @@ newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} derivi
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
   arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
 
+-- | A wrapper around IntMap with a Show instance based on showTree to aid in debugging when
+-- tests fail
 newtype PrettyIntMap a = PIM { unPIM :: IntMap a } deriving (Eq)
 
 instance Arbitrary a => Arbitrary (PrettyIntMap a) where
@@ -802,9 +806,36 @@ test_toDescList = do
     toDescList (fromList [(5,"a"), (-3,"b")]) @?= [(5,"a"), (-3,"b")]
 
 test_showTree :: Assertion
-test_showTree =
-       (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
-        in showTree t) @?= "1 ()\n+--5 ()\n   |\n   +--3 ()\n   |  |\n   |  +-.\n   |  |\n   |  +--2 ()\n   |     |\n   |     +-.\n   |     |\n   |     +-.\n   |\n   +--4 ()\n      |\n      +-.\n      |\n      +-.\n"
+test_showTree = do
+    showTree posTree @?= expectedPosTree
+    showTree negTree @?= expectedNegTree
+  where mkAscTree ls = fromDistinctAscList [(x,()) | x <- ls]
+        posTree = mkAscTree [1..5]
+        negTree = mkAscTree [(-2)..2]
+        expectedPosTree = unlines
+            [ "1:=()"
+            , "+-- 5:=()"
+            , "    +-- 3:=()"
+            , "    |   +-*"
+            , "    |   +-- 2:=()"
+            , "    |       +-*"
+            , "    |       +-*"
+            , "    +-- 4:=()"
+            , "        +-*"
+            , "        +-*"
+            ]
+        expectedNegTree = unlines
+            [ "-2:=()"
+            , "+-- 2:=()"
+            , "    +-- -1:=()"
+            , "    |   +-*"
+            , "    |   +-*"
+            , "    +-- 0:=()"
+            , "        +-- 1:=()"
+            , "        |   +-*"
+            , "        |   +-*"
+            , "        +-*"
+            ]
 
 test_fromAscList :: Assertion
 test_fromAscList = do
@@ -1243,9 +1274,17 @@ prop_withoutKeys m s0 =
   where
     s = keysSet s0
 
-prop_mergeWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> Bool -> Bool -> [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_mergeWithKeyModel f keep_x keep_y xs ys
-  = testMergeWithKey (apply3 f) keep_x keep_y
+prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_mergeWithKeyModel xs ys
+  = and [ testMergeWithKey f keep_x keep_y
+        | f <- [ \_k x1  _x2 -> Just x1
+               , \_k _x1 x2  -> Just x2
+               , \_k _x1 _x2 -> Nothing
+               , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
+               ]
+        , keep_x <- [ True, False ]
+        , keep_y <- [ True, False ]
+        ]
 
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
@@ -1270,14 +1309,43 @@ prop_mergeWithKeyModel f keep_x keep_y xs ys
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
 
+prop_merge_valid
+    :: Fun (Key, A) (Maybe C)
+    -> Fun (Key, B) (Maybe C)
+    -> Fun (Key, A, B) (Maybe C)
+    -> IntMap A
+    -> IntMap B
+    -> Bool
+prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
+  = valid m
+  where
+    m =
+      merge
+        (mapMaybeMissing (applyFun2 whenMissingA))
+        (mapMaybeMissing (applyFun2 whenMissingB))
+        (zipWithMaybeMatched (applyFun3 whenMatched))
+        xs
+        ys
+
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeA_effects :: UMap -> UMap -> Property
+prop_mergeA_effects xs ys
+  = effects === sort effects
+  where
+    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
+    whenMissing = traverseMissing (\k _ -> ([k], ()))
+    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
+
 prop_unionEqMerge :: UMap -> UMap -> Property
-prop_unionEqMerge m1 m2 = union m1 m2 === merge preserveMissing preserveMissing (zipWithMatched (\_ x _ -> x)) m1 m2
+prop_unionEqMerge m1 m2 = PIM (union m1 m2) === PIM (merge preserveMissing preserveMissing (zipWithMatched (\_ x _ -> x)) m1 m2)
 
 prop_differenceEqMerge :: UMap -> UMap -> Property
-prop_differenceEqMerge m1 m2 = difference m1 m2 === merge preserveMissing dropMissing (zipWithMaybeMatched (\_ _ _ -> Nothing)) m1 m2
+prop_differenceEqMerge m1 m2 = PIM (difference m1 m2) === PIM (merge preserveMissing dropMissing (zipWithMaybeMatched (\_ _ _ -> Nothing)) m1 m2)
 
 prop_intersectionEqMerge :: UMap -> UMap -> Property
-prop_intersectionEqMerge m1 m2 = intersection m1 m2 === merge dropMissing dropMissing (zipWithMatched (\_ x _ -> x)) m1 m2
+prop_intersectionEqMerge m1 m2 = PIM (intersection m1 m2) === PIM (merge dropMissing dropMissing (zipWithMatched (\_ x _ -> x)) m1 m2)
 
 prop_mergeEqMergeA :: Fun Int Bool -> Fun Int Bool -> Fun Int Bool -> UMap -> UMap -> Property
 prop_mergeEqMergeA pMiss1 pMiss2 pMatch m1 m2 = PIM merged === PIM mergedA where

@@ -10,13 +10,13 @@ import Data.IntMap.Internal
 showTree :: Show a => IntMap a -> String
 showTree = unlines . aux where
     aux (IntMap Empty) = []
-    aux (IntMap (NonEmpty min minV node)) = (show (boundKey min) ++ " " ++ show minV) : auxNode False node
+    aux (IntMap (NonEmpty min minV node)) = (show (boundKey min) ++ ":=" ++ show minV) : auxNode False node
     auxNode :: Show a => Bool -> Node t a -> [String]
-    auxNode _ Tip = ["+-."]
-    auxNode lined (Bin bound val l r) = ["+--" ++ show (boundKey bound) ++ " " ++ show val, prefix : "  |"] ++ fmap indent (auxNode True l) ++ [prefix : "  |"] ++ fmap indent (auxNode False r)
+    auxNode _ Tip = ["+-*"]
+    auxNode lined (Bin bound val l r) = ["+-- " ++ show (boundKey bound) ++ ":=" ++ show val] ++ fmap indent (auxNode True l) ++ fmap indent (auxNode False r)
       where
         prefix = if lined then '|' else ' '
-        indent line = prefix : "  " ++ line
+        indent line = prefix : "   " ++ line
 
 showTreeWith :: Show a => Bool -> Bool -> IntMap a -> String
 showTreeWith _ _ = showTree
