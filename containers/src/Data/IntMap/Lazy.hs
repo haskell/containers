@@ -216,8 +216,9 @@ module Data.IntMap.Lazy (
 import Data.IntMap.Internal
 import qualified Data.IntMap.Merge.Lazy as Merge (merge, mapMaybeMissing, zipWithMaybeMatched)
 
-import Control.Applicative (Applicative(..))
-import Data.Functor ((<$>))
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative(..), (<$>))
+#endif
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 

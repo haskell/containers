@@ -236,8 +236,9 @@ module Data.IntMap.Strict (
 import Data.IntMap.Internal
 import qualified Data.IntMap.Merge.Strict as Merge (merge, mapMaybeMissing, zipWithMaybeMatched)
 
-import Control.Applicative (Applicative(..))
-import Data.Functor ((<$>))
+#if !MIN_VERSION_base(4,8,0)
+import Control.Applicative (Applicative(..), (<$>))
+#endif
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 

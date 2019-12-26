@@ -76,7 +76,10 @@ module Data.IntMap.Merge.Strict (
     , runWhenMissing
 ) where
 
+#if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative(..))
+#endif
+
 import Prelude hiding (min, max)
 
 import Data.IntMap.Internal

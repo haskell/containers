@@ -41,23 +41,21 @@
 
 module Data.IntMap.Merge.Internal where
 
-import Control.Applicative (Applicative(..))
 import Prelude hiding (min, max)
 
 import Data.IntMap.Internal
 
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
-#elif __GLASGOW_HASKELL__ >= 708
-import Data.Coerce
-#endif
+#else
+import Control.Applicative (Applicative(..), (<$>))
 
-
-#if !MIN_VERSION_base (4,8,0)
 -- | The identity type.
 newtype Identity a = Identity { runIdentity :: a }
 
 #if __GLASGOW_HASKELL__ >= 708
+import Data.Coerce
+
 instance Functor Identity where
   fmap = coerce
 instance Applicative Identity where

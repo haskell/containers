@@ -278,19 +278,25 @@
 module Data.IntMap.Internal where
 
 import Control.DeepSeq (NFData(..))
-import Control.Applicative (Applicative(..))
 
-import Data.Monoid (Monoid(..))
 import qualified Data.List (foldl')
 import qualified Data.Foldable (Foldable(..))
-import Data.Traversable (Traversable(..))
 #if MIN_VERSION_base(4,9,0)
-import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid)
+#if MIN_VERSION_base(4,11,0)
+import Data.Semigroup (stimes)
+#else
+import Data.Semigroup (Semigroup(..))
+#endif
+import Data.Semigroup (stimesIdempotentMonoid)
 #endif
 
-import Data.Functor ((<$>))
-
+#if !MIN_VERSION_base(4,8,0)
 import Data.Word (Word)
+import Data.Monoid (Monoid(..))
+import Data.Traversable (Traversable(..))
+import Control.Applicative (Applicative(..), (<$>))
+#endif
+
 import qualified Data.Bits (xor)
 
 import qualified Data.IntSet (IntSet, fromDistinctAscList, member, notMember)
@@ -435,6 +441,7 @@ instance Monoid (IntMap a) where
 
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup (IntMap a) where
+    (<>) = union
     stimes = stimesIdempotentMonoid
 #endif
 
