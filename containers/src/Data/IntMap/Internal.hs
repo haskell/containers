@@ -34,30 +34,38 @@
 --
 -- = Tree Structure
 --
--- This implementation is based on a tree structure isomorphic to /big-endian patricia
--- trees/, saving space and time by not storing data in the leaves (so not needing to
--- allocate memory for them) and not storing which bit to split on in nodes. Alternatively, it
--- can be viewed as a vantage-point tree under the xor metric.
+-- This implementation uses a novel modification of /big-endian patricia trees/, structured
+-- as a vantage-point tree under the xor metric.
 --
 -- = Derivation
 --
--- It may be instructive to build up the tree structure as a series of optimizations transforming
--- a simple data structure (a bitwise trie).
+-- At its core, 'IntMap'\'s representation can be derived by a series of optimizations from
+-- simpler structures:
+--
+-- * A bitwise trie is compressed into a PATRICIA tree (a bitwise radix tree) by
+--  merging series of nodes that have no branches.
+-- * The prefix labels of PATRICIA tree nodes are represented implicitly by storing the minimum
+--  and maximum keys in a subtree.
+-- * Minima and maxima are only stored once, at the topmost location that they appear.
+-- * Values are stored next to their associated keys, rather than in the leaves.
+--
+-- Each of these steps is explained in detail below.
 --
 -- == The basic integer map: the bitwise trie
 --
 -- We are trying to create an efficient, simple mapping from integers to values. The most common
--- approaches for these are hash tables, which are not persistent (though we can come close with
--- HAMTs), and binary search trees, which work well, but don't use any special properties of the
--- integer. To come up with this mapping, we need to think of integers not as numbers but as
--- strings of bits. With that perspective, we can use the standard /trie/ data structure to
--- build our mapping. As bits are particularly simple, so is the resulting structure:
+-- approaches are hash tables, which are not persistent (though we can come close with HAMTs),
+-- and binary search trees, which work well, but don't use any special properties of the integer.
+-- Thinking of integers not as numbers but as strings of bits, we use a /trie/, where a string is
+-- interpreted as a series of instructions for which branch to take when navigating the tree. As
+-- bits are particularly simple, so is the resulting structure:
 --
 -- > data IntMap a = Bin (IntMap a) (IntMap a) | Tip a | Nil
 --
--- The `Bin` constructor represents a bitwise branch, and the `Tip` constructor comes after (on a
--- 64-bit machine) 64 `Bin` construtors in the tree. The associated basic operations navigate the
--- tree by reading a key bit by bit, taking the branch associated with the current bit:
+-- The `Bin` constructor represents a bitwise branch, and the `Tip` constructor comes after 64
+-- 64 `Bin` construtors in the tree (on a 64-bit machine). The associated basic operations navigate
+-- the tree by reading a key bit by bit, at each node taking the branch associated with the current
+-- bit:
 --
 -- > lookup :: Int -> IntMap a -> Maybe a
 -- > lookup k = go (finiteBitSize k - 1)
@@ -81,51 +89,36 @@
 --
 -- 'delete' follows similarly, and the uniform structure means that even 'union' isn't too hard,
 -- a welcome fact given the complexity of merging binary search trees. Unfortunately, this
--- approach is horribly slow and space-inefficient. To see why, look at the tree structure
+-- approach is extremely slow and space-inefficient. To see why, look at the tree structure
 -- for @'singleton' 5 "hello"@:
 --
 -- > +-0-.
--- > |   +-0-.
--- > |   |   +-0-.
--- > |   |   |   +-0-.
--- > |   |   |   |   +-0-.
--- > |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   |   |   |   |   +-0-.
--- > |   |   |   |   |   |   |   |   |   |   |   |   |   +-0-
--- > |   |   |   |   |   |   |   |   |   |   |   |   |   +-1-.
--- > |   |   |   |   |   |   |   |   |   |   |   |   |       +-0-.
--- > |   |   |   |   |   |   |   |   |   |   |   |   |       |   +-0-
--- > |   |   |   |   |   |   |   |   |   |   |   |   |       |   +-1- "hello"
--- > |   |   |   |   |   |   |   |   |   |   |   |   |       +-1-
--- > |   |   |   |   |   |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   |   +-1-
--- > |   |   |   |   |   +-1-
--- > |   |   |   |   +-1-
--- > |   |   |   +-1-
--- > |   |   +-1-
--- > |   +-1-
--- > +-1-
+-- >     +-0-.
+-- >         +-0-.
+-- >             +-0-.
+-- >                 +-0-.
+-- >                     +-0-.
+-- >                         +-0-.
+-- >                             +-0-.
+-- >                                 +-0-.
+-- >                                     +-0-.
+-- >                                         +-0-.
+-- >                                             +-0-.
+-- >                                                 +-0-.
+-- >                                                     +-1-.
+-- >                                                         +-0-.
+-- >                                                             +-1- "hello"
 --
--- Note that, for brevity, the word size is 16 bits. The diagram would be 4 times longer for a
--- 64-bit system. In this atrocious tree structure, there is one pointer for every bit, a 64-fold
--- explosion in space. Arguably worse is the fact that every single 'lookup', 'insert', or
--- 'delete' must traverse 64 pointers, resulting in 64 cache misses and a terrible runtime.
+-- Note that, for brevity, the word size in this diagram is 16 bits. It would be 4 times longer
+-- for a 64-bit system. In this atrocious tree structure, there is one pointer for every bit, a
+-- 64-fold explosion in space. Arguably worse is the fact that every single 'lookup',
+-- 'Data.IntMap.Lazy.insert', or 'delete' must traverse 64 pointers, resulting in 64 cache misses
+-- and a corresponding slowdown.
 --
 -- == Path compression: PATRICIA trees and the previous version of 'Data.IntMap'
 --
--- To reduce the space usage, we can compress nodes that only have one child. Since they form a
--- linear chain, we can concatenate the bits within that chain, storing what branches would be
+-- To reduce space usage, we compress nodes that only have one child. Since they form a
+-- linear chain, we can concatenate the bits within that chain, recording which branches would be
 -- taken. For example, again temporarily shortening the word size to 16 bits:
 --
 -- >>> singleton 5 "hello"
@@ -138,25 +131,26 @@
 --                      +-0- "4"
 --                      +-1- "5"
 --
--- This is much more space efficient, and the basic operations, while more complicated, are still
+-- This is much more space-efficient, and the basic operations, while more complicated, are still
 -- straightforward. In Haskell, the structure is
 --
 -- > data IntMap a = Bin Prefix Mask (IntMap a) (IntMap a) | Tip Int a | Nil
 --
--- The @Mask@ tells how long the @Prefix@ is, and the @Int@ in the @Tip@ nodes avoids using @Bin@
--- for singletons. This representation is known as the big-endian PATRICIA tree and is what the
+-- The @Mask@ tells how long the @Prefix@ is, and the @Int@ in the @Tip@ nodes encodes the
+-- remaining bits. This representation, known as the big-endian PATRICIA tree, is what the
 -- previous iteration of 'IntMap' used.
 --
 -- == Implicit prefixes: a simpler representation
 --
--- In the PATRICIA tree representation, we explicitly stored the common prefix of all the keys in
--- a subtree. However, this prefix is not needed if we know what the minimum and maximum keys. The
--- common prefix of a set of keys is the same as the common prefix of the minimum and maximum.
+-- In the PATRICIA tree representation above, we explicitly stored the common prefix of all the
+-- keys in a subtree. However, this prefix is not needed if we know the minimum and maximum keys.
+-- The common prefix of a set of keys is the same as the common prefix of the minimum and maximum.
 -- Replacing the @Prefix@, @Mask@ pair with a minimum and maximum, we get
 --
 -- > data IntMap a = Bin MinBound MaxBound (IntMap a) (IntMap a) | Tip Int a | Nil
 --
--- Some examples:
+-- The tree structure looks identical, just with different labels on the edges:
+--
 -- >>> singleton 5 "hello"
 -- +-5- "hello"
 --
@@ -168,33 +162,34 @@
 --                 +-5- "5"
 --
 -- Traversing this tree efficiently is a bit more difficult, but still possible. See 'xor' for
--- details. Moreover, since it gives exact minimums and maximums, 'lookup's can already be more
--- efficient than in a PATRICIA tree since they can terminate with 'Nothing' as soon as a key
--- is out of the bounds of a subtree, even if it matches the prefix of common bits. However,
+-- details. Moreover, since the tree contains exact minima and maxima, 'lookup' can already be
+-- more efficient than in a PATRICIA tree. Even if a key matches the prefix of common bits, if the
+-- key is out of the bounds of a subtree, a search can terminate early with 'Nothing'. However,
 -- there are bigger gains to be had.
 --
 -- == Removing redundancy
--- The above representation store many keys repeatedly. In the @{1,4,5}@ example, 1 was stored
+--
+-- The above representation stores many keys repeatedly. In the @{1,4,5}@ example, 1 was stored
 -- twice, 4 was stored twice, and 5 was stored three times. The minimum and maximum keys of a
 -- tree are necessarily keys stored in that tree and moreover are minima and maxima of subtrees.
--- In the {1,4,5} example, we know from the root node that the minimum is 1 and the maximum is 5.
--- At the first branch, we split the set into two parts, @{1}@ and @{4,5}@. However, the minimum
--- of the set of smaller keys is exactly the minimum of the original set. Similarly, the maximum
--- of the set of larger keys is exactly the maximum of the original set.
+-- In the @{1,4,5}@ example, we know from the root node that the minimum is 1 and the maximum is
+-- 5. At the first branch, we split the set into two parts, @{1}@ and @{4,5}@. However, the
+-- minimum of the set of lesser keys is equal to the minimum of the original set. Similarly, the
+-- maximum of the set of greater keys is equal to the maximum of the original set.
 --
--- We can restructure the tree to only store 1 new value at each branch, removing the redundancy.
--- In nodes storing a set of smaller keys, we already know the minimum when traversing the tree
--- downward, so we only need to store the new maximum. In nodes storing a set of larger keys, we
+-- We can restructure the tree to store only one new value at each branch, removing the redundancy.
+-- In nodes storing a set of lesser keys, we already know the minimum when traversing the tree
+-- downward, so we only need to store the new maximum. In nodes storing a set of greater keys, we
 -- know the maximum and store the new minimum. The root still needs both the minimum and the
 -- maximum, so we need an extra layer to store that information:
 --
 -- > data IntMap a = Empty | NonEmpty Bound (Node a)
 -- > data Node a = Bin Bound (Node a) (Node a) | Tip a
 --
--- The trees are no longer quite as easy to read at a glance, since keys are no longer available
--- in order at the leaves, and it can be difficult to tell the difference at a glance between a node
--- storing a minimum and a node storing a maximum (the actual implementation uses phantom types to
--- ensure no code gets this wrong).
+-- The trees are no longer quite as easy to read at a glance, since keys are no longer visible in
+-- order at the leaves. It can be difficult to tell the difference at a glance between a node
+-- storing a minimum and a node storing a maximum. (The actual implementation uses phantom types
+-- to ensure no code gets this wrong.)
 --
 -- >>> singleton 5 "hello"
 -- 5
@@ -208,21 +203,21 @@
 --         +- "4"
 --         +- "5"
 --
--- Unfortunately, these nonuniformities do translate to code complexity, but we have already saved
--- a whole word in every node and every leaf.
+-- Although the nonuniform tree structure results in more complex code, we save a word in each
+-- node.
 --
 -- == Moving the values upward
 --
--- The previous section removed the redundancy in keys perfectly, storing each key only once.
--- However, the values are still stored at the leaf, now far away from their associated keys.
--- There is no reason this has to be true now that keys have a unique location in the tree.
--- By moving the values upward in the tree, we simplify:
+-- The above change removed the redundancy in keys perfectly, so each key is stored only once.
+-- However, the values are still stored in leaves, now far away from their associated keys.
+-- There is no reason this has to be true now that each keys has a unique location in the tree. We
+-- simplify by moving the values next to their keys:
 --
 -- > data IntMap a = Empty | NonEmpty Bound a (Node a)
 -- > data Node a = Bin Bound a (Node a) (Node a) | Tip
 --
 -- Although nodes still switch between minima and maxima, they can be visualized and manipulated
--- much more cleanly since it is clear which keys are tied to which values.
+-- more cleanly since it is clear which keys are tied to which values.
 --
 -- >>> singleton 5 "hello"
 -- 5 "hello"
@@ -236,25 +231,33 @@
 --         +-
 --         +-
 --
--- This simpler representation translates to even more savings in both space and time. Since
--- the leaves no longer store any information, GHC will create a single static @Tip@ object
--- and reuse it between all the leaves, the equivalent of representing leaves with a null pointer,
--- saving on allocations and the metadata necessary for garbage collection and lazy evaluation.
+-- This simpler representation translates to even more savings in both space and time. Since the
+-- leaves no longer store any information, GHC will create a single static @Tip@ object and reuse
+-- it for all leaves, the equivalent of representing leaves with a null pointer. This saves on
+-- allocations and the metadata necessary for garbage collection and lazy evaluation.
 -- Additionally, successful lookups can terminate as soon as they see the correct key instead of
 -- dereferencing a chain of pointers all the way to the leaves. This means fewer cache misses and
 -- a shorter loop.
 --
--- = References
+-- = References and Further Reading
 --
---    * Chris Okasaki and Andy Gill, \"/Fast Mergeable Integer Maps/\",
---      Workshop on ML, September 1998, pages 77-86,
---      <https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>.
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
---      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
---      October 1968, pages 514-534.
---    * Edward Kmett, \"/Revisiting Matrix Multiplication, Part IV: IntMap!?/\",
---      School of Haskell, 25 August 2013,
---      <https://www.schoolofhaskell.com/user/edwardk/revisiting-matrix-multiplication/part-4>.
+-- Morrison introduced PATRICIA trees in:
+--
+-- * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\"
+--   Journal of the ACM, 15(4), October 1968, pages 514-534.
+--
+-- Okasaki and Gill proposed using them in a functional context and provided implementations,
+-- benchmarks, and discussion in:
+--
+-- * Chris Okasaki and Andy Gill, \"/Fast Mergeable Integer Maps/\",
+--   Workshop on ML, September 1998, pages 77-86,
+--   <https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>.
+--
+-- Kmett proposed replacing explicit prefixes with min/max pairs in:
+--
+-- * Edward Kmett, \"/Revisiting Matrix Multiplication, Part IV: IntMap!?/\",
+--   School of Haskell, 25 August 2013,
+--   <https://www.schoolofhaskell.com/user/edwardk/revisiting-matrix-multiplication/part-4>.
 --
 -- @since 0.5.9
 -----------------------------------------------------------------------------
