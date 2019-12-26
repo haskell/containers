@@ -94,13 +94,13 @@ import Data.IntMap.Merge.Internal
 mapMissing :: Applicative f => (Key -> a -> b) -> WhenMissing f a b
 mapMissing f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . goR) (pure . start) where
     start Empty = Empty
-    start (NonEmpty min minV root) = NonEmpty min (f min minV) (goL root)
+    start (NonEmpty min minV root) = NonEmpty min (f (boundKey min) minV) (goL root)
 
     goL Tip = Tip
-    goL (Bin k v l r) = Bin k (f k v) (goL l) (goR r)
+    goL (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
 
     goR Tip = Tip
-    goR (Bin k v l r) = Bin k (f k v) (goL l) (goR r)
+    goR (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
 
 -- | Map over the entries whose keys are missing from the other map,
 -- optionally removing some. This is the most powerful 'SimpleWhenMissing'
@@ -116,38 +116,38 @@ mapMissing f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . go
 mapMaybeMissing :: Applicative f => (Key -> a -> Maybe b) -> WhenMissing f a b
 mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
     start Empty = Empty
-    start (NonEmpty min minV root) = case f min minV of
+    start (NonEmpty min minV root) = case f (boundKey min) minV of
         Just minV' -> NonEmpty min minV' (goLKeep root)
         Nothing -> goL root
 
     goLKeep Tip = Tip
-    goLKeep (Bin max maxV l r) = case f max maxV of
+    goLKeep (Bin max maxV l r) = case f (boundKey max) maxV of
         Just maxV' -> Bin max maxV' (goLKeep l) (goRKeep r)
         Nothing -> case goR r of
             Empty -> goLKeep l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goLKeep l) r'
 
     goRKeep Tip = Tip
-    goRKeep (Bin min minV l r) = case f min minV of
+    goRKeep (Bin min minV l r) = case f (boundKey min) minV of
         Just minV' -> Bin min minV' (goLKeep l) (goRKeep r)
         Nothing -> case goL l of
             Empty -> goRKeep r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goRKeep r)
 
     goL Tip = Empty
-    goL (Bin max maxV l r) = case f max maxV of
+    goL (Bin max maxV l r) = case f (boundKey max) maxV of
         Just maxV' -> case goL l of
             Empty -> case goRKeep r of
-                Tip -> NonEmpty max maxV' Tip
+                Tip -> NonEmpty (maxToMin max) maxV' Tip
                 Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV' lI rI)
             NonEmpty min minV l' -> NonEmpty min minV (Bin max maxV' l' (goRKeep r))
         Nothing -> binL (goL l) (goR r)
 
     goR Tip = Empty
-    goR (Bin min minV l r) = case f min minV of
+    goR (Bin min minV l r) = case f (boundKey min) minV of
         Just minV' -> case goR r of
             Empty -> case goLKeep l of
-                Tip -> NonEmpty min minV' Tip
+                Tip -> NonEmpty (minToMax min) minV' Tip
                 Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV' lI rI)
             NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV' (goLKeep l) r')
         Nothing -> binR (goL l) (goR r)
@@ -215,13 +215,13 @@ traverseMaybeMissing f = WhenMissing
     , missingSingle = f }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = maybe nodeToMapL (NonEmpty min) <$> f min minV <*> goL root
+    start (NonEmpty min minV root) = maybe nodeToMapL (NonEmpty min) <$> f (boundKey min) minV <*> goL root
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') <$> goL l <*> goR r <*> f max maxV
+    goL (Bin max maxV l r) = (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') <$> goL l <*> goR r <*> f (boundKey max) maxV
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') <$> f min minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') <$> f (boundKey min) minV <*> goL l <*> goR r
 
 -- | Traverse over the entries whose keys are missing from the other
 -- map.
@@ -237,10 +237,10 @@ traverseMissing f = WhenMissing
     , missingSingle = \k v -> Just <$> f k v }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = NonEmpty min <$> f min minV <*> goL root
+    start (NonEmpty min minV root) = NonEmpty min <$> f (boundKey min) minV <*> goL root
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' maxV' -> Bin max maxV' l' r') <$> goL l <*> goR r <*> f max maxV
+    goL (Bin max maxV l r) = (\l' r' maxV' -> Bin max maxV' l' r') <$> goL l <*> goR r <*> f (boundKey max) maxV
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = (\minV' l' r' -> Bin min minV' l' r') <$> f min minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = (\minV' l' r' -> Bin min minV' l' r') <$> f (boundKey min) minV <*> goL l <*> goR r
