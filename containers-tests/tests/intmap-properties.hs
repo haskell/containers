@@ -7,6 +7,7 @@ import Data.IntMap.Merge.Strict
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Merge.Lazy
 #endif
+import Data.IntMap.Merge.Internal (runWhenMissingAll)
 import Data.IntMap.Internal.Debug (showTree)
 import IntMapValidity (valid)
 
@@ -211,6 +212,9 @@ main = defaultMain
              , testProperty "withoutKeys"          prop_withoutKeys
              , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
              , testProperty "traverseWithKey->mapWithKey"           prop_traverseWithKey_degrade_to_mapWithKey
+             , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
+             , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
+             , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -1619,3 +1623,26 @@ prop_traverseWithKey_degrade_to_mapWithKey fun mp =
   where f = applyFun2 fun
         g k v = Identity $ f k v
         Identity newMap = traverseWithKey g mp
+
+-- While this isn't part of the IntMap API yet, it is still useful for testing traverseMaybeMissing
+traverseMaybeWithKey :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
+traverseMaybeWithKey = runWhenMissingAll . traverseMaybeMissing
+
+prop_traverseMaybeWithKey_identity :: IntMap A -> Property
+prop_traverseMaybeWithKey_identity mp = mp === newMap
+  where Identity newMap = traverseMaybeWithKey (\_ -> Identity . Just) mp
+
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey :: Fun (Int, A) (Maybe B) -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey fun mp =
+    mapMaybeWithKey f mp === newMap
+  where f = applyFun2 fun
+        g k v = Identity $ f k v
+        Identity newMap = traverseMaybeWithKey g mp
+
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey :: Fun (Int, A) B -> IntMap A -> Property
+prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
+    traverseWithKey f mp === traverseMaybeWithKey g mp
+        -- used (,) since its Applicative is monoidal in the left argument,
+        -- so this also checks the order of traversing is the same.
+  where f k v = (show k, applyFun2 fun k v)
+        g k v = fmap Just $ f k v

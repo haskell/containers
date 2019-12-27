@@ -100,6 +100,13 @@ type SimpleWhenMissing = WhenMissing Identity
 runWhenMissing :: WhenMissing f a b -> Key -> a -> f (Maybe b)
 runWhenMissing = missingSingle
 
+-- | Apply a missing tactic to an entire map.
+--
+-- prop> runWhenMissingAll miss m = merge miss dropMissing dropMatched m empty
+{-# INLINE runWhenMissingAll #-}
+runWhenMissingAll :: Applicative f => WhenMissing f a b -> IntMap a -> f (IntMap b)
+runWhenMissingAll miss (IntMap m) = IntMap <$> missingAllL miss m
+
 -- | Drop all the entries whose keys are missing from the other
 -- map.
 --
