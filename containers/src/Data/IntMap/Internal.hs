@@ -1419,6 +1419,7 @@ foldl' f z = start
 -- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+{-# INLINE foldrWithKey' #-} -- Very important for unwrappable accumulators (e.g. Int)
 foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = start
   where
@@ -1434,6 +1435,7 @@ foldrWithKey' f z = start
 -- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+{-# INLINE foldlWithKey' #-}
 foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = start
   where
