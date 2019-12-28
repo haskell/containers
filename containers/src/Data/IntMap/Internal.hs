@@ -1,4 +1,4 @@
-{-# LANGUAGE CPP, BangPatterns #-}
+{-# LANGUAGE CPP, BangPatterns, EmptyDataDecls #-}
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE TypeFamilies #-}
 #if !defined(TESTING)
@@ -355,8 +355,8 @@ boundsDisjoint (Bound min) (Bound max) = min > max
 
 -- Phantom types used to separate the types of left and right nodes.
 -- They are uninhabited simply to ensure that they are only used as type parameters.
-newtype L = L L
-newtype R = R R
+data L
+data R
 
 #if defined(__GLASGOW_HASKELL__)
 -- TODO: If we are relying on GHC features anyway, L and R could be a new kind.
@@ -370,7 +370,7 @@ type instance Flipped R = L
 type Bound t = Bound_
 newtype Bound_ = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 -- This, like L and R, is uninhabited to ensure that it is only used as a type parameter
-newtype Flipped t = Flipped (Flipped t)
+data Flipped t
 #endif
 
 inMinBound :: Key -> Bound L -> Bool
