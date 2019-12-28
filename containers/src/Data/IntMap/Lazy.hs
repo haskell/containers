@@ -395,7 +395,7 @@ insertLookupWithKey combine !k !v = toPair . start
 -- > adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > adjust ("new " ++) 7 empty                         == empty
 adjust :: (a -> a) -> Key -> IntMap a -> IntMap a
-adjust f k = k `seq` start
+adjust f !k = start
   where
     start (IntMap Empty) = IntMap Empty
     start m@(IntMap (NonEmpty min minV node))
@@ -440,7 +440,7 @@ adjustWithKey f k = adjust (f k) k
 -- > update f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > update f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 update :: (a -> Maybe a) -> Key -> IntMap a -> IntMap a
-update f k = k `seq` start
+update f !k = start
   where
     start (IntMap Empty) = IntMap Empty
     start m@(IntMap (NonEmpty min minV Tip))
@@ -499,7 +499,7 @@ updateWithKey f k = update (f k) k
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 updateLookupWithKey :: (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a, IntMap a)
-updateLookupWithKey f k = k `seq` start
+updateLookupWithKey f !k = start
   where
     start (IntMap Empty) = (Nothing, IntMap Empty)
     start m@(IntMap (NonEmpty min minV Tip))

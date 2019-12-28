@@ -501,7 +501,7 @@ size (IntMap (NonEmpty _ _ node)) = sizeNode node where
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 member :: Key -> IntMap a -> Bool
-member k = k `seq` start
+member !k = start
   where
     start (IntMap Empty) = False
     start (IntMap (NonEmpty min _ node))
@@ -532,7 +532,7 @@ member k = k `seq` start
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
 notMember :: Key -> IntMap a -> Bool
-notMember k = k `seq` start
+notMember !k = start
   where
     start (IntMap Empty) = True
     start (IntMap (NonEmpty min _ node))
@@ -560,7 +560,7 @@ notMember k = k `seq` start
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 lookup :: Key -> IntMap a -> Maybe a
-lookup k = k `seq` start
+lookup !k = start
   where
     start (IntMap Empty) = Nothing
     start (IntMap (NonEmpty min minV node))
@@ -593,7 +593,7 @@ lookup k = k `seq` start
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def k = k `seq` start
+findWithDefault def !k = start
   where
     start (IntMap Empty) = def
     start (IntMap (NonEmpty min minV node))
@@ -625,7 +625,7 @@ findWithDefault def k = k `seq` start
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
 -- > lookupLT 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 lookupLT :: Key -> IntMap a -> Maybe (Key, a)
-lookupLT k = k `seq` start
+lookupLT !k = start
   where
     start (IntMap Empty) = Nothing
     start (IntMap (NonEmpty min minV node))
@@ -658,7 +658,7 @@ lookupLT k = k `seq` start
 -- > lookupLE 4 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
 -- > lookupLE 5 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 lookupLE :: Key -> IntMap a -> Maybe (Key, a)
-lookupLE k = k `seq` start
+lookupLE !k = start
   where
     start (IntMap Empty) = Nothing
     start (IntMap (NonEmpty min minV node))
@@ -690,7 +690,7 @@ lookupLE k = k `seq` start
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGT 5 (fromList [(3,'a'), (5,'b')]) == Nothing
 lookupGT :: Key -> IntMap a -> Maybe (Key, a)
-lookupGT k = k `seq` start
+lookupGT !k = start
   where
     start (IntMap Empty) = Nothing
     start (IntMap (NonEmpty min minV Tip))
@@ -726,7 +726,7 @@ lookupGT k = k `seq` start
 -- > lookupGE 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
 -- > lookupGE 6 (fromList [(3,'a'), (5,'b')]) == Nothing
 lookupGE :: Key -> IntMap a -> Maybe (Key, a)
-lookupGE k = k `seq` start
+lookupGE !k = start
   where
     start (IntMap Empty) = Nothing
     start (IntMap (NonEmpty min minV Tip))
@@ -765,7 +765,7 @@ empty = IntMap Empty
 -- | /O(min(n,W))/. Delete a key and its value from the map.
 -- When the key is not a member of the map, the original map is returned.
 delete :: Key -> IntMap a -> IntMap a
-delete k = k `seq` start
+delete !k = start
   where
     start (IntMap Empty) = IntMap Empty
     start m@(IntMap (NonEmpty min _ Tip))
@@ -1387,68 +1387,52 @@ foldMapWithKey f = start
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+{-# INLINE foldr' #-}
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
-foldr' f z = start
-  where
-    start (IntMap Empty) = z
-    start (IntMap (NonEmpty _ minV root)) = f minV $! goL root $! z
-
-    goL Tip acc = acc
-    goL (Bin _ maxV l r) acc = goL l $! goR r $! f maxV $! acc
-
-    goR Tip acc = acc
-    goR (Bin _ minV l r) acc = f minV $! goL l $! goR r $! acc
+foldr' f !z = foldrWithKey' (\ _ v !acc -> f v acc) z
 
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+{-# INLINE foldl' #-}
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
-foldl' f z = start
-  where
-    start (IntMap Empty) = z
-    start (IntMap (NonEmpty _ minV root)) = s goL (s f z minV) root
-
-    goL acc Tip = acc
-    goL acc (Bin _ maxV l r) = s f (s goR (s goL acc l) r) maxV
-
-    goR acc Tip = acc
-    goR acc (Bin _ minV l r) = s goR (s goL (s f acc minV) l) r
-
-    s = ($!)
+foldl' f !z = foldlWithKey' (\ !acc _ v -> f acc v) z
 
 -- | /O(n)/. A strict version of 'foldrWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 {-# INLINE foldrWithKey' #-} -- Very important for unwrappable accumulators (e.g. Int)
 foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
-foldrWithKey' f z = start
+foldrWithKey' f !z = start
   where
+    f' k v !acc = f k v acc
+
     start (IntMap Empty) = z
-    start (IntMap (NonEmpty min minV root)) = f (boundKey min) minV $! goL root $! z
+    start (IntMap (NonEmpty min minV root)) = f' (boundKey min) minV (goL root z)
 
-    goL Tip acc = acc
-    goL (Bin max maxV l r) acc = goL l $! goR r $! f (boundKey max) maxV $! acc
+    goL Tip !acc = acc
+    goL (Bin max maxV l r) !acc = goL l (goR r (f' (boundKey max) maxV acc))
 
-    goR Tip acc = acc
-    goR (Bin min minV l r) acc = f (boundKey min) minV $! goL l $! goR r $! acc
+    goR Tip !acc = acc
+    goR (Bin min minV l r) !acc = f' (boundKey min) minV (goL l (goR r acc))
 
 -- | /O(n)/. A strict version of 'foldlWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 {-# INLINE foldlWithKey' #-}
 foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
-foldlWithKey' f z = start
+foldlWithKey' f !z = start
   where
+    f' !acc k v = f acc k v
+
     start (IntMap Empty) = z
-    start (IntMap (NonEmpty min minV root)) = s goL (s f z (boundKey min) minV) root
+    start (IntMap (NonEmpty min minV root)) = goL (f' z (boundKey min) minV) root
 
     goL acc Tip = acc
-    goL acc (Bin max maxV l r) = s f (s goR (s goL acc l) r) (boundKey max) maxV
+    goL acc (Bin max maxV l r) = f' (goR (goL acc l) r) (boundKey max) maxV
 
     goR acc Tip = acc
-    goR acc (Bin min minV l r) = s goR (s goL (s f acc (boundKey min) minV) l) r
-
-    s = ($!)
+    goR acc (Bin min minV l r) = goR (goL (f' acc (boundKey min) minV) l) r
 
 -- TODO: make the conversion functions good producers
 
@@ -1706,7 +1690,7 @@ mapGT f (SplitLookup lt fnd gt) = SplitLookup lt fnd (f gt)
 -- > splitLookup 5 (fromList [(5,"a"), (3,"b")]) == (singleton 3 "b", Just "a", empty)
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
-splitLookup k = k `seq` start
+splitLookup !k = start
   where
     start (IntMap Empty) = (IntMap Empty, Nothing, IntMap Empty)
     start m@(IntMap (NonEmpty min minV root))

@@ -256,7 +256,7 @@ import Prelude hiding (foldr, foldl, lookup, null, map, filter, min, max)
 -- > singleton 1 'a'        == fromList [(1, 'a')]
 -- > size (singleton 1 'a') == 1
 singleton :: Key -> a -> IntMap a
-singleton k v = v `seq` IntMap (NonEmpty (Bound k) v Tip)
+singleton !k !v = IntMap (NonEmpty (Bound k) v Tip)
 
 -- | /O(min(n,W))/. Insert a new key\/value pair in the map.
 -- If the key is already present in the map, the associated value is
@@ -407,7 +407,7 @@ insertLookupWithKey combine !k v = toPair . start
 -- > adjust ("new " ++) 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > adjust ("new " ++) 7 empty                         == empty
 adjust :: (a -> a) -> Key -> IntMap a -> IntMap a
-adjust f k = k `seq` start
+adjust f !k = start
   where
     start (IntMap Empty) = IntMap Empty
     start m@(IntMap (NonEmpty min minV node))
@@ -452,7 +452,7 @@ adjustWithKey f k = adjust (f k) k
 -- > update f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
 -- > update f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 update :: (a -> Maybe a) -> Key -> IntMap a -> IntMap a
-update f k = k `seq` start
+update f !k = start
   where
     start (IntMap Empty) = IntMap Empty
     start m@(IntMap (NonEmpty min minV Tip))
@@ -511,7 +511,7 @@ updateWithKey f k = update (f k) k
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 updateLookupWithKey :: (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a, IntMap a)
-updateLookupWithKey f k = k `seq` start
+updateLookupWithKey f !k = start
   where
     start (IntMap Empty) = (Nothing, IntMap Empty)
     start m@(IntMap (NonEmpty min minV Tip))
@@ -1330,6 +1330,8 @@ fromAscList = start where
     start [] = IntMap Empty
     start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
 
+    -- The strictness here is tricky, mimicking old behavior. Only the last value
+    -- of a given key (the one being inserted into the map) is evaluated strictly.
     go !k v [] !stk = completeBuildStack (Bound k) v Tip stk
     go !k v ((!next, nextV) : rest) !stk
         | next == k = nextV `seq` go k nextV rest stk
