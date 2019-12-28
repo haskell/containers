@@ -492,7 +492,8 @@ null _ = False
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
 size :: IntMap a -> Int
 size (IntMap Empty) = 0
-size (IntMap (NonEmpty _ _ node)) = sizeNode node where
+size (IntMap (NonEmpty _ _ node)) = sizeNode node
+  where
     sizeNode :: Node t a -> Int
     sizeNode Tip = 1
     sizeNode (Bin _ _ l r) = sizeNode l + sizeNode r
