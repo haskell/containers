@@ -239,6 +239,7 @@ import qualified Data.IntMap.Merge.Strict as Merge (merge, mapMaybeMissing, zipW
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative(..), (<$>))
 #endif
+import Control.Applicative (liftA2, liftA3)
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 
@@ -1179,13 +1180,13 @@ traverseWithKey :: Applicative f => (Key -> a -> f b) -> IntMap a -> f (IntMap b
 traverseWithKey f = start
   where
     start (IntMap Empty) = pure (IntMap Empty)
-    start (IntMap (NonEmpty min minV root)) = (\minV' root' -> IntMap (NonEmpty min minV' root')) <$> f (boundKey min) minV <*> goL root
+    start (IntMap (NonEmpty min minV root)) = liftA2 (\minV' root' -> IntMap (NonEmpty min minV' root')) (f (boundKey min) minV) (goL root)
 
     goL  Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' maxV' -> Bin max #! maxV' # l' # r') <$> goL l <*> goR r <*> f (boundKey max) maxV
+    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> Bin max #! maxV' # l' # r') (goL l) (goR r) (f (boundKey max) maxV)
 
     goR  Tip = pure Tip
-    goR (Bin min minV l r) = (\minV' l' r' -> Bin min #! minV' # l' # r') <$> f (boundKey min) minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> Bin min #! minV' # l' # r') (f (boundKey min) minV) (goL l) (goR r)
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.

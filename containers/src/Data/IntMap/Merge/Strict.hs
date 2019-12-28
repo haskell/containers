@@ -79,6 +79,7 @@ module Data.IntMap.Merge.Strict (
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative(..), (<$>))
 #endif
+import Control.Applicative (liftA2, liftA3)
 
 import Prelude hiding (min, max)
 
@@ -228,13 +229,13 @@ traverseMaybeMissing f = WhenMissing
     , missingSingle = f }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = maybe nodeToMapL (NonEmpty min $!) <$> f (boundKey min) minV <*> goL root
+    start (NonEmpty min minV root) = liftA2 (maybe nodeToMapL (NonEmpty min $!)) (f (boundKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' maxV' -> maybe extractBinL (Bin max $!) maxV' l' r') <$> goL l <*> goR r <*> f (boundKey max) maxV
+    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> maybe extractBinL (Bin max $!) maxV' l' r') (goL l) (goR r) (f (boundKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = (\minV' l' r' -> maybe extractBinR (Bin min $!) minV' l' r') <$> f (boundKey min) minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> maybe extractBinR (Bin min $!) minV' l' r') (f (boundKey min) minV) (goL l) (goR r)
 
 -- | Traverse over the entries whose keys are missing from the other
 -- map.
@@ -250,10 +251,10 @@ traverseMissing f = WhenMissing
     , missingSingle = \k v -> Just <$> f k v }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = (NonEmpty min $!) <$> f (boundKey min) minV <*> goL root
+    start (NonEmpty min minV root) = liftA2 (NonEmpty min $!) (f (boundKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' !maxV' -> Bin max maxV' l' r') <$> goL l <*> goR r <*> f (boundKey max) maxV
+    goL (Bin max maxV l r) = liftA3 (\l' r' !maxV' -> Bin max maxV' l' r') (goL l) (goR r) (f (boundKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = (\ !minV' l' r' -> Bin min minV' l' r') <$> f (boundKey min) minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = liftA3 (\ !minV' l' r' -> Bin min minV' l' r') (f (boundKey min) minV) (goL l) (goR r)

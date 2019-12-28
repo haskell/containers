@@ -45,6 +45,7 @@ import Prelude hiding (min, max)
 
 import Data.IntMap.Internal
 
+import Control.Applicative (liftA2, liftA3)
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
 #else
@@ -202,13 +203,13 @@ filterAMissing f = WhenMissing
     , missingSingle = \k v -> fmap (\keep -> if keep then Just v else Nothing) (f k v) }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = (\keepV root' -> if keepV then NonEmpty min minV root' else nodeToMapL root') <$> f (boundKey min) minV <*> goL root
+    start (NonEmpty min minV root) = liftA2 (\keepV root' -> if keepV then NonEmpty min minV root' else nodeToMapL root') (f (boundKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = (\l' r' keepMax -> if keepMax then Bin max maxV l' r' else extractBinL l' r') <$> goL l <*> goR r <*> f (boundKey max) maxV
+    goL (Bin max maxV l r) = liftA3 (\l' r' keepMax -> if keepMax then Bin max maxV l' r' else extractBinL l' r') (goL l) (goR r) (f (boundKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = (\keepMin l' r' -> if keepMin then Bin min minV l' r' else extractBinR l' r') <$> f (boundKey min) minV <*> goL l <*> goR r
+    goR (Bin min minV l r) = liftA3 (\keepMin l' r' -> if keepMin then Bin min minV l' r' else extractBinR l' r') (f (boundKey min) minV) (goL l) (goR r)
 
 -- | A tactic for dealing with keys present in both
 -- maps in 'merge' or 'mergeA'.

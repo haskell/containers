@@ -296,6 +296,7 @@ import Data.Monoid (Monoid(..))
 import Data.Traversable (Traversable(..))
 import Control.Applicative (Applicative(..), (<$>))
 #endif
+import Control.Applicative (liftA2, liftA3)
 
 import qualified Data.Bits (xor)
 
@@ -427,13 +428,13 @@ instance Traversable IntMap where
     traverse f = start
       where
         start (IntMap Empty) = pure (IntMap Empty)
-        start (IntMap (NonEmpty min minV node)) = (\minV' root' -> IntMap (NonEmpty min minV' root')) <$> f minV <*> goL node
+        start (IntMap (NonEmpty min minV node)) = liftA2 (\minV' root' -> IntMap (NonEmpty min minV' root')) (f minV) (goL node)
 
         goL Tip = pure Tip
-        goL (Bin max maxV l r) = (\l' r' v' -> Bin max v' l' r') <$> goL l <*> goR r <*> f maxV
+        goL (Bin max maxV l r) = liftA3 (\l' r' v' -> Bin max v' l' r') (goL l) (goR r) (f maxV)
 
         goR Tip = pure Tip
-        goR (Bin min minV l r) = Bin min <$> f minV <*> goL l <*> goR r
+        goR (Bin min minV l r) = liftA3 (Bin min) (f minV) (goL l) (goR r)
 
 instance Monoid (IntMap a) where
     mempty = empty
