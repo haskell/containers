@@ -139,6 +139,8 @@
 -- This is much more space-efficient, and the basic operations, while more complicated, are still
 -- straightforward. In Haskell, the structure is
 --
+-- > type Prefix = Int
+-- > type Mask = Int
 -- > data IntMap a = Bin Prefix Mask (IntMap a) (IntMap a) | Tip Int a | Nil
 --
 -- The @Mask@ tells how long the @Prefix@ is, and the @Int@ in the @Tip@ nodes encodes the
@@ -152,6 +154,8 @@
 -- The common prefix of a set of keys is the same as the common prefix of the minimum and maximum.
 -- Replacing the @Prefix@, @Mask@ pair with a minimum and maximum, we get
 --
+-- > type MinBound = Int
+-- > type MaxBound = Int
 -- > data IntMap a = Bin MinBound MaxBound (IntMap a) (IntMap a) | Tip Int a | Nil
 --
 -- The tree structure looks identical, just with different labels on the edges:
@@ -188,6 +192,7 @@
 -- know the maximum and store the new minimum. The root still needs both the minimum and the
 -- maximum, so we need an extra layer to store that information:
 --
+-- > type Bound = Int
 -- > data IntMap a = Empty | NonEmpty Bound (Node a)
 -- > data Node a = Bin Bound (Node a) (Node a) | Tip a
 --
