@@ -406,6 +406,7 @@ instance Functor (Node t) where
     fmap f (Bin k v l r) = Bin k (f v) (fmap f l) (fmap f r)
 
 instance Data.Foldable.Foldable IntMap where
+    {-# INLINE foldMap #-}
     foldMap f = start
       where
         start (IntMap Empty) = mempty
@@ -417,12 +418,33 @@ instance Data.Foldable.Foldable IntMap where
         goR Tip = mempty
         goR (Bin _ minV l r) = f minV `mappend` goL l `mappend` goR r
 
+    {-# INLINE foldr #-}
     foldr = foldr
+    {-# INLINE foldl #-}
     foldl = foldl
-#if MIN_VERSION_base(4,6,0)
+    {-# INLINE foldr' #-}
     foldr' = foldr'
+    {-# INLINE foldl' #-}
     foldl' = foldl'
+
+#if MIN_VERSION_base(4,8,0)
+    {-# INLINE length #-}
+    length = size
+    {-# INLINE null #-}
+    null = null
+    {-# INLINE toList #-}
+    toList = elems -- NB: Foldable.toList only returns values while IntMap.toList returns keys also
+    {-# INLINE elem #-}
+    elem = start
+      where
+        start _ (IntMap Empty) = False
+        start v (IntMap (NonEmpty _ minV root)) = v == minV || go v root
+
+        go :: Eq v => v -> Node t v -> Bool
+        go _ Tip = False
+        go v (Bin _ boundV l r) = v == boundV || go v l || go v r
 #endif
+
 
 instance Traversable IntMap where
     traverse f = start
