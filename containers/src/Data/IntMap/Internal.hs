@@ -359,7 +359,7 @@ boundsDisjoint (Bound min) (Bound max) = min > max
 data L
 data R
 
-#if defined(__GLASGOW_HASKELL__)
+#if USE_TYPE_FAMILIES
 -- TODO: If we are relying on GHC features anyway, L and R could be a new kind.
 newtype Bound t = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 
