@@ -793,34 +793,9 @@ test_toDescList = do
     toDescList (fromList [(5,"a"), (-3,"b")]) @?= [(5,"a"), (-3,"b")]
 
 test_showTree :: Assertion
-test_showTree = do
-    showTree posTree @?= expectedPosTree
-    showTree negTree @?= expectedNegTree
-  where mkAscTree ls = fromDistinctAscList [(x,()) | x <- ls]
-        posTree = mkAscTree [1..5]
-        negTree = mkAscTree [(-2)..2]
-        expectedPosTree = unlines
-            [ "*"
-            , "+--*"
-            , "|  +-- 1:=()"
-            , "|  +--*"
-            , "|     +-- 2:=()"
-            , "|     +-- 3:=()"
-            , "+--*"
-            , "   +-- 4:=()"
-            , "   +-- 5:=()"
-            ]
-        expectedNegTree = unlines
-            [ "*"
-            , "+--*"
-            , "|  +--*"
-            , "|  |  +-- 0:=()"
-            , "|  |  +-- 1:=()"
-            , "|  +-- 2:=()"
-            , "+--*"
-            , "   +-- -2:=()"
-            , "   +-- -1:=()"
-            ]
+test_showTree =
+       (let t = fromDistinctAscList [(x,()) | x <- [1..5]]
+        in showTree t) @?= "1 ()\n+--5 ()\n   |\n   +--3 ()\n   |  |\n   |  +-.\n   |  |\n   |  +--2 ()\n   |     |\n   |     +-.\n   |     |\n   |     +-.\n   |\n   +--4 ()\n      |\n      +-.\n      |\n      +-.\n"
 
 test_fromAscList :: Assertion
 test_fromAscList = do
@@ -1259,17 +1234,9 @@ prop_withoutKeys m s0 =
   where
     s = keysSet s0
 
-prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
-prop_mergeWithKeyModel xs ys
-  = and [ testMergeWithKey f keep_x keep_y
-        | f <- [ \_k x1  _x2 -> Just x1
-               , \_k _x1 x2  -> Just x2
-               , \_k _x1 _x2 -> Nothing
-               , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
-               ]
-        , keep_x <- [ True, False ]
-        , keep_y <- [ True, False ]
-        ]
+prop_mergeWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> Bool -> Bool -> [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_mergeWithKeyModel f keep_x keep_y xs ys
+  = testMergeWithKey (apply3 f) keep_x keep_y
 
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
