@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 
 #include "containers.h"
 
@@ -257,11 +258,8 @@ import qualified Data.IntMap.Internal as L
 import Data.IntMap.Internal
   ( IntMap (..)
   , Key
-  , Prefix
-  , Mask
   , mask
   , branchMask
-  , shorter
   , nomatch
   , zero
   , natFromInt
@@ -1148,8 +1146,6 @@ fromDistinctAscList :: [(Key,a)] -> IntMap a
 fromDistinctAscList = fromMonoListWithKey Distinct (\_ x _ -> x)
 {-# NOINLINE fromDistinctAscList #-}
 
-data Stack a = Push {-# UNPACK #-} !Prefix !(IntMap a) !(Stack a) | Nada
-
 -- | /O(n)/. Build a map from a list of key\/value pairs with monotonic keys
 -- and a combining function.
 --
@@ -1177,7 +1173,7 @@ fromMonoListWithKey distinct f = go
 
     -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
     -- `addAll` consumes the rest of the list, adding to the tree `tx`
-    addAll !kx !tx []
+    addAll !_kx !tx []
         = tx
     addAll !kx !tx ((ky,vy) : zs)
         | m <- branchMask kx ky
@@ -1185,7 +1181,7 @@ fromMonoListWithKey distinct f = go
         = addAll kx (linkWithMask m ky ty {-kx-} tx) zs'
 
     -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    addMany' !m !kx vx []
+    addMany' !_m !kx vx []
         = Inserted (Tip kx $! vx) []
     addMany' !m !kx vx zs0@((ky,vy) : zs)
         | Nondistinct <- distinct, kx == ky
@@ -1198,7 +1194,7 @@ fromMonoListWithKey distinct f = go
         = addMany m kx (linkWithMask mxy ky ty {-kx-} (Tip kx $! vx)) zs'
 
     -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
-    addMany !m !kx tx []
+    addMany !_m !_kx tx []
         = Inserted tx []
     addMany !m !kx tx zs0@((ky,vy) : zs)
         | mask kx m /= mask ky m

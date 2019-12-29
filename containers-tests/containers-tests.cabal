@@ -91,6 +91,9 @@ library
       Data.Map.Internal.DeprecatedShowTree
       Utils.Containers.Internal.TypeError
 
+  if impl(ghc >= 8.6)
+    ghc-options: -Werror
+
 -----------------------------
 -- B E N C H M A R K I N G --
 -----------------------------
