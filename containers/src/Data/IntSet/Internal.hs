@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -217,11 +218,13 @@ import Text.Read
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts (Int(..), build)
+import GHC.Exts (build)
+#if !MIN_VERSION_base(4,8,0)
+import GHC.Exts (Int(..), indexInt8OffAddr#)
+#endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
-import GHC.Exts (indexInt8OffAddr#)
 #endif
 
 import qualified Data.Foldable as Foldable
@@ -1110,7 +1113,7 @@ fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
 
     -- for `addAll` and `addMany`, px is /a/ prefix inside the tree `tx`
     -- `addAll` consumes the rest of the list, adding to the tree `tx`
-    addAll !px !tx []
+    addAll !_px !tx []
         = tx
     addAll !px !tx (ky : zs)
         | py <- prefixOf ky
@@ -1119,7 +1122,7 @@ fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
         = addAll px (linkWithMask m py ty {-px-} tx) zs'
 
     -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    addMany' !m !px !bm []
+    addMany' !_m !px !bm []
         = Inserted (Tip px bm) []
     addMany' !m !px !bm zs0@(ky : zs)
         | px == prefixOf ky
@@ -1133,7 +1136,7 @@ fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
         = addMany m px (linkWithMask mxy py ty {-px-} (Tip px bm)) zs'
 
     -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `px`.
-    addMany !m !px tx []
+    addMany !_m !_px tx []
         = Inserted tx []
     addMany !m !px tx zs0@(ky : zs)
         | mask px m /= mask ky m
@@ -1216,22 +1219,22 @@ orderingOf r = case r of
 -- | precondition: each argument is non-mixed
 relate :: IntSet -> IntSet -> Relation
 relate Nil Nil = Equals
-relate Nil t2 = Prefix
-relate t1 Nil = FlipPrefix
-relate t1@(Tip p1 bm1) t2@(Tip p2 bm2) = relateTipTip t1 t2
-relate t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
+relate Nil _t2 = Prefix
+relate _t1 Nil = FlipPrefix
+relate t1@Tip{} t2@Tip{} = relateTipTip t1 t2
+relate t1@(Bin _p1 m1 l1 r1) t2@(Bin _p2 m2 l2 r2)
   | succUpperbound t1 <= lowerbound t2 = Less
   | lowerbound t1 >= succUpperbound t2 = Greater
   | otherwise = case compare (natFromInt m1) (natFromInt m2) of
       GT -> combine_left (relate l1 t2)
       EQ -> combine (relate l1 l2) (relate r1 r2)
       LT -> combine_right (relate t1 l2)
-relate t1@(Bin p1 m1 l1 r1) t2@(Tip p2 _)
+relate t1@(Bin _p1 m1 l1 _r1) t2@(Tip p2 _bm2)
   | succUpperbound t1 <= lowerbound t2 = Less
   | lowerbound t1 >= succUpperbound t2 = Greater
   | 0 == (m1 .&. p2) = combine_left (relate l1 t2)
   | otherwise = Less
-relate t1@(Tip p1 _) t2@(Bin p2 m2 l2 r2)
+relate t1@(Tip p1 _bm1) t2@(Bin _p2 m2 l2 _r2)
   | succUpperbound t1 <= lowerbound t2 = Less
   | lowerbound t1 >= succUpperbound t2 = Greater
   | 0 == (p1 .&. m2) = combine_right (relate t1 l2)
@@ -1239,10 +1242,11 @@ relate t1@(Tip p1 _) t2@(Bin p2 m2 l2 r2)
 
 relateTipTip :: IntSet -> IntSet -> Relation
 {-# INLINE relateTipTip #-}
-relateTipTip t1@(Tip p1 bm1) t2@(Tip p2 bm2) = case compare p1 p2 of
+relateTipTip (Tip p1 bm1) (Tip p2 bm2) = case compare p1 p2 of
   LT -> Less
   EQ -> relateBM bm1 bm2
   GT -> Greater
+relateTipTip _ _ = error "relateTipTip"
 
 relateBM :: BitMap -> BitMap -> Relation
 {-# inline relateBM #-}
@@ -1299,6 +1303,7 @@ combine_right r = case r of
 -- | shall only be applied to non-mixed non-Nil trees
 lowerbound :: IntSet -> Int
 {-# INLINE lowerbound #-}
+lowerbound Nil = error "lowerbound: Nil"
 lowerbound (Tip p _) = p
 lowerbound (Bin p _ _ _) = p
 
@@ -1306,6 +1311,7 @@ lowerbound (Bin p _ _ _) = p
 -- shall only be applied to non-mixed non-Nil trees
 succUpperbound :: IntSet -> Int
 {-# INLINE succUpperbound #-}
+succUpperbound Nil = error "succUpperbound: Nil"
 succUpperbound (Tip p _) = p + wordSize 
 succUpperbound (Bin p m _ _) = p + shiftR m 1
 

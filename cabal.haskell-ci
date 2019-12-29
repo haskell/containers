@@ -12,3 +12,7 @@ installed: +all -binary
 
 -- gauge works only with newer GHC
 benchmarks: >=7.8.4
+
+haddock: >= 8.2
+
+cabal-check: False
