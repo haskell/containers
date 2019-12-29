@@ -2,13 +2,14 @@
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
+
+#include "containers.h"
+
 #if USE_TYPE_FAMILIES
 {-# LANGUAGE TypeFamilies #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
