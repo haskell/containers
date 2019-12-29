@@ -1,9 +1,9 @@
 {-# LANGUAGE CPP, BangPatterns, EmptyDataDecls #-}
-#if defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE TypeFamilies #-}
-#if !defined(TESTING)
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
+#if USE_TYPE_FAMILIES
+{-# LANGUAGE TypeFamilies #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -310,6 +310,9 @@ import Utils.Containers.Internal.StrictPair (StrictPair(..))
 
 import Prelude hiding (foldr, foldl, lookup, null, map, min, max)
 
+-- These two definitions are the only things defining that this map applies to 'Int' keys. Using
+-- 'Int8' or 'Word' or some other two's complement integer type would produce a working, equally
+-- efficient map from that type.
 type Key = Int
 
 i2w :: Int -> Word
@@ -359,20 +362,37 @@ xorBounds (Bound min) (Bound max) = Data.Bits.xor (i2w min) (i2w max)
 boundsDisjoint :: Bound L -> Bound R -> Bool
 boundsDisjoint (Bound min) (Bound max) = min > max
 
--- Phantom types used to separate the types of left and right nodes.
--- They are uninhabited simply to ensure that they are only used as type parameters.
+-- These are uninhabited to ensure that they are only used as type parameters.
+-- | A type tag denoting 'Node's found on left branches or minimum 'Bound's.
 data L
+-- | A type tag denoting 'Node's found on right branches or maximum 'Bound's.
 data R
 
 #if USE_TYPE_FAMILIES
 -- TODO: If we are relying on GHC features anyway, L and R could be a new kind.
+
+-- | A 'Key' stored somewhere within an 'IntMap' with a tag representing its role within that map.
+-- Following the left-to-right ascending order of keys in the map, a @'Bound' 'L'@ serves the
+-- role of a minimum (and so must be less than all other keys in the subtree where it was found),
+-- and a @'Bound' 'R'@ serves the role of maximum (and so must be greater than all other keys in
+-- the subtree where it was found).
+--
+-- Because the tag represents the relationship between a 'Bound' and other keys in a map, the tag
+-- will typically only change or be stripped away in a base case where the 'Bound' is known to be
+-- in a trivial singleton subtree with only that one key. Therefore, 'boundKey', 'minToMax', and
+-- 'maxToMin', which strip or change the tag, should be rare.
 newtype Bound t = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 
+-- | The opposite direction of a tag. This is necessary as the 'Bound's in 'IntMap_' and 'Node'
+-- are opposite each other, since they form the initial min/max bracket on the map as a whole.
+-- This is used in 'Node', where a left branch inherits the minimum from its parent, so needs
+-- to specify a new maximum (a right bound), and symmetrically in a right branch.
 type family Flipped t
 type instance Flipped L = R
 type instance Flipped R = L
 #else
--- Without type families, we can't track min vs. max correctly, so we just don't by making that parameter ignored
+-- | A 'Key' stored somewhere within an 'IntMap'. Since this was compiled without type families,
+-- the associated tag can't be tracked properly and is therefore thrown away.
 type Bound t = Bound_
 newtype Bound_ = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 -- This, like L and R, is uninhabited to ensure that it is only used as a type parameter
@@ -393,7 +413,70 @@ outOfMaxBound k (Bound max) = k > max
 
 -- | A map of integers to values @a@.
 newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
+
+-- | A self-contained tree mapping integers to values @a@. This is tagged according to the type of
+-- its root 'Node'. Although the 'L' form is the only one used at the top level, both types are
+-- used as intermediates in cases where 'Node' isn't applicable. This happens primarily when the
+-- bound that forms the external context for a 'Node' has been deleted. See also 'binL' and
+-- 'binR', which allow 'Bin'-like combination of 'IntMap_'s.
+--
+-- Unlike a 'Node', which inherits one of its bounds from its parent, an 'IntMap_' stores both of
+-- its bounds, one in the 'NonEmpty' constructor and one in the top-level 'Node'. This allows it
+-- to be meaningfully navigated without additional external context.
+--
+-- Invariants:
+--
+-- * The keys within a tree are in order. Specifically, all descendants of wherever a minimum
+--   (@'Bound' 'L'@) is stored must contain keys strictly greater than that minimum, and all
+--   descendants of wherever a maximum (@'Bound' 'R'@) is stored must contain keys stricly
+--   less than that maximum.
+-- * All keys within the left branch of a 'Bin' 'Node' must be stricly less than all keys in the
+--   right branch of that same 'Node'. Notably, this is true regardless of the signs of the keys;
+--   in a map containing negative and nonnegative keys, the top-level 'Bin' will split with the
+--   negative keys on the left and the nonnegative keys on the right.
+-- * All keys within the left branch of a 'Bin' 'Node' must share a longer bit prefix with the
+--   minimum bound for the 'Node' than with the maximum bound for the 'Node', and vice versa for
+--   the right branch: all keys within the right branch of a 'Bin' 'Node' must share a longer bit
+--   prefix with the maximum bound for the 'Node' than with the minimum bound for the 'Node'.
+--   Put another way, under the xor metric, keys in the left branch are closer to the minimum
+--   bound than the maximum bound (@'xor' k min < 'xor' k max@), while keys in the right branch
+--   are closer to the maximum bound than the minimum bound. (@'xor' k min > 'xor' k max@).
+--
+--   The ordering requirements on keys mean that any key will share whatever prefix bits the
+--   bounds also share. This invariant implies that branches are taken based on the immediately
+--   following bit. When the minimum and maximum are both of the same sign, the 0 branch is lesser
+--   and therefore assigned to the left side. For example, when splitting between 4 (@0100@) and
+--   7 (@0111@), which disagree in the 2's place, 5 (@0101) would be found on the left side since
+--   it has a 0 in the 2's place; similarly, -7 (@1001@) and -4 (@1100@) disagree in the 4's
+--   place, and -5 (@1011@) would be found on the left side since it has a 0 in the 4's place.
+--   However, when the minimum and maximum disagree in sign, they differ in the first bit, the
+--   sign bit. A 1 in the sign bit indicates a negative number, so in this case the 1 branch is
+--   lesser and therefore assigned to the left side. For example, when splitting between -7
+--   (@1001@) and 7 (@0111@), which disagree in the sign bit, 5 (@0101@) would be found on the
+--   /right/ side since it has a 0 in the sign bit.
+--
+--   Note that one of these minimum and maximum bounds is inherited from the parent of the 'Node'.
+--   The terms do not refer to the minimum and maximum keys actually stored somewhere withing the
+--   'Node' or in one of its descendants.
+--
+-- These invariants imply a unique tree structure for a given set of keys. In fact, they are
+-- overspecified: the second invariant follows from the other two.
 data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deriving (Eq)
+
+-- | A node within a tree mapping integers to value @a@. Unlike an 'IntMap_', a 'Node' cannot
+-- stand fully on its own; it must have some context defining where the splits between left and
+-- right are. A @'Node' 'L'@ is typically found on the left branch of another 'Node', so inherits
+-- its minimum bound from its parent 'Node', storing only a new maximum. Similarly, a @'Node' 'R'@
+-- is typically found on the right branch of another 'Node', so inherits its maximum bound from
+-- its parent 'Node', storing only a new minimum. See 'IntMap_' for further discussion of the tree
+-- structure.
+--
+-- Because of its incompleteness, functions that navigate 'Node's will typically pass them in two
+-- arguments, one providing the missing bound and one providing the actual 'Node'. This isn't
+-- universally true. Some functions, like 'map' or 'filter', preserve the overall branch structure
+-- and don't need to understand the criteria used to choose between left and right. Others, like
+-- 'lookup', only need to understand the branching criteria with regards to a single, fixed key,
+-- and can instead pass the xor-distance between that key and the missing bound.
 data Node t a = Bin {-# UNPACK #-} !(Bound (Flipped t)) a !(Node L a) !(Node R a) | Tip deriving (Eq, Show)
 
 instance Show a => Show (IntMap a) where
@@ -521,6 +604,10 @@ size :: IntMap a -> Int
 size (IntMap Empty) = 0
 size (IntMap (NonEmpty _ _ node)) = sizeNode node
   where
+    -- A binary tree will always have exactly one more leaf than it has internal nodes. Counting
+    -- the leaves is also more efficient since we don't have to add a bunch of zeros. From a
+    -- different perspective, where the tree is seen as a shuffled PATRICIA tree, the data was
+    -- "originally" stored in the leaves, so counting those locations gives the size of the map.
     sizeNode :: Node t a -> Int
     sizeNode Tip = 1
     sizeNode (Bin _ _ l r) = sizeNode l + sizeNode r
