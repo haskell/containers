@@ -211,7 +211,9 @@ main = defaultMain
              , testProperty
                  "prop_FoldableTraversableCompat"
                  prop_FoldableTraversableCompat
+#if MIN_VERSION_base(4,8,0)
              , testProperty "elem"                 prop_elem
+#endif
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
