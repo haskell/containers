@@ -98,22 +98,22 @@
 -- approach is extremely slow and space-inefficient. To see why, look at the tree structure
 -- for @'singleton' 5 "hello"@:
 --
--- > `-0-.
--- >     `-0-.
--- >         `-0-.
--- >             `-0-.
--- >                 `-0-.
--- >                     `-0-.
--- >                         `-0-.
--- >                             `-0-.
--- >                                 `-0-.
--- >                                     `-0-.
--- >                                         `-0-.
--- >                                             `-0-.
--- >                                                 `-0-.
--- >                                                     `-1-.
--- >                                                         `-0-.
--- >                                                             `-1- "hello"
+-- > └─0─┐
+-- >     └─0─┐
+-- >         └─0─┐
+-- >             └─0─┐
+-- >                 └─0─┐
+-- >                     └─0─┐
+-- >                         └─0─┐
+-- >                             └─0─┐
+-- >                                 └─0─┐
+-- >                                     └─0─┐
+-- >                                         └─0─┐
+-- >                                             └─0─┐
+-- >                                                 └─0─┐
+-- >                                                     └─1─┐
+-- >                                                         └─0─┐
+-- >                                                             └─1─ "hello"
 --
 -- Note that, for brevity, the word size in this diagram is 16 bits. It would be 4 times longer
 -- for a 64-bit system. In this atrocious tree structure, there is one pointer for every bit, a
@@ -128,14 +128,14 @@
 -- taken. For example, again temporarily shortening the word size to 16 bits:
 --
 -- >>> singleton 5 "hello"
--- `-0000000000000101- "hello"
+-- └─0000000000000101─ "hello"
 --
 -- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
--- `-0000000000000-.
---                 +-001- "1"
---                 `-10-.
---                      +-0- "4"
---                      `-1- "5"
+-- └─0000000000000─┐
+--                 ├─001─ "1"
+--                 └─10─┐
+--                      ├─0─ "4"
+--                      └─1─ "5"
 --
 -- This is much more space-efficient, and the basic operations, while more complicated, are still
 -- straightforward. In Haskell, the structure is
@@ -162,14 +162,14 @@
 -- The tree structure looks identical, just with different labels on the edges:
 --
 -- >>> singleton 5 "hello"
--- `-5- "hello"
+-- └─5─ "hello"
 --
 -- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
--- `-(1,5)-.
---         +-1- "1"
---         `-(4,5)-.
---                 +-4- "4"
---                 `-5- "5"
+-- └─(1,5)─┐
+--         ├─1─ "1"
+--         └─(4,5)─┐
+--                 ├─4─ "4"
+--                 └─5─ "5"
 --
 -- Traversing this tree efficiently is a bit more difficult, but still possible. See 'xor' for
 -- details. Moreover, since the tree contains exact minima and maxima, 'lookup' can already be
@@ -204,26 +204,26 @@
 --
 -- >>> singleton 5 "hello"
 -- 5
--- `- "hello"
+-- └─ "hello"
 --
 -- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
 -- 1
--- `-5-.
---     +- "1"
---     `-4-.
---         +- "4"
---         `- "5"
+-- └─5─┐
+--     ├─ "1"
+--     └─4─┐
+--         ├─ "4"
+--         └─ "5"
 --
 -- It may be easier to visualize what is happening here if we draw our trees
 -- with maxima coming after their children:
 --
 -- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
 -- 1
--- |   ,- "1"
--- |   +-4-.
--- |   |   +- "4"
--- |   |   `- "5"
--- `-5-'
+-- │   ┌─ "1"
+-- │   ├─4─┐
+-- │   │   ├─ "4"
+-- │   │   └─ "5"
+-- └─5─┘
 --
 -- Although the nonuniform tree structure results in more complex code, we save a word in each
 -- node.
@@ -243,15 +243,15 @@
 --
 -- >>> singleton 5 "hello"
 -- 5 "hello"
--- `-
+-- └╼
 --
 -- >>> fromList [(1, "1"), (4, "4"), (5, "5")]
 -- 1 "1"
--- |   ,-
--- |   +-4-. "4"
--- |   |   +-
--- |   |   `-
--- `-5-' "5"
+-- │   ┌╼
+-- │   ├─4─┐ "4"
+-- │   │   ├╼
+-- │   │   └╼
+-- └─5─┘ "5"
 --
 -- This simpler representation translates to even more savings in both space and time. Since the
 -- leaves no longer store any information, GHC will create a single static @Tip@ object and reuse
@@ -332,8 +332,8 @@ i2w = fromIntegral
 
 -- | Xor a key with a bound for the purposes of navigation within the tree.
 --
--- The navigation process is as follows. Suppose we are looking up a key `k` in a tree. We know
--- the minimum key in the tree, `min`, and the maximum key, `max`. Represented in binary:
+-- The navigation process is as follows. Suppose we are looking up a key @k@ in a tree. We know
+-- the minimum key in the tree, @min@, and the maximum key, @max@. Represented in binary:
 --
 -- >           shared prefix   bit to split on
 -- >            /----------\  /
@@ -341,7 +341,7 @@ i2w = fromIntegral
 -- > max:       010010010101 1 ????????
 -- > k:         010010010101 ? ????????
 --
--- To figure out in which subtree might contain `k`, we need to know whether the bit to split on
+-- To figure out in which subtree might contain @k@, we need to know whether the bit to split on
 -- is zero or one. Now, if it is zero, then
 --
 -- > xor k min: 000000000000 0 ????????
