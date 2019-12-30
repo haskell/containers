@@ -228,6 +228,9 @@ import qualified Data.IntSet (IntSet, toList)
 
 import Prelude hiding (foldr, foldl, lookup, null, map, filter, min, max)
 
+noeval :: a -> ()
+noeval _ = ()
+
 -- | /O(1)/. A map of one element.
 --
 -- > singleton 1 'a'        == fromList [(1, 'a')]
@@ -244,47 +247,7 @@ singleton k v = IntMap (NonEmpty (Bound k) v Tip)
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
 insert :: Key -> a -> IntMap a -> IntMap a
-insert = start
-  where
-    start !k v (IntMap Empty) = IntMap (NonEmpty (Bound k) v Tip)
-    start !k v (IntMap (NonEmpty min minV root))
-        | inMinBound k min = IntMap (NonEmpty min minV (goL k v (xor k min) min root))
-        | outOfMinBound k min = IntMap (NonEmpty (Bound k) v (insertMinL (xor k min) min minV root))
-        | otherwise = IntMap (NonEmpty (Bound k) v root)
-
-    -- | Insert a key/value pair into a left node when the key is known to be larger
-    -- than the minimum value of the tree.
-    goL !k v !_        !_    Tip = Bin (Bound k) v Tip Tip
-    goL !k v !xorCache !min (Bin max maxV l r)
-        -- In the simple case, we just recurse into whichever branch is applicable.
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goL k v xorCache min l) r
-                    else Bin max maxV l (goR k v xorCacheMax max r)
-        -- If the key is the new maximum, then we have two cases to consider. If
-        -- the split point between 'min' and 'k' is earlier than the split between
-        -- 'min' and 'max', then we can just immediately create a new node. Otherwise,
-        -- we need to push 'max' down into the right branch until it arrives at the
-        -- correct location.
-        -- We do the this check by simulating a navigation where 'max' is the key,
-        -- 'min' is the minimum, and 'k' is the maximum. If 'max' belongs on the
-        -- left side, then the entire old subtree belongs on the left side. If
-        -- 'max' belongs on the right side, then we have to push it down.
-        | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then Bin (Bound k) v (Bin max maxV l r) Tip
-                    else Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        | otherwise = Bin max v l r
-      where xorCacheMax = xor k max
-
-    goR !k v !_        !_    Tip = Bin (Bound k) v Tip Tip
-    goR !k v !xorCache !max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goR k v xorCache max r)
-                    else Bin min minV (goL k v xorCacheMin min l) r
-        | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then Bin (Bound k) v Tip (Bin min minV l r)
-                    else Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        | otherwise = Bin min v l r
-      where xorCacheMin = xor k min
+insert = insertWithEval noeval const
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWith' f key value mp@
@@ -296,35 +259,7 @@ insert = start
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith = start
-  where
-    start _       !k v (IntMap Empty) = IntMap (NonEmpty (Bound k) v Tip)
-    start combine !k v (IntMap (NonEmpty min minV root))
-        | inMinBound k min = IntMap (NonEmpty min minV (goL combine k v (xor k min) min root))
-        | outOfMinBound k min = IntMap (NonEmpty (Bound k) v (insertMinL (xor k min) min minV root))
-        | otherwise = IntMap (NonEmpty (Bound k) (combine v minV) root)
-
-    goL _       !k v !_        !_    Tip = Bin (Bound k) v Tip Tip
-    goL combine !k v !xorCache !min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goL combine k v xorCache min l) r
-                    else Bin max maxV l (goR combine k v xorCacheMax max r)
-        | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then Bin (Bound k) v (Bin max maxV l r) Tip
-                    else Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        | otherwise = Bin max (combine v maxV) l r
-      where xorCacheMax = xor k max
-
-    goR _       !k v !_        !_    Tip = Bin (Bound k) v Tip Tip
-    goR combine !k v !xorCache !max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goR combine k v xorCache max r)
-                    else Bin min minV (goL combine k v xorCacheMin min l) r
-        | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then Bin (Bound k) v Tip (Bin min minV l r)
-                    else Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        | otherwise = Bin min (combine v minV) l r
-      where xorCacheMin = xor k min
+insertWith = insertWithEval noeval
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWithKey' f key value mp@
