@@ -10,6 +10,11 @@ my $l1 = <$f1>;
 my $l2 = <$f2>;
 $l1 eq $l2 or die "CSV files do not correspond -- $l1 and $l2";
 
+my $min = 1e50;
+my $mult = 1.0;
+my $max = 0.0;
+my $count = 0;
+
 while (defined($l1 = <$f1>)) {
   $l2 = <$f2>;
 
@@ -17,8 +22,24 @@ while (defined($l1 = <$f1>)) {
   my @parts2 = split /,/, $l2;
 
   $parts1[0] eq $parts2[0] or die "CSV files do not correspond -- $parts1[0] and $parts2[0]";
+
+  my $factor = $parts2[1] / $parts1[1];
+  $count = $count + 1;
+  $mult = $mult * $factor;
+  if ($factor > $max) {
+      $max = $factor;
+  }
+  if ($factor < $min) {
+      $min = $factor;
+  }
+
   printf "%s;%+7.2f%%;%.2e\n", $parts1[0], 100 * $parts2[1] / $parts1[1] - 100, $parts1[1];
 }
+
+printf ";\n";
+printf "Minimum;%+7.2f%%\n", ($min - 1.0)*100;
+printf "Average;%+7.2f%%\n", (($mult ** (1.0 / $count)) - 1.0) * 100;
+printf "Maximum;%+7.2f%%\n", ($max - 1.0) * 100;
 
 close $f2;
 close $f1;
