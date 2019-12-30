@@ -16,9 +16,9 @@ main = do
     evaluate $ rnf missKeys
     defaultMain
         [ bench "size" $ whnf M.size m
-        , bench "lookup hit" $ whnf (lookup keys) m
-        , bench "lookup miss" $ whnf (lookup keys) m
-        , bench "insert" $ whnf (ins elems) M.empty
+        , bench "lookup hit"  $ whnf (lookup keys) m
+        , bench "lookup miss" $ whnf (lookup missKeys) m
+        , bench "insert empty" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
         , bench "insertWith update" $ whnf (insWith elems) m
         , bench "insertWith' empty" $ whnf (insWith' elems) M.empty
@@ -31,9 +31,10 @@ main = do
         , bench "insertLookupWithKey update" $ whnf (insLookupWithKey elems) m
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ whnf (ins elems) m
+        , bench "foldlWithKey" $ whnf (M.foldlWithKey consPairL []) m
         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
-        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
+        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPairR []) m
+        , bench "foldrWithKey'" $ whnf (M.foldrWithKey' sum 0) m
         , bench "delete hit"  $ whnf (del keys) m
         , bench "delete miss" $ whnf (del missKeys) m
         , bench "update hit"  $ whnf (upd keys) m
@@ -56,7 +57,8 @@ main = do
     missKeys = [0,2..2^13]
     values = [1,3..2^13]
     sum k v1 v2 = k + v1 + v2
-    consPair k v xs = (k, v) : xs
+    consPairL xs k v = (k, v) : xs
+    consPairR k v xs = (k, v) : xs
 
 add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z
