@@ -14,7 +14,8 @@ main = do
     let m = M.fromAscList elems :: M.IntMap Int
     evaluate $ rnf [m]
     defaultMain
-        [ bench "lookup" $ whnf (lookup keys) m
+        [ bench "size" $ whnf M.size m
+        , bench "lookup" $ whnf (lookup keys) m
         , bench "insert" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
         , bench "insertWith update" $ whnf (insWith elems) m

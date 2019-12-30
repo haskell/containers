@@ -603,15 +603,15 @@ null _ = False
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
 size :: IntMap a -> Int
 size (IntMap Empty) = 0
-size (IntMap (NonEmpty _ _ node)) = sizeNode node
+size (IntMap (NonEmpty _ _ node)) = sizeNode 0 node
   where
     -- A binary tree will always have exactly one more leaf than it has internal nodes. Counting
     -- the leaves is also more efficient since we don't have to add a bunch of zeros. From a
     -- different perspective, where the tree is seen as a shuffled PATRICIA tree, the data was
     -- "originally" stored in the leaves, so counting those locations gives the size of the map.
-    sizeNode :: Node t a -> Int
-    sizeNode Tip = 1
-    sizeNode (Bin _ _ l r) = sizeNode l + sizeNode r
+    sizeNode :: Int -> Node t a -> Int
+    sizeNode !acc Tip = acc + 1
+    sizeNode !acc (Bin _ _ l r) = sizeNode (sizeNode acc l) r
 
 -- | /O(min(n,W))/. Is the key a member of the map?
 --
