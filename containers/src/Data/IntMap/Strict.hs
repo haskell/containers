@@ -252,8 +252,8 @@ import Prelude hiding (foldr, foldl, lookup, null, map, filter, min, max)
 (#!) = ($!)
 (#) = ($)
 
-eval :: a -> ()
-eval !_ = ()
+wheval :: a -> ()
+wheval !_ = ()
 
 -- | /O(1)/. A map of one element.
 --
@@ -271,7 +271,7 @@ singleton !k !v = IntMap (NonEmpty (Bound k) v Tip)
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
 insert :: Key -> a -> IntMap a -> IntMap a
-insert = insertWithEval eval const
+insert = insertWithEval wheval const
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWith' f key value mp@
@@ -283,7 +283,7 @@ insert = insertWithEval eval const
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWith = insertWithEval eval
+insertWith = insertWithEval wheval
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWithKey' f key value mp@

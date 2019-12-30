@@ -879,20 +879,30 @@ lookupGE !k = start
 empty :: IntMap a
 empty = IntMap Empty
 
+-- | /O(min(n,W))/. Insert with a combining function, generic over strictness.
+-- Before inserting a value into the map, @'insertWithEval' eval@ will strictly
+-- depend on the resut of calling @eval@ on the value to be inserted. Passing
+-- an evaluation function that does no evaluation will result in lazy
+-- insertion, while passing a function that actually evaluates its argument
+-- will result in strict insertion.
+--
+-- When 'insertWithEval' is given one argument (the evaluation function), it is
+-- inlined at the call site. 'insertWithEval' is intended for defining
+-- @insert@-style functions.
 {-# INLINE insertWithEval #-}
 insertWithEval :: (a -> ()) -> (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
-insertWithEval meval = start
+insertWithEval eval = start
   where
-    start _       !k v (IntMap Empty) = meval v `seq` IntMap (NonEmpty (Bound k) v Tip)
+    start _       !k v (IntMap Empty) = eval v `seq` IntMap (NonEmpty (Bound k) v Tip)
     start combine !k v (IntMap (NonEmpty min minV root))
         | inMinBound k min = IntMap (NonEmpty min minV (goL combine k v (xor k min) min root))
-        | outOfMinBound k min = meval v `seq` IntMap (NonEmpty (Bound k) v (insertMinL (xor k min) min minV root))
+        | outOfMinBound k min = eval v `seq` IntMap (NonEmpty (Bound k) v (insertMinL (xor k min) min minV root))
         | otherwise = let v' = combine v minV
-                      in meval v' `seq` IntMap (NonEmpty (Bound k) v' root)
+                      in eval v' `seq` IntMap (NonEmpty (Bound k) v' root)
 
     -- | Insert a key/value pair into a left node when the key is known to be larger
     -- than the minimum bound of the subtree.
-    goL _       !k v !_        !_    Tip = meval v `seq` Bin (Bound k) v Tip Tip
+    goL _       !k v !_        !_    Tip = eval v `seq` Bin (Bound k) v Tip Tip
     goL combine !k v !xorCache !min (Bin max maxV l r)
         -- In the simple case, we recurse into whichever branch is applicable.
         | inMaxBound k max = if xorCache < xorCacheMax
@@ -909,22 +919,22 @@ insertWithEval meval = start
         -- left side, then the entire old subtree belongs on the left side. If
         -- 'max' belongs on the right side, then we have to push it down.
         | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then meval v `seq` Bin (Bound k) v (Bin max maxV l r) Tip
-                    else meval v `seq` Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
+                    then eval v `seq` Bin (Bound k) v (Bin max maxV l r) Tip
+                    else eval v `seq` Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
         | otherwise = let v' = combine v maxV
-                      in meval v' `seq` Bin max v' l r
+                      in eval v' `seq` Bin max v' l r
       where xorCacheMax = xor k max
 
-    goR _       !k v !_        !_    Tip = meval v `seq` Bin (Bound k) v Tip Tip
+    goR _       !k v !_        !_    Tip = eval v `seq` Bin (Bound k) v Tip Tip
     goR combine !k v !xorCache !max (Bin min minV l r)
         | inMinBound k min = if xorCache < xorCacheMin
                     then Bin min minV l (goR combine k v xorCache max r)
                     else Bin min minV (goL combine k v xorCacheMin min l) r
         | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then meval v `seq` Bin (Bound k) v Tip (Bin min minV l r)
-                    else meval v `seq` Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
+                    then eval v `seq` Bin (Bound k) v Tip (Bin min minV l r)
+                    else eval v `seq` Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
         | otherwise = let v' = combine v minV
-                      in meval v' `seq` Bin min v' l r
+                      in eval v' `seq` Bin min v' l r
       where xorCacheMin = xor k min
 
 -- | /O(min(n,W))/. Delete a key and its value from the map.
