@@ -1958,6 +1958,20 @@ isSubmapOf = isSubmapOfBy (==)
 isSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
 isSubmapOfBy p = start
   where
+    -- 'isSubmapOfBy' follows the pattern of 'intersection' with a few exceptions:
+    --
+    -- * We compare bounds (@max1@ and @max2@ in 'goL' and @min1@ and @min2@ in
+    --   'goR') before we compare MSBs, since if a subtree of map 1 isn't
+    --   entirely contained withing map 2, we can immediately return 'False'.
+    -- * The "disjoint bounds" case is dropped, as it is already caught by
+    --   comparing minima (in 'goR') or maxima (in 'goL') in the next step.
+    -- * Once we know that map 1 has a smaller range than map 2 (that is,
+    --   @min1 > min2 && max1 < max2@, we know map 1 can't have an earlier
+    --   splitting bit, so we can use the simpler 'ltMSB' instead of
+    --   'compareMSB'.
+    -- * The preconditions of @goL2@, @goR2@, and such in 'intersection'
+    --   imply that map 1 isn't a submap of map 2, so we omit those and just
+    --   return 'False'.
     start (IntMap Empty) !_ = True
     start !_ (IntMap Empty) = False
     start (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
@@ -1973,7 +1987,7 @@ isSubmapOfBy p = start
             True | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> goL minV1 min1 n1 min2 l2 -- LT
                  | otherwise -> goR maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
             False -> goL minV1 min1 l1 min2 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
-        | otherwise = p maxV1 maxV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max1 of
+        | otherwise = p maxV1 maxV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max2 of
             True -> goRFused max1 (Bin min1 minV1 l1 r1) r2 -- LT
             False -> goL minV1 min1 l1 min2 l2 && goRFused max1 r1 r2 -- EQ
 
@@ -1994,7 +2008,7 @@ isSubmapOfBy p = start
             True | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> goR maxV1 max1 n1 max2 r2 -- LT
                  | otherwise -> goL minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
             False -> goL minV1 min1 l1 min2 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
-        | otherwise = p minV1 minV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max1 of
+        | otherwise = p minV1 minV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max2 of
             True -> goLFused min1 (Bin max1 maxV1 l1 r1) l2 -- LT
             False -> goLFused min1 l1 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
 
@@ -2069,7 +2083,7 @@ submapCmp p = start
             True | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> goL minV1 min1 n1 min2 l2 -- LT
                  | otherwise -> goR maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
             False -> goL minV1 min1 l1 min2 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
-        | otherwise = p maxV1 maxV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max1 of
+        | otherwise = p maxV1 maxV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max2 of
             True -> goRFusedBool max1 (Bin min1 minV1 l1 r1) r2 -- LT
             False -> goL minV1 min1 l1 min2 l2 && goRFusedBool max1 r1 r2 -- EQ
 
@@ -2101,7 +2115,7 @@ submapCmp p = start
             True | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> goR maxV1 max1 n1 max2 r2 -- LT
                  | otherwise -> goL minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
             False -> goL minV1 min1 l1 min2 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
-        | otherwise = p minV1 minV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max1 of
+        | otherwise = p minV1 minV2 && case xorBounds min1 max1 `ltMSB` xorBounds min2 max2 of
             True -> goLFusedBool min1 (Bin max1 maxV1 l1 r1) l2 -- LT
             False -> goLFusedBool min1 l1 l2 && goR maxV1 max1 r1 max2 r2 -- EQ
 

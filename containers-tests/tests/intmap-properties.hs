@@ -1675,17 +1675,28 @@ prop_splitRoot s = loop ls && (s == unions ls)
                           , y <- toList (unions rst)
                           , x > y ]
 
+-- 'isSubmapOf' and friends short-circuit all over the place, so test them a
+-- lot more.
+-- TODO: Is there a way to increase the number of tests that still allows
+-- specifying a number at the command line? For example, multiply the
+-- passed-in number of tests by 100?
+increaseTests = withMaxSuccess 10000
+
 prop_isSubmapOf :: IMap -> IMap -> Property
-prop_isSubmapOf m1 m2 = (m1 `isSubmapOf` m2) === all (\(k, v) -> lookup k m2 == Just v) (toList m1)
+prop_isSubmapOf m1 m2 = increaseTests $ (m1 `isSubmapOf` m2)
+                                    === all (\(k, v) -> lookup k m2 == Just v) (toList m1)
 
 prop_isSubmapOfBy :: Fun (Int, Int) Bool -> IMap -> IMap -> Property
-prop_isSubmapOfBy p m1 m2 = isSubmapOfBy (curry (apply p)) m1 m2 === all (\(k, v) -> member k m2 && apply p (v, m2 ! k)) (toList m1)
+prop_isSubmapOfBy p m1 m2 = increaseTests $ isSubmapOfBy (curry (apply p)) m1 m2
+                                        === all (\(k, v) -> member k m2 && apply p (v, m2 ! k)) (toList m1)
 
 prop_isProperSubmapOf :: IMap -> IMap -> Property
-prop_isProperSubmapOf m1 m2 = (m1 `isProperSubmapOf` m2) === (size m1 < size m2 && m1 `isSubmapOf` m2)
+prop_isProperSubmapOf m1 m2 = increaseTests $ (m1 `isProperSubmapOf` m2)
+                                          === (size m1 < size m2 && m1 `isSubmapOf` m2)
 
 prop_isProperSubmapOfBy :: Fun (Int, Int) Bool -> IMap -> IMap -> Property
-prop_isProperSubmapOfBy p m1 m2 = isProperSubmapOfBy (curry (apply p)) m1 m2 === (size m1 < size m2 && isSubmapOfBy (curry (apply p)) m1 m2)
+prop_isProperSubmapOfBy p m1 m2 = increaseTests $ isProperSubmapOfBy (curry (apply p)) m1 m2
+                                              === (size m1 < size m2 && isSubmapOfBy (curry (apply p)) m1 m2)
 
 prop_foldr :: Int -> [(Int, Int)] -> Property
 prop_foldr n ys =
