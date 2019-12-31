@@ -578,7 +578,7 @@ instance Read1 IntMap where
       where
         listOne = liftReadsPrec pairOne pairList
         pairOne = liftReadsPrec innerOne innerList
-        pairList = liftReadsListPrec innerOne innerList
+        pairList = liftReadList innerOne innerList
 #endif
 #endif
 
