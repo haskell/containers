@@ -221,6 +221,8 @@ import Text.Read
 import GHC.Exts (build)
 #if !MIN_VERSION_base(4,8,0)
 import GHC.Exts (Int(..), indexInt8OffAddr#)
+#elif WORD_SIZE_IN_BITS!=64
+import GHC.Exts (Int(..))
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
