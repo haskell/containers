@@ -2,7 +2,7 @@
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
 #if !defined(TESTING)
-{-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE Safe #-}
 #endif
 #endif
 
@@ -321,7 +321,7 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
 import Text.Read
 #endif
 #if __GLASGOW_HASKELL__ >= 708
-import qualified GHC.Exts as GHCExts (IsList(..))
+import qualified Utils.Containers.Internal.IsList as IsList
 #endif
 
 #if !MIN_VERSION_base(4,8,0)
@@ -672,7 +672,7 @@ instance Monoid (IntMap a) where
 
 #if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
-instance GHCExts.IsList (IntMap a) where
+instance IsList.IsList (IntMap a) where
     type Item (IntMap a) = (Key, a)
     fromList = fromListLazy
     toList = toList
