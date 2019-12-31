@@ -312,6 +312,9 @@ import Data.Functor.Classes
 #endif
 
 #if defined(__GLASGOW_HASKELL__)
+#if !MIN_VERSION_base(4,8,0)
+import Data.Functor ((<$))
+#endif
 import Data.Typeable
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
