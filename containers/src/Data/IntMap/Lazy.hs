@@ -247,7 +247,7 @@ singleton k v = IntMap (NonEmpty (Bound k) v Tip)
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
 insert :: Key -> a -> IntMap a -> IntMap a
-insert = insertWithEval noeval const
+insert = insertLazy
 
 -- | /O(min(n,W))/. Insert with a combining function.
 -- @'insertWith' f key value mp@
@@ -1216,7 +1216,7 @@ fromSet f = fromDistinctAscList . Data.List.map (\k -> (k, f k)) . Data.IntSet.t
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs.
 fromList :: [(Key, a)] -> IntMap a
-fromList = Data.List.foldl' (\t (k, a) -> insert k a t) empty
+fromList = fromListLazy
 
 -- | /O(n*min(n,W))/. Create a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --

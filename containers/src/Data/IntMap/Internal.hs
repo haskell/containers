@@ -1,6 +1,9 @@
 {-# LANGUAGE CPP, BangPatterns, EmptyDataDecls #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE Safe #-}
+#if defined(__GLASGOW_HASKELL__)
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+#if !defined(TESTING)
+{-# LANGUAGE Trustworthy #-}
+#endif
 #endif
 
 #include "containers.h"
@@ -305,6 +308,17 @@ import Data.Semigroup (stimes)
 import Data.Semigroup (Semigroup(..))
 #endif
 import Data.Semigroup (stimesIdempotentMonoid)
+import Data.Functor.Classes
+#endif
+
+#if defined(__GLASGOW_HASKELL__)
+import Data.Typeable
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
+                  DataType, mkDataType)
+import Text.Read
+#endif
+#if __GLASGOW_HASKELL__ >= 708
+import qualified GHC.Exts as GHCExts (IsList(..))
 #endif
 
 #if !MIN_VERSION_base(4,8,0)
@@ -491,19 +505,104 @@ data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deri
 -- and can instead pass the xor-distance between that key and the missing bound.
 data Node t a = Bin {-# UNPACK #-} !(Bound (Flipped t)) a !(Node L a) !(Node R a) | Tip deriving (Eq, Show)
 
+#if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
+instance Eq1 IntMap where
+    liftEq eq (IntMap m1) (IntMap m2) = liftEq eq m1 m2
+
+instance Eq1 (IntMap_ t) where
+    liftEq eq (NonEmpty min1 minV1 root1) (NonEmpty min2 minV2 root2)
+        = min1 == min2 && eq minV1 minV2 && liftEq eq root1 root2
+    liftEq _ Empty Empty = True
+    liftEq _ _     _     = False
+
+instance Eq1 (Node t) where
+    liftEq eq (Bin k1 v1 l1 r1) (Bin k2 v2 l2 r2)
+        = k1 == k2 && eq v1 v2 && liftEq eq l1 l2 && liftEq eq r1 r2
+    liftEq _ Tip Tip = True
+    liftEq _ _   _   = False
+#endif
+
+instance Ord a => Ord (IntMap a) where
+    compare m1 m2 = compare (toList m1) (toList m2)
+    m1 <= m2 = toList m1 <= toList m2
+
+#if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
+instance Ord1 IntMap where
+    liftCompare cmp m1 m2 = liftCompare (liftCompare cmp) (toList m1) (toList m2)
+#endif
+
+
 instance Show a => Show (IntMap a) where
-    show m = "fromList " ++ show (toList m)
+    showsPrec precedence m = showParen (precedence > 10) (showString "fromList " . shows (toList m))
+
+#if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
+instance Show1 IntMap where
+    liftShowsPrec innerShowsPrec innerShowList precedence m
+        = showsUnaryWith listShowsPrec "fromList" precedence (toList m)
+      where
+        listShowsPrec = liftShowsPrec pairShowsPrec pairShowList
+        pairShowsPrec = liftShowsPrec innerShowsPrec innerShowList
+        pairShowList = liftShowList innerShowsPrec innerShowList
+#endif
+
+instance Read a => Read (IntMap a) where
+#if defined(__GLASGOW_HASKELL__)
+    -- ReadPrec is more efficient than ReadS, so use it if possible
+    readPrec = parens $ prec 10 $ do
+        Ident "fromList" <- lexP
+        fromListLazy <$> readPrec
+    readListPrec = readListPrecDefault
+#else
+    readsPrec precedence = readParen (precedence > 10) $ \str -> do
+        ("fromList", str') <- lex str
+        first fromList <$> reads str'
+#endif
+
+#if MIN_VERSION_base(4,9,0)
+instance Read1 IntMap where
+#if defined(__GLASGOW_HASKELL__) && MIN_VERSION_base(4,10,0)
+    liftReadPrec innerOne innerList = readData (readUnaryWith listOne "fromList" fromListLazy)
+      where
+        listOne = liftReadPrec pairOne pairList
+        pairOne = liftReadPrec innerOne innerList
+        pairList = liftReadListPrec innerOne innerList
+    liftReadListPrec = liftReadListPrecDefault
+#else
+    liftReadsPrec innerOne innerList = readsData (readsUnaryWith listOne "fromList" fromListLazy)
+      where
+        listOne = liftReadsPrec pairOne pairList
+        pairOne = liftReadsPrec innerOne innerList
+        pairList = liftReadsListPrec innerOne innerList
+#endif
+#endif
 
 instance Functor IntMap where
     fmap f (IntMap m) = IntMap (fmap f m)
+
+#if defined(__GLASGOW_HASKELL__)
+    a <$ (IntMap m) = IntMap (a <$ m)
+#endif
 
 instance Functor (IntMap_ t) where
     fmap _ Empty = Empty
     fmap f (NonEmpty min minV node) = NonEmpty min (f minV) (fmap f node)
 
+#if defined(__GLASGOW_HASKELL__)
+    _ <$ Empty = Empty
+    a <$ NonEmpty min _ node = NonEmpty min a (a <$ node)
+#endif
+
 instance Functor (Node t) where
     fmap _ Tip = Tip
     fmap f (Bin k v l r) = Bin k (f v) (fmap f l) (fmap f r)
+
+#if defined(__GLASGOW_HASKELL__)
+    _ <$ Tip = Tip
+    a <$ Bin k _ l r = Bin k a (a <$ l) (a <$ r)
+#endif
 
 instance Data.Foldable.Foldable IntMap where
     {-# INLINE foldMap #-}
@@ -545,7 +644,6 @@ instance Data.Foldable.Foldable IntMap where
         go v (Bin _ boundV l r) = v == boundV || go v l || go v r
 #endif
 
-
 instance Traversable IntMap where
     traverse f = start
       where
@@ -558,9 +656,6 @@ instance Traversable IntMap where
         goR Tip = pure Tip
         goR (Bin min minV l r) = liftA3 (Bin min) (f minV) (goL l) (goR r)
 
-instance Monoid (IntMap a) where
-    mempty = empty
-    mappend = union
 
 #if MIN_VERSION_base(4,9,0)
 instance Semigroup (IntMap a) where
@@ -568,9 +663,45 @@ instance Semigroup (IntMap a) where
     stimes = stimesIdempotentMonoid
 #endif
 
+instance Monoid (IntMap a) where
+    mempty = empty
+    mappend = union
+
+#if __GLASGOW_HASKELL__ >= 708
+-- | @since 0.5.6.2
+instance GHCExts.IsList (IntMap a) where
+    type Item (IntMap a) = (Key, a)
+    fromList = fromListLazy
+    toList = toList
+#endif
+
+INSTANCE_TYPEABLE1(IntMap)
+
+#if defined(__GLASGOW_HASKELL__)
+-- This instance preserves data abstraction at the cost of inefficiency.
+-- We provide limited reflection services for the sake of data abstraction.
+instance Data a => Data (IntMap a) where
+  gfoldl f z im = z fromListLazy `f` (toList im)
+  toConstr _     = fromListConstr
+  gunfold k z c  = case constrIndex c of
+    1 -> k (z fromListLazy)
+    _ -> error "gunfold"
+  dataTypeOf _   = intMapDataType
+  dataCast1 f    = gcast1 f
+
+fromListConstr :: Constr
+fromListConstr = mkConstr intMapDataType "fromList" [] Prefix
+
+intMapDataType :: DataType
+intMapDataType = mkDataType "Data.IntMap.Internal.IntMap" [fromListConstr]
+#endif
+
 instance NFData a => NFData (IntMap a) where
-    rnf (IntMap Empty) = ()
-    rnf (IntMap (NonEmpty _ v n)) = rnf v `seq` rnf n
+    rnf (IntMap m) = rnf m
+
+instance NFData a => NFData (IntMap_ t a) where
+    rnf Empty = ()
+    rnf (NonEmpty _ v root) = rnf v `seq` rnf root
 
 instance NFData a => NFData (Node t a) where
     rnf Tip = ()
@@ -947,6 +1078,13 @@ insertWithEval eval = start
         | otherwise = let v' = combine v minV
                       in eval v' `seq` Bin min v' l r
       where xorCacheMin = xor k min
+
+-- Small functions that really ought to be defined in Data.IntMap.Lazy but have
+-- to be here for the sake of type class implementations
+insertLazy :: Key -> a -> IntMap a -> IntMap a
+insertLazy = insertWithEval (const ()) const
+fromListLazy :: [(Key, a)] -> IntMap a
+fromListLazy = Data.List.foldl' (\t (k, a) -> insertLazy k a t) empty
 
 -- | /O(min(n,W))/. Delete a key and its value from the map.
 -- When the key is not a member of the map, the original map is returned.
