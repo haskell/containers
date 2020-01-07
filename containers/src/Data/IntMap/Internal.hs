@@ -905,95 +905,60 @@ size (IntMap (NonEmpty _ _ node)) = sizeNode 0 node
     sizeNode !acc Tip = acc + 1
     sizeNode !acc (Bin _ _ l r) = sizeNode (sizeNode acc l) r
 
+-- | /O(min(n,W)/. Lookup the value at a key in the map, returning the result
+-- to the provided continuations. See also 'lookup'.
+--
+-- When 'lookupChurch' is given three arguments (the continuations and key), it
+-- is inlined to the call site. You should therefore use 'lookupChurch' only to
+-- define custom lookup functions.
+{-# INLINE lookupChurch #-}
+lookupChurch :: r -> (a -> r) -> Key -> IntMap a -> r
+lookupChurch nothing just !k = start
+  where
+    start (IntMap Empty) = nothing
+    start (IntMap (NonEmpty min minV node))
+        | outOfMinBound k min = nothing
+        | k == boundKey min = just minV
+        | otherwise = goL (xor k min) node
+
+    goL !_ Tip = nothing
+    goL !xorCache (Bin max maxV l r)
+        | inMaxBound k max = if xorCache < xorCacheMax
+                    then goL xorCache l
+                    else goR xorCacheMax r
+        | outOfMaxBound k max = nothing
+        | otherwise = just maxV
+      where xorCacheMax = xor k max
+
+    goR !_ Tip = nothing
+    goR !xorCache (Bin min minV l r)
+        | inMinBound k min = if xorCache < xorCacheMin
+                    then goR xorCache r
+                    else goL xorCacheMin l
+        | outOfMinBound k min = nothing
+        | otherwise = just minV
+      where xorCacheMin = xor k min
+
 -- | /O(min(n,W))/. Is the key a member of the map?
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
+{-# NOINLINE[0] member #-}
 member :: Key -> IntMap a -> Bool
-member !k = start
-  where
-    start (IntMap Empty) = False
-    start (IntMap (NonEmpty min _ node))
-        | outOfMinBound k min = False
-        | k == boundKey min = True
-        | otherwise = goL (xor k min) node
-
-    goL !_ Tip = False
-    goL !xorCache (Bin max _ l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goL xorCache l
-                    else goR xorCacheMax r
-        | outOfMaxBound k max = False
-        | otherwise = True
-      where xorCacheMax = xor k max
-
-    goR !_ Tip = False
-    goR !xorCache (Bin min _ l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goR xorCache r
-                    else goL xorCacheMin l
-        | outOfMinBound k min = False
-        | otherwise = True
-      where xorCacheMin = xor k min
+member !k = lookupChurch False (const True) k
 
 -- | /O(min(n,W))/. Is the key not a member of the map?
 --
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
+{-# NOINLINE[0] notMember #-}
 notMember :: Key -> IntMap a -> Bool
-notMember !k = start
-  where
-    start (IntMap Empty) = True
-    start (IntMap (NonEmpty min _ node))
-        | outOfMinBound k min = True
-        | k == boundKey min = False
-        | otherwise = goL (xor k min) node
-
-    goL !_ Tip = True
-    goL !xorCache (Bin max _ l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goL xorCache l
-                    else goR xorCacheMax r
-        | outOfMaxBound k max = True
-        | otherwise = False
-      where xorCacheMax = xor k max
-
-    goR !_ Tip = True
-    goR !xorCache (Bin min _ l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goR xorCache r
-                    else goL xorCacheMin l
-        | outOfMinBound k min = True
-        | otherwise = False
-      where xorCacheMin = xor k min
+notMember !k = lookupChurch True (const False) k
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
+{-# NOINLINE[0] lookup #-}
 lookup :: Key -> IntMap a -> Maybe a
-lookup !k = start
-  where
-    start (IntMap Empty) = Nothing
-    start (IntMap (NonEmpty min minV node))
-        | outOfMinBound k min = Nothing
-        | k == boundKey min = Just minV
-        | otherwise = goL (xor k min) node
-
-    goL !_ Tip = Nothing
-    goL !xorCache (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goL xorCache l
-                    else goR xorCacheMax r
-        | outOfMaxBound k max = Nothing
-        | otherwise = Just maxV
-      where xorCacheMax = xor k max
-
-    goR !_ Tip = Nothing
-    goR !xorCache (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goR xorCache r
-                    else goL xorCacheMin l
-        | outOfMinBound k min = Nothing
-        | otherwise = Just minV
-      where xorCacheMin = xor k min
+lookup !k = lookupChurch Nothing Just k
 
 -- | /O(min(n,W))/. The expression @'findWithDefault' def k map@
 -- returns the value at key @k@ or returns @def@ when the key is not an
@@ -1001,32 +966,9 @@ lookup !k = start
 --
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
+{-# NOINLINE[0] findWithDefault #-}
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def !k = start
-  where
-    start (IntMap Empty) = def
-    start (IntMap (NonEmpty min minV node))
-        | outOfMinBound k min = def
-        | k == boundKey min = minV
-        | otherwise = goL (xor k min) node
-
-    goL !_ Tip = def
-    goL !xorCache (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goL xorCache l
-                    else goR xorCacheMax r
-        | outOfMaxBound k max = def
-        | otherwise = maxV
-      where xorCacheMax = xor k max
-
-    goR !_ Tip = def
-    goR !xorCache (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goR xorCache r
-                    else goL xorCacheMin l
-        | outOfMinBound k min = def
-        | otherwise = minV
-      where  xorCacheMin = xor k min
+findWithDefault def !k = lookupChurch def id k
 
 -- | /O(log n)/. Find largest key smaller than the given one and return the
 -- corresponding (key, value) pair.
