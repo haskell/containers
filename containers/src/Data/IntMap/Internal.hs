@@ -295,7 +295,154 @@
 -- must be checked for increased allocation when creating and modifying such
 -- functions.
 
-module Data.IntMap.Internal where
+module Data.IntMap.Internal (
+    -- * Map Types
+      IntMap(..)
+    , L, R
+    , Node(..)
+    , IntMap_(..)
+    , DeleteResult(..)
+
+    -- ** Key Manipulation
+    , Key
+    , Bound(..)
+    , xor
+    , xorBounds
+    , inMinBound
+    , inMaxBound
+    , outOfMinBound
+    , outOfMaxBound
+    , ltMSB
+    , compareMSB
+    , boundsDisjoint
+    , minToMax
+    , maxToMin
+
+    -- * Construction
+    , empty
+
+    -- ** From Unordered Lists
+    , fromListLazy
+
+    -- ** From Ascending Lists
+    , BuildStack(..)
+    , pushBuildStack
+    , completeBuildStack
+
+    -- * Insertion
+    , insertLazy
+    , insertWithEval
+    , insertMinL
+    , insertMaxR
+
+    -- * Deletion\/Update
+    , delete
+    , deleteL
+    , deleteR
+    , deleteMinL
+    , deleteMaxR
+
+    -- * Query
+    -- ** Lookup
+    , lookup
+    , (!?)
+    , (!)
+    , findWithDefault
+    , member
+    , notMember
+    , lookupLT
+    , lookupGT
+    , lookupLE
+    , lookupGE
+
+    -- ** Size
+    , null
+    , size
+
+    -- * Combine
+    -- ** Union
+    , union
+    , unions
+    , unionDisjointL
+    , unionDisjointR
+
+    -- ** Difference
+    , difference
+    , (\\)
+
+    -- ** Intersection
+    , intersection
+
+    -- ** Disjoint
+    , disjoint
+
+    -- * Folds
+    , foldr
+    , foldl
+    , foldrWithKey
+    , foldlWithKey
+    , foldMapWithKey
+
+    -- ** Strict folds
+    , foldr'
+    , foldl'
+    , foldrWithKey'
+    , foldlWithKey'
+
+    -- * Conversion
+    , elems
+    , keys
+    , assocs
+    , keysSet
+
+    -- ** Lists
+    , toList
+
+    -- ** Ordered Lists
+    , toAscList
+    , toDescList
+
+    -- ** Internal Manipulation
+    , binL
+    , binR
+    , extractBinL
+    , extractBinR
+    , l2rMap
+    , r2lMap
+    , nodeToMapL
+    , nodeToMapR
+
+    -- * Filter
+    , filter
+    , filterWithKey
+    , restrictKeys
+    , withoutKeys
+    , partition
+    , partitionWithKey
+    , split
+    , splitLookup
+    , splitRoot
+
+    -- * Submap
+    , isSubmapOf
+    , isSubmapOfBy
+    , isProperSubmapOf
+    , isProperSubmapOfBy
+
+    -- * Min\/Max
+    , lookupMin
+    , lookupMax
+    , findMin
+    , findMax
+    , deleteMin
+    , deleteMax
+    , deleteFindMin
+    , deleteFindMax
+    , minView
+    , maxView
+    , minViewWithKey
+    , maxViewWithKey
+) where
 
 import Control.DeepSeq (NFData(..))
 
@@ -337,7 +484,7 @@ import qualified Data.Bits (xor)
 import qualified Data.IntSet (IntSet, fromDistinctAscList, member, notMember)
 import Utils.Containers.Internal.StrictPair (StrictPair(..))
 
-import Prelude hiding (foldr, foldl, lookup, null, map, min, max)
+import Prelude hiding (foldr, foldl, filter,  lookup, null, map, min, max)
 
 -- These two definitions are the only things defining that this map applies to 'Int' keys. Using
 -- 'Int8' or 'Word' or some other two's complement integer type would produce a working, equally
@@ -1996,17 +2143,6 @@ partitionWithKey p = start
 split :: Key -> IntMap a -> (IntMap a, IntMap a)
 split k m = case splitLookup k m of
     (lt, _, gt) -> (lt, gt)
-
-
-data SplitLookup a = SplitLookup !(IntMap a) !(Maybe a) !(IntMap a)
-
-mapLT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
-mapLT f (SplitLookup lt fnd gt) = SplitLookup (f lt) fnd gt
-{-# INLINE mapLT #-}
-
-mapGT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
-mapGT f (SplitLookup lt fnd gt) = SplitLookup lt fnd (f gt)
-{-# INLINE mapGT #-}
 
 -- | /O(min(n,W))/. Performs a 'split' but also returns whether the pivot
 -- key was found in the original map.
