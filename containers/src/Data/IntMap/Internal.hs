@@ -1,15 +1,19 @@
 {-# LANGUAGE CPP, BangPatterns, EmptyDataDecls #-}
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#if !defined(TESTING)
-{-# LANGUAGE Safe #-}
-#endif
 #endif
 
 #include "containers.h"
 
 #if USE_TYPE_FAMILIES
 {-# LANGUAGE TypeFamilies #-}
+#endif
+#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#if USE_REWRITE_RULES
+{-# LANGUAGE Trustworthy #-}
+#else
+{-# LANGUAGE Safe #-}
+#endif
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -469,6 +473,9 @@ import Text.Read
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified Utils.Containers.Internal.IsList as IsList
+#endif
+#if USE_REWRITE_RULES
+import GHC.Exts (build)
 #endif
 
 #if !MIN_VERSION_base(4,8,0)
@@ -1902,6 +1909,43 @@ toAscList = foldrWithKey (\k v l -> (k, v) : l) []
 -- > toDescList (fromList [(5,"a"), (3,"b")]) == [(5,"a"), (3,"b")]
 toDescList :: IntMap a -> [(Key, a)]
 toDescList = foldlWithKey (\l k v -> (k, v) : l) []
+
+-- List fusion for the list generating functions.
+#if USE_REWRITE_RULES
+-- The foldrFB and foldlFB are fold{r,l}WithKey equivalents, used for list fusion.
+-- They are important to convert unfused methods back: see mapFB in Prelude.
+foldrFB :: (Key -> a -> b -> b) -> b -> IntMap a -> b
+foldrFB = foldrWithKey
+{-# INLINE[0] foldrFB #-}
+foldlFB :: (a -> Key -> b -> a) -> a -> IntMap b -> a
+foldlFB = foldlWithKey
+{-# INLINE[0] foldlFB #-}
+
+-- Inline assocs and toList so that we need to fuse only toAscList.
+{-# INLINE assocs #-}
+{-# INLINE toList #-}
+
+-- The fusion is enabled up to phase 2 included. If it does not succeed,
+-- convert in phase 1 the expanded elems,keys,to{Asc,Desc}List calls back to
+-- elems,keys,to{Asc,Desc}List.  In phase 0, we inline fold{lr}FB (which were
+-- used in a list fusion, otherwise it would go away in phase 1), and let compiler
+-- do whatever it wants with elems,keys,to{Asc,Desc}List -- it was forbidden to
+-- inline it before phase 0, otherwise the fusion rules would not fire at all.
+{-# NOINLINE[0] elems #-}
+{-# NOINLINE[0] keys #-}
+{-# NOINLINE[0] toAscList #-}
+{-# NOINLINE[0] toDescList #-}
+{-# RULES
+"IntMap.elems" [~1] forall m . elems m = build (\c n -> foldrFB (\_ x xs -> c x xs) n m)
+"IntMap.elems back" [1] foldrFB (\_ x xs -> x : xs) [] = elems
+"IntMap.keys" [~1] forall m . keys m = build (\c n -> foldrFB (\k _ xs -> c k xs) n m)
+"IntMap.keys back" [1] foldrFB (\k _ xs -> k : xs) [] = keys
+"IntMap.toAscList" [~1] forall m . toAscList m = build (\c n -> foldrFB (\k x xs -> c (k, x) xs) n m)
+"IntMap.toAscList back" [1] foldrFB (\k x xs -> (k, x) : xs) [] = toAscList
+"IntMap.toDescList" [~1] forall m . toDescList m = build (\c n -> foldlFB (\xs k x -> c (k, x) xs) n m)
+"IntMap.toDescList back" [1] foldlFB (\xs k x -> (k, x) : xs) [] = toDescList
+  #-}
+#endif
 
 -- | A stack used in the in-order building of IntMaps.
 data BuildStack a = Push {-# UNPACK #-} !(Bound L) a !(Node L a) !(BuildStack a) | StackBase
