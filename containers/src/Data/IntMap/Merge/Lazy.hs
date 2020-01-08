@@ -6,7 +6,8 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap.Merge.Lazy
--- Copyright   :  (c) Jonathan S. 2016
+-- Copyright   :  Documentation & Interface (c) wren romano 2016
+--                Documentation & Implementation (c) Jonathan "gereeter" S. 2020
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional

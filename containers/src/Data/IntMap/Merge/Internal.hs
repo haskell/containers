@@ -15,7 +15,7 @@
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.IntMap.Merge.Internal
--- Copyright   :  (c) Jonathan S. 2016
+-- Copyright   :  (c) Jonathan "gereeter" S. 2020
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Stability   :  provisional

@@ -8,7 +8,7 @@
 -- Module      :  Data.IntMap.Lazy
 -- Copyright   :  Documentation & Interface (c) Daan Leijen 2002
 --                Documentation (c) Andriy Palamarchuk 2008
---                Documentation & Implementation (c) Jonathan S. 2016
+--                Documentation & Implementation (c) Jonathan "gereeter" S. 2020
 -- License     :  BSD-style
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
