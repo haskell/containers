@@ -12,8 +12,6 @@ lookupGE1 k m =
 
 
 lookupGE2 = lookupGE
-lookupGE3 = lookupGE
-lookupGE4 = lookupGE
 
 -------------------------------------------------------------------------------
 -- Utilities
@@ -32,11 +30,5 @@ findMinMaybe m
 
 prop_lookupGE12 :: Int -> [Int] -> Bool
 prop_lookupGE12 x xs = case fromList $ zip xs xs of m -> lookupGE1 x m == lookupGE2 x m
-
-prop_lookupGE13 :: Int -> [Int] -> Bool
-prop_lookupGE13 x xs = case fromList $ zip xs xs of m -> lookupGE1 x m == lookupGE3 x m
-
-prop_lookupGE14 :: Int -> [Int] -> Bool
-prop_lookupGE14 x xs = case fromList $ zip xs xs of m -> lookupGE1 x m == lookupGE4 x m
 #endif
 
