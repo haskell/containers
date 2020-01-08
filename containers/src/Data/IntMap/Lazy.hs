@@ -258,6 +258,7 @@ insert = insertLazy
 -- > insertWith (++) 5 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "xxxa")]
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
+{-# NOINLINE[1] insertWith #-}
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith = insertWithEval noeval
 

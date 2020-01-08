@@ -943,7 +943,7 @@ lookupChurch nothing just !k = start
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
-{-# NOINLINE[0] member #-}
+{-# NOINLINE[1] member #-}
 member :: Key -> IntMap a -> Bool
 member !k = lookupChurch False (const True) k
 
@@ -951,12 +951,12 @@ member !k = lookupChurch False (const True) k
 --
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
-{-# NOINLINE[0] notMember #-}
+{-# NOINLINE[1] notMember #-}
 notMember :: Key -> IntMap a -> Bool
 notMember !k = lookupChurch True (const False) k
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
-{-# NOINLINE[0] lookup #-}
+{-# NOINLINE[1] lookup #-}
 lookup :: Key -> IntMap a -> Maybe a
 lookup !k = lookupChurch Nothing Just k
 
@@ -966,7 +966,7 @@ lookup !k = lookupChurch Nothing Just k
 --
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
-{-# NOINLINE[0] findWithDefault #-}
+{-# NOINLINE[1] findWithDefault #-}
 findWithDefault :: a -> Key -> IntMap a -> a
 findWithDefault def !k = lookupChurch def id k
 
@@ -1173,6 +1173,7 @@ insertWithEval eval = start
 
 -- Small functions that really ought to be defined in Data.IntMap.Lazy but have
 -- to be here for the sake of type class implementations
+{-# NOINLINE[1] insertLazy #-}
 insertLazy :: Key -> a -> IntMap a -> IntMap a
 insertLazy = insertWithEval (const ()) const
 fromListLazy :: [(Key, a)] -> IntMap a
