@@ -39,7 +39,29 @@
 -- on representations.
 -----------------------------------------------------------------------------
 
-module Data.IntMap.Merge.Internal where
+module Data.IntMap.Merge.Internal (
+    -- * Types and inspection of tactics
+      WhenMissing(..)
+    , WhenMatched(..)
+    , SimpleWhenMissing
+    , SimpleWhenMatched
+#if !MIN_VERSION_base(4,8,0)
+    , Identity(..)
+#endif
+    , runWhenMissing
+    , runWhenMatched
+    , runWhenMissingAll
+
+    -- * General combining functions
+    , merge
+    , mergeA
+
+    -- * @WhenMissing@ tactics
+    , dropMissing
+    , preserveMissing
+    , filterMissing
+    , filterAMissing
+) where
 
 import Prelude hiding (min, max)
 
