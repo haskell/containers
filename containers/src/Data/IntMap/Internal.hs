@@ -450,6 +450,7 @@ module Data.IntMap.Internal (
 
 import Control.DeepSeq (NFData(..))
 
+import Data.Maybe (fromMaybe)
 import qualified Data.List (foldl')
 import qualified Data.Foldable (Foldable(..))
 #if MIN_VERSION_base(4,9,0)
@@ -2460,7 +2461,7 @@ findMax (IntMap (NonEmpty min minV root)) = case root of
 -- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMin :: IntMap a -> IntMap a
 deleteMin (IntMap Empty) = IntMap Empty
-deleteMin m = delete (fst (findMin m)) m
+deleteMin (IntMap (NonEmpty _ _ root)) = IntMap (nodeToMapL root)
 
 -- | /O(min(n,W))/. Delete the maximal key. Returns an empty map if the map is empty.
 --
@@ -2468,31 +2469,31 @@ deleteMin m = delete (fst (findMin m)) m
 -- versions prior to 0.5 threw an error if the 'IntMap' was already empty.
 deleteMax :: IntMap a -> IntMap a
 deleteMax (IntMap Empty) = IntMap Empty
-deleteMax m = delete (fst (findMax m)) m
+deleteMax (IntMap (NonEmpty _ _ Tip)) = IntMap Empty
+deleteMax (IntMap (NonEmpty min minV (Bin _ _ l r))) = IntMap (NonEmpty min minV (extractBinL l r))
 
 -- | /O(min(n,W))/. Delete and find the minimal element.
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
-deleteFindMin m = let (k, a) = findMin m
-                  in ((k, a), delete k m)
+deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element")
+              . minViewWithKey
 
 -- | /O(min(n,W))/. Delete and find the maximal element.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
-deleteFindMax m = let (k, a) = findMax m
-                  in ((k, a), delete k m)
+deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element")
+              . maxViewWithKey
 
 -- | /O(min(n,W))/. Retrieves the minimal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
 minView (IntMap Empty) = Nothing
-minView m = let (k, a) = findMin m
-            in k `seq` Just (a, delete k m)
+minView (IntMap (NonEmpty _ minV root)) = Just (minV, IntMap (nodeToMapL root))
 
 -- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
 maxView (IntMap Empty) = Nothing
-maxView m = let (k, a) = findMax m
-            in k `seq` Just (a, delete k m)
+maxView (IntMap (NonEmpty _ minV Tip)) = Just (minV, IntMap Empty)
+maxView (IntMap (NonEmpty min minV (Bin _ maxV l r))) = Just (maxV, IntMap (NonEmpty min minV (extractBinL l r)))
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -2501,8 +2502,7 @@ maxView m = let (k, a) = findMax m
 -- > minViewWithKey empty == Nothing
 minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey (IntMap Empty) = Nothing
-minViewWithKey m = let (k, a) = findMin m
-                   in k `seq` Just ((k, a), delete k m)
+minViewWithKey (IntMap (NonEmpty min minV root)) = Just ((boundKey min, minV), IntMap (nodeToMapL root))
 
 -- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -2511,8 +2511,8 @@ minViewWithKey m = let (k, a) = findMin m
 -- > maxViewWithKey empty == Nothing
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey (IntMap Empty) = Nothing
-maxViewWithKey m = let (k, a) = findMax m
-                   in k `seq` Just ((k, a), delete k m)
+maxViewWithKey (IntMap (NonEmpty min minV Tip)) = Just ((boundKey min, minV), IntMap Empty)
+maxViewWithKey (IntMap (NonEmpty min minV (Bin max maxV l r))) = Just ((boundKey max, maxV), IntMap (NonEmpty min minV (extractBinL l r)))
 
 -- | /O(1)/. Returns whether the most significant bit of its first
 -- argument is less significant than the most significant bit of its
