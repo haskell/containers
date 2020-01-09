@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE PatternGuards #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
 #endif
@@ -141,6 +142,7 @@ module Data.IntSet.Internal (
 
     -- * Map
     , map
+    , mapMonotonic
 
     -- * Folds
     , foldr
@@ -210,16 +212,19 @@ import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 
 #if __GLASGOW_HASKELL__
-import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix), DataType, mkDataType)
+import Data.Data (Data(..), Constr, mkConstr, constrIndex, DataType, mkDataType)
+import qualified Data.Data
 import Text.Read
 #endif
 
 #if __GLASGOW_HASKELL__
-import GHC.Exts (Int(..), build)
+import GHC.Exts (build)
+#if !MIN_VERSION_base(4,8,0)
+import GHC.Exts (Int(..), indexInt8OffAddr#)
+#endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
 #endif
-import GHC.Exts (indexInt8OffAddr#)
 #endif
 
 import qualified Data.Foldable as Foldable
@@ -310,7 +315,7 @@ instance Data IntSet where
   dataTypeOf _   = intSetDataType
 
 fromListConstr :: Constr
-fromListConstr = mkConstr intSetDataType "fromList" [] Prefix
+fromListConstr = mkConstr intSetDataType "fromList" [] Data.Data.Prefix
 
 intSetDataType :: DataType
 intSetDataType = mkDataType "Data.IntSet.Internal.IntSet" [fromListConstr]
@@ -911,6 +916,21 @@ deleteMax = maybe Nil snd . maxView
 map :: (Key -> Key) -> IntSet -> IntSet
 map f = fromList . List.map f . toList
 
+-- | /O(n)/. The
+--
+-- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
+-- /The precondition is not checked./
+-- Semi-formally, we have:
+--
+-- > and [x < y ==> f x < f y | x <- ls, y <- ls]
+-- >                     ==> mapMonotonic f s == map f s
+-- >     where ls = toList s
+
+-- Note that for now the test is insufficient to support any fancier implementation.
+mapMonotonic :: (Key -> Key) -> IntSet -> IntSet
+mapMonotonic f = fromDistinctAscList . List.map f . toAscList
+
+
 {--------------------------------------------------------------------
   Fold
 --------------------------------------------------------------------}
@@ -1060,41 +1080,74 @@ fromList xs
 -- | /O(n)/. Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: [Key] -> IntSet
-fromAscList [] = Nil
-fromAscList (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
-  where
-    combineEq x' [] = [x']
-    combineEq x' (x:xs)
-      | x==x'     = combineEq x' xs
-      | otherwise = x' : combineEq x xs
+fromAscList = fromMonoList
+{-# NOINLINE fromAscList #-}
 
 -- | /O(n)/. Build a set from an ascending list of distinct elements.
 -- /The precondition (input list is strictly ascending) is not checked./
 fromDistinctAscList :: [Key] -> IntSet
-fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work (prefixOf z0) (bitmapOf z0) zs0 Nada
+fromDistinctAscList = fromAscList
+{-# INLINE fromDistinctAscList #-}
+
+-- | /O(n)/. Build a set from a monotonic list of elements.
+--
+-- The precise conditions under which this function works are subtle:
+-- For any branch mask, keys with the same prefix w.r.t. the branch
+-- mask must occur consecutively in the list.
+fromMonoList :: [Key] -> IntSet
+fromMonoList []         = Nil
+fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
   where
-    -- 'work' accumulates all values that go into one tip, before passing this Tip
-    -- to 'reduce'
-    work kx bm []     stk = finish kx (Tip kx bm) stk
-    work kx bm (z:zs) stk | kx == prefixOf z = work kx (bm .|. bitmapOf z) zs stk
-    work kx bm (z:zs) stk = reduce z zs (branchMask z kx) kx (Tip kx bm) stk
+    -- `addAll'` collects all keys with the prefix `px` into a single
+    -- bitmap, and then proceeds with `addAll`.
+    addAll' !px !bm []
+        = Tip px bm
+    addAll' !px !bm (ky : zs)
+        | px == prefixOf ky
+        = addAll' px (bm .|. bitmapOf ky) zs
+        -- inlined: | otherwise = addAll px (Tip px bm) (ky : zs)
+        | py <- prefixOf ky
+        , m <- branchMask px py
+        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
+        = addAll px (linkWithMask m py ty {-px-} (Tip px bm)) zs'
 
-    reduce z zs _ px tx Nada = work (prefixOf z) (bitmapOf z) zs (Push px tx Nada)
-    reduce z zs m px tx stk@(Push py ty stk') =
-        let mxy = branchMask px py
-            pxy = mask px mxy
-        in  if shorter m mxy
-                 then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-                 else work (prefixOf z) (bitmapOf z) zs (Push px tx stk)
+    -- for `addAll` and `addMany`, px is /a/ prefix inside the tree `tx`
+    -- `addAll` consumes the rest of the list, adding to the tree `tx`
+    addAll !_px !tx []
+        = tx
+    addAll !px !tx (ky : zs)
+        | py <- prefixOf ky
+        , m <- branchMask px py
+        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
+        = addAll px (linkWithMask m py ty {-px-} tx) zs'
 
-    finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
-        where m = branchMask px py
-              p = mask px m
+    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
+    addMany' !_m !px !bm []
+        = Inserted (Tip px bm) []
+    addMany' !m !px !bm zs0@(ky : zs)
+        | px == prefixOf ky
+        = addMany' m px (bm .|. bitmapOf ky) zs
+        -- inlined: | otherwise = addMany m px (Tip px bm) (ky : zs)
+        | mask px m /= mask ky m
+        = Inserted (Tip (prefixOf px) bm) zs0
+        | py <- prefixOf ky
+        , mxy <- branchMask px py
+        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
+        = addMany m px (linkWithMask mxy py ty {-px-} (Tip px bm)) zs'
 
-data Stack = Push {-# UNPACK #-} !Prefix !IntSet !Stack | Nada
+    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `px`.
+    addMany !_m !_px tx []
+        = Inserted tx []
+    addMany !m !px tx zs0@(ky : zs)
+        | mask px m /= mask ky m
+        = Inserted tx zs0
+        | py <- prefixOf ky
+        , mxy <- branchMask px py
+        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
+        = addMany m px (linkWithMask mxy py ty {-px-} tx) zs'
+{-# INLINE fromMonoList #-}
 
+data Inserted = Inserted !IntSet ![Key]
 
 {--------------------------------------------------------------------
   Eq
@@ -1124,8 +1177,156 @@ nequal _   _   = True
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
-    -- tentative implementation. See if more efficient exists.
+  compare Nil Nil = EQ
+  compare Nil _ = LT
+  compare _ Nil = GT
+  compare t1@(Tip _ _) t2@(Tip _ _)
+    = orderingOf $ relateTipTip t1 t2
+  compare xs ys
+    | (xsNeg, xsNonNeg) <- splitSign xs
+    , (ysNeg, ysNonNeg) <- splitSign ys
+    = case relate xsNeg ysNeg of
+       Less -> LT
+       Prefix -> if null xsNonNeg then LT else GT
+       Equals -> orderingOf (relate xsNonNeg ysNonNeg)
+       FlipPrefix -> if null ysNonNeg then GT else LT
+       Greater -> GT
+
+-- | detailed outcome of lexicographic comparison of lists.
+-- w.r.t. Ordering, there are two extra cases,
+-- since (++) is not monotonic w.r.t. lex. order on lists
+-- (which is used by definition):
+-- consider comparison of  (Bin [0,3,4] [ 6] ) to  (Bin [0,3] [7] )
+-- where [0,3,4] > [0,3]  but [0,3,4,6] < [0,3,7].
+
+data Relation
+  = Less  -- ^ holds for [0,3,4] [0,3,5,1]
+  | Prefix -- ^ holds for [0,3,4] [0,3,4,5]
+  | Equals -- ^  holds for [0,3,4] [0,3,4]
+  | FlipPrefix -- ^ holds for [0,3,4] [0,3]
+  | Greater -- ^ holds for [0,3,4] [0,2,5]
+  deriving (Show, Eq)
+   
+orderingOf :: Relation -> Ordering
+{-# INLINE orderingOf #-}
+orderingOf r = case r of
+  Less -> LT
+  Prefix -> LT
+  Equals -> EQ
+  FlipPrefix -> GT
+  Greater -> GT
+
+-- | precondition: each argument is non-mixed
+relate :: IntSet -> IntSet -> Relation
+relate Nil Nil = Equals
+relate Nil _t2 = Prefix
+relate _t1 Nil = FlipPrefix
+relate t1@Tip{} t2@Tip{} = relateTipTip t1 t2
+relate t1@(Bin _p1 m1 l1 r1) t2@(Bin _p2 m2 l2 r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | otherwise = case compare (natFromInt m1) (natFromInt m2) of
+      GT -> combine_left (relate l1 t2)
+      EQ -> combine (relate l1 l2) (relate r1 r2)
+      LT -> combine_right (relate t1 l2)
+relate t1@(Bin _p1 m1 l1 _r1) t2@(Tip p2 _bm2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | 0 == (m1 .&. p2) = combine_left (relate l1 t2)
+  | otherwise = Less
+relate t1@(Tip p1 _bm1) t2@(Bin _p2 m2 l2 _r2)
+  | succUpperbound t1 <= lowerbound t2 = Less
+  | lowerbound t1 >= succUpperbound t2 = Greater
+  | 0 == (p1 .&. m2) = combine_right (relate t1 l2)
+  | otherwise = Greater
+
+relateTipTip :: IntSet -> IntSet -> Relation
+{-# INLINE relateTipTip #-}
+relateTipTip (Tip p1 bm1) (Tip p2 bm2) = case compare p1 p2 of
+  LT -> Less
+  EQ -> relateBM bm1 bm2
+  GT -> Greater
+relateTipTip _ _ = error "relateTipTip"
+
+relateBM :: BitMap -> BitMap -> Relation
+{-# inline relateBM #-}
+relateBM w1 w2 | w1 == w2 = Equals
+relateBM w1 w2 =
+  let delta = xor w1 w2
+      lowest_diff_mask = delta .&. complement (delta-1)
+      prefix = (complement lowest_diff_mask + 1)
+            .&. (complement lowest_diff_mask)
+  in  if 0 == lowest_diff_mask .&. w1
+      then if 0 == w1 .&. prefix
+           then Prefix else Greater
+      else if 0 == w2 .&. prefix
+           then FlipPrefix else Less
+
+-- | This function has the property
+-- relate t1@(Bin p m l1 r1) t2@(Bin p m l2 r2) = combine (relate l1 l2) (relate r1 r2)
+-- It is important that `combine` is lazy in the second argument (achieved by inlining)
+combine :: Relation -> Relation -> Relation
+{-# inline combine #-}
+combine r eq = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> eq
+      FlipPrefix -> Less
+      Greater -> Greater
+
+-- | This function has the property
+-- relate t1@(Bin p1 m1 l1 r1) t2 = combine_left (relate l1 t2)
+-- under the precondition that the range of l1 contains the range of t2,
+-- and r1 is non-empty
+combine_left :: Relation -> Relation
+{-# inline combine_left #-}
+combine_left r = case r of
+      Less -> Less
+      Prefix -> Greater
+      Equals -> FlipPrefix
+      FlipPrefix -> FlipPrefix
+      Greater -> Greater
+
+-- | This function has the property
+-- relate t1 t2@(Bin p2 m2 l2 r2) = combine_right (relate t1 l2)
+-- under the precondition that the range of t1 is included in the range of l2,
+-- and r2 is non-empty
+combine_right :: Relation -> Relation
+{-# inline combine_right #-}
+combine_right r = case r of
+      Less -> Less
+      Prefix -> Prefix
+      Equals -> Prefix
+      FlipPrefix -> Less
+      Greater -> Greater
+
+-- | shall only be applied to non-mixed non-Nil trees
+lowerbound :: IntSet -> Int
+{-# INLINE lowerbound #-}
+lowerbound Nil = error "lowerbound: Nil"
+lowerbound (Tip p _) = p
+lowerbound (Bin p _ _ _) = p
+
+-- | this is one more than the actual upper bound (to save one operation)
+-- shall only be applied to non-mixed non-Nil trees
+succUpperbound :: IntSet -> Int
+{-# INLINE succUpperbound #-}
+succUpperbound Nil = error "succUpperbound: Nil"
+succUpperbound (Tip p _) = p + wordSize 
+succUpperbound (Bin p m _ _) = p + shiftR m 1
+
+-- | split a set into subsets of negative and non-negative elements
+splitSign :: IntSet -> (IntSet,IntSet)
+{-# INLINE splitSign #-}
+splitSign t@(Tip kx _)
+  | kx >= 0 = (Nil, t)
+  | otherwise = (t, Nil)
+splitSign t@(Bin p m l r)
+  -- m < 0 is the usual way to find out if we have positives and negatives (see findMax)
+  | m < 0 = (r, l)
+  | p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
 
 {--------------------------------------------------------------------
   Show
@@ -1249,13 +1450,17 @@ withEmpty bars = "   ":bars
   Link
 --------------------------------------------------------------------}
 link :: Prefix -> IntSet -> Prefix -> IntSet -> IntSet
-link p1 t1 p2 t2
+link p1 t1 p2 t2 = linkWithMask (branchMask p1 p2) p1 t1 {-p2-} t2
+{-# INLINE link #-}
+
+-- `linkWithMask` is useful when the `branchMask` has already been computed
+linkWithMask :: Mask -> Prefix -> IntSet -> IntSet -> IntSet
+linkWithMask m p1 t1 {-p2-} t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
-    m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE link #-}
+{-# INLINE linkWithMask #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.
@@ -1377,6 +1582,16 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 {-# INLINE foldr'Bits #-}
 
 #if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
+indexOfTheOnlyBit :: Nat -> Int
+{-# INLINE indexOfTheOnlyBit #-}
+#if MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64)
+indexOfTheOnlyBit bitmask = countTrailingZeros bitmask
+
+lowestBitSet x = countTrailingZeros x
+
+highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
+
+#else
 {----------------------------------------------------------------------
   For lowestBitSet we use wordsize-dependant implementation based on
   multiplication and DeBrujn indeces, which was proposed by Edward Kmett
@@ -1390,8 +1605,6 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
   before changing this code.
 ----------------------------------------------------------------------}
 
-indexOfTheOnlyBit :: Nat -> Int
-{-# INLINE indexOfTheOnlyBit #-}
 indexOfTheOnlyBit bitmask =
   I# (lsbArray `indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
   where unboxInt (I# i) = i
@@ -1410,6 +1623,12 @@ indexOfTheOnlyBit bitmask =
 -- as NOINLINE. But the code size of calling it and processing the result
 -- is 48B on 32-bit and 56B on 64-bit architectures -- so the 32B and 64B array
 -- is actually improvement on 32-bit and only a 8B size increase on 64-bit.
+
+lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
+
+highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
+
+#endif
 
 lowestBitMask :: Nat -> Nat
 lowestBitMask x = x .&. negate x
@@ -1431,10 +1650,6 @@ revNat x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x555555
                      x5 -> case ((x5 `shiftRL` 16) .&. 0x0000FFFF0000FFFF) .|. ((x5 .&. 0x0000FFFF0000FFFF) `shiftLL` 16) of
                        x6 -> ( x6 `shiftRL` 32             ) .|. ( x6               `shiftLL` 32);
 #endif
-
-lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
-
-highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
 
 foldlBits prefix f z bitmap = go bitmap z
   where go 0 acc = acc

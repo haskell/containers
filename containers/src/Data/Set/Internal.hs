@@ -154,6 +154,7 @@ module Data.Set.Internal (
             , singleton, singletonNE
             , insert, insertNE
             , delete, deleteNE
+            , alterF
             , powerSet
 
             -- * Combine
@@ -247,6 +248,7 @@ module Data.Set.Internal (
             ) where
 
 import Prelude hiding (filter,foldl,foldl1,foldr,foldr1,null,map,take,drop,splitAt)
+import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 #if !MIN_VERSION_base(4,8,0)
@@ -261,6 +263,9 @@ import Data.Semigroup (Semigroup((<>)))
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
+#endif
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity)
 #endif
 import qualified Data.Foldable as Foldable
 #if !MIN_VERSION_base(4,8,0)
@@ -742,6 +747,70 @@ deleteReturningDifferentNE !x (Bin' _ y l r) = case compare x y of
 #else
 {-# INLINE delete #-}
 {-# INLINE deleteNE #-}
+#endif
+
+-- | /O(log n)/ @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
+-- whether an equal element is found in @s@.
+--
+-- In short:
+--
+-- @
+-- 'member' x \<$\> 'alterF' f x s = f ('member' x s)
+-- @
+--
+-- Note that unlike 'insert', 'alterF' will /not/ replace an element equal to
+-- the given value.
+--
+-- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
+alterF f k s = fmap choose (f member_)
+  where
+    (member_, inserted, deleted) = case alteredSet k s of
+        Deleted d           -> (True , s, d)
+        Inserted i          -> (False, i, s)
+
+    choose True  = inserted
+    choose False = deleted
+#ifndef __GLASGOW_HASKELL__
+{-# INLINE alterF #-}
+#else
+{-# INLINABLE [2] alterF #-}
+
+{-# RULES
+"alterF/Const" forall k (f :: Bool -> Const a Bool) . alterF f k = \s -> Const . getConst . f $ member k s
+ #-}
+#endif
+
+#if MIN_VERSION_base(4,8,0)
+{-# SPECIALIZE alterF :: Ord a => (Bool -> Identity Bool) -> a -> Set a -> Identity (Set a) #-}
+#endif
+
+data AlteredSet a
+      -- | The needle is present in the original set.
+      -- We return the set where the needle is deleted.
+    = Deleted !(Set a)
+
+      -- | The needle is not present in the original set.
+      -- We return the set with the needle inserted.
+    | Inserted !(Set a)
+
+alteredSet :: Ord a => a -> Set a -> AlteredSet a
+alteredSet x0 s0 = go x0 s0
+  where
+    go :: Ord a => a -> Set a -> AlteredSet a
+    go x Tip           = Inserted (singleton x)
+    go x (Bin _ y l r) = case compare x y of
+        LT -> case go x l of
+            Deleted d           -> Deleted (balanceR y d r)
+            Inserted i          -> Inserted (balanceL y i r)
+        GT -> case go x r of
+            Deleted d           -> Deleted (balanceL y l d)
+            Inserted i          -> Inserted (balanceR y l i)
+        EQ -> Deleted (glue l r)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE alteredSet #-}
+#else
+{-# INLINE alteredSet #-}
 #endif
 
 {--------------------------------------------------------------------

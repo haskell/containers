@@ -266,6 +266,7 @@ module Data.IntMap.Internal (
     , natFromInt
     , intFromNat
     , link
+    , linkWithMask
     , bin
     , binCheckLeft
     , binCheckRight
@@ -478,7 +479,9 @@ instance Foldable.Foldable IntMap where
   maximum = start
     where start Nil = error "Data.Foldable.maximum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = max m y
@@ -487,7 +490,9 @@ instance Foldable.Foldable IntMap where
   minimum = start
     where start Nil = error "Data.Foldable.minimum (for Data.IntMap): empty map"
           start (Tip _ y) = y
-          start (Bin _ _ l r) = go (start l) r
+          start (Bin _ m l r)
+            | m < 0     = go (start r) l
+            | otherwise = go (start l) r
 
           go !m Nil = m
           go m (Tip _ y) = min m y
@@ -1825,8 +1830,9 @@ filterWithKeyA
   :: Applicative f => (Key -> a -> f Bool) -> IntMap a -> f (IntMap a)
 filterWithKeyA _ Nil           = pure Nil
 filterWithKeyA f t@(Tip k x)   = (\b -> if b then t else Nil) <$> f k x
-filterWithKeyA f (Bin p m l r) =
-    liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
+filterWithKeyA f (Bin p m l r)
+  | m < 0     = liftA2 (flip (bin p m)) (filterWithKeyA f r) (filterWithKeyA f l)
+  | otherwise = liftA2 (bin p m) (filterWithKeyA f l) (filterWithKeyA f r)
 
 -- | This wasn't in Data.Bool until 4.7.0, so we define it here
 bool :: a -> a -> Bool -> a
@@ -1867,7 +1873,9 @@ traverseMaybeWithKey f = go
     where
     go Nil           = pure Nil
     go (Tip k x)     = maybe Nil (Tip k) <$> f k x
-    go (Bin p m l r) = liftA2 (bin p m) (go l) (go r)
+    go (Bin p m l r)
+      | m < 0     = liftA2 (flip (bin p m)) (go r) (go l)
+      | otherwise = liftA2 (bin p m) (go l) (go r)
 
 
 -- | Merge two maps.
@@ -2039,8 +2047,8 @@ mergeA
       where
         merge2 t2@(Bin p2 m2 l2 r2)
           | nomatch k1 p2 m2 = linkA k1 (subsingletonBy g1k k1 x1) p2 (g2t t2)
-          | zero k1 m2       = liftA2 (bin p2 m2) (merge2 l2) (g2t r2)
-          | otherwise        = liftA2 (bin p2 m2) (g2t l2) (merge2 r2)
+          | zero k1 m2       = binA p2 m2 (merge2 l2) (g2t r2)
+          | otherwise        = binA p2 m2 (g2t l2) (merge2 r2)
         merge2 (Tip k2 x2)   = mergeTips k1 x1 k2 x2
         merge2 Nil           = subsingletonBy g1k k1 x1
 
@@ -2048,23 +2056,23 @@ mergeA
       where
         merge1 t1@(Bin p1 m1 l1 r1)
           | nomatch k2 p1 m1 = linkA p1 (g1t t1) k2 (subsingletonBy g2k k2 x2)
-          | zero k2 m1       = liftA2 (bin p1 m1) (merge1 l1) (g1t r1)
-          | otherwise        = liftA2 (bin p1 m1) (g1t l1) (merge1 r1)
+          | zero k2 m1       = binA p1 m1 (merge1 l1) (g1t r1)
+          | otherwise        = binA p1 m1 (g1t l1) (merge1 r1)
         merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
         merge1 Nil           = subsingletonBy g2k k2 x2
 
     go t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
       | shorter m1 m2  = merge1
       | shorter m2 m1  = merge2
-      | p1 == p2       = liftA2 (bin p1 m1)   (go  l1 l2) (go r1 r2)
-      | otherwise      = liftA2 (link_ p1 p2) (g1t t1)    (g2t   t2)
+      | p1 == p2       = binA p1 m1 (go l1 l2) (go r1 r2)
+      | otherwise      = linkA p1 (g1t t1) p2 (g2t t2)
       where
-        merge1 | nomatch p2 p1 m1  = liftA2 (link_ p1 p2) (g1t t1)    (g2t t2)
-               | zero p2 m1        = liftA2 (bin p1 m1)   (go  l1 t2) (g1t r1)
-               | otherwise         = liftA2 (bin p1 m1)   (g1t l1)    (go  r1 t2)
-        merge2 | nomatch p1 p2 m2  = liftA2 (link_ p1 p2) (g1t t1)    (g2t    t2)
-               | zero p1 m2        = liftA2 (bin p2 m2)   (go  t1 l2) (g2t    r2)
-               | otherwise         = liftA2 (bin p2 m2)   (g2t    l2) (go  t1 r2)
+        merge1 | nomatch p2 p1 m1  = linkA p1 (g1t t1) p2 (g2t t2)
+               | zero p2 m1        = binA p1 m1 (go  l1 t2) (g1t r1)
+               | otherwise         = binA p1 m1 (g1t l1)    (go  r1 t2)
+        merge2 | nomatch p1 p2 m2  = linkA p1 (g1t t1) p2 (g2t t2)
+               | zero p1 m2        = binA p2 m2 (go  t1 l2) (g2t    r2)
+               | otherwise         = binA p2 m2 (g2t    l2) (go  t1 r2)
 
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
@@ -2084,11 +2092,6 @@ mergeA
     subdoubleton k1 k2 (Just y1) (Just y2) = link k1 (Tip k1 y1) k2 (Tip k2 y2)
     {-# INLINE subdoubleton #-}
 
-    link_ _  _  Nil t2  = t2
-    link_ _  _  t1  Nil = t1
-    link_ p1 p2 t1  t2  = link p1 t1 p2 t2
-    {-# INLINE link_ #-}
-
     -- | A variant of 'link_' which makes sure to execute side-effects
     -- in the right order.
     linkA
@@ -2097,12 +2100,26 @@ mergeA
         -> Prefix -> f (IntMap a)
         -> f (IntMap a)
     linkA p1 t1 p2 t2
-      | zero p1 m = liftA2 (bin p m) t1 t2
-      | otherwise = liftA2 (bin p m) t2 t1
+      | zero p1 m = binA p m t1 t2
+      | otherwise = binA p m t2 t1
       where
         m = branchMask p1 p2
         p = mask p1 m
     {-# INLINE linkA #-}
+
+    -- A variant of 'bin' that ensures that effects for negative keys are executed
+    -- first.
+    binA
+        :: Applicative f
+        => Prefix
+        -> Mask
+        -> f (IntMap a)
+        -> f (IntMap a)
+        -> f (IntMap a)
+    binA p m a b
+      | m < 0     = liftA2 (flip (bin p m)) b a
+      | otherwise = liftA2       (bin p m)  a b
+    {-# INLINE binA #-}
 {-# INLINE mergeA #-}
 
 
@@ -2456,7 +2473,7 @@ traverseWithKey f = go
     go Nil = pure Nil
     go (Tip k v) = Tip k <$> f k v
     go (Bin p m l r)
-      | m < 0     = liftA2 (Bin p m) (go r) (go l)
+      | m < 0     = liftA2 (flip (Bin p m)) (go r) (go l)
       | otherwise = liftA2 (Bin p m) (go l) (go r)
 {-# INLINE traverseWithKey #-}
 
@@ -2484,9 +2501,15 @@ mapAccumWithKey f a t
 mapAccumL :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumL f a t
   = case t of
-      Bin p m l r -> let (a1,l') = mapAccumL f a l
-                         (a2,r') = mapAccumL f a1 r
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,r') = mapAccumL f a r
+                (a2,l') = mapAccumL f a1 l
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,l') = mapAccumL f a l
+                (a2,r') = mapAccumL f a1 r
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
@@ -2495,9 +2518,15 @@ mapAccumL f a t
 mapAccumRWithKey :: (a -> Key -> b -> (a,c)) -> a -> IntMap b -> (a,IntMap c)
 mapAccumRWithKey f a t
   = case t of
-      Bin p m l r -> let (a1,r') = mapAccumRWithKey f a r
-                         (a2,l') = mapAccumRWithKey f a1 l
-                     in (a2,Bin p m l' r')
+      Bin p m l r
+        | m < 0 ->
+            let (a1,l') = mapAccumRWithKey f a l
+                (a2,r') = mapAccumRWithKey f a1 r
+            in (a2,Bin p m l' r')
+        | otherwise  ->
+            let (a1,r') = mapAccumRWithKey f a r
+                (a2,l') = mapAccumRWithKey f a1 l
+            in (a2,Bin p m l' r')
       Tip k x     -> let (a',x') = f a k x in (a',Tip k x')
       Nil         -> (a,Nil)
 
@@ -3111,8 +3140,8 @@ fromListWithKey f xs
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
 fromAscList :: [(Key,a)] -> IntMap a
-fromAscList xs
-  = fromAscListWithKey (\_ x _ -> x) xs
+fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
+{-# NOINLINE fromAscList #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3121,8 +3150,8 @@ fromAscList xs
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWith f xs
-  = fromAscListWithKey (\_ x y -> f x y) xs
+fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
+{-# NOINLINE fromAscListWith #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3132,14 +3161,8 @@ fromAscListWith f xs
 -- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "5:b|a")]
 
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey _ []         = Nil
-fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
-  where
-    -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-    combineEq z [] = [z]
-    combineEq z@(kz,zz) (x@(kx,xx):xs)
-      | kx==kz    = let yy = f kx xx zz in combineEq (kx,yy) xs
-      | otherwise = z:combineEq x xs
+fromAscListWithKey f = fromMonoListWithKey Nondistinct f
+{-# NOINLINE fromAscListWithKey #-}
 
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
@@ -3147,35 +3170,71 @@ fromAscListWithKey f (x0 : xs0) = fromDistinctAscList (combineEq x0 xs0)
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
-#if __GLASGOW_HASKELL__
-fromDistinctAscList :: forall a. [(Key,a)] -> IntMap a
-#else
-fromDistinctAscList ::            [(Key,a)] -> IntMap a
-#endif
-fromDistinctAscList []         = Nil
-fromDistinctAscList (z0 : zs0) = work z0 zs0 Nada
+fromDistinctAscList :: [(Key,a)] -> IntMap a
+fromDistinctAscList = fromMonoListWithKey Distinct (\_ x _ -> x)
+{-# NOINLINE fromDistinctAscList #-}
+
+-- | /O(n)/. Build a map from a list of key\/value pairs with monotonic keys
+-- and a combining function.
+--
+-- The precise conditions under which this function works are subtle:
+-- For any branch mask, keys with the same prefix w.r.t. the branch
+-- mask must occur consecutively in the list.
+
+fromMonoListWithKey :: Distinct -> (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
+fromMonoListWithKey distinct f = go
   where
-    work (kx,vx) []            stk = finish kx (Tip kx vx) stk
-    work (kx,vx) (z@(kz,_):zs) stk = reduce z zs (branchMask kx kz) kx (Tip kx vx) stk
+    go []              = Nil
+    go ((kx,vx) : zs1) = addAll' kx vx zs1
 
-#if __GLASGOW_HASKELL__
-    reduce :: (Key,a) -> [(Key,a)] -> Mask -> Prefix -> IntMap a -> Stack a -> IntMap a
-#endif
-    reduce z zs _ px tx Nada = work z zs (Push px tx Nada)
-    reduce z zs m px tx stk@(Push py ty stk') =
-        let mxy = branchMask px py
-            pxy = mask px mxy
-        in  if shorter m mxy
-            then reduce z zs m pxy (Bin pxy mxy ty tx) stk'
-            else work z zs (Push px tx stk)
+    -- `addAll'` collects all keys equal to `kx` into a single value,
+    -- and then proceeds with `addAll`.
+    addAll' !kx vx []
+        = Tip kx vx
+    addAll' !kx vx ((ky,vy) : zs)
+        | Nondistinct <- distinct, kx == ky
+        = let v = f kx vy vx in addAll' ky v zs
+        -- inlined: | otherwise = addAll kx (Tip kx vx) (ky : zs)
+        | m <- branchMask kx ky
+        , Inserted ty zs' <- addMany' m ky vy zs
+        = addAll kx (linkWithMask m ky ty {-kx-} (Tip kx vx)) zs'
 
-    finish _  t  Nada = t
-    finish px tx (Push py ty stk) = finish p (link py ty px tx) stk
-        where m = branchMask px py
-              p = mask px m
+    -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
+    -- `addAll` consumes the rest of the list, adding to the tree `tx`
+    addAll !_kx !tx []
+        = tx
+    addAll !kx !tx ((ky,vy) : zs)
+        | m <- branchMask kx ky
+        , Inserted ty zs' <- addMany' m ky vy zs
+        = addAll kx (linkWithMask m ky ty {-kx-} tx) zs'
 
-data Stack a = Push {-# UNPACK #-} !Prefix !(IntMap a) !(Stack a) | Nada
+    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
+    addMany' !_m !kx vx []
+        = Inserted (Tip kx vx) []
+    addMany' !m !kx vx zs0@((ky,vy) : zs)
+        | Nondistinct <- distinct, kx == ky
+        = let v = f kx vy vx in addMany' m ky v zs
+        -- inlined: | otherwise = addMany m kx (Tip kx vx) (ky : zs)
+        | mask kx m /= mask ky m
+        = Inserted (Tip kx vx) zs0
+        | mxy <- branchMask kx ky
+        , Inserted ty zs' <- addMany' mxy ky vy zs
+        = addMany m kx (linkWithMask mxy ky ty {-kx-} (Tip kx vx)) zs'
 
+    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
+    addMany !_m !_kx tx []
+        = Inserted tx []
+    addMany !m !kx tx zs0@((ky,vy) : zs)
+        | mask kx m /= mask ky m
+        = Inserted tx zs0
+        | mxy <- branchMask kx ky
+        , Inserted ty zs' <- addMany' mxy ky vy zs
+        = addMany m kx (linkWithMask mxy ky ty {-kx-} tx) zs'
+{-# INLINE fromMonoListWithKey #-}
+
+data Inserted a = Inserted !(IntMap a) ![(Key,a)]
+
+data Distinct = Distinct | Nondistinct
 
 {--------------------------------------------------------------------
   Eq
@@ -3297,13 +3356,17 @@ INSTANCE_TYPEABLE1(IntMap)
   Link
 --------------------------------------------------------------------}
 link :: Prefix -> IntMap a -> Prefix -> IntMap a -> IntMap a
-link p1 t1 p2 t2
+link p1 t1 p2 t2 = linkWithMask (branchMask p1 p2) p1 t1 {-p2-} t2
+{-# INLINE link #-}
+
+-- `linkWithMask` is useful when the `branchMask` has already been computed
+linkWithMask :: Mask -> Prefix -> IntMap a -> IntMap a -> IntMap a
+linkWithMask m p1 t1 {-p2-} t2
   | zero p1 m = Bin p m t1 t2
   | otherwise = Bin p m t2 t1
   where
-    m = branchMask p1 p2
     p = mask p1 m
-{-# INLINE link #-}
+{-# INLINE linkWithMask #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.

@@ -1,5 +1,14 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.6.3.1
+
+* Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
+
+* Fix the traversal order of various functions for `Data.IntMap`:
+  `traverseWithKey`, `traverseMaybeWithKey`, `filterWithKeyA`,
+  `minimum`, `maximum`, `mapAccum`, `mapAccumWithKey`, `mapAccumL`,
+  `mapAccumRWithKey` (Thanks, Felix Paulusma).
+
 ## 0.6.2.1
 
 * Add `disjoint` for `Map` and `IntMap` (Thanks, Simon Jakobi).

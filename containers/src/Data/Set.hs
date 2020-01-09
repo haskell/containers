@@ -89,6 +89,10 @@ module Data.Set (
             -- * Deletion
             , delete
 
+            -- * Generalized insertion/deletion
+
+            , alterF
+
             -- * Query
             , member
             , notMember

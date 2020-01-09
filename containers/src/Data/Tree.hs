@@ -93,7 +93,7 @@ import Data.Functor ((<$))
 -- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
         rootLabel :: a,         -- ^ label value
-        subForest :: Forest a   -- ^ zero or more child trees
+        subForest :: [Tree a]   -- ^ zero or more child trees
     }
 #ifdef __GLASGOW_HASKELL__
   deriving ( Eq
@@ -107,6 +107,8 @@ data Tree a = Node {
   deriving (Eq, Read, Show)
 #endif
 
+-- | This type synonym exists primarily for historical
+-- reasons.
 type Forest a = [Tree a]
 
 #if MIN_VERSION_base(4,9,0)
@@ -249,7 +251,7 @@ drawTree  = unlines . draw
 -- `- 20
 -- @
 --
-drawForest :: Forest String -> String
+drawForest :: [Tree String] -> String
 drawForest  = unlines . map drawTree
 
 draw :: Tree String -> [String]
@@ -321,7 +323,7 @@ levels t =
 --
 -- Find depth of the tree; i.e. the number of branches from the root of the tree to the furthest leaf:
 --
--- > foldTree (\_ xs -> if null xs then 0 else 1 + maximum xs) (Node 1 [Node 2[], Node 3 []]) == 1
+-- > foldTree (\_ xs -> if null xs then 0 else 1 + maximum xs) (Node 1 [Node 2 [], Node 3 []]) == 1
 --
 -- You can even implement traverse using foldTree:
 --
@@ -377,7 +379,7 @@ unfoldTree f b = let (a, bs) = f b in Node a (unfoldForest f bs)
 --
 -- For a monadic version see 'unfoldForestM_BF'.
 --
-unfoldForest :: (b -> (a, [b])) -> [b] -> Forest a
+unfoldForest :: (b -> (a, [b])) -> [b] -> [Tree a]
 unfoldForest f = map (unfoldTree f)
 
 -- | Monadic tree builder, in depth-first order.
@@ -388,7 +390,7 @@ unfoldTreeM f b = do
     return (Node a ts)
 
 -- | Monadic forest builder, in depth-first order
-unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
+unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
 -- | Monadic tree builder, in breadth-first order.
@@ -410,7 +412,7 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
 --
 -- Implemented using an algorithm adapted from /Breadth-First Numbering: Lessons
 -- from a Small Exercise in Algorithm Design/, by Chris Okasaki, /ICFP'00/.
-unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m (Forest a)
+unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
 
 -- Takes a sequence (queue) of seeds and produces a sequence (reversed queue) of
