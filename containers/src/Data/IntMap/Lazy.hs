@@ -1240,10 +1240,10 @@ fromListWithKey f = Data.List.foldl' (\t (k, a) -> insertWithKey f k a t) empty
 fromAscList :: [(Key, a)] -> IntMap a
 fromAscList = start where
     start [] = IntMap Empty
-    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+    start ((min, minV) : rest) = IntMap (go min minV rest StackBase)
 
     go !k v [] !stk = completeBuildStack (Bound k) v Tip stk
-    go !k v ((!next, nextV) : rest) !stk
+    go !k v ((next, nextV) : rest) !stk
         | next == k = go k nextV rest stk
         | otherwise = go next nextV rest (pushBuildStack (xor k (Bound next)) k v Tip stk)
 
@@ -1264,10 +1264,10 @@ fromAscListWith f = fromAscListWithKey (const f)
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key, a)] -> IntMap a
 fromAscListWithKey f = start where
     start [] = IntMap Empty
-    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+    start ((min, minV) : rest) = IntMap (go min minV rest StackBase)
 
     go !k v [] !stk = completeBuildStack (Bound k) v Tip stk
-    go !k v ((!next, nextV) : rest) !stk
+    go !k v ((next, nextV) : rest) !stk
         | next == k = go k (f k nextV v) rest stk
         | otherwise = go next nextV rest (pushBuildStack (xor k (Bound next)) k v Tip stk)
 
@@ -1279,10 +1279,10 @@ fromAscListWithKey f = start where
 fromDistinctAscList :: [(Key, a)] -> IntMap a
 fromDistinctAscList = start where
     start [] = IntMap Empty
-    start ((!min, minV) : rest) = IntMap (go min minV rest StackBase)
+    start ((min, minV) : rest) = IntMap (go min minV rest StackBase)
 
     go !k v [] !stk = completeBuildStack (Bound k) v Tip stk
-    go !k v ((!next, nextV) : rest) !stk = go next nextV rest (pushBuildStack (xor k (Bound next)) k v Tip stk)
+    go !k v ((next, nextV) : rest) !stk = go next nextV rest (pushBuildStack (xor k (Bound next)) k v Tip stk)
 
 -- | /O(n)/. Map values and collect the 'Just' results.
 --

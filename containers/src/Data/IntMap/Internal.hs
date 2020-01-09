@@ -2484,15 +2484,15 @@ deleteFindMax m = let (k, a) = findMax m
 -- stripped of that element, or 'Nothing' if passed an empty map.
 minView :: IntMap a -> Maybe (a, IntMap a)
 minView (IntMap Empty) = Nothing
-minView m = let (!k, a) = findMin m
-            in Just (a, delete k m)
+minView m = let (k, a) = findMin m
+            in k `seq` Just (a, delete k m)
 
 -- | /O(min(n,W))/. Retrieves the maximal key of the map, and the map
 -- stripped of that element, or 'Nothing' if passed an empty map.
 maxView :: IntMap a -> Maybe (a, IntMap a)
 maxView (IntMap Empty) = Nothing
-maxView m = let (!k, a) = findMax m
-            in Just (a, delete k m)
+maxView m = let (k, a) = findMax m
+            in k `seq` Just (a, delete k m)
 
 -- | /O(min(n,W))/. Retrieves the minimal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -2501,8 +2501,8 @@ maxView m = let (!k, a) = findMax m
 -- > minViewWithKey empty == Nothing
 minViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 minViewWithKey (IntMap Empty) = Nothing
-minViewWithKey m = let (!k, a) = findMin m
-                   in Just ((k, a), delete k m)
+minViewWithKey m = let (k, a) = findMin m
+                   in k `seq` Just ((k, a), delete k m)
 
 -- | /O(min(n,W))/. Retrieves the maximal (key,value) pair of the map, and
 -- the map stripped of that element, or 'Nothing' if passed an empty map.
@@ -2511,8 +2511,8 @@ minViewWithKey m = let (!k, a) = findMin m
 -- > maxViewWithKey empty == Nothing
 maxViewWithKey :: IntMap a -> Maybe ((Key, a), IntMap a)
 maxViewWithKey (IntMap Empty) = Nothing
-maxViewWithKey m = let (!k, a) = findMax m
-                   in Just ((k, a), delete k m)
+maxViewWithKey m = let (k, a) = findMax m
+                   in k `seq` Just ((k, a), delete k m)
 
 -- | /O(1)/. Returns whether the most significant bit of its first
 -- argument is less significant than the most significant bit of its
