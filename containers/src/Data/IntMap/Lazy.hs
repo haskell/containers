@@ -929,15 +929,15 @@ intersectionWithKey = start
     goLFused _ !_ Tip !_ = Tip
     goLFused _ !_ !_ Tip = Tip
     goLFused combine !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min max1) (xorBounds min max2) of
-            LT -> goLFused combine min n1 l2
-            EQ | max1 > max2 -> case goR2 combine maxV2 max1 r1 max2 r2 of
-                    Empty -> goLFused combine min l1 l2
-                    NonEmpty max' maxV' r' -> Bin max' maxV' (goLFused combine min l1 l2) r'
-               | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
-                    Empty -> goLFused combine min l1 l2
-                    NonEmpty max' maxV' r' -> Bin max' maxV' (goLFused combine min l1 l2) r'
-               | otherwise -> Bin max1 (combine (boundKey max1) maxV1 maxV2) (goLFused combine min l1 l2) (goRFused combine max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
-            GT -> goLFused combine min l1 n2
+        LT -> goLFused combine min n1 l2
+        EQ | max1 > max2 -> case goR2 combine maxV2 max1 r1 max2 r2 of
+                Empty -> goLFused combine min l1 l2
+                NonEmpty max' maxV' r' -> Bin max' maxV' (goLFused combine min l1 l2) r'
+           | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
+                Empty -> goLFused combine min l1 l2
+                NonEmpty max' maxV' r' -> Bin max' maxV' (goLFused combine min l1 l2) r'
+           | otherwise -> Bin max1 (combine (boundKey max1) maxV1 maxV2) (goLFused combine min l1 l2) (goRFused combine max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
+        GT -> goLFused combine min l1 n2
 
     goR1 _       _     !_   !_  !_   Tip = Empty
     goR1 combine maxV1 max1 Tip max2 n2  = goLookupR1 combine (boundKey max1) maxV1 (xor (boundKey max1) max2) n2
@@ -972,15 +972,15 @@ intersectionWithKey = start
     goRFused _ !_ Tip !_ = Tip
     goRFused _ !_ !_ Tip = Tip
     goRFused combine !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 minV2 l2 r2) = case compareMSB (xorBounds min1 max) (xorBounds min2 max) of
-            LT -> goRFused combine max n1 r2
-            EQ | min1 < min2 -> case goL2 combine minV2 min1 l1 min2 l2 of
-                    Empty -> goRFused combine max r1 r2
-                    NonEmpty min' minV' l' -> Bin min' minV' l' (goRFused combine max r1 r2)
-               | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 l2 of
-                    Empty -> goRFused combine max r1 r2
-                    NonEmpty min' minV' l' -> Bin min' minV' l' (goRFused combine max r1 r2)
-               | otherwise -> Bin min1 (combine (boundKey min1) minV1 minV2) (goLFused combine min1 l1 l2) (goRFused combine max r1 r2) -- we choose max1 arbitrarily, as max1 == max2
-            GT -> goRFused combine max r1 n2
+        LT -> goRFused combine max n1 r2
+        EQ | min1 < min2 -> case goL2 combine minV2 min1 l1 min2 l2 of
+                Empty -> goRFused combine max r1 r2
+                NonEmpty min' minV' l' -> Bin min' minV' l' (goRFused combine max r1 r2)
+           | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 l2 of
+                Empty -> goRFused combine max r1 r2
+                NonEmpty min' minV' l' -> Bin min' minV' l' (goRFused combine max r1 r2)
+           | otherwise -> Bin min1 (combine (boundKey min1) minV1 minV2) (goLFused combine min1 l1 l2) (goRFused combine max r1 r2) -- we choose max1 arbitrarily, as max1 == max2
+        GT -> goRFused combine max r1 n2
 
     goLookupL1 _       !_ _ !_ Tip = Empty
     goLookupL1 combine k v !xorCache (Bin max maxV l r)
