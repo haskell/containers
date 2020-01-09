@@ -1429,16 +1429,14 @@ mapEitherWithKey func = start
 -- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
 -- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 updateMin :: (a -> Maybe a) -> IntMap a -> IntMap a
-updateMin _ (IntMap Empty) = IntMap Empty
-updateMin f m = update f (fst (findMin m)) m
+updateMin f = updateMinWithKey (const f)
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
 --
 -- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
 -- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 updateMax :: (a -> Maybe a) -> IntMap a -> IntMap a
-updateMax _ (IntMap Empty) = IntMap Empty
-updateMax f m = update f (fst (findMax m)) m
+updateMax f = updateMaxWithKey (const f)
 
 -- | /O(min(n,W))/. Update the value at the minimal key.
 --
@@ -1446,7 +1444,9 @@ updateMax f m = update f (fst (findMax m)) m
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey _ (IntMap Empty) = IntMap Empty
-updateMinWithKey f m = updateWithKey f (fst (findMin m)) m
+updateMinWithKey f (IntMap (NonEmpty min minV root)) = IntMap $ case f (boundKey min) minV of
+    Nothing -> nodeToMapL root
+    Just minV' -> NonEmpty min minV' root
 
 -- | /O(min(n,W))/. Update the value at the maximal key.
 --
@@ -1454,4 +1454,9 @@ updateMinWithKey f m = updateWithKey f (fst (findMin m)) m
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey _ (IntMap Empty) = IntMap Empty
-updateMaxWithKey f m = updateWithKey f (fst (findMax m)) m
+updateMaxWithKey f (IntMap (NonEmpty min minV Tip)) = IntMap $ case f (boundKey min) minV of
+    Nothing -> Empty
+    Just minV' -> NonEmpty min minV' Tip
+updateMaxWithKey f (IntMap (NonEmpty min minV (Bin max maxV l r))) = IntMap . NonEmpty min minV $ case f (boundKey max) maxV of
+    Nothing -> extractBinL l r
+    Just maxV' -> Bin max maxV' l r
