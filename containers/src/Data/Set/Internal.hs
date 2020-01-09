@@ -191,7 +191,6 @@ module Data.Set.Internal (
             -- * Folds
             , foldr, foldr1
             , foldl, foldl1
-            -- ** Strict folds
             , foldr', foldr1'
             , foldl', foldl1'
             -- ** Legacy folds
@@ -385,6 +384,47 @@ instance Foldable.Foldable Set where
     {-# INLINABLE product #-}
 #endif
 
+instance Foldable.Foldable NonEmptySet where
+    fold = goNE
+      where goNE (Bin'  1 k _ _) = k
+            goNE (Bin'  _ k l r) = go l `mappend` (k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINABLE fold #-}
+    -- foldr f z s = foldr1 f (insertNE z s)
+    -- {-# INLINE foldr #-}
+    -- foldl = foldl
+    -- {-# INLINE foldl #-}
+    foldMap f t = goNE t
+      where goNE (Bin'  1 k _ _) = f k
+            goNE (Bin'  _ k l r) = go l `mappend` (f k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINE foldMap #-}
+    -- foldl' = foldl'
+    -- {-# INLINE foldl' #-}
+    -- foldr' = foldr'
+    -- {-# INLINE foldr' #-}
+-- #if MIN_VERSION_base(4,8,0)
+--     length = size
+--     {-# INLINE length #-}
+--     null   = null
+--     {-# INLINE null #-}
+--     toList = toList
+--     {-# INLINE toList #-}
+--     elem = go
+--       where go !_ Tip = False
+--             go x (NE (Bin' _ y l r)) = x == y || go x l || go x r
+--     {-# INLINABLE elem #-}
+--     minimum = findMin
+--     {-# INLINE minimum #-}
+--     maximum = findMax
+--     {-# INLINE maximum #-}
+--     sum = foldl' (+) 0
+--     {-# INLINABLE sum #-}
+--     product = foldl' (*) 1
+--     {-# INLINABLE product #-}
+-- #endif
 
 #if __GLASGOW_HASKELL__
 
@@ -2390,6 +2430,14 @@ instance Monoid (MergeSet a) where
 #else
   mappend (MergeSet xs) (MergeSet ys) = MergeSet (merge xs ys)
 #endif
+
+-- -- newtype MergeSetNE a = MergeSetNE { getMergeSet :: NonEmptySet a }
+
+-- #if (MIN_VERSION_base(4,9,0))
+-- instance Semigroup (MergeSetNE a) where
+--   MergeSetNE xs <> MergeSetNE ys = MergeSetNE (mergeNE xs ys)
+-- #endif
+
 
 -- | Calculate the disjoint union of two sets.
 --
