@@ -627,16 +627,15 @@ merge miss1 miss2 match = start where
     goInsertL1 !k v !_ _ Tip = case missSingle miss1 k v of
         Nothing -> Tip
         Just v' -> Bin (Bound k) v' Tip Tip
-    goInsertL1 !k v !xorCache min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-            then binL2 max maxV (goInsertL1 k v xorCache min l) (missRight miss2 r)
-            else binL2 max maxV (missLeft miss2 l) (goInsertR1 k v xorCacheMax max r)
-        | outOfMaxBound k max = case missSingle miss1 k v of
+    goInsertL1 !k v !xorCache min (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> binL2 max maxV (goInsertL1 k v xorCache min l) (missRight miss2 r)
+                | otherwise              -> binL2 max maxV (missLeft miss2 l) (goInsertR1 k v xorCacheMax max r)
+        OutOfBound -> case missSingle miss1 k v of
             Nothing -> missLeft miss2 (Bin max maxV l r)
             Just v' -> if xor (boundKey max) min < xorCacheMax
                        then Bin (Bound k) v' (missLeft miss2 (Bin max maxV l r)) Tip
                        else Bin (Bound k) v' (missLeft miss2 l) (missRight miss2 (insertMaxR xorCacheMax max maxV r))
-        | otherwise = case matchSingle match k v maxV of
+        Matched -> case matchSingle match k v maxV of
             Nothing -> extractBinL (missLeft miss2 l) (missRight miss2 r) -- TODO: do extractBin first?
             Just maxV' -> Bin max maxV' (missLeft miss2 l) (missRight miss2 r)
       where xorCacheMax = xor k max
@@ -644,16 +643,15 @@ merge miss1 miss2 match = start where
     goInsertL2 !k v !_ _ Tip = case missSingle miss2 k v of
         Nothing -> Tip
         Just v' -> Bin (Bound k) v' Tip Tip
-    goInsertL2 !k v !xorCache min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-            then binL1 max maxV (goInsertL2 k v xorCache min l) (missRight miss1 r)
-            else binL1 max maxV (missLeft miss1 l) (goInsertR2 k v xorCacheMax max r)
-        | outOfMaxBound k max = case missSingle miss2 k v of
+    goInsertL2 !k v !xorCache min (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> binL1 max maxV (goInsertL2 k v xorCache min l) (missRight miss1 r)
+                | otherwise              -> binL1 max maxV (missLeft miss1 l) (goInsertR2 k v xorCacheMax max r)
+        OutOfBound -> case missSingle miss2 k v of
             Nothing -> missLeft miss1 (Bin max maxV l r)
             Just v' -> if xor (boundKey max) min < xorCacheMax
                        then Bin (Bound k) v' (missLeft miss1 (Bin max maxV l r)) Tip
                        else Bin (Bound k) v' (missLeft miss1 l) (missRight miss1 (insertMaxR xorCacheMax max maxV r))
-        | otherwise = case matchSingle match k maxV v of
+        Matched -> case matchSingle match k maxV v of
             Nothing -> extractBinL (missLeft miss1 l) (missRight miss1 r) -- TODO: do extractBin first?
             Just maxV' -> Bin max maxV' (missLeft miss1 l) (missRight miss1 r)
       where xorCacheMax = xor k max
@@ -661,16 +659,15 @@ merge miss1 miss2 match = start where
     goInsertR1 k v !_ _ Tip = case missSingle miss1 k v of
         Nothing -> Tip
         Just v' -> Bin (Bound k) v' Tip Tip
-    goInsertR1 k v !xorCache max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-            then binR2 min minV (missLeft miss2 l) (goInsertR1 k v xorCache max r)
-            else binR2 min minV (goInsertL1 k v xorCacheMin min l) (missRight miss2 r)
-        | outOfMinBound k min = case missSingle miss1 k v of
+    goInsertR1 k v !xorCache max (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> binR2 min minV (missLeft miss2 l) (goInsertR1 k v xorCache max r)
+                | otherwise              -> binR2 min minV (goInsertL1 k v xorCacheMin min l) (missRight miss2 r)
+        OutOfBound -> case missSingle miss1 k v of
             Nothing -> missRight miss2 (Bin min minV l r)
             Just v' -> if xor (boundKey min) max < xorCacheMin
                        then Bin (Bound k) v' Tip (missRight miss2 (Bin min minV l r))
                        else Bin (Bound k) v' (missLeft miss2 (insertMinL xorCacheMin min minV l)) (missRight miss2 r)
-        | otherwise = case matchSingle match k v minV of
+        Matched -> case matchSingle match k v minV of
             Nothing -> extractBinR (missLeft miss2 l) (missRight miss2 r) -- TODO: do extractBin first?
             Just minV' -> Bin min minV' (missLeft miss2 l) (missRight miss2 r)
       where xorCacheMin = xor k min
@@ -678,16 +675,15 @@ merge miss1 miss2 match = start where
     goInsertR2 !k v !_ _ Tip = case missSingle miss2 k v of
         Nothing -> Tip
         Just v' -> Bin (Bound k) v' Tip Tip
-    goInsertR2 !k v !xorCache max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-            then binR1 min minV (missLeft miss1 l) (goInsertR2 k v xorCache max r)
-            else binR1 min minV (goInsertL2 k v xorCacheMin min l) (missRight miss1 r)
-        | outOfMinBound k min = case missSingle miss2 k v of
+    goInsertR2 !k v !xorCache max (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> binR1 min minV (missLeft miss1 l) (goInsertR2 k v xorCache max r)
+                | otherwise              -> binR1 min minV (goInsertL2 k v xorCacheMin min l) (missRight miss1 r)
+        OutOfBound -> case missSingle miss2 k v of
             Nothing -> missRight miss1 (Bin min minV l r)
             Just v' -> if xor (boundKey min) max < xorCacheMin
                        then Bin (Bound k) v' Tip (missRight miss1 (Bin min minV l r))
                        else Bin (Bound k) v' (missLeft miss1 (insertMinL xorCacheMin min minV l)) (missRight miss1 r)
-        | otherwise = case matchSingle match k minV v of
+        Matched -> case matchSingle match k minV v of
             Nothing -> extractBinR (missLeft miss1 l) (missRight miss1 r) -- TODO: do extractBin first?
             Just minV' -> Bin min minV' (missLeft miss1 l) (missRight miss1 r)
       where xorCacheMin = xor k min
@@ -877,39 +873,35 @@ mergeA miss1 miss2 match = start where
         GT -> binR <$> missingAllL miss1 (NonEmpty min1 minV1 l1) <*> goRFused max r1 n2
 
     goInsertL1 !k v !_ _ Tip = maybeSingleton k <$> missingSingle miss1 k v
-    goInsertL1 !k v !xorCache min n@(Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-            then binL <$> goInsertL1 k v xorCache min l <*> missingAllR miss2 (NonEmpty max maxV r)
-            else (\l' rm maxV' -> nodeToMapL (maybeBinL l' (maybeInsertMax max maxV' rm))) <$> missingLeft miss2 l <*> goInsertR1 k v xorCacheMax max r <*> missingSingle miss2 (boundKey max) maxV
-        | outOfMaxBound k max = (\n' v' -> r2lMap (maybeInsertMax (Bound k) v' (l2rMap (nodeToMapL n')))) <$> missingLeft miss2 n <*> missingSingle miss1 k v
-        | otherwise = (\l' r' v' -> nodeToMapL (maybe extractBinL (Bin max) v' l' r')) <$> missingLeft miss2 l <*> missingRight miss2 r <*> matchedSingle match k v maxV
+    goInsertL1 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> binL <$> goInsertL1 k v xorCache min l <*> missingAllR miss2 (NonEmpty max maxV r)
+                | otherwise -> (\l' rm maxV' -> nodeToMapL (maybeBinL l' (maybeInsertMax max maxV' rm))) <$> missingLeft miss2 l <*> goInsertR1 k v xorCacheMax max r <*> missingSingle miss2 (boundKey max) maxV
+        OutOfBound -> (\n' v' -> r2lMap (maybeInsertMax (Bound k) v' (l2rMap (nodeToMapL n')))) <$> missingLeft miss2 n <*> missingSingle miss1 k v
+        Matched -> (\l' r' v' -> nodeToMapL (maybe extractBinL (Bin max) v' l' r')) <$> missingLeft miss2 l <*> missingRight miss2 r <*> matchedSingle match k v maxV
       where xorCacheMax = xor k max
 
     goInsertL2 !k v !_ _ Tip = maybeSingleton k <$> missingSingle miss2 k v
-    goInsertL2 !k v !xorCache min n@(Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-            then binL <$> goInsertL2 k v xorCache min l <*> missingAllR miss1 (NonEmpty max maxV r)
-            else (\l' rm maxV' -> nodeToMapL (maybeBinL l' (maybeInsertMax max maxV' rm))) <$> missingLeft miss1 l <*> goInsertR2 k v xorCacheMax max r <*> missingSingle miss1 (boundKey max) maxV
-        | outOfMaxBound k max = (\n' v' -> r2lMap (maybeInsertMax (Bound k) v' (l2rMap (nodeToMapL n')))) <$> missingLeft miss1 n <*> missingSingle miss2 k v
-        | otherwise = (\l' r' v' -> nodeToMapL (maybe extractBinL (Bin max) v' l' r')) <$> missingLeft miss1 l <*> missingRight miss1 r <*> matchedSingle match k maxV v
+    goInsertL2 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> binL <$> goInsertL2 k v xorCache min l <*> missingAllR miss1 (NonEmpty max maxV r)
+                | otherwise -> (\l' rm maxV' -> nodeToMapL (maybeBinL l' (maybeInsertMax max maxV' rm))) <$> missingLeft miss1 l <*> goInsertR2 k v xorCacheMax max r <*> missingSingle miss1 (boundKey max) maxV
+        OutOfBound -> (\n' v' -> r2lMap (maybeInsertMax (Bound k) v' (l2rMap (nodeToMapL n')))) <$> missingLeft miss1 n <*> missingSingle miss2 k v
+        Matched -> (\l' r' v' -> nodeToMapL (maybe extractBinL (Bin max) v' l' r')) <$> missingLeft miss1 l <*> missingRight miss1 r <*> matchedSingle match k maxV v
       where xorCacheMax = xor k max
 
     goInsertR1 !k v !_ _ Tip = maybeSingleton k <$> missingSingle miss1 k v
-    goInsertR1 !k v !xorCache max n@(Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-            then binR <$> missingAllL miss2 (NonEmpty min minV l) <*> goInsertR1 k v xorCache max r
-            else (\minV' lm r' -> nodeToMapR (maybeBinR (maybeInsertMin min minV' lm) r')) <$> missingSingle miss2 (boundKey min) minV <*> goInsertL1 k v xorCacheMin min l <*> missingRight miss2 r
-        | outOfMinBound k min = (\v' n' -> l2rMap (maybeInsertMin (Bound k) v' (r2lMap (nodeToMapR n')))) <$> missingSingle miss1 k v <*> missingRight miss2 n
-        | otherwise = (\v' l' r' -> nodeToMapR (maybe extractBinR (Bin min) v' l' r')) <$> matchedSingle match k v minV <*> missingLeft miss2 l <*> missingRight miss2 r
+    goInsertR1 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> binR <$> missingAllL miss2 (NonEmpty min minV l) <*> goInsertR1 k v xorCache max r
+                | otherwise -> (\minV' lm r' -> nodeToMapR (maybeBinR (maybeInsertMin min minV' lm) r')) <$> missingSingle miss2 (boundKey min) minV <*> goInsertL1 k v xorCacheMin min l <*> missingRight miss2 r
+        OutOfBound -> (\v' n' -> l2rMap (maybeInsertMin (Bound k) v' (r2lMap (nodeToMapR n')))) <$> missingSingle miss1 k v <*> missingRight miss2 n
+        Matched -> (\v' l' r' -> nodeToMapR (maybe extractBinR (Bin min) v' l' r')) <$> matchedSingle match k v minV <*> missingLeft miss2 l <*> missingRight miss2 r
       where xorCacheMin = xor k min
 
     goInsertR2 !k v !_ _ Tip = maybeSingleton k <$> missingSingle miss2 k v
-    goInsertR2 !k v !xorCache max n@(Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-            then binR <$> missingAllL miss1 (NonEmpty min minV l) <*> goInsertR2 k v xorCache max r
-            else (\minV' lm r' -> nodeToMapR (maybeBinR (maybeInsertMin min minV' lm) r')) <$> missingSingle miss1 (boundKey min) minV <*> goInsertL2 k v xorCacheMin min l <*> missingRight miss1 r
-        | outOfMinBound k min = (\v' n' -> l2rMap (maybeInsertMin (Bound k) v' (r2lMap (nodeToMapR n')))) <$> missingSingle miss2 k v <*> missingRight miss1 n
-        | otherwise = (\v' l' r' -> nodeToMapR (maybe extractBinR (Bin min) v' l' r')) <$> matchedSingle match k minV v <*> missingLeft miss1 l <*> missingRight miss1 r
+    goInsertR2 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> binR <$> missingAllL miss1 (NonEmpty min minV l) <*> goInsertR2 k v xorCache max r
+                | otherwise -> (\minV' lm r' -> nodeToMapR (maybeBinR (maybeInsertMin min minV' lm) r')) <$> missingSingle miss1 (boundKey min) minV <*> goInsertL2 k v xorCacheMin min l <*> missingRight miss1 r
+        OutOfBound -> (\v' n' -> l2rMap (maybeInsertMin (Bound k) v' (r2lMap (nodeToMapR n')))) <$> missingSingle miss2 k v <*> missingRight miss1 n
+        Matched -> (\v' l' r' -> nodeToMapR (maybe extractBinR (Bin min) v' l' r')) <$> matchedSingle match k minV v <*> missingLeft miss1 l <*> missingRight miss1 r
       where xorCacheMin = xor k min
 
     missingAllR whenMiss = fmap l2rMap . missingAllL whenMiss . r2lMap

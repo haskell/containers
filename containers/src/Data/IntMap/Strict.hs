@@ -318,36 +318,32 @@ insertLookupWithKey :: (Key -> a -> a -> a) -> Key -> a -> IntMap a -> (Maybe a,
 insertLookupWithKey combine !k v = toPair . start
   where
     start (IntMap Empty) = Nothing :*: IntMap (NonEmpty (Bound k) #! v # Tip)
-    start (IntMap (NonEmpty min minV root))
-        | inMinBound k min = let mv :*: root' = goL (xor k min) min root
-                    in  mv :*: IntMap (NonEmpty min minV root')
-        | outOfMinBound k min = Nothing :*: IntMap (NonEmpty (Bound k) #! v # insertMinL (xor k min) min minV root)
-        | otherwise = Just minV :*: IntMap (NonEmpty (Bound k) #! combine k v minV # root)
+    start (IntMap (NonEmpty min minV root)) = case compareMinBound k min of
+        InBound -> let mv :*: root' = goL (xor k min) min root
+                    in mv :*: IntMap (NonEmpty min minV root')
+        OutOfBound -> Nothing :*: IntMap (NonEmpty (Bound k) #! v # insertMinL (xor k min) min minV root)
+        Matched -> Just minV :*: IntMap (NonEmpty (Bound k) #! combine k v minV # root)
 
     goL !_        _    Tip = Nothing :*: (Bin (Bound k) #! v # Tip # Tip)
-    goL !xorCache min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then let mv :*: l' = goL xorCache min l
-                         in  mv :*: Bin max maxV l' r
-                    else let mv :*: r' = goR xorCacheMax max r
-                         in  mv :*: Bin max maxV l r'
-        | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then Nothing :*: (Bin (Bound k) #! v # Bin max maxV l r # Tip)
-                    else Nothing :*: (Bin (Bound k) #! v # l # insertMaxR xorCacheMax max maxV r)
-        | otherwise = Just maxV :*: (Bin max #! combine k v maxV # l # r)
+    goL !xorCache min (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> let mv :*: l' = goL xorCache min l
+                                             in mv :*: Bin max maxV l' r
+                | otherwise              -> let mv :*: r' = goR xorCacheMax max r
+                                             in mv :*: Bin max maxV l r'
+        OutOfBound | xor (boundKey max) min < xorCacheMax -> Nothing :*: (Bin (Bound k) #! v # Bin max maxV l r # Tip)
+                   | otherwise -> Nothing :*: (Bin (Bound k) #! v # l # insertMaxR xorCacheMax max maxV r)
+        Matched -> Just maxV :*: (Bin max #! combine k v maxV # l # r)
       where xorCacheMax = xor k max
 
     goR !_        _    Tip = Nothing :*: (Bin (Bound k) #! v # Tip # Tip)
-    goR !xorCache max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then let mv :*: r' = goR xorCache max r
-                         in  mv :*: Bin min minV l r'
-                    else let mv :*: l' = goL xorCacheMin min l
-                         in  mv :*: Bin min minV l' r
-        | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then Nothing :*: (Bin (Bound k) #! v # Tip # Bin min minV l r)
-                    else Nothing :*: (Bin (Bound k) #! v # insertMinL xorCacheMin min minV l # r)
-        | otherwise = Just minV :*: (Bin min #! combine k v minV # l # r)
+    goR !xorCache max (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> let mv :*: r' = goR xorCache max r
+                                             in mv :*: Bin min minV l r'
+                | otherwise              -> let mv :*: l' = goL xorCacheMin min l
+                                             in mv :*: Bin min minV l' r
+        OutOfBound | xor (boundKey min) max < xorCacheMin -> Nothing :*: (Bin (Bound k) #! v # Tip # Bin min minV l r)
+                   | otherwise -> Nothing :*: (Bin (Bound k) #! v # insertMinL xorCacheMin min minV l # r)
+        Matched -> Just minV :*: (Bin min #! combine k v minV # l # r)
       where xorCacheMin = xor k min
 
 -- | /O(min(n,W))/. Adjust a value at a specific key. When the key is not
@@ -360,27 +356,25 @@ adjust :: (a -> a) -> Key -> IntMap a -> IntMap a
 adjust f !k = start
   where
     start (IntMap Empty) = IntMap Empty
-    start m@(IntMap (NonEmpty min minV node))
-        | inMinBound k min = IntMap (NonEmpty min minV (goL (xor k min) min node))
-        | outOfMinBound k min = m
-        | otherwise = IntMap (NonEmpty min #! f minV # node)
+    start m@(IntMap (NonEmpty min minV node)) = case compareMinBound k min of
+        InBound -> IntMap (NonEmpty min minV (goL (xor k min) min node))
+        OutOfBound -> m
+        Matched -> IntMap (NonEmpty min #! f minV # node)
 
     goL !_        _      Tip = Tip
-    goL !xorCache min n@(Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goL xorCache min l) r
-                    else Bin max maxV l (goR xorCacheMax max r)
-        | outOfMaxBound k max = n
-        | otherwise = Bin max #! f maxV # l # r
+    goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> Bin max maxV (goL xorCache min l) r
+                | otherwise              -> Bin max maxV l (goR xorCacheMax max r)
+        OutOfBound -> n
+        Matched -> Bin max #! f maxV # l # r
       where xorCacheMax = xor k max
 
     goR !_        _      Tip = Tip
-    goR !xorCache max n@(Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goR xorCache max r)
-                    else Bin min minV (goL xorCacheMin min l) r
-        | outOfMinBound k min = n
-        | otherwise = Bin min #! f minV # l # r
+    goR !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> Bin min minV l (goR xorCache max r)
+                | otherwise              -> Bin min minV (goL xorCacheMin min l) r
+        OutOfBound -> n
+        Matched -> Bin min #! f minV # l # r
       where xorCacheMin = xor k min
 
 -- | /O(min(n,W))/. Adjust a value at a specific key. When the key is not
@@ -410,32 +404,30 @@ update f !k = start
             Nothing -> IntMap Empty
             Just !minV' -> IntMap (NonEmpty min minV' Tip)
         | otherwise = m
-    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r)))
-        | outOfMinBound k min = m
-        | k == boundKey min = case f minV of
+    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r))) = case compareMinBound k min of
+        OutOfBound -> m
+        Matched -> case f minV of
             Nothing -> let DR min' minV' root' = deleteMinL max maxV l r
-                       in IntMap (NonEmpty min' minV' root')
+                        in IntMap (NonEmpty min' minV' root')
             Just !minV' -> IntMap (NonEmpty min minV' root)
-        | otherwise = IntMap (NonEmpty min minV (goL (xor k min) min root))
+        InBound -> IntMap (NonEmpty min minV (goL (xor k min) min root))
 
     goL !_        _      Tip = Tip
-    goL !xorCache min n@(Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goL xorCache min l) r
-                    else Bin max maxV l (goR xorCacheMax max r)
-        | outOfMaxBound k max = n
-        | otherwise = case f maxV of
+    goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> Bin max maxV (goL xorCache min l) r
+                | otherwise              -> Bin max maxV l (goR xorCacheMax max r)
+        OutOfBound -> n
+        Matched -> case f maxV of
             Nothing -> extractBinL l r
             Just !maxV' -> Bin max maxV' l r
       where xorCacheMax = xor k max
 
     goR !_        _      Tip = Tip
-    goR !xorCache max n@(Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goR xorCache max r)
-                    else Bin min minV (goL xorCacheMin min l) r
-        | outOfMinBound k min = n
-        | otherwise = case f minV of
+    goR !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> Bin min minV l (goR xorCache max r)
+                | otherwise              -> Bin min minV (goL xorCacheMin min l) r
+        OutOfBound -> n
+        Matched -> case f minV of
             Nothing -> extractBinR l r
             Just !minV' -> Bin min minV' l r
       where xorCacheMin = xor k min
@@ -469,37 +461,35 @@ updateLookupWithKey f !k = start
             Nothing -> (Just minV, IntMap Empty)
             Just !minV' -> (Just minV, IntMap (NonEmpty min minV' Tip))
         | otherwise = (Nothing, m)
-    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r)))
-        | outOfMinBound k min = (Nothing, m)
-        | k == boundKey min = case f k minV of
+    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r))) = case compareMinBound k min of
+        OutOfBound -> (Nothing, m)
+        Matched -> case f k minV of
             Nothing -> let DR min' minV' root' = deleteMinL max maxV l r
                        in (Just minV, IntMap (NonEmpty min' minV' root'))
             Just !minV' -> (Just minV, IntMap (NonEmpty min minV' root))
-        | otherwise = let (mv, root') = goL (xor k min) min root
-                      in  (mv, IntMap (NonEmpty min minV root'))
+        InBound -> let (mv, root') = goL (xor k min) min root
+                    in (mv, IntMap (NonEmpty min minV root'))
 
     goL !_        _      Tip = (Nothing, Tip)
-    goL !xorCache min n@(Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then let (mv, l') = goL xorCache min l
-                         in  (mv, Bin max maxV l' r)
-                    else let (mv, r') = goR xorCacheMax max r
-                         in  (mv, Bin max maxV l r')
-        | outOfMaxBound k max = (Nothing, n)
-        | otherwise = case f k maxV of
+    goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> let (mv, l') = goL xorCache min l
+                                             in (mv, Bin max maxV l' r)
+                | otherwise              -> let (mv, r') = goR xorCacheMax max r
+                                             in (mv, Bin max maxV l r')
+        OutOfBound -> (Nothing, n)
+        Matched -> case f k maxV of
             Nothing -> (Just maxV, extractBinL l r)
             Just !maxV' -> (Just maxV, Bin max maxV' l r)
       where xorCacheMax = xor k max
 
     goR !_        _      Tip = (Nothing, Tip)
-    goR !xorCache max n@(Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then let (mv, r') = goR xorCache max r
-                         in  (mv, Bin min minV l r')
-                    else let (mv, l') = goL xorCacheMin min l
-                         in  (mv, Bin min minV l' r)
-        | outOfMinBound k min = (Nothing, n)
-        | otherwise = case f k minV of
+    goR !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> let (mv, r') = goR xorCache max r
+                                             in (mv, Bin min minV l r')
+                | otherwise              -> let (mv, l') = goL xorCacheMin min l
+                                             in (mv, Bin min minV l' r)
+        OutOfBound -> (Nothing, n)
+        Matched -> case f k minV of
             Nothing -> (Just minV, extractBinR l r)
             Just !minV' -> (Just minV, Bin min minV' l r)
       where xorCacheMin = xor k min
@@ -651,47 +641,39 @@ unionWithKey = start
         GT -> Bin min1 minV1 l1 (goRFused combine max r1 n2)
 
     goInsertL1 _       k v !_        _    Tip = Bin (Bound k) #! v # Tip # Tip
-    goInsertL1 combine k v !xorCache min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goInsertL1 combine k v xorCache min l) r
-                    else Bin max maxV l (goInsertR1 combine k v xorCacheMax max r)
-        | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then Bin (Bound k) v (Bin max maxV l r) Tip
-                    else Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        | otherwise = Bin max #! combine k v maxV # l # r
+    goInsertL1 combine k v !xorCache min (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> Bin max maxV (goInsertL1 combine k v xorCache min l) r
+                | otherwise              -> Bin max maxV l (goInsertR1 combine k v xorCacheMax max r)
+        OutOfBound | xor (boundKey max) min < xorCacheMax -> Bin (Bound k) v (Bin max maxV l r) Tip
+                   | otherwise -> Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
+        Matched -> Bin max #! combine k v maxV # l # r
       where xorCacheMax = xor k max
 
     goInsertR1 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
-    goInsertR1 combine k v !xorCache max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goInsertR1 combine k v xorCache max r)
-                    else Bin min minV (goInsertL1 combine k v xorCacheMin min l) r
-        | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then Bin (Bound k) v Tip (Bin min minV l r)
-                    else Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        | otherwise = Bin min #! combine k v minV # l # r
+    goInsertR1 combine k v !xorCache max (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> Bin min minV l (goInsertR1 combine k v xorCache max r)
+                | otherwise              -> Bin min minV (goInsertL1 combine k v xorCacheMin min l) r
+        OutOfBound | xor (boundKey min) max < xorCacheMin -> Bin (Bound k) v Tip (Bin min minV l r)
+                   | otherwise -> Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
+        Matched -> Bin min #! combine k v minV # l # r
       where xorCacheMin = xor k min
 
     goInsertL2 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
-    goInsertL2 combine k v !xorCache min (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then Bin max maxV (goInsertL2 combine k v xorCache min l) r
-                    else Bin max maxV l (goInsertR2 combine k v xorCacheMax max r)
-        | outOfMaxBound k max = if xor (boundKey max) min < xorCacheMax
-                    then Bin (Bound k) v (Bin max maxV l r) Tip
-                    else Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        | otherwise = Bin max #! combine k maxV v # l # r
+    goInsertL2 combine k v !xorCache min (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> Bin max maxV (goInsertL2 combine k v xorCache min l) r
+                | otherwise              -> Bin max maxV l (goInsertR2 combine k v xorCacheMax max r)
+        OutOfBound | xor (boundKey max) min < xorCacheMax -> Bin (Bound k) v (Bin max maxV l r) Tip
+                   | otherwise -> Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
+        Matched -> Bin max #! combine k maxV v # l # r
       where xorCacheMax = xor k max
 
     goInsertR2 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
-    goInsertR2 combine k v !xorCache max (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then Bin min minV l (goInsertR2 combine k v xorCache max r)
-                    else Bin min minV (goInsertL2 combine k v xorCacheMin min l) r
-        | outOfMinBound k min = if xor (boundKey min) max < xorCacheMin
-                    then Bin (Bound k) v Tip (Bin min minV l r)
-                    else Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        | otherwise = Bin min #! combine k minV v # l # r
+    goInsertR2 combine k v !xorCache max (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> Bin min minV l (goInsertR2 combine k v xorCache max r)
+                | otherwise              -> Bin min minV (goInsertL2 combine k v xorCacheMin min l) r
+        OutOfBound | xor (boundKey min) max < xorCacheMin -> Bin (Bound k) v Tip (Bin min minV l r)
+                   | otherwise -> Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
+        Matched -> Bin min #! combine k minV v # l # r
       where xorCacheMin = xor k min
 
 -- | The union of a list of maps, with a combining operation.
@@ -876,23 +858,21 @@ differenceWithKey combine = start
             GT -> Bin min1 minV1 l1 (loop r1 n2)
 
     goLookupL k v !_ Tip = NonEmpty (Bound k) v Tip
-    goLookupL k v !xorCache (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goLookupL k v xorCache l
-                    else goLookupR k v xorCacheMax r
-        | outOfMaxBound k max = NonEmpty (Bound k) v Tip
-        | otherwise = case combine k v maxV of
+    goLookupL k v !xorCache (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> goLookupL k v xorCache l
+                | otherwise              -> goLookupR k v xorCacheMax r
+        OutOfBound -> NonEmpty (Bound k) v Tip
+        Matched -> case combine k v maxV of
             Nothing -> Empty
             Just !v' -> NonEmpty (Bound k) v' Tip
       where xorCacheMax = xor k max
 
     goLookupR k v !_ Tip = NonEmpty (Bound k) v Tip
-    goLookupR k v !xorCache (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goLookupR k v xorCache r
-                    else goLookupL k v xorCacheMin l
-        | outOfMinBound k min = NonEmpty (Bound k) v Tip
-        | otherwise = case combine k v minV of
+    goLookupR k v !xorCache (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> goLookupR k v xorCache r
+                | otherwise              -> goLookupL k v xorCacheMin l
+        OutOfBound -> NonEmpty (Bound k) v Tip
+        Matched -> case combine k v minV of
             Nothing -> Empty
             Just !v' -> NonEmpty (Bound k) v' Tip
       where xorCacheMin = xor k min
@@ -1008,39 +988,35 @@ intersectionWithKey = start
         GT -> goRFused combine max r1 n2
 
     goLookupL1 _ !_ _ !_ Tip = Empty
-    goLookupL1 combine k v !xorCache (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goLookupL1 combine k v xorCache l
-                    else goLookupR1 combine k v xorCacheMax r
-        | outOfMaxBound k max = Empty
-        | otherwise = NonEmpty (Bound k) #! combine k v maxV # Tip
+    goLookupL1 combine k v !xorCache (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> goLookupL1 combine k v xorCache l
+                | otherwise              -> goLookupR1 combine k v xorCacheMax r
+        OutOfBound -> Empty
+        Matched -> NonEmpty (Bound k) #! combine k v maxV # Tip
       where xorCacheMax = xor k max
 
     goLookupR1 _ !_ _ !_ Tip = Empty
-    goLookupR1 combine k v !xorCache (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goLookupR1 combine k v xorCache r
-                    else goLookupL1 combine k v xorCacheMin l
-        | outOfMinBound k min = Empty
-        | otherwise = NonEmpty (Bound k) #! combine k v minV # Tip
+    goLookupR1 combine k v !xorCache (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> goLookupR1 combine k v xorCache r
+                | otherwise              -> goLookupL1 combine k v xorCacheMin l
+        OutOfBound -> Empty
+        Matched -> NonEmpty (Bound k) #! combine k v minV # Tip
       where xorCacheMin = xor k min
 
     goLookupL2 _ !_ _ !_ Tip = Empty
-    goLookupL2 combine k v !xorCache (Bin max maxV l r)
-        | inMaxBound k max = if xorCache < xorCacheMax
-                    then goLookupL2 combine k v xorCache l
-                    else goLookupR2 combine k v xorCacheMax r
-        | outOfMaxBound k max = Empty
-        | otherwise = NonEmpty (Bound k) #! combine k maxV v # Tip
+    goLookupL2 combine k v !xorCache (Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> goLookupL2 combine k v xorCache l
+                | otherwise              -> goLookupR2 combine k v xorCacheMax r
+        OutOfBound -> Empty
+        Matched -> NonEmpty (Bound k) #! combine k maxV v # Tip
       where xorCacheMax = xor k max
 
     goLookupR2 _ !_ _ !_ Tip = Empty
-    goLookupR2 combine k v !xorCache (Bin min minV l r)
-        | inMinBound k min = if xorCache < xorCacheMin
-                    then goLookupR2 combine k v xorCache r
-                    else goLookupL2 combine k v xorCacheMin l
-        | outOfMinBound k min = Empty
-        | otherwise = NonEmpty (Bound k) #! combine k minV v # Tip
+    goLookupR2 combine k v !xorCache (Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> goLookupR2 combine k v xorCache r
+                | otherwise              -> goLookupL2 combine k v xorCacheMin l
+        OutOfBound -> Empty
+        Matched -> NonEmpty (Bound k) #! combine k minV v # Tip
       where xorCacheMin = xor k min
 
 -- | /O(n+m)/. An unsafe general combining function.

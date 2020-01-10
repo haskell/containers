@@ -113,8 +113,8 @@ validWith assert (.&&.) = start
         .&&. goL innerMin max l
         .&&. goR innerMin max r
 
-    assertInMinBound k min = assert (inMinBound k min) ("Ordering invariant: expected key " ++ show k ++ " > minimum bound " ++ show (boundKey min))
-    assertInMaxBound k max = assert (inMaxBound k max) ("Ordering invariant: expected key " ++ show k ++ " < maximum bound " ++ show (boundKey max))
+    assertInMinBound k min = assert (compareMinBound k min == InBound) ("Ordering invariant: expected key " ++ show k ++ " > minimum bound " ++ show (boundKey min))
+    assertInMaxBound k max = assert (compareMaxBound k max == InBound) ("Ordering invariant: expected key " ++ show k ++ " < maximum bound " ++ show (boundKey max))
 
     showBinary k = showIntAtBase 2 intToDigit (fromIntegral k :: Word) ""
 
