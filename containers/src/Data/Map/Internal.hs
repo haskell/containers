@@ -3147,7 +3147,7 @@ mapAccumL f a (Bin sx kx x l r) =
       (a3,r') = mapAccumL f a2 r
   in (a3,Bin sx kx x' l' r')
 
--- | /O(n)/. The function 'mapAccumR' threads an accumulating
+-- | /O(n)/. The function 'mapAccumRWithKey' threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
