@@ -320,7 +320,6 @@ test-suite intmap-lazy-properties
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
-  other-modules:    IntMapValidity
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
@@ -344,7 +343,6 @@ test-suite intmap-strict-properties
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
-  other-modules:    IntMapValidity
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0

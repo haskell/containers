@@ -644,7 +644,8 @@ newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 --   'Node' or in one of its descendants.
 --
 -- These invariants imply a unique tree structure for a given set of keys. In fact, they are
--- overspecified: the second invariant follows from the other two.
+-- overspecified: the second invariant follows from the other two. To check these invariants,
+-- use 'Daa.IntMap.Internal.Debug.valid'.
 data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deriving (Eq)
 
 -- | A node within a tree mapping integers to value @a@. Unlike an 'IntMap_', a 'Node' cannot

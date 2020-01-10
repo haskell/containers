@@ -8,8 +8,7 @@ import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Merge.Internal (runWhenMissingAll)
-import Data.IntMap.Internal.Debug (showTree)
-import IntMapValidity (valid)
+import Data.IntMap.Internal.Debug (showTree, valid, validWith)
 
 import Control.Applicative (Applicative(..))
 import Data.Monoid
@@ -269,6 +268,9 @@ tests = [ testGroup "Test Case" [
              ]
         ]
 
+
+validProp :: IntMap a -> Property
+validProp = validWith (flip counterexample) (.&&.)
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -1289,20 +1291,20 @@ forValidUnitTree :: Testable b => (SMap -> b) -> Property
 forValidUnitTree f = forValid f
 
 prop_valid :: Property
-prop_valid = forValidUnitTree $ \t -> valid t
+prop_valid = forValidUnitTree $ \t -> validProp t
 
 ----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
 
-prop_emptyValid :: Bool
-prop_emptyValid = valid empty
+prop_emptyValid :: Property
+prop_emptyValid = validProp empty
 
 prop_singleton :: Int -> Int -> Property
 prop_singleton k x =
   case singleton k x of
     s ->
-      valid s .&&.
+      validProp s .&&.
       s === insert k x empty
 
 prop_insertLookup :: Int -> UMap -> Bool
@@ -1312,7 +1314,7 @@ prop_insertDelete :: Int -> UMap -> Property
 prop_insertDelete k t =
   lookup k t == Nothing ==>
     case delete k (insert k () t) of
-      t' -> valid t' .&&. t' === t
+      t' -> validProp t' .&&. t' === t
 
 prop_deleteNonMember :: Int -> UMap -> Property
 prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
@@ -1323,7 +1325,7 @@ prop_unionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_unionModel xs ys =
   case union (fromList xs) (fromList ys) of
     t ->
-      valid t .&&.
+      validProp t .&&.
       sort (keys t) === sort (nub (Prelude.map fst xs ++ Prelude.map fst ys))
 
 prop_unionSingleton :: IMap -> Int -> Int -> Bool
@@ -1344,7 +1346,7 @@ prop_differenceModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_differenceModel xs ys =
   case difference (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
-      valid t .&&.
+      validProp t .&&.
       sort (keys t) === sort ((List.\\)
                                  (nub (Prelude.map fst xs))
                                  (nub (Prelude.map fst ys)))
@@ -1353,7 +1355,7 @@ prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionModel xs ys =
   case intersection (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
-      valid t .&&.
+      validProp t .&&.
       sort (keys t) === sort (nub ((List.intersect)
                                       (Prelude.map fst xs)
                                       (Prelude.map fst ys)))
@@ -1434,9 +1436,9 @@ prop_merge_valid
     -> Fun (Key, A, B) (Maybe C)
     -> IntMap A
     -> IntMap B
-    -> Bool
+    -> Property
 prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
-  = valid m
+  = validProp m
   where
     m =
       merge
@@ -1496,7 +1498,7 @@ prop_ascDescList xs = toAscList m == reverse (toDescList m)
 prop_fromList :: [Int] -> Property
 prop_fromList xs
   = case fromList (zip xs xs) of
-      t -> valid t .&&.
+      t -> validProp t .&&.
            t === fromAscList (zip sort_xs sort_xs) .&&.
            t === fromDistinctAscList (zip nub_sort_xs nub_sort_xs) .&&.
            t === List.foldr (uncurry insert) empty (zip xs xs)
@@ -1506,7 +1508,7 @@ prop_fromList xs
 ----------------------------------------------------------------
 
 prop_alter :: UMap -> Int -> Property
-prop_alter t k = valid t' .&&. case lookup k t of
+prop_alter t k = validProp t' .&&. case lookup k t of
     Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
     Nothing -> (size t + 1) == size t' && lookup k t' /= Nothing
   where
@@ -1617,15 +1619,15 @@ prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys =
   let xs = List.nubBy ((==) `on` fst) ys
       m  = filter (apply p) (fromList xs)
-  in  valid m .&&.
+  in  validProp m .&&.
       m === fromList (List.filter (apply p . snd) xs)
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys =
   let xs = List.nubBy ((==) `on` fst) ys
       m@(l, r) = partition (apply p) (fromList xs)
-  in  valid l .&&.
-      valid r .&&.
+  in  validProp l .&&.
+      validProp r .&&.
       m === let (a,b) = (List.partition (apply p . snd) xs)
             in (fromList a, fromList b)
 
@@ -1633,8 +1635,8 @@ prop_partitionWithKey :: Fun (Int, Int) Bool -> [(Int, Int)] -> Property
 prop_partitionWithKey p ys =
   let xs = List.nubBy ((==) `on` fst) ys
       m@(l, r) = partitionWithKey (curry (apply p)) (fromList xs)
-  in  valid l .&&.
-      valid r .&&.
+  in  validProp l .&&.
+      validProp r .&&.
       m === let (a,b) = (List.partition (apply p) xs)
             in (fromList a, fromList b)
 
@@ -1660,8 +1662,8 @@ prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys =
   let xs = List.nubBy ((==) `on` fst) ys
       (l, r) = split n $ fromList xs
-  in  valid l .&&.
-      valid r .&&.
+  in  validProp l .&&.
+      validProp r .&&.
       toAscList l === sort [(k, v) | (k,v) <- xs, k < n] .&&.
       toAscList r === sort [(k, v) | (k,v) <- xs, k > n]
 
