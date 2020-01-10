@@ -1264,8 +1264,6 @@ fromListWith f = Data.List.foldl' (\t (k, a) -> insertWith f k a t) empty
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key, a)] -> IntMap a
 fromListWithKey f = Data.List.foldl' (\t (k, a) -> insertWithKey f k a t) empty
 
--- TODO: Use the ordering
-
 -- | /O(n)/. Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
 --
