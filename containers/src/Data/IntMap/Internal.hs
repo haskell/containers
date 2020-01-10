@@ -1193,14 +1193,10 @@ delete :: Key -> IntMap a -> IntMap a
 delete !k = start
   where
     start (IntMap Empty) = IntMap Empty
-    start m@(IntMap (NonEmpty min _ Tip))
-        | k == boundKey min = IntMap Empty
-        | otherwise = m
-    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r))) = case compareMinBound k min of
-        OutOfBound -> m
-        Matched -> let DR min' minV' root' = deleteMinL max maxV l r
-                    in IntMap (NonEmpty min' minV' root')
+    start m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
         InBound -> IntMap (NonEmpty min minV (deleteL k (xor k min) root))
+        OutOfBound -> m
+        Matched -> IntMap (nodeToMapL root)
 
 -- | Without this specialized type (I was just using a tuple), GHC's
 -- CPR correctly unboxed the tuple, but it couldn't unbox the returned
@@ -2135,10 +2131,7 @@ splitLookup !k = start
                 Matched -> let DR max' maxV' root' = deleteMaxR min minV l r
                             in (IntMap (r2lMap (NonEmpty max' maxV' root')), Just maxV, IntMap Empty)
         OutOfBound -> (IntMap Empty, Nothing, m)
-        Matched -> case root of
-            Tip -> (IntMap Empty, Just minV, IntMap Empty)
-            Bin max maxV l r -> let DR min' minV' root' = deleteMinL max maxV l r
-                                in (IntMap Empty, Just minV, IntMap (NonEmpty min' minV' root'))
+        Matched -> (IntMap Empty, Just minV, IntMap (nodeToMapL root))
 
     go xorCacheMin min minV xorCacheMax max maxV l r
         | xorCacheMin < xorCacheMax = case l of

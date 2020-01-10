@@ -374,18 +374,12 @@ update :: (a -> Maybe a) -> Key -> IntMap a -> IntMap a
 update f !k = start
   where
     start (IntMap Empty) = IntMap Empty
-    start m@(IntMap (NonEmpty min minV Tip))
-        | k == boundKey min = case f minV of
-            Nothing -> IntMap Empty
-            Just minV' -> IntMap (NonEmpty min minV' Tip)
-        | otherwise = m
-    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r))) = case compareMinBound k min of
+    start m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
+        InBound -> IntMap (NonEmpty min minV (goL (xor k min) min root))
         OutOfBound -> m
         Matched -> case f minV of
-            Nothing -> let DR min' minV' root' = deleteMinL max maxV l r
-                        in IntMap (NonEmpty min' minV' root')
+            Nothing -> IntMap (nodeToMapL root)
             Just minV' -> IntMap (NonEmpty min minV' root)
-        InBound -> IntMap (NonEmpty min minV (goL (xor k min) min root))
 
     goL !_        _      Tip = Tip
     goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
@@ -431,19 +425,13 @@ updateLookupWithKey :: (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a, Int
 updateLookupWithKey f !k = start
   where
     start (IntMap Empty) = (Nothing, IntMap Empty)
-    start m@(IntMap (NonEmpty min minV Tip))
-        | k == boundKey min = case f (boundKey min) minV of
-            Nothing -> (Just minV, IntMap Empty)
-            Just minV' -> (Just minV, IntMap (NonEmpty min minV' Tip))
-        | otherwise = (Nothing, m)
-    start m@(IntMap (NonEmpty min minV root@(Bin max maxV l r))) = case compareMinBound k min of
-        OutOfBound -> (Nothing, m)
-        Matched -> case f (boundKey min) minV of
-            Nothing -> let DR min' minV' root' = deleteMinL max maxV l r
-                        in (Just minV, IntMap (NonEmpty min' minV' root'))
-            Just minV' -> (Just minV, IntMap (NonEmpty min minV' root))
+    start m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
         InBound -> let (mv, root') = goL (xor k min) min root
                     in (mv, IntMap (NonEmpty min minV root'))
+        OutOfBound -> (Nothing, m)
+        Matched -> (Just minV, case f (boundKey min) minV of
+            Nothing -> IntMap (nodeToMapL root)
+            Just minV' -> IntMap (NonEmpty min minV' root))
 
     goL !_        _      Tip = (Nothing, Tip)
     goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
