@@ -91,6 +91,10 @@ validWith assert (.&&.) = start
         .&&. goL min max l
         .&&. goR min max r
 
+    -- When recursing, we already know that @innerMax < max@, so checking in
+    -- the subtree that keys are less than @innerMax@ also shows that they
+    -- are less than @max@. Similarly, we can replace @min@ with @innerMin@ in
+    -- 'goR'.
     goL !_ !_ Tip = assert True "Leaf nodes are always valid."
     goL !min !max (Bin innerMax _ l r) =
              assertInMinBound (boundKey innerMax) min
@@ -109,17 +113,17 @@ validWith assert (.&&.) = start
         .&&. goL innerMin max l
         .&&. goR innerMin max r
 
-    assertInMinBound k min = assert (inMinBound k min) ("Ordering invariant broken: expected key " ++ show k ++ " > minimum bound " ++ show (boundKey min))
-    assertInMaxBound k max = assert (inMaxBound k max) ("Ordering invariant broken: expected key " ++ show k ++ " < maximum bound " ++ show (boundKey max))
+    assertInMinBound k min = assert (inMinBound k min) ("Ordering invariant: expected key " ++ show k ++ " > minimum bound " ++ show (boundKey min))
+    assertInMaxBound k max = assert (inMaxBound k max) ("Ordering invariant: expected key " ++ show k ++ " < maximum bound " ++ show (boundKey max))
 
     showBinary k = showIntAtBase 2 intToDigit (fromIntegral k :: Word) ""
 
-    trieError min max k isLeft = "Trie invariant broken: between " ++ show (boundKey min) ++ " and " ++ show (boundKey max)
+    trieError min max k isLeft = "Trie invariant: between " ++ show (boundKey min) ++ " and " ++ show (boundKey max)
                        ++ ", " ++ show k ++ " was expected to share more bits with " ++ show (if isLeft then boundKey min else boundKey max)
                        ++ " as it is on the " ++ (if isLeft then "left" else "right") ++ " branch:"
-                       ++ "\n  min: " ++ replicate (binLength - length binMin) ' ' ++ binMin
-                       ++ "\n    k: " ++ replicate (binLength - length binK) ' ' ++ binK
-                       ++ "\n  max: " ++ replicate (binLength - length binMax) ' ' ++ binMax
+                       ++ "\n  min: " ++ replicate (binLength - length binMin) '0' ++ binMin
+                       ++ "\n    k: " ++ replicate (binLength - length binK) '0' ++ binK
+                       ++ "\n  max: " ++ replicate (binLength - length binMax) '0' ++ binMax
       where
         binMin = showBinary (boundKey min)
         binK = showBinary k
