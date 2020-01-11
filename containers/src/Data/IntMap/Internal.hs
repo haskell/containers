@@ -1190,13 +1190,11 @@ fromListLazy = Data.List.foldl' (\t (k, a) -> insertLazy k a t) empty
 -- | /O(min(n,W))/. Delete a key and its value from the map.
 -- When the key is not a member of the map, the original map is returned.
 delete :: Key -> IntMap a -> IntMap a
-delete !k = start
-  where
-    start (IntMap Empty) = IntMap Empty
-    start m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
-        InBound -> IntMap (NonEmpty min minV (deleteL k (xor k min) root))
-        OutOfBound -> m
-        Matched -> IntMap (nodeToMapL root)
+delete !_ (IntMap Empty) = IntMap Empty
+delete !k m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
+    InBound -> IntMap (NonEmpty min minV (deleteL k (xor k min) root))
+    OutOfBound -> m
+    Matched -> IntMap (nodeToMapL root)
 
 -- | Without this specialized type (I was just using a tuple), GHC's
 -- CPR correctly unboxed the tuple, but it couldn't unbox the returned
