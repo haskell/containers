@@ -422,39 +422,39 @@ updateWithKey f k = update (f k) k
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 updateLookupWithKey :: (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a, IntMap a)
-updateLookupWithKey f !k = start
+updateLookupWithKey = start
   where
-    start (IntMap Empty) = (Nothing, IntMap Empty)
-    start m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
-        InBound -> let (mv, root') = goL (xor k min) min root
+    start _ !_ (IntMap Empty) = (Nothing, IntMap Empty)
+    start f !k m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
+        InBound -> let mv :*: root' = goL f k (xor k min) min root
                     in (mv, IntMap (NonEmpty min minV root'))
         OutOfBound -> (Nothing, m)
         Matched -> (Just minV, case f (boundKey min) minV of
             Nothing -> IntMap (nodeToMapL root)
             Just minV' -> IntMap (NonEmpty min minV' root))
 
-    goL !_        _      Tip = (Nothing, Tip)
-    goL !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
-        InBound | xorCache < xorCacheMax -> let (mv, l') = goL xorCache min l
-                                             in (mv, Bin max maxV l' r)
-                | otherwise              -> let (mv, r') = goR xorCacheMax max r
-                                             in (mv, Bin max maxV l r')
-        OutOfBound -> (Nothing, n)
-        Matched -> case f (boundKey max) maxV of
-            Nothing -> (Just maxV, extractBinL l r)
-            Just maxV' -> (Just maxV, Bin max maxV' l r)
+    goL _ !_ !_        _      Tip = Nothing :*: Tip
+    goL f !k !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+        InBound | xorCache < xorCacheMax -> let mv :*: l' = goL f k xorCache min l
+                                             in mv :*: Bin max maxV l' r
+                | otherwise              -> let mv :*: r' = goR f k xorCacheMax max r
+                                             in mv :*: Bin max maxV l r'
+        OutOfBound -> Nothing :*: n
+        Matched -> Just maxV :*: case f (boundKey max) maxV of
+            Nothing -> extractBinL l r
+            Just maxV' -> Bin max maxV' l r
       where xorCacheMax = xor k max
 
-    goR !_        _      Tip = (Nothing, Tip)
-    goR !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
-        InBound | xorCache < xorCacheMin -> let (mv, r') = goR xorCache max r
-                                             in (mv, Bin min minV l r')
-                | otherwise              -> let (mv, l') = goL xorCacheMin min l
-                                             in (mv, Bin min minV l' r)
-        OutOfBound -> (Nothing, n)
-        Matched -> case f (boundKey min) minV of
-            Nothing -> (Just minV, extractBinR l r)
-            Just minV' -> (Just minV, Bin min minV' l r)
+    goR _ !_ !_        _      Tip = Nothing :*: Tip
+    goR f !k !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+        InBound | xorCache < xorCacheMin -> let mv :*: r' = goR f k xorCache max r
+                                             in mv :*: Bin min minV l r'
+                | otherwise              -> let mv :*: l' = goL f k xorCacheMin min l
+                                             in mv :*: Bin min minV l' r
+        OutOfBound -> Nothing :*: n
+        Matched -> Just minV :*: case f (boundKey min) minV of
+            Nothing -> extractBinR l r
+            Just minV' -> Bin min minV' l r
       where xorCacheMin = xor k min
 
 -- | /O(min(n,W))/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
