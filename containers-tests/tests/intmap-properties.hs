@@ -262,16 +262,18 @@ type SMap = IntMap String
 
 ----------------------------------------------------------------
 
-tests :: [Test]
-tests = [ testGroup "Test Case" [
-             ]
-        , testGroup "Property Test" [
-             ]
-        ]
+-- | Like @'nub' . 'sort'@, but more efficient
+sortNub :: Ord a => [a] -> [a]
+sortNub = sortNubBy compare
 
+sortNubBy :: (a -> a -> Ordering) -> [a] -> [a]
+sortNubBy comp = fmap List.head . List.groupBy (\x y -> comp x y == EQ) . List.sortBy comp
 
 validProp :: IntMap a -> Property
 validProp = validWith (flip counterexample) (.&&.)
+
+allProp :: Testable prop => (a -> prop) -> [a] -> Property
+allProp f xs = conjoin (fmap f xs)
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -1318,7 +1320,7 @@ prop_insertDelete k t =
       t' -> validProp t' .&&. t' === t
 
 prop_deleteNonMember :: Int -> UMap -> Property
-prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
+prop_deleteNonMember k t = notMember k t ==> (delete k t === t)
 
 ----------------------------------------------------------------
 
@@ -1327,16 +1329,16 @@ prop_unionModel xs ys =
   case union (fromList xs) (fromList ys) of
     t ->
       validProp t .&&.
-      sort (keys t) === sort (nub (Prelude.map fst xs ++ Prelude.map fst ys))
+      keys t === sortNub (Prelude.map fst xs ++ Prelude.map fst ys)
 
-prop_unionSingleton :: IMap -> Int -> Int -> Bool
-prop_unionSingleton t k x = union (singleton k x) t == insert k x t
+prop_unionSingleton :: IMap -> Int -> Int -> Property
+prop_unionSingleton t k x = union (singleton k x) t === insert k x t
 
-prop_unionAssoc :: IMap -> IMap -> IMap -> Bool
-prop_unionAssoc t1 t2 t3 = union t1 (union t2 t3) == union (union t1 t2) t3
+prop_unionAssoc :: IMap -> IMap -> IMap -> Property
+prop_unionAssoc t1 t2 t3 = union t1 (union t2 t3) === union (union t1 t2) t3
 
-prop_unionWith :: IMap -> IMap -> Bool
-prop_unionWith t1 t2 = (union t1 t2 == unionWith (\_ y -> y) t2 t1)
+prop_unionWith :: IMap -> IMap -> Property
+prop_unionWith t1 t2 = union t1 t2 === unionWith (\_ y -> y) t2 t1
 
 prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_unionSum xs ys
@@ -1348,17 +1350,16 @@ prop_differenceModel xs ys =
   case difference (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
       validProp t .&&.
-      sort (keys t) === sort ((List.\\)
-                                 (nub (Prelude.map fst xs))
-                                 (nub (Prelude.map fst ys)))
+      keys t === (List.\\) (sortNub (Prelude.map fst xs))
+                           (sortNub (Prelude.map fst ys))
 
 prop_differenceWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> [(Int,Int)] -> [(Int,Int)] -> Property
 prop_differenceWithKeyModel f xs ys
     = toList (differenceWithKey (\k x y -> apply f (k, x, y)) (fromList xs') (fromList ys'))
       === Maybe.mapMaybe diffSingle (sort xs')
   where
-    xs' = List.nubBy ((==) `on` fst) xs
-    ys' = List.nubBy ((==) `on` fst) ys
+    xs' = sortNubBy (compare `on` fst) xs
+    ys' = sortNubBy (compare `on` fst) ys
     diffSingle (k, x) = case List.lookup k ys' of
         Nothing -> Just (k, x)
         Just y -> fmap (\r -> (k, r)) (apply f (k, x, y))
@@ -1368,24 +1369,23 @@ prop_intersectionModel xs ys =
   case intersection (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
       validProp t .&&.
-      sort (keys t) === sort (nub ((List.intersect)
-                                      (Prelude.map fst xs)
-                                      (Prelude.map fst ys)))
+      keys t === (List.intersect) (sortNub (Prelude.map fst xs))
+                                  (sortNub (Prelude.map fst ys))
 
-prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithModel xs ys
   = toList (intersectionWith f (fromList xs') (fromList ys'))
-    == [(kx, f vx vy ) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+    === [(kx, f vx vy ) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
           f l r = l + 2 * r
 
-prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithKeyModel xs ys
   = toList (intersectionWithKey f (fromList xs') (fromList ys'))
-    == [(kx, f kx vx vy) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+    === [(kx, f kx vx vy) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
           f k l r = k + 2 * l + 3 * r
 
 prop_disjoint :: UMap -> UMap -> Property
@@ -1407,20 +1407,20 @@ prop_withoutKeys m s0 =
   where
     s = keysSet s0
 
-prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_mergeWithKeyModel xs ys
-  = and [ testMergeWithKey f keep_x keep_y
-        | f <- [ \_k x1  _x2 -> Just x1
-               , \_k _x1 x2  -> Just x2
-               , \_k _x1 _x2 -> Nothing
-               , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
-               ]
-        , keep_x <- [ True, False ]
-        , keep_y <- [ True, False ]
-        ]
+  = conjoin [ testMergeWithKey f keep_x keep_y
+            | f <- [ \_k x1  _x2 -> Just x1
+                   , \_k _x1 x2  -> Just x2
+                   , \_k _x1 _x2 -> Nothing
+                   , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
+                   ]
+            , keep_x <- [ True, False ]
+            , keep_y <- [ True, False ]
+            ]
 
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
 
           xm = fromList xs'
           ym = fromList ys'
@@ -1495,16 +1495,16 @@ prop_ordered :: Property
 prop_ordered
   = forAll (choose (5,100)) $ \n ->
     let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
+    in fromAscList xs === fromList xs
 
-prop_list :: [Int] -> Bool
-prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
+prop_list :: [Int] -> Property
+prop_list xs = sortNub xs === [x | (x,()) <- toList (fromList [(x,()) | x <- xs])]
 
-prop_descList :: [Int] -> Bool
-prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
+prop_descList :: [Int] -> Property
+prop_descList xs = reverse (sortNub xs) === [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])]
 
-prop_ascDescList :: [Int] -> Bool
-prop_ascDescList xs = toAscList m == reverse (toDescList m)
+prop_ascDescList :: [Int] -> Property
+prop_ascDescList xs = toAscList m === reverse (toDescList m)
   where m = fromList $ zip xs $ repeat ()
 
 prop_fromList :: [Int] -> Property
@@ -1521,8 +1521,8 @@ prop_fromList xs
 
 prop_alter :: UMap -> Int -> Property
 prop_alter t k = validProp t' .&&. case lookup k t of
-    Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
-    Nothing -> (size t + 1) == size t' && lookup k t' /= Nothing
+    Just _  -> (size t - 1) === size t' .&&. lookup k t' === Nothing
+    Nothing -> (size t + 1) === size t' .&&. lookup k t' =/= Nothing
   where
     t' = alter f k t
     f Nothing   = Just ()
@@ -1549,58 +1549,58 @@ prop_size im = sz === foldl' (\i _ -> i + 1) (0 :: Int) im .&&.
                sz === List.length (toList im)
   where sz = size im
 
-prop_member :: [Int] -> Int -> Bool
+prop_member :: [Int] -> Int -> Property
 prop_member xs n =
   let m  = fromList (zip xs xs)
-  in all (\k -> k `member` m == (k `elem` xs)) (n : xs)
+  in allProp (\k -> k `member` m === (k `elem` xs)) (n : xs)
 
-prop_notmember :: [Int] -> Int -> Bool
+prop_notmember :: [Int] -> Int -> Property
 prop_notmember xs n =
   let m  = fromList (zip xs xs)
-  in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
+  in allProp (\k -> k `notMember` m === (k `notElem` xs)) (n : xs)
 
-prop_lookup :: [(Int, Int)] -> Int -> Bool
+prop_lookup :: [(Int, Int)] -> Int -> Property
 prop_lookup xs n =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\k -> lookup k m == List.lookup k xs') (n : List.map fst xs')
+  in allProp (\k -> lookup k m === List.lookup k xs') (n : List.map fst xs')
 
-prop_find :: [(Int, Int)] -> Bool
+prop_find :: [(Int, Int)] -> Property
 prop_find xs =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\(k, v) -> m ! k == v) xs'
+  in allProp (\(k, v) -> m ! k === v) xs'
 
-prop_findWithDefault :: [(Int, Int)] -> Int -> Int -> Bool
+prop_findWithDefault :: [(Int, Int)] -> Int -> Int -> Property
 prop_findWithDefault xs n x =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\k -> findWithDefault x k m == maybe x id (List.lookup k xs')) (n : List.map fst xs')
+  in allProp (\k -> findWithDefault x k m === maybe x id (List.lookup k xs')) (n : List.map fst xs')
 
-test_lookupSomething :: (Int -> IntMap Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Bool
+test_lookupSomething :: (Int -> IntMap Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Property
 test_lookupSomething lookup' cmp xs =
-  let odd_sorted_xs = filter_odd $ sort $ List.nubBy ((==) `on` fst) xs
+  let odd_sorted_xs = filter_odd $ sortNubBy (compare `on` fst) xs
       t = fromList odd_sorted_xs
       test k = case List.filter ((`cmp` k) . fst) odd_sorted_xs of
-                 []             -> lookup' k t == Nothing
-                 cs | 0 `cmp` 1 -> lookup' k t == Just (last cs) -- we want largest such element
-                    | otherwise -> lookup' k t == Just (head cs) -- we want smallest such element
-  in all test (List.map fst xs)
+                 []             -> lookup' k t === Nothing
+                 cs | 0 `cmp` 1 -> lookup' k t === Just (last cs) -- we want largest such element
+                    | otherwise -> lookup' k t === Just (head cs) -- we want smallest such element
+  in allProp test (List.map fst xs)
 
   where filter_odd [] = []
         filter_odd [_] = []
         filter_odd (_ : o : xs) = o : filter_odd xs
 
-prop_lookupLT :: [(Int, Int)] -> Bool
+prop_lookupLT :: [(Int, Int)] -> Property
 prop_lookupLT = test_lookupSomething lookupLT (<)
 
-prop_lookupGT :: [(Int, Int)] -> Bool
+prop_lookupGT :: [(Int, Int)] -> Property
 prop_lookupGT = test_lookupSomething lookupGT (>)
 
-prop_lookupLE :: [(Int, Int)] -> Bool
+prop_lookupLE :: [(Int, Int)] -> Property
 prop_lookupLE = test_lookupSomething lookupLE (<=)
 
-prop_lookupGE :: [(Int, Int)] -> Bool
+prop_lookupGE :: [(Int, Int)] -> Property
 prop_lookupGE = test_lookupSomething lookupGE (>=)
 
 prop_lookupMin :: IntMap Int -> Property
@@ -1617,26 +1617,26 @@ prop_findMax (NonEmptyIntMap im) = findMax im === head (toDescList im)
 
 prop_deleteMinModel :: [(Int, Int)] -> Property
 prop_deleteMinModel ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMin m) == tail (sort xs)
+  in  toAscList (deleteMin m) === tail (sort xs)
 
 prop_deleteMaxModel :: [(Int, Int)] -> Property
 prop_deleteMaxModel ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMax m) == init (sort xs)
+  in  toAscList (deleteMax m) === init (sort xs)
 
 prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = filter (apply p) (fromList xs)
   in  validProp m .&&.
       m === fromList (List.filter (apply p . snd) xs)
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m@(l, r) = partition (apply p) (fromList xs)
   in  validProp l .&&.
       validProp r .&&.
@@ -1645,7 +1645,7 @@ prop_partition p ys =
 
 prop_partitionWithKey :: Fun (Int, Int) Bool -> [(Int, Int)] -> Property
 prop_partitionWithKey p ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m@(l, r) = partitionWithKey (curry (apply p)) (fromList xs)
   in  validProp l .&&.
       validProp r .&&.
@@ -1654,33 +1654,33 @@ prop_partitionWithKey p ys =
 
 prop_map :: Fun Int Int -> [(Int, Int)] -> Property
 prop_map f ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  map (apply f) m === fromList [ (a, apply f b) | (a,b) <- xs ]
 
 prop_fmap :: Fun Int Int -> [(Int, Int)] -> Property
 prop_fmap f ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  fmap (apply f) m === fromList [ (a, apply f b) | (a,b) <- xs ]
 
 prop_mapkeys :: Fun Int Int -> [(Int, Int)] -> Property
 prop_mapkeys f ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  mapKeys (apply f) m === (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
+  in  mapKeys (apply f) m === (fromList $ sortNubBy (compare `on` fst) $ reverse [ (apply f a, b) | (a,b) <- xs])
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       (l, r) = split n $ fromList xs
   in  validProp l .&&.
       validProp r .&&.
-      toAscList l === sort [(k, v) | (k,v) <- xs, k < n] .&&.
-      toAscList r === sort [(k, v) | (k,v) <- xs, k > n]
+      toAscList l === takeWhile ((< n) . fst) xs .&&.
+      toAscList r === dropWhile ((<= n) . fst) xs
 
-prop_splitRoot :: IMap -> Bool
-prop_splitRoot s = loop ls && (s == unions ls)
+prop_splitRoot :: IMap -> Property
+prop_splitRoot s = loop ls .&&. (s === unions ls)
  where
   ls = splitRoot s
   loop [] = True
@@ -1714,44 +1714,44 @@ prop_isProperSubmapOfBy p m1 m2 = increaseTests $ isProperSubmapOfBy (curry (app
 
 prop_foldr :: Int -> [(Int, Int)] -> Property
 prop_foldr n ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  foldr (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldr (:) [] m === List.map snd (List.sort xs) .&&.
+      foldr (:) [] m === List.map snd xs .&&.
       foldrWithKey (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
       foldrWithKey (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldrWithKey (\k x xs -> (k,x):xs) [] m === List.sort xs
+      foldrWithKey (\k x xs -> (k,x):xs) [] m === xs
 
 
 prop_foldr' :: Int -> [(Int, Int)] -> Property
 prop_foldr' n ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  foldr' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldr' (:) [] m === List.map snd (List.sort xs) .&&.
+      foldr' (:) [] m === List.map snd xs .&&.
       foldrWithKey' (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
       foldrWithKey' (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldrWithKey' (\k x xs -> (k,x):xs) [] m === List.sort xs
+      foldrWithKey' (\k x xs -> (k,x):xs) [] m === xs
 
 prop_foldl :: Int -> [(Int, Int)] -> Property
 prop_foldl n ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  foldl (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldl (flip (:)) [] m === reverse (List.map snd (List.sort xs)) .&&.
+      foldl (flip (:)) [] m === reverse (List.map snd xs) .&&.
       foldlWithKey (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
       foldlWithKey (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldlWithKey (\xs k x -> (k,x):xs) [] m === reverse (List.sort xs)
+      foldlWithKey (\xs k x -> (k,x):xs) [] m === reverse xs
 
 prop_foldl' :: Int -> [(Int, Int)] -> Property
 prop_foldl' n ys =
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
   in  foldl' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldl' (flip (:)) [] m === reverse (List.map snd (List.sort xs)) .&&.
+      foldl' (flip (:)) [] m === reverse (List.map snd xs) .&&.
       foldlWithKey' (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
       foldlWithKey' (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldlWithKey' (\xs k x -> (k,x):xs) [] m === reverse (List.sort xs)
+      foldlWithKey' (\xs k x -> (k,x):xs) [] m === reverse xs
 
 prop_foldrEqFoldMap :: IntMap Int -> Property
 prop_foldrEqFoldMap m =
@@ -1770,14 +1770,14 @@ prop_elem :: Int -> IMap -> Property
 prop_elem v m = Foldable.elem v m === List.elem v (elems m)
 #endif
 
-prop_keysSet :: [(Int, Int)] -> Bool
+prop_keysSet :: [(Int, Int)] -> Property
 prop_keysSet xs =
-  keysSet (fromList xs) == IntSet.fromList (List.map fst xs)
+  keysSet (fromList xs) === IntSet.fromList (List.map fst xs)
 
-prop_fromSet :: [(Int, Int)] -> Bool
+prop_fromSet :: [(Int, Int)] -> Property
 prop_fromSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+  let xs = sortNubBy (compare `on` fst) ys
+  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) === fromList xs
 
 prop_traverseWithKey_identity :: IntMap A -> Property
 prop_traverseWithKey_identity mp = mp === newMap
