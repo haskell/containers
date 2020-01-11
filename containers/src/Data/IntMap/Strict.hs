@@ -1,6 +1,13 @@
 {-# LANGUAGE CPP, BangPatterns #-}
+
+#include "containers.h"
+
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#if USE_REWRITE_RULES
+{-# LANGUAGE Trustworthy #-}
+#else
 {-# LANGUAGE Safe #-}
+#endif
 #endif
 
 -----------------------------------------------------------------------------
@@ -234,6 +241,9 @@ module Data.IntMap.Strict (
 ) where
 
 import Data.IntMap.Internal
+#if USE_REWRITE_RULES
+import qualified Data.IntMap.Lazy as L
+#endif
 import qualified Data.IntMap.Merge.Strict as Merge (merge, mapMaybeMissing, zipWithMaybeMatched)
 
 #if !MIN_VERSION_base(4,8,0)
@@ -1077,6 +1087,32 @@ mapWithKey f = start
     goR Tip = Tip
     goR (Bin k v l r) = Bin k #! f (boundKey k) v # goL l # goR r
 
+#if USE_REWRITE_RULES
+-- Pay close attention to strictness here. We need to force the
+-- intermediate result for @'map' f . 'map' g@, and we need to refrain
+-- from forcing it for @'map' f . 'L.map' g@, etc.
+--
+-- TODO Consider writing RULES for things like @'L.map' f ('map' g m)@. We'd
+-- need a new function for this, and we'd have to pay attention to simplifier
+-- phases. Somthing like
+--
+-- > lsmap :: (b -> c) -> (a -> b) -> Node t a -> Node t c
+-- > lsmap _ _ Tip = Tip
+-- > lsmap f g (Bin bound value l r) = let !gvalue = g value
+-- >                                    in Bin bound (f gvalue) (lsmap f g l) (lsmap f g r)
+{-# NOINLINE[1] map #-}
+{-# NOINLINE[1] mapWithKey #-}
+{-# RULES
+"map/map" forall f g m . map f (map g m) = map (\v -> f $! g v) m
+"map/mapL" forall f g m . map f (mapLazy g m) = map (f . g) m
+"mapWithKey/map" forall f g m . mapWithKey f (map g m) = mapWithKey (\k v -> f k $! g v) m
+"mapWithKey/mapL" forall f g m . mapWithKey f (mapLazy g m) = mapWithKey (\k -> f k . g) m
+"map/mapWithKey" forall f g m . map f (mapWithKey g m) = mapWithKey (\k v -> f $! g k v) m
+"map/mapWithKeyL" forall f g m . map f (L.mapWithKey g m) = mapWithKey (\k -> f . g k) m
+"mapWithKey/mapWithKey" forall f g m . mapWithKey f (mapWithKey g m) = mapWithKey (\k v -> f k $! g k v) m
+"mapWithKey/mapWithKeyL" forall f g m . mapWithKey f (L.mapWithKey g m) = mapWithKey (\k -> f k . g k) m
+  #-}
+#endif
 
 -- | /O(n)/.
 -- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@

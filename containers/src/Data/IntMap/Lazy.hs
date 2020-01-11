@@ -1,6 +1,13 @@
 {-# LANGUAGE CPP, BangPatterns #-}
+
+#include "containers.h"
+
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#if USE_REWRITE_RULES
+{-# LANGUAGE Trustworthy #-}
+#else
 {-# LANGUAGE Safe #-}
+#endif
 #endif
 
 -----------------------------------------------------------------------------
@@ -1025,7 +1032,7 @@ mergeWithKey matched miss1 miss2 = Merge.merge (Merge.mapMaybeMissing (single mi
 --
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 map :: (a -> b) -> IntMap a -> IntMap b
-map = fmap
+map = mapLazy
 
 -- | /O(n)/. Map a function over all values in the map.
 --
@@ -1043,6 +1050,14 @@ mapWithKey f = start
     goR Tip = Tip
     goR (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
 
+#if USE_REWRITE_RULES
+{-# NOINLINE[1] mapWithKey #-}
+{-# RULES
+"map/mapWithKey" forall f g m . mapLazy f (mapWithKey g m) = mapWithKey (\k -> f . g k) m
+"mapWithKey/map" forall f g m . mapWithKey f (mapLazy g m) = mapWithKey (\k -> f k . g) m
+"mapWithKey/mapWithKey" forall f g m . mapWithKey f (mapWithKey g m) = mapWithKey (\k -> f k . g k) m
+  #-}
+#endif
 
 -- | /O(n)/.
 -- @'traverseWithKey' f s == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@

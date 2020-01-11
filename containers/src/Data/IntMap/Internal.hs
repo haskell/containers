@@ -379,6 +379,10 @@ module Data.IntMap.Internal (
     -- ** Disjoint
     , disjoint
 
+    -- * Traversal
+    -- ** Map
+    , mapLazy
+
     -- * Folds
     , foldr
     , foldl
@@ -742,15 +746,14 @@ instance Read1 IntMap where
 #endif
 
 instance Functor IntMap where
-    fmap f (IntMap m) = IntMap (fmap f m)
+    fmap = mapLazy
 
 #if defined(__GLASGOW_HASKELL__)
     a <$ (IntMap m) = IntMap (a <$ m)
 #endif
 
 instance Functor (IntMap_ t) where
-    fmap _ Empty = Empty
-    fmap f (NonEmpty min minV node) = NonEmpty min (f minV) (fmap f node)
+    fmap = mapLazy_
 
 #if defined(__GLASGOW_HASKELL__)
     _ <$ Empty = Empty
@@ -758,8 +761,7 @@ instance Functor (IntMap_ t) where
 #endif
 
 instance Functor (Node t) where
-    fmap _ Tip = Tip
-    fmap f (Bin k v l r) = Bin k (f v) (fmap f l) (fmap f r)
+    fmap = mapNodeLazy
 
 #if defined(__GLASGOW_HASKELL__)
     _ <$ Tip = Tip
@@ -1186,6 +1188,33 @@ insertLazy :: Key -> a -> IntMap a -> IntMap a
 insertLazy = insertWithEval (const ()) const
 fromListLazy :: [(Key, a)] -> IntMap a
 fromListLazy = Data.List.foldl' (\t (k, a) -> insertLazy k a t) empty
+mapLazy :: (a -> b) -> IntMap a -> IntMap b
+mapLazy f (IntMap m) = IntMap (mapLazy_ f m)
+mapLazy_ :: (a -> b) -> IntMap_ t a -> IntMap_ t b
+mapLazy_ _ Empty = Empty
+mapLazy_ f (NonEmpty min minV root) = NonEmpty min (f minV) (mapNodeLazy f root)
+mapNodeLazy :: (a -> b) -> Node t a -> Node t b
+mapNodeLazy _ Tip = Tip
+mapNodeLazy f (Bin bound value l r) = Bin bound (f value) (mapNodeLazy f l) (mapNodeLazy f r)
+
+#if USE_REWRITE_RULES
+{-# NOINLINE[1] mapLazy #-}
+{-# NOINLINE[1] mapLazy_ #-}
+{-# NOINLINE[1] mapNodeLazy #-}
+{-# RULES
+"map/map" forall f g m . mapLazy f (mapLazy g m) = mapLazy (f . g) m
+"map_/map_" forall f g m . mapLazy_ f (mapLazy_ g m) = mapLazy_ (f . g) m
+"mapNode/mapNode" forall f g n . mapNodeLazy f (mapNodeLazy g n) = mapNodeLazy (f . g) n
+  #-}
+#if __GLASGOW_HASKELL >= 709
+-- Safe coercions were introduced in 7.8, but did not play well with RULES yes.
+{-# RULES
+"map/coerce" mapLazy coerce = coerce
+"map_/coerce" mapLazy_ coerce = coerce
+"mapNode/coerce" mapNodeLazy coerce = coerce
+  #-}
+#endif
+#endif
 
 -- | /O(min(n,W))/. Delete a key and its value from the map.
 -- When the key is not a member of the map, the original map is returned.
