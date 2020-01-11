@@ -151,6 +151,7 @@ main = defaultMain
              , testProperty "union+unionWith"      prop_unionWith
              , testProperty "union sum"            prop_unionSum
              , testProperty "difference model"     prop_differenceModel
+             , testProperty "differenceWithKey model" prop_differenceWithKeyModel
              , testProperty "intersection model"   prop_intersectionModel
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
@@ -1350,6 +1351,17 @@ prop_differenceModel xs ys =
       sort (keys t) === sort ((List.\\)
                                  (nub (Prelude.map fst xs))
                                  (nub (Prelude.map fst ys)))
+
+prop_differenceWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> [(Int,Int)] -> [(Int,Int)] -> Property
+prop_differenceWithKeyModel f xs ys
+    = toList (differenceWithKey (\k x y -> apply f (k, x, y)) (fromList xs') (fromList ys'))
+      === Maybe.mapMaybe diffSingle (sort xs')
+  where
+    xs' = List.nubBy ((==) `on` fst) xs
+    ys' = List.nubBy ((==) `on` fst) ys
+    diffSingle (k, x) = case List.lookup k ys' of
+        Nothing -> Just (k, x)
+        Just y -> fmap (\r -> (k, r)) (apply f (k, x, y))
 
 prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionModel xs ys =

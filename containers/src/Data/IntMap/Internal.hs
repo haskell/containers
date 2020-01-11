@@ -340,8 +340,6 @@ module Data.IntMap.Internal (
 
     -- * Deletion\/Update
     , delete
-    , deleteL
-    , deleteR
     , deleteMinL
     , deleteMaxR
 
