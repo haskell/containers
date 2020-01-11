@@ -218,7 +218,7 @@ import Text.Read
 #endif
 
 #if __GLASGOW_HASKELL__
-import qualified GHC.Exts as GHCExts
+import qualified GHC.Exts
 #endif
 
 import qualified Data.Foldable as Foldable
@@ -1013,7 +1013,7 @@ elems
 --------------------------------------------------------------------}
 #if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
-instance GHCExts.IsList IntSet where
+instance GHC.Exts.IsList IntSet where
   type Item IntSet = Key
   fromList = fromList
   toList   = toList
@@ -1057,9 +1057,9 @@ foldlFB = foldl
 -- before phase 0, otherwise the fusion rules would not fire at all.
 {-# NOINLINE[0] toAscList #-}
 {-# NOINLINE[0] toDescList #-}
-{-# RULES "IntSet.toAscList" [~1] forall s . toAscList s = GHCExts.build (\c n -> foldrFB c n s) #-}
+{-# RULES "IntSet.toAscList" [~1] forall s . toAscList s = GHC.Exts.build (\c n -> foldrFB c n s) #-}
 {-# RULES "IntSet.toAscListBack" [1] foldrFB (:) [] = toAscList #-}
-{-# RULES "IntSet.toDescList" [~1] forall s . toDescList s = GHCExts.build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
+{-# RULES "IntSet.toDescList" [~1] forall s . toDescList s = GHC.Exts.build (\c n -> foldlFB (\xs x -> c x xs) n s) #-}
 {-# RULES "IntSet.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
 #endif
 
@@ -1600,8 +1600,8 @@ highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
 ----------------------------------------------------------------------}
 
 indexOfTheOnlyBit bitmask =
-  GHCExts.I# (lsbArray `GHCExts.indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
-  where unboxInt (GHCExts.I# i) = i
+  GHC.Exts.I# (lsbArray `GHC.Exts.indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
+  where unboxInt (GHC.Exts.I# i) = i
 #if WORD_SIZE_IN_BITS==32
         magic = 0x077CB531
         offset = 27
