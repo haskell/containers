@@ -23,7 +23,16 @@ while (defined($l1 = <$f1>)) {
 
   $parts1[0] eq $parts2[0] or die "CSV files do not correspond -- $parts1[0] and $parts2[0]";
 
-  my $factor = $parts2[1] / $parts1[1];
+  my $factor;
+  if ($parts1[1] == 0) {
+      if ($parts2[1] == 0) {
+          $factor = 1;
+      } else {
+          $factor = 'inf';
+      }
+  } else {
+      $factor = $parts2[1] / $parts1[1];
+  }
   $count = $count + 1;
   $mult = $mult * $factor;
   if ($factor > $max) {
@@ -33,7 +42,11 @@ while (defined($l1 = <$f1>)) {
       $min = $factor;
   }
 
-  printf "%s;%+7.2f%%;%.2e\n", $parts1[0], 100 * $parts2[1] / $parts1[1] - 100, $parts1[1];
+  if ($factor == 'inf') {
+    printf "%s;%.2e;%.2e\n", $parts1[0], $parts2[1], $parts1[1];
+  } else {
+    printf "%s;%+7.2f%%;%.2e\n", $parts1[0], 100 * $factor - 100, $parts1[1];
+  }
 }
 
 printf ";\n";
