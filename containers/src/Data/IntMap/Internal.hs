@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP, BangPatterns, EmptyDataDecls #-}
 #if defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving, MagicHash #-}
 #endif
 
 #include "containers.h"
@@ -9,11 +9,7 @@
 {-# LANGUAGE TypeFamilies #-}
 #endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
-#if USE_REWRITE_RULES
 {-# LANGUAGE Trustworthy #-}
-#else
-{-# LANGUAGE Safe #-}
-#endif
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -309,6 +305,9 @@ module Data.IntMap.Internal (
 
     -- ** Key Manipulation
     , Key
+    , UKey
+    , box
+    , unbox
     , Bound(..)
     , BoundOrdering(..)
     , xor
@@ -472,6 +471,7 @@ import Data.Typeable
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
                   DataType, mkDataType)
 import Text.Read
+import GHC.Exts (Int(..), Int#)
 #endif
 #if __GLASGOW_HASKELL__ >= 708
 import qualified Utils.Containers.Internal.IsList as IsList
@@ -495,12 +495,40 @@ import Utils.Containers.Internal.StrictPair (StrictPair(..))
 
 import Prelude hiding (foldr, foldl, filter,  lookup, null, map, min, max)
 
--- These two definitions are the only things defining that this map applies to 'Int' keys. Using
--- 'Int8' or 'Word' or some other two's complement integer type would produce a working, equally
--- efficient map from that type.
+-- These definitions are the only things defining that this map applies to
+-- 'Int' keys. Using 'Int8' or 'Word' or some other two's complement integer
+-- type would produce a working, equally efficient map from that type.
 type Key = Int
+#if defined(__GLASGOW_HASKELL__)
+-- | An unboxed, unlifted version of 'Key', used for manual worker-wrapper
+-- transformations. @WithKey@ functions, particularly those that call their
+-- combination function on many keys, should be @INLINE@ and written in terms
+-- of a @WithUKey@ variant where the combination function takes a 'UKey'.
+type UKey = Int#
 
-i2w :: Int -> Word
+-- | Convert a 'UKey' into the equivalent 'Key'.
+box :: UKey -> Key
+box = I#
+
+-- | Convert a 'Key' into the equivalent 'UKey'.
+unbox :: Key -> UKey
+unbox (I# x) = x
+#else
+-- | Under GHC, this would be used to force a worker-wrapper transformation on
+-- @WithKey@ functions. However, since this compiler doesn't support unlifted
+-- types, there is no way to do this manually.
+type UKey = Key
+
+-- | Convert a 'UKey' into the equivalent 'Key'.
+box :: UKey -> Key
+box = id
+
+-- | Convert a 'Key' into the equivalent 'UKey'.
+unbox :: Key -> UKey
+unbox = id
+#endif
+
+i2w :: Key -> Word
 i2w = fromIntegral
 
 -- | Xor a key with a bound for the purposes of navigation within the tree.

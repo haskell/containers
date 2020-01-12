@@ -550,15 +550,21 @@ unionWith f = unionWithKey (const f)
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
+{-# INLINE unionWithKey #-}
 unionWithKey :: (Key -> a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
-unionWithKey = start
+unionWithKey combine = unionWithUKey (\k a b -> combine (box k) a b)
+
+-- | /O(n+m)/. The union with a combining function taking an unboxed key.
+-- Identical in functionality to 'unionWithKey'.
+unionWithUKey :: (UKey -> a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
+unionWithUKey = start
   where
     start _ (IntMap Empty) m2 = m2
     start _ m1 (IntMap Empty) = m1
     start combine (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
         | min1 < min2 = IntMap (NonEmpty min1 minV1 (goL2 combine minV2 min1 root1 min2 root2))
         | min1 > min2 = IntMap (NonEmpty min2 minV2 (goL1 combine minV1 min1 root1 min2 root2))
-        | otherwise = IntMap (NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 root1 root2) -- we choose min1 arbitrarily, as min1 == min2
+        | otherwise = IntMap (NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 root1 root2) -- we choose min1 arbitrarily, as min1 == min2
 
     goL1 _       minV1 !min1 Tip !_    Tip = Bin (minToMax min1) minV1 Tip Tip
     goL1 _       minV1 !min1 !n1 !min2 Tip = insertMinL (xor (boundKey min1) min2) min1 minV1 n1
@@ -568,10 +574,10 @@ unionWithKey = start
          LT | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> Bin max2 maxV2 (goL1 combine minV1 min1 n1 min2 l2) r2 -- we choose min1 arbitrarily - we just need something from tree 1
             | max1 > max2 -> Bin max1 maxV1 l2 (goR2 combine maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2)
             | max1 < max2 -> Bin max2 maxV2 l2 (goR1 combine maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2)
-            | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # l2 # goRFused combine max1 (Bin min1 minV1 l1 r1) r2 -- we choose max1 arbitrarily, as max1 == max2
+            | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # l2 # goRFused combine max1 (Bin min1 minV1 l1 r1) r2 -- we choose max1 arbitrarily, as max1 == max2
          EQ | max1 > max2 -> Bin max1 maxV1 (goL1 combine minV1 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
             | max1 < max2 -> Bin max2 maxV2 (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-            | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # goL1 combine minV1 min1 l1 min2 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
+            | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goL1 combine minV1 min1 l1 min2 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
          GT -> Bin max1 maxV1 (goL1 combine minV1 min1 l1 min2 n2) r1
 
     goL2 _       minV2 !_    Tip !min2 Tip = Bin (minToMax min2) minV2 Tip Tip
@@ -582,10 +588,10 @@ unionWithKey = start
          GT | xor (boundKey min2) min1 < xor (boundKey min2) max1 -> Bin max1 maxV1 (goL2 combine minV2 min1 l1 min2 n2) r1 -- we choose min2 arbitrarily - we just need something from tree 2
             | max1 > max2 -> Bin max1 maxV1 l1 (goR2 combine maxV2 max1 r1 max2 (Bin min2 minV2 l2 r2))
             | max1 < max2 -> Bin max2 maxV2 l1 (goR1 combine maxV1 max1 r1 max2 (Bin min2 minV2 l2 r2))
-            | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # l1 # goRFused combine max1 r1 (Bin min2 minV2 l2 r2) -- we choose max1 arbitrarily, as max1 == max2
+            | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # l1 # goRFused combine max1 r1 (Bin min2 minV2 l2 r2) -- we choose max1 arbitrarily, as max1 == max2
          EQ | max1 > max2 -> Bin max1 maxV1 (goL2 combine minV2 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
             | max1 < max2 -> Bin max2 maxV2 (goL2 combine minV2 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-            | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # goL2 combine minV2 min1 l1 min2 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
+            | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goL2 combine minV2 min1 l1 min2 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
          LT -> Bin max2 maxV2 (goL2 combine minV2 min1 n1 min2 l2) r2
 
     -- 'goLFused' is called instead of 'goL' if the minimums of the two trees are the same
@@ -596,7 +602,7 @@ unionWithKey = start
         LT -> Bin max2 maxV2 (goLFused combine min n1 l2) r2
         EQ | max1 > max2 -> Bin max1 maxV1 (goLFused combine min l1 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | max1 < max2 -> Bin max2 maxV2 (goLFused combine min l1 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-           | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # goLFused combine min l1 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
+           | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goLFused combine min l1 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
         GT -> Bin max1 maxV1 (goLFused combine min l1 n2) r1
 
     goR1 _       maxV1 !max1 Tip !_    Tip = Bin (maxToMin max1) maxV1 Tip Tip
@@ -607,10 +613,10 @@ unionWithKey = start
          LT | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> Bin min2 minV2 l2 (goR1 combine maxV1 max1 n1 max2 r2) -- we choose max1 arbitrarily - we just need something from tree 1
             | min1 < min2 -> Bin min1 minV1 (goL2 combine minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2) r2
             | min1 > min2 -> Bin min2 minV2 (goL1 combine minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2) r2
-            | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 (Bin max1 maxV1 l1 r1) l2 # r2 -- we choose min1 arbitrarily, as min1 == min2
+            | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 (Bin max1 maxV1 l1 r1) l2 # r2 -- we choose min1 arbitrarily, as min1 == min2
          EQ | min1 < min2 -> Bin min1 minV1 (goL2 combine minV2 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
             | min1 > min2 -> Bin min2 minV2 (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-            | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # goR1 combine maxV1 max1 r1 max2 r2 -- we choose min1 arbitrarily, as min1 == min2
+            | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # goR1 combine maxV1 max1 r1 max2 r2 -- we choose min1 arbitrarily, as min1 == min2
          GT -> Bin min1 minV1 l1 (goR1 combine maxV1 max1 r1 max2 n2)
 
     goR2 _       maxV2 !_    Tip !max2 Tip = Bin (maxToMin max2) maxV2 Tip Tip
@@ -621,10 +627,10 @@ unionWithKey = start
          GT | xor (boundKey max2) min1 > xor (boundKey max2) max1 -> Bin min1 minV1 l1 (goR2 combine maxV2 max1 r1 max2 n2) -- we choose max2 arbitrarily - we just need something from tree 2
             | min1 < min2 -> Bin min1 minV1 (goL2 combine minV2 min1 l1 min2 (Bin max2 maxV2 l2 r2)) r1
             | min1 > min2 -> Bin min2 minV2 (goL1 combine minV1 min1 l1 min2 (Bin max2 maxV2 l2 r2)) r1
-            | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 (Bin max2 maxV2 l2 r2) # r1 -- we choose min1 arbitrarily, as min1 == min2
+            | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 (Bin max2 maxV2 l2 r2) # r1 -- we choose min1 arbitrarily, as min1 == min2
          EQ | min1 < min2 -> Bin min1 minV1 (goL2 combine minV2 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
             | min1 > min2 -> Bin min2 minV2 (goL1 combine minV1 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
-            | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # goR2 combine maxV2 max1 r1 max2 r2 -- we choose min1 arbitrarily, as min1 == min2
+            | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # goR2 combine maxV2 max1 r1 max2 r2 -- we choose min1 arbitrarily, as min1 == min2
          LT -> Bin min2 minV2 l2 (goR2 combine maxV2 max1 n1 max2 r2)
 
     -- 'goRFused' is called instead of 'goR' if the minimums of the two trees are the same
@@ -635,7 +641,7 @@ unionWithKey = start
         LT -> Bin min2 minV2 l2 (goRFused combine max n1 r2)
         EQ | min1 < min2 -> Bin min1 minV1 (goL2 combine minV2 min1 l1 min2 l2) (goRFused combine max r1 r2)
            | min1 > min2 -> Bin min2 minV2 (goL1 combine minV1 min1 l1 min2 l2) (goRFused combine max r1 r2)
-           | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # goRFused combine max r1 r2 -- we choose min1 arbitrarily, as min1 == min2
+           | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # goRFused combine max r1 r2 -- we choose min1 arbitrarily, as min1 == min2
         GT -> Bin min1 minV1 l1 (goRFused combine max r1 n2)
 
     goInsertL1 _       k v !_        _    Tip = Bin (Bound k) #! v # Tip # Tip
@@ -644,7 +650,7 @@ unionWithKey = start
                 | otherwise              -> Bin max maxV l (goInsertR1 combine k v xorCacheMax max r)
         OutOfBound | xor (boundKey max) min < xorCacheMax -> Bin (Bound k) v (Bin max maxV l r) Tip
                    | otherwise -> Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        Matched -> Bin max #! combine k v maxV # l # r
+        Matched -> Bin max #! combine (unbox k) v maxV # l # r
       where xorCacheMax = xor k max
 
     goInsertR1 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
@@ -653,7 +659,7 @@ unionWithKey = start
                 | otherwise              -> Bin min minV (goInsertL1 combine k v xorCacheMin min l) r
         OutOfBound | xor (boundKey min) max < xorCacheMin -> Bin (Bound k) v Tip (Bin min minV l r)
                    | otherwise -> Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        Matched -> Bin min #! combine k v minV # l # r
+        Matched -> Bin min #! combine (unbox k) v minV # l # r
       where xorCacheMin = xor k min
 
     goInsertL2 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
@@ -662,7 +668,7 @@ unionWithKey = start
                 | otherwise              -> Bin max maxV l (goInsertR2 combine k v xorCacheMax max r)
         OutOfBound | xor (boundKey max) min < xorCacheMax -> Bin (Bound k) v (Bin max maxV l r) Tip
                    | otherwise -> Bin (Bound k) v l (insertMaxR xorCacheMax max maxV r)
-        Matched -> Bin max #! combine k maxV v # l # r
+        Matched -> Bin max #! combine (unbox k) maxV v # l # r
       where xorCacheMax = xor k max
 
     goInsertR2 _       k v !_        _    Tip = Bin (Bound k) v Tip Tip
@@ -671,7 +677,7 @@ unionWithKey = start
                 | otherwise              -> Bin min minV (goInsertL2 combine k v xorCacheMin min l) r
         OutOfBound | xor (boundKey min) max < xorCacheMin -> Bin (Bound k) v Tip (Bin min minV l r)
                    | otherwise -> Bin (Bound k) v (insertMinL xorCacheMin min minV l) r
-        Matched -> Bin min #! combine k minV v # l # r
+        Matched -> Bin min #! combine (unbox k) minV v # l # r
       where xorCacheMin = xor k min
 
 -- | The union of a list of maps, with a combining operation.
@@ -697,15 +703,21 @@ differenceWith f = differenceWithKey (const f)
 -- > let f k al ar = if al == "b" then Just ((show k) ++ ":" ++ al ++ "|" ++ ar) else Nothing
 -- > differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
 -- >     == singleton 3 "3:b|B"
+{-# INLINE differenceWithKey #-}
 differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
-differenceWithKey = start
+differenceWithKey combine = differenceWithUKey (\k a b -> combine (box k) a b)
+
+-- | /O(n+m)/. The difference with a combining function taking an unboxed
+-- key. Identical in functionality to 'differenceWithKey'.
+differenceWithUKey :: (UKey -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
+differenceWithUKey = start
   where
     start _ (IntMap Empty) !_ = IntMap Empty
     start _ !m (IntMap Empty) = m
     start combine (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
         | min1 < min2 = IntMap (NonEmpty min1 minV1 (goL2 combine minV2 min1 root1 min2 root2))
         | min1 > min2 = IntMap (goL1 combine minV1 min1 root1 min2 root2)
-        | otherwise = case combine (boundKey min1) minV1 minV2 of
+        | otherwise = case combine (unbox (boundKey min1)) minV1 minV2 of
             Nothing -> IntMap (goLFused combine min1 root1 root2)
             Just !minV1' -> IntMap (NonEmpty min1 minV1' (goLFusedKeep combine min1 root1 root2))
 
@@ -716,12 +728,12 @@ differenceWithKey = start
         LT | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> goL1 combine minV1 min1 n1 min2 l2 -- min1 is arbitrary here - we just need something from tree 1
            | max1 > max2 -> r2lMap $ NonEmpty max1 maxV1 (goR2 combine maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2)
            | max1 < max2 -> r2lMap $ goR1 combine maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> r2lMap $ goRFused combine max1 (Bin min1 minV1 l1 r1) r2
                 Just !maxV1' -> r2lMap $ NonEmpty max1 maxV1' (goRFusedKeep combine max1 (Bin min1 minV1 l1 r1) r2)
         EQ | max1 > max2 -> binL (goL1 combine minV1 min1 l1 min2 l2) (NonEmpty max1 maxV1 (goR2 combine maxV2 max1 r1 max2 r2))
            | max1 < max2 -> binL (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> binL (goL1 combine minV1 min1 l1 min2 l2) (goRFused combine max1 r1 r2)
                 Just !maxV1' -> binL (goL1 combine minV1 min1 l1 min2 l2) (NonEmpty max1 maxV1' (goRFusedKeep combine max1 r1 r2))
         GT -> binL (goL1 combine minV1 min1 l1 min2 n2) (NonEmpty max1 maxV1 r1)
@@ -735,7 +747,7 @@ differenceWithKey = start
            | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
                 Empty -> goL2 combine minV2 min1 l1 min2 l2
                 NonEmpty max' maxV' r' -> Bin max' maxV' (goL2 combine minV2 min1 l1 min2 l2) r'
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> case goRFused combine max1 r1 r2 of
                     Empty -> goL2 combine minV2 min1 l1 min2 l2
                     NonEmpty max' maxV' r' -> Bin max' maxV' (goL2 combine minV2 min1 l1 min2 l2) r'
@@ -745,7 +757,7 @@ differenceWithKey = start
            | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 (Bin min2 minV2 l2 r2) of
                 Empty -> l1
                 NonEmpty max' maxV' r' -> Bin max' maxV' l1 r'
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> case goRFused combine max1 r1 (Bin min2 minV2 l2 r2) of
                     Empty -> l1
                     NonEmpty max' maxV' r' -> Bin max' maxV' l1 r'
@@ -758,7 +770,7 @@ differenceWithKey = start
         LT -> goLFused combine min n1 l2
         EQ | max1 > max2 -> binL (goLFused combine min l1 l2) (NonEmpty max1 maxV1 (goR2 combine maxV2 max1 r1 max2 r2))
            | max1 < max2 -> binL (goLFused combine min l1 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> binL (goLFused combine min l1 l2) (goRFused combine max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
                 Just !maxV1' -> binL (goLFused combine min l1 l2) (NonEmpty max1 maxV1' (goRFusedKeep combine max1 r1 r2))
         GT -> binL (goLFused combine min l1 n2) (NonEmpty max1 maxV1 r1)
@@ -771,7 +783,7 @@ differenceWithKey = start
            | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
                 Empty -> goLFusedKeep combine min l1 l2
                 NonEmpty max' maxV' r' -> Bin max' maxV' (goLFusedKeep combine min l1 l2) r'
-           | otherwise -> case combine (boundKey max1) maxV1 maxV2 of
+           | otherwise -> case combine (unbox (boundKey max1)) maxV1 maxV2 of
                 Nothing -> case goRFused combine max1 r1 r2 of -- we choose max1 arbitrarily, as max1 == max2
                     Empty -> goLFusedKeep combine min l1 l2
                     NonEmpty max' maxV' r' -> Bin max' maxV' (goLFusedKeep combine min l1 l2) r'
@@ -785,12 +797,12 @@ differenceWithKey = start
         LT | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> goR1 combine maxV1 max1 n1 max2 r2 -- max1 is arbitrary here - we just need something from tree 1
            | min1 < min2 -> l2rMap $ NonEmpty min1 minV1 (goL2 combine minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2)
            | min1 > min2 -> l2rMap $ goL1 combine minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of
                 Nothing -> l2rMap $ goLFused combine min1 (Bin max1 maxV1 l1 r1) l2
                 Just !minV1' -> l2rMap $ NonEmpty min1 minV1' (goLFusedKeep combine min1 (Bin max1 maxV1 l1 r1) l2)
         EQ | min1 < min2 -> binR (NonEmpty min1 minV1 (goL2 combine minV2 min1 l1 min2 l2)) (goR1 combine maxV1 max1 r1 max2 r2)
            | min1 > min2 -> binR (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of
                 Nothing -> binR (goLFused combine min1 l1 l2) (goR1 combine maxV1 max1 r1 max2 r2)
                 Just !minV1' -> binR (NonEmpty min1 minV1' (goLFusedKeep combine min1 l1 l2)) (goR1 combine maxV1 max1 r1 max2 r2)
         GT -> binR (NonEmpty min1 minV1 l1) (goR1 combine maxV1 max1 r1 max2 n2)
@@ -804,7 +816,7 @@ differenceWithKey = start
            | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 l2 of
                 Empty -> goR2 combine maxV2 max1 r1 max2 r2
                 NonEmpty min' minV' l' -> Bin min' minV' l' (goR2 combine maxV2 max1 r1 max2 r2)
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of
                 Nothing -> case goLFused combine min1 l1 l2 of
                     Empty -> goR2 combine maxV2 max1 r1 max2 r2
                     NonEmpty min' minV' l' -> Bin min' minV' l' (goR2 combine maxV2 max1 r1 max2 r2)
@@ -814,7 +826,7 @@ differenceWithKey = start
            | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 (Bin max2 maxV2 l2 r2) of
                 Empty -> r1
                 NonEmpty min' minV' l' -> Bin min' minV' l' r1
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of
                 Nothing -> case goLFused combine min1 l1 (Bin max2 maxV2 l2 r2) of
                     Empty -> r1
                     NonEmpty min' minV' l' -> Bin min' minV' l' r1
@@ -827,7 +839,7 @@ differenceWithKey = start
         LT -> goRFused combine max n1 r2
         EQ | min1 < min2 -> binR (NonEmpty min1 minV1 (goL2 combine minV2 min1 l1 min2 l2)) (goRFused combine max r1 r2)
            | min1 > min2 -> binR (goL1 combine minV1 min1 l1 min2 l2) (goRFused combine max r1 r2)
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of
                 Nothing -> binR (goLFused combine min1 l1 l2) (goRFused combine max r1 r2) -- we choose min1 arbitrarily, as min1 == min2
                 Just !minV1' -> binR (NonEmpty min1 minV1' (goLFusedKeep combine min1 l1 l2)) (goRFused combine max r1 r2)
         GT -> binR (NonEmpty min1 minV1 l1) (goRFused combine max r1 n2)
@@ -840,7 +852,7 @@ differenceWithKey = start
            | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 l2 of
                 Empty -> goRFusedKeep combine max r1 r2
                 NonEmpty min' minV' l' -> Bin min' minV' l' (goRFusedKeep combine max r1 r2)
-           | otherwise -> case combine (boundKey min1) minV1 minV2 of -- we choose min1 arbitrarily, as min1 == min2
+           | otherwise -> case combine (unbox (boundKey min1)) minV1 minV2 of -- we choose min1 arbitrarily, as min1 == min2
                 Nothing -> case goLFused combine min1 l1 l2 of
                     Empty -> goRFusedKeep combine max r1 r2
                     NonEmpty min' minV' l' -> Bin min' minV' l' (goRFusedKeep combine max r1 r2)
@@ -852,7 +864,7 @@ differenceWithKey = start
         InBound | xorCache < xorCacheMax -> goLookupL combine k v xorCache l
                 | otherwise              -> goLookupR combine k v xorCacheMax r
         OutOfBound -> NonEmpty (Bound k) v Tip
-        Matched -> case combine k v maxV of
+        Matched -> case combine (unbox k) v maxV of
             Nothing -> Empty
             Just !v' -> NonEmpty (Bound k) v' Tip
       where xorCacheMax = xor k max
@@ -862,7 +874,7 @@ differenceWithKey = start
         InBound | xorCache < xorCacheMin -> goLookupR combine k v xorCache r
                 | otherwise              -> goLookupL combine k v xorCacheMin l
         OutOfBound -> NonEmpty (Bound k) v Tip
-        Matched -> case combine k v minV of
+        Matched -> case combine (unbox k) v minV of
             Nothing -> Empty
             Just !v' -> NonEmpty (Bound k) v' Tip
       where xorCacheMin = xor k min
@@ -872,7 +884,7 @@ differenceWithKey = start
         InBound | xorCache < xorCacheMax -> Bin max maxV (goDeleteL combine k v xorCache l) r
                 | otherwise              -> Bin max maxV l (goDeleteR combine k v xorCacheMax r)
         OutOfBound -> n
-        Matched -> case combine k maxV v of
+        Matched -> case combine (unbox k) maxV v of
             Nothing -> extractBinL l r
             Just !maxV' -> Bin max maxV' l r
       where xorCacheMax = xor k max
@@ -882,7 +894,7 @@ differenceWithKey = start
         InBound | xorCache < xorCacheMin -> Bin min minV l (goDeleteR combine k v xorCache r)
                 | otherwise              -> Bin min minV (goDeleteL combine k v xorCacheMin l) r
         OutOfBound -> n
-        Matched -> case combine k minV v of
+        Matched -> case combine (unbox k) minV v of
             Nothing -> extractBinR l r
             Just !minV' -> Bin min minV' l r
       where xorCacheMin = xor k min
@@ -897,15 +909,21 @@ intersectionWith f = intersectionWithKey (const f)
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
+{-# INLINE intersectionWithKey #-}
 intersectionWithKey :: (Key -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
-intersectionWithKey = start
+intersectionWithKey combine = intersectionWithUKey (\k a b -> combine (box k) a b)
+
+-- | /O(n+m)/. The intersection with a combining function taking an unboxed
+-- key. Identical in functionality to 'intersectionWithKey'.
+intersectionWithUKey :: (UKey -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
+intersectionWithUKey = start
   where
     start _ (IntMap Empty) !_ = IntMap Empty
     start _ !_ (IntMap Empty) = IntMap Empty
     start combine (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
         | min1 < min2 = IntMap (goL2 combine minV2 min1 root1 min2 root2)
         | min1 > min2 = IntMap (goL1 combine minV1 min1 root1 min2 root2)
-        | otherwise = IntMap (NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 root1 root2) -- we choose min1 arbitrarily, as min1 == min2
+        | otherwise = IntMap (NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 root1 root2) -- we choose min1 arbitrarily, as min1 == min2
 
     -- TODO: This scheme might produce lots of unnecessary l2r and r2l calls. This should be rectified.
 
@@ -916,12 +934,12 @@ intersectionWithKey = start
         LT | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> goL1 combine minV1 min1 n1 min2 l2 -- min1 is arbitrary here - we just need something from tree 1
            | max1 > max2 -> r2lMap $ goR2 combine maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2
            | max1 < max2 -> r2lMap $ goR1 combine maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2
-           | otherwise -> r2lMap $ NonEmpty max1 #! combine (boundKey max1) maxV1 maxV2 # goRFused combine max1 (Bin min1 minV1 l1 r1) r2
+           | otherwise -> r2lMap $ NonEmpty max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goRFused combine max1 (Bin min1 minV1 l1 r1) r2
         EQ | max1 > max2 -> binL (goL1 combine minV1 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | max1 < max2 -> binL (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
            | otherwise -> case goL1 combine minV1 min1 l1 min2 l2 of
-                Empty -> r2lMap (NonEmpty max1 #! combine (boundKey max1) maxV1 maxV2 # goRFused combine max1 r1 r2)
-                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 #! combine (boundKey max1) maxV1 maxV2 # l' # goRFused combine max1 r1 r2)
+                Empty -> r2lMap (NonEmpty max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goRFused combine max1 r1 r2)
+                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # l' # goRFused combine max1 r1 r2)
         GT -> goL1 combine minV1 min1 l1 min2 n2
 
     goL2 _       _     !_   Tip !_   !_  = Empty
@@ -932,12 +950,12 @@ intersectionWithKey = start
         EQ | max1 > max2 -> binL (goL2 combine minV2 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | max1 < max2 -> binL (goL2 combine minV2 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
            | otherwise -> case goL2 combine minV2 min1 l1 min2 l2 of
-                Empty -> r2lMap (NonEmpty max1 #! combine (boundKey max1) maxV1 maxV2 # goRFused combine max1 r1 r2)
-                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 #! combine (boundKey max1) maxV1 maxV2 # l' # goRFused combine max1 r1 r2)
+                Empty -> r2lMap (NonEmpty max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goRFused combine max1 r1 r2)
+                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # l' # goRFused combine max1 r1 r2)
         GT | xor (boundKey min2) min1 < xor (boundKey min2) max1 -> goL2 combine minV2 min1 l1 min2 n2 -- min2 is arbitrary here - we just need something from tree 2
            | max1 > max2 -> r2lMap $ goR2 combine maxV2 max1 r1 max2 (Bin min2 minV2 l2 r2)
            | max1 < max2 -> r2lMap $ goR1 combine maxV1 max1 r1 max2 (Bin min2 minV2 l2 r2)
-           | otherwise -> r2lMap $ NonEmpty max1 #! combine (boundKey max1) maxV1 maxV2 # goRFused combine max1 r1 (Bin min2 minV2 l2 r2)
+           | otherwise -> r2lMap $ NonEmpty max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goRFused combine max1 r1 (Bin min2 minV2 l2 r2)
 
     goLFused _ !_ Tip !_ = Tip
     goLFused _ !_ !_ Tip = Tip
@@ -949,7 +967,7 @@ intersectionWithKey = start
            | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
                 Empty -> goLFused combine min l1 l2
                 NonEmpty max' maxV' r' -> Bin max' maxV' (goLFused combine min l1 l2) r'
-           | otherwise -> Bin max1 #! combine (boundKey max1) maxV1 maxV2 # goLFused combine min l1 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
+           | otherwise -> Bin max1 #! combine (unbox (boundKey max1)) maxV1 maxV2 # goLFused combine min l1 l2 # goRFused combine max1 r1 r2 -- we choose max1 arbitrarily, as max1 == max2
         GT -> goLFused combine min l1 n2
 
     goR1 _       _     !_   !_  !_   Tip = Empty
@@ -959,12 +977,12 @@ intersectionWithKey = start
         LT | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> goR1 combine maxV1 max1 n1 max2 r2 -- max1 is arbitrary here - we just need something from tree 1
            | min1 < min2 -> l2rMap $ goL2 combine minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2
            | min1 > min2 -> l2rMap $ goL1 combine minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2
-           | otherwise -> l2rMap $ NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 (Bin max1 maxV1 l1 r1) l2
+           | otherwise -> l2rMap $ NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 (Bin max1 maxV1 l1 r1) l2
         EQ | min1 < min2 -> binR (goL2 combine minV2 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
            | min1 > min2 -> binR (goL1 combine minV1 min1 l1 min2 l2) (goR1 combine maxV1 max1 r1 max2 r2)
            | otherwise -> case goR1 combine maxV1 max1 r1 max2 r2 of
-                Empty -> l2rMap (NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2)
-                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # r')
+                Empty -> l2rMap (NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2)
+                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # r')
         GT -> goR1 combine maxV1 max1 r1 max2 n2
 
     goR2 _       _     !_   Tip !_   !_  = Empty
@@ -975,12 +993,12 @@ intersectionWithKey = start
         EQ | min1 < min2 -> binR (goL2 combine minV2 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | min1 > min2 -> binR (goL1 combine minV1 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | otherwise -> case goR2 combine maxV2 max1 r1 max2 r2 of
-                Empty -> l2rMap (NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2)
-                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # r')
+                Empty -> l2rMap (NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2)
+                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # r')
         GT | xor (boundKey max2) min1 > xor (boundKey max2) max1 -> goR2 combine maxV2 max1 r1 max2 n2 -- max2 is arbitrary here - we just need something from tree 2
            | min1 < min2 -> l2rMap $ goL2 combine minV2 min1 l1 min2 (Bin max2 maxV2 l2 r2)
            | min1 > min2 -> l2rMap $ goL1 combine minV1 min1 l1 min2 (Bin max2 maxV2 l2 r2)
-           | otherwise -> l2rMap $ NonEmpty min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 (Bin max2 maxV2 l2 r2)
+           | otherwise -> l2rMap $ NonEmpty min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 (Bin max2 maxV2 l2 r2)
 
     goRFused _ !_ Tip !_ = Tip
     goRFused _ !_ !_ Tip = Tip
@@ -992,7 +1010,7 @@ intersectionWithKey = start
            | min1 > min2 -> case goL1 combine minV1 min1 l1 min2 l2 of
                 Empty -> goRFused combine max r1 r2
                 NonEmpty min' minV' l' -> Bin min' minV' l' (goRFused combine max r1 r2)
-           | otherwise -> Bin min1 #! combine (boundKey min1) minV1 minV2 # goLFused combine min1 l1 l2 # goRFused combine max r1 r2 -- we choose max1 arbitrarily, as max1 == max2
+           | otherwise -> Bin min1 #! combine (unbox (boundKey min1)) minV1 minV2 # goLFused combine min1 l1 l2 # goRFused combine max r1 r2 -- we choose max1 arbitrarily, as max1 == max2
         GT -> goRFused combine max r1 n2
 
     goLookupL1 _ !_ _ !_ Tip = Empty
@@ -1000,7 +1018,7 @@ intersectionWithKey = start
         InBound | xorCache < xorCacheMax -> goLookupL1 combine k v xorCache l
                 | otherwise              -> goLookupR1 combine k v xorCacheMax r
         OutOfBound -> Empty
-        Matched -> NonEmpty (Bound k) #! combine k v maxV # Tip
+        Matched -> NonEmpty (Bound k) #! combine (unbox k) v maxV # Tip
       where xorCacheMax = xor k max
 
     goLookupR1 _ !_ _ !_ Tip = Empty
@@ -1008,7 +1026,7 @@ intersectionWithKey = start
         InBound | xorCache < xorCacheMin -> goLookupR1 combine k v xorCache r
                 | otherwise              -> goLookupL1 combine k v xorCacheMin l
         OutOfBound -> Empty
-        Matched -> NonEmpty (Bound k) #! combine k v minV # Tip
+        Matched -> NonEmpty (Bound k) #! combine (unbox k) v minV # Tip
       where xorCacheMin = xor k min
 
     goLookupL2 _ !_ _ !_ Tip = Empty
@@ -1016,7 +1034,7 @@ intersectionWithKey = start
         InBound | xorCache < xorCacheMax -> goLookupL2 combine k v xorCache l
                 | otherwise              -> goLookupR2 combine k v xorCacheMax r
         OutOfBound -> Empty
-        Matched -> NonEmpty (Bound k) #! combine k maxV v # Tip
+        Matched -> NonEmpty (Bound k) #! combine (unbox k) maxV v # Tip
       where xorCacheMax = xor k max
 
     goLookupR2 _ !_ _ !_ Tip = Empty
@@ -1024,7 +1042,7 @@ intersectionWithKey = start
         InBound | xorCache < xorCacheMin -> goLookupR2 combine k v xorCache r
                 | otherwise              -> goLookupL2 combine k v xorCacheMin l
         OutOfBound -> Empty
-        Matched -> NonEmpty (Bound k) #! combine k minV v # Tip
+        Matched -> NonEmpty (Bound k) #! combine (unbox k) minV v # Tip
       where xorCacheMin = xor k min
 
 -- | /O(n+m)/. An unsafe general combining function.
