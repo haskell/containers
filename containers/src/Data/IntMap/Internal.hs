@@ -2521,9 +2521,9 @@ ltMSB x y = x < y && x < Data.Bits.xor x y
 -- See 'ltMSB' for why this works
 {-# INLINE compareMSB #-}
 compareMSB :: Word -> Word -> Ordering
-compareMSB x y = case compare x y of
-    LT | x < Data.Bits.xor x y -> LT
-    GT | y < Data.Bits.xor x y -> GT
+compareMSB x y = case x < y of
+    True  | x < Data.Bits.xor x y -> LT
+    False | y < Data.Bits.xor x y -> GT
     _ -> EQ
 
 {-# INLINE binL #-}
