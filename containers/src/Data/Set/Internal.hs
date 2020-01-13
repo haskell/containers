@@ -193,6 +193,8 @@ module Data.Set.Internal (
             , foldr, foldr1
             , foldl, foldl1
             , foldr', foldr1'
+            , foldr1By, foldr1By'
+            , foldl1By, foldl1By'
             , foldl', foldl1'
             -- ** Legacy folds
             , fold
@@ -1257,11 +1259,18 @@ foldr f z = go z
 {-# INLINE foldr #-}
 
 foldr1 :: (b -> b -> b) -> NonEmptySet b -> b
-foldr1 f = go
-  where
-    go (Bin' _ x l Tip) = foldr f x l
-    go (Bin' _ x l (NE r)) = foldr f (f x (go r)) l
+foldr1 f = foldr1By f id
 {-# INLINE foldr1 #-}
+
+foldr1By :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
+foldr1By f g = go
+  where
+    finish :: Set a -> b -> b
+    finish l acc = foldr f acc l
+    go :: NonEmptySet a -> b
+    go (Bin' _ v l (NE r)) = finish l (f v (go r))
+    go (Bin' _ v l Tip) = finish l (g v)
+{-# INLINE foldr1By #-}
 
 -- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
@@ -1280,6 +1289,15 @@ foldr1' f = go
     go (Bin' _ x l (NE r)) = foldr' f (f x (go r)) l
 {-# INLINE foldr1' #-}
 
+foldr1By' :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
+foldr1By' f g = go
+  where
+    finish :: Set a -> b -> b
+    finish l !acc = foldr' f acc l
+    go :: NonEmptySet a -> b
+    go (Bin' _ v l (NE r)) = finish l (f v (go r))
+    go (Bin' _ v l Tip) = finish l (g v)
+{-# INLINE foldr1By' #-}
 -- | /O(n)/. Fold the elements in the set using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'toAscList'@.
 --
@@ -1300,6 +1318,16 @@ foldl1 f = go
     go (Bin' _ x (NE l) r) = foldl f (f (go l) x) r
 {-# INLINE foldl1 #-}
 
+foldl1By :: forall a b . (b -> a -> b) -> (a -> b) -> NonEmptySet a -> b
+foldl1By f g = go
+  where
+    finish :: b -> Set a -> b
+    finish acc r = foldl f acc r
+    go :: NonEmptySet a -> b
+    go (Bin' _ v (NE l) r) = finish (f (go l) v) r
+    go (Bin' _ v Tip r) = finish (g v) r
+{-# INLINE foldl1By #-}
+
 -- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
@@ -1311,11 +1339,18 @@ foldl' f z = go z
 {-# INLINE foldl' #-}
 
 foldl1' :: (b -> b -> b) -> NonEmptySet b -> b
-foldl1' f = go
-  where
-    go (Bin' _ x Tip r) = foldl' f x r
-    go (Bin' _ x (NE l) r) = foldl' f (f (go l) x) r
+foldl1' f = foldl1By' f id
 {-# INLINE foldl1' #-}
+
+foldl1By' :: forall a b . (b -> a -> b) -> (a -> b) -> NonEmptySet a -> b
+foldl1By' f g = go
+  where
+    finish :: b -> Set a -> b
+    finish !acc r = foldl' f acc r
+    go :: NonEmptySet a -> b
+    go (Bin' _ v (NE l) r) = finish (f (go l) v) r
+    go (Bin' _ v Tip r) = finish (g v) r
+{-# INLINE foldl1By' #-}
 
 {--------------------------------------------------------------------
   List variations
@@ -2394,15 +2429,6 @@ nePowerSetNE xs = foldr1By f (singletonNE.singletonNE) xs
     f :: a -> NonEmptySet (NonEmptySet a) -> NonEmptySet (NonEmptySet a)
     f v acc = insertMinNE (singletonNE v) (NE $ mapMonotonicNE (insertMinNE v . NE) acc) `glueNE` acc
 
-foldr1By :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
-foldr1By f g = go
-  where
-    finish :: Set a -> b -> b
-    finish l acc = foldr f acc l
-    go :: NonEmptySet a -> b
-    go (Bin' _ v l (NE r)) = finish l (f v (go r))
-    go (Bin' _ v l Tip) = finish l (g v)
-
 -- | /O(m*n)/ (conjectured). Calculate the Cartesian product of two sets.
 --
 -- @
@@ -2441,11 +2467,12 @@ cartesianProduct as (NE (Bin' 1 b _ _)) = mapMonotonic (flip (,) b) as
 cartesianProduct as bs =
   getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
 
-cartesianProductNE :: NonEmptySet a -> NonEmptySet b -> NonEmptySet (a, b)
+cartesianProductNE :: forall a b . NonEmptySet a -> NonEmptySet b -> NonEmptySet (a, b)
 cartesianProductNE as (Bin' 1 b _ _) = mapMonotonicNE (flip (,) b) as
 cartesianProductNE as bs = goFoldMapNE as
   where
     f a = mapMonotonicNE ((,) a) bs
+    goFoldMapNE :: NonEmptySet a -> NonEmptySet (a, b)
     goFoldMapNE (Bin'  1 k _ _) = f k
     goFoldMapNE (Bin'  _ k l r) = goFoldMap l `mergeXNE` (f k `mergeNEX` goFoldMap r)
     goFoldMap Tip = empty
