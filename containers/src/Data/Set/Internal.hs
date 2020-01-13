@@ -11,6 +11,7 @@
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -147,7 +148,7 @@ module Data.Set.Internal (
             , lookupGE, lookupGENE
             , isSubsetOf, isSubsetOfNE
             , isProperSubsetOf, isProperSubsetOfNE
-            , disjoint, disjointNE
+            , disjoint, disjointNE, disjointNEX
 
             -- * Construction
             , empty
@@ -155,15 +156,15 @@ module Data.Set.Internal (
             , insert, insertNE
             , delete, deleteNE
             , alterF
-            , powerSet
+            , powerSet, powerSetNE
 
             -- * Combine
             , union, unionNE
             , unions
             , difference, differenceNE
             , intersection, intersectionNE
-            , cartesianProduct
-            , disjointUnion
+            , cartesianProduct, cartesianProductNE
+            , disjointUnion, disjointUnionNE, disjointUnionNEX, disjointUnionXNE
 
             -- * Filter
             , filter, filterNE
@@ -173,7 +174,7 @@ module Data.Set.Internal (
             , partition, partitionNE
             , split, splitNE
             , splitMember, splitMemberNE
-            , splitRoot
+            , splitRoot, splitRootNE, splitNERootNE
 
             -- * Indexed
             , lookupIndex, lookupIndexNE
@@ -185,13 +186,12 @@ module Data.Set.Internal (
             , splitAt, splitAtNE
 
             -- * Map
-            , map
+            , map, mapNE
             , mapMonotonic, mapMonotonicNE
 
             -- * Folds
             , foldr, foldr1
             , foldl, foldl1
-            -- ** Strict folds
             , foldr', foldr1'
             , foldl', foldl1'
             -- ** Legacy folds
@@ -385,6 +385,47 @@ instance Foldable.Foldable Set where
     {-# INLINABLE product #-}
 #endif
 
+instance Foldable.Foldable NonEmptySet where
+    fold = goNE
+      where goNE (Bin'  1 k _ _) = k
+            goNE (Bin'  _ k l r) = go l `mappend` (k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINABLE fold #-}
+    -- foldr f z s = foldr
+    -- {-# INLINE foldr #-}
+    -- foldl = foldl
+    -- {-# INLINE foldl #-}
+    foldMap f t = goNE t
+      where goNE (Bin'  1 k _ _) = f k
+            goNE (Bin'  _ k l r) = go l `mappend` (f k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINE foldMap #-}
+    -- foldl' = foldl'
+    -- {-# INLINE foldl' #-}
+    -- foldr' = foldr'
+    -- {-# INLINE foldr' #-}
+#if MIN_VERSION_base(4,8,0)
+    length = sizeNE
+    {-# INLINE length #-}
+    null _ = False
+    {-# INLINE null #-}
+#if MIN_VERSION_base(4,9,0)
+    toList = NEL.toList . toListNE
+    {-# INLINE toList #-}
+#endif
+    elem x xs = elem x $ NE xs
+    {-# INLINABLE elem #-}
+    minimum = lookupMinNE
+    {-# INLINE minimum #-}
+    maximum = lookupMaxNE
+    {-# INLINE maximum #-}
+    -- sum = foldl' (+) 0
+    -- {-# INLINABLE sum #-}
+    -- product = foldl' (*) 1
+    -- {-# INLINABLE product #-}
+#endif
 
 #if __GLASGOW_HASKELL__
 
@@ -798,8 +839,8 @@ alteredSet :: Ord a => a -> Set a -> AlteredSet a
 alteredSet x0 s0 = go x0 s0
   where
     go :: Ord a => a -> Set a -> AlteredSet a
-    go x Tip           = Inserted (singleton x)
-    go x (Bin _ y l r) = case compare x y of
+    go x Tip = Inserted (singleton x)
+    go x (NE (Bin' _ y l r)) = case compare x y of
         LT -> case go x l of
             Deleted d           -> Deleted (balanceR y d r)
             Inserted i          -> Inserted (balanceL y i r)
@@ -1169,6 +1210,9 @@ map f = fromList . List.map f . toList
 #if __GLASGOW_HASKELL__
 {-# INLINABLE map #-}
 #endif
+
+mapNE :: Ord b => (a->b) -> NonEmptySet a -> NonEmptySet b
+mapNE f = fromListNE . fmap f . toListNE
 
 -- | /O(n)/. The
 --
@@ -2314,6 +2358,14 @@ splitRoot orig =
     NE (Bin' _ v l r) -> [l, singleton v, r]
 {-# INLINE splitRoot #-}
 
+splitRootNE :: NonEmptySet a -> NEL.NonEmpty (Set a)
+splitRootNE (Bin' _ v l r) = l NEL.:| [singleton v, r]
+
+splitNERootNE :: NonEmptySet a -> NEL.NonEmpty (NonEmptySet a)
+splitNERootNE (Bin' _ v Tip Tip) = pure $ singletonNE v
+splitNERootNE (Bin' _ v (NE l) Tip) = l NEL.:| [singletonNE v]
+splitNERootNE (Bin' _ v Tip (NE r)) = singletonNE v NEL.:| [r]
+splitNERootNE (Bin' _ v (NE l) (NE r)) = l NEL.:| [singletonNE v, r]
 
 -- | Calculate the power set of a set: the set of all its subsets.
 --
@@ -2332,6 +2384,24 @@ splitRoot orig =
 powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
+
+powerSetNE :: NonEmptySet a -> NonEmptySet (Set a)
+powerSetNE xs = insertMinNE empty . NE . mapMonotonicNE NE $ nePowerSetNE xs
+
+nePowerSetNE :: forall a . NonEmptySet a -> NonEmptySet (NonEmptySet a)
+nePowerSetNE xs = foldr1By f (singletonNE.singletonNE) xs
+  where
+    f :: a -> NonEmptySet (NonEmptySet a) -> NonEmptySet (NonEmptySet a)
+    f v acc = insertMinNE (singletonNE v) (NE $ mapMonotonicNE (insertMinNE v . NE) acc) `glueNE` acc
+
+foldr1By :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
+foldr1By f g = go
+  where
+    finish :: Set a -> b -> b
+    finish l acc = foldr f acc l
+    go :: NonEmptySet a -> b
+    go (Bin' _ v l (NE r)) = finish l (f v (go r))
+    go (Bin' _ v l Tip) = finish l (g v)
 
 -- | /O(m*n)/ (conjectured). Calculate the Cartesian product of two sets.
 --
@@ -2371,6 +2441,16 @@ cartesianProduct as (NE (Bin' 1 b _ _)) = mapMonotonic (flip (,) b) as
 cartesianProduct as bs =
   getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
 
+cartesianProductNE :: NonEmptySet a -> NonEmptySet b -> NonEmptySet (a, b)
+cartesianProductNE as (Bin' 1 b _ _) = mapMonotonicNE (flip (,) b) as
+cartesianProductNE as bs = goFoldMapNE as
+  where
+    f a = mapMonotonicNE ((,) a) bs
+    goFoldMapNE (Bin'  1 k _ _) = f k
+    goFoldMapNE (Bin'  _ k l r) = goFoldMap l `mergeXNE` (f k `mergeNEX` goFoldMap r)
+    goFoldMap Tip = empty
+    goFoldMap (NE s) = NE $ goFoldMapNE s
+
 -- A version of Set with peculiar Semigroup and Monoid instances.
 -- The result of xs <> ys will only be a valid set if the greatest
 -- element of xs is strictly less than the least element of ys.
@@ -2406,6 +2486,14 @@ instance Monoid (MergeSet a) where
 disjointUnion :: Set a -> Set b -> Set (Either a b)
 disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 
+disjointUnionNE :: NonEmptySet a -> NonEmptySet b -> NonEmptySet (Either a b)
+disjointUnionNE as bs = mergeNE (mapMonotonicNE Left as) (mapMonotonicNE Right bs)
+
+disjointUnionNEX :: NonEmptySet a -> Set b -> NonEmptySet (Either a b)
+disjointUnionNEX as bs = mergeNEX (mapMonotonicNE Left as) (mapMonotonic Right bs)
+
+disjointUnionXNE :: Set a -> NonEmptySet b -> NonEmptySet (Either a b)
+disjointUnionXNE as bs = mergeXNE (mapMonotonic Left as) (mapMonotonicNE Right bs)
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
