@@ -741,7 +741,7 @@ differenceWithUKey = start
     goL2 _       _     !_    Tip !_   !_  = Tip
     goL2 combine minV2 !min1 !n1 !min2 Tip = goDeleteL combine (boundKey min2) minV2 (xor (boundKey min2) min1) n1
     goL2 _       _     !_    n1@(Bin max1 _ _ _) !min2 (Bin _ _ _ _) | boundsDisjoint min2 max1 = n1
-    goL2 combine minV2 1min1 n1@(Bin max1 maxV1 l1 r1)! min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
+    goL2 combine minV2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         LT -> goL2 combine minV2 min1 n1 min2 l2
         EQ | max1 > max2 -> Bin max1 maxV1 (goL2 combine minV2 min1 l1 min2 l2) (goR2 combine maxV2 max1 r1 max2 r2)
            | max1 < max2 -> case goR1 combine maxV1 max1 r1 max2 r2 of
