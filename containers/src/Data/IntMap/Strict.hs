@@ -765,7 +765,7 @@ differenceWithUKey = start
 
     goLFused _ !_ Tip !_ = Empty
     goLFused _ !_ (Bin max1 maxV1 l1 r1) Tip = case deleteMinL max1 maxV1 l1 r1 of
-        DR min' minV' n' -> NonEmpty min' minV' n'
+        NE min' minV' n' -> NonEmpty min' minV' n'
     goLFused combine !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min max1) (xorBounds min max2) of
         LT -> goLFused combine min n1 l2
         EQ | max1 > max2 -> binL (goLFused combine min l1 l2) (NonEmpty max1 maxV1 (goR2 combine maxV2 max1 r1 max2 r2))
@@ -834,7 +834,7 @@ differenceWithUKey = start
 
     goRFused _ !_ Tip !_ = Empty
     goRFused _ !_ (Bin min1 minV1 l1 r1) Tip = case deleteMaxR min1 minV1 l1 r1 of
-        DR max' maxV' n' -> NonEmpty max' maxV' n'
+        NE max' maxV' n' -> NonEmpty max' maxV' n'
     goRFused combine !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 minV2 l2 r2) = case compareMSB (xorBounds min1 max) (xorBounds min2 max) of
         LT -> goRFused combine max n1 r2
         EQ | min1 < min2 -> binR (NonEmpty min1 minV1 (goL2 combine minV2 min1 l1 min2 l2)) (goRFused combine max r1 r2)

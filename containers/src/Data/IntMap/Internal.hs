@@ -299,9 +299,9 @@ module Data.IntMap.Internal (
     -- * Map Types
       IntMap(..)
     , L, R
-    , Node(..)
     , IntMap_(..)
-    , DeleteResult(..)
+    , Node(..)
+    , NonEmptyIntMap_(..)
 
     -- ** Key Manipulation
     , Key
@@ -696,6 +696,29 @@ data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deri
 -- 'lookup', only need to understand the branching criteria with regards to a single, fixed key,
 -- and can instead pass the xor-distance between that key and the missing bound.
 data Node t a = Bin {-# UNPACK #-} !(Bound (Flipped t)) a !(Node L a) !(Node R a) | Tip deriving (Eq, Show)
+
+-- | The non-empty case of 'IntMap_'.
+--
+-- Although this may be exposed and used for its own sake (TODO: make 'IntMap_'
+-- contain an @UNPACK@ed 'NonEmptyIntMap_' field instead of copy-pasting
+-- fields between the two structures), its primary function currently is as an
+-- intermediate in routines that involve deletion.
+--
+-- A 'Node' is largely meaningless without the context of one external bound
+-- (minima for 'L' nodes and maxima for 'R' nodes). When that external bound
+-- gets deleted, the 'Node' needs to be rearranged, with a new bouond pulled
+-- up and out to the top level. This transformation is implemented in
+-- 'deleteMinL' for when the minimum bound is gone and in 'deleteMaxR' when
+-- the minimum bound is gone. Although a 'Node' could be 'Tip' and so would
+-- most naturally be turned into a possibly-empty 'IntMap_' (and this is what
+-- 'nodeToMapL' and 'nodeToMapR' do), it is important to use a product type for
+-- the intermediates in the recursive case so that GHC's constructed product
+-- result analysis (CPR) can unpack the 'NonEmptyIntMap_' into multiple
+-- returned values on the stack.
+--
+-- See 'IntMap_' for further discussion of the tag type parameter and the
+-- invariants that must hold for this structure.
+data NonEmptyIntMap_ t a = NE {-# UNPACK #-} !(Bound t) a !(Node t a)
 
 #if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
@@ -1251,10 +1274,33 @@ delete !k m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
     OutOfBound -> m
     Matched -> IntMap (nodeToMapL root)
 
--- | Without this specialized type (I was just using a tuple), GHC's
--- CPR correctly unboxed the tuple, but it couldn't unbox the returned
--- Key, leading to lots of inefficiency (3x slower than stock Data.IntMap)
-data DeleteResult t a = DR {-# UNPACK #-} !(Bound t) a !(Node t a)
+-- | Delete a key from a left node. Takes the xor of the deleted key and
+-- the minimum bound of that node.
+--
+-- This would normally be a local method of 'delete', but it can be reused in
+-- other places.
+deleteL :: Key -> Word -> Node L a -> Node L a
+deleteL !_ !_ Tip = Tip
+deleteL !k !xorCache n@(Bin max maxV l r) = case compareMaxBound k max of
+    InBound | xorCache < xorCacheMax -> Bin max maxV (deleteL k xorCache l) r
+            | otherwise              -> Bin max maxV l (deleteR k xorCacheMax r)
+    OutOfBound -> n
+    Matched -> extractBinL l r
+  where xorCacheMax = xor k max
+
+-- | Delete a key from a right node. Takes the xor of the deleted key and
+-- the maximum bound of that node.
+--
+-- This would normally be a local method of 'delete', but it can be reused in
+-- other places.
+deleteR :: Key -> Word -> Node R a -> Node R a
+deleteR !_ !_ Tip = Tip
+deleteR !k !xorCache n@(Bin min minV l r) = case compareMinBound k min of
+    InBound | xorCache < xorCacheMin -> Bin min minV l (deleteR k xorCache r)
+            | otherwise              -> Bin min minV (deleteL k xorCacheMin l) r
+    OutOfBound -> n
+    Matched -> extractBinR l r
+  where xorCacheMin = xor k min
 
 -- | /O(n+m)/. The (left-biased) union of two maps.
 -- It prefers the first map when duplicate keys are encountered,
@@ -1463,7 +1509,7 @@ difference = start
 
     goLFused !_ Tip !_ = Empty
     goLFused !_ (Bin max1 maxV1 l1 r1) Tip = case deleteMinL max1 maxV1 l1 r1 of
-        DR min' minV' n' -> NonEmpty min' minV' n'
+        NE min' minV' n' -> NonEmpty min' minV' n'
     goLFused !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 _ l2 r2) = case compareMSB (xorBounds min max1) (xorBounds min max2) of
         LT -> goLFused min n1 l2
         EQ | max1 > max2 -> binL (goLFused min l1 l2) (NonEmpty max1 maxV1 (goR2 max1 r1 max2 r2))
@@ -1507,7 +1553,7 @@ difference = start
 
     goRFused !_ Tip !_ = Empty
     goRFused !_ (Bin min1 minV1 l1 r1) Tip = case deleteMaxR min1 minV1 l1 r1 of
-        DR max' maxV' n' -> NonEmpty max' maxV' n'
+        NE max' maxV' n' -> NonEmpty max' maxV' n'
     goRFused !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 _ l2 r2) = case compareMSB (xorBounds min1 max) (xorBounds min2 max) of
         LT -> goRFused max n1 r2
         EQ | min1 < min2 -> binR (NonEmpty min1 minV1 (goL2 min1 l1 min2 l2)) (goRFused max r1 r2)
@@ -2178,29 +2224,29 @@ splitLookup !k = start
         InBound -> case root of
             Tip -> (m, Nothing, IntMap Empty)
             Bin max maxV l r -> case compareMaxBound k max of
-                InBound -> let (DR glb glbV lt, eq, DR lub lubV gt) = go (xor k min) min minV (xor k max) max maxV l r
+                InBound -> let (NE glb glbV lt, eq, NE lub lubV gt) = go (xor k min) min minV (xor k max) max maxV l r
                             in (IntMap (r2lMap (NonEmpty glb glbV lt)), eq, IntMap (NonEmpty lub lubV gt))
                 OutOfBound -> (m, Nothing, IntMap Empty)
-                Matched -> let DR max' maxV' root' = deleteMaxR min minV l r
+                Matched -> let NE max' maxV' root' = deleteMaxR min minV l r
                             in (IntMap (r2lMap (NonEmpty max' maxV' root')), Just maxV, IntMap Empty)
         OutOfBound -> (IntMap Empty, Nothing, m)
         Matched -> (IntMap Empty, Just minV, IntMap (nodeToMapL root))
 
     go xorCacheMin min minV xorCacheMax max maxV l r
         | xorCacheMin < xorCacheMax = case l of
-            Tip -> (DR (minToMax min) minV Tip, Nothing, r2lDR (DR max maxV r))
+            Tip -> (NE (minToMax min) minV Tip, Nothing, r2lNE (NE max maxV r))
             Bin maxI maxVI lI rI -> case compareMaxBound k maxI of
-                InBound -> let (lt, eq, DR minI minVI gt) = go xorCacheMin min minV (xor k maxI) maxI maxVI lI rI
-                            in (lt, eq, DR minI minVI (Bin max maxV gt r))
-                OutOfBound -> (l2rDR (DR min minV l), Nothing, r2lDR (DR max maxV r))
-                Matched -> (deleteMaxR min minV lI rI, Just maxVI, r2lDR (DR max maxV r))
+                InBound -> let (lt, eq, NE minI minVI gt) = go xorCacheMin min minV (xor k maxI) maxI maxVI lI rI
+                            in (lt, eq, NE minI minVI (Bin max maxV gt r))
+                OutOfBound -> (l2rNE (NE min minV l), Nothing, r2lNE (NE max maxV r))
+                Matched -> (deleteMaxR min minV lI rI, Just maxVI, r2lNE (NE max maxV r))
         | otherwise = case r of
-            Tip -> (l2rDR (DR min minV l), Nothing, DR (maxToMin max) maxV Tip)
+            Tip -> (l2rNE (NE min minV l), Nothing, NE (maxToMin max) maxV Tip)
             Bin minI minVI lI rI -> case compareMinBound k minI of
-                InBound -> let (DR maxI maxVI lt, eq, gt) = go (xor k minI) minI minVI xorCacheMax max maxV lI rI
-                              in (DR maxI maxVI (Bin min minV l lt), eq, gt)
-                OutOfBound -> (l2rDR (DR min minV l), Nothing, r2lDR (DR max maxV r))
-                Matched -> (l2rDR (DR min minV l), Just minVI, deleteMinL max maxV lI rI)
+                InBound -> let (NE maxI maxVI lt, eq, gt) = go (xor k minI) minI minVI xorCacheMax max maxV lI rI
+                              in (NE maxI maxVI (Bin min minV l lt), eq, gt)
+                OutOfBound -> (l2rNE (NE min minV l), Nothing, r2lNE (NE max maxV r))
+                Matched -> (l2rNE (NE min minV l), Just minVI, deleteMinL max maxV lI rI)
 
 -- | /O(1)/.  Decompose a map into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a map in parallel.
@@ -2586,15 +2632,15 @@ r2lMap Empty = Empty
 r2lMap (NonEmpty max maxV Tip) = NonEmpty (maxToMin max) maxV Tip
 r2lMap (NonEmpty max maxV (Bin min minV l r)) = NonEmpty min minV (Bin max maxV l r)
 
-{-# INLINE l2rDR #-}
-l2rDR :: DeleteResult L a -> DeleteResult R a
-l2rDR (DR min minV Tip) = DR (minToMax min) minV Tip
-l2rDR (DR min minV (Bin max maxV l r)) = DR max maxV (Bin min minV l r)
+{-# INLINE l2rNE #-}
+l2rNE :: NonEmptyIntMap_ L a -> NonEmptyIntMap_ R a
+l2rNE (NE min minV Tip) = NE (minToMax min) minV Tip
+l2rNE (NE min minV (Bin max maxV l r)) = NE max maxV (Bin min minV l r)
 
-{-# INLINE r2lDR #-}
-r2lDR :: DeleteResult R a -> DeleteResult L a
-r2lDR (DR max maxV Tip) = DR (maxToMin max) maxV Tip
-r2lDR (DR max maxV (Bin min minV l r)) = DR min minV (Bin max maxV l r)
+{-# INLINE r2lNE #-}
+r2lNE :: NonEmptyIntMap_ R a -> NonEmptyIntMap_ L a
+r2lNE (NE max maxV Tip) = NE (maxToMin max) maxV Tip
+r2lNE (NE max maxV (Bin min minV l r)) = NE min minV (Bin max maxV l r)
 
 -- | Insert a key/value pair to a left node where the key is smaller than
 -- any present in that node. Requires the xor of the inserted key and the
@@ -2620,68 +2666,65 @@ insertMaxR !xorCache !max maxV (Bin min minV l r)
     | xor (boundKey max) min < xorCache = Bin min minV (Bin max maxV l r) Tip
     | otherwise = Bin min minV l (insertMaxR xorCache max maxV r)
 
--- | Delete the minimum key/value pair from an unpacked left node, returning
--- a new left node in a DeleteResult.
-deleteMinL :: Bound R -> a -> Node L a -> Node R a -> DeleteResult L a
-deleteMinL !max maxV Tip Tip = DR (maxToMin max) maxV Tip
-deleteMinL !max maxV Tip (Bin min minV l r) = DR min minV (Bin max maxV l r)
+-- | Rearrange an unpacked (non-empty) left node into a non-empty map, for use
+-- when the minimum bound of the node has been deleted. See 'NonEmptyIntMap_'
+-- for the reasoning behind this.
+deleteMinL :: Bound R -> a -> Node L a -> Node R a -> NonEmptyIntMap_ L a
+deleteMinL !max maxV Tip Tip = NE (maxToMin max) maxV Tip
+deleteMinL !max maxV Tip (Bin min minV l r) = NE min minV (Bin max maxV l r)
 deleteMinL !max maxV (Bin innerMax innerMaxV innerL innerR) r =
-    let DR min minV inner = deleteMinL innerMax innerMaxV innerL innerR
-    in  DR min minV (Bin max maxV inner r)
+    let NE min minV inner = deleteMinL innerMax innerMaxV innerL innerR
+    in  NE min minV (Bin max maxV inner r)
 
--- | Delete the maximum key/value pair from an unpacked right node, returning
--- a new right node in a DeleteResult.
-deleteMaxR :: Bound L -> a -> Node L a -> Node R a -> DeleteResult R a
-deleteMaxR !min minV Tip Tip = DR (minToMax min) minV Tip
-deleteMaxR !min minV (Bin max maxV l r) Tip = DR max maxV (Bin min minV l r)
+-- | Rearrange an unpacked (non-empty) right node into a non-empty map, for use
+-- when the maximum bound of the node has been deleted. See 'NonEmptyIntMap_'
+-- for the reasoning behind this.
+deleteMaxR :: Bound L -> a -> Node L a -> Node R a -> NonEmptyIntMap_ R a
+deleteMaxR !min minV Tip Tip = NE (minToMax min) minV Tip
+deleteMaxR !min minV (Bin max maxV l r) Tip = NE max maxV (Bin min minV l r)
 deleteMaxR !min minV l (Bin innerMin innerMinV innerL innerR) =
-    let DR max maxV inner = deleteMaxR innerMin innerMinV innerL innerR
-    in  DR max maxV (Bin min minV l inner)
+    let NE max maxV inner = deleteMaxR innerMin innerMinV innerL innerR
+    in  NE max maxV (Bin min minV l inner)
 
--- | Combine two disjoint nodes into a new left node. This is not cheap.
+-- | Combine two nodes that would be on different branches into into a new left
+-- node. This is not cheap: since the 'Bin' constructor needs an new bound in
+-- addition to two children, that bound must be extracted from a child. The
+-- primary use case of this and 'extractBinR' is readjusting a node after the
+-- bound that it stores has been deleted, so only the two children remain.
+--
+-- 'NonEmptyIntMap_' has more details about this use case.
 extractBinL :: Node L a -> Node R a -> Node L a
 extractBinL l Tip = l
 extractBinL l (Bin min minV innerL innerR) =
-    let DR max maxV r = deleteMaxR min minV innerL innerR
+    let NE max maxV r = deleteMaxR min minV innerL innerR
     in Bin max maxV l r
 
--- | Combine two disjoint nodes into a new right node. This is not cheap.
+-- | Combine two nodes that would be on different branches into into a new
+-- right node. This is not cheap: since the 'Bin' constructor needs an new
+-- bound in addition to two children, that bound must be extracted from a
+-- child. The primary use case of this and 'extractBinL' is readjusting a node
+-- after the bound that it stores has been deleted, so only the two children
+-- remain.
+--
+-- 'NonEmptyIntMap_' has more details about this use case.
 extractBinR :: Node L a -> Node R a -> Node R a
 extractBinR Tip r = r
 extractBinR (Bin max maxV innerL innerR) r =
-    let DR min minV l = deleteMinL max maxV innerL innerR
+    let NE min minV l = deleteMinL max maxV innerL innerR
     in Bin min minV l r
 
+-- | Convert a left 'Node' into an 'IntMap_' for use when the external minimum
+-- is no longer available. See 'NonEmptyIntMap_' for more details.
 nodeToMapL :: Node L a -> IntMap_ L a
 nodeToMapL Tip = Empty
 nodeToMapL (Bin max maxV innerL innerR) =
-    let DR min minV l = deleteMinL max maxV innerL innerR
+    let NE min minV l = deleteMinL max maxV innerL innerR
     in NonEmpty min minV l
 
+-- | Convert a right 'Node' into an 'IntMap_' for use when the external maximum
+-- is no longer available. See 'NonEmptyIntMap_' for more details.
 nodeToMapR :: Node R a -> IntMap_ R a
 nodeToMapR Tip = Empty
 nodeToMapR (Bin min minV innerL innerR) =
-    let DR max maxV r = deleteMaxR min minV innerL innerR
+    let NE max maxV r = deleteMaxR min minV innerL innerR
     in NonEmpty max maxV r
-
--- | Delete a key from a left node. Takes the xor of the deleted key and
--- the minimum bound of that node.
-deleteL :: Key -> Word -> Node L a -> Node L a
-deleteL !_ !_ Tip = Tip
-deleteL !k !xorCache n@(Bin max maxV l r) = case compareMaxBound k max of
-    InBound | xorCache < xorCacheMax -> Bin max maxV (deleteL k xorCache l) r
-            | otherwise              -> Bin max maxV l (deleteR k xorCacheMax r)
-    OutOfBound -> n
-    Matched -> extractBinL l r
-  where xorCacheMax = xor k max
-
--- | Delete a key from a right node. Takes the xor of the deleted key and
--- the maximum bound of that node.
-deleteR :: Key -> Word -> Node R a -> Node R a
-deleteR !_ !_ Tip = Tip
-deleteR !k !xorCache n@(Bin min minV l r) = case compareMinBound k min of
-    InBound | xorCache < xorCacheMin -> Bin min minV l (deleteR k xorCache r)
-            | otherwise              -> Bin min minV (deleteL k xorCacheMin l) r
-    OutOfBound -> n
-    Matched -> extractBinR l r
-  where xorCacheMin = xor k min
