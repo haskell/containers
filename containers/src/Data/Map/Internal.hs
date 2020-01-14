@@ -2058,6 +2058,9 @@ unions ts
 {-# INLINABLE unions #-}
 #endif
 
+-- unionsNE :: (Foldable f, Ord k) => f (NonEmptyMap k a) -> NonEmptyMap k a
+-- unionsNE ts = foldl1' unionNE ts
+
 -- | The union of a list of maps, with a combining operation:
 --   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
 --
@@ -3709,6 +3712,8 @@ foldl' f z = go z
     go z' (NE (Bin' _ _ x l r)) = go (f (go z' l) x) r
 {-# INLINE foldl' #-}
 
+-- foldl :: (b -> b -> b) -> NonEmptyMap k b -> NonEmptyMap k 
+
 -- | /O(n)/. Fold the keys and values in the map using the given right-associative
 -- binary operator, such that
 -- @'foldrWithKey' f z == 'Prelude.foldr' ('uncurry' f) z . 'toAscList'@.
@@ -4798,6 +4803,36 @@ instance Foldable.Foldable (Map k) where
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
     rnf (NE (Bin' _ kx x l r)) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
+
+instance Functor (NonEmptyMap k) where
+  fmap f m = mapNE f m
+#ifdef __GLASGOW_HASKELL__
+  a <$ (Bin' sx kx _ l r) = Bin' sx kx a (a <$ l) (a <$ r)
+#endif
+
+instance Traversable (NonEmptyMap k) where
+  traverse f = traverseWithKeyNE (\_ -> f)
+  {-# INLINE traverse #-}
+
+instance Foldable.Foldable (NonEmptyMap k) where
+  fold = goNE
+    where
+      goNE (Bin' 1 _ v _ _) = v
+      goNE (Bin' _ _ v l r) = mappend (go l) (mappend v $ go r)
+      go Tip = mempty
+      go (NE xs) = goNE xs
+  {-# INLINABLE fold #-}
+  foldMap f t = goNE t
+    where
+      goNE (Bin' 1 _ v _ _) = f v
+      goNE (Bin' _ _ v l r) = mappend (go l) (mappend (f v) $ go r)
+      go Tip = mempty
+      go (NE xs) = goNE xs
+  {-# INLINABLE foldMap #-}
+
+instance (NFData k, NFData a) => NFData (NonEmptyMap k a) where
+  rnf (Bin' _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
+
 
 {--------------------------------------------------------------------
   Read
