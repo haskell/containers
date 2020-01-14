@@ -1149,6 +1149,7 @@ mapWithKey f = start
 --
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(1, 'a'), (5, 'e')]) == Just (fromList [(1, 'b'), (5, 'f')])
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
+{-# INLINE traverseWithKey #-}
 traverseWithKey :: Applicative f => (Key -> a -> f b) -> IntMap a -> f (IntMap b)
 traverseWithKey f = start
   where

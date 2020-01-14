@@ -858,6 +858,7 @@ instance Data.Foldable.Foldable IntMap where
 #endif
 
 instance Traversable IntMap where
+    {-# INLINE traverse #-}
     traverse f = start
       where
         start (IntMap Empty) = pure (IntMap Empty)
@@ -1793,6 +1794,7 @@ disjoint = start
 --
 -- > let f a len = len + (length a)
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+{-# INLINE foldr #-}
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
 foldr f z = start
   where
@@ -1814,6 +1816,7 @@ foldr f z = start
 --
 -- > let f len a = len + (length a)
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+{-# INLINE foldl #-}
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
 foldl f z = start
   where
@@ -1836,6 +1839,7 @@ foldl f z = start
 --
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
+{-# INLINE foldrWithKey #-}
 foldrWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = start
   where
@@ -1858,6 +1862,7 @@ foldrWithKey f z = start
 --
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
+{-# INLINE foldlWithKey #-}
 foldlWithKey :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = start
   where
@@ -1875,6 +1880,7 @@ foldlWithKey f z = start
 -- @'foldMapWithKey' f = 'Prelude.fold' . 'mapWithKey' f@
 --
 -- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
+{-# INLINE foldMapWithKey #-}
 foldMapWithKey :: Monoid m => (Key -> a -> m) -> IntMap a -> m
 foldMapWithKey f = start
   where
