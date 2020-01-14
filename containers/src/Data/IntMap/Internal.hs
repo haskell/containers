@@ -2024,7 +2024,10 @@ foldlFB = foldlWithKey
   #-}
 #endif
 
--- | A stack used in the in-order building of IntMaps.
+-- | A stack used in the in-order building of IntMaps. The utilities here don't
+-- force any of the values that are passed, and so require both lazy and strict
+-- wrappers. See 'Data.IntMap.Lazy.fromDistinctAscList' and its strict
+-- counterpart for examples of how to use these functions.
 data BuildStack a = Push {-# UNPACK #-} !(Bound L) a !(Node L a) !(BuildStack a) | StackBase
 
 pushBuildStack :: Word -> Key -> a -> Node R a -> BuildStack a -> BuildStack a
