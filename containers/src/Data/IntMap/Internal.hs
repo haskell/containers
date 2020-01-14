@@ -2057,31 +2057,37 @@ filter p = filterWithKey (const p)
 -- | /O(n)/. Filter all keys\/values that satisfy some predicate.
 --
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+{-# INLINE filterWithKey #-}
 filterWithKey :: (Key -> a -> Bool) -> IntMap a -> IntMap a
-filterWithKey p = start
+filterWithKey p = filterWithUKey (\k a -> p (box k) a)
+
+-- | /O(n)/. Filter all keys\/values that satisfy some predicate taking unboxed
+-- keys. Identical in functionality to 'filterWithKeys'.
+filterWithUKey :: (UKey -> a -> Bool) -> IntMap a -> IntMap a
+filterWithUKey p = start
   where
     start (IntMap Empty) = IntMap Empty
     start (IntMap (NonEmpty min minV root))
-        | p (boundKey min) minV = IntMap (NonEmpty min minV (goL root))
+        | p (unbox (boundKey min)) minV = IntMap (NonEmpty min minV (goL root))
         | otherwise = IntMap (goDeleteL root)
 
     goL Tip = Tip
     goL (Bin max maxV l r)
-        | p (boundKey max) maxV = Bin max maxV (goL l) (goR r)
+        | p (unbox (boundKey max)) maxV = Bin max maxV (goL l) (goR r)
         | otherwise = case goDeleteR r of
             Empty -> goL l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goL l) r'
 
     goR Tip = Tip
     goR (Bin min minV l r)
-        | p (boundKey min) minV = Bin min minV (goL l) (goR r)
+        | p (unbox (boundKey min)) minV = Bin min minV (goL l) (goR r)
         | otherwise = case goDeleteL l of
             Empty -> goR r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goR r)
 
     goDeleteL Tip = Empty
     goDeleteL (Bin max maxV l r)
-        | p (boundKey max) maxV = case goDeleteL l of
+        | p (unbox (boundKey max)) maxV = case goDeleteL l of
             Empty -> case goR r of
                 Tip -> NonEmpty (maxToMin max) maxV Tip
                 Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV lI rI)
@@ -2090,7 +2096,7 @@ filterWithKey p = start
 
     goDeleteR Tip = Empty
     goDeleteR (Bin min minV l r)
-        | p (boundKey min) minV = case goDeleteR r of
+        | p (unbox (boundKey min)) minV = case goDeleteR r of
             Empty -> case goL l of
                 Tip -> NonEmpty (minToMax min) minV Tip
                 Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV lI rI)
@@ -2134,21 +2140,27 @@ partition p = partitionWithKey (const p)
 -- > partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (3,"b")]) == (singleton 5 "a", singleton 3 "b")
 -- > partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) == (fromList [(3, "b"), (5, "a")], empty)
 -- > partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
+{-# INLINE partitionWithKey #-}
 partitionWithKey :: (Key -> a -> Bool) -> IntMap a -> (IntMap a, IntMap a)
-partitionWithKey p = start
+partitionWithKey p = partitionWithUKey (\k a -> p (box k) a)
+
+-- | /O(n)/. Partition the map according to some predicate taking an unboxed
+-- key. Identical in functionality to 'partitionWithKey'.
+partitionWithUKey :: (UKey -> a -> Bool) -> IntMap a -> (IntMap a, IntMap a)
+partitionWithUKey p = start
   where
     start (IntMap Empty) = (IntMap Empty, IntMap Empty)
     start (IntMap (NonEmpty min minV root))
-        | p (boundKey min) minV = let t :*: f = goTrueL root
-                                   in (IntMap (NonEmpty min minV t), IntMap f)
+        | p (unbox (boundKey min)) minV = let t :*: f = goTrueL root
+                                           in (IntMap (NonEmpty min minV t), IntMap f)
         | otherwise  = let t :*: f = goFalseL root
                        in (IntMap t, IntMap (NonEmpty min minV f))
 
     goTrueL Tip = Tip :*: Empty
     goTrueL (Bin max maxV l r)
-        | p (boundKey max) maxV = let tl :*: fl = goTrueL l
-                                      tr :*: fr = goTrueR r
-                                   in Bin max maxV tl tr :*: binL fl fr
+        | p (unbox (boundKey max)) maxV = let tl :*: fl = goTrueL l
+                                              tr :*: fr = goTrueR r
+                                           in Bin max maxV tl tr :*: binL fl fr
         | otherwise = let tl :*: fl = goTrueL l
                           tr :*: fr = goFalseR r
                           t = case tr of
@@ -2161,9 +2173,9 @@ partitionWithKey p = start
 
     goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r)
-        | p (boundKey min) minV = let tl :*: fl = goTrueL l
-                                      tr :*: fr = goTrueR r
-                                   in Bin min minV tl tr :*: binR fl fr
+        | p (unbox (boundKey min)) minV = let tl :*: fl = goTrueL l
+                                              tr :*: fr = goTrueR r
+                                           in Bin min minV tl tr :*: binR fl fr
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goTrueR r
                           t = case tl of
@@ -2176,30 +2188,32 @@ partitionWithKey p = start
 
     goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r)
-        | p (boundKey max) maxV = let tl :*: fl = goFalseL l
-                                      tr :*: fr = goTrueR r
-                                      t = case tl of
-                                        Empty -> r2lMap $ NonEmpty max maxV tr
-                                        NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' tr)
-                                      f = case fr of
-                                        Empty -> fl
-                                        NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
-                                   in t :*: f
+        | p (unbox (boundKey max)) maxV =
+            let tl :*: fl = goFalseL l
+                tr :*: fr = goTrueR r
+                t = case tl of
+                    Empty -> r2lMap $ NonEmpty max maxV tr
+                    NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' tr)
+                f = case fr of
+                    Empty -> fl
+                    NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
+             in t :*: f
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goFalseR r
                       in binL tl tr :*: Bin max maxV fl fr
 
     goFalseR Tip = Empty :*: Tip
     goFalseR (Bin min minV l r)
-        | p (boundKey min) minV = let tl :*: fl = goTrueL l
-                                      tr :*: fr = goFalseR r
-                                      t = case tr of
-                                        Empty -> l2rMap $ NonEmpty min minV tl
-                                        NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV tl r')
-                                      f = case fl of
-                                        Empty -> fr
-                                        NonEmpty min' minV' l' -> Bin min' minV' l' fr
-                                   in t :*: f
+        | p (unbox (boundKey min)) minV =
+            let tl :*: fl = goTrueL l
+                tr :*: fr = goFalseR r
+                t = case tr of
+                    Empty -> l2rMap $ NonEmpty min minV tl
+                    NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV tl r')
+                f = case fl of
+                    Empty -> fr
+                    NonEmpty min' minV' l' -> Bin min' minV' l' fr
+             in t :*: f
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goFalseR r
                       in binR tl tr :*: Bin min minV fl fr

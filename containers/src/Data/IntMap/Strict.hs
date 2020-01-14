@@ -1358,30 +1358,37 @@ mapMaybe f = mapMaybeWithKey (const f)
 --
 -- > let f k _ = if k < 5 then Just ("key : " ++ (show k)) else Nothing
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
+{-# INLINE mapMaybeWithKey #-}
 mapMaybeWithKey :: (Key -> a -> Maybe b) -> IntMap a -> IntMap b
-mapMaybeWithKey f = start
+mapMaybeWithKey f = mapMaybeWithUKey (\k a -> f (box k) a)
+
+-- | /O(n)/. Map keys\/values and collect the 'Just' results with a mapping
+-- function that takes unboxed keys. Identical in functionality to
+-- 'mapMaybeWithKey'.
+mapMaybeWithUKey :: (UKey -> a -> Maybe b) -> IntMap a -> IntMap b
+mapMaybeWithUKey f = start
   where
     start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = case f (boundKey min) minV of
+    start (IntMap (NonEmpty min minV root)) = case f (unbox (boundKey min)) minV of
         Just !minV' -> IntMap (NonEmpty min minV' (goL root))
         Nothing -> IntMap (goDeleteL root)
 
     goL Tip = Tip
-    goL (Bin max maxV l r) = case f (boundKey max) maxV of
+    goL (Bin max maxV l r) = case f (unbox (boundKey max)) maxV of
         Just !maxV' -> Bin max maxV' (goL l) (goR r)
         Nothing -> case goDeleteR r of
             Empty -> goL l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goL l) r'
 
     goR Tip = Tip
-    goR (Bin min minV l r) = case f (boundKey min) minV of
+    goR (Bin min minV l r) = case f (unbox (boundKey min)) minV of
         Just !minV' -> Bin min minV' (goL l) (goR r)
         Nothing -> case goDeleteL l of
             Empty -> goR r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goR r)
 
     goDeleteL Tip = Empty
-    goDeleteL (Bin max maxV l r) = case f (boundKey max) maxV of
+    goDeleteL (Bin max maxV l r) = case f (unbox (boundKey max)) maxV of
         Just !maxV' -> case goDeleteL l of
             Empty -> case goR r of
                 Tip -> NonEmpty (maxToMin max) maxV' Tip
@@ -1390,7 +1397,7 @@ mapMaybeWithKey f = start
         Nothing -> binL (goDeleteL l) (goDeleteR r)
 
     goDeleteR Tip = Empty
-    goDeleteR (Bin min minV l r) = case f (boundKey min) minV of
+    goDeleteR (Bin min minV l r) = case f (unbox (boundKey min)) minV of
         Just !minV' -> case goDeleteR r of
             Empty -> case goL l of
                 Tip -> NonEmpty (minToMax min) minV' Tip
@@ -1417,18 +1424,25 @@ mapEither f = mapEitherWithKey (const f)
 -- >
 -- > mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
 -- >     == (empty, fromList [(1,"x"), (3,"b"), (5,"a"), (7,"z")])
+{-# INLINE mapEitherWithKey #-}
 mapEitherWithKey :: (Key -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
-mapEitherWithKey func = start
+mapEitherWithKey f = mapEitherWithUKey (\k a -> f (box k) a)
+
+-- | /O(n)/. Map keys\/values and separate the 'Left' and 'Right' results with
+-- a mapping function taking unboxed keys. Identical in functionality to
+-- 'mapEitherWithKey'.
+mapEitherWithUKey :: (UKey -> a -> Either b c) -> IntMap a -> (IntMap b, IntMap c)
+mapEitherWithUKey func = start
   where
     start (IntMap Empty) = (IntMap Empty, IntMap Empty)
-    start (IntMap (NonEmpty min minV root)) = case func (boundKey min) minV of
+    start (IntMap (NonEmpty min minV root)) = case func (unbox (boundKey min)) minV of
         Left !v  -> let t :*: f = goTrueL root
                     in (IntMap (NonEmpty min v t), IntMap f)
         Right !v -> let t :*: f = goFalseL root
                     in (IntMap t, IntMap (NonEmpty min v f))
 
     goTrueL Tip = Tip :*: Empty
-    goTrueL (Bin max maxV l r) = case func (boundKey max) maxV of
+    goTrueL (Bin max maxV l r) = case func (unbox (boundKey max)) maxV of
         Left !v  -> let tl :*: fl = goTrueL l
                         tr :*: fr = goTrueR r
                     in Bin max v tl tr :*: binL fl fr
@@ -1443,7 +1457,7 @@ mapEitherWithKey func = start
                     in t :*: f
 
     goTrueR Tip = Tip :*: Empty
-    goTrueR (Bin min minV l r) = case func (boundKey min) minV of
+    goTrueR (Bin min minV l r) = case func (unbox (boundKey min)) minV of
         Left !v  -> let tl :*: fl = goTrueL l
                         tr :*: fr = goTrueR r
                     in Bin min v tl tr :*: binR fl fr
@@ -1458,7 +1472,7 @@ mapEitherWithKey func = start
                     in t :*: f
 
     goFalseL Tip = Empty :*: Tip
-    goFalseL (Bin max maxV l r) = case func (boundKey max) maxV of
+    goFalseL (Bin max maxV l r) = case func (unbox (boundKey max)) maxV of
         Left !v  -> let tl :*: fl = goFalseL l
                         tr :*: fr = goTrueR r
                         t = case tl of
@@ -1473,7 +1487,7 @@ mapEitherWithKey func = start
                     in binL tl tr :*: Bin max v fl fr
 
     goFalseR Tip = Empty :*: Tip
-    goFalseR (Bin min minV l r) = case func (boundKey min) minV of
+    goFalseR (Bin min minV l r) = case func (unbox (boundKey min)) minV of
         Left !v  -> let tl :*: fl = goTrueL l
                         tr :*: fr = goFalseR r
                         t = case tr of
