@@ -673,12 +673,12 @@ newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 --   /right/ side since it has a 0 in the sign bit.
 --
 --   Note that one of these minimum and maximum bounds is inherited from the parent of the 'Node'.
---   The terms do not refer to the minimum and maximum keys actually stored somewhere withing the
+--   The terms do not refer to the minimum and maximum keys actually stored somewhere within the
 --   'Node' or in one of its descendants.
 --
 -- These invariants imply a unique tree structure for a given set of keys. In fact, they are
 -- overspecified: the second invariant follows from the other two. To check these invariants,
--- use 'Daa.IntMap.Internal.Debug.valid'.
+-- use 'Data.IntMap.Internal.Debug.valid'.
 data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deriving (Eq)
 
 -- | A node within a tree mapping integers to value @a@. Unlike an 'IntMap_', a 'Node' cannot
@@ -2583,15 +2583,18 @@ maxViewWithKey (IntMap Empty) = Nothing
 maxViewWithKey (IntMap (NonEmpty min minV Tip)) = Just ((boundKey min, minV), IntMap Empty)
 maxViewWithKey (IntMap (NonEmpty min minV (Bin max maxV l r))) = Just ((boundKey max, maxV), IntMap (NonEmpty min minV (extractBinL l r)))
 
--- | /O(1)/. Returns whether the most significant bit of its first
--- argument is less significant than the most significant bit of its
--- second argument.
+-- | /O(1)/. Returns whether the most significant bit (MSB) of its first
+-- argument is less significant than the most significant bit of its second
+-- argument.
 
 -- This works by measuring whether x is in between 0 and y but closer to 0 (in the xor metric).
 {-# INLINE ltMSB #-}
 ltMSB :: Word -> Word -> Bool
 ltMSB x y = x < y && x < Data.Bits.xor x y
 
+-- | /O(1)/. Compares the significance of the most significan set bits (MSBs)
+-- of two words. Commonly used with `xorBounds` to tell which of two nodes
+-- spans a larger space of keys in merge operations.
 -- See 'ltMSB' for why this works
 {-# INLINE compareMSB #-}
 compareMSB :: Word -> Word -> Ordering
