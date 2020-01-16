@@ -2703,21 +2703,25 @@ insertMaxR !xorCache !max maxV (Bin min minV l r)
 -- when the minimum bound of the node has been deleted. See 'NonEmptyIntMap_'
 -- for the reasoning behind this.
 deleteMinL :: Bound R -> a -> Node L a -> Node R a -> NonEmptyIntMap_ L a
-deleteMinL !max maxV Tip Tip = NE (maxToMin max) maxV Tip
-deleteMinL !max maxV Tip (Bin min minV l r) = NE min minV (Bin max maxV l r)
-deleteMinL !max maxV (Bin innerMax innerMaxV innerL innerR) r =
-    let NE min minV inner = deleteMinL innerMax innerMaxV innerL innerR
-    in  NE min minV (Bin max maxV inner r)
+deleteMinL !max maxV l r = case l of -- force l-then-r match order
+    Tip -> case r of
+        Tip -> NE (maxToMin max) maxV Tip
+        Bin min minV innerL innerR -> NE min minV (Bin max maxV innerL innerR)
+    Bin innerMax innerMaxV innerL innerR ->
+        let NE min minV inner = deleteMinL innerMax innerMaxV innerL innerR
+         in NE min minV (Bin max maxV inner r)
 
 -- | Rearrange an unpacked (non-empty) right node into a non-empty map, for use
 -- when the maximum bound of the node has been deleted. See 'NonEmptyIntMap_'
 -- for the reasoning behind this.
 deleteMaxR :: Bound L -> a -> Node L a -> Node R a -> NonEmptyIntMap_ R a
-deleteMaxR !min minV Tip Tip = NE (minToMax min) minV Tip
-deleteMaxR !min minV (Bin max maxV l r) Tip = NE max maxV (Bin min minV l r)
-deleteMaxR !min minV l (Bin innerMin innerMinV innerL innerR) =
-    let NE max maxV inner = deleteMaxR innerMin innerMinV innerL innerR
-    in  NE max maxV (Bin min minV l inner)
+deleteMaxR !min minV l r = case r of -- force r-then-l match order
+    Tip -> case l of
+        Tip -> NE (minToMax min) minV Tip
+        Bin max maxV innerL innerR -> NE max maxV (Bin min minV innerL innerR)
+    Bin innerMin innerMinV innerL innerR ->
+        let NE max maxV inner = deleteMaxR innerMin innerMinV innerL innerR
+         in NE max maxV (Bin min minV l inner)
 
 -- | Combine two nodes that would be on different branches into into a new left
 -- node. This is not cheap: since the 'Bin' constructor needs an new bound in
