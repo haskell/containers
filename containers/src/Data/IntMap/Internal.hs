@@ -309,6 +309,7 @@ module Data.IntMap.Internal (
     , box
     , unbox
     , Bound(..)
+    , boundUKey
     , BoundOrdering(..)
     , xor
     , xorBounds
@@ -611,6 +612,12 @@ newtype Bound_ = Bound { boundKey :: Key } deriving (Eq, Ord, Show)
 -- This, like L and R, is uninhabited to ensure that it is only used as a type parameter
 data Flipped t
 #endif
+
+-- | Extract the key from a 'Bound' and unbox it. Identical in functionality to
+-- 'boundKey'.
+{-# INLINE boundUKey #-}
+boundUKey :: Bound t -> UKey
+boundUKey b = unbox (boundKey b)
 
 data BoundOrdering = InBound | OutOfBound | Matched deriving (Eq)
 
@@ -2068,26 +2075,26 @@ filterWithUKey p = start
   where
     start (IntMap Empty) = IntMap Empty
     start (IntMap (NonEmpty min minV root))
-        | p (unbox (boundKey min)) minV = IntMap (NonEmpty min minV (goL root))
+        | p (boundUKey min) minV = IntMap (NonEmpty min minV (goL root))
         | otherwise = IntMap (goDeleteL root)
 
     goL Tip = Tip
     goL (Bin max maxV l r)
-        | p (unbox (boundKey max)) maxV = Bin max maxV (goL l) (goR r)
+        | p (boundUKey max) maxV = Bin max maxV (goL l) (goR r)
         | otherwise = case goDeleteR r of
             Empty -> goL l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goL l) r'
 
     goR Tip = Tip
     goR (Bin min minV l r)
-        | p (unbox (boundKey min)) minV = Bin min minV (goL l) (goR r)
+        | p (boundUKey min) minV = Bin min minV (goL l) (goR r)
         | otherwise = case goDeleteL l of
             Empty -> goR r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goR r)
 
     goDeleteL Tip = Empty
     goDeleteL (Bin max maxV l r)
-        | p (unbox (boundKey max)) maxV = case goDeleteL l of
+        | p (boundUKey max) maxV = case goDeleteL l of
             Empty -> case goR r of
                 Tip -> NonEmpty (maxToMin max) maxV Tip
                 Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV lI rI)
@@ -2096,7 +2103,7 @@ filterWithUKey p = start
 
     goDeleteR Tip = Empty
     goDeleteR (Bin min minV l r)
-        | p (unbox (boundKey min)) minV = case goDeleteR r of
+        | p (boundUKey min) minV = case goDeleteR r of
             Empty -> case goL l of
                 Tip -> NonEmpty (minToMax min) minV Tip
                 Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV lI rI)
@@ -2151,16 +2158,16 @@ partitionWithUKey p = start
   where
     start (IntMap Empty) = (IntMap Empty, IntMap Empty)
     start (IntMap (NonEmpty min minV root))
-        | p (unbox (boundKey min)) minV = let t :*: f = goTrueL root
+        | p (boundUKey min) minV = let t :*: f = goTrueL root
                                            in (IntMap (NonEmpty min minV t), IntMap f)
         | otherwise  = let t :*: f = goFalseL root
                        in (IntMap t, IntMap (NonEmpty min minV f))
 
     goTrueL Tip = Tip :*: Empty
     goTrueL (Bin max maxV l r)
-        | p (unbox (boundKey max)) maxV = let tl :*: fl = goTrueL l
-                                              tr :*: fr = goTrueR r
-                                           in Bin max maxV tl tr :*: binL fl fr
+        | p (boundUKey max) maxV = let tl :*: fl = goTrueL l
+                                       tr :*: fr = goTrueR r
+                                    in Bin max maxV tl tr :*: binL fl fr
         | otherwise = let tl :*: fl = goTrueL l
                           tr :*: fr = goFalseR r
                           t = case tr of
@@ -2173,9 +2180,9 @@ partitionWithUKey p = start
 
     goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r)
-        | p (unbox (boundKey min)) minV = let tl :*: fl = goTrueL l
-                                              tr :*: fr = goTrueR r
-                                           in Bin min minV tl tr :*: binR fl fr
+        | p (boundUKey min) minV = let tl :*: fl = goTrueL l
+                                       tr :*: fr = goTrueR r
+                                    in Bin min minV tl tr :*: binR fl fr
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goTrueR r
                           t = case tl of
@@ -2188,7 +2195,7 @@ partitionWithUKey p = start
 
     goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r)
-        | p (unbox (boundKey max)) maxV =
+        | p (boundUKey max) maxV =
             let tl :*: fl = goFalseL l
                 tr :*: fr = goTrueR r
                 t = case tl of
@@ -2204,7 +2211,7 @@ partitionWithUKey p = start
 
     goFalseR Tip = Empty :*: Tip
     goFalseR (Bin min minV l r)
-        | p (unbox (boundKey min)) minV =
+        | p (boundUKey min) minV =
             let tl :*: fl = goTrueL l
                 tr :*: fr = goFalseR r
                 t = case tr of
