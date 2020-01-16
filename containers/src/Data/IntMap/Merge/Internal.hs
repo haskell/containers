@@ -110,7 +110,7 @@ data WhenMissing f a b = WhenMissing {
     -- optimized choice between 'Node' and 'IntMap_' intermediates. By changing
     -- its arguments into that form, 'merge' might even be implementable as
     -- efficiently as possible in terms of 'mergeA'.
-    missingSingle :: Key -> a -> f (Maybe b),
+    missingSingle :: UKey -> a -> f (Maybe b),
     missingLeft :: Node L a -> f (Node L b),
     missingRight :: Node R a -> f (Node R b),
     missingAllL :: IntMap_ L a -> f (IntMap_ L b)
@@ -129,7 +129,7 @@ type SimpleWhenMissing = WhenMissing Identity
 -- @since 0.5.9
 {-# INLINE runWhenMissing #-}
 runWhenMissing :: WhenMissing f a b -> Key -> a -> f (Maybe b)
-runWhenMissing = missingSingle
+runWhenMissing miss k = missingSingle miss (unbox k)
 
 -- | Apply a missing tactic to an entire map.
 --
@@ -150,7 +150,7 @@ runWhenMissingAll miss (IntMap m) = IntMap <$> missingAllL miss m
 -- but @dropMissing@ is much faster.
 {-# INLINE dropMissing #-}
 dropMissing :: Applicative f => WhenMissing f a b
-dropMissing = WhenMissing (const (const (pure Nothing))) (const (pure Tip)) (const (pure Tip)) (const (pure Empty))
+dropMissing = WhenMissing (\_ _ -> pure Nothing) (const (pure Tip)) (const (pure Tip)) (const (pure Empty))
 
 -- | Preserve, unchanged, the entries whose keys are missing from
 -- the other map.
@@ -175,30 +175,37 @@ preserveMissing = WhenMissing (\_ v -> pure (Just v)) pure pure pure
 -- prop> filterMissing f = Merge.Lazy.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
 --
 -- but this should be a little faster.
+{-# INLINE filterMissing #-}
 filterMissing :: Applicative f => (Key -> a -> Bool) -> WhenMissing f a a
-filterMissing p = WhenMissing (\k v -> pure (if p k v then Just v else Nothing)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
+filterMissing p = filterMissingUKey (\k a -> p (box k) a)
+
+-- | Filter the entries whose keys are missing from the other map with a
+-- predicate taking unboxed keys. Identical in functionality to
+-- 'filterMissing'.
+filterMissingUKey :: Applicative f => (UKey -> a -> Bool) -> WhenMissing f a a
+filterMissingUKey p = WhenMissing (\k v -> pure (if p k v then Just v else Nothing)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
     start Empty = Empty
     start (NonEmpty min minV root)
-        | p (boundKey min) minV = NonEmpty min minV (goLKeep root)
+        | p (boundUKey min) minV = NonEmpty min minV (goLKeep root)
         | otherwise = goL root
 
     goLKeep Tip = Tip
     goLKeep (Bin max maxV l r)
-        | p (boundKey max) maxV = Bin max maxV (goLKeep l) (goRKeep r)
+        | p (boundUKey max) maxV = Bin max maxV (goLKeep l) (goRKeep r)
         | otherwise = case goR r of
             Empty -> goLKeep l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goLKeep l) r'
 
     goRKeep Tip = Tip
     goRKeep (Bin min minV l r)
-        | p (boundKey min) minV = Bin min minV (goLKeep l) (goRKeep r)
+        | p (boundUKey min) minV = Bin min minV (goLKeep l) (goRKeep r)
         | otherwise = case goL l of
             Empty -> goRKeep r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goRKeep r)
 
     goL Tip = Empty
     goL (Bin max maxV l r)
-        | p (boundKey max) maxV = case goL l of
+        | p (boundUKey max) maxV = case goL l of
             Empty -> case goRKeep r of
                 Tip -> NonEmpty (maxToMin max) maxV Tip
                 Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV lI rI)
@@ -207,7 +214,7 @@ filterMissing p = WhenMissing (\k v -> pure (if p k v then Just v else Nothing))
 
     goR Tip = Empty
     goR (Bin min minV l r)
-        | p (boundKey min) minV = case goR r of
+        | p (boundUKey min) minV = case goR r of
             Empty -> case goLKeep l of
                 Tip -> NonEmpty (minToMax min) minV Tip
                 Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV lI rI)
@@ -225,21 +232,27 @@ filterMissing p = WhenMissing (\k v -> pure (if p k v then Just v else Nothing))
 -- @since 0.5.9
 {-# INLINE filterAMissing #-}
 -- TODO: Use pointer equality to speed this up?
-filterAMissing  :: Applicative f => (Key -> a -> f Bool) -> WhenMissing f a a
-filterAMissing f = WhenMissing
+filterAMissing :: Applicative f => (Key -> a -> f Bool) -> WhenMissing f a a
+filterAMissing p = filterAMissingUKey (\k a -> p (box k) a)
+
+-- | Filter the entries whose keys are missing from the other map using some
+-- 'Applicative' action that takes an unboxed key. Identical in functionality
+-- to 'filterAMissing'.
+filterAMissingUKey :: Applicative f => (UKey -> a -> f Bool) -> WhenMissing f a a
+filterAMissingUKey f = WhenMissing
     { missingAllL = start
     , missingLeft = goL
     , missingRight = goR
     , missingSingle = \k v -> fmap (\keep -> if keep then Just v else Nothing) (f k v) }
   where
     start Empty = pure Empty
-    start (NonEmpty min minV root) = liftA2 (\keepV root' -> if keepV then NonEmpty min minV root' else nodeToMapL root') (f (boundKey min) minV) (goL root)
+    start (NonEmpty min minV root) = liftA2 (\keepV root' -> if keepV then NonEmpty min minV root' else nodeToMapL root') (f (boundUKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = liftA3 (\l' r' keepMax -> if keepMax then Bin max maxV l' r' else extractBinL l' r') (goL l) (goR r) (f (boundKey max) maxV)
+    goL (Bin max maxV l r) = liftA3 (\l' r' keepMax -> if keepMax then Bin max maxV l' r' else extractBinL l' r') (goL l) (goR r) (f (boundUKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = liftA3 (\keepMin l' r' -> if keepMin then Bin min minV l' r' else extractBinR l' r') (f (boundKey min) minV) (goL l) (goR r)
+    goR (Bin min minV l r) = liftA3 (\keepMin l' r' -> if keepMin then Bin min minV l' r' else extractBinR l' r') (f (boundUKey min) minV) (goL l) (goR r)
 
 -- | A tactic for dealing with keys present in both
 -- maps in 'merge' or 'mergeA'.
@@ -247,7 +260,7 @@ filterAMissing f = WhenMissing
 -- A tactic of type @ WhenMatched f a b c @ is an abstract representation
 -- of a function of type @ Key -> a -> b -> f (Maybe c) @.
 newtype WhenMatched f a b c = WhenMatched {
-    matchedSingle :: Key -> a -> b -> f (Maybe c)
+    matchedSingle :: UKey -> a -> b -> f (Maybe c)
 }
 
 -- | A tactic for dealing with keys present in both maps in 'merge'.
@@ -262,7 +275,7 @@ type SimpleWhenMatched = WhenMatched Identity
 -- @since 0.5.9
 {-# INLINE runWhenMatched #-}
 runWhenMatched :: WhenMatched f a b c -> Key -> a -> b -> f (Maybe c)
-runWhenMatched = matchedSingle
+runWhenMatched match k = matchedSingle match (unbox k)
 
 -- | Merge two maps.
 --
@@ -415,21 +428,21 @@ mergeA miss1 miss2 match = start where
     start (IntMap Empty) (IntMap !m2) = IntMap <$> missingAllL miss2 m2
     start (IntMap !m1) (IntMap Empty) = IntMap <$> missingAllL miss1 m1
     start (IntMap (NonEmpty min1 minV1 root1)) (IntMap (NonEmpty min2 minV2 root2))
-        | min1 < min2 = makeIntMapNE min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 root1 min2 root2)
-        | min2 < min1 = makeIntMapNE min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 root1 min2 root2)
-        | otherwise = makeIntMapNE min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 root1 root2)
+        | min1 < min2 = makeIntMapNE min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 root1 min2 root2)
+        | min2 < min1 = makeIntMapNE min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 root1 min2 root2)
+        | otherwise = makeIntMapNE min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 root1 root2)
 
     goL1 minV1 !min1 !n1 !min2 Tip = mapToNodeL min2 <$> missingAllL miss1 (NonEmpty min1 minV1 n1)
     goL1 minV1 !min1 !n1 !min2 n2@(Bin max2 _ _ _) | boundsDisjoint min1 max2 = liftA2 (maybeUnionDisjointL min2) (missingLeft miss2 n2) (missingAllL miss1 (NonEmpty min1 minV1 n1))
     goL1 minV1 !min1 Tip !min2 !n2 = goInsertL1 (boundKey min1) minV1 (xor (boundKey min1) min2) min2 n2
     goL1 minV1 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         LT | xor (boundKey min1) min2 < xor (boundKey min1) max2 -> liftA2 binNodeMapL (goL1 minV1 min1 n1 min2 l2) (missingAllR miss2 (NonEmpty max2 maxV2 r2))
-           | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundKey max1) maxV1) (missingLeft miss2 l2) (goR2 maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2)
-           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundKey max2) maxV2) (missingLeft miss2 l2) (goR1 maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2)
-           | otherwise -> makeBinL max1 (matchedSingle match (boundKey max1) maxV1 maxV2) (missingLeft miss2 l2) (goRFused max1 (Bin min1 minV1 l1 r1) r2)
-        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundKey max1) maxV1) (goL1 minV1 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
-           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundKey max2) maxV2) (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> makeBinL max1 (matchedSingle match (boundKey max1) maxV1 maxV2) (goL1 minV1 min1 l1 min2 l2) (goRFused max1 r1 r2)
+           | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundUKey max1) maxV1) (missingLeft miss2 l2) (goR2 maxV2 max1 (Bin min1 minV1 l1 r1) max2 r2)
+           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundUKey max2) maxV2) (missingLeft miss2 l2) (goR1 maxV1 max1 (Bin min1 minV1 l1 r1) max2 r2)
+           | otherwise -> makeBinL max1 (matchedSingle match (boundUKey max1) maxV1 maxV2) (missingLeft miss2 l2) (goRFused max1 (Bin min1 minV1 l1 r1) r2)
+        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundUKey max1) maxV1) (goL1 minV1 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundUKey max2) maxV2) (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> makeBinL max1 (matchedSingle match (boundUKey max1) maxV1 maxV2) (goL1 minV1 min1 l1 min2 l2) (goRFused max1 r1 r2)
         GT -> liftA2 binNodeMapL (goL1 minV1 min1 l1 min2 n2) (missingAllR miss1 (NonEmpty max1 maxV1 r1))
 
     goL2 minV2 !min1 Tip !min2 !n2 = mapToNodeL min1 <$> missingAllL miss2 (NonEmpty min2 minV2 n2)
@@ -437,21 +450,21 @@ mergeA miss1 miss2 match = start where
     goL2 minV2 !min1 !n1 !min2 Tip = goInsertL2 (boundKey min2) minV2 (xor (boundKey min2) min1) min1 n1
     goL2 minV2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         GT | xor (boundKey min2) min1 < xor (boundKey min2) max1 -> liftA2 binNodeMapL (goL2 minV2 min1 l1 min2 n2) (missingAllR miss1 (NonEmpty max1 maxV1 r1))
-           | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundKey max1) maxV1) (missingLeft miss1 l1) (goR2 maxV2 max1 r1 max2 (Bin min2 minV2 l2 r2))
-           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundKey max2) maxV2) (missingLeft miss1 l1) (goR1 maxV1 max1 r1 max2 (Bin min2 minV2 l2 r2))
-           | otherwise -> makeBinL max1 (matchedSingle match (boundKey max1) maxV1 maxV2) (missingLeft miss1 l1) (goRFused max1 r1 (Bin min2 minV2 l2 r2))
-        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundKey max1) maxV1) (goL2 minV2 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
-           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundKey max2) maxV2) (goL2 minV2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> makeBinL max1 (matchedSingle match (boundKey max1) maxV1 maxV2) (goL2 minV2 min1 l1 min2 l2) (goRFused max1 r1 r2)
+           | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundUKey max1) maxV1) (missingLeft miss1 l1) (goR2 maxV2 max1 r1 max2 (Bin min2 minV2 l2 r2))
+           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundUKey max2) maxV2) (missingLeft miss1 l1) (goR1 maxV1 max1 r1 max2 (Bin min2 minV2 l2 r2))
+           | otherwise -> makeBinL max1 (matchedSingle match (boundUKey max1) maxV1 maxV2) (missingLeft miss1 l1) (goRFused max1 r1 (Bin min2 minV2 l2 r2))
+        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundUKey max1) maxV1) (goL2 minV2 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundUKey max2) maxV2) (goL2 minV2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> makeBinL max1 (matchedSingle match (boundUKey max1) maxV1 maxV2) (goL2 minV2 min1 l1 min2 l2) (goRFused max1 r1 r2)
         LT -> liftA2 binNodeMapL (goL2 minV2 min1 n1 min2 l2) (missingAllR miss2 (NonEmpty max2 maxV2 r2))
 
     goLFused !_ Tip !n2 = missingLeft miss2 n2
     goLFused !_ !n1 Tip = missingLeft miss1 n1
     goLFused !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 maxV2 l2 r2) = case compareMSB (xorBounds min max1) (xorBounds min max2) of
         LT -> liftA2 binNodeMapL (goLFused min n1 l2) (missingAllR miss2 (NonEmpty max2 maxV2 r2))
-        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundKey max1) maxV1) (goLFused min l1 l2) (goR2 maxV2 max1 r1 max2 r2)
-           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundKey max2) maxV2) (goLFused min l1 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> makeBinL max1 (matchedSingle match (boundKey max1) maxV1 maxV2) (goLFused min l1 l2) (goRFused max1 r1 r2)
+        EQ | max1 > max2 -> makeBinL max1 (missingSingle miss1 (boundUKey max1) maxV1) (goLFused min l1 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | max1 < max2 -> makeBinL max2 (missingSingle miss2 (boundUKey max2) maxV2) (goLFused min l1 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> makeBinL max1 (matchedSingle match (boundUKey max1) maxV1 maxV2) (goLFused min l1 l2) (goRFused max1 r1 r2)
         GT -> liftA2 binNodeMapL (goLFused min l1 n2) (missingAllR miss1 (NonEmpty max1 maxV1 r1))
 
     goR1 maxV1 !max1 !n1 !max2 Tip = mapToNodeR max2 <$> missingAllR miss1 (NonEmpty max1 maxV1 n1)
@@ -459,12 +472,12 @@ mergeA miss1 miss2 match = start where
     goR1 maxV1 !max1 Tip !max2 !n2 = goInsertR1 (boundKey max1) maxV1 (xor (boundKey max1) max2) max2 n2
     goR1 maxV1 !max1 n1@(Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         LT | xor (boundKey max1) min2 > xor (boundKey max1) max2 -> liftA2 binMapNodeR (missingAllL miss2 (NonEmpty min2 minV2 l2)) (goR1 maxV1 max1 n1 max2 r2)
-           | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2) (missingRight miss2 r2)
-           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2) (missingRight miss2 r2)
-           | otherwise -> makeBinR min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 (Bin max1 maxV1 l1 r1) l2) (missingRight miss2 r2)
-        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> makeBinR min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 l1 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 (Bin max1 maxV1 l1 r1) min2 l2) (missingRight miss2 r2)
+           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 (Bin max1 maxV1 l1 r1) min2 l2) (missingRight miss2 r2)
+           | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 (Bin max1 maxV1 l1 r1) l2) (missingRight miss2 r2)
+        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 l1 l2) (goR1 maxV1 max1 r1 max2 r2)
         GT -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min1 minV1 l1)) (goR1 maxV1 max1 r1 max2 n2)
 
     goR2 maxV2 !max1 Tip !max2 !n2 = mapToNodeR max1 <$> missingAllR miss2 (NonEmpty max2 maxV2 n2)
@@ -472,53 +485,53 @@ mergeA miss1 miss2 match = start where
     goR2 maxV2 !max1 !n1 !max2 Tip = goInsertR2 (boundKey max2) maxV2 (xor (boundKey max1) max2) max1 n1
     goR2 maxV2 !max1 n1@(Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         GT | xor (boundKey max2) min1 > xor (boundKey max2) max1 -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min1 minV1 l1)) (goR2 maxV2 max1 r1 max2 n2)
-           | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 l1 min2 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
-           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 l1 min2 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
-           | otherwise -> makeBinR min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 l1 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
-        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
-           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
-           | otherwise -> makeBinR min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 l1 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 l1 min2 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
+           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 l1 min2 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
+           | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 l1 (Bin max2 maxV2 l2 r2)) (missingRight miss1 r1)
+        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goR2 maxV2 max1 r1 max2 r2)
+           | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 l1 l2) (goR2 maxV2 max1 r1 max2 r2)
         LT -> liftA2 binMapNodeR (missingAllL miss2 (NonEmpty min2 minV2 l2)) (goR2 maxV2 max1 n1 max2 r2)
 
     goRFused !_ Tip !n2 = missingRight miss2 n2
     goRFused !_ !n1 Tip = missingRight miss1 n1
     goRFused !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 minV2 l2 r2) = case compareMSB (xorBounds min1 max) (xorBounds min2 max) of
         LT -> liftA2 binMapNodeR (missingAllL miss2 (NonEmpty min2 minV2 l2)) (goRFused max n1 r2)
-        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goRFused max r1 r2)
-           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goRFused max r1 r2)
-           | otherwise -> makeBinR min1 (matchedSingle match (boundKey min1) minV1 minV2) (goLFused min1 l1 l2) (goRFused max r1 r2)
+        EQ | min1 < min2 -> makeBinR min1 (missingSingle miss1 (boundUKey min1) minV1) (goL2 minV2 min1 l1 min2 l2) (goRFused max r1 r2)
+           | min1 > min2 -> makeBinR min2 (missingSingle miss2 (boundUKey min2) minV2) (goL1 minV1 min1 l1 min2 l2) (goRFused max r1 r2)
+           | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 l1 l2) (goRFused max r1 r2)
         GT -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min1 minV1 l1)) (goRFused max r1 n2)
 
-    goInsertL1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 k v)
+    goInsertL1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
     goInsertL1 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
         InBound | xorCache < xorCacheMax -> liftA2 binNodeMapL (goInsertL1 k v xorCache min l) (missingAllR miss2 (NonEmpty max maxV r))
-                | otherwise -> makeBinL max (missingSingle miss2 (boundKey max) maxV) (missingLeft miss2 l) (goInsertR1 k v xorCacheMax max r)
-        OutOfBound -> addMaxL min (Bound k) (missingSingle miss1 k v) (missingLeft miss2 n)
-        Matched -> makeBinL max (matchedSingle match k v maxV) (missingLeft miss2 l) (missingRight miss2 r)
+                | otherwise -> makeBinL max (missingSingle miss2 (boundUKey max) maxV) (missingLeft miss2 l) (goInsertR1 k v xorCacheMax max r)
+        OutOfBound -> addMaxL min (Bound k) (missingSingle miss1 (unbox k) v) (missingLeft miss2 n)
+        Matched -> makeBinL max (matchedSingle match (unbox k) v maxV) (missingLeft miss2 l) (missingRight miss2 r)
       where xorCacheMax = xor k max
 
-    goInsertL2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 k v)
+    goInsertL2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
     goInsertL2 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
         InBound | xorCache < xorCacheMax -> liftA2 binNodeMapL (goInsertL2 k v xorCache min l) (missingAllR miss1 (NonEmpty max maxV r))
-                | otherwise -> makeBinL max (missingSingle miss1 (boundKey max) maxV) (missingLeft miss1 l) (goInsertR2 k v xorCacheMax max r)
-        OutOfBound -> addMaxL min (Bound k) (missingSingle miss2 k v) (missingLeft miss1 n)
-        Matched -> makeBinL max (matchedSingle match k maxV v) (missingLeft miss1 l) (missingRight miss1 r)
+                | otherwise -> makeBinL max (missingSingle miss1 (boundUKey max) maxV) (missingLeft miss1 l) (goInsertR2 k v xorCacheMax max r)
+        OutOfBound -> addMaxL min (Bound k) (missingSingle miss2 (unbox k) v) (missingLeft miss1 n)
+        Matched -> makeBinL max (matchedSingle match (unbox k) maxV v) (missingLeft miss1 l) (missingRight miss1 r)
       where xorCacheMax = xor k max
 
-    goInsertR1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 k v)
+    goInsertR1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
     goInsertR1 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
         InBound | xorCache < xorCacheMin -> liftA2 binMapNodeR (missingAllL miss2 (NonEmpty min minV l)) (goInsertR1 k v xorCache max r)
-                | otherwise -> makeBinR min (missingSingle miss2 (boundKey min) minV) (goInsertL1 k v xorCacheMin min l) (missingRight miss2 r)
-        OutOfBound -> addMinR max (Bound k) (missingSingle miss1 k v) (missingRight miss2 n)
-        Matched -> makeBinR min (matchedSingle match k v minV) (missingLeft miss2 l) (missingRight miss2 r)
+                | otherwise -> makeBinR min (missingSingle miss2 (boundUKey min) minV) (goInsertL1 k v xorCacheMin min l) (missingRight miss2 r)
+        OutOfBound -> addMinR max (Bound k) (missingSingle miss1 (unbox k) v) (missingRight miss2 n)
+        Matched -> makeBinR min (matchedSingle match (unbox k) v minV) (missingLeft miss2 l) (missingRight miss2 r)
       where xorCacheMin = xor k min
 
-    goInsertR2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 k v)
+    goInsertR2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
     goInsertR2 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
         InBound | xorCache < xorCacheMin -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min minV l)) (goInsertR2 k v xorCache max r)
-                | otherwise -> makeBinR min (missingSingle miss1 (boundKey min) minV) (goInsertL2 k v xorCacheMin min l) (missingRight miss1 r)
-        OutOfBound -> addMinR max (Bound k) (missingSingle miss2 k v) (missingRight miss1 n)
-        Matched -> makeBinR min (matchedSingle match k minV v) (missingLeft miss1 l) (missingRight miss1 r)
+                | otherwise -> makeBinR min (missingSingle miss1 (boundUKey min) minV) (goInsertL2 k v xorCacheMin min l) (missingRight miss1 r)
+        OutOfBound -> addMinR max (Bound k) (missingSingle miss2 (unbox k) v) (missingRight miss1 n)
+        Matched -> makeBinR min (matchedSingle match (unbox k) minV v) (missingLeft miss1 l) (missingRight miss1 r)
       where xorCacheMin = xor k min
 
     missingAllR whenMiss = fmap l2rMap . missingAllL whenMiss . r2lMap

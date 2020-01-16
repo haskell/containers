@@ -96,16 +96,23 @@ import Data.IntMap.Merge.Internal
 -- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
 --
 -- but @mapMissing@ is somewhat faster.
+{-# INLINE mapMissing #-}
 mapMissing :: Applicative f => (Key -> a -> b) -> WhenMissing f a b
-mapMissing f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . goR) (pure . start) where
+mapMissing f = mapMissingUKey (\k v -> f (box k) v)
+
+-- | Map over the entries whose keys are missing from the other map with a
+-- function that takes an unboxed key. Identical in functionality to
+-- 'mapMissing'.
+mapMissingUKey :: Applicative f => (UKey -> a -> b) -> WhenMissing f a b
+mapMissingUKey f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . goR) (pure . start) where
     start Empty = Empty
-    start (NonEmpty min minV root) = NonEmpty min (f (boundKey min) minV) (goL root)
+    start (NonEmpty min minV root) = NonEmpty min (f (boundUKey min) minV) (goL root)
 
     goL Tip = Tip
-    goL (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
+    goL (Bin k v l r) = Bin k (f (boundUKey k) v) (goL l) (goR r)
 
     goR Tip = Tip
-    goR (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
+    goR (Bin k v l r) = Bin k (f (boundUKey k) v) (goL l) (goR r)
 
 -- | Map over the entries whose keys are missing from the other map,
 -- optionally removing some. This is the most powerful 'SimpleWhenMissing'
@@ -118,29 +125,36 @@ mapMissing f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure . go
 -- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
+{-# INLINE mapMaybeMissing #-}
 mapMaybeMissing :: Applicative f => (Key -> a -> Maybe b) -> WhenMissing f a b
-mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
+mapMaybeMissing f = mapMaybeMissingUKey (\k a -> f (box k) a)
+
+-- | Map over the entries whose keys are missing from the other map using a
+-- function taking an unboxed key, optionally removing some. Identical in
+-- functionality to 'mapMaybeMissing'.
+mapMaybeMissingUKey :: Applicative f => (UKey -> a -> Maybe b) -> WhenMissing f a b
+mapMaybeMissingUKey f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . goRKeep) (pure . start) where
     start Empty = Empty
-    start (NonEmpty min minV root) = case f (boundKey min) minV of
+    start (NonEmpty min minV root) = case f (boundUKey min) minV of
         Just minV' -> NonEmpty min minV' (goLKeep root)
         Nothing -> goL root
 
     goLKeep Tip = Tip
-    goLKeep (Bin max maxV l r) = case f (boundKey max) maxV of
+    goLKeep (Bin max maxV l r) = case f (boundUKey max) maxV of
         Just maxV' -> Bin max maxV' (goLKeep l) (goRKeep r)
         Nothing -> case goR r of
             Empty -> goLKeep l
             NonEmpty max' maxV' r' -> Bin max' maxV' (goLKeep l) r'
 
     goRKeep Tip = Tip
-    goRKeep (Bin min minV l r) = case f (boundKey min) minV of
+    goRKeep (Bin min minV l r) = case f (boundUKey min) minV of
         Just minV' -> Bin min minV' (goLKeep l) (goRKeep r)
         Nothing -> case goL l of
             Empty -> goRKeep r
             NonEmpty min' minV' l' -> Bin min' minV' l' (goRKeep r)
 
     goL Tip = Empty
-    goL (Bin max maxV l r) = case f (boundKey max) maxV of
+    goL (Bin max maxV l r) = case f (boundUKey max) maxV of
         Just maxV' -> case goL l of
             Empty -> case goRKeep r of
                 Tip -> NonEmpty (maxToMin max) maxV' Tip
@@ -149,7 +163,7 @@ mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . 
         Nothing -> binL (goL l) (goR r)
 
     goR Tip = Empty
-    goR (Bin min minV l r) = case f (boundKey min) minV of
+    goR (Bin min minV l r) = case f (boundUKey min) minV of
         Just minV' -> case goR r of
             Empty -> case goLKeep l of
                 Tip -> NonEmpty (minToMax min) minV' Tip
@@ -166,7 +180,7 @@ mapMaybeMissing f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pure . 
 -- @
 {-# INLINE zipWithMaybeMatched #-}
 zipWithMaybeMatched :: Applicative f => (Key -> a -> b -> Maybe c) -> WhenMatched f a b c
-zipWithMaybeMatched f = WhenMatched (\k a b -> pure (f k a b))
+zipWithMaybeMatched f = WhenMatched (\k a b -> pure (f (box k) a b))
 
 -- | When a key is found in both maps, apply a function to the
 -- key and values and use the result in the merged map.
@@ -190,7 +204,7 @@ zipWithMatched f = zipWithMaybeMatched (\k a b -> Just (f k a b))
 zipWithMaybeAMatched
   :: (Key -> a -> b -> f (Maybe c))
   -> WhenMatched f a b c
-zipWithMaybeAMatched f = WhenMatched (\k a b -> f k a b)
+zipWithMaybeAMatched f = WhenMatched (\k a b -> f (box k) a b)
 
 -- | When a key is found in both maps, apply a function to the key
 -- and values to produce an action and use its result in the merged
@@ -217,16 +231,18 @@ traverseMaybeMissing f = WhenMissing
     { missingAllL = start
     , missingLeft = goL
     , missingRight = goR
-    , missingSingle = f }
+    , missingSingle = f' }
   where
+    f' k a = f (box k) a
+
     start Empty = pure Empty
-    start (NonEmpty min minV root) = liftA2 (maybe nodeToMapL (NonEmpty min)) (f (boundKey min) minV) (goL root)
+    start (NonEmpty min minV root) = liftA2 (maybe nodeToMapL (NonEmpty min)) (f' (boundUKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') (goL l) (goR r) (f (boundKey max) maxV)
+    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') (goL l) (goR r) (f' (boundUKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') (f (boundKey min) minV) (goL l) (goR r)
+    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') (f' (boundUKey min) minV) (goL l) (goR r)
 
 -- | Traverse over the entries whose keys are missing from the other
 -- map.
@@ -239,13 +255,15 @@ traverseMissing f = WhenMissing
     { missingAllL = start
     , missingLeft = goL
     , missingRight = goR
-    , missingSingle = \k v -> Just <$> f k v }
+    , missingSingle = \k v -> Just <$> f' k v }
   where
+    f' k a = f (box k) a
+
     start Empty = pure Empty
-    start (NonEmpty min minV root) = liftA2 (NonEmpty min) (f (boundKey min) minV) (goL root)
+    start (NonEmpty min minV root) = liftA2 (NonEmpty min) (f' (boundUKey min) minV) (goL root)
 
     goL Tip = pure Tip
-    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> Bin max maxV' l' r') (goL l) (goR r) (f (boundKey max) maxV)
+    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> Bin max maxV' l' r') (goL l) (goR r) (f' (boundUKey max) maxV)
 
     goR Tip = pure Tip
-    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> Bin min minV' l' r') (f (boundKey min) minV) (goL l) (goR r)
+    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> Bin min minV' l' r') (f' (boundUKey min) minV) (goL l) (goR r)
