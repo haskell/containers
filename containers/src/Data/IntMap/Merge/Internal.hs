@@ -102,6 +102,14 @@ instance Applicative Identity where
 -- A tactic of type @ WhenMissing f a c @ is an abstract representation
 -- of a function of type @ Key -> a -> f (Maybe c) @.
 data WhenMissing f a b = WhenMissing {
+    -- TODO: Instead of unconditionally putting the 'Maybe' inside the @f@,
+    -- provide options for the deletion vs. not choice to be decided purely,
+    -- before Applicative effects. Most merge tactics (all but 'filterAMissing'
+    -- and 'Data.IntMap.Merge.Lazy.traverseMaybeMissing', it seems) can support
+    -- this more precise representation, and it would allow 'mergeA' to make an
+    -- optimized choice between 'Node' and 'IntMap_' intermediates. By changing
+    -- its arguments into that form, 'merge' might even be implementable as
+    -- efficiently as possible in terms of 'mergeA'.
     missingSingle :: Key -> a -> f (Maybe b),
     missingLeft :: Node L a -> f (Node L b),
     missingRight :: Node R a -> f (Node R b),
