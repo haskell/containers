@@ -422,6 +422,7 @@ merge miss1 miss2 match = \m1 m2 -> runIdentity (mergeA miss1 miss2 match m1 m2)
 -- 'mergeA' to define custom combining functions.
 --
 -- @since 0.5.9
+{-# INLINE mergeA #-}
 mergeA :: Applicative f => WhenMissing f a c -> WhenMissing f b c -> WhenMatched f a b c -> IntMap a -> IntMap b -> f (IntMap c)
 mergeA miss1 miss2 match = start where
     start (IntMap Empty) (IntMap Empty) = pure (IntMap Empty)
@@ -502,32 +503,32 @@ mergeA miss1 miss2 match = start where
            | otherwise -> makeBinR min1 (matchedSingle match (boundUKey min1) minV1 minV2) (goLFused min1 l1 l2) (goRFused max r1 r2)
         GT -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min1 minV1 l1)) (goRFused max r1 n2)
 
-    goInsertL1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
-    goInsertL1 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+    goInsertL1 !k v !_ !_ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
+    goInsertL1 !k v !xorCache !min n@(Bin max maxV l r) = case compareMaxBound k max of
         InBound | xorCache < xorCacheMax -> liftA2 binNodeMapL (goInsertL1 k v xorCache min l) (missingAllR miss2 (NonEmpty max maxV r))
                 | otherwise -> makeBinL max (missingSingle miss2 (boundUKey max) maxV) (missingLeft miss2 l) (goInsertR1 k v xorCacheMax max r)
         OutOfBound -> addMaxL min (Bound k) (missingSingle miss1 (unbox k) v) (missingLeft miss2 n)
         Matched -> makeBinL max (matchedSingle match (unbox k) v maxV) (missingLeft miss2 l) (missingRight miss2 r)
       where xorCacheMax = xor k max
 
-    goInsertL2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
-    goInsertL2 !k v !xorCache min n@(Bin max maxV l r) = case compareMaxBound k max of
+    goInsertL2 !k v !_ !_ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
+    goInsertL2 !k v !xorCache !min n@(Bin max maxV l r) = case compareMaxBound k max of
         InBound | xorCache < xorCacheMax -> liftA2 binNodeMapL (goInsertL2 k v xorCache min l) (missingAllR miss1 (NonEmpty max maxV r))
                 | otherwise -> makeBinL max (missingSingle miss1 (boundUKey max) maxV) (missingLeft miss1 l) (goInsertR2 k v xorCacheMax max r)
         OutOfBound -> addMaxL min (Bound k) (missingSingle miss2 (unbox k) v) (missingLeft miss1 n)
         Matched -> makeBinL max (matchedSingle match (unbox k) maxV v) (missingLeft miss1 l) (missingRight miss1 r)
       where xorCacheMax = xor k max
 
-    goInsertR1 !k v !_ _ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
-    goInsertR1 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+    goInsertR1 !k v !_ !_ Tip = makeSingleton k (missingSingle miss1 (unbox k) v)
+    goInsertR1 !k v !xorCache !max n@(Bin min minV l r) = case compareMinBound k min of
         InBound | xorCache < xorCacheMin -> liftA2 binMapNodeR (missingAllL miss2 (NonEmpty min minV l)) (goInsertR1 k v xorCache max r)
                 | otherwise -> makeBinR min (missingSingle miss2 (boundUKey min) minV) (goInsertL1 k v xorCacheMin min l) (missingRight miss2 r)
         OutOfBound -> addMinR max (Bound k) (missingSingle miss1 (unbox k) v) (missingRight miss2 n)
         Matched -> makeBinR min (matchedSingle match (unbox k) v minV) (missingLeft miss2 l) (missingRight miss2 r)
       where xorCacheMin = xor k min
 
-    goInsertR2 !k v !_ _ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
-    goInsertR2 !k v !xorCache max n@(Bin min minV l r) = case compareMinBound k min of
+    goInsertR2 !k v !_ !_ Tip = makeSingleton k (missingSingle miss2 (unbox k) v)
+    goInsertR2 !k v !xorCache !max n@(Bin min minV l r) = case compareMinBound k min of
         InBound | xorCache < xorCacheMin -> liftA2 binMapNodeR (missingAllL miss1 (NonEmpty min minV l)) (goInsertR2 k v xorCache max r)
                 | otherwise -> makeBinR min (missingSingle miss1 (boundUKey min) minV) (goInsertL2 k v xorCacheMin min l) (missingRight miss1 r)
         OutOfBound -> addMinR max (Bound k) (missingSingle miss2 (unbox k) v) (missingRight miss1 n)
