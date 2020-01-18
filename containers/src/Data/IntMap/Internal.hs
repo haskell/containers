@@ -979,41 +979,41 @@ size (IntMap (NonEmpty _ _ node)) = sizeNode 0 node
 -- | /O(min(n,W)/. Lookup the value at a key in the map, returning the result
 -- to the provided continuations. See also 'lookup'.
 --
--- When 'lookupChurch' is given three arguments (the continuations and key), it
--- is inlined to the call site. You should therefore use 'lookupChurch' only to
+-- When 'lookupChurch' is given two arguments (the continuations), it is
+-- inlined to the call site. You should therefore use 'lookupChurch' only to
 -- define custom lookup functions.
 {-# INLINE lookupChurch #-}
 lookupChurch :: r -> (a -> r) -> Key -> IntMap a -> r
-lookupChurch nothing just !k = start
+lookupChurch nothing just = search
   where
-    start (IntMap Empty) = nothing
-    start (IntMap (NonEmpty min minV node)) = case compareMinBound k min of
+    search !_ (IntMap Empty) = nothing
+    search !k (IntMap (NonEmpty rootMin rootMinV root)) = case compareMinBound k rootMin of
         OutOfBound -> nothing
-        Matched -> just minV
-        InBound -> goL (xor k min) node
+        Matched -> just rootMinV
+        InBound -> goL (xor k rootMin) root
+      where
+        goL !_ Tip = nothing
+        goL !xorCache (Bin max maxV l r) = case compareMaxBound k max of
+            InBound | xorCache < xorCacheMax -> goL xorCache    l
+                    | otherwise              -> goR xorCacheMax r
+            OutOfBound -> nothing
+            Matched -> just maxV
+          where xorCacheMax = xor k max
 
-    goL !_ Tip = nothing
-    goL !xorCache (Bin max maxV l r) = case compareMaxBound k max of
-        InBound | xorCache < xorCacheMax -> goL xorCache    l
-                | otherwise              -> goR xorCacheMax r
-        OutOfBound -> nothing
-        Matched -> just maxV
-      where xorCacheMax = xor k max
-
-    goR !_ Tip = nothing
-    goR !xorCache (Bin min minV l r) = case compareMinBound k min of
-        InBound | xorCache < xorCacheMin -> goR xorCache    r
-                | otherwise              -> goL xorCacheMin l
-        OutOfBound -> nothing
-        Matched -> just minV
-      where xorCacheMin = xor k min
+        goR !_ Tip = nothing
+        goR !xorCache (Bin min minV l r) = case compareMinBound k min of
+            InBound | xorCache < xorCacheMin -> goR xorCache    r
+                    | otherwise              -> goL xorCacheMin l
+            OutOfBound -> nothing
+            Matched -> just minV
+          where xorCacheMin = xor k min
 
 -- | /O(min(n,W))/. Is the key a member of the map?
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
 member :: Key -> IntMap a -> Bool
-member !k = lookupChurch False (const True) k
+member = lookupChurch False (const True)
 
 -- | /O(min(n,W))/. Is the key not a member of the map?
 --
@@ -1024,7 +1024,7 @@ notMember !k = not . member k
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 lookup :: Key -> IntMap a -> Maybe a
-lookup !k = lookupChurch Nothing Just k
+lookup = lookupChurch Nothing Just
 
 -- | /O(min(n,W))/. The expression @'findWithDefault' def k map@
 -- returns the value at key @k@ or returns @def@ when the key is not an
@@ -1033,7 +1033,7 @@ lookup !k = lookupChurch Nothing Just k
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
 findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def !k = lookupChurch def id k
+findWithDefault def = lookupChurch def id
 
 -- | /O(log n)/. Find largest key smaller than the given one and return the
 -- corresponding (key, value) pair.
