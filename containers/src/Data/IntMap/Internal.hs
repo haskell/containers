@@ -670,7 +670,7 @@ newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 --   bounds also share. This invariant implies that branches are taken based on the immediately
 --   following bit. When the minimum and maximum are both of the same sign, the 0 branch is lesser
 --   and therefore assigned to the left side. For example, when splitting between 4 (@0100@) and
---   7 (@0111@), which disagree in the 2's place, 5 (@0101) would be found on the left side since
+--   7 (@0111@), which disagree in the 2's place, 5 (@0101@) would be found on the left side since
 --   it has a 0 in the 2's place; similarly, -7 (@1001@) and -4 (@1100@) disagree in the 4's
 --   place, and -5 (@1011@) would be found on the left side since it has a 0 in the 4's place.
 --   However, when the minimum and maximum disagree in sign, they differ in the first bit, the
@@ -1012,7 +1012,6 @@ lookupChurch nothing just !k = start
 --
 -- > member 5 (fromList [(5,'a'), (3,'b')]) == True
 -- > member 1 (fromList [(5,'a'), (3,'b')]) == False
-{-# NOINLINE[1] member #-}
 member :: Key -> IntMap a -> Bool
 member !k = lookupChurch False (const True) k
 
@@ -1020,12 +1019,10 @@ member !k = lookupChurch False (const True) k
 --
 -- > notMember 5 (fromList [(5,'a'), (3,'b')]) == False
 -- > notMember 1 (fromList [(5,'a'), (3,'b')]) == True
-{-# NOINLINE[1] notMember #-}
 notMember :: Key -> IntMap a -> Bool
-notMember !k = lookupChurch True (const False) k
+notMember !k = not . member k
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
-{-# NOINLINE[1] lookup #-}
 lookup :: Key -> IntMap a -> Maybe a
 lookup !k = lookupChurch Nothing Just k
 
@@ -1035,7 +1032,6 @@ lookup !k = lookupChurch Nothing Just k
 --
 -- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
 -- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
-{-# NOINLINE[1] findWithDefault #-}
 findWithDefault :: a -> Key -> IntMap a -> a
 findWithDefault def !k = lookupChurch def id k
 
@@ -1240,16 +1236,19 @@ insertWithEval eval = start
 
 -- Small functions that really ought to be defined in Data.IntMap.Lazy but have
 -- to be here for the sake of type class implementations
-{-# NOINLINE[1] insertLazy #-}
 insertLazy :: Key -> a -> IntMap a -> IntMap a
 insertLazy = insertWithEval (const ()) const
+
 fromListLazy :: [(Key, a)] -> IntMap a
 fromListLazy = Data.List.foldl' (\t (k, a) -> insertLazy k a t) empty
+
 mapLazy :: (a -> b) -> IntMap a -> IntMap b
 mapLazy f (IntMap m) = IntMap (mapLazy_ f m)
+
 mapLazy_ :: (a -> b) -> IntMap_ t a -> IntMap_ t b
 mapLazy_ _ Empty = Empty
 mapLazy_ f (NonEmpty min minV root) = NonEmpty min (f minV) (mapNodeLazy f root)
+
 mapNodeLazy :: (a -> b) -> Node t a -> Node t b
 mapNodeLazy _ Tip = Tip
 mapNodeLazy f (Bin bound value l r) = Bin bound (f value) (mapNodeLazy f l) (mapNodeLazy f r)

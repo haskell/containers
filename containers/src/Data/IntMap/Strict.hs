@@ -280,7 +280,6 @@ singleton !k !v = IntMap (NonEmpty (Bound k) v Tip)
 -- > insert 5 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'x')]
 -- > insert 7 'x' (fromList [(5,'a'), (3,'b')]) == fromList [(3, 'b'), (5, 'a'), (7, 'x')]
 -- > insert 5 'x' empty                         == singleton 5 'x'
-{-# NOINLINE[1] insert #-}
 insert :: Key -> a -> IntMap a -> IntMap a
 insert = insertWithEval wheval const
 
@@ -293,7 +292,6 @@ insert = insertWithEval wheval const
 -- > insertWith (++) 5 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "xxxa")]
 -- > insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "xxx")]
 -- > insertWith (++) 5 "xxx" empty                         == singleton 5 "xxx"
-{-# NOINLINE[1] insertWith #-}
 insertWith :: (a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWith = insertWithEval wheval
 
