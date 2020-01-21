@@ -508,10 +508,12 @@ type Key = Int
 type UKey = Int#
 
 -- | Convert a 'UKey' into the equivalent 'Key'.
+{-# INLINE box #-}
 box :: UKey -> Key
 box = I#
 
 -- | Convert a 'Key' into the equivalent 'UKey'.
+{-# INLINE unbox #-}
 unbox :: Key -> UKey
 unbox (I# x) = x
 #else
@@ -521,14 +523,17 @@ unbox (I# x) = x
 type UKey = Key
 
 -- | Convert a 'UKey' into the equivalent 'Key'.
+{-# INLINE box #-}
 box :: UKey -> Key
 box = id
 
 -- | Convert a 'Key' into the equivalent 'UKey'.
+{-# INLINE unbox #-}
 unbox :: Key -> UKey
 unbox = id
 #endif
 
+{-# INLINE i2w #-}
 i2w :: Key -> Word
 i2w = fromIntegral
 
