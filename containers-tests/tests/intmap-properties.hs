@@ -144,6 +144,7 @@ main = defaultMain
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
              , testProperty "insert then delete"   prop_insertDelete
+             , testProperty "insertLookupWithKey"  prop_insertLookupWithKeyModel
              , testProperty "delete non member"    prop_deleteNonMember
              , testProperty "union model"          prop_unionModel
              , testProperty "union singleton"      prop_unionSingleton
@@ -1316,6 +1317,11 @@ prop_insertDelete k t =
   lookup k t == Nothing ==>
     case delete k (insert k () t) of
       t' -> validProp t' .&&. t' === t
+
+prop_insertLookupWithKeyModel :: Fun (Key, A, A) A -> Key -> A -> IntMap A -> Property
+prop_insertLookupWithKeyModel fun k v m =
+    insertLookupWithKey (applyFun3 fun) k v m
+    === (lookup k m, insertWithKey (applyFun3 fun) k v m)
 
 prop_deleteNonMember :: Int -> UMap -> Property
 prop_deleteNonMember k t = notMember k t ==> (delete k t === t)
