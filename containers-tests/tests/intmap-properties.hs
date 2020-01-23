@@ -147,6 +147,16 @@ main = defaultMain
              , testProperty "insert then delete"   prop_insertDelete
              , testProperty "insertLookupWithKey"  prop_insertLookupWithKeyModel
              , testProperty "delete non member"    prop_deleteNonMember
+             , testProperty "delete"               prop_deleteModel
+             , testProperty "adjust"               prop_adjustModel
+             , testProperty "adjustWithKey"        prop_adjustWithKeyModel
+             , testProperty "update"               prop_updateModel
+             , testProperty "updateWithKey"        prop_updateWithKeyModel
+             , testProperty "updateLookupWithKey"  prop_updateLookupWithKeyModel
+             , testProperty "alter"                prop_alterModel
+             , testProperty "alter lookup"         prop_alterLookup
+             , testProperty "alterF"               prop_alterFModel
+             , testProperty "alterF lookup"        prop_alterFLookup
              , testProperty "union model"          prop_unionModel
              , testProperty "union singleton"      prop_unionSingleton
              , testProperty "union associative"    prop_unionAssoc
@@ -1328,6 +1338,62 @@ prop_deleteNonMember :: Int -> UMap -> Property
 prop_deleteNonMember k t = notMember k t ==> (delete k t === t)
 
 ----------------------------------------------------------------
+
+prop_deleteModel :: Key -> IntMap A -> Property
+prop_deleteModel k m =
+    delete k m === fromList (List.filter ((/= k) . fst) (toList m))
+
+prop_adjustModel :: Fun A A -> Key -> IntMap A -> Property
+prop_adjustModel fun k m =
+    adjust (apply fun) k m === alter (fmap (apply fun)) k m
+
+prop_adjustWithKeyModel :: Fun (Key, A) A -> Key -> IntMap A -> Property
+prop_adjustWithKeyModel fun k m =
+    adjustWithKey (applyFun2 fun) k m === adjust (applyFun2 fun k) k m
+
+prop_updateModel :: Fun A (Maybe A) -> Key -> IntMap A -> Property
+prop_updateModel fun k m =
+    update (apply fun) k m === alter (>>= apply fun) k m
+
+prop_updateWithKeyModel :: Fun (Key, A) (Maybe A) -> Key -> IntMap A -> Property
+prop_updateWithKeyModel fun k m =
+    updateWithKey (applyFun2 fun) k m === update (applyFun2 fun k) k m
+
+prop_updateLookupWithKeyModel :: Fun (Key, A) (Maybe A) -> Key -> IntMap A -> Property
+prop_updateLookupWithKeyModel fun k m =
+    updateLookupWithKey (applyFun2 fun) k m
+    === (lookup k m, updateWithKey (applyFun2 fun) k m)
+
+prop_alterModel :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterModel fun k m =
+    alter (apply fun) k m
+    === let old = lookup k m
+         in case (old, apply fun old) of
+                (Nothing, Nothing) -> m
+                (Just _, Nothing) -> delete k m
+                (_, Just v) -> insert k v m
+
+prop_alterLookup :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterLookup fun k m =
+    lookup k (alter (apply fun) k m) === apply fun (lookup k m)
+
+prop_alterFModel :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterFModel fun k m =
+    alterF f k m
+    === let old = lookup k m
+         in (old, case (old, apply fun old) of
+                (Nothing, Nothing) -> m
+                (Just _, Nothing) -> delete k m
+                (_, Just v) -> insert k v m)
+  where
+    f mv = (mv, apply fun mv)
+
+prop_alterFLookup :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterFLookup fun k m =
+    fmap (lookup k) (alterF f k m) === f (lookup k m)
+  where
+    f mv = (mv, apply fun mv)
+
 
 prop_unionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_unionModel xs ys =
