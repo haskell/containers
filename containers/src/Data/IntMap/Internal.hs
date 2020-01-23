@@ -410,6 +410,8 @@ module Data.IntMap.Internal (
     -- ** Internal Manipulation
     , binL
     , binR
+    , binNodeMapL
+    , binMapNodeR
     , extractBinL
     , extractBinR
     , l2rMap
@@ -1504,20 +1506,12 @@ difference = start
     goL2 !min1 n1@(Bin max1 maxV1 l1 r1) !min2 n2@(Bin max2 _ l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         LT -> goL2 min1 n1 min2 l2
         EQ | max1 > max2 -> Bin max1 maxV1 (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | max1 < max2 -> case goR1 maxV1 max1 r1 max2 r2 of
-                Empty -> goL2 min1 l1 min2 l2
-                NonEmpty max' maxV' r' -> Bin max' maxV' (goL2 min1 l1 min2 l2) r'
-           | otherwise -> case goRFused max1 r1 r2 of
-                Empty -> goL2 min1 l1 min2 l2
-                NonEmpty max' maxV' r' -> Bin max' maxV' (goL2 min1 l1 min2 l2) r'
+           | max1 < max2 -> binNodeMapL (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
+           | otherwise -> binNodeMapL (goL2 min1 l1 min2 l2) (goRFused max1 r1 r2)
         GT | xor (boundKey min2) min1 < xor (boundKey min2) max1 -> Bin max1 maxV1 (goL2 min1 l1 min2 n2) r1 -- min2 is arbitrary here - we just need something from tree 2
            | max1 > max2 -> Bin max1 maxV1 l1 (goR2 max1 r1 max2 (Bin min2 dummyV l2 r2))
-           | max1 < max2 -> case goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2) of
-                Empty -> l1
-                NonEmpty max' maxV' r' -> Bin max' maxV' l1 r'
-           | otherwise -> case goRFused max1 r1 (Bin min2 dummyV l2 r2) of
-                Empty -> l1
-                NonEmpty max' maxV' r' -> Bin max' maxV' l1 r'
+           | max1 < max2 -> binNodeMapL l1 (goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2))
+           | otherwise -> binNodeMapL l1 (goRFused max1 r1 (Bin min2 dummyV l2 r2))
 
     goLFused !_ Tip !_ = Empty
     goLFused !_ (Bin max1 maxV1 l1 r1) Tip = case deleteMinL max1 maxV1 l1 r1 of
@@ -1548,20 +1542,12 @@ difference = start
     goR2 !max1 n1@(Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 _ l2 r2) = case compareMSB (xorBounds min1 max1) (xorBounds min2 max2) of
         LT -> goR2 max1 n1 max2 r2
         EQ | min1 < min2 -> Bin min1 minV1 (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | min1 > min2 -> case goL1 minV1 min1 l1 min2 l2 of
-                Empty -> goR2 max1 r1 max2 r2
-                NonEmpty min' minV' l' -> Bin min' minV' l' (goR2 max1 r1 max2 r2)
-           | otherwise -> case goLFused min1 l1 l2 of
-                Empty -> goR2 max1 r1 max2 r2
-                NonEmpty min' minV' l' -> Bin min' minV' l' (goR2 max1 r1 max2 r2)
+           | min1 > min2 -> binMapNodeR (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
+           | otherwise -> binMapNodeR (goLFused min1 l1 l2) (goR2 max1 r1 max2 r2)
         GT | xor (boundKey max2) min1 > xor (boundKey max2) max1 -> Bin min1 minV1 l1 (goR2 max1 r1 max2 n2) -- max2 is arbitrary here - we just need something from tree 2
            | min1 < min2 -> Bin min1 minV1 (goL2 min1 l1 min2 (Bin max2 dummyV l2 r2)) r1
-           | min1 > min2 -> case goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2) of
-                Empty -> r1
-                NonEmpty min' minV' l' -> Bin min' minV' l' r1
-           | otherwise -> case goLFused min1 l1 (Bin max2 dummyV l2 r2) of
-                Empty -> r1
-                NonEmpty min' minV' l' -> Bin min' minV' l' r1
+           | min1 > min2 -> binMapNodeR (goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2)) r1
+           | otherwise ->   binMapNodeR (goLFused min1 l1 (Bin max2 dummyV l2 r2)) r1
 
     goRFused !_ Tip !_ = Empty
     goRFused !_ (Bin min1 minV1 l1 r1) Tip = case deleteMaxR min1 minV1 l1 r1 of
@@ -1616,9 +1602,7 @@ intersection = start
            | otherwise -> r2lMap $ NonEmpty max1 maxV1 (goRFused max1 (Bin min1 minV1 l1 r1) r2)
         EQ | max1 > max2 -> binL (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
            | max1 < max2 -> binL (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case goL1 minV1 min1 l1 min2 l2 of
-                Empty -> r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
-                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2))
+           | otherwise -> binL (goL1 minV1 min1 l1 min2 l2) (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
         GT -> goL1 minV1 min1 l1 min2 n2
 
     goL2 !_   Tip !_   !_  = Empty
@@ -1628,9 +1612,7 @@ intersection = start
         LT -> goL2 min1 n1 min2 l2
         EQ | max1 > max2 -> binL (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
            | max1 < max2 -> binL (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case goL2 min1 l1 min2 l2 of
-                Empty -> r2lMap (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
-                NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max1 maxV1 l' (goRFused max1 r1 r2))
+           | otherwise -> binL (goL2 min1 l1 min2 l2) (NonEmpty max1 maxV1 (goRFused max1 r1 r2))
         GT | xor (boundKey min2) min1 < xor (boundKey min2) max1 -> goL2 min1 l1 min2 n2 -- min2 is arbitrary here - we just need something from tree 2
            | max1 > max2 -> r2lMap $ goR2 max1 r1 max2 (Bin min2 dummyV l2 r2)
            | max1 < max2 -> r2lMap $ goR1 maxV1 max1 r1 max2 (Bin min2 dummyV l2 r2)
@@ -1640,15 +1622,9 @@ intersection = start
     goLFused !_ !_ Tip = Tip
     goLFused !min n1@(Bin max1 maxV1 l1 r1) n2@(Bin max2 _ l2 r2) = case compareMSB (xorBounds min max1) (xorBounds min max2) of
             LT -> goLFused min n1 l2
-            EQ | max1 > max2 -> case goR2 max1 r1 max2 r2 of
-                    Empty -> l'
-                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
-               | max1 < max2 -> case goR1 maxV1 max1 r1 max2 r2 of
-                    Empty -> l'
-                    NonEmpty max' maxV' r' -> Bin max' maxV' l' r'
-               | otherwise -> Bin max1 maxV1 l' (goRFused max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
-             where
-               l' = goLFused min l1 l2
+            EQ | max1 > max2 -> binNodeMapL (goLFused min l1 l2) (goR2 max1 r1 max2 r2)
+               | max1 < max2 -> binNodeMapL (goLFused min l1 l2) (goR1 maxV1 max1 r1 max2 r2)
+               | otherwise -> Bin max1 maxV1 (goLFused min l1 l2) (goRFused max1 r1 r2) -- we choose max1 arbitrarily, as max1 == max2
             GT -> goLFused min l1 n2
 
     goR1 _     !_   !_  !_   Tip = Empty
@@ -1661,9 +1637,7 @@ intersection = start
            | otherwise -> l2rMap $ NonEmpty min1 minV1 (goLFused min1 (Bin max1 maxV1 l1 r1) l2)
         EQ | min1 < min2 -> binR (goL2 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
            | min1 > min2 -> binR (goL1 minV1 min1 l1 min2 l2) (goR1 maxV1 max1 r1 max2 r2)
-           | otherwise -> case goR1 maxV1 max1 r1 max2 r2 of
-                Empty -> l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
-                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
+           | otherwise -> binR (NonEmpty min1 minV1 (goLFused min1 l1 l2)) (goR1 maxV1 max1 r1 max2 r2)
         GT -> goR1 maxV1 max1 r1 max2 n2
 
     goR2 !_   Tip !_   !_  = Empty
@@ -1673,9 +1647,7 @@ intersection = start
         LT -> goR2 max1 n1 max2 r2
         EQ | min1 < min2 -> binR (goL2 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
            | min1 > min2 -> binR (goL1 minV1 min1 l1 min2 l2) (goR2 max1 r1 max2 r2)
-           | otherwise -> case goR2 max1 r1 max2 r2 of
-                Empty -> l2rMap (NonEmpty min1 minV1 (goLFused min1 l1 l2))
-                NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min1 minV1 (goLFused min1 l1 l2) r')
+           | otherwise -> binR (NonEmpty min1 minV1 (goLFused min1 l1 l2)) (goR2 max1 r1 max2 r2)
         GT | xor (boundKey max2) min1 > xor (boundKey max2) max1 -> goR2 max1 r1 max2 n2 -- max2 is arbitrary here - we just need something from tree 2
            | min1 < min2 -> l2rMap $ goL2 min1 l1 min2 (Bin max2 dummyV l2 r2)
            | min1 > min2 -> l2rMap $ goL1 minV1 min1 l1 min2 (Bin max2 dummyV l2 r2)
@@ -1685,15 +1657,9 @@ intersection = start
     goRFused !_ !_ Tip = Tip
     goRFused !max n1@(Bin min1 minV1 l1 r1) n2@(Bin min2 _ l2 r2) = case compareMSB (xorBounds min1 max) (xorBounds min2 max) of
             LT -> goRFused max n1 r2
-            EQ | min1 < min2 -> case goL2 min1 l1 min2 l2 of
-                    Empty -> r'
-                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
-               | min1 > min2 -> case goL1 minV1 min1 l1 min2 l2 of
-                    Empty -> r'
-                    NonEmpty min' minV' l' -> Bin min' minV' l' r'
-               | otherwise -> Bin min1 minV1 (goLFused min1 l1 l2) r' -- we choose max1 arbitrarily, as max1 == max2
-             where
-               r' = goRFused max r1 r2
+            EQ | min1 < min2 -> binMapNodeR (goL2 min1 l1 min2 l2) (goRFused max r1 r2)
+               | min1 > min2 -> binMapNodeR (goL1 minV1 min1 l1 min2 l2) (goRFused max r1 r2)
+               | otherwise -> Bin min1 minV1 (goLFused min1 l1 l2) (goRFused max r1 r2) -- we choose min1 arbitrarily, as min1 == min2
             GT -> goRFused max r1 n2
 
     goLookupL1 !_ _ !_ Tip = Empty
@@ -2085,33 +2051,21 @@ filterWithUKey p = start
     goL Tip = Tip
     goL (Bin max maxV l r)
         | p (boundUKey max) maxV = Bin max maxV (goL l) (goR r)
-        | otherwise = case goDeleteR r of
-            Empty -> goL l
-            NonEmpty max' maxV' r' -> Bin max' maxV' (goL l) r'
+        | otherwise = binNodeMapL (goL l) (goDeleteR r)
 
     goR Tip = Tip
     goR (Bin min minV l r)
         | p (boundUKey min) minV = Bin min minV (goL l) (goR r)
-        | otherwise = case goDeleteL l of
-            Empty -> goR r
-            NonEmpty min' minV' l' -> Bin min' minV' l' (goR r)
+        | otherwise = binMapNodeR (goDeleteL l) (goR r)
 
     goDeleteL Tip = Empty
     goDeleteL (Bin max maxV l r)
-        | p (boundUKey max) maxV = case goDeleteL l of
-            Empty -> case goR r of
-                Tip -> NonEmpty (maxToMin max) maxV Tip
-                Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV lI rI)
-            NonEmpty min minV l' -> NonEmpty min minV (Bin max maxV l' (goR r))
+        | p (boundUKey max) maxV = binL (goDeleteL l) (NonEmpty max maxV (goR r))
         | otherwise = binL (goDeleteL l) (goDeleteR r)
 
     goDeleteR Tip = Empty
     goDeleteR (Bin min minV l r)
-        | p (boundUKey min) minV = case goDeleteR r of
-            Empty -> case goL l of
-                Tip -> NonEmpty (minToMax min) minV Tip
-                Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV lI rI)
-            NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV (goL l) r')
+        | p (boundUKey min) minV = binR (NonEmpty min minV (goL l)) (goDeleteR r)
         | otherwise = binR (goDeleteL l) (goDeleteR r)
 
 -- | /O(n+m)/. The restriction of a map to the keys in a set.
@@ -2174,13 +2128,7 @@ partitionWithUKey p = start
                                     in Bin max maxV tl tr :*: binL fl fr
         | otherwise = let tl :*: fl = goTrueL l
                           tr :*: fr = goFalseR r
-                          t = case tr of
-                            Empty -> tl
-                            NonEmpty max' maxV' r' -> Bin max' maxV' tl r'
-                          f = case fl of
-                            Empty -> r2lMap $ NonEmpty max maxV fr
-                            NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' fr)
-                      in t :*: f
+                      in binNodeMapL tl tr :*: binL fl (NonEmpty max maxV fr)
 
     goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r)
@@ -2189,26 +2137,14 @@ partitionWithUKey p = start
                                     in Bin min minV tl tr :*: binR fl fr
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goTrueR r
-                          t = case tl of
-                            Empty -> tr
-                            NonEmpty min' minV' l' -> Bin min' minV' l' tr
-                          f = case fr of
-                            Empty -> l2rMap $ NonEmpty min minV fl
-                            NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV fl r')
-                      in t :*: f
+                      in binMapNodeR tl tr :*: binR (NonEmpty min minV fl) fr
 
     goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r)
         | p (boundUKey max) maxV =
             let tl :*: fl = goFalseL l
                 tr :*: fr = goTrueR r
-                t = case tl of
-                    Empty -> r2lMap $ NonEmpty max maxV tr
-                    NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max maxV l' tr)
-                f = case fr of
-                    Empty -> fl
-                    NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
-             in t :*: f
+             in binL tl (NonEmpty max maxV tr) :*: binNodeMapL fl fr
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goFalseR r
                       in binL tl tr :*: Bin max maxV fl fr
@@ -2218,13 +2154,7 @@ partitionWithUKey p = start
         | p (boundUKey min) minV =
             let tl :*: fl = goTrueL l
                 tr :*: fr = goFalseR r
-                t = case tr of
-                    Empty -> l2rMap $ NonEmpty min minV tl
-                    NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min minV tl r')
-                f = case fl of
-                    Empty -> fr
-                    NonEmpty min' minV' l' -> Bin min' minV' l' fr
-             in t :*: f
+             in binR (NonEmpty min minV tl) tr :*: binMapNodeR fl fr
         | otherwise = let tl :*: fl = goFalseL l
                           tr :*: fr = goFalseR r
                       in binR tl tr :*: Bin min minV fl fr
@@ -2648,6 +2578,16 @@ binR :: IntMap_ L a -> IntMap_ R a -> IntMap_ R a
 binR Empty r = r
 binR l Empty = l2rMap l
 binR (NonEmpty min minV l) (NonEmpty max maxV r) = NonEmpty max maxV (Bin min minV l r)
+
+{-# INLINE binNodeMapL #-}
+binNodeMapL :: Node L v -> IntMap_ R v -> Node L v
+binNodeMapL l Empty = l
+binNodeMapL l (NonEmpty max maxV r) = Bin max maxV l r
+
+{-# INLINE binMapNodeR #-}
+binMapNodeR :: IntMap_ L v -> Node R v -> Node R v
+binMapNodeR Empty r = r
+binMapNodeR (NonEmpty min minV l) r = Bin min minV l r
 
 {-# INLINE minToMax #-}
 minToMax :: Bound L -> Bound R

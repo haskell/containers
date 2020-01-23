@@ -360,33 +360,21 @@ filterMissingUKey p = WhenMissing (\k v -> pure (if p k v then Just v else Nothi
     goLKeep Tip = Tip
     goLKeep (Bin max maxV l r)
         | p (boundUKey max) maxV = Bin max maxV (goLKeep l) (goRKeep r)
-        | otherwise = case goR r of
-            Empty -> goLKeep l
-            NonEmpty max' maxV' r' -> Bin max' maxV' (goLKeep l) r'
+        | otherwise = binNodeMapL (goLKeep l) (goR r)
 
     goRKeep Tip = Tip
     goRKeep (Bin min minV l r)
         | p (boundUKey min) minV = Bin min minV (goLKeep l) (goRKeep r)
-        | otherwise = case goL l of
-            Empty -> goRKeep r
-            NonEmpty min' minV' l' -> Bin min' minV' l' (goRKeep r)
+        | otherwise = binMapNodeR (goL l) (goRKeep r)
 
     goL Tip = Empty
     goL (Bin max maxV l r)
-        | p (boundUKey max) maxV = case goL l of
-            Empty -> case goRKeep r of
-                Tip -> NonEmpty (maxToMin max) maxV Tip
-                Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV lI rI)
-            NonEmpty min minV l' -> NonEmpty min minV (Bin max maxV l' (goRKeep r))
+        | p (boundUKey max) maxV = binL (goL l) (NonEmpty max maxV (goRKeep r))
         | otherwise = binL (goL l) (goR r)
 
     goR Tip = Empty
     goR (Bin min minV l r)
-        | p (boundUKey min) minV = case goR r of
-            Empty -> case goLKeep l of
-                Tip -> NonEmpty (minToMax min) minV Tip
-                Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV lI rI)
-            NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV (goLKeep l) r')
+        | p (boundUKey min) minV = binR (NonEmpty min minV (goLKeep l)) (goR r)
         | otherwise = binR (goL l) (goR r)
 
 -- | Filter the entries whose keys are missing from the other map
@@ -734,14 +722,6 @@ mapToNodeL !externalMin (NonEmpty min minV root) = insertMinL (xor (boundKey min
 mapToNodeR :: Bound R -> IntMap_ R v -> Node R v
 mapToNodeR !_ Empty = Tip
 mapToNodeR !externalMax (NonEmpty max maxV root) = insertMaxR (xor (boundKey max) externalMax) max maxV root
-
-binNodeMapL :: Node L v -> IntMap_ R v -> Node L v
-binNodeMapL l Empty = l
-binNodeMapL l (NonEmpty max maxV r) = Bin max maxV l r
-
-binMapNodeR :: IntMap_ L v -> Node R v -> Node R v
-binMapNodeR Empty r = r
-binMapNodeR (NonEmpty min minV l) r = Bin min minV l r
 
 {-# INLINE addMaxL #-}
 addMaxL :: Applicative f => Bound L -> Bound R -> f (Maybe v) -> f (Node L v) -> f (Node L v)

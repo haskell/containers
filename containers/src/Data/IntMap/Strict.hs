@@ -1374,33 +1374,21 @@ mapMaybeWithUKey f = start
     goL Tip = Tip
     goL (Bin max maxV l r) = case f (boundUKey max) maxV of
         Just !maxV' -> Bin max maxV' (goL l) (goR r)
-        Nothing -> case goDeleteR r of
-            Empty -> goL l
-            NonEmpty max' maxV' r' -> Bin max' maxV' (goL l) r'
+        Nothing -> binNodeMapL (goL l) (goDeleteR r)
 
     goR Tip = Tip
     goR (Bin min minV l r) = case f (boundUKey min) minV of
         Just !minV' -> Bin min minV' (goL l) (goR r)
-        Nothing -> case goDeleteL l of
-            Empty -> goR r
-            NonEmpty min' minV' l' -> Bin min' minV' l' (goR r)
+        Nothing -> binMapNodeR (goDeleteL l) (goR r)
 
     goDeleteL Tip = Empty
     goDeleteL (Bin max maxV l r) = case f (boundUKey max) maxV of
-        Just !maxV' -> case goDeleteL l of
-            Empty -> case goR r of
-                Tip -> NonEmpty (maxToMin max) maxV' Tip
-                Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV' lI rI)
-            NonEmpty min minV l' -> NonEmpty min minV (Bin max maxV' l' (goR r))
+        Just !maxV' -> binL (goDeleteL l) (NonEmpty max maxV' (goR r))
         Nothing -> binL (goDeleteL l) (goDeleteR r)
 
     goDeleteR Tip = Empty
     goDeleteR (Bin min minV l r) = case f (boundUKey min) minV of
-        Just !minV' -> case goDeleteR r of
-            Empty -> case goL l of
-                Tip -> NonEmpty (minToMax min) minV' Tip
-                Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV' lI rI)
-            NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV' (goL l) r')
+        Just !minV' -> binR (NonEmpty min minV' (goL l)) (goDeleteR r)
         Nothing -> binR (goDeleteL l) (goDeleteR r)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
@@ -1446,13 +1434,7 @@ mapEitherWithUKey func = start
                     in Bin max v tl tr :*: binL fl fr
         Right !v -> let tl :*: fl = goTrueL l
                         tr :*: fr = goFalseR r
-                        t = case tr of
-                            Empty -> tl
-                            NonEmpty max' maxV' r' -> Bin max' maxV' tl r'
-                        f = case fl of
-                            Empty -> r2lMap $ NonEmpty max v fr
-                            NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max v l' fr)
-                    in t :*: f
+                    in binNodeMapL tl tr :*: binL fl (NonEmpty max v fr)
 
     goTrueR Tip = Tip :*: Empty
     goTrueR (Bin min minV l r) = case func (boundUKey min) minV of
@@ -1461,25 +1443,13 @@ mapEitherWithUKey func = start
                     in Bin min v tl tr :*: binR fl fr
         Right !v -> let tl :*: fl = goFalseL l
                         tr :*: fr = goTrueR r
-                        t = case tl of
-                            Empty -> tr
-                            NonEmpty min' minV' l' -> Bin min' minV' l' tr
-                        f = case fr of
-                            Empty -> l2rMap $ NonEmpty min v fl
-                            NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min v fl r')
-                    in t :*: f
+                    in binMapNodeR tl tr :*: binR (NonEmpty min v fl) fr
 
     goFalseL Tip = Empty :*: Tip
     goFalseL (Bin max maxV l r) = case func (boundUKey max) maxV of
         Left !v  -> let tl :*: fl = goFalseL l
                         tr :*: fr = goTrueR r
-                        t = case tl of
-                            Empty -> r2lMap $ NonEmpty max v tr
-                            NonEmpty min' minV' l' -> NonEmpty min' minV' (Bin max v l' tr)
-                        f = case fr of
-                            Empty -> fl
-                            NonEmpty max' maxV' r' -> Bin max' maxV' fl r'
-                    in t :*: f
+                    in binL tl (NonEmpty max v tr) :*: binNodeMapL fl fr
         Right !v -> let tl :*: fl = goFalseL l
                         tr :*: fr = goFalseR r
                     in binL tl tr :*: Bin max v fl fr
@@ -1488,13 +1458,7 @@ mapEitherWithUKey func = start
     goFalseR (Bin min minV l r) = case func (boundUKey min) minV of
         Left !v  -> let tl :*: fl = goTrueL l
                         tr :*: fr = goFalseR r
-                        t = case tr of
-                            Empty -> l2rMap $ NonEmpty min v tl
-                            NonEmpty max' maxV' r' -> NonEmpty max' maxV' (Bin min v tl r')
-                        f = case fl of
-                            Empty -> fr
-                            NonEmpty min' minV' l' -> Bin min' minV' l' fr
-                    in t :*: f
+                    in binR (NonEmpty min v tl) tr :*: binMapNodeR fl fr
         Right !v -> let tl :*: fl = goFalseL l
                         tr :*: fr = goFalseR r
                     in binR tl tr :*: Bin min v fl fr
