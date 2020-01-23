@@ -577,6 +577,10 @@ xor a (Bound b) = Data.Bits.xor (i2w a) (i2w b)
 xorBounds :: Bound L -> Bound R -> Word
 xorBounds (Bound min) (Bound max) = Data.Bits.xor (i2w min) (i2w max)
 
+-- | Check if two bounds necessarily bound non-overlapping ranges of keys (i.e.
+-- the minimum is greater than the maximum). This is used in merges, indicating
+-- when the subtrees from the two maps become unrelated, never sharing another
+-- key. See 'Data.IntMap.Merge.Internal' for further details on its use.
 {-# INLINE boundsDisjoint #-}
 boundsDisjoint :: Bound L -> Bound R -> Bool
 boundsDisjoint (Bound min) (Bound max) = min > max

@@ -37,6 +37,174 @@
 --
 -- This defines the data structures and core (hidden) manipulations
 -- on representations.
+--
+-- = The Merging Process
+--
+-- Since keys have consistent positions in trie-like structures, merging is
+-- largely a problem of alignment. Considering the sets of keys matching the
+-- bit prefix of a node, we have the following six cases:
+--
+-- 1. Disjoint ranges
+--
+--    > Node 1:   ##
+--    > Node 2:         ####
+--
+--    Depending on the type of merge, we combine the nodes. If
+--    'Data.IntMap.Lazy.union', we create a new 'Bin' combining the nodes.
+--    If 'Data.IntMap.Lazy.intersection', we return 'Empty'. In general, both
+--    nodes get passed through the 'WhenMissing' tactics then combined.
+--
+-- 2. Equal ranges
+--
+--    > Node 1: ####
+--    > Node 2: ####
+--
+--    We recurively merge node 1's left branch with node 2's left branch and
+--    node 1's right branch with node 2's right branch.
+--
+-- 3. 1-in-2 (left)
+--
+--    > Node 1: ##
+--    > Node 2: ####
+--
+--    We recursively merge node 1 with node 2's left branch.
+--
+-- 4. 1-in-2 (right)
+--
+--    > Node 1:   ##
+--    > Node 2: ####
+--
+--    We recursively merge node 1 with node 2's right branch.
+--
+-- 5. 2-in-1 (left)
+--
+--    > Node 1: ####
+--    > Node 2: ##
+--
+--    We recursively merge node 1's left branch with node 2.
+--
+-- 6. 2-in-1 (right)
+--
+--    > Node 1: ####
+--    > Node 2:   ##
+--
+--    We recursively merge node 1's right branch with node 2.
+--
+-- Distinguishing the latter 5 cases is much harder with the disjoint ranges
+-- case in the mix, so eliminating that is the first step. With the min/max
+-- implicit representation, we can test for that case by seeing if the minimum
+-- of one node is greater than the maximum of the other node 'boundsDisjoint'.
+-- Technically, this condition can also trigger in the other cases, since the
+-- cases defined above are about shared bits, not being in between the minima
+-- and maxima. For example, a minimum of -1 shares no bits with a maximum of 0,
+-- so for the purposes of the cases above, a node with those bounds would have
+-- a "shared bits range" of all integers. However, determining that two nodes
+-- will never overlap is a useful condition in its own right. If taking an
+-- intersection, for example, we can immediately return 'Empty', and even the
+-- union case can be simplified (see 'unionDisjointL' and 'unionDisjointR') if
+-- not to a single 'Bin' node.
+--
+-- Once the ranges of the nodes are known to be overlapping, we can compare
+-- range sizes to distinguish between the equal, 1-in-2, and 2-in-1 cases. When
+-- the minumum and maximum bounds for a node are XORed with each other (using
+-- 'xorBounds'), all shared prefix bits will cancel each other out and produce
+-- zeros, and the first bit where the bounds disagree will become the result's
+-- most significant set bit (MSB). This justifies using 'compareMSB' to compare
+-- how many shared prefix bits the two nodes have. The left and right variants
+-- of the 1-in-2 and 2-in-1 cases can then be distinguished using the same
+-- techniques as in single-key queries, taking a key from the smaller node and
+-- determining which branch it belongs in.
+--
+-- == Bound Complications
+--
+-- Unfortunately, since our tree structure is a bit more complicated than a
+-- PATRICIA tree, there is more complexity involved. Instead of just aligning
+-- internal nodes and merging values at the keys, we need to interleave the
+-- combination of values with the alignment of nodes. At every point in the
+-- recursion, whenever we produce a composite node, we need to produce the key
+-- and value that go along with that node.
+--
+-- Determining which bound to keep and what values to combine is
+-- straightforward; the lesser of the two minima is the new minimum, and the
+-- greater of the two maxima is new maximum. However, the unused key/value
+-- pair (if there is one) needs to be pushed downward in the recursion to be
+-- included in the merged map. This necessitates three variants of each helper
+-- function, corresponding to the three choices of pushing down the value from
+-- node 1, pushing down the value from node 2, and pushing down neither. For
+-- example, @goL1@ is called when @min1 > min2@, @goL2@ when @min2 > min1@, and
+-- @goLFused@ when @min1 = min2@.
+--
+-- As we are forced to do these comparisons anyway, we can use them to reduce
+-- the number of cases to consider. When @min1 > min2@, for example, @min2@
+-- cannot be greater than @max1@, so a single comparison suffices to determine
+-- whether the ranges are disjoint, and the 2-in-1 (right) case is impossible.
+--
+-- == Base Case: Merging leaves into trees
+--
+-- In the base case, when the recursion hits the leaves, there are two cases.
+-- If the 'Tip' corresponds to the bound that was pushed down from higher up
+-- in the tree, then the merge operation begins to look like an insertion (in
+-- the case of 'Data.IntMap.Lazy.union'), deletion (in
+-- 'Data.IntMap.Lazy.difference' for the second map's leaves), or lookup (in
+-- 'Data.IntMap.Lazy.intersection'). These helpers match the general structure
+-- of normal single-key operations. However, there still need to be two
+-- variants for which map's leaves are being inserted into which other map.
+--
+-- If the 'Tip' corresponds to the bound that was already handled earlier in
+-- the merge process, however, the recursion can immediately end.
+--
+-- == Deletion and Choice of Intermediate
+--
+-- Each step in the merge process as described so far processes a single key
+-- (the merged bound for the node), recursion on the left branch (or a left
+-- branch taken from one map), and recursion on the right brnach (or a right
+-- branch taken from one map). This naturally corresponds to the arguments of
+-- 'Bin' (a key/value pair and two 'Node's). However, that only matches up
+-- when all of the keys are preserved, as in 'Data.IntMap.Lazy.union'. If the
+-- merged bound is instead deleted, then it needs to be replaced with a bound
+-- pulled from one of the two recursive cases.
+--
+-- If the helper functions return 'Node's, extracting bounds from the recursive
+-- cases using 'deleteMinL' and 'deleteMaxR' (or a wrapper function like
+-- 'extractBinL' or 'extractBinR') is an expensive operation. After traversing
+-- and reconstructing the subtrees in the merging provcess, they need to be
+-- re-traversed and reconstructed again to pull out one of the entries. A more
+-- efficient option would be to fuse the traversals, returning an 'IntMap_'
+-- the recursive case. Since an 'IntMap_' already contains its own bound pulled
+-- out, we can just put the pieces together in constant time.
+--
+-- However, 'IntMap_' isn't a universally better choice for intermediate type.
+-- When the outside key is kept, the 'IntMap_' needs to be converted back into
+-- a 'Node', causing the same problem, but with insertion instead of deletion.
+-- Both intermediate types are appropriate, often in the same merge operation,
+-- depending only on whether the external bound has been kept or deleted.
+-- 'Data.IntMap.Lazy.union' always keeps its keys so uses 'Node's everywhere.
+-- 'Data.IntMap.Lazy.intersection' keeps its keys when they match, so
+-- @go{L,R}Fused@ return 'Node's, but mismatched keys are dropped, so
+-- @go{L,R}{1,2}@ return 'IntMap_'s. A function like
+-- 'Data.IntMap.Lazy.differenceWith' needs two variants of @go{L,R}Fused@
+-- since different matched keys are kept and deleted in the same merge
+-- operation.
+--
+-- 'mergeA' is a particularly tricky function with regards to this decision.
+-- Unlike the specialized merge operations, we don't statically know which keys
+-- will be deleted, and unlike 'Data.IntMap.Lazy.differenceWith', we don't even
+-- have that information at runtime: merge tactics return @f ('Maybe' a)@
+-- where @f@ is an arbitrary 'Applicative', and we can't choose what actions to
+-- combine with that value based on the value itself. (As an aside, a 'Monad'
+-- bound would not help either despite providing exactly that kind of choice,
+-- as the actions associated with maximum bounds need to be sequenced after the
+-- actions of the recursive cases.) Therefore, we need to choose a
+-- representation with a good average case. If keys are being deleted, then the
+-- maps returned by the recursive cases will be smaller, making the overhead of
+-- pulling new bounds out also smaller. Therefore, universally using 'Node's
+-- has a smaller overhead than universally using 'IntMap_'s and so is a better
+-- choice.
+--
+-- TODO: Theoretically, the recursive case could return both a 'Node' and an
+-- 'IntMap_', stored in a lazy pair. This would allow selecting which to use
+-- and only evaluating the one that is needed. It may also just result in
+-- excessive work.
 -----------------------------------------------------------------------------
 
 module Data.IntMap.Merge.Internal (
