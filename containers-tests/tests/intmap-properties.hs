@@ -1352,8 +1352,8 @@ prop_differenceModel xs ys =
 
 prop_differenceWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> [(Int,Int)] -> [(Int,Int)] -> Property
 prop_differenceWithKeyModel f xs ys
-    = toList (differenceWithKey (\k x y -> apply f (k, x, y)) (fromList xs') (fromList ys'))
-      === Maybe.mapMaybe diffSingle (sort xs')
+    = differenceWithKey (\k x y -> apply f (k, x, y)) (fromList xs') (fromList ys')
+      === fromList (Maybe.mapMaybe diffSingle xs')
   where
     xs' = sortNubBy (compare `on` fst) xs
     ys' = sortNubBy (compare `on` fst) ys
@@ -1371,16 +1371,16 @@ prop_intersectionModel xs ys =
 
 prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithModel xs ys
-  = toList (intersectionWith f (fromList xs') (fromList ys'))
-    === [(kx, f vx vy ) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+  = intersectionWith f (fromList xs') (fromList ys')
+    === fromList [(kx, f vx vy ) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
     where xs' = sortNubBy (compare `on` fst) xs
           ys' = sortNubBy (compare `on` fst) ys
           f l r = l + 2 * r
 
 prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithKeyModel xs ys
-  = toList (intersectionWithKey f (fromList xs') (fromList ys'))
-    === [(kx, f kx vx vy) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+  = intersectionWithKey f (fromList xs') (fromList ys')
+    === fromList [(kx, f kx vx vy) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
     where xs' = sortNubBy (compare `on` fst) xs
           ys' = sortNubBy (compare `on` fst) ys
           f k l r = k + 2 * l + 3 * r
@@ -1423,7 +1423,7 @@ prop_mergeWithKeyModel xs ys
           ym = fromList ys'
 
           testMergeWithKey f keep_x keep_y
-            = toList (mergeWithKey f (keep keep_x) (keep keep_y) xm ym) == emulateMergeWithKey f keep_x keep_y
+            = mergeWithKey f (keep keep_x) (keep keep_y) xm ym === fromList (emulateMergeWithKey f keep_x keep_y)
               where keep False _ = empty
                     keep True  m = m
 
@@ -1616,13 +1616,13 @@ prop_deleteMinModel :: [(Int, Int)] -> Property
 prop_deleteMinModel ys = length ys > 0 ==>
   let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMin m) === tail (sort xs)
+  in  deleteMin m === fromList (tail xs)
 
 prop_deleteMaxModel :: [(Int, Int)] -> Property
 prop_deleteMaxModel ys = length ys > 0 ==>
   let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMax m) === init (sort xs)
+  in deleteMax m === fromList (init xs)
 
 prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_filter p ys =
@@ -1673,8 +1673,8 @@ prop_splitModel n ys =
       (l, r) = split n $ fromList xs
   in  validProp l .&&.
       validProp r .&&.
-      toAscList l === takeWhile ((< n) . fst) xs .&&.
-      toAscList r === dropWhile ((<= n) . fst) xs
+      l === fromList (takeWhile ((< n) . fst) xs) .&&.
+      r === fromList (dropWhile ((<= n) . fst) xs)
 
 prop_splitRoot :: IMap -> Property
 prop_splitRoot s = loop ls .&&. (s === unions ls)
