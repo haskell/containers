@@ -117,15 +117,13 @@ mapMissing f = mapMissingUKey (\k v -> f (box k) v)
 -- function that takes an unboxed key. Identical in functionality to
 -- 'mapMissing'.
 mapMissingUKey :: Applicative f => (UKey -> a -> b) -> WhenMissing f a b
-mapMissingUKey f = WhenMissing (\k v -> pure (Just $! f k v)) (pure . goL) (pure . goR) (pure . start) where
-    start Empty = Empty
-    start (NonEmpty min minV root) = NonEmpty min #! f (boundUKey min) minV # goL root
+mapMissingUKey g = WhenMissing (\k v -> pure (Just $! g k v)) (pure . go g) (pure . go g) (pure . start g) where
+    start _ Empty = Empty
+    start f (NonEmpty min minV root) = NonEmpty min #! f (boundUKey min) minV # go f root
 
-    goL Tip = Tip
-    goL (Bin k v l r) = Bin k #! f (boundUKey k) v # goL l # goR r
-
-    goR Tip = Tip
-    goR (Bin k v l r) = Bin k #! f (boundUKey k) v # goL l # goR r
+    go :: (UKey -> a -> b) -> Node t a -> Node t b
+    go _ Tip = Tip
+    go f (Bin k v l r) = Bin k #! f (boundUKey k) v # go f l # go f r
 
 -- | Map over the entries whose keys are missing from the other map,
 -- optionally removing some. This is the most powerful 'SimpleWhenMissing'
@@ -158,35 +156,22 @@ mapMaybeMissingUKey f = WhenMissing (\k v -> case f k v of
     goLKeep Tip = Tip
     goLKeep (Bin max maxV l r) = case f (boundUKey max) maxV of
         Just !maxV' -> Bin max maxV' (goLKeep l) (goRKeep r)
-        Nothing -> case goR r of
-            Empty -> goLKeep l
-            NonEmpty max' maxV' r' -> Bin max' maxV' (goLKeep l) r'
+        Nothing -> binNodeMapL (goLKeep l) (goR r)
 
     goRKeep Tip = Tip
     goRKeep (Bin min minV l r) = case f (boundUKey min) minV of
         Just !minV' -> Bin min minV' (goLKeep l) (goRKeep r)
-        Nothing -> case goL l of
-            Empty -> goRKeep r
-            NonEmpty min' minV' l' -> Bin min' minV' l' (goRKeep r)
+        Nothing -> binMapNodeR (goL l) (goRKeep r)
 
     goL Tip = Empty
     goL (Bin max maxV l r) = case f (boundUKey max) maxV of
-        Just !maxV' -> case goL l of
-            Empty -> case goRKeep r of
-                Tip -> NonEmpty (maxToMin max) maxV' Tip
-                Bin minI minVI lI rI -> NonEmpty minI minVI (Bin max maxV' lI rI)
-            NonEmpty min minV l' -> NonEmpty min minV (Bin max maxV' l' (goRKeep r))
+        Just !maxV' -> binL (goL l) (NonEmpty max maxV' (goRKeep r))
         Nothing -> binL (goL l) (goR r)
 
     goR Tip = Empty
     goR (Bin min minV l r) = case f (boundUKey min) minV of
-        Just !minV' -> case goR r of
-            Empty -> case goLKeep l of
-                Tip -> NonEmpty (minToMax min) minV' Tip
-                Bin maxI maxVI lI rI -> NonEmpty maxI maxVI (Bin min minV' lI rI)
-            NonEmpty max maxV r' -> NonEmpty max maxV (Bin min minV' (goLKeep l) r')
+        Just !minV' -> binR (NonEmpty min minV' (goLKeep l)) (goR r)
         Nothing -> binR (goL l) (goR r)
-
 
 -- | When a key is found in both maps, apply a function to the
 -- key and values and maybe use the result in the merged map.

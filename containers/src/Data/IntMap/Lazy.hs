@@ -227,15 +227,18 @@ module Data.IntMap.Lazy (
 ) where
 
 import Data.IntMap.Internal
-import qualified Data.IntMap.Merge.Lazy as Merge (merge, mapMaybeMissing, zipWithMaybeMatched)
+import qualified Data.IntMap.Merge.Internal as Merge (runWhenMissingAll)
+import qualified Data.IntMap.Merge.Lazy as Merge (merge, mapMissing, mapMaybeMissing, traverseMissing, zipWithMaybeMatched)
 #if defined(__GLASGOW_HASKELL__)
 import Data.IntMap.Internal.DeprecatedDebug
 #endif
 
-#if !MIN_VERSION_base(4,8,0)
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (runIdentity)
+#else
+Import Data.IntMap.Merge.Internal (runIdentity)
 import Control.Applicative (Applicative(..), (<$>))
 #endif
-import Control.Applicative (liftA2, liftA3)
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 
@@ -1076,16 +1079,7 @@ map = mapLazy
 -- > let f key x = (show key) ++ ":" ++ x
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 mapWithKey :: (Key -> a -> b) -> IntMap a -> IntMap b
-mapWithKey f = start
-  where
-    start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min (f (boundKey min) minV) (goL root))
-
-    goL Tip = Tip
-    goL (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
-
-    goR Tip = Tip
-    goR (Bin k v l r) = Bin k (f (boundKey k) v) (goL l) (goR r)
+mapWithKey f = runIdentity . Merge.runWhenMissingAll (Merge.mapMissing f)
 
 #if USE_REWRITE_RULES
 {-# NOINLINE[1] mapWithKey #-}
@@ -1105,16 +1099,7 @@ mapWithKey f = start
 -- > traverseWithKey (\k v -> if odd k then Just (succ v) else Nothing) (fromList [(2, 'c')])           == Nothing
 {-# INLINE traverseWithKey #-}
 traverseWithKey :: Applicative f => (Key -> a -> f b) -> IntMap a -> f (IntMap b)
-traverseWithKey f = start
-  where
-    start (IntMap Empty) = pure (IntMap Empty)
-    start (IntMap (NonEmpty min minV root)) = liftA2 (\minV' root' -> IntMap (NonEmpty min minV' root')) (f (boundKey min) minV) (goL root)
-
-    goL  Tip = pure Tip
-    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> Bin max maxV' l' r') (goL l) (goR r) (f (boundKey max) maxV)
-
-    goR  Tip = pure Tip
-    goR (Bin min minV l r) = liftA3 (Bin min) (f (boundKey min) minV) (goL l) (goR r)
+traverseWithKey f = Merge.runWhenMissingAll (Merge.traverseMissing f)
 
 -- | /O(n)/. The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1312,38 +1297,7 @@ mapMaybe f = mapMaybeWithKey (const f)
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 {-# INLINE mapMaybeWithKey #-}
 mapMaybeWithKey :: (Key -> a -> Maybe b) -> IntMap a -> IntMap b
-mapMaybeWithKey f = mapMaybeWithUKey (\k a -> f (box k) a)
-
--- | /O(n)/. Map keys\/values and collect the 'Just' results with a mapping
--- function that takes unboxed keys. Identical in functionality to
--- 'mapMaybeWithKey'.
-mapMaybeWithUKey :: (UKey -> a -> Maybe b) -> IntMap a -> IntMap b
-mapMaybeWithUKey = start
-  where
-    start _ (IntMap Empty) = IntMap Empty
-    start f (IntMap (NonEmpty min minV root)) = case f (boundUKey min) minV of
-        Just minV' -> IntMap (NonEmpty min minV' (goL f root))
-        Nothing -> IntMap (goDeleteL f root)
-
-    goL _ Tip = Tip
-    goL f (Bin max maxV l r) = case f (boundUKey max) maxV of
-        Just maxV' -> Bin max maxV' (goL f l) (goR f r)
-        Nothing -> binNodeMapL (goL f l) (goDeleteR f r)
-
-    goR _ Tip = Tip
-    goR f (Bin min minV l r) = case f (boundUKey min) minV of
-        Just minV' -> Bin min minV' (goL f l) (goR f r)
-        Nothing -> binMapNodeR (goDeleteL f l) (goR f r)
-
-    goDeleteL _ Tip = Empty
-    goDeleteL f (Bin max maxV l r) = case f (boundUKey max) maxV of
-        Just maxV' -> binL (goDeleteL f l) (NonEmpty max maxV' (goR f r))
-        Nothing -> binL (goDeleteL f l) (goDeleteR f r)
-
-    goDeleteR _ Tip = Empty
-    goDeleteR f (Bin min minV l r) = case f (boundUKey min) minV of
-        Just minV' -> binR (NonEmpty min minV' (goL f l)) (goDeleteR f r)
-        Nothing -> binR (goDeleteL f l) (goDeleteR f r)
+mapMaybeWithKey f = runIdentity . Merge.runWhenMissingAll (Merge.mapMaybeMissing f)
 
 -- | /O(n)/. Map values and separate the 'Left' and 'Right' results.
 --
