@@ -380,6 +380,8 @@ module Data.IntMap.Internal (
     -- * Traversal
     -- ** Map
     , mapLazy
+    , mapStrict_
+    , mapNodeStrict
 
     -- * Folds
     , foldr
@@ -1268,14 +1270,32 @@ mapNodeLazy :: (a -> b) -> Node t a -> Node t b
 mapNodeLazy _ Tip = Tip
 mapNodeLazy f (Bin bound value l r) = Bin bound (f value) (mapNodeLazy f l) (mapNodeLazy f r)
 
+-- These need to be here to avoid a circular dependency between
+-- Data.IntMap.Strict and Data.IntMap.Merge.Strict.
+mapStrict_ :: (a -> b) -> IntMap_ t a -> IntMap_ t b
+mapStrict_ _ Empty = Empty
+mapStrict_ f (NonEmpty min minV root) = let !minV' = f minV
+                                         in NonEmpty min minV' (mapNodeStrict f root)
+
+mapNodeStrict :: (a -> b) -> Node t a -> Node t b
+mapNodeStrict _ Tip = Tip
+mapNodeStrict f (Bin bound value l r) = let !value' = f value
+                                         in Bin bound value' (mapNodeStrict f l) (mapNodeStrict f r)
+
 #if USE_REWRITE_RULES
 {-# NOINLINE[1] mapLazy #-}
 {-# NOINLINE[1] mapLazy_ #-}
 {-# NOINLINE[1] mapNodeLazy #-}
+{-# NOINLINE[1] mapStrict_ #-}
+{-# NOINLINE[1] mapNodeStrict #-}
 {-# RULES
 "map/map" forall f g m . mapLazy f (mapLazy g m) = mapLazy (f . g) m
 "map_/map_" forall f g m . mapLazy_ f (mapLazy_ g m) = mapLazy_ (f . g) m
+"mapS_/mapS_" forall f g m . mapStrict_ f (mapStrict_ g m) = mapStrict_ (\v -> f $! g v) m
+"mapS_/map_" forall f g m . mapStrict_ f (mapLazy_ g m) = mapStrict_ (f . g) m
 "mapNode/mapNode" forall f g n . mapNodeLazy f (mapNodeLazy g n) = mapNodeLazy (f . g) n
+"mapNodeS/mapNodeS" forall f g n . mapNodeStrict f (mapNodeStrict g n) = mapNodeStrict (\v -> f $! g v) n
+"mapNodeS/mapNode" forall f g n . mapNodeStrict f (mapNodeLazy g n) = mapNodeStrict (f . g) n
   #-}
 #if __GLASGOW_HASKELL >= 709
 -- Safe coercions were introduced in 7.8, but did not play well with RULES yes.

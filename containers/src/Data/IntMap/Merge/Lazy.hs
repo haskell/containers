@@ -73,6 +73,15 @@ module Data.IntMap.Merge.Lazy (
     , traverseMissing
     , filterAMissing
 
+    -- ** Covariant maps for tactics
+    , mapWhenMissing
+    , mapWhenMatched
+
+    -- ** Contravariant maps for tactics
+    , lmapWhenMissing
+    , contramapFirstWhenMatched
+    , contramapSecondWhenMatched
+
     -- ** Miscellaneous functions on tactics
     , runWhenMatched
     , runWhenMissing
@@ -261,3 +270,42 @@ traverseMissing f = WhenMissing
 
     goR Tip = pure Tip
     goR (Bin min minV l r) = liftA3 (\minV' l' r' -> Bin min minV' l' r') (f' (boundUKey min) minV) (goL l) (goR r)
+
+-- | Map covariantly over a @'WhenMissing' f x@.
+--
+-- @since 0.5.9
+{-# INLINE mapWhenMissing #-}
+mapWhenMissing :: (Applicative f, Monad f) => (a -> b) -> WhenMissing f x a -> WhenMissing f x b
+mapWhenMissing = fmap
+
+-- | Map covariantly over a @'WhenMatched' f x y@.
+--
+-- @since 0.5.9
+{-# INLINE mapWhenMatched #-}
+mapWhenMatched :: Functor f => (a -> b) -> WhenMatched f x y a -> WhenMatched f x y b
+mapWhenMatched = fmap
+
+-- | Map contravariantly over a @'WhenMissing' f _ x@.
+--
+-- @since 0.5.9
+{-# INLINE lmapWhenMissing #-}
+lmapWhenMissing :: (b -> a) -> WhenMissing f a x -> WhenMissing f b x
+lmapWhenMissing f miss = WhenMissing
+    (\k b -> missingSingle miss k (f b))
+    (\l -> missingLeft miss (fmap f l))
+    (\r -> missingRight miss (fmap f r))
+    (\m -> missingAllL miss (fmap f m))
+
+-- | Map contravariantly over a @'WhenMatched' f _ y z@.
+--
+-- @since 0.5.9
+{-# INLINE contramapFirstWhenMatched #-}
+contramapFirstWhenMatched :: (b -> a) -> WhenMatched f a y z -> WhenMatched f b y z
+contramapFirstWhenMatched f match = WhenMatched (\k b y -> matchedSingle match k (f b) y)
+
+-- | Map contravariantly over a @'WhenMatched' f x _ z@.
+--
+-- @since 0.5.9
+{-# INLINE contramapSecondWhenMatched #-}
+contramapSecondWhenMatched :: (b -> a) -> WhenMatched f x a z -> WhenMatched f x b z
+contramapSecondWhenMatched f match = WhenMatched (\k x b -> matchedSingle match k x (f b))

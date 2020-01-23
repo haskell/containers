@@ -1096,16 +1096,7 @@ mergeWithKey matched miss1 miss2 = Merge.merge (Merge.mapMaybeMissing (single mi
 --
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 map :: (a -> b) -> IntMap a -> IntMap b
-map f = start
-  where
-    start (IntMap Empty) = IntMap Empty
-    start (IntMap (NonEmpty min minV root)) = IntMap (NonEmpty min #! f minV # goL root)
-
-    goL Tip = Tip
-    goL (Bin k v l r) = Bin k #! f v # goL l # goR r
-
-    goR Tip = Tip
-    goR (Bin k v l r) = Bin k #! f v # goL l # goR r
+map f (IntMap m) = IntMap (mapStrict_ f m)
 
 -- | /O(n)/. Map a function over all values in the map.
 --

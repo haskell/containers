@@ -72,6 +72,10 @@ module Data.IntMap.Merge.Strict (
     , traverseMissing
     , filterAMissing
 
+    -- ** Covariant maps for tactics
+    , mapWhenMissing
+    , mapWhenMatched
+
     -- ** Miscellaneous functions on tactics
     , runWhenMatched
     , runWhenMissing
@@ -90,6 +94,11 @@ import Data.IntMap.Merge.Internal
 (#!), (#) :: (a -> b) -> a -> b
 (#!) = ($!)
 (#) = ($)
+
+{-# INLINE fmapMaybe' #-}
+fmapMaybe' :: (a -> b) -> Maybe a -> Maybe b
+fmapMaybe' _ Nothing = Nothing
+fmapMaybe' f (Just x) = Just $! f x
 
 -- | Map over the entries whose keys are missing from the other map.
 --
@@ -277,3 +286,21 @@ traverseMissing f = WhenMissing
 
     goR Tip = pure Tip
     goR (Bin min minV l r) = liftA3 (\ !minV' l' r' -> Bin min minV' l' r') (f' (boundUKey min) minV) (goL l) (goR r)
+
+-- | Map covariantly over a @'WhenMissing' f x@.
+--
+-- @since 0.5.9
+{-# INLINE mapWhenMissing #-}
+mapWhenMissing :: Functor f => (a -> b) -> WhenMissing f x a -> WhenMissing f x b
+mapWhenMissing f miss = WhenMissing
+    (\k x -> fmap (fmapMaybe' f) (missingSingle miss k x))
+    (\l -> fmap (mapNodeStrict f) (missingLeft miss l))
+    (\r -> fmap (mapNodeStrict f) (missingRight miss r))
+    (\m -> fmap (mapStrict_ f) (missingAllL miss m))
+
+-- | Map covariantly over a @'WhenMatched' f x y@.
+--
+-- @since 0.5.9
+{-# INLINE mapWhenMatched #-}
+mapWhenMatched :: Functor f => (a -> b) -> WhenMatched f x y a -> WhenMatched f x y b
+mapWhenMatched f match = WhenMatched (\k x y -> fmap (fmapMaybe' f) (matchedSingle match k x y))
