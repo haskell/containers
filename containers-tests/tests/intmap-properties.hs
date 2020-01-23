@@ -203,6 +203,10 @@ main = defaultMain
              , testProperty "filter"               prop_filter
              , testProperty "partition"            prop_partition
              , testProperty "partitionWithKey"     prop_partitionWithKey
+             , testProperty "mapMaybe"             prop_mapMaybeModel
+             , testProperty "mapMaybeWithKey"      prop_mapMaybeWithKeyModel
+             , testProperty "mapEither"            prop_mapEitherModel
+             , testProperty "mapEitherWithKey"     prop_mapEitherWithKeyModel
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
@@ -1722,6 +1726,37 @@ prop_partitionWithKey p ys =
       validProp r .&&.
       m === let (a,b) = (List.partition (apply p) xs)
             in (fromList a, fromList b)
+
+prop_mapMaybeModel :: Fun A (Maybe B) -> IntMap A -> Property
+prop_mapMaybeModel fun m =
+    mapMaybe (apply fun) m
+    === mapMaybeWithKey (const (apply fun)) m
+
+prop_mapMaybeWithKeyModel :: Fun (Key, A) (Maybe B) -> IntMap A -> Property
+prop_mapMaybeWithKeyModel fun m =
+    mapMaybeWithKey (applyFun2 fun) m
+    === fromList (Maybe.mapMaybe fPair (toList m))
+  where
+    fPair (k, v) = case apply fun (k, v) of
+        Nothing -> Nothing
+        Just v' -> Just (k, v')
+
+prop_mapEitherModel :: Fun A (Either B C) -> IntMap A -> Property
+prop_mapEitherModel fun m =
+    mapEither (apply fun) m
+    === mapEitherWithKey (const (apply fun)) m
+
+prop_mapEitherWithKeyModel :: Fun (Key, A) (Either B C) -> IntMap A -> Property
+prop_mapEitherWithKeyModel fun m =
+    mapEitherWithKey (applyFun2 fun) m
+    === ( mapMaybeWithKey (\k v -> maybeLeft (apply fun (k, v))) m
+        , mapMaybeWithKey (\k v -> maybeRight (apply fun (k, v))) m)
+  where
+    maybeLeft (Left v) = Just v
+    maybeLeft _ = Nothing
+
+    maybeRight (Right v) = Just v
+    maybeRight _ = Nothing
 
 prop_map :: Fun Int Int -> [(Int, Int)] -> Property
 prop_map f ys =
