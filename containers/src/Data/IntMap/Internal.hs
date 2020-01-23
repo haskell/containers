@@ -44,7 +44,7 @@
 -- = Tree Structure
 --
 -- This implementation uses a novel modification of /big-endian patricia trees/, structured
--- as a vantage-point tree under the xor metric.
+-- as a vantage-point tree under the XOR metric.
 --
 -- = Derivation
 --
@@ -537,7 +537,7 @@ unbox = id
 i2w :: Key -> Word
 i2w = fromIntegral
 
--- | Xor a key with a bound for the purposes of navigation within the tree.
+-- | XOR a key with a bound for the purposes of navigation within the tree.
 --
 -- The navigation process is as follows. Suppose we are looking up a key @k@ in a tree. We know
 -- the minimum key in the tree, @min@, and the maximum key, @max@. Represented in binary:
@@ -560,7 +560,7 @@ i2w = fromIntegral
 -- > xor k max: 000000000000 0 ????????
 --
 -- Therefore, the splitting bit is set iff @'xor' k min > 'xor' k max@. Put another way, the key
--- shares more bits with the bound that it is closer to under the xor metric, since exclusive or
+-- shares more bits with the bound that it is closer to under the XOR metric, since exclusive or
 -- maps shared bits to zero. The metric perspective also makes it clear why this works unmodified
 -- in the presence of negative numbers, despite storing negative numbers (with a set sign bit) in
 -- the left branch normally identified with an unset bit. As long as the comparison is done
@@ -570,7 +570,7 @@ i2w = fromIntegral
 xor :: Key -> Bound t -> Word
 xor a (Bound b) = Data.Bits.xor (i2w a) (i2w b)
 
--- | Xor the minimum and maximum keys of a tree. The most significant bit of the result indicates
+-- | XOR the minimum and maximum keys of a tree. The most significant bit of the result indicates
 -- which bit to split on for navigation and is useful in merging maps to tell whether nodes from
 -- different maps branch at the same time.
 {-# INLINE xorBounds #-}
@@ -671,7 +671,7 @@ newtype IntMap a = IntMap (IntMap_ L a) deriving (Eq)
 --   minimum bound for the 'Node' than with the maximum bound for the 'Node', and vice versa for
 --   the right branch: all keys within the right branch of a 'Bin' 'Node' must share a longer bit
 --   prefix with the maximum bound for the 'Node' than with the minimum bound for the 'Node'.
---   Put another way, under the xor metric, keys in the left branch are closer to the minimum
+--   Put another way, under the XOR metric, keys in the left branch are closer to the minimum
 --   bound than the maximum bound (@'xor' k min < 'xor' k max@), while keys in the right branch
 --   are closer to the maximum bound than the minimum bound. (@'xor' k min > 'xor' k max@).
 --
@@ -710,7 +710,7 @@ data IntMap_ t a = NonEmpty {-# UNPACK #-} !(Bound t) a !(Node t a) | Empty deri
 -- universally true. Some functions, like 'map' or 'filter', preserve the overall branch structure
 -- and don't need to understand the criteria used to choose between left and right. Others, like
 -- 'lookup', only need to understand the branching criteria with regards to a single, fixed key,
--- and can instead pass the xor-distance between that key and the missing bound.
+-- and can instead pass the XOR-distance between that key and the missing bound.
 data Node t a = Bin {-# UNPACK #-} !(Bound (Flipped t)) a !(Node L a) !(Node R a) | Tip deriving (Eq, Show)
 
 -- | The non-empty case of 'IntMap_'.
@@ -1290,7 +1290,7 @@ delete !k m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
     OutOfBound -> m
     Matched -> IntMap (nodeToMapL root)
 
--- | Delete a key from a left node. Takes the xor of the deleted key and
+-- | Delete a key from a left node. Takes the XOR of the deleted key and
 -- the minimum bound of that node.
 --
 -- This would normally be a local method of 'delete', but it can be reused in
@@ -1304,7 +1304,7 @@ deleteL !k !xorCache n@(Bin max maxV l r) = case compareMaxBound k max of
     Matched -> extractBinL l r
   where xorCacheMax = xor k max
 
--- | Delete a key from a right node. Takes the xor of the deleted key and
+-- | Delete a key from a right node. Takes the XOR of the deleted key and
 -- the maximum bound of that node.
 --
 -- This would normally be a local method of 'delete', but it can be reused in
@@ -2621,7 +2621,7 @@ maxViewWithKey (IntMap (NonEmpty min minV (Bin max maxV l r))) = Just ((boundKey
 -- argument is less significant than the most significant bit of its second
 -- argument.
 
--- This works by measuring whether x is in between 0 and y but closer to 0 (in the xor metric).
+-- This works by measuring whether x is in between 0 and y but closer to 0 (in the XOR metric).
 {-# INLINE ltMSB #-}
 ltMSB :: Word -> Word -> Bool
 ltMSB x y = x < y && x < Data.Bits.xor x y
@@ -2680,7 +2680,7 @@ r2lNE (NE max maxV Tip) = NE (maxToMin max) maxV Tip
 r2lNE (NE max maxV (Bin min minV l r)) = NE min minV (Bin max maxV l r)
 
 -- | Insert a key/value pair to a left node where the key is smaller than
--- any present in that node. Requires the xor of the inserted key and the
+-- any present in that node. Requires the XOR of the inserted key and the
 -- key immediately prior to it (the minimum bound of the node).
 insertMinL :: Word -> Bound L -> a -> Node L a -> Node L a
 insertMinL !_ !min minV Tip = Bin (minToMax min) minV Tip Tip
@@ -2695,7 +2695,7 @@ insertMinL !xorCache !min minV (Bin max maxV l r)
     | otherwise = Bin max maxV (insertMinL xorCache min minV l) r
 
 -- | Insert a key/value pair to a right node where the key is greater than
--- any present in that node. Requires the xor of the inserted key and the
+-- any present in that node. Requires the XOR of the inserted key and the
 -- key immediately following it (the maximum bound of the node).
 insertMaxR :: Word -> Bound R -> a -> Node R a -> Node R a
 insertMaxR !_ !max maxV Tip = Bin (maxToMin max) maxV Tip Tip
