@@ -877,6 +877,10 @@ instance Data.Foldable.Foldable IntMap where
         go :: Eq v => v -> Node t v -> Bool
         go _ Tip = False
         go v (Bin _ boundV l r) = v == boundV || go v l || go v r
+    {-# INLINABLE sum #-}
+    sum = foldl' (+) 0
+    {-# INLINABLE product #-}
+    product = foldl' (*) 1
 #endif
 
 -- | Traverses in order of increasing key.
