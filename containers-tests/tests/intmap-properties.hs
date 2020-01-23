@@ -27,6 +27,7 @@ import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
 import Data.List (nub,sort)
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
 import Test.Framework
@@ -1344,10 +1345,10 @@ prop_unionAssoc t1 t2 t3 = union t1 (union t2 t3) === union (union t1 t2) t3
 prop_unionWith :: IMap -> IMap -> Property
 prop_unionWith t1 t2 = union t1 t2 === unionWith (\_ y -> y) t2 t1
 
-prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_unionSum xs ys
-  = sum (elems (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys)))
-    == (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
+  = Foldable.sum (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys))
+    === (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
 
 prop_differenceModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_differenceModel xs ys =
