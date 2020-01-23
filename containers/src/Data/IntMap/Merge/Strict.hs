@@ -26,8 +26,8 @@
 --
 -- == Efficiency note
 --
--- The 'Category', 'Applicative', and 'Monad' instances for 'WhenMissing'
--- tactics are included because they are valid. However, they are
+-- The 'Control.Category.Category', 'Applicative', and 'Monad' instances for
+-- 'WhenMissing' tactics are included because they are valid. However, they are
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
 

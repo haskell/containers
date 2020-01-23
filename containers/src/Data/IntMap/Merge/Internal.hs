@@ -229,6 +229,7 @@ module Data.IntMap.Merge.Internal (
     , preserveMissing
     , filterMissing
     , filterAMissing
+    , traverseMaybeMissingUKeyLazy
 ) where
 
 import Prelude hiding (min, max)
@@ -236,6 +237,8 @@ import Prelude hiding (min, max)
 import Data.IntMap.Internal
 
 import Control.Applicative (liftA2, liftA3)
+import Control.Monad ((<=<))
+import qualified Control.Category as Category (Category(..))
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
 #else
@@ -285,6 +288,81 @@ data WhenMissing f a b = WhenMissing {
     missingRight :: Node R a -> f (Node R b),
     missingAllL :: IntMap_ L a -> f (IntMap_ L b)
 }
+
+-- | @since 0.5.9
+instance (Applicative f, Monad f) => Category.Category (WhenMissing f) where
+    {-# INLINE id #-}
+    id = preserveMissing
+
+    {-# INLINE (.) #-}
+    missF . missG = WhenMissing
+        (\k a -> do
+            mb <- missingSingle missG k a
+            case mb of
+                Nothing -> return Nothing
+                Just b -> missingSingle missF k b)
+        (missingLeft missF <=< missingLeft missG)
+        (missingRight missF <=< missingRight missG)
+        (missingAllL missF <=< missingAllL missG)
+
+-- | @since 0.5.9
+instance (Applicative f, Monad f) => Functor (WhenMissing f a) where
+    {-# INLINE fmap #-}
+    fmap f miss = WhenMissing
+        (\k a -> fmap f <$> missingSingle miss k a)
+        (\l -> fmap f <$> missingLeft miss l)
+        (\r -> fmap f <$> missingRight miss r)
+        (\m -> fmap f <$> missingAllL miss m)
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
+instance (Applicative f, Monad f) => Applicative (WhenMissing f a) where
+    {-# INLINE pure #-}
+    pure x = WhenMissing
+        (\_ _ -> pure (Just x))
+        (\l -> pure (x <$ l))
+        (\r -> pure (x <$ r))
+        (\m -> pure (x <$ m))
+
+    {-# INLINE (<*>) #-}
+    missF <*> missX = traverseMaybeMissingUKeyLazy $ \k a ->
+        liftA2 (<*>) (missingSingle missF k a) (missingSingle missX k a)
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
+instance (Applicative f, Monad f) => Monad (WhenMissing f a) where
+#if !MIN_VERSION_base(4,8,0)
+    {-# INLINE return #-}
+    return = pure
+#endif
+
+    {-# INLINE (>>=) #-}
+    missM >>= f = traverseMaybeMissingUKeyLazy $ \k a -> do
+        mb <- missingSingle missM k a
+        case mb of
+            Nothing -> return Nothing
+            Just b -> missingSingle (f b) k a
+
+-- | The inverse of 'missingSingle'. Is in the @Internal@ module for type class
+-- instances.
+{-# INLINE traverseMaybeMissingUKeyLazy #-}
+traverseMaybeMissingUKeyLazy :: Applicative f => (UKey -> a -> f (Maybe b)) -> WhenMissing f a b
+traverseMaybeMissingUKeyLazy f = WhenMissing
+    { missingAllL = start
+    , missingLeft = goL
+    , missingRight = goR
+    , missingSingle = f }
+  where
+    start Empty = pure Empty
+    start (NonEmpty min minV root) = liftA2 (maybe nodeToMapL (NonEmpty min)) (f (boundUKey min) minV) (goL root)
+
+    goL Tip = pure Tip
+    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') (goL l) (goR r) (f (boundUKey max) maxV)
+
+    goR Tip = pure Tip
+    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') (f (boundUKey min) minV) (goL l) (goR r)
 
 -- | A tactic for dealing with keys present in one map but not the other in
 -- 'merge'.
@@ -430,6 +508,52 @@ filterAMissingUKey f = WhenMissing
 newtype WhenMatched f a b c = WhenMatched {
     matchedSingle :: UKey -> a -> b -> f (Maybe c)
 }
+
+-- | @since 0.5.9
+instance (Applicative f, Monad f) => Category.Category (WhenMatched f a) where
+    -- TODO: Expose this and it symmetric pair as @firstMatched@ and
+    -- @secondMatched@?
+    {-# INLINE id #-}
+    id = WhenMatched (\_ _ b -> pure (Just b))
+
+    {-# INLINE (.) #-}
+    matchF . matchG = WhenMatched $ \k a b -> do
+        mc <- matchedSingle matchG k a b
+        case mc of
+            Nothing -> return Nothing
+            Just c' -> matchedSingle matchF k a c'
+
+-- | @since 0.5.9
+instance Functor f => Functor (WhenMatched f a b) where
+    {-# INLINE fmap #-}
+    fmap f match = WhenMatched (\k a b -> fmap f <$> matchedSingle match k a b)
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
+instance (Applicative f, Monad f) => Applicative (WhenMatched f a b) where
+    {-# INLINE pure #-}
+    pure x = WhenMatched (\_ _ _ -> pure (Just x))
+
+    {-# INLINE (<*>) #-}
+    matchF <*> matchX = WhenMatched $ \k a b ->
+        liftA2 (<*>) (matchedSingle matchF k a b) (matchedSingle matchX k a b)
+
+-- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
+--
+-- @since 0.5.9
+instance (Applicative f, Monad f) => Monad (WhenMatched f a b) where
+#if !MIN_VERSION_base(4,8,0)
+    {-# INLINE return #-}
+    return = pure
+#endif
+
+    {-# INLINE (>>=) #-}
+    matchM >>= f = WhenMatched $ \k a b -> do
+        mc <- matchedSingle matchM k a b
+        case mc of
+            Nothing -> return Nothing
+            Just c -> matchedSingle (f c) k a b
 
 -- | A tactic for dealing with keys present in both maps in 'merge'.
 --

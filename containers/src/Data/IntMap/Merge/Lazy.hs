@@ -26,8 +26,8 @@
 --
 -- == Efficiency note
 --
--- The 'Category', 'Applicative', and 'Monad' instances for 'WhenMissing'
--- tactics are included because they are valid. However, they are
+-- The 'Control.Category.Category', 'Applicative', and 'Monad' instances for
+-- 'WhenMissing' tactics are included because they are valid. However, they are
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
 --
@@ -236,22 +236,7 @@ zipWithAMatched f = zipWithMaybeAMatched (\k a b -> Just <$> f k a b)
 {-# INLINE traverseMaybeMissing #-}
 traverseMaybeMissing
   :: Applicative f => (Key -> a -> f (Maybe b)) -> WhenMissing f a b
-traverseMaybeMissing f = WhenMissing
-    { missingAllL = start
-    , missingLeft = goL
-    , missingRight = goR
-    , missingSingle = f' }
-  where
-    f' k a = f (box k) a
-
-    start Empty = pure Empty
-    start (NonEmpty min minV root) = liftA2 (maybe nodeToMapL (NonEmpty min)) (f' (boundUKey min) minV) (goL root)
-
-    goL Tip = pure Tip
-    goL (Bin max maxV l r) = liftA3 (\l' r' maxV' -> maybe extractBinL (Bin max) maxV' l' r') (goL l) (goR r) (f' (boundUKey max) maxV)
-
-    goR Tip = pure Tip
-    goR (Bin min minV l r) = liftA3 (\minV' l' r' -> maybe extractBinR (Bin min) minV' l' r') (f' (boundUKey min) minV) (goL l) (goR r)
+traverseMaybeMissing f = traverseMaybeMissingUKeyLazy (\k a -> f (box k) a)
 
 -- | Traverse over the entries whose keys are missing from the other
 -- map.
