@@ -74,7 +74,6 @@ insertWithKey' :: Whoops "Data.IntMap.insertWithKey' is gone. Use Data.IntMap.St
                => (Key -> a -> a -> a) -> Key -> a -> IntMap a -> IntMap a
 insertWithKey' _ _ _ _ = undefined
 
-
 -- | This function is being removed and is no longer usable.
 -- Use 'Data.IntMap.Lazy.foldr'.
 fold :: Whoops "Data.IntMap.fold' is gone. Use Data.IntMap.foldr or Prelude.foldr."

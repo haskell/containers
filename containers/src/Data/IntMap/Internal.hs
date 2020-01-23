@@ -795,6 +795,7 @@ instance Read a => Read (IntMap a) where
 #endif
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.9
 instance Read1 IntMap where
 #if defined(__GLASGOW_HASKELL__) && MIN_VERSION_base(4,10,0)
     liftReadPrec innerOne innerList = readData (readUnaryWith listOne "fromList" fromListLazy)
@@ -835,6 +836,7 @@ instance Functor (Node t) where
     a <$ Bin k _ l r = Bin k a (a <$ l) (a <$ r)
 #endif
 
+-- | Folds in order of increasing key.
 instance Data.Foldable.Foldable IntMap where
     {-# INLINE foldMap #-}
     foldMap f = start
@@ -875,6 +877,7 @@ instance Data.Foldable.Foldable IntMap where
         go v (Bin _ boundV l r) = v == boundV || go v l || go v r
 #endif
 
+-- | Traverses in order of increasing key.
 instance Traversable IntMap where
     {-# INLINE traverse #-}
     traverse f = start
@@ -890,6 +893,7 @@ instance Traversable IntMap where
 
 
 #if MIN_VERSION_base(4,9,0)
+-- | @since 0.5.7
 instance Semigroup (IntMap a) where
     (<>) = union
     stimes = stimesIdempotentMonoid
@@ -1285,6 +1289,10 @@ mapNodeLazy f (Bin bound value l r) = Bin bound (f value) (mapNodeLazy f l) (map
 
 -- | /O(min(n,W))/. Delete a key and its value from the map.
 -- When the key is not a member of the map, the original map is returned.
+--
+-- > delete 5 (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
+-- > delete 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a")]
+-- > delete 5 empty                         == empty
 delete :: Key -> IntMap a -> IntMap a
 delete !_ (IntMap Empty) = IntMap Empty
 delete !k m@(IntMap (NonEmpty min minV root)) = case compareMinBound k min of
@@ -1471,8 +1479,8 @@ unionDisjointR maxV1 !max1 (Bin min1 minV1 l1 r1) !max2 n2@(Bin min2 minV2 l2 r2
 -- >     == fromList [(3, "b"), (5, "a"), (7, "C")]
 -- > unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
 -- >     == fromList [(3, "B3"), (5, "A3"), (7, "C")]
-unions :: [IntMap a] -> IntMap a
-unions = Data.List.foldl' union empty
+unions :: Foldable f => f (IntMap a) -> IntMap a
+unions = Data.Foldable.foldl' union empty
 
 -- | /O(n+m)/. Difference between two maps (based on keys).
 --

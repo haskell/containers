@@ -269,6 +269,8 @@ instance Applicative Identity where
 --
 -- A tactic of type @ WhenMissing f a c @ is an abstract representation
 -- of a function of type @ Key -> a -> f (Maybe c) @.
+--
+-- @since 0.5.9
 data WhenMissing f a b = WhenMissing {
     -- TODO: Instead of unconditionally putting the 'Maybe' inside the @f@,
     -- provide options for the deletion vs. not choice to be decided purely,
@@ -289,6 +291,8 @@ data WhenMissing f a b = WhenMissing {
 --
 -- A tactic of type @ SimpleWhenMissing a c @ is an abstract representation
 -- of a function of type @ Key -> a -> Maybe c @.
+--
+-- @since 0.5.9
 type SimpleWhenMissing = WhenMissing Identity
 
 -- | Along with 'traverseMaybeMissing', witnesses the isomorphism
@@ -316,6 +320,8 @@ runWhenMissingAll miss (IntMap m) = IntMap <$> missingAllL miss m
 -- prop> dropMissing = mapMaybeMissing (\_ _ -> Nothing)
 --
 -- but @dropMissing@ is much faster.
+--
+-- @since 0.5.9
 {-# INLINE dropMissing #-}
 dropMissing :: Applicative f => WhenMissing f a b
 dropMissing = WhenMissing (\_ _ -> pure Nothing) (const (pure Tip)) (const (pure Tip)) (const (pure Empty))
@@ -330,6 +336,8 @@ dropMissing = WhenMissing (\_ _ -> pure Nothing) (const (pure Tip)) (const (pure
 -- prop> preserveMissing = Merge.Lazy.mapMaybeMissing (\_ x -> Just x)
 --
 -- but @preserveMissing@ is much faster.
+--
+-- @since 0.5.9
 {-# INLINE preserveMissing #-}
 preserveMissing :: Applicative f => WhenMissing f a a
 preserveMissing = WhenMissing (\_ v -> pure (Just v)) pure pure pure
@@ -343,6 +351,8 @@ preserveMissing = WhenMissing (\_ v -> pure (Just v)) pure pure pure
 -- prop> filterMissing f = Merge.Lazy.mapMaybeMissing $ \k x -> guard (f k x) *> Just x
 --
 -- but this should be a little faster.
+--
+-- @since 0.5.9
 {-# INLINE filterMissing #-}
 filterMissing :: Applicative f => (Key -> a -> Bool) -> WhenMissing f a a
 filterMissing p = filterMissingUKey (\k a -> p (box k) a)
@@ -415,6 +425,8 @@ filterAMissingUKey f = WhenMissing
 --
 -- A tactic of type @ WhenMatched f a b c @ is an abstract representation
 -- of a function of type @ Key -> a -> b -> f (Maybe c) @.
+--
+-- @since 0.5.9
 newtype WhenMatched f a b c = WhenMatched {
     matchedSingle :: UKey -> a -> b -> f (Maybe c)
 }
@@ -423,6 +435,8 @@ newtype WhenMatched f a b c = WhenMatched {
 --
 -- A tactic of type @ SimpleWhenMatched a b c @ is an abstract representation
 -- of a function of type @ Key -> a -> b -> Maybe c @.
+--
+-- @since 0.5.9
 type SimpleWhenMatched = WhenMatched Identity
 
 -- | Along with 'zipWithMaybeAMatched', witnesses the isomorphism
@@ -501,6 +515,8 @@ runWhenMatched match k = matchedSingle match (unbox k)
 -- prop> differenceWith f = merge preserveMissing dropMissing f
 -- prop> symmetricDifference = merge preserveMissing preserveMissing (zipWithMaybeMatched (\_ _ _ -> Nothing))
 -- prop> mapEachPiece f g h = merge (mapMissing f) (mapMissing g) (zipWithMatched h)
+--
+-- @since 0.5.9
 {-# INLINE merge #-}
 -- TODO: Implementing 'merge' in terms of 'mergeA' leaves a lot to be desired
 -- on the performance front. Because the choice of whether to delete a key is
@@ -514,8 +530,7 @@ runWhenMatched match k = matchedSingle match (unbox k)
 merge :: SimpleWhenMissing a c -> SimpleWhenMissing b c -> SimpleWhenMatched a b c -> IntMap a -> IntMap b -> IntMap c
 merge miss1 miss2 match = \m1 m2 -> runIdentity (mergeA miss1 miss2 match m1 m2)
 
--- | An applicative version of 'merge'. Due to the necessity of performing actions
--- in order, this can be significantly slower than 'merge'.
+-- | An applicative version of 'merge'.
 --
 -- 'mergeA' takes two 'WhenMissing' tactics, a 'WhenMatched'
 -- tactic and two maps. It uses the tactics to merge the maps.

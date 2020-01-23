@@ -238,6 +238,12 @@ module Data.IntMap.Strict (
     , maxView
     , minViewWithKey
     , maxViewWithKey
+
+#if defined(__GLASGOW_HASKELL__)
+    -- * Debugging
+    , showTree
+    , showTreeWith
+#endif
 ) where
 
 import Data.IntMap.Internal
@@ -245,6 +251,9 @@ import Data.IntMap.Internal
 import qualified Data.IntMap.Lazy as L
 #endif
 import qualified Data.IntMap.Merge.Strict as Merge (merge, mapMaybeMissing, zipWithMaybeMatched)
+#if defined(__GLASGOW_HASKELL__)
+import Data.IntMap.Internal.DeprecatedDebug
+#endif
 
 #if !MIN_VERSION_base(4,8,0)
 import Control.Applicative (Applicative(..), (<$>))
@@ -253,6 +262,7 @@ import Control.Applicative (liftA2, liftA3)
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 
+import qualified Data.Foldable (foldl')
 import qualified Data.List (foldl', map)
 import qualified Data.IntSet (IntSet, toList)
 
@@ -504,7 +514,7 @@ alter f k m = case lookup k m of
 
 -- | /O(log n)/. The expression (@'alterF' f k map@) alters the value @x@ at
 -- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
--- or update a value in an 'IntMap'.  In short : @'lookup' k <$> 'alterF' f k m = f
+-- or update a value in an 'IntMap'.  In short : @'lookup' k '<$>' 'alterF' f k m = f
 -- ('lookup' k m)@.
 --
 -- Example:
@@ -682,8 +692,8 @@ unionWithUKey = start
 --
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
-unionsWith :: (a -> a -> a) -> [IntMap a] -> IntMap a
-unionsWith f = Data.List.foldl' (unionWith f) empty
+unionsWith :: Foldable f => (a -> a -> a) -> f (IntMap a) -> IntMap a
+unionsWith f = Data.Foldable.foldl' (unionWith f) empty
 
 -- | /O(n+m)/. Difference with a combining function.
 --

@@ -30,7 +30,8 @@
 -- tactics are included because they are valid. However, they are
 -- inefficient in many cases and should usually be avoided. The instances
 -- for 'WhenMatched' tactics should not pose any major efficiency problems.
-
+--
+-- @since 0.5.9
 module Data.IntMap.Merge.Lazy (
     -- ** Simple merge tactic types
       SimpleWhenMissing
@@ -96,6 +97,8 @@ import Data.IntMap.Merge.Internal
 -- prop> mapMissing f = mapMaybeMissing (\k x -> Just $ f k x)
 --
 -- but @mapMissing@ is somewhat faster.
+--
+-- @since 0.5.9
 {-# INLINE mapMissing #-}
 mapMissing :: Applicative f => (Key -> a -> b) -> WhenMissing f a b
 mapMissing f = mapMissingUKey (\k v -> f (box k) v)
@@ -125,6 +128,8 @@ mapMissingUKey f = WhenMissing (\k v -> pure (Just (f k v))) (pure . goL) (pure 
 -- prop> mapMaybeMissing f = traverseMaybeMissing (\k x -> pure (f k x))
 --
 -- but @mapMaybeMissing@ uses fewer unnecessary 'Applicative' operations.
+--
+-- @since 0.5.9
 {-# INLINE mapMaybeMissing #-}
 mapMaybeMissing :: Applicative f => (Key -> a -> Maybe b) -> WhenMissing f a b
 mapMaybeMissing f = mapMaybeMissingUKey (\k a -> f (box k) a)
@@ -178,6 +183,8 @@ mapMaybeMissingUKey f = WhenMissing (\k v -> pure (f k v)) (pure . goLKeep) (pur
 -- zipWithMaybeMatched :: (Key -> a -> b -> Maybe c)
 --                     -> SimpleWhenMatched a b c
 -- @
+--
+-- @since 0.5.9
 {-# INLINE zipWithMaybeMatched #-}
 zipWithMaybeMatched :: Applicative f => (Key -> a -> b -> Maybe c) -> WhenMatched f a b c
 zipWithMaybeMatched f = WhenMatched (\k a b -> pure (f (box k) a b))
@@ -189,6 +196,8 @@ zipWithMaybeMatched f = WhenMatched (\k a b -> pure (f (box k) a b))
 -- zipWithMatched :: (Key -> a -> b -> c)
 --                -> SimpleWhenMatched a b c
 -- @
+--
+-- @since 0.5.9
 {-# INLINE zipWithMatched #-}
 zipWithMatched :: Applicative f => (Key -> a -> b -> c) -> WhenMatched f a b c
 zipWithMatched f = zipWithMaybeMatched (\k a b -> Just (f k a b))
