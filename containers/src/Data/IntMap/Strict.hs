@@ -262,7 +262,7 @@ import Control.Applicative (liftA2, liftA3)
 
 import Utils.Containers.Internal.StrictPair (StrictPair(..), toPair)
 
-import qualified Data.Foldable (foldl')
+import qualified Data.Foldable (Foldable, foldl')
 import qualified Data.List (foldl', map)
 import qualified Data.IntSet (IntSet, toList)
 
@@ -692,7 +692,7 @@ unionWithUKey = start
 --
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
-unionsWith :: Foldable f => (a -> a -> a) -> f (IntMap a) -> IntMap a
+unionsWith :: Data.Foldable.Foldable f => (a -> a -> a) -> f (IntMap a) -> IntMap a
 unionsWith f = Data.Foldable.foldl' (unionWith f) empty
 
 -- | /O(n+m)/. Difference with a combining function.
