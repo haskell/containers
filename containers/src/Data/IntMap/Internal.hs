@@ -2374,7 +2374,7 @@ isProperSubmapOf = isProperSubmapOfBy (==)
 
 {- | /O(n+m)/. Is this a proper submap? (ie. a submap but not equal).
 The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
-@m1@ and @m2@ are not equal,
+@'keys' m1@ and @'keys' m2@ are not equal,
 all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
 applied to their respective values. For example, the following
 expressions are all 'True':
