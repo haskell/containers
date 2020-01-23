@@ -223,14 +223,11 @@ main = defaultMain
              , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
+             , testProperty "filterMissing==filterWithKey"  prop_filterMissingEqFilterWithKey
+             , testProperty "filterAMissing->filterMissing" prop_filterAMissing_degrade_to_filterMissing
+             , testProperty "mapMissing==mapWithKey"        prop_mapMissingEqMapWithKey
+             , testProperty "traverseMissing->mapMissing"   prop_traverseMissing_degrade_to_mapMissing
              ]
-
-apply2 :: Fun (a, b) c -> a -> b -> c
-apply2 f a b = apply f (a, b)
-
-apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
-apply3 f a b c = apply f (a, b, c)
-
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
@@ -1812,3 +1809,25 @@ prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
         -- so this also checks the order of traversing is the same.
   where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
+
+prop_filterMissingEqFilterWithKey :: Fun (Int, A) Bool -> IntMap A -> Property
+prop_filterMissingEqFilterWithKey fun m =
+    runIdentity (runWhenMissingAll (filterMissing f) m) === filterWithKey f m
+  where f = applyFun2 fun
+
+prop_filterAMissing_degrade_to_filterMissing :: Fun (Int, A) Bool -> IntMap A -> Property
+prop_filterAMissing_degrade_to_filterMissing fun m =
+    runWhenMissingAll (filterAMissing (\k a -> Identity (f k a))) m
+    === runWhenMissingAll (filterMissing f) m
+  where f = applyFun2 fun
+
+prop_mapMissingEqMapWithKey :: Fun (Int, A) Int -> IntMap A -> Property
+prop_mapMissingEqMapWithKey fun m =
+    runIdentity (runWhenMissingAll (mapMissing f) m) === mapWithKey f m
+  where f = applyFun2 fun
+
+prop_traverseMissing_degrade_to_mapMissing :: Fun (Int, A) Int -> IntMap A -> Property
+prop_traverseMissing_degrade_to_mapMissing fun m =
+    runWhenMissingAll (traverseMissing (\k a -> Identity (f k a))) m
+    === runWhenMissingAll (mapMissing f) m
+  where f = applyFun2 fun
