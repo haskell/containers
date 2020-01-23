@@ -236,7 +236,7 @@ import Data.IntMap.Internal.DeprecatedDebug
 #if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (runIdentity)
 #else
-Import Data.IntMap.Merge.Internal (runIdentity)
+import Data.IntMap.Merge.Internal (runIdentity)
 import Control.Applicative (Applicative(..), (<$>))
 #endif
 
