@@ -195,6 +195,7 @@ main = defaultMain
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
              , testProperty "split"                prop_splitModel
+             , testProperty "splitLookup"          prop_splitLookupModel
              , testProperty "splitRoot"            prop_splitRoot
              , testProperty "isSubmapOf"           prop_isSubmapOf
              , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
@@ -1675,6 +1676,11 @@ prop_splitModel n ys =
       validProp r .&&.
       l === fromList (takeWhile ((< n) . fst) xs) .&&.
       r === fromList (dropWhile ((<= n) . fst) xs)
+
+prop_splitLookupModel :: Int -> IMap -> Property
+prop_splitLookupModel k m =
+   let (l, r) = split k m
+    in (l, lookup k m, r) === splitLookup k m
 
 prop_splitRoot :: IMap -> Property
 prop_splitRoot s = loop ls .&&. (s === unions ls)
