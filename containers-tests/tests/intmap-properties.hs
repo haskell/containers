@@ -1817,8 +1817,8 @@ prop_filterMissingEqFilterWithKey fun m =
 
 prop_filterAMissing_degrade_to_filterMissing :: Fun (Int, A) Bool -> IntMap A -> Property
 prop_filterAMissing_degrade_to_filterMissing fun m =
-    runWhenMissingAll (filterAMissing (\k a -> Identity (f k a))) m
-    === runWhenMissingAll (filterMissing f) m
+    runIdentity (runWhenMissingAll (filterAMissing (\k a -> Identity (f k a))) m)
+    === runIdentity (runWhenMissingAll (filterMissing f) m)
   where f = applyFun2 fun
 
 prop_mapMissingEqMapWithKey :: Fun (Int, A) Int -> IntMap A -> Property
@@ -1828,6 +1828,6 @@ prop_mapMissingEqMapWithKey fun m =
 
 prop_traverseMissing_degrade_to_mapMissing :: Fun (Int, A) Int -> IntMap A -> Property
 prop_traverseMissing_degrade_to_mapMissing fun m =
-    runWhenMissingAll (traverseMissing (\k a -> Identity (f k a))) m
-    === runWhenMissingAll (mapMissing f) m
+    runIdentity (runWhenMissingAll (traverseMissing (\k a -> Identity (f k a))) m)
+    === runIdentity (runWhenMissingAll (mapMissing f) m)
   where f = applyFun2 fun
