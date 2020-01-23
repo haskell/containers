@@ -242,6 +242,7 @@ import qualified Control.Category as Category (Category(..))
 #if MIN_VERSION_base (4,8,0)
 import Data.Functor.Identity (Identity, runIdentity)
 #else
+import Data.Functor ((<$))
 import Control.Applicative (Applicative(..), (<$>))
 
 #if __GLASGOW_HASKELL__ >= 708
