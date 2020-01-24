@@ -326,7 +326,7 @@ test-suite intmap-lazy-properties
     , base     >=4.6     && <5
     , deepseq  >=1.2     && <1.5
 
-  ghc-options:      -O0
+  ghc-options:      -O1
   other-extensions:
     BangPatterns
     CPP
@@ -349,7 +349,7 @@ test-suite intmap-strict-properties
     , base     >=4.6     && <5
     , deepseq  >=1.2     && <1.5
 
-  ghc-options:      -O0
+  ghc-options:      -O1
   other-extensions:
     BangPatterns
     CPP
