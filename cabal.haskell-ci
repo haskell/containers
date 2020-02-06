@@ -8,7 +8,7 @@ branches: master
 install-dependencies: False
 
 -- on GHC-7.10.3 we need to reinstall binary?
-installed: +all -binary
+installed: +all -binary -text
 
 -- gauge works only with newer GHC
 benchmarks: >=7.8.4
