@@ -1628,7 +1628,7 @@ lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
 -- | /O(log n)/. The minimal key of the map. Returns 'Nothing' if the map is empty.
 --
 -- > lookupMin (fromList [(5,"a"), (3,"b")]) == Just (3,"b")
--- > findMin empty = Nothing
+-- > lookupMin empty = Nothing
 --
 -- @since 0.5.9
 
