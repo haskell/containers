@@ -3949,7 +3949,7 @@ maxViewSure = go
 -- | /O(log n)/. Delete and find the minimal element.
 --
 -- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
--- > deleteFindMin                                            Error: can not return the minimal element of an empty map
+-- > deleteFindMin empty                                      Error: can not return the minimal element of an empty map
 
 deleteFindMin :: Map k a -> ((k,a),Map k a)
 deleteFindMin t = case minViewWithKey t of
