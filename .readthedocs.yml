@@ -8,4 +8,4 @@ submodules:
     - containers/docs/_extensions/haddock-autolink
 
 python:
-  version: 2.7
+  version: 3.7
