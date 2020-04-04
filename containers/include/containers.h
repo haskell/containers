@@ -36,6 +36,8 @@
 #ifdef __GLASGOW_HASKELL__
 # define USE_ST_MONAD 1
 # define USE_UNBOXED_ARRAYS 1
+# define USE_TYPE_FAMILIES 1
+# define USE_REWRITE_RULES 1
 #endif
 
 #endif

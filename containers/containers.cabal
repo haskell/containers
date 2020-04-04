@@ -43,9 +43,9 @@ Library
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
-        Data.IntMap.Strict.Internal
         Data.IntMap.Internal
         Data.IntMap.Internal.Debug
+        Data.IntMap.Merge.Internal
         Data.IntMap.Merge.Lazy
         Data.IntMap.Merge.Strict
         Data.IntSet.Internal
@@ -77,6 +77,7 @@ Library
     if impl(ghc)
       other-modules:
         Utils.Containers.Internal.TypeError
+        Utils.Containers.Internal.IsList
         Data.Map.Internal.DeprecatedShowTree
         Data.IntMap.Internal.DeprecatedDebug
 

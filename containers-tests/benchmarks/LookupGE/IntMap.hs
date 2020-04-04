@@ -34,9 +34,7 @@ main = do
           , \(n,fun) -> bench (n++" !far")     $ nf (fge2 fun odds)  m_large
           ]
     funs1 = [ ("GE split", M.lookupGE1)
-            , ("GE Craig", M.lookupGE2)
-            , ("GE Twan", M.lookupGE3)
-            , ("GE Milan", M.lookupGE4) ]
+            , ("GE direct", M.lookupGE2) ]
 
 fge :: (Int -> M.IntMap Int -> Maybe (Int,Int)) -> [Int] -> M.IntMap Int -> (Int,Int)
 fge fun xs m = foldl' (\n k -> fromMaybe n (fun k m)) (0,0) xs

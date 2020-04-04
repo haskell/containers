@@ -2,28 +2,32 @@
 
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap hiding (showTree)
-import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Strict
 #else
 import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
-import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
-import Data.IntMap.Internal.Debug (showTree)
-import IntMapValidity (valid)
+import Data.IntMap.Merge.Internal (runWhenMissingAll)
+import Data.IntMap.Internal.Debug (showTree, valid, validWith)
 
 import Control.Applicative (Applicative(..))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
-import Data.Foldable (foldMap)
+import qualified Data.Foldable as Foldable
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity(..))
+#else
+import Data.IntMap.Merge.Internal (Identity(..))
+#endif
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
 import qualified Prelude (map)
 
 import Data.List (nub,sort)
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
 import Test.Framework
@@ -141,19 +145,35 @@ main = defaultMain
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
              , testProperty "insert then delete"   prop_insertDelete
+             , testProperty "insertLookupWithKey"  prop_insertLookupWithKeyModel
              , testProperty "delete non member"    prop_deleteNonMember
+             , testProperty "delete"               prop_deleteModel
+             , testProperty "adjust"               prop_adjustModel
+             , testProperty "adjustWithKey"        prop_adjustWithKeyModel
+             , testProperty "update"               prop_updateModel
+             , testProperty "updateWithKey"        prop_updateWithKeyModel
+             , testProperty "updateLookupWithKey"  prop_updateLookupWithKeyModel
+             , testProperty "alter"                prop_alterModel
+             , testProperty "alter lookup"         prop_alterLookup
+             , testProperty "alterF"               prop_alterFModel
+             , testProperty "alterF lookup"        prop_alterFLookup
              , testProperty "union model"          prop_unionModel
              , testProperty "union singleton"      prop_unionSingleton
              , testProperty "union associative"    prop_unionAssoc
              , testProperty "union+unionWith"      prop_unionWith
              , testProperty "union sum"            prop_unionSum
              , testProperty "difference model"     prop_differenceModel
+             , testProperty "differenceWithKey model" prop_differenceWithKeyModel
              , testProperty "intersection model"   prop_intersectionModel
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
              , testProperty "merge valid"          prop_merge_valid
              , testProperty "mergeA effects"       prop_mergeA_effects
+             , testProperty "union==merge"         prop_unionEqMerge
+             , testProperty "difference==merge"    prop_differenceEqMerge
+             , testProperty "intersection==merge"  prop_intersectionEqMerge
+             , testProperty "merge==mergeA"        prop_mergeEqMergeA
              , testProperty "fromAscList"          prop_ordered
              , testProperty "fromList then toList" prop_list
              , testProperty "toDescList"           prop_descList
@@ -182,11 +202,21 @@ main = defaultMain
              , testProperty "deleteMax"            prop_deleteMaxModel
              , testProperty "filter"               prop_filter
              , testProperty "partition"            prop_partition
+             , testProperty "partitionWithKey"     prop_partitionWithKey
+             , testProperty "mapMaybe"             prop_mapMaybeModel
+             , testProperty "mapMaybeWithKey"      prop_mapMaybeWithKeyModel
+             , testProperty "mapEither"            prop_mapEitherModel
+             , testProperty "mapEitherWithKey"     prop_mapEitherWithKeyModel
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
              , testProperty "split"                prop_splitModel
+             , testProperty "splitLookup"          prop_splitLookupModel
              , testProperty "splitRoot"            prop_splitRoot
+             , testProperty "isSubmapOf"           prop_isSubmapOf
+             , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
+             , testProperty "isProperSubmapOf"     prop_isProperSubmapOf
+             , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
              , testProperty "foldr"                prop_foldr
              , testProperty "foldr'"               prop_foldr'
              , testProperty "foldl"                prop_foldl
@@ -198,6 +228,9 @@ main = defaultMain
              , testProperty
                  "prop_FoldableTraversableCompat"
                  prop_FoldableTraversableCompat
+#if MIN_VERSION_base(4,8,0)
+             , testProperty "elem"                 prop_elem
+#endif
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
              , testProperty "restrictKeys"         prop_restrictKeys
@@ -207,14 +240,11 @@ main = defaultMain
              , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
+             , testProperty "filterMissing==filterWithKey"  prop_filterMissingEqFilterWithKey
+             , testProperty "filterAMissing->filterMissing" prop_filterAMissing_degrade_to_filterMissing
+             , testProperty "mapMissing==mapWithKey"        prop_mapMissingEqMapWithKey
+             , testProperty "traverseMissing->mapMissing"   prop_traverseMissing_degrade_to_mapMissing
              ]
-
-apply2 :: Fun (a, b) c -> a -> b -> c
-apply2 f a b = apply f (a, b)
-
-apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
-apply3 f a b c = apply f (a, b, c)
-
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
@@ -228,6 +258,15 @@ newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} derivi
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
   arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
 
+-- | A wrapper around IntMap with a Show instance based on showTree to aid in debugging when
+-- tests fail
+newtype PrettyIntMap a = PIM { unPIM :: IntMap a } deriving (Eq)
+
+instance Arbitrary a => Arbitrary (PrettyIntMap a) where
+  arbitrary = fmap PIM arbitrary
+
+instance Show a => Show (PrettyIntMap a) where
+  show (PIM m) = (if valid m then "\n" else "\nINVALID:\n") ++ showTree m
 
 ------------------------------------------------------------------------
 
@@ -237,13 +276,18 @@ type SMap = IntMap String
 
 ----------------------------------------------------------------
 
-tests :: [Test]
-tests = [ testGroup "Test Case" [
-             ]
-        , testGroup "Property Test" [
-             ]
-        ]
+-- | Like @'nub' . 'sort'@, but more efficient
+sortNub :: Ord a => [a] -> [a]
+sortNub = sortNubBy compare
 
+sortNubBy :: (a -> a -> Ordering) -> [a] -> [a]
+sortNubBy comp = fmap List.head . List.groupBy (\x y -> comp x y == EQ) . List.sortBy comp
+
+validProp :: IntMap a -> Property
+validProp = validWith (flip counterexample) (.&&.)
+
+allProp :: Testable prop => (a -> prop) -> [a] -> Property
+allProp f xs = conjoin (fmap f xs)
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -260,6 +304,8 @@ test_index = do
 
 test_index_lookup :: Assertion
 test_index_lookup = do
+    (empty :: SMap) !? 1 @?= Nothing
+
     fromList [(5,'a'), (3,'b')] !? 1 @?= Nothing
     fromList [(5,'a'), (3,'b')] !? 5 @?= Just 'a'
 
@@ -287,6 +333,8 @@ test_size2 = do
 
 test_member :: Assertion
 test_member = do
+    member 5 empty @?= False
+
     member 5 (fromList [(5,'a'), (3,'b')]) @?= True
     member 1 (fromList [(5,'a'), (3,'b')]) @?= False
 
@@ -296,6 +344,8 @@ test_member = do
 
 test_notMember :: Assertion
 test_notMember = do
+    notMember 5 empty @?= True
+
     notMember 5 (fromList [(5,'a'), (3,'b')]) @?= False
     notMember 1 (fromList [(5,'a'), (3,'b')]) @?= True
 
@@ -319,6 +369,8 @@ test_lookup = do
 
 test_findWithDefault :: Assertion
 test_findWithDefault = do
+    findWithDefault 'x' 1 empty @?= 'x'
+
     findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) @?= 'x'
     findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) @?= 'a'
 
@@ -330,6 +382,8 @@ test_findWithDefault = do
 
 test_lookupLT :: Assertion
 test_lookupLT = do
+    lookupLT 3 (empty :: SMap) @?= Nothing
+
     lookupLT 3 (fromList [(3,'a'), (5,'b')]) @?= Nothing
     lookupLT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
 
@@ -340,6 +394,8 @@ test_lookupLT = do
 
 test_lookupGT :: Assertion
 test_lookupGT = do
+    lookupGT 4 (empty :: SMap) @?= Nothing
+
     lookupGT 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
     lookupGT 5 (fromList [(3,'a'), (5,'b')]) @?= Nothing
 
@@ -350,6 +406,8 @@ test_lookupGT = do
 
 test_lookupLE :: Assertion
 test_lookupLE = do
+    lookupLE 2 (empty :: SMap) @?= Nothing
+
     lookupLE 2 (fromList [(3,'a'), (5,'b')]) @?= Nothing
     lookupLE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
     lookupLE 5 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
@@ -362,6 +420,8 @@ test_lookupLE = do
 
 test_lookupGE :: Assertion
 test_lookupGE = do
+    lookupGE 3 (empty :: SMap) @?= Nothing
+
     lookupGE 3 (fromList [(3,'a'), (5,'b')]) @?= Just (3, 'a')
     lookupGE 4 (fromList [(3,'a'), (5,'b')]) @?= Just (5, 'b')
     lookupGE 6 (fromList [(3,'a'), (5,'b')]) @?= Nothing
@@ -489,6 +549,8 @@ test_adjustWithKey = do
 
 test_update :: Assertion
 test_update = do
+    update f 5 empty @?= empty
+
     update f 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "new a")]
     update f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     update f 3 (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
@@ -502,6 +564,8 @@ test_update = do
 
 test_updateWithKey :: Assertion
 test_updateWithKey = do
+    updateWithKey f 5 empty @?= empty
+
     updateWithKey f 5 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "5:new a")]
     updateWithKey f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
@@ -515,6 +579,8 @@ test_updateWithKey = do
 
 test_updateLookupWithKey :: Assertion
 test_updateLookupWithKey = do
+    updateLookupWithKey f 5 empty @?= (Nothing, empty)
+
     updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) @?= (Just "a", fromList [(3, "b"), (5, "5:new a")])
     updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) @?= (Nothing,  fromList [(3, "b"), (5, "a")])
     updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) @?= (Just "b", singleton 5 "a")
@@ -528,6 +594,9 @@ test_updateLookupWithKey = do
 
 test_alter :: Assertion
 test_alter = do
+    alter f 7 empty @?= (empty :: SMap)
+    alter g 7 empty @?= singleton 7 "c"
+
     alter f 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a")]
     alter f 5 (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
     alter g 7 (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "c")]
@@ -550,21 +619,25 @@ test_alter = do
 
 test_union :: Assertion
 test_union = do
+    union empty empty @?= (empty :: SMap)
     union (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
     union (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
 
 test_mappend :: Assertion
 test_mappend = do
+    mappend empty empty @?= (empty :: SMap)
     mappend (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "a"), (7, "C")]
     mappend (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "a"), (7, "C")]
 
 test_unionWith :: Assertion
 test_unionWith = do
+    unionWith (++) empty empty @?= (empty :: SMap)
     unionWith (++) (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "aA"), (7, "C")]
     unionWith (++) (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "aA"), (7, "C")]
 
 test_unionWithKey :: Assertion
 test_unionWithKey = do
+    unionWithKey f empty empty @?= (empty :: SMap)
     unionWithKey f (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
     unionWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= fromList [(-3, "b"), (5, "5:a|A"), (7, "C")]
   where
@@ -572,6 +645,8 @@ test_unionWithKey = do
 
 test_unions :: Assertion
 test_unions = do
+    unions [] @?= (empty :: SMap)
+
     unions [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
         @?= fromList [(3, "b"), (5, "a"), (7, "C")]
     unions [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
@@ -584,6 +659,8 @@ test_unions = do
 
 test_mconcat :: Assertion
 test_mconcat = do
+    mconcat [] @?= (empty :: SMap)
+
     mconcat [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
         @?= fromList [(3, "b"), (5, "a"), (7, "C")]
     mconcat [(fromList [(5, "A3"), (3, "B3")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "a"), (3, "b")])]
@@ -596,6 +673,7 @@ test_mconcat = do
 
 test_unionsWith :: Assertion
 test_unionsWith = do
+    unionsWith (++) [] @?= (empty :: SMap)
     unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
         @?= fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]
     unionsWith (++) [(fromList [(5, "a"), (-3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (-3, "B3")])]
@@ -603,11 +681,17 @@ test_unionsWith = do
 
 test_difference :: Assertion
 test_difference = do
+    difference empty empty @?= (empty :: SMap)
+    difference empty (fromList [(5, "A"), (7, "C")]) @?= (empty :: SMap)
+    difference (fromList [(5, "a"), (3, "b")]) empty @?= fromList [(5, "a"), (3, "b")]
     difference (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 3 "b"
     difference (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton (-3) "b"
 
 test_differenceWith :: Assertion
 test_differenceWith = do
+    differenceWith f empty empty @?= (empty :: SMap)
+    differenceWith f empty (fromList [(5, "A"), (3, "B"), (7, "C")]) @?= (empty :: SMap)
+    differenceWith f (fromList [(5, "a"), (3, "b")]) empty @?= fromList [(5, "a"), (3, "b")]
     differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
         @?= singleton 3 "b:B"
     differenceWith f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (-3, "B"), (7, "C")])
@@ -617,6 +701,9 @@ test_differenceWith = do
 
 test_differenceWithKey :: Assertion
 test_differenceWithKey = do
+    differenceWithKey f empty empty @?= (empty :: SMap)
+    differenceWithKey f empty (fromList [(5, "A"), (3, "B"), (7, "C")]) @?= empty
+    differenceWithKey f (fromList [(5, "a"), (3, "b")]) empty @?= fromList [(5, "a"), (3, "b")]
     differenceWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (10, "C")])
         @?= singleton 3 "3:b|B"
     differenceWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (-3, "B"), (10, "C")])
@@ -626,17 +713,26 @@ test_differenceWithKey = do
 
 test_intersection :: Assertion
 test_intersection = do
+    intersection empty empty @?= (empty :: SMap)
+    intersection empty (fromList [(5, "A"), (7, "C")]) @?= (empty :: SMap)
+    intersection (fromList [(5, "a"), (3, "b")]) empty @?= empty
     intersection (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "a"
     intersection (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "a"
 
 
 test_intersectionWith :: Assertion
 test_intersectionWith = do
+    intersectionWith (++) empty empty @?= (empty :: SMap)
+    intersectionWith (++) empty (fromList [(5, "A"), (7, "C")]) @?= empty
+    intersectionWith (++) (fromList [(5, "a"), (3, "b")]) empty @?= empty
     intersectionWith (++) (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "aA"
     intersectionWith (++) (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "aA"
 
 test_intersectionWithKey :: Assertion
 test_intersectionWithKey = do
+    intersectionWithKey f empty empty @?= (empty :: SMap)
+    intersectionWithKey f empty (fromList [(5, "A"), (7, "C")]) @?= empty
+    intersectionWithKey f (fromList [(5, "a"), (3, "b")]) empty @?= empty
     intersectionWithKey f (fromList [(5, "a"), (3, "b")])  (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "5:a|A"
     intersectionWithKey f (fromList [(5, "a"), (-3, "b")]) (fromList [(5, "A"), (7, "C")]) @?= singleton 5 "5:a|A"
   where
@@ -647,12 +743,14 @@ test_intersectionWithKey = do
 
 test_map :: Assertion
 test_map = do
+    map (++ "x") empty @?= empty
     map (++ "x") (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "bx"), (5, "ax")]
     map (++ "x") (fromList [(5,"a"), (3,"b"), (-1,"c")])
             @?= fromList [(3, "bx"), (5, "ax"), (-1,"cx")]
 
 test_mapWithKey :: Assertion
 test_mapWithKey = do
+    mapWithKey f empty @?= empty
     mapWithKey f (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "3:b"), (5, "5:a")]
     mapWithKey f (fromList [(5,"a"), (3,"b"), (-1,"c")])
             @?= fromList [(3, "3:b"), (5, "5:a"), (-1,"-1:c")]
@@ -661,6 +759,7 @@ test_mapWithKey = do
 
 test_mapAccum :: Assertion
 test_mapAccum = do
+    mapAccum f "Everything: " empty @?= ("Everything: ", empty)
     mapAccum f "Everything: " (fromList [(5,"a"), (3,"b")]) @?= ("Everything: ba", fromList [(3, "bX"), (5, "aX")])
     mapAccum f "Everything: " (fromList [(5,"a"), (3,"b"), (-1,"c")])
         @?= ("Everything: cba", fromList [(3, "bX"), (5, "aX"), (-1, "cX")])
@@ -669,6 +768,7 @@ test_mapAccum = do
 
 test_mapAccumWithKey :: Assertion
 test_mapAccumWithKey = do
+    mapAccumWithKey f "Everything:" empty @?= ("Everything:", empty)
     mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 3-b 5-a", fromList [(3, "bX"), (5, "aX")])
     mapAccumWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
         @?= ("Everything: -1-c 3-b 5-a", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
@@ -677,6 +777,7 @@ test_mapAccumWithKey = do
 
 test_mapAccumRWithKey :: Assertion
 test_mapAccumRWithKey = do
+    mapAccumRWithKey f "Everything:" empty @?= ("Everything:", empty)
     mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b")]) @?= ("Everything: 5-a 3-b", fromList [(3, "bX"), (5, "aX")])
     mapAccumRWithKey f "Everything:" (fromList [(5,"a"), (3,"b"), (-1,"c")])
         @?= ("Everything: 5-a 3-b -1-c", fromList [(3, "bX"), (5, "aX"), (-1,"cX")])
@@ -685,6 +786,8 @@ test_mapAccumRWithKey = do
 
 test_mapKeys :: Assertion
 test_mapKeys = do
+    mapKeys (+ 1) empty @?= (empty :: SMap)
+
     mapKeys (+ 1) (fromList [(5,"a"), (3,"b")])                        @?= fromList [(4, "b"), (6, "a")]
     mapKeys (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "c"
     mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "c"
@@ -698,6 +801,8 @@ test_mapKeys = do
 
 test_mapKeysWith :: Assertion
 test_mapKeysWith = do
+    mapKeysWith (++) (\ _ -> 1) empty @?= (empty :: SMap)
+
     mapKeysWith (++) (\ _ -> 1) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 1 "cdab"
     mapKeysWith (++) (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) @?= singleton 3 "cdab"
 
@@ -706,6 +811,8 @@ test_mapKeysWith = do
 
 test_mapKeysMonotonic :: Assertion
 test_mapKeysMonotonic = do
+    mapKeysMonotonic (+ 1) empty @?= (empty :: SMap)
+
     mapKeysMonotonic (+ 1) (fromList [(5,"a"), (3,"b")])          @?= fromList [(4, "b"), (6, "a")]
     mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) @?= fromList [(6, "b"), (10, "a")]
 
@@ -784,46 +891,53 @@ test_fromListWithKey = do
 
 test_toAscList :: Assertion
 test_toAscList = do
+    toAscList (empty :: SMap) @?= []
     toAscList (fromList [(5,"a"), (3,"b")]) @?= [(3,"b"), (5,"a")]
     toAscList (fromList [(5,"a"), (-3,"b")]) @?= [(-3,"b"), (5,"a")]
 
 test_toDescList :: Assertion
 test_toDescList = do
+    toDescList (empty :: SMap) @?= []
     toDescList (fromList [(5,"a"), (3,"b")]) @?= [(5,"a"), (3,"b")]
     toDescList (fromList [(5,"a"), (-3,"b")]) @?= [(5,"a"), (-3,"b")]
 
 test_showTree :: Assertion
 test_showTree = do
+    showTree (empty :: UMap) @?= unlines []
     showTree posTree @?= expectedPosTree
     showTree negTree @?= expectedNegTree
   where mkAscTree ls = fromDistinctAscList [(x,()) | x <- ls]
         posTree = mkAscTree [1..5]
         negTree = mkAscTree [(-2)..2]
         expectedPosTree = unlines
-            [ "*"
-            , "+--*"
-            , "|  +-- 1:=()"
-            , "|  +--*"
-            , "|     +-- 2:=()"
-            , "|     +-- 3:=()"
-            , "+--*"
-            , "   +-- 4:=()"
-            , "   +-- 5:=()"
+            [ "1:=()"
+            , "|       ,-*"
+            , "|       +---. 2:=()"
+            , "|       |   +-*"
+            , "|       |   `-*"
+            , "|   ,---' 3:=()"
+            , "|   +---. 4:=()"
+            , "|   |   +-*"
+            , "|   |   `-*"
+            , "`---' 5:=()"
             ]
         expectedNegTree = unlines
-            [ "*"
-            , "+--*"
-            , "|  +--*"
-            , "|  |  +-- 0:=()"
-            , "|  |  +-- 1:=()"
-            , "|  +-- 2:=()"
-            , "+--*"
-            , "   +-- -2:=()"
-            , "   +-- -1:=()"
+            [ "-2:=()"
+            , "|       ,-*"
+            , "|       +-*"
+            , "|   ,---' -1:=()"
+            , "|   +---. 0:=()"
+            , "|   |   |   ,-*"
+            , "|   |   |   +-*"
+            , "|   |   +---' 1:=()"
+            , "|   |   `-*"
+            , "`---' 2:=()"
             ]
 
 test_fromAscList :: Assertion
 test_fromAscList = do
+    fromAscList [] @?= (empty :: SMap)
+
     fromAscList [(3,"b"), (5,"a")]          @?= fromList [(3, "b"), (5, "a")]
     fromAscList [(3,"b"), (5,"a"), (5,"b")] @?= fromList [(3, "b"), (5, "b")]
 
@@ -833,11 +947,15 @@ test_fromAscList = do
 
 test_fromAscListWith :: Assertion
 test_fromAscListWith = do
+    fromAscListWith (++) [] @?= (empty :: SMap)
+
     fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] @?= fromList [(3, "b"), (5, "ba")]
     fromAscListWith (++) [(-3,"b"), (5,"a"), (5,"b")] @?= fromList [(-3, "b"), (5, "ba")]
 
 test_fromAscListWithKey :: Assertion
 test_fromAscListWithKey = do
+    fromAscListWithKey f [] @?= (empty :: SMap)
+
     fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")] @?= fromList [(3, "b"), (5, "5:b5:ba")]
     fromAscListWithKey f [(-3,"b"), (5,"a"), (5,"b"), (5,"b")] @?= fromList [(-3, "b"), (5, "5:b5:ba")]
   where
@@ -845,6 +963,7 @@ test_fromAscListWithKey = do
 
 test_fromDistinctAscList :: Assertion
 test_fromDistinctAscList = do
+    fromDistinctAscList [] @?= (empty :: SMap)
     fromDistinctAscList [(3,"b"), (5,"a")] @?= fromList [(3, "b"), (5, "a")]
     fromDistinctAscList [(-3,"b"), (5,"a")] @?= fromList [(-3, "b"), (5, "a")]
 
@@ -853,6 +972,8 @@ test_fromDistinctAscList = do
 
 test_filter :: Assertion
 test_filter = do
+    filter (> "a") (empty :: SMap) @?= empty
+
     filter (> "a") (fromList [(5,"a"), (3,"b")]) @?= singleton 3 "b"
     filter (> "x") (fromList [(5,"a"), (3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (3,"b")]) @?= empty
@@ -863,11 +984,15 @@ test_filter = do
 
 test_filteWithKey :: Assertion
 test_filteWithKey = do
+    filterWithKey (\k _ -> k > 4) (empty :: SMap) @?= empty
+
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
 test_partition :: Assertion
 test_partition = do
+    partition (> "a") (empty :: SMap) @?= (empty, empty)
+
     partition (> "a") (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", singleton 5 "a")
     partition (< "x") (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3, "b"), (5, "a")], empty)
     partition (> "x") (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3, "b"), (5, "a")])
@@ -878,6 +1003,8 @@ test_partition = do
 
 test_partitionWithKey :: Assertion
 test_partitionWithKey = do
+    partitionWithKey (\ k _ -> k > 3) (empty :: SMap) @?= (empty, empty)
+
     partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (3,"b")]) @?= (singleton 5 "a", singleton 3 "b")
     partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3, "b"), (5, "a")], empty)
     partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3, "b"), (5, "a")])
@@ -888,6 +1015,7 @@ test_partitionWithKey = do
 
 test_mapMaybe :: Assertion
 test_mapMaybe = do
+    mapMaybe f (empty :: SMap) @?= empty
     mapMaybe f (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "new a"
     mapMaybe f (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "new a"
   where
@@ -895,6 +1023,7 @@ test_mapMaybe = do
 
 test_mapMaybeWithKey :: Assertion
 test_mapMaybeWithKey = do
+    mapMaybeWithKey f (empty :: SMap) @?= empty
     mapMaybeWithKey f (fromList [(5,"a"), (3,"b")])  @?= singleton 3 "key : 3"
     mapMaybeWithKey f (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "key : -3"
   where
@@ -902,6 +1031,8 @@ test_mapMaybeWithKey = do
 
 test_mapEither :: Assertion
 test_mapEither = do
+    mapEither f (empty :: SMap) @?= (empty, empty)
+
     mapEither f (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
         @?= (fromList [(3,"b"), (5,"a")], fromList [(1,"x"), (7,"z")])
     mapEither (\ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
@@ -916,6 +1047,8 @@ test_mapEither = do
 
 test_mapEitherWithKey :: Assertion
 test_mapEitherWithKey = do
+    mapEitherWithKey f (empty :: SMap) @?= (empty, empty)
+
     mapEitherWithKey f (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
      @?= (fromList [(1,2), (3,6)], fromList [(5,"aa"), (7,"zz")])
     mapEitherWithKey (\_ a -> Right a) (fromList [(5,"a"), (3,"b"), (1,"x"), (7,"z")])
@@ -930,6 +1063,8 @@ test_mapEitherWithKey = do
 
 test_split :: Assertion
 test_split = do
+    split 2 (empty :: SMap) @?= (empty, empty)
+
     split 2 (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3,"b"), (5,"a")])
     split 3 (fromList [(5,"a"), (3,"b")]) @?= (empty, singleton 5 "a")
     split 4 (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", singleton 5 "a")
@@ -944,6 +1079,8 @@ test_split = do
 
 test_splitLookup :: Assertion
 test_splitLookup = do
+    splitLookup 2 (empty :: SMap) @?= (empty, Nothing, empty)
+
     splitLookup 2 (fromList [(5,"a"), (3,"b")]) @?= (empty, Nothing, fromList [(3,"b"), (5,"a")])
     splitLookup 3 (fromList [(5,"a"), (3,"b")]) @?= (empty, Just "b", singleton 5 "a")
     splitLookup 4 (fromList [(5,"a"), (3,"b")]) @?= (singleton 3 "b", Nothing, singleton 5 "a")
@@ -961,6 +1098,10 @@ test_splitLookup = do
 
 test_isSubmapOfBy :: Assertion
 test_isSubmapOfBy = do
+    isSubmapOfBy (==) empty (empty :: IMap) @?= True
+    isSubmapOfBy (==) (fromList [(-1,1),(2,2)]) empty @?= False
+    isSubmapOfBy (==) empty (fromList [(-1,1),(2,2)]) @?= True
+
     isSubmapOfBy (==) (fromList [(fromEnum 'a',1)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOfBy (<=) (fromList [(fromEnum 'a',1)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOfBy (==) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
@@ -978,6 +1119,10 @@ test_isSubmapOfBy = do
 
 test_isSubmapOf :: Assertion
 test_isSubmapOf = do
+    isSubmapOf empty (empty :: IMap) @?= True
+    isSubmapOf (fromList [(-1,1),(2,2)]) empty @?= False
+    isSubmapOf empty (fromList [(-1,1),(2,2)]) @?= True
+
     isSubmapOf (fromList [(fromEnum 'a',1)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOf (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= True
     isSubmapOf (fromList [(fromEnum 'a',2)]) (fromList [(fromEnum 'a',1),(fromEnum 'b',2)]) @?= False
@@ -990,6 +1135,10 @@ test_isSubmapOf = do
 
 test_isProperSubmapOfBy :: Assertion
 test_isProperSubmapOfBy = do
+    isProperSubmapOfBy (==) empty (empty :: IMap) @?= False
+    isProperSubmapOfBy (==) (fromList [(-1,1),(2,2)]) empty @?= False
+    isProperSubmapOfBy (==) empty (fromList [(-1,1),(2,2)]) @?= True
+
     isProperSubmapOfBy (==) (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
     isProperSubmapOfBy (<=) (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
     isProperSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1),(2,2)]) @?= False
@@ -1004,6 +1153,10 @@ test_isProperSubmapOfBy = do
 
 test_isProperSubmapOf :: Assertion
 test_isProperSubmapOf = do
+    isProperSubmapOf empty (empty :: IMap) @?= False
+    isProperSubmapOf (fromList [(-1,1),(2,2)]) empty @?= False
+    isProperSubmapOf empty (fromList [(-1,1),(2,2)]) @?= True
+
     isProperSubmapOf (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
     isProperSubmapOf (fromList [(1,1),(2,2)]) (fromList [(1,1),(2,2)]) @?= False
     isProperSubmapOf (fromList [(1,1),(2,2)]) (fromList [(1,1)]) @?= False
@@ -1155,20 +1308,20 @@ forValidUnitTree :: Testable b => (SMap -> b) -> Property
 forValidUnitTree f = forValid f
 
 prop_valid :: Property
-prop_valid = forValidUnitTree $ \t -> valid t
+prop_valid = forValidUnitTree $ \t -> validProp t
 
 ----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
 
 prop_emptyValid :: Property
-prop_emptyValid = valid empty
+prop_emptyValid = validProp empty
 
 prop_singleton :: Int -> Int -> Property
 prop_singleton k x =
   case singleton k x of
     s ->
-      valid s .&&.
+      validProp s .&&.
       s === insert k x empty
 
 prop_insertLookup :: Int -> UMap -> Bool
@@ -1178,66 +1331,136 @@ prop_insertDelete :: Int -> UMap -> Property
 prop_insertDelete k t =
   lookup k t == Nothing ==>
     case delete k (insert k () t) of
-      t' -> valid t' .&&. t' === t
+      t' -> validProp t' .&&. t' === t
+
+prop_insertLookupWithKeyModel :: Fun (Key, A, A) A -> Key -> A -> IntMap A -> Property
+prop_insertLookupWithKeyModel fun k v m =
+    insertLookupWithKey (applyFun3 fun) k v m
+    === (lookup k m, insertWithKey (applyFun3 fun) k v m)
 
 prop_deleteNonMember :: Int -> UMap -> Property
-prop_deleteNonMember k t = (lookup k t == Nothing) ==> (delete k t == t)
+prop_deleteNonMember k t = notMember k t ==> (delete k t === t)
 
 ----------------------------------------------------------------
+
+prop_deleteModel :: Key -> IntMap A -> Property
+prop_deleteModel k m =
+    delete k m === fromList (List.filter ((/= k) . fst) (toList m))
+
+prop_adjustModel :: Fun A A -> Key -> IntMap A -> Property
+prop_adjustModel fun k m =
+    adjust (apply fun) k m === alter (fmap (apply fun)) k m
+
+prop_adjustWithKeyModel :: Fun (Key, A) A -> Key -> IntMap A -> Property
+prop_adjustWithKeyModel fun k m =
+    adjustWithKey (applyFun2 fun) k m === adjust (applyFun2 fun k) k m
+
+prop_updateModel :: Fun A (Maybe A) -> Key -> IntMap A -> Property
+prop_updateModel fun k m =
+    update (apply fun) k m === alter (>>= apply fun) k m
+
+prop_updateWithKeyModel :: Fun (Key, A) (Maybe A) -> Key -> IntMap A -> Property
+prop_updateWithKeyModel fun k m =
+    updateWithKey (applyFun2 fun) k m === update (applyFun2 fun k) k m
+
+prop_updateLookupWithKeyModel :: Fun (Key, A) (Maybe A) -> Key -> IntMap A -> Property
+prop_updateLookupWithKeyModel fun k m =
+    updateLookupWithKey (applyFun2 fun) k m
+    === (lookup k m, updateWithKey (applyFun2 fun) k m)
+
+prop_alterModel :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterModel fun k m =
+    alter (apply fun) k m
+    === let old = lookup k m
+         in case (old, apply fun old) of
+                (Nothing, Nothing) -> m
+                (Just _, Nothing) -> delete k m
+                (_, Just v) -> insert k v m
+
+prop_alterLookup :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterLookup fun k m =
+    lookup k (alter (apply fun) k m) === apply fun (lookup k m)
+
+prop_alterFModel :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterFModel fun k m =
+    alterF f k m
+    === let old = lookup k m
+         in (old, case (old, apply fun old) of
+                (Nothing, Nothing) -> m
+                (Just _, Nothing) -> delete k m
+                (_, Just v) -> insert k v m)
+  where
+    f mv = (mv, apply fun mv)
+
+prop_alterFLookup :: Fun (Maybe A) (Maybe A) -> Key -> IntMap A -> Property
+prop_alterFLookup fun k m =
+    fmap (lookup k) (alterF f k m) === f (lookup k m)
+  where
+    f mv = (mv, apply fun mv)
+
 
 prop_unionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_unionModel xs ys =
   case union (fromList xs) (fromList ys) of
     t ->
-      valid t .&&.
-      sort (keys t) === sort (nub (Prelude.map fst xs ++ Prelude.map fst ys))
+      validProp t .&&.
+      keys t === sortNub (Prelude.map fst xs ++ Prelude.map fst ys)
 
-prop_unionSingleton :: IMap -> Int -> Int -> Bool
-prop_unionSingleton t k x = union (singleton k x) t == insert k x t
+prop_unionSingleton :: IMap -> Int -> Int -> Property
+prop_unionSingleton t k x = union (singleton k x) t === insert k x t
 
-prop_unionAssoc :: IMap -> IMap -> IMap -> Bool
-prop_unionAssoc t1 t2 t3 = union t1 (union t2 t3) == union (union t1 t2) t3
+prop_unionAssoc :: IMap -> IMap -> IMap -> Property
+prop_unionAssoc t1 t2 t3 = union t1 (union t2 t3) === union (union t1 t2) t3
 
-prop_unionWith :: IMap -> IMap -> Bool
-prop_unionWith t1 t2 = (union t1 t2 == unionWith (\_ y -> y) t2 t1)
+prop_unionWith :: IMap -> IMap -> Property
+prop_unionWith t1 t2 = union t1 t2 === unionWith (\_ y -> y) t2 t1
 
-prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_unionSum :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_unionSum xs ys
-  = sum (elems (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys)))
-    == (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
+  = Foldable.sum (unionWith (+) (fromListWith (+) xs) (fromListWith (+) ys))
+    === (sum (Prelude.map snd xs) + sum (Prelude.map snd ys))
 
 prop_differenceModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_differenceModel xs ys =
   case difference (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
-      valid t .&&.
-      sort (keys t) === sort ((List.\\)
-                                 (nub (Prelude.map fst xs))
-                                 (nub (Prelude.map fst ys)))
+      validProp t .&&.
+      keys t === (List.\\) (sortNub (Prelude.map fst xs))
+                           (sortNub (Prelude.map fst ys))
+
+prop_differenceWithKeyModel :: Fun (Int, Int, Int) (Maybe Int) -> [(Int,Int)] -> [(Int,Int)] -> Property
+prop_differenceWithKeyModel f xs ys
+    = differenceWithKey (\k x y -> apply f (k, x, y)) (fromList xs') (fromList ys')
+      === fromList (Maybe.mapMaybe diffSingle xs')
+  where
+    xs' = sortNubBy (compare `on` fst) xs
+    ys' = sortNubBy (compare `on` fst) ys
+    diffSingle (k, x) = case List.lookup k ys' of
+        Nothing -> Just (k, x)
+        Just y -> fmap (\r -> (k, r)) (apply f (k, x, y))
 
 prop_intersectionModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionModel xs ys =
   case intersection (fromListWith (+) xs) (fromListWith (+) ys) of
     t ->
-      valid t .&&.
-      sort (keys t) === sort (nub ((List.intersect)
-                                      (Prelude.map fst xs)
-                                      (Prelude.map fst ys)))
+      validProp t .&&.
+      keys t === (List.intersect) (sortNub (Prelude.map fst xs))
+                                  (sortNub (Prelude.map fst ys))
 
-prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithModel xs ys
-  = toList (intersectionWith f (fromList xs') (fromList ys'))
-    == [(kx, f vx vy ) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+  = intersectionWith f (fromList xs') (fromList ys')
+    === fromList [(kx, f vx vy ) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
           f l r = l + 2 * r
 
-prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_intersectionWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_intersectionWithKeyModel xs ys
-  = toList (intersectionWithKey f (fromList xs') (fromList ys'))
-    == [(kx, f kx vx vy) | (kx, vx) <- List.sort xs', (ky, vy) <- ys', kx == ky]
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+  = intersectionWithKey f (fromList xs') (fromList ys')
+    === fromList [(kx, f kx vx vy) | (kx, vx) <- xs', (ky, vy) <- ys', kx == ky]
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
           f k l r = k + 2 * l + 3 * r
 
 prop_disjoint :: UMap -> UMap -> Property
@@ -1259,26 +1482,26 @@ prop_withoutKeys m s0 =
   where
     s = keysSet s0
 
-prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
+prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Property
 prop_mergeWithKeyModel xs ys
-  = and [ testMergeWithKey f keep_x keep_y
-        | f <- [ \_k x1  _x2 -> Just x1
-               , \_k _x1 x2  -> Just x2
-               , \_k _x1 _x2 -> Nothing
-               , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
-               ]
-        , keep_x <- [ True, False ]
-        , keep_y <- [ True, False ]
-        ]
+  = conjoin [ testMergeWithKey f keep_x keep_y
+            | f <- [ \_k x1  _x2 -> Just x1
+                   , \_k _x1 x2  -> Just x2
+                   , \_k _x1 _x2 -> Nothing
+                   , \k  x1  x2  -> if k `mod` 2 == 0 then Nothing else Just (2 * x1 + 3 * x2)
+                   ]
+            , keep_x <- [ True, False ]
+            , keep_y <- [ True, False ]
+            ]
 
-    where xs' = List.nubBy ((==) `on` fst) xs
-          ys' = List.nubBy ((==) `on` fst) ys
+    where xs' = sortNubBy (compare `on` fst) xs
+          ys' = sortNubBy (compare `on` fst) ys
 
           xm = fromList xs'
           ym = fromList ys'
 
           testMergeWithKey f keep_x keep_y
-            = toList (mergeWithKey f (keep keep_x) (keep keep_y) xm ym) == emulateMergeWithKey f keep_x keep_y
+            = mergeWithKey f (keep keep_x) (keep keep_y) xm ym === fromList (emulateMergeWithKey f keep_x keep_y)
               where keep False _ = empty
                     keep True  m = m
 
@@ -1302,7 +1525,7 @@ prop_merge_valid
     -> IntMap B
     -> Property
 prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
-  = valid m
+  = validProp m
   where
     m =
       merge
@@ -1323,28 +1546,46 @@ prop_mergeA_effects xs ys
     whenMissing = traverseMissing (\k _ -> ([k], ()))
     whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
 
+prop_unionEqMerge :: UMap -> UMap -> Property
+prop_unionEqMerge m1 m2 = PIM (union m1 m2) === PIM (merge preserveMissing preserveMissing (zipWithMatched (\_ x _ -> x)) m1 m2)
+
+prop_differenceEqMerge :: UMap -> UMap -> Property
+prop_differenceEqMerge m1 m2 = PIM (difference m1 m2) === PIM (merge preserveMissing dropMissing (zipWithMaybeMatched (\_ _ _ -> Nothing)) m1 m2)
+
+prop_intersectionEqMerge :: UMap -> UMap -> Property
+prop_intersectionEqMerge m1 m2 = PIM (intersection m1 m2) === PIM (merge dropMissing dropMissing (zipWithMatched (\_ x _ -> x)) m1 m2)
+
+prop_mergeEqMergeA :: Fun Int Bool -> Fun Int Bool -> Fun Int Bool -> UMap -> UMap -> Property
+prop_mergeEqMergeA pMiss1 pMiss2 pMatch m1 m2 = PIM merged === PIM mergedA where
+    merged = merge whenMiss1 whenMiss2 whenMatch m1 m2
+    mergedA = runIdentity (mergeA whenMiss1 whenMiss2 whenMatch m1 m2)
+
+    whenMiss1 = mapMaybeMissing (\k _ -> if apply pMiss1 k then Just () else Nothing)
+    whenMiss2 = mapMaybeMissing (\k _ -> if apply pMiss2 k then Just () else Nothing)
+    whenMatch = zipWithMaybeMatched (\k _ _ -> if apply pMatch k then Just () else Nothing)
+
 ----------------------------------------------------------------
 
 prop_ordered :: Property
 prop_ordered
   = forAll (choose (5,100)) $ \n ->
     let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
+    in fromAscList xs === fromList xs
 
-prop_list :: [Int] -> Bool
-prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
+prop_list :: [Int] -> Property
+prop_list xs = sortNub xs === [x | (x,()) <- toList (fromList [(x,()) | x <- xs])]
 
-prop_descList :: [Int] -> Bool
-prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
+prop_descList :: [Int] -> Property
+prop_descList xs = reverse (sortNub xs) === [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])]
 
-prop_ascDescList :: [Int] -> Bool
-prop_ascDescList xs = toAscList m == reverse (toDescList m)
+prop_ascDescList :: [Int] -> Property
+prop_ascDescList xs = toAscList m === reverse (toDescList m)
   where m = fromList $ zip xs $ repeat ()
 
 prop_fromList :: [Int] -> Property
 prop_fromList xs
   = case fromList (zip xs xs) of
-      t -> valid t .&&.
+      t -> validProp t .&&.
            t === fromAscList (zip sort_xs sort_xs) .&&.
            t === fromDistinctAscList (zip nub_sort_xs nub_sort_xs) .&&.
            t === List.foldr (uncurry insert) empty (zip xs xs)
@@ -1354,9 +1595,9 @@ prop_fromList xs
 ----------------------------------------------------------------
 
 prop_alter :: UMap -> Int -> Property
-prop_alter t k = valid t' .&&. case lookup k t of
-    Just _  -> (size t - 1) == size t' && lookup k t' == Nothing
-    Nothing -> (size t + 1) == size t' && lookup k t' /= Nothing
+prop_alter t k = validProp t' .&&. case lookup k t of
+    Just _  -> (size t - 1) === size t' .&&. lookup k t' === Nothing
+    Nothing -> (size t + 1) === size t' .&&. lookup k t' =/= Nothing
   where
     t' = alter f k t
     f Nothing   = Just ()
@@ -1366,14 +1607,14 @@ prop_alter t k = valid t' .&&. case lookup k t of
 -- Compare against the list model (after nub on keys)
 
 prop_index :: [Int] -> Property
-prop_index xs = length xs > 0 ==>
+prop_index xs =
   let m  = fromList (zip xs xs)
-  in  xs == [ m ! i | i <- xs ]
+  in  xs === [ m ! i | i <- xs ]
 
 prop_index_lookup :: [Int] -> Property
-prop_index_lookup xs = length xs > 0 ==>
+prop_index_lookup xs =
   let m  = fromList (zip xs xs)
-  in  (Prelude.map Just xs) == [ m !? i | i <- xs ]
+  in  (Prelude.map Just xs) === [ m !? i | i <- xs ]
 
 prop_null :: IMap -> Bool
 prop_null m = null m == (size m == 0)
@@ -1383,58 +1624,58 @@ prop_size im = sz === foldl' (\i _ -> i + 1) (0 :: Int) im .&&.
                sz === List.length (toList im)
   where sz = size im
 
-prop_member :: [Int] -> Int -> Bool
+prop_member :: [Int] -> Int -> Property
 prop_member xs n =
   let m  = fromList (zip xs xs)
-  in all (\k -> k `member` m == (k `elem` xs)) (n : xs)
+  in allProp (\k -> k `member` m === (k `elem` xs)) (n : xs)
 
-prop_notmember :: [Int] -> Int -> Bool
+prop_notmember :: [Int] -> Int -> Property
 prop_notmember xs n =
   let m  = fromList (zip xs xs)
-  in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
+  in allProp (\k -> k `notMember` m === (k `notElem` xs)) (n : xs)
 
-prop_lookup :: [(Int, Int)] -> Int -> Bool
+prop_lookup :: [(Int, Int)] -> Int -> Property
 prop_lookup xs n =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\k -> lookup k m == List.lookup k xs') (n : List.map fst xs')
+  in allProp (\k -> lookup k m === List.lookup k xs') (n : List.map fst xs')
 
-prop_find :: [(Int, Int)] -> Bool
+prop_find :: [(Int, Int)] -> Property
 prop_find xs =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\(k, v) -> m ! k == v) xs'
+  in allProp (\(k, v) -> m ! k === v) xs'
 
-prop_findWithDefault :: [(Int, Int)] -> Int -> Int -> Bool
+prop_findWithDefault :: [(Int, Int)] -> Int -> Int -> Property
 prop_findWithDefault xs n x =
-  let xs' = List.nubBy ((==) `on` fst) xs
+  let xs' = sortNubBy (compare `on` fst) xs
       m = fromList xs'
-  in all (\k -> findWithDefault x k m == maybe x id (List.lookup k xs')) (n : List.map fst xs')
+  in allProp (\k -> findWithDefault x k m === maybe x id (List.lookup k xs')) (n : List.map fst xs')
 
-test_lookupSomething :: (Int -> IntMap Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Bool
+test_lookupSomething :: (Int -> IntMap Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Property
 test_lookupSomething lookup' cmp xs =
-  let odd_sorted_xs = filter_odd $ sort $ List.nubBy ((==) `on` fst) xs
+  let odd_sorted_xs = filter_odd $ sortNubBy (compare `on` fst) xs
       t = fromList odd_sorted_xs
       test k = case List.filter ((`cmp` k) . fst) odd_sorted_xs of
-                 []             -> lookup' k t == Nothing
-                 cs | 0 `cmp` 1 -> lookup' k t == Just (last cs) -- we want largest such element
-                    | otherwise -> lookup' k t == Just (head cs) -- we want smallest such element
-  in all test (List.map fst xs)
+                 []             -> lookup' k t === Nothing
+                 cs | 0 `cmp` 1 -> lookup' k t === Just (last cs) -- we want largest such element
+                    | otherwise -> lookup' k t === Just (head cs) -- we want smallest such element
+  in allProp test (List.map fst xs)
 
   where filter_odd [] = []
         filter_odd [_] = []
         filter_odd (_ : o : xs) = o : filter_odd xs
 
-prop_lookupLT :: [(Int, Int)] -> Bool
+prop_lookupLT :: [(Int, Int)] -> Property
 prop_lookupLT = test_lookupSomething lookupLT (<)
 
-prop_lookupGT :: [(Int, Int)] -> Bool
+prop_lookupGT :: [(Int, Int)] -> Property
 prop_lookupGT = test_lookupSomething lookupGT (>)
 
-prop_lookupLE :: [(Int, Int)] -> Bool
+prop_lookupLE :: [(Int, Int)] -> Property
 prop_lookupLE = test_lookupSomething lookupLE (<=)
 
-prop_lookupGE :: [(Int, Int)] -> Bool
+prop_lookupGE :: [(Int, Int)] -> Property
 prop_lookupGE = test_lookupSomething lookupGE (>=)
 
 prop_lookupMin :: IntMap Int -> Property
@@ -1451,61 +1692,106 @@ prop_findMax (NonEmptyIntMap im) = findMax im === head (toDescList im)
 
 prop_deleteMinModel :: [(Int, Int)] -> Property
 prop_deleteMinModel ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMin m) == tail (sort xs)
+  in  deleteMin m === fromList (tail xs)
 
 prop_deleteMaxModel :: [(Int, Int)] -> Property
 prop_deleteMaxModel ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  toAscList (deleteMax m) == init (sort xs)
+  in deleteMax m === fromList (init xs)
 
 prop_filter :: Fun Int Bool -> [(Int, Int)] -> Property
-prop_filter p ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_filter p ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = filter (apply p) (fromList xs)
-  in  valid m .&&.
+  in  validProp m .&&.
       m === fromList (List.filter (apply p . snd) xs)
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
-prop_partition p ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_partition p ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m@(l, r) = partition (apply p) (fromList xs)
-  in  valid l .&&.
-      valid r .&&.
+  in  validProp l .&&.
+      validProp r .&&.
       m === let (a,b) = (List.partition (apply p . snd) xs)
             in (fromList a, fromList b)
 
+prop_partitionWithKey :: Fun (Int, Int) Bool -> [(Int, Int)] -> Property
+prop_partitionWithKey p ys =
+  let xs = sortNubBy (compare `on` fst) ys
+      m@(l, r) = partitionWithKey (curry (apply p)) (fromList xs)
+  in  validProp l .&&.
+      validProp r .&&.
+      m === let (a,b) = (List.partition (apply p) xs)
+            in (fromList a, fromList b)
+
+prop_mapMaybeModel :: Fun A (Maybe B) -> IntMap A -> Property
+prop_mapMaybeModel fun m =
+    mapMaybe (apply fun) m
+    === mapMaybeWithKey (const (apply fun)) m
+
+prop_mapMaybeWithKeyModel :: Fun (Key, A) (Maybe B) -> IntMap A -> Property
+prop_mapMaybeWithKeyModel fun m =
+    mapMaybeWithKey (applyFun2 fun) m
+    === fromList (Maybe.mapMaybe fPair (toList m))
+  where
+    fPair (k, v) = case apply fun (k, v) of
+        Nothing -> Nothing
+        Just v' -> Just (k, v')
+
+prop_mapEitherModel :: Fun A (Either B C) -> IntMap A -> Property
+prop_mapEitherModel fun m =
+    mapEither (apply fun) m
+    === mapEitherWithKey (const (apply fun)) m
+
+prop_mapEitherWithKeyModel :: Fun (Key, A) (Either B C) -> IntMap A -> Property
+prop_mapEitherWithKeyModel fun m =
+    mapEitherWithKey (applyFun2 fun) m
+    === ( mapMaybeWithKey (\k v -> maybeLeft (apply fun (k, v))) m
+        , mapMaybeWithKey (\k v -> maybeRight (apply fun (k, v))) m)
+  where
+    maybeLeft (Left v) = Just v
+    maybeLeft _ = Nothing
+
+    maybeRight (Right v) = Just v
+    maybeRight _ = Nothing
+
 prop_map :: Fun Int Int -> [(Int, Int)] -> Property
-prop_map f ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_map f ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  map (apply f) m == fromList [ (a, apply f b) | (a,b) <- xs ]
+  in  map (apply f) m === fromList [ (a, apply f b) | (a,b) <- xs ]
 
 prop_fmap :: Fun Int Int -> [(Int, Int)] -> Property
-prop_fmap f ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_fmap f ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  fmap (apply f) m == fromList [ (a, apply f b) | (a,b) <- xs ]
+  in  fmap (apply f) m === fromList [ (a, apply f b) | (a,b) <- xs ]
 
 prop_mapkeys :: Fun Int Int -> [(Int, Int)] -> Property
-prop_mapkeys f ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_mapkeys f ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  mapKeys (apply f) m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
+  in  mapKeys (apply f) m === (fromList $ sortNubBy (compare `on` fst) $ reverse [ (apply f a, b) | (a,b) <- xs])
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
-prop_splitModel n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_splitModel n ys =
+  let xs = sortNubBy (compare `on` fst) ys
       (l, r) = split n $ fromList xs
-  in  valid l .&&.
-      valid r .&&.
-      toAscList l === sort [(k, v) | (k,v) <- xs, k < n] .&&.
-      toAscList r === sort [(k, v) | (k,v) <- xs, k > n]
+  in  validProp l .&&.
+      validProp r .&&.
+      l === fromList (takeWhile ((< n) . fst) xs) .&&.
+      r === fromList (dropWhile ((<= n) . fst) xs)
 
-prop_splitRoot :: IMap -> Bool
-prop_splitRoot s = loop ls && (s == unions ls)
+prop_splitLookupModel :: Int -> IMap -> Property
+prop_splitLookupModel k m =
+   let (l, r) = split k m
+    in (l, lookup k m, r) === splitLookup k m
+
+prop_splitRoot :: IMap -> Property
+prop_splitRoot s = loop ls .&&. (s === unions ls)
  where
   ls = splitRoot s
   loop [] = True
@@ -1514,77 +1800,95 @@ prop_splitRoot s = loop ls && (s == unions ls)
                           , y <- toList (unions rst)
                           , x > y ]
 
+-- 'isSubmapOf' and friends short-circuit all over the place, so test them a
+-- lot more.
+-- TODO: Is there a way to increase the number of tests that still allows
+-- specifying a number at the command line? For example, multiply the
+-- passed-in number of tests by 100?
+increaseTests = withMaxSuccess 10000
+
+prop_isSubmapOf :: IMap -> IMap -> Property
+prop_isSubmapOf m1 m2 = increaseTests $ (m1 `isSubmapOf` m2)
+                                    === all (\(k, v) -> lookup k m2 == Just v) (toList m1)
+
+prop_isSubmapOfBy :: Fun (Int, Int) Bool -> IMap -> IMap -> Property
+prop_isSubmapOfBy p m1 m2 = increaseTests $ isSubmapOfBy (curry (apply p)) m1 m2
+                                        === all (\(k, v) -> member k m2 && apply p (v, m2 ! k)) (toList m1)
+
+prop_isProperSubmapOf :: IMap -> IMap -> Property
+prop_isProperSubmapOf m1 m2 = increaseTests $ (m1 `isProperSubmapOf` m2)
+                                          === (size m1 < size m2 && m1 `isSubmapOf` m2)
+
+prop_isProperSubmapOfBy :: Fun (Int, Int) Bool -> IMap -> IMap -> Property
+prop_isProperSubmapOfBy p m1 m2 = increaseTests $ isProperSubmapOfBy (curry (apply p)) m1 m2
+                                              === (size m1 < size m2 && isSubmapOfBy (curry (apply p)) m1 m2)
+
 prop_foldr :: Int -> [(Int, Int)] -> Property
-prop_foldr n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_foldr n ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  foldr (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr (:) [] m == List.map snd (List.sort xs) &&
-      foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldrWithKey (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldrWithKey (\k x xs -> (k,x):xs) [] m == List.sort xs
+  in  foldr (+) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldr (:) [] m === List.map snd xs .&&.
+      foldrWithKey (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldrWithKey (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
+      foldrWithKey (\k x xs -> (k,x):xs) [] m === xs
 
 
 prop_foldr' :: Int -> [(Int, Int)] -> Property
-prop_foldr' n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_foldr' n ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  foldr' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr' (:) [] m == List.map snd (List.sort xs) &&
-      foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldrWithKey' (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldrWithKey' (\k x xs -> (k,x):xs) [] m == List.sort xs
+  in  foldr' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldr' (:) [] m === List.map snd xs .&&.
+      foldrWithKey' (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldrWithKey' (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
+      foldrWithKey' (\k x xs -> (k,x):xs) [] m === xs
 
 prop_foldl :: Int -> [(Int, Int)] -> Property
-prop_foldl n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_foldl n ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  foldl (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-      foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldlWithKey (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldlWithKey (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+  in  foldl (+) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldl (flip (:)) [] m === reverse (List.map snd xs) .&&.
+      foldlWithKey (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldlWithKey (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
+      foldlWithKey (\xs k x -> (k,x):xs) [] m === reverse xs
 
 prop_foldl' :: Int -> [(Int, Int)] -> Property
-prop_foldl' n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
+prop_foldl' n ys =
+  let xs = sortNubBy (compare `on` fst) ys
       m  = fromList xs
-  in  foldl' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-      foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+  in  foldl' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldl' (flip (:)) [] m === reverse (List.map snd xs) .&&.
+      foldlWithKey' (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
+      foldlWithKey' (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
+      foldlWithKey' (\xs k x -> (k,x):xs) [] m === reverse xs
 
 prop_foldrEqFoldMap :: IntMap Int -> Property
 prop_foldrEqFoldMap m =
-  foldr (:) [] m === Data.Foldable.foldMap (:[]) m
+  foldr (:) [] m === Foldable.foldMap (:[]) m
 
 prop_foldrWithKeyEqFoldMapWithKey :: IntMap Int -> Property
 prop_foldrWithKeyEqFoldMapWithKey m =
   foldrWithKey (\k v -> ((k,v):)) [] m === foldMapWithKey (\k v -> ([(k,v)])) m
 
 prop_FoldableTraversableCompat :: Fun A [B] -> IntMap A -> Property
-prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
+prop_FoldableTraversableCompat fun m = Foldable.foldMap f m === foldMapDefault f m
   where f = apply fun
 
-prop_keysSet :: [(Int, Int)] -> Bool
+#if MIN_VERSION_base(4,8,0)
+prop_elem :: Int -> IMap -> Property
+prop_elem v m = Foldable.elem v m === List.elem v (elems m)
+#endif
+
+prop_keysSet :: [(Int, Int)] -> Property
 prop_keysSet xs =
-  keysSet (fromList xs) == IntSet.fromList (List.map fst xs)
+  keysSet (fromList xs) === IntSet.fromList (List.map fst xs)
 
-prop_fromSet :: [(Int, Int)] -> Bool
+prop_fromSet :: [(Int, Int)] -> Property
 prop_fromSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
-
-newtype Identity a = Identity a
-    deriving (Eq, Show)
-
-instance Functor Identity where
-  fmap f (Identity a) = Identity (f a)
-
-instance Applicative Identity where
-  pure a = Identity a
-  Identity f <*> Identity a = Identity (f a)
+  let xs = sortNubBy (compare `on` fst) ys
+  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) === fromList xs
 
 prop_traverseWithKey_identity :: IntMap A -> Property
 prop_traverseWithKey_identity mp = mp === newMap
@@ -1596,6 +1900,10 @@ prop_traverseWithKey_degrade_to_mapWithKey fun mp =
   where f = applyFun2 fun
         g k v = Identity $ f k v
         Identity newMap = traverseWithKey g mp
+
+-- While this isn't part of the IntMap API yet, it is still useful for testing traverseMaybeMissing
+traverseMaybeWithKey :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
+traverseMaybeWithKey = runWhenMissingAll . traverseMaybeMissing
 
 prop_traverseMaybeWithKey_identity :: IntMap A -> Property
 prop_traverseMaybeWithKey_identity mp = mp === newMap
@@ -1615,3 +1923,25 @@ prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
         -- so this also checks the order of traversing is the same.
   where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
+
+prop_filterMissingEqFilterWithKey :: Fun (Int, A) Bool -> IntMap A -> Property
+prop_filterMissingEqFilterWithKey fun m =
+    runIdentity (runWhenMissingAll (filterMissing f) m) === filterWithKey f m
+  where f = applyFun2 fun
+
+prop_filterAMissing_degrade_to_filterMissing :: Fun (Int, A) Bool -> IntMap A -> Property
+prop_filterAMissing_degrade_to_filterMissing fun m =
+    runIdentity (runWhenMissingAll (filterAMissing (\k a -> Identity (f k a))) m)
+    === runIdentity (runWhenMissingAll (filterMissing f) m)
+  where f = applyFun2 fun
+
+prop_mapMissingEqMapWithKey :: Fun (Int, A) Int -> IntMap A -> Property
+prop_mapMissingEqMapWithKey fun m =
+    runIdentity (runWhenMissingAll (mapMissing f) m) === mapWithKey f m
+  where f = applyFun2 fun
+
+prop_traverseMissing_degrade_to_mapMissing :: Fun (Int, A) Int -> IntMap A -> Property
+prop_traverseMissing_degrade_to_mapMissing fun m =
+    runIdentity (runWhenMissingAll (traverseMissing (\k a -> Identity (f k a))) m)
+    === runIdentity (runWhenMissingAll (mapMissing f) m)
+  where f = applyFun2 fun

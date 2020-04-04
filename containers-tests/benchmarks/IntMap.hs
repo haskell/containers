@@ -13,9 +13,12 @@ import Prelude hiding (lookup)
 main = do
     let m = M.fromAscList elems :: M.IntMap Int
     evaluate $ rnf [m]
+    evaluate $ rnf missKeys
     defaultMain
-        [ bench "lookup" $ whnf (lookup keys) m
-        , bench "insert" $ whnf (ins elems) M.empty
+        [ bench "size" $ whnf M.size m
+        , bench "lookup hit"  $ whnf (lookup keys) m
+        , bench "lookup miss" $ whnf (lookup missKeys) m
+        , bench "insert empty" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
         , bench "insertWith update" $ whnf (insWith elems) m
         , bench "insertWith' empty" $ whnf (insWith' elems) M.empty
@@ -28,13 +31,18 @@ main = do
         , bench "insertLookupWithKey update" $ whnf (insLookupWithKey elems) m
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ whnf (ins elems) m
+        , bench "foldlWithKey" $ whnf (M.foldlWithKey consPairL []) m
         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
-        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
-        , bench "delete" $ whnf (del keys) m
-        , bench "update" $ whnf (upd keys) m
-        , bench "updateLookupWithKey" $ whnf (upd' keys) m
-        , bench "alter"  $ whnf (alt keys) m
+        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPairR []) m
+        , bench "foldrWithKey'" $ whnf (M.foldrWithKey' sum 0) m
+        , bench "delete hit"  $ whnf (del keys) m
+        , bench "delete miss" $ whnf (del missKeys) m
+        , bench "update hit"  $ whnf (upd keys) m
+        , bench "update miss" $ whnf (upd missKeys) m
+        , bench "updateLookupWithKey hit"  $ whnf (upd' keys) m
+        , bench "updateLookupWithKey miss" $ whnf (upd' missKeys) m
+        , bench "alter hit"   $ whnf (alt keys) m
+        , bench "alter miss"  $ whnf (alt missKeys) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "fromList" $ whnf M.fromList elems
@@ -45,10 +53,12 @@ main = do
         ]
   where
     elems = zip keys values
-    keys = [1..2^12]
-    values = [1..2^12]
+    keys = [1,3..2^13]
+    missKeys = [0,2..2^13]
+    values = [1,3..2^13]
     sum k v1 v2 = k + v1 + v2
-    consPair k v xs = (k, v) : xs
+    consPairL xs k v = (k, v) : xs
+    consPairR k v xs = (k, v) : xs
 
 add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z

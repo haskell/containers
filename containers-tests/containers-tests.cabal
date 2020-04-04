@@ -55,10 +55,10 @@ library
     Data.IntMap.Internal
     Data.IntMap.Internal.Debug
     Data.IntMap.Lazy
+    Data.IntMap.Merge.Internal
     Data.IntMap.Merge.Lazy
     Data.IntMap.Merge.Strict
     Data.IntMap.Strict
-    Data.IntMap.Strict.Internal
     Data.IntSet
     Data.IntSet.Internal
     Data.Map
@@ -90,6 +90,7 @@ library
       Data.IntMap.Internal.DeprecatedDebug
       Data.Map.Internal.DeprecatedShowTree
       Utils.Containers.Internal.TypeError
+      Utils.Containers.Internal.IsList
 
   if impl(ghc >= 8.6)
     ghc-options: -Werror
@@ -319,14 +320,13 @@ test-suite intmap-lazy-properties
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
-  other-modules:    IntMapValidity
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
     , base     >=4.6     && <5
     , deepseq  >=1.2     && <1.5
 
-  ghc-options:      -O2
+  ghc-options:      -O1
   other-extensions:
     BangPatterns
     CPP
@@ -343,14 +343,13 @@ test-suite intmap-strict-properties
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
-  other-modules:    IntMapValidity
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
     , base     >=4.6     && <5
     , deepseq  >=1.2     && <1.5
 
-  ghc-options:      -O2
+  ghc-options:      -O1
   other-extensions:
     BangPatterns
     CPP
