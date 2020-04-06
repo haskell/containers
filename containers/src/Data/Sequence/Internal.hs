@@ -83,6 +83,8 @@ module Data.Sequence.Internal (
     Seq (..),
 #endif
     State(..),
+    RCountTop(..),
+    RCount(..),
     execState,
     foldDigit,
     foldNode,
@@ -514,6 +516,7 @@ instance Applicative Seq where
 #if MIN_VERSION_base(4,10,0)
     liftA2 = liftA2Seq
 #endif
+    xs <* ys = beforeSeq xs ys
 
 apSeq :: Seq (a -> b) -> Seq a -> Seq b
 apSeq fs xs@(Seq xsFT) = case viewl fs of
@@ -1375,6 +1378,229 @@ applicativeTree n !mSize m = case n of
     three = liftA3 Three m m m
     deepA = liftA3 (Deep (n * mSize))
     emptyTree = pure EmptyT
+
+data RCounted a = R0 | R1 | R2 | R3 | RFull (RCountTop a)
+  deriving Show
+
+data RTopN a = RTTwo | RTThree
+  deriving Show
+
+data RCountTop a = RCountTop !Int !(RTopN a) (RCount (Node a)) !(RTopN a)
+  deriving Show
+
+data RCountMid a = RCountMid
+  !Int  --total size
+  !(Node a)  -- End of the first
+  (RCount (Node a))
+  !(Node a)  -- Beginning of the last
+
+data RN a = ROne | RTwo
+  deriving Show
+
+data RCount a = REmpty | RSingle | RCountDeep !Int !(RN a) (RCount (Node a)) !(RN a)
+  deriving Show
+
+rreplicate :: Int -> Int -> RCounted a
+rreplicate n !mSize = case n of
+    0 -> R0
+    1 -> R1
+    2 -> R2
+    3 -> R3
+    _ -> RFull $ case n `quotRem` 3 of
+           (q,0) -> deeply RTThree (rreplicate' (q - 2) mSize') RTThree
+           (q,1) -> deeply RTTwo (rreplicate' (q - 1) mSize') RTTwo
+           (q,_) -> deeply RTThree (rreplicate' (q - 1) mSize') RTTwo
+      where !mSize' = 3 * mSize
+  where deeply = RCountTop (n * mSize)
+
+rreplicate' :: Int -> Int -> RCount a
+rreplicate' n !mSize = case n of
+    0 -> REmpty
+    1 -> RSingle
+    _ -> case n `quotRem` 3 of
+           (q,0) -> deeply RTwo (rreplicate' (q - 1) mSize') ROne
+           (q,1) -> deeply RTwo (rreplicate' (q - 1) mSize') RTwo
+           (q,_) -> deeply ROne (rreplicate' q mSize') ROne
+      where !mSize' = 3 * mSize
+  where deeply = RCountDeep (n * mSize)
+
+{-
+We could generalize beforeSeq quite easily to
+
+  beforeSeq :: (a -> c) -> Seq a -> Seq b -> Seq c
+
+This would let us add a rewrite rule
+
+  fmap f xs <* ys  ==>  beforeSeq f xs ys
+
+We don't currently bother because I don't yet know of a practical use for (<*)
+for sequences; a rewrite rule to optimize it seems like extreme overkill.
+-}
+
+beforeSeq :: Seq a -> Seq b -> Seq a
+beforeSeq xs ys = beforeSeq' xs (length ys)
+
+beforeSeq' :: Seq a -> Int -> Seq a
+beforeSeq' xs lenys = case viewl xs of
+  EmptyL -> empty
+  firstx :< xs' -> case viewr xs' of
+    EmptyR -> replicate lenys firstx
+    Seq xs''FT :> lastx -> case rreplicate lenys 1 of
+      R0 -> empty
+      R1 -> xs
+      R2 ->
+        Seq $ before2FT firstx xs''FT lastx
+      R3 ->
+        Seq $ before3FT firstx xs''FT lastx
+      RFull (RCountTop s pr m sf) -> Seq $
+        Deep (s * length xs)
+             (buildDigitTop (Elem firstx) pr)
+             (raptyMiddle 1 (Elem firstx) (Elem lastx)
+                 lift_elem
+                 xs''FT (RCountMid s (buildNodeTop (Elem firstx) sf) m (buildNodeTop (Elem lastx) pr)))
+             (buildDigitTop (Elem lastx) sf)
+        where
+          --lift_elem :: a -> (Node (Elem c), Node (Elem c), Node (Elem c))
+          lift_elem a =
+            ( buildNodeTop (Elem a) pr
+            , node3 (Elem a) (Elem a) (Elem a)
+            , buildNodeTop (Elem a) sf)
+  where
+    buildNodeTop :: c -> RTopN c -> Node c
+    buildNodeTop c RTTwo = Node2 2 c c
+    buildNodeTop c RTThree = Node3 3 c c c
+
+    buildDigitTop :: c -> RTopN c -> Digit c
+    buildDigitTop c RTTwo = Two c c
+    buildDigitTop c RTThree = Three c c c
+
+
+before2FT :: a -> FingerTree (Elem a) -> a -> FingerTree (Elem a)
+before2FT firstx xs lastx =
+                 Deep (size xs * 2 + 4)
+                      (Two ffx ffx)
+                      (mapMulFT 2 (\(Elem x) -> let fx = Elem x in Node2 2 fx fx) xs)
+                      (Two flx flx)
+  where
+    ffx = Elem firstx
+    flx = Elem lastx
+
+before3FT :: a -> FingerTree (Elem a) -> a -> FingerTree (Elem a)
+before3FT firstx xs lastx =
+                 Deep (size xs * 3 + 6)
+                      (Three ffx ffx ffx)
+                      (mapMulFT 3 (\(Elem x) -> let fx = Elem x in Node3 3 fx fx fx) xs)
+                      (Three flx flx flx)
+  where
+    ffx = Elem firstx
+    flx = Elem lastx
+
+
+raptyMiddle
+  :: Int
+  -> c
+  -> c
+  -> (a -> (Node c, Node c, Node c))
+  -> FingerTree (Elem a)
+  -> RCountMid c
+  -> FingerTree (Node c)
+
+-- Not at the bottom yet
+
+raptyMiddle !sizec
+           firstf
+           lastf
+           fill23
+           fs
+           (RCountMid s pr (RCountDeep sm prm mm sfm) sf)
+    = Deep (sm + s * (size fs + 1)) -- note: sm = s - size pr - size sf
+           (buildDigit firstf prm)
+           (raptyMiddle sizec'
+                        (Node3 sizec' firstf firstf firstf)
+                        (Node3 sizec' lastf lastf lastf)
+                        (blippy fill23)
+                        fs
+                        (RCountMid s pr' mm sf'))
+           (buildDigit lastf sfm)
+  where
+    pr' = rsquash firstf sfm pr
+    sf' = rsquash lastf prm sf
+
+    -- Squash the second argument down onto the right side of the first. The order
+    -- isn't semantically significant here (all the elements are the same), so we
+    -- don't need left and right versions as we do for liftA2.
+    rsquash :: a -> RN (Node a) -> Digit23 a -> Digit23 (Node a)
+    rsquash a dig m = case dig of
+        ROne -> node2 aaa m
+        RTwo -> node3 aaa aaa m
+      where
+        aaa = Node3 sizec' a a a
+
+    spr = size pr
+    ssf = size sf
+    sizec' = 3 * sizec
+
+    buildDigit :: c -> RN (Node c) -> Digit (Node c)
+    buildDigit c dig = case dig of
+        ROne -> One nc
+        RTwo -> Two nc nc
+      where
+        nc = Node3 (sizec * 3) c c c
+
+    blippy
+      :: (a -> (b, b, b))
+      -> a
+      -> (Node b, Node b, Node b)
+    blippy f a = (lft', fill', rght')
+      where
+        -- We use a lazy pattern match here so we can build
+        -- the 2-3 trees from the top down rather than from the
+        -- bottom up. I'm not actually sure which way is better.
+        -- I believe the big-O is the same regardless, because
+        -- we never reach into a 2-3 tree except to descend all
+        -- the way, but I can't guarantee it.
+        (lft, fill, rght) = f a
+        !fill' = Node3 (3 * sizec') fill fill fill
+        !lft' = case prm of
+                  ROne -> Node2 (ssf + sizec') lft fill
+                  RTwo -> Node3 (ssf + 2 * sizec') lft fill fill
+        !rght' = case sfm of
+                  ROne -> Node2 (spr + sizec') fill rght
+                  RTwo -> Node3 (spr + 2 * sizec') fill fill rght
+
+
+-- At the bottom
+
+raptyMiddle _sizec
+           _firstf
+           _lastf
+           fill23
+           fs
+           (RCountMid s pr REmpty sf)
+     = deep
+            (One pr)
+            (mapMulFT s swizzle fs)
+            (One sf)
+   where
+     -- swizzle ::  Elem a -> Node (Node c)
+     swizzle (Elem a) = case fill23 a of
+        (lft, _fill, rght) -> Node2 (size pr + size sf) lft rght
+
+raptyMiddle sizec
+           firstf
+           lastf
+           fill23
+           fs
+           (RCountMid s pr RSingle sf)
+     = deep
+            (Two pr (Node3 (3 * sizec) firstf firstf firstf))
+            (mapMulFT s swizzle fs)
+            (Two (Node3 (3 * sizec) lastf lastf lastf) sf)
+   where
+     -- swizzle ::  Elem a -> Node (Node c)
+     swizzle (Elem a) = case fill23 a of
+        (lft, fill, rght) -> Node3 (size pr + size sf + 3 * sizec) lft fill rght
+
 
 ------------------------------------------------------------------------
 -- Construction

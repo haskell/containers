@@ -143,6 +143,7 @@ main = defaultMain
        , testProperty "<*> NOINLINE" prop_ap_NOINLINE
        , testProperty "liftA2" prop_liftA2
        , testProperty "*>" prop_then
+       , testProperty "<*" prop_before
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
@@ -842,6 +843,15 @@ prop_liftA2 xs ys = valid q .&&.
 prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =
     toList' (xs *> ys) ~= (toList xs *> toList ys)
+
+-- We take only the length of the second sequence because
+-- the implementation throws the rest away; there's no
+-- point wasting test cases varying other aspects of that
+-- argument.
+prop_before :: Seq A -> NonNegative Int -> Bool
+prop_before xs (NonNegative lys) =
+    toList' (xs <* ys) ~= (toList xs <* toList ys)
+  where ys = replicate lys ()
 
 prop_intersperse :: A -> Seq A -> Bool
 prop_intersperse x xs =
