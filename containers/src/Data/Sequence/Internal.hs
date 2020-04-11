@@ -1378,7 +1378,6 @@ applicativeTree n !mSize m = case n of
     emptyTree = pure EmptyT
 
 data RCountMid a = RCountMid
-  !Int  --total size
   !(Node a)  -- End of the first
   !Int -- Number of units in the middle
   !(Node a)  -- Beginning of the last
@@ -1404,30 +1403,31 @@ beforeSeq' xs lenys = case viewl xs of
   EmptyL -> empty
   firstx :< xs' -> case viewr xs' of
     EmptyR -> replicate lenys firstx
-    Seq xs''FT :> lastx -> case lenys of
+    Seq midxs :> lastx -> case lenys of
       0 -> empty
       1 -> xs
       2 ->
-        Seq $ before2FT firstx xs''FT lastx
+        Seq $ before2FT firstx midxs lastx
       3 ->
-        Seq $ before3FT firstx xs''FT lastx
-      _ -> Seq $ case lenys `quotRem` 3 of
+        Seq $ before3FT firstx midxs lastx
+      _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
              (q,0) -> Deep (lenys * length xs) fd3
-               (raptyMiddle 1 fxE lxE lift_elem xs''FT (RCountMid lenys fn3 (q - 2) ln3))
+               (raptyMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
                ld3
                    where
                     lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
              (q,1) -> Deep (lenys * length xs) fd2
-               (raptyMiddle 1 fxE lxE lift_elem xs''FT (RCountMid lenys fn2 (q - 1) ln2))
+               (raptyMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
                ld2
                    where
                     lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
              (q,_) -> Deep (lenys * length xs) fd3
-               (raptyMiddle 1 fxE lxE lift_elem xs''FT (RCountMid lenys fn2 (q - 1) ln3))
+               (raptyMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
                ld2
                    where
                     lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
         where
+          raptyMiddle_ = raptyMiddle midxs lenys 3 fn3 ln3
           fxE = Elem firstx
           lxE = Elem lastx
           fd2 = Two fxE fxE
@@ -1461,100 +1461,107 @@ before3FT firstx xs lastx =
     ffx = Elem firstx
     flx = Elem lastx
 
+-- Invariants for raptyMiddle:
+--
+-- 1. midxs is constant: the middle bit in the original sequence (xs = (first <: Seq midxs :> last))
+-- 2. lenys is constant: the length of ys
+-- 3. firstx and pr repeat the same element: the first one in the original sequence xs
+-- 4. lastx  and sf repeat the same element: the last  one in the original sequence xs
+-- 5. sizec = size firstx = size lastx
+-- 6. lenys = deep_count * sizec + size pr + size pf
+-- 7. let (lft, fill, rght) = fill23 x, for any x:
+--      7a. All three sequences repeat the element x
+--      7b. size fill = sizec
+--      7c. size lft  = size sf
+--      7d. size rght = size pr
+-- 8. size result = deep_count * sizec + lenys * (size midxs + 1)
 raptyMiddle
-  :: Int
-  -> c
-  -> c
-  -> (a -> (Node c, Node c, Node c))
-  -> FingerTree (Elem a)
-  -> RCountMid c
-  -> FingerTree (Node c)
+  :: FingerTree (Elem a)  -- midxs
+  -> Int                  -- lenys
+  -> Int                  -- sizec
+  -> Node c               -- firstx
+  -> Node c               -- lastx
+  -> (a -> (Node c, Node c, Node c))  -- fill23
+  -> RCountMid c          -- (RCountMid pr deep_count sf)
+  -> FingerTree (Node c)  -- result
 
 -- At the bottom
 
-raptyMiddle !_sizec
-           _firstf
-           _lastf
-           fill23
-           fs
-           (RCountMid s pr 0 sf)
-     = deep
+raptyMiddle midxs lenys
+            !_sizec
+            _firstx
+            _lastx
+            fill23
+            (RCountMid pr 0 sf)
+     = Deep (lenys * (size midxs + 1))
             (One pr)
-            (mapMulFT s swizzle fs)
+            (mapMulFT lenys swizzle midxs)
             (One sf)
    where
      -- swizzle ::  Elem a -> Node (Node c)
      swizzle (Elem a) = case fill23 a of
         (lft, _fill, rght) -> Node2 (size pr + size sf) lft rght
 
-raptyMiddle sizec
-           firstf
-           lastf
-           fill23
-           fs
-           (RCountMid s pr 1 sf)
-     = deep
-            (Two pr (Node3 (3 * sizec) firstf firstf firstf))
-            (mapMulFT s swizzle fs)
-            (Two (Node3 (3 * sizec) lastf lastf lastf) sf)
+raptyMiddle midxs lenys
+            !sizec
+            firstx
+            lastx
+            fill23
+            (RCountMid pr 1 sf)
+     = Deep (sizec + lenys * (size midxs + 1))
+            (Two pr firstx)
+            (mapMulFT lenys swizzle midxs)
+            (Two lastx sf)
    where
      -- swizzle ::  Elem a -> Node (Node c)
      swizzle (Elem a) = case fill23 a of
-        (lft, fill, rght) -> Node3 (size pr + size sf + 3 * sizec) lft fill rght
+        (lft, fill, rght) -> Node3 (size pr + size sf + sizec) lft fill rght
 
 -- Not at the bottom yet
 
-raptyMiddle sizec
-           firstf
-           lastf
-           fill23
-           fs
-           (RCountMid s pr deep_count sf)
+raptyMiddle midxs lenys
+            !sizec
+            firstx
+            lastx
+            fill23
+            (RCountMid pr deep_count sf)  -- deep_count > 1
   = case deep_count `quotRem` 3 of
       (q,0)
-       -> Deep (deep_count * sizec * 3 + s * (size fs + 1))
-        (Two fn3 fn3)
-        (raptyMiddle sizec'
-           fn3
-           ln3
+       -> Deep (deep_count * sizec + lenys * (size midxs + 1))
+        (Two firstx firstx)
+        (raptyMiddle_
            (blippy TOT3 TOT2 fill23)
-           fs
-           (RCountMid s pr' (q - 1) sf'))
-        (One ln3)
+           (RCountMid pr' (q - 1) sf'))
+        (One lastx)
        where
-        pr' = node2 fn3 pr
-        sf' = node3 ln3 ln3 sf
+        pr' = node2 firstx pr
+        sf' = node3 lastx lastx sf
       (q,1)
-       -> Deep (deep_count * sizec * 3 + s * (size fs + 1))
-        (Two fn3 fn3)
-        (raptyMiddle sizec'
-           fn3
-           ln3
+       -> Deep (deep_count * sizec + lenys * (size midxs + 1))
+        (Two firstx firstx)
+        (raptyMiddle_
            (blippy TOT3 TOT3 fill23)
-           fs
-           (RCountMid s pr' (q - 1) sf'))
-        (Two ln3 ln3)
+           (RCountMid pr' (q - 1) sf'))
+        (Two lastx lastx)
        where
-        pr' = node3 fn3 fn3 pr
-        sf' = node3 ln3 ln3 sf
+        pr' = node3 firstx firstx pr
+        sf' = node3 lastx lastx sf
       (q,_)
-       -> Deep (deep_count * sizec * 3 + s * (size fs + 1))
-        (One fn3)
-        (raptyMiddle sizec'
-           fn3
-           ln3
+       -> Deep (deep_count * sizec + lenys * (size midxs + 1))
+        (One firstx)
+        (raptyMiddle_
            (blippy TOT2 TOT2 fill23)
-           fs
-           (RCountMid s pr' q sf'))
-        (One ln3)
+           (RCountMid pr' q sf'))
+        (One lastx)
        where
-        pr' = node2 fn3 pr
-        sf' = node2 ln3 sf
+        pr' = node2 firstx pr
+        sf' = node2 lastx sf
 
   where
+    raptyMiddle_ = raptyMiddle midxs lenys sizec' fn3 ln3
     sizec' = 3 * sizec
-    fn3 = Node3 sizec' firstf firstf firstf
-    ln3 = Node3 sizec' lastf lastf lastf
+    fn3 = Node3 sizec' firstx firstx firstx
+    ln3 = Node3 sizec' lastx lastx lastx
     spr = size pr
     ssf = size sf
     blippy
@@ -1571,13 +1578,13 @@ raptyMiddle sizec
         -- we never reach into a 2-3 tree except to descend all
         -- the way, but I can't guarantee it.
         (lft, fill, rght) = f a
-        !fill' = Node3 (3 * sizec') fill fill fill
+        !fill' = Node3 (3 * sizec) fill fill fill
         !lft' = case tl of
-          TOT2 -> Node2 (ssf + sizec') lft fill
-          TOT3 -> Node3 (ssf + 2 * sizec') lft fill fill
+          TOT2 -> Node2 (ssf + sizec) lft fill
+          TOT3 -> Node3 (ssf + 2 * sizec) lft fill fill
         !rght' = case tr of
-          TOT2 -> Node2 (spr + sizec') rght fill
-          TOT3 -> Node3 (spr + 2 * sizec') rght fill fill
+          TOT2 -> Node2 (spr + sizec) rght fill
+          TOT3 -> Node3 (spr + 2 * sizec) rght fill fill
 
 data TwoOrThree = TOT2 | TOT3
 
