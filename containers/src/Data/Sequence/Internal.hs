@@ -531,7 +531,7 @@ apSeq fs xs@(Seq xsFT) = case viewl fs of
          RigidFull r@(Rigid s pr _m sf) -> Seq $
                Deep (s * length fs)
                     (fmap (fmap firstf) (nodeToDigit pr))
-                    (aptyMiddle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                    (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
                     (fmap (fmap lastf) (nodeToDigit sf))
 {-# NOINLINE [1] apSeq #-}
 
@@ -591,7 +591,7 @@ liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
       RigidFull r@(Rigid s pr _m sf) -> Seq $
         Deep (s * length xs)
              (fmap (fmap (f firstx)) (nodeToDigit pr))
-             (aptyMiddle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
+             (liftA2Middle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
              (fmap (fmap (f lastx)) (nodeToDigit sf))
   where
     lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
@@ -638,65 +638,128 @@ data Digit12 a = One12 a | Two12 a a
 -- digit of a 'Rigid' tree.
 type Digit23 a = Node a
 
--- | 'aptyMiddle' does most of the hard work of computing @fs<*>xs@.  It
+-- | 'liftA2Middle' does most of the hard work of computing @liftA2 f xs ys@.  It
 -- produces the center part of a finger tree, with a prefix corresponding to
--- the prefix of @xs@ and a suffix corresponding to the suffix of @xs@ omitted;
+-- the first element of @xs@ and a suffix corresponding to its last element omitted;
 -- the missing suffix and prefix are added by the caller.  For the recursive
 -- call, it squashes the prefix and the suffix into the center tree. Once it
 -- gets to the bottom, it turns the tree into a 2-3 tree, applies 'mapMulFT' to
 -- produce the main body, and glues all the pieces together.
 --
--- @map23@ itself is a bit horrifying because of the nested types involved. Its
+-- @f@ itself is a bit horrifying because of the nested types involved. Its
 -- job is to map over the *elements* of a 2-3 tree, rather than the subtrees.
 -- If we used a higher-order nested type with MPTC, we could probably use a
--- class, but as it is we have to build up @map23@ explicitly through the
+-- class, but as it is we have to build up @f@ explicitly through the
 -- recursion.
-aptyMiddle
-  :: (b -> c)
-     -> (b -> c)
-     -> (a -> b -> c)
-     -> FingerTree (Elem a)
-     -> Rigid b
-     -> FingerTree (Node c)
+--
+-- === Description of parameters
+--
+-- ==== Types
+--
+-- @a@ remains constant through recursive calls (in the @DeepTh@ case),
+-- while @b@ and @c@ do not: 'liftAMiddle' calls itself at types @Node b@ and
+-- @Node c@.
+--
+-- ==== Values
+--
+-- 'liftA2Middle' is used when the original @xs :: Sequence a@ has at
+-- least two elements, so it can be decomposed by taking off the first and last
+-- elements:
+--
+-- > xs = firstx <: midxs :> lastx
+--
+-- - the first two arguments @ffirstx, flastx :: b -> c@ are equal to
+--   @f firstx@ and @f lastx@, where @f :: a -> b -> c@ is the third argument.
+--   This ensures sharing when @f@ computes some data upon being partially
+--   applied to its first argument. The way @f@ gets accumulated also ensures
+--   sharing for the middle section.
+--
+-- - the fourth argument is the middle part @midxs@, always constant.
+--
+-- - the last argument, a tuple of type @Rigid b@, holds all the elements of
+--   @ys@, in three parts: a middle part around which the recursion is
+--   structured, surrounded by a prefix and a suffix that accumulate
+--   elements on the side as we walk down the middle.
+--
+-- === Invariants
+--
+-- > 1. Viewing the various trees as the lists they represent
+-- >    (the types of the toList functions are given a few paragraphs below):
+-- >
+-- >    toListFTN result
+-- >      =  (ffirstx                    <$> (toListThinN m ++ toListD sf))
+-- >      ++ (f      <$> toListFTE midxs <*> (toListD pr ++ toListThinN m ++ toListD sf))
+-- >      ++ (flastx                     <$> (toListD pr ++ toListThinN m))
+-- >
+-- > 2. s = size m + size pr + size sf
+-- >
+-- > 3. size (ffirstx y) = size (flastx y) = size (f x y) = size y
+-- >      for any (x :: a) (y :: b)
+--
+-- Projecting invariant 1 on sizes, using 2 and 3 to simplify, we have the
+-- following corollary.
+-- It is weaker than invariant 1, but it may be easier to keep track of.
+--
+-- > 1a. size result = s * (size midxs + 1) + size m
+--
+-- In invariant 1, the types of the auxiliary functions are as follows
+-- for reference:
+--
+-- > toListFTE   :: FingerTree (Elem a) -> [a]
+-- > toListFTN   :: FingerTree (Node c) -> [c]
+-- > toListThinN :: Thin (Node b) -> [b]
+-- > toListD     :: Digit12 b -> [b]
+liftA2Middle
+  :: (b -> c)              -- ^ @ffirstx@
+  -> (b -> c)              -- ^ @flastx@
+  -> (a -> b -> c)         -- ^ @f@
+  -> FingerTree (Elem a)   -- ^ @midxs@
+  -> Rigid b               -- ^ @Rigid s pr m sf@ (@pr@: prefix, @sf@: suffix)
+  -> FingerTree (Node c)
 
 -- Not at the bottom yet
 
-aptyMiddle firstf
-           lastf
-           map23
-           fs
-           (Rigid s pr (DeepTh sm prm mm sfm) sf)
-    = Deep (sm + s * (size fs + 1)) -- note: sm = s - size pr - size sf
-           (fmap (fmap firstf) (digit12ToDigit prm))
-           (aptyMiddle (fmap firstf)
-                       (fmap lastf)
-                       (fmap . map23)
-                       fs
-                       (Rigid s (squashL pr prm) mm (squashR sfm sf)))
-           (fmap (fmap lastf) (digit12ToDigit sfm))
+liftA2Middle
+    ffirstx
+    flastx
+    f
+    midxs
+    (Rigid s pr (DeepTh sm prm mm sfm) sf)
+    -- note: size (DeepTh sm pr mm sfm) = sm = size pr + size mm + size sfm
+    = Deep (sm + s * (size midxs + 1)) -- note: sm = s - size pr - size sf
+           (fmap (fmap ffirstx) (digit12ToDigit prm))
+           (liftA2Middle
+               (fmap ffirstx)
+               (fmap flastx)
+               (fmap . f)
+               midxs
+               (Rigid s (squashL pr prm) mm (squashR sfm sf)))
+           (fmap (fmap flastx) (digit12ToDigit sfm))
 
 -- At the bottom
 
-aptyMiddle firstf
-           lastf
-           map23
-           fs
-           (Rigid s pr EmptyTh sf)
-     = deep
-            (One (fmap firstf sf))
-            (mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs)
-            (One (fmap lastf pr))
+liftA2Middle
+    ffirstx
+    flastx
+    f
+    midxs
+    (Rigid s pr EmptyTh sf)
+    = deep
+           (One (fmap ffirstx sf))
+           (mapMulFT s (\(Elem x) -> fmap (fmap (f x)) converted) midxs)
+           (One (fmap flastx pr))
    where converted = node2 pr sf
 
-aptyMiddle firstf
-           lastf
-           map23
-           fs
-           (Rigid s pr (SingleTh q) sf)
-     = deep
-            (Two (fmap firstf q) (fmap firstf sf))
-            (mapMulFT s (\(Elem f) -> fmap (fmap (map23 f)) converted) fs)
-            (Two (fmap lastf pr) (fmap lastf q))
+liftA2Middle
+    ffirstx
+    flastx
+    f
+    midxs
+    (Rigid s pr (SingleTh q) sf)
+    = deep
+           (Two (fmap ffirstx q) (fmap ffirstx sf))
+           (mapMulFT s (\(Elem x) -> fmap (fmap (f x)) converted) midxs)
+           (Two (fmap flastx pr) (fmap flastx q))
    where converted = node3 pr q sf
 
 digit12ToDigit :: Digit12 a -> Digit a
