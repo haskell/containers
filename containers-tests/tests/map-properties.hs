@@ -11,7 +11,10 @@ import Data.Map.Internal (Map (..), link2, link, bin)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
-import Data.Functor.Identity (Identity(runIdentity))
+import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Class
+import Control.Monad (liftM4)
+import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -248,29 +251,92 @@ main = defaultMain
          ]
 
 {--------------------------------------------------------------------
-  Arbitrary trees
+  Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
-instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
-  arbitrary = sized (arbtree 0 maxkey)
-    where maxkey = 10^(5 :: Int)
 
-          arbtree :: (Enum k, Arbitrary a) => Int -> Int -> Int -> Gen (Map k a)
-          arbtree lo hi n = do t <- gentree lo hi n
-                               if balanced t then return t else arbtree lo hi n
-            where gentree lo hi n
-                    | n <= 0        = return Tip
-                    | lo >= hi      = return Tip
-                    | otherwise     = do{ x  <- arbitrary
-                                        ; i  <- choose (lo,hi)
-                                        ; m  <- choose (1,70)
-                                        ; let (ml,mr)  | m==(1::Int)= (1,2)
-                                                       | m==2       = (2,1)
-                                                       | m==3       = (1,1)
-                                                       | otherwise  = (2,2)
-                                        ; l  <- gentree lo (i-1) (n `div` ml)
-                                        ; r  <- gentree (i+1) hi (n `div` mr)
-                                        ; return (bin (toEnum i) x l r)
-                                        }
+-- | The IsInt class lets us constrain a type variable to be Int in an entirely
+-- standard way. The constraint @ IsInt a @ is essentially equivalent to the
+-- GHC-only constraint @ a ~ Int @, but @ IsInt @ requires manual intervention
+-- to use. If ~ is ever standardized, we should certainly use it instead.
+-- Earlier versions used an Enum constraint, but this is confusing because
+-- not all Enum instances will work properly for the Arbitrary instance here.
+class (Show a, Read a, Integral a, Arbitrary a) => IsInt a where
+  fromIntF :: f Int -> f a
+
+instance IsInt Int where
+  fromIntF = id
+
+-- | Convert an Int to any instance of IsInt
+fromInt :: IsInt a => Int -> a
+fromInt = runIdentity . fromIntF . Identity
+
+{- We don't actually need this, but we can add it if we ever do
+toIntF :: IsInt a => g a -> g Int
+toIntF = unf . fromIntF . F $ id
+
+newtype F g a b = F {unf :: g b -> a}
+
+toInt :: IsInt a => a -> Int
+toInt = runIdentity . toIntF . Identity -}
+
+
+-- How much the minimum key of an arbitrary map should vary
+positionFactor :: Int
+positionFactor = 1
+
+-- How much the gap between consecutive keys in an arbitrary
+-- map should vary
+gapRange :: Int
+gapRange = 5
+
+instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
+  arbitrary = sized (\sz0 -> do
+        sz <- choose (0, sz0)
+        middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
+        let shift = (sz * (gapRange) + 1) `quot` 2
+            start = middle - shift
+        t <- evalStateT (mkArb step sz) start
+        if valid t then pure t else error "Test generated invalid tree!")
+    where
+      step = do
+        i <- get
+        diff <- lift $ choose (1, gapRange)
+        let i' = i + diff
+        put i'
+        pure (fromInt i')
+
+class Monad m => MonadGen m where
+  liftGen :: Gen a -> m a
+instance MonadGen Gen where
+  liftGen = id
+instance MonadGen m => MonadGen (StateT s m) where
+  liftGen = lift . liftGen
+
+-- | Given an action that produces successively larger keys and
+-- a size, produce a map of arbitrary shape with exactly that size.
+mkArb :: (MonadGen m, Arbitrary v) => m k -> Int -> m (Map k v)
+mkArb step n
+  | n <= 0 = return Tip
+  | n == 1 = do
+     k <- step
+     v <- liftGen arbitrary
+     return (singleton k v)
+  | n == 2 = do
+     dir <- liftGen arbitrary
+     p <- step
+     q <- step
+     vOuter <- liftGen arbitrary
+     vInner <- liftGen arbitrary
+     if dir
+       then return (Bin 2 q vOuter (singleton p vInner) Tip)
+       else return (Bin 2 p vOuter Tip (singleton q vInner))
+  | otherwise = do
+      -- This assumes a balance factor of delta = 3
+      let upper = (3*(n - 1)) `quot` 4
+      let lower = (n + 2) `quot` 4
+      ln <- liftGen $ choose (lower, upper)
+      let rn = n - ln - 1
+      liftM4 (\lt x v rt -> Bin n x v lt rt) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
