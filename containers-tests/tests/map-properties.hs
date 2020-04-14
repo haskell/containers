@@ -1453,21 +1453,17 @@ prop_splitModel n ys = length ys > 0 ==>
 prop_fold :: Map Int Int -> Property
 prop_fold m = size m > 0 ==>
   let xs = toList m
-  in  getSum (Foldable.fold (map Sum m)) == sum (List.map snd xs) &&
-      Foldable.fold (map (:[]) m) == List.map snd xs
+  in  Foldable.fold (map (:[]) m) == List.map snd xs
 
 prop_foldMap :: Map Int Int -> Property
 prop_foldMap m = size m > 0 ==>
   let xs = toList m
-  in  getSum (Foldable.foldMap Sum m) == sum (List.map snd xs) &&
-      Foldable.foldMap (:[]) m == List.map snd xs
+  in  Foldable.foldMap (:[]) m == List.map snd xs
 
 prop_foldMapWithKey :: Map Int Int -> Property
 prop_foldMapWithKey m = size m > 0 ==>
   let xs = toList m
-  in  getSum (foldMapWithKey (\_ v -> Sum v) m) == sum (List.map snd xs) &&
-      getSum (foldMapWithKey (\k _ -> Sum k) m) == sum (List.map fst xs) &&
-      foldMapWithKey (\k v -> [k,v]) m == concatMap (\(k,v) -> [k,v]) xs
+  in  foldMapWithKey (\k v -> [k,v]) m == concatMap (\(k,v) -> [k,v]) xs
 
 prop_foldr :: Int -> Map Int Int -> Property
 prop_foldr n m = size m > 0 ==>
@@ -1529,18 +1525,12 @@ prop_foldlWithKey' n m = size m > 0 ==>
 prop_bifold :: Map Int Int -> Property
 prop_bifold m = size m > 0 ==>
   let xs = toList m
-  in  -- This seems to fit the pattern of the other test cases, but isn't valid here:
-      --getSum (Bifoldable.bifold (mapKeys (const mempty) (map Sum m))) == sum (List.map fst xs) &&
-      -- since it would map all of the keys to the same thing, thus removing all but one element.
-      getSum (Bifoldable.bifold (mapKeys Sum (map (const mempty) m))) == sum (List.map fst xs) &&
-      Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) xs
+  in  Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) xs
 
 prop_bifoldMap :: Map Int Int -> Property
 prop_bifoldMap m = size m > 0 ==>
   let xs = toList m
-  in  getSum (Bifoldable.bifoldMap (const mempty) Sum m) == sum (List.map snd xs) &&
-      getSum (Bifoldable.bifoldMap Sum (const mempty) m) == sum (List.map fst xs) &&
-      Bifoldable.bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) xs
+  in  Bifoldable.bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) xs
 
 prop_bifoldr :: Int -> Map Int Int -> Property
 prop_bifoldr n m = size m > 0 ==>
