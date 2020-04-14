@@ -218,10 +218,23 @@ main = defaultMain
          , testProperty "split"                prop_splitModel
          , testProperty "fold"                 prop_fold
          , testProperty "foldMap"              prop_foldMap
+         , testProperty "foldMapWithKey"       prop_foldMapWithKey
          , testProperty "foldr"                prop_foldr
+         , testProperty "foldrWithKey"         prop_foldrWithKey
          , testProperty "foldr'"               prop_foldr'
+         , testProperty "foldrWithKey'"        prop_foldrWithKey'
          , testProperty "foldl"                prop_foldl
+         , testProperty "foldlWithKey"         prop_foldlWithKey
          , testProperty "foldl'"               prop_foldl'
+         , testProperty "foldlWithKey'"        prop_foldlWithKey'
+#if MIN_VERSION_base(4,10,0)
+         , testProperty "bifold"               prop_bifold
+         , testProperty "bifoldMap"            prop_bifoldMap
+         , testProperty "bifoldr"              prop_bifoldr
+         , testProperty "bifoldr'"             prop_bifoldr'
+         , testProperty "bifoldl"              prop_bifoldl
+         , testProperty "bifoldl'"             prop_bifoldl'
+#endif
          , testProperty "keysSet"              prop_keysSet
          , testProperty "fromSet"              prop_fromSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
@@ -1376,13 +1389,6 @@ prop_fold ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  getSum (Foldable.fold (map Sum m)) == sum (List.map snd xs) &&
-#if MIN_VERSION_base(4,10,0)
-      -- This seems to fit the pattern of the other test cases, but isn't valid here:
-      --getSum (Bifoldable.bifold (mapKeys (const mempty) (map Sum m))) == sum (List.map fst xs) &&
-      -- since it would map all of the keys to the same thing, thus removing all but one element.
-      getSum (Bifoldable.bifold (mapKeys Sum (map (const mempty) m))) == sum (List.map fst xs) &&
-      Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
-#endif
       Foldable.fold (map (:[]) m) == List.map snd (List.sort xs)
 
 prop_foldMap :: [(Int, Int)] -> Property
@@ -1390,13 +1396,13 @@ prop_foldMap ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  getSum (Foldable.foldMap Sum m) == sum (List.map snd xs) &&
-#if MIN_VERSION_base(4,10,0)
-      getSum (Bifoldable.bifoldMap (const mempty) Sum m) == sum (List.map snd xs) &&
-      getSum (Bifoldable.bifoldMap Sum (const mempty) m) == sum (List.map fst xs) &&
-      Bifoldable.bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
-#endif
-      Foldable.foldMap (:[]) m == List.map snd (List.sort xs) &&
-      getSum (foldMapWithKey (\_ v -> Sum v) m) == sum (List.map snd xs) &&
+      Foldable.foldMap (:[]) m == List.map snd (List.sort xs)
+
+prop_foldMapWithKey :: [(Int, Int)] -> Property
+prop_foldMapWithKey ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  getSum (foldMapWithKey (\_ v -> Sum v) m) == sum (List.map snd xs) &&
       getSum (foldMapWithKey (\k _ -> Sum k) m) == sum (List.map fst xs) &&
       foldMapWithKey (\k v -> [k,v]) m == concatMap (\(k,v) -> [k,v]) (List.sort xs)
 
@@ -1405,13 +1411,13 @@ prop_foldr n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  foldr (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr (:) [] m == List.map snd (List.sort xs) &&
-#if MIN_VERSION_base(4,10,0)
-      Bifoldable.bifoldr (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
-      Bifoldable.bifoldr (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
-      Bifoldable.bifoldr (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
-#endif
-      foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldr (:) [] m == List.map snd (List.sort xs)
+
+prop_foldrWithKey :: Int -> [(Int, Int)] -> Property
+prop_foldrWithKey n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldrWithKey (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldrWithKey (\k x xs -> (k,x):xs) [] m == List.sort xs
 
@@ -1421,13 +1427,13 @@ prop_foldr' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  foldr' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr' (:) [] m == List.map snd (List.sort xs) &&
-#if MIN_VERSION_base(4,10,0)
-      Bifoldable.bifoldr' (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
-      Bifoldable.bifoldr' (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
-      Bifoldable.bifoldr' (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
-#endif
-      foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldr' (:) [] m == List.map snd (List.sort xs)
+
+prop_foldrWithKey' :: Int -> [(Int, Int)] -> Property
+prop_foldrWithKey' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldrWithKey' (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldrWithKey' (\k x xs -> (k,x):xs) [] m == List.sort xs
 
@@ -1436,13 +1442,13 @@ prop_foldl n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  foldl (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-#if MIN_VERSION_base(4,10,0)
-      Bifoldable.bifoldl const (+) n m == List.foldr (+) n (List.map snd xs) &&
-      Bifoldable.bifoldl (+) const n m == List.foldr (+) n (List.map fst xs) &&
-      Bifoldable.bifoldl (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
-#endif
-      foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs))
+
+prop_foldlWithKey :: Int -> [(Int, Int)] -> Property
+prop_foldlWithKey n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
 
@@ -1451,15 +1457,67 @@ prop_foldl' n ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  foldl' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-#if MIN_VERSION_base(4,10,0)
-      Bifoldable.bifoldl' const (+) n m == List.foldr (+) n (List.map snd xs) &&
-      Bifoldable.bifoldl' (+) const n m == List.foldr (+) n (List.map fst xs) &&
-      Bifoldable.bifoldl' (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
-#endif
-      foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
+      foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs))
+
+prop_foldlWithKey' :: Int -> [(Int, Int)] -> Property
+prop_foldlWithKey' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
       foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+
+#if MIN_VERSION_base(4,10,0)
+prop_bifold :: [(Int, Int)] -> Property
+prop_bifold ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  -- This seems to fit the pattern of the other test cases, but isn't valid here:
+      --getSum (Bifoldable.bifold (mapKeys (const mempty) (map Sum m))) == sum (List.map fst xs) &&
+      -- since it would map all of the keys to the same thing, thus removing all but one element.
+      getSum (Bifoldable.bifold (mapKeys Sum (map (const mempty) m))) == sum (List.map fst xs) &&
+      Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) (List.sort xs)
+
+prop_bifoldMap :: [(Int, Int)] -> Property
+prop_bifoldMap ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  getSum (Bifoldable.bifoldMap (const mempty) Sum m) == sum (List.map snd xs) &&
+      getSum (Bifoldable.bifoldMap Sum (const mempty) m) == sum (List.map fst xs) &&
+      Bifoldable.bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) (List.sort xs)
+
+prop_bifoldr :: Int -> [(Int, Int)] -> Property
+prop_bifoldr n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Bifoldable.bifoldr (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldr (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldr (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs)
+
+prop_bifoldr' :: Int -> [(Int, Int)] -> Property
+prop_bifoldr' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Bifoldable.bifoldr' (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldr' (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldr' (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs)
+
+prop_bifoldl :: Int -> [(Int, Int)] -> Property
+prop_bifoldl n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Bifoldable.bifoldl const (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldl (+) const n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldl (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs))
+
+prop_bifoldl' :: Int -> [(Int, Int)] -> Property
+prop_bifoldl' n ys = length ys > 0 ==>
+  let xs = List.nubBy ((==) `on` fst) ys
+      m  = fromList xs
+  in  Bifoldable.bifoldl' const (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldl' (+) const n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldl' (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs))
+#endif
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
