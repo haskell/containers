@@ -19,7 +19,7 @@ import Data.Ord
 import Data.Function
 import qualified Data.Foldable as Foldable
 #if MIN_VERSION_base(4,10,0)
-import Data.Bifoldable
+import qualified Data.Bifoldable as Bifoldable
 #endif
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, take, drop, splitAt)
 import qualified Prelude
@@ -1378,10 +1378,10 @@ prop_fold ys = length ys > 0 ==>
   in  getSum (Foldable.fold (map Sum m)) == sum (List.map snd xs) &&
 #if MIN_VERSION_base(4,10,0)
       -- This seems to fit the pattern of the other test cases, but isn't valid here:
-      --getSum (bifold (mapKeys (const mempty) (map Sum m))) == sum (List.map fst xs) &&
+      --getSum (Bifoldable.bifold (mapKeys (const mempty) (map Sum m))) == sum (List.map fst xs) &&
       -- since it would map all of the keys to the same thing, thus removing all but one element.
-      getSum (bifold (mapKeys Sum (map (const mempty) m))) == sum (List.map fst xs) &&
-      bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
+      getSum (Bifoldable.bifold (mapKeys Sum (map (const mempty) m))) == sum (List.map fst xs) &&
+      Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
 #endif
       Foldable.fold (map (:[]) m) == List.map snd (List.sort xs)
 
@@ -1391,9 +1391,9 @@ prop_foldMap ys = length ys > 0 ==>
       m  = fromList xs
   in  getSum (Foldable.foldMap Sum m) == sum (List.map snd xs) &&
 #if MIN_VERSION_base(4,10,0)
-      getSum (bifoldMap (const mempty) Sum m) == sum (List.map snd xs) &&
-      getSum (bifoldMap Sum (const mempty) m) == sum (List.map fst xs) &&
-      bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
+      getSum (Bifoldable.bifoldMap (const mempty) Sum m) == sum (List.map snd xs) &&
+      getSum (Bifoldable.bifoldMap Sum (const mempty) m) == sum (List.map fst xs) &&
+      Bifoldable.bifoldMap (:[]) (:[]) m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
 #endif
       Foldable.foldMap (:[]) m == List.map snd (List.sort xs) &&
       getSum (foldMapWithKey (\_ v -> Sum v) m) == sum (List.map snd xs) &&
@@ -1407,9 +1407,9 @@ prop_foldr n ys = length ys > 0 ==>
   in  foldr (+) n m == List.foldr (+) n (List.map snd xs) &&
       foldr (:) [] m == List.map snd (List.sort xs) &&
 #if MIN_VERSION_base(4,10,0)
-      bifoldr (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
-      bifoldr (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
-      bifoldr (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
+      Bifoldable.bifoldr (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldr (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldr (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
 #endif
       foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldrWithKey (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
@@ -1423,9 +1423,9 @@ prop_foldr' n ys = length ys > 0 ==>
   in  foldr' (+) n m == List.foldr (+) n (List.map snd xs) &&
       foldr' (:) [] m == List.map snd (List.sort xs) &&
 #if MIN_VERSION_base(4,10,0)
-      bifoldr' (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
-      bifoldr' (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
-      bifoldr' (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
+      Bifoldable.bifoldr' (const id) (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldr' (+) (const id) n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldr' (:) (:) [] m == concatMap (\(k,v) -> [k,v]) (List.sort xs) &&
 #endif
       foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldrWithKey' (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
@@ -1438,9 +1438,9 @@ prop_foldl n ys = length ys > 0 ==>
   in  foldl (+) n m == List.foldr (+) n (List.map snd xs) &&
       foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
 #if MIN_VERSION_base(4,10,0)
-      bifoldl const (+) n m == List.foldr (+) n (List.map snd xs) &&
-      bifoldl (+) const n m == List.foldr (+) n (List.map fst xs) &&
-      bifoldl (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
+      Bifoldable.bifoldl const (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldl (+) const n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldl (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
 #endif
       foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
@@ -1453,9 +1453,9 @@ prop_foldl' n ys = length ys > 0 ==>
   in  foldl' (+) n m == List.foldr (+) n (List.map snd xs) &&
       foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
 #if MIN_VERSION_base(4,10,0)
-      bifoldl' const (+) n m == List.foldr (+) n (List.map snd xs) &&
-      bifoldl' (+) const n m == List.foldr (+) n (List.map fst xs) &&
-      bifoldl' (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
+      Bifoldable.bifoldl' const (+) n m == List.foldr (+) n (List.map snd xs) &&
+      Bifoldable.bifoldl' (+) const n m == List.foldr (+) n (List.map fst xs) &&
+      Bifoldable.bifoldl' (flip (:)) (flip (:)) [] m == reverse (concatMap (\(k,v) -> [k,v]) (List.sort xs)) &&
 #endif
       foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
       foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
