@@ -4263,8 +4263,8 @@ instance Foldable.Foldable (Map k) where
 instance Bifoldable Map where
   bifold = go
     where go Tip = mempty
-          go (Bin 1 k v _ _) = k <> v
-          go (Bin _ k v l r) = go l <> k <> v <> go r
+          go (Bin 1 k v _ _) = k `mappend` v
+          go (Bin _ k v l r) = go l `mappend` (k `mappend` (v `mappend` go r))
   {-# INLINABLE bifold #-}
   bifoldr f g z = go z
     where go z' Tip             = z'
@@ -4276,8 +4276,8 @@ instance Bifoldable Map where
   {-# INLINE bifoldl #-}
   bifoldMap f g t = go t
     where go Tip = mempty
-          go (Bin 1 k v _ _) = f k <> g v
-          go (Bin _ k v l r) = go l <> f k <> g v <> go r
+          go (Bin 1 k v _ _) = f k `mappend` g v
+          go (Bin _ k v l r) = go l `mappend` (f k `mappend` (g v `mappend` go r))
   {-# INLINE bifoldMap #-}
 #endif
 
