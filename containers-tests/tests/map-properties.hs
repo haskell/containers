@@ -1451,19 +1451,19 @@ prop_splitModel n ys = length ys > 0 ==>
       toAscList r == sort [(k, v) | (k,v) <- xs, k > n]
 
 prop_fold :: Map Int Int -> Property
-prop_fold m =
-  let xs = toList m
-  in  Foldable.fold (map (:[]) m) === List.map snd xs
+prop_fold = \m -> Foldable.fold (f <$> m) === Foldable.fold (f <$> elems m)
+  where
+    f v = [v]
 
 prop_foldMap :: Map Int Int -> Property
-prop_foldMap m =
-  let xs = toList m
-  in  Foldable.foldMap (:[]) m === List.map snd xs
+prop_foldMap = \m -> foldMap f m === foldMap f (elems m)
+  where
+    f v = [v]
 
 prop_foldMapWithKey :: Map Int Int -> Property
-prop_foldMapWithKey m =
-  let xs = toList m
-  in  foldMapWithKey (\k v -> [k,v]) m === concatMap (\(k,v) -> [k,v]) xs
+prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === foldMap f (toList m)
+  where
+    f kv = [kv]
 
 prop_foldr :: Int -> Map Int Int -> Property
 prop_foldr n m =
