@@ -1465,100 +1465,89 @@ prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === foldMap f (toList m)
   where
     f kv = [kv]
 
-prop_foldr :: Int -> Map Int Int -> Property
-prop_foldr n m =
-  let xs = toList m
-  in  foldr (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldr (:) [] m === List.map snd xs
+-- elems is implemented in terms of foldr, so we don't want to rely on it
+-- when we're trying to test foldr.
+prop_foldr :: Fun (A, B) B -> B -> [(Int, A)] -> Property
+prop_foldr c n ys = foldr c' n m === Foldable.foldr c' n (snd <$> xs)
+  where
+    c' = curry (apply c)
+    xs = List.sortOn fst (List.nubBy ((==) `on` fst) ys)
+    m  = fromList xs
+
 
 -- toList is implemented in terms of foldrWithKey, so we don't want to rely on it
 -- when we're trying to test foldrWithKey.
-prop_foldrWithKey :: Int -> [(Int, Int)] -> Property
-prop_foldrWithKey n ys =
-  let xs = List.sort (List.nubBy ((==) `on` fst) ys)
-      m  = fromList xs
-  in  foldrWithKey (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldrWithKey (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldrWithKey (\k x xs -> (k,x):xs) [] m === xs
+prop_foldrWithKey :: Fun (Int, A, B) B -> B -> [(Int, A)] -> Property
+prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (uncurry c') n xs
+  where
+    c' k v acc = apply c (k, v, acc)
+    xs = List.sortOn fst (List.nubBy ((==) `on` fst) ys)
+    m  = fromList xs
 
+prop_foldr' :: Fun (A, B) B -> B -> Map Int A -> Property
+prop_foldr' c n m = foldr' c' n m === Foldable.foldr' c' n (elems m)
+  where
+    c' = curry (apply c)
 
-prop_foldr' :: Int -> Map Int Int -> Property
-prop_foldr' n m =
-  let xs = toList m
-  in  foldr' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldr' (:) [] m === List.map snd xs
+prop_foldrWithKey' :: Fun (Int, A, B) B -> B -> Map Int A -> Property
+prop_foldrWithKey' c n m = foldrWithKey' c' n m === Foldable.foldr' (uncurry c') n (toList m)
+  where
+    c' k v acc = apply c (k, v, acc)
 
-prop_foldrWithKey' :: Int -> Map Int Int -> Property
-prop_foldrWithKey' n m =
-  let xs = toList m
-  in  foldrWithKey' (\_ a b -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldrWithKey' (\k _ b -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldrWithKey' (\k x xs -> (k,x):xs) [] m === xs
+prop_foldl :: Fun (B, A) B -> B -> Map Int A -> Property
+prop_foldl c n m = foldl c' n m === Foldable.foldl c' n (elems m)
+  where
+    c' = curry (apply c)
 
-prop_foldl :: Int -> Map Int Int -> Property
-prop_foldl n m =
-  let xs = toList m
-  in  foldl (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldl (flip (:)) [] m === reverse (List.map snd xs)
+prop_foldlWithKey :: Fun (B, Int, A) B -> B -> Map Int A -> Property
+prop_foldlWithKey c n m = foldlWithKey c' n m === Foldable.foldl (uncurry . c') n (toList m)
+  where
+    c' acc k v = apply c (acc, k, v)
 
-prop_foldlWithKey :: Int -> Map Int Int -> Property
-prop_foldlWithKey n m =
-  let xs = toList m
-  in  foldlWithKey (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldlWithKey (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldlWithKey (\xs k x -> (k,x):xs) [] m === reverse xs
+prop_foldl' :: Fun (B, A) B -> B -> Map Int A -> Property
+prop_foldl' c n m = foldl' c' n m === Foldable.foldl' c' n (elems m)
+  where
+    c' = curry (apply c)
 
-prop_foldl' :: Int -> Map Int Int -> Property
-prop_foldl' n m =
-  let xs = toList m
-  in  foldl' (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldl' (flip (:)) [] m === reverse (List.map snd xs)
-
-prop_foldlWithKey' :: Int -> Map Int Int -> Property
-prop_foldlWithKey' n m =
-  let xs = toList m
-  in  foldlWithKey' (\b _ a -> a + b) n m === List.foldr (+) n (List.map snd xs) .&&.
-      foldlWithKey' (\b k _ -> k + b) n m === List.foldr (+) n (List.map fst xs) .&&.
-      foldlWithKey' (\xs k x -> (k,x):xs) [] m === reverse xs
+prop_foldlWithKey' :: Fun (B, Int, A) B -> B -> Map Int A -> Property
+prop_foldlWithKey' c n m = foldlWithKey' c' n m === Foldable.foldl' (uncurry . c') n (toList m)
+  where
+    c' acc k v = apply c (acc, k, v)
 
 #if MIN_VERSION_base(4,10,0)
 prop_bifold :: Map Int Int -> Property
-prop_bifold m =
-  let xs = toList m
-  in  Bifoldable.bifold (mapKeys (:[]) (map (:[]) m)) === concatMap (\(k,v) -> [k,v]) xs
+prop_bifold m = Bifoldable.bifold (mapKeys (:[]) ((:[]) <$> m)) === Foldable.fold ((\(k,v) -> [k,v]) <$> toList m)
 
 prop_bifoldMap :: Map Int Int -> Property
-prop_bifoldMap m =
-  let xs = toList m
-  in  Bifoldable.bifoldMap (:[]) (:[]) m === concatMap (\(k,v) -> [k,v]) xs
+prop_bifoldMap m = Bifoldable.bifoldMap (:[]) (:[]) m === foldMap (\(k,v) -> [k,v]) (toList m)
 
-prop_bifoldr :: Int -> Map Int Int -> Property
-prop_bifoldr n m =
-  let xs = toList m
-  in  Bifoldable.bifoldr (const id) (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      Bifoldable.bifoldr (+) (const id) n m === List.foldr (+) n (List.map fst xs) .&&.
-      Bifoldable.bifoldr (:) (:) [] m === concatMap (\(k,v) -> [k,v]) xs
+prop_bifoldr :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
+prop_bifoldr ck cv n m = Bifoldable.bifoldr ck' cv' n m === Foldable.foldr c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    (k,v) `c'` acc = k `ck'` (v `cv'` acc)
 
-prop_bifoldr' :: Int -> Map Int Int -> Property
-prop_bifoldr' n m =
-  let xs = toList m
-  in  Bifoldable.bifoldr' (const id) (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      Bifoldable.bifoldr' (+) (const id) n m === List.foldr (+) n (List.map fst xs) .&&.
-      Bifoldable.bifoldr' (:) (:) [] m === concatMap (\(k,v) -> [k,v]) xs
+prop_bifoldr' :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
+prop_bifoldr' ck cv n m = Bifoldable.bifoldr' ck' cv' n m === Foldable.foldr' c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    (k,v) `c'` acc = k `ck'` (v `cv'` acc)
 
-prop_bifoldl :: Int -> Map Int Int -> Property
-prop_bifoldl n m =
-  let xs = toList m
-  in  Bifoldable.bifoldl const (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      Bifoldable.bifoldl (+) const n m === List.foldr (+) n (List.map fst xs) .&&.
-      Bifoldable.bifoldl (flip (:)) (flip (:)) [] m === reverse (concatMap (\(k,v) -> [k,v]) xs)
+prop_bifoldl :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
+prop_bifoldl ck cv n m = Bifoldable.bifoldl ck' cv' n m === Foldable.foldl c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 
-prop_bifoldl' :: Int -> Map Int Int -> Property
-prop_bifoldl' n m =
-  let xs = toList m
-  in  Bifoldable.bifoldl' const (+) n m === List.foldr (+) n (List.map snd xs) .&&.
-      Bifoldable.bifoldl' (+) const n m === List.foldr (+) n (List.map fst xs) .&&.
-      Bifoldable.bifoldl' (flip (:)) (flip (:)) [] m === reverse (concatMap (\(k,v) -> [k,v]) xs)
+prop_bifoldl' :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
+prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 #endif
 
 prop_keysSet :: [(Int, Int)] -> Bool
