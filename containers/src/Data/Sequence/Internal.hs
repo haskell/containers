@@ -514,6 +514,7 @@ instance Applicative Seq where
 #if MIN_VERSION_base(4,10,0)
     liftA2 = liftA2Seq
 #endif
+    xs <* ys = beforeSeq xs ys
 
 apSeq :: Seq (a -> b) -> Seq a -> Seq b
 apSeq fs xs@(Seq xsFT) = case viewl fs of
@@ -721,7 +722,7 @@ squashR (Two12 n1 n2) m = node3 n1 n2 m
 -- @Node(Node(Elem y))@. The multiplier argument serves to make the annotations
 -- match up properly.
 mapMulFT :: Int -> (a -> b) -> FingerTree a -> FingerTree b
-mapMulFT _ _ EmptyT = EmptyT
+mapMulFT !_ _ EmptyT = EmptyT
 mapMulFT _mul f (Single a) = Single (f a)
 mapMulFT mul f (Deep s pr m sf) = Deep (mul * s) (fmap f pr) (mapMulFT mul (mapMulNode mul f) m) (fmap f sf)
 
@@ -1375,6 +1376,240 @@ applicativeTree n !mSize m = case n of
     three = liftA3 Three m m m
     deepA = liftA3 (Deep (n * mSize))
     emptyTree = pure EmptyT
+
+data RCountMid a = RCountMid
+  !(Node a)  -- End of the first
+  !Int -- Number of units in the middle
+  !(Node a)  -- Beginning of the last
+
+{-
+We could generalize beforeSeq quite easily to
+
+  beforeSeq :: (a -> c) -> Seq a -> Seq b -> Seq c
+
+This would let us add a rewrite rule
+
+  fmap f xs <* ys  ==>  beforeSeq f xs ys
+
+We don't currently bother because I don't yet know of a practical use for (<*)
+for sequences; a rewrite rule to optimize it seems like extreme overkill.
+-}
+
+beforeSeq :: Seq a -> Seq b -> Seq a
+beforeSeq xs ys = replicateEach (length ys) xs
+
+-- | Replicate each element of a sequence the given number of times.
+--
+-- @replicateEach 3 [1,2] = [1,1,1,2,2,2]@
+-- @replicateEach n xs = xs >>= replicate n@
+replicateEach :: Int -> Seq a -> Seq a
+-- The main idea is that we construct a function that takes an element and
+-- produces a 2-3 tree representing that element replicated lenys times. We map
+-- that function over the sequence to (mostly) produce the desired fingertree. But
+-- if we *just* did that, we'd end up with a fingertree of 2-3 trees of the given
+-- size, not of elements. So we need to work our way down to the appropriate
+-- level by building the left side of the fingertree corresponding to the first
+-- 2-3 tree and the right side corresponding to the last one, along with the
+-- 2-3 trees corresponding to the right side of the first and the left side of
+-- the last.
+replicateEach lenys xs = case viewl xs of
+  EmptyL -> empty
+  firstx :< xs' -> case viewr xs' of
+    EmptyR -> replicate lenys firstx
+    Seq midxs :> lastx -> case lenys of
+      0 -> empty
+      1 -> xs
+      2 ->
+        Seq $ rep2EachFT fxE midxs lxE
+      3 ->
+        Seq $ rep3EachFT fxE midxs lxE
+      _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
+             (q,0) -> Deep (lenys * length xs) fd3
+               (repEachMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
+               ld3
+                   where
+                    lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
+             (q,1) -> Deep (lenys * length xs) fd2
+               (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
+               ld2
+                   where
+                    lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
+             (q,_) -> Deep (lenys * length xs) fd3
+               (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
+               ld2
+                   where
+                    lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
+        where
+          repEachMiddle_ = repEachMiddle midxs lenys 3 fn3 ln3
+          fd2 = Two fxE fxE
+          fd3 = Three fxE fxE fxE
+          ld2 = Two lxE lxE
+          ld3 = Three lxE lxE lxE
+          fn2 = Node2 2 fxE fxE
+          fn3 = Node3 3 fxE fxE fxE
+          ln2 = Node2 2 lxE lxE
+          ln3 = Node3 3 lxE lxE lxE
+          n3 a = Node3 3 (Elem a) (Elem a) (Elem a)
+          n2 a = Node2 2 (Elem a) (Elem a)
+      where
+          fxE = Elem firstx
+          lxE = Elem lastx
+
+rep2EachFT :: Elem a -> FingerTree (Elem a) -> Elem a -> FingerTree (Elem a)
+rep2EachFT firstx xs lastx =
+                 Deep (size xs * 2 + 4)
+                      (Two firstx firstx)
+                      (mapMulFT 2 (\ex -> Node2 2 ex ex) xs)
+                      (Two lastx lastx)
+
+rep3EachFT :: Elem a -> FingerTree (Elem a) -> Elem a -> FingerTree (Elem a)
+rep3EachFT firstx xs lastx =
+                 Deep (size xs * 3 + 6)
+                      (Three firstx firstx firstx)
+                      (mapMulFT 3 (\ex -> Node3 3 ex ex ex) xs)
+                      (Three lastx lastx lastx)
+
+-- Invariants for repEachMiddle:
+--
+-- 1. midxs is constant: the middle bit in the original sequence (xs = (first <: Seq midxs :> last))
+-- 2. lenys is constant: the length of ys
+-- 3. firstx and pr repeat the same element: the first one in the original sequence xs
+-- 4. lastx  and sf repeat the same element: the last  one in the original sequence xs
+-- 5. sizec = size firstx = size lastx
+-- 6. lenys = deep_count * sizec + size pr + size pf
+-- 7. let (lft, fill, rght) = fill23 x, for any x:
+--      7a. All three sequences repeat the element x
+--      7b. size fill = sizec
+--      7c. size lft  = size sf
+--      7d. size rght = size pr
+-- 8. size result = deep_count * sizec + lenys * (size midxs + 1)
+repEachMiddle
+  :: FingerTree (Elem a)  -- midxs
+  -> Int                  -- lenys
+  -> Int                  -- sizec
+  -> Node c               -- firstx
+  -> Node c               -- lastx
+  -> (a -> (Node c, Node c, Node c))  -- fill23
+  -> RCountMid c          -- (RCountMid pr deep_count sf)
+  -> FingerTree (Node c)  -- result
+
+-- At the bottom
+
+repEachMiddle midxs lenys
+            !_sizec
+            _firstx
+            _lastx
+            fill23
+            (RCountMid pr 0 sf)
+     = Deep (lenys * (size midxs + 1))
+            (One pr)
+            (mapMulFT lenys fill23_final midxs)
+            (One sf)
+   where
+     -- fill23_final ::  Elem a -> Node (Node c)
+     fill23_final (Elem a) = case fill23 a of
+        -- See the note on lift_fill23 for an explanation of this
+        -- lazy pattern.
+        ~(lft, _fill, rght) -> Node2 (size pr + size sf) lft rght
+
+repEachMiddle midxs lenys
+            !sizec
+            firstx
+            lastx
+            fill23
+            (RCountMid pr 1 sf)
+     = Deep (sizec + lenys * (size midxs + 1))
+            (Two pr firstx)
+            (mapMulFT lenys fill23_final midxs)
+            (Two lastx sf)
+   where
+     -- fill23_final ::  Elem a -> Node (Node c)
+     fill23_final (Elem a) = case fill23 a of
+        -- See the note on lift_fill23 for an explanation of this
+        -- lazy pattern.
+        ~(lft, fill, rght) -> Node3 (size pr + size sf + sizec) lft fill rght
+
+-- Not at the bottom yet
+
+repEachMiddle midxs lenys
+            !sizec
+            firstx
+            lastx
+            fill23
+            (RCountMid pr deep_count sf)  -- deep_count > 1
+  = case deep_count `quotRem` 3 of
+      (q,0)
+       -> deep'
+        (Two firstx firstx)
+        (repEachMiddle_
+           (lift_fill23 TOT3 TOT2 fill23)
+           (RCountMid pr' (q - 1) sf'))
+        (One lastx)
+       where
+        pr' = node2 firstx pr
+        sf' = node3 lastx lastx sf
+      (q,1)
+       -> deep'
+        (Two firstx firstx)
+        (repEachMiddle_
+           (lift_fill23 TOT3 TOT3 fill23)
+           (RCountMid pr' (q - 1) sf'))
+        (Two lastx lastx)
+       where
+        pr' = node3 firstx firstx pr
+        sf' = node3 lastx lastx sf
+      (q,_) -- the remainder is 2
+       -> deep'
+        (One firstx)
+        (repEachMiddle_
+           (lift_fill23 TOT2 TOT2 fill23)
+           (RCountMid pr' q sf'))
+        (One lastx)
+       where
+        pr' = node2 firstx pr
+        sf' = node2 lastx sf
+
+  where
+    deep' = Deep (deep_count * sizec + lenys * (size midxs + 1))
+    repEachMiddle_ = repEachMiddle midxs lenys sizec' fn3 ln3
+    sizec' = 3 * sizec
+    fn3 = Node3 sizec' firstx firstx firstx
+    ln3 = Node3 sizec' lastx lastx lastx
+    spr = size pr
+    ssf = size sf
+    lift_fill23
+      :: TwoOrThree
+      -> TwoOrThree
+      -> (a -> (b, b, b))
+      -> a -> (Node b, Node b, Node b)
+    lift_fill23 !tl !tr f a = (lft', fill', rght')
+      where
+        -- We use a strict pattern match on the recursive call.  This means
+        -- that we build the 2-3 trees from the *bottom up* instead of from the
+        -- *top down*. We do it this way for two reasons:
+        --
+        -- 1. The trees are never very deep, so we don't get much locality
+        -- benefit from building them lazily.
+        --
+        -- 2. Building the trees lazily would require us to build four thunks
+        -- at each level of each tree, which seems just a bit pricy.
+        --
+        -- Does this break the incremental optimality? I don't believe it does.
+        -- As far as I can tell, each sequence operation that inspects one of
+        -- these trees either inspects only its root (to get its size for
+        -- indexing purposes) or descends all the way to the bottom. So we're
+        -- strict here, and lazy in the construction of
+        -- the root in fill23_final.
+        !(lft, fill, rght) = f a
+        !fill' = Node3 (3 * sizec) fill fill fill
+        !lft' = case tl of
+          TOT2 -> Node2 (ssf + sizec) lft fill
+          TOT3 -> Node3 (ssf + 2 * sizec) lft fill fill
+        !rght' = case tr of
+          TOT2 -> Node2 (spr + sizec) rght fill
+          TOT3 -> Node3 (spr + 2 * sizec) rght fill fill
+
+data TwoOrThree = TOT2 | TOT3
 
 ------------------------------------------------------------------------
 -- Construction

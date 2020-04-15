@@ -9,6 +9,13 @@
   `minimum`, `maximum`, `mapAccum`, `mapAccumWithKey`, `mapAccumL`,
   `mapAccumRWithKey` (Thanks, Felix Paulusma).
 
+* Make `(<*)` for `Data.Sequence` incrementally asymptotically optimal.
+  This finally completes the task, begun in December 2014, of making all
+  the `Applicative` methods for sequences asymptotically optimal
+  even when their results are consumed incrementally. Many thanks to
+  Li-Yao Xia and Bertram Felgenhauer for helping to clean up and begin
+  to document this rather tricky code.
+
 ## 0.6.2.1
 
 * Add `disjoint` for `Map` and `IntMap` (Thanks, Simon Jakobi).
