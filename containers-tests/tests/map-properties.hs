@@ -1450,17 +1450,17 @@ prop_splitModel n ys = length ys > 0 ==>
   in  toAscList l == sort [(k, v) | (k,v) <- xs, k < n] &&
       toAscList r == sort [(k, v) | (k,v) <- xs, k > n]
 
-prop_fold :: Map Int Int -> Property
+prop_fold :: Map Int A -> Property
 prop_fold = \m -> Foldable.fold (f <$> m) === Foldable.fold (f <$> elems m)
   where
     f v = [v]
 
-prop_foldMap :: Map Int Int -> Property
+prop_foldMap :: Map Int A -> Property
 prop_foldMap = \m -> foldMap f m === foldMap f (elems m)
   where
     f v = [v]
 
-prop_foldMapWithKey :: Map Int Int -> Property
+prop_foldMapWithKey :: Map Int A -> Property
 prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === foldMap f (toList m)
   where
     f kv = [kv]
