@@ -394,6 +394,9 @@ import qualified Data.Foldable as Foldable
 #if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
 #endif
+#if MIN_VERSION_base(4,10,0)
+import Data.Bifoldable
+#endif
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
@@ -1631,7 +1634,7 @@ lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
 -- | /O(log n)/. The minimal key of the map. Returns 'Nothing' if the map is empty.
 --
 -- > lookupMin (fromList [(5,"a"), (3,"b")]) == Just (3,"b")
--- > findMin empty = Nothing
+-- > lookupMin empty = Nothing
 --
 -- @since 0.5.9
 
@@ -3169,7 +3172,7 @@ mapAccumL f a (Bin sx kx x l r) =
       (a3,r') = mapAccumL f a2 r
   in (a3,Bin sx kx x' l' r')
 
--- | /O(n)/. The function 'mapAccumR' threads an accumulating
+-- | /O(n)/. The function 'mapAccumRWithKey' threads an accumulating
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
@@ -3971,7 +3974,7 @@ maxViewSure = go
 -- | /O(log n)/. Delete and find the minimal element.
 --
 -- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
--- > deleteFindMin                                            Error: can not return the minimal element of an empty map
+-- > deleteFindMin empty                                      Error: can not return the minimal element of an empty map
 
 deleteFindMin :: Map k a -> ((k,a),Map k a)
 deleteFindMin t = case minViewWithKey t of
@@ -4276,6 +4279,28 @@ instance Foldable.Foldable (Map k) where
   {-# INLINABLE sum #-}
   product = foldl' (*) 1
   {-# INLINABLE product #-}
+#endif
+
+#if MIN_VERSION_base(4,10,0)
+instance Bifoldable Map where
+  bifold = go
+    where go Tip = mempty
+          go (Bin 1 k v _ _) = k `mappend` v
+          go (Bin _ k v l r) = go l `mappend` (k `mappend` (v `mappend` go r))
+  {-# INLINABLE bifold #-}
+  bifoldr f g z = go z
+    where go z' Tip             = z'
+          go z' (Bin _ k v l r) = go (f k (g v (go z' r))) l
+  {-# INLINE bifoldr #-}
+  bifoldl f g z = go z
+    where go z' Tip             = z'
+          go z' (Bin _ k v l r) = go (g (f (go z' l) k) v) r
+  {-# INLINE bifoldl #-}
+  bifoldMap f g t = go t
+    where go Tip = mempty
+          go (Bin 1 k v _ _) = f k `mappend` g v
+          go (Bin _ k v l r) = go l `mappend` (f k `mappend` (g v `mappend` go r))
+  {-# INLINE bifoldMap #-}
 #endif
 
 instance (NFData k, NFData a) => NFData (Map k a) where

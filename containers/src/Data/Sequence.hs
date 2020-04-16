@@ -102,9 +102,15 @@
 --
 -- Several functions take special advantage of sharing to produce
 -- results using much less time and memory than one might expect. These
--- are documented individually for functions, but also include the
--- methods '<$' and '*>', each of which take time and space proportional
--- to the logarithm of the size of the result.
+-- are documented individually for functions, but also include certain
+-- class methods:
+--
+-- '<$' and '*>' each take time and space proportional
+-- to the logarithm of the size of their result.
+--
+-- '<*' takes time and space proportional to the product of the length
+-- of its first argument and the logarithm of the length of its second
+-- argument.
 --
 -- == Warning
 --

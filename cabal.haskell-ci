@@ -7,8 +7,13 @@ branches: master
 -- don't install --dep as cabal doesn't handle it for this project
 install-dependencies: False
 
--- on GHC-7.10.3 we need to reinstall binary?
-installed: +all -binary
+-- text depends on binary, and binary depends on containers, so we need to
+-- reinstall these boot libraries
+installed: +all -binary -text
 
 -- gauge works only with newer GHC
 benchmarks: >=7.8.4
+
+haddock: >= 8.2
+
+cabal-check: False

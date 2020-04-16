@@ -154,6 +154,7 @@ main = defaultMain
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
              , testProperty "merge valid"          prop_merge_valid
+             , testProperty "mergeA effects"       prop_mergeA_effects
              , testProperty "fromAscList"          prop_ordered
              , testProperty "fromList then toList" prop_list
              , testProperty "toDescList"           prop_descList
@@ -1315,6 +1316,17 @@ prop_merge_valid whenMissingA whenMissingB whenMatched xs ys
         (zipWithMaybeMatched (applyFun3 whenMatched))
         xs
         ys
+
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeA_effects :: UMap -> UMap -> Property
+prop_mergeA_effects xs ys
+  = effects === sort effects
+  where
+    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
+    whenMissing = traverseMissing (\k _ -> ([k], ()))
+    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
 
 ----------------------------------------------------------------
 

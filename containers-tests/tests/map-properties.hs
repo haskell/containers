@@ -11,13 +11,19 @@ import Data.Map.Internal (Map (..), link2, link, bin)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
-import Control.Monad ((<=<))
-import Data.Functor.Identity (Identity(runIdentity))
+import Control.Monad.Trans.State.Strict
+import Control.Monad.Trans.Class
+import Control.Monad (liftM4, (<=<))
+import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Function
+import qualified Data.Foldable as Foldable
+#if MIN_VERSION_base(4,10,0)
+import qualified Data.Bifoldable as Bifoldable
+#endif
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, take, drop, splitAt)
 import qualified Prelude
 
@@ -178,6 +184,7 @@ main = defaultMain
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
+         , testProperty "mergeA effects"       prop_mergeA_effects
          , testProperty "fromAscList"          prop_ordered
          , testProperty "fromDescList"         prop_rev_ordered
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
@@ -213,10 +220,25 @@ main = defaultMain
          , testProperty "fmap"                 prop_fmap
          , testProperty "mapkeys"              prop_mapkeys
          , testProperty "split"                prop_splitModel
+         , testProperty "fold"                 prop_fold
+         , testProperty "foldMap"              prop_foldMap
+         , testProperty "foldMapWithKey"       prop_foldMapWithKey
          , testProperty "foldr"                prop_foldr
+         , testProperty "foldrWithKey"         prop_foldrWithKey
          , testProperty "foldr'"               prop_foldr'
+         , testProperty "foldrWithKey'"        prop_foldrWithKey'
          , testProperty "foldl"                prop_foldl
+         , testProperty "foldlWithKey"         prop_foldlWithKey
          , testProperty "foldl'"               prop_foldl'
+         , testProperty "foldlWithKey'"        prop_foldlWithKey'
+#if MIN_VERSION_base(4,10,0)
+         , testProperty "bifold"               prop_bifold
+         , testProperty "bifoldMap"            prop_bifoldMap
+         , testProperty "bifoldr"              prop_bifoldr
+         , testProperty "bifoldr'"             prop_bifoldr'
+         , testProperty "bifoldl"              prop_bifoldl
+         , testProperty "bifoldl'"             prop_bifoldl'
+#endif
          , testProperty "keysSet"              prop_keysSet
          , testProperty "fromSet"              prop_fromSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
@@ -230,29 +252,92 @@ main = defaultMain
          ]
 
 {--------------------------------------------------------------------
-  Arbitrary trees
+  Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
-instance (Enum k,Arbitrary a) => Arbitrary (Map k a) where
-  arbitrary = sized (arbtree 0 maxkey)
-    where maxkey = 10^(5 :: Int)
 
-          arbtree :: (Enum k, Arbitrary a) => Int -> Int -> Int -> Gen (Map k a)
-          arbtree lo hi n = do t <- gentree lo hi n
-                               if balanced t then return t else arbtree lo hi n
-            where gentree lo hi n
-                    | n <= 0        = return Tip
-                    | lo >= hi      = return Tip
-                    | otherwise     = do{ x  <- arbitrary
-                                        ; i  <- choose (lo,hi)
-                                        ; m  <- choose (1,70)
-                                        ; let (ml,mr)  | m==(1::Int)= (1,2)
-                                                       | m==2       = (2,1)
-                                                       | m==3       = (1,1)
-                                                       | otherwise  = (2,2)
-                                        ; l  <- gentree lo (i-1) (n `div` ml)
-                                        ; r  <- gentree (i+1) hi (n `div` mr)
-                                        ; return (bin (toEnum i) x l r)
-                                        }
+-- | The IsInt class lets us constrain a type variable to be Int in an entirely
+-- standard way. The constraint @ IsInt a @ is essentially equivalent to the
+-- GHC-only constraint @ a ~ Int @, but @ IsInt @ requires manual intervention
+-- to use. If ~ is ever standardized, we should certainly use it instead.
+-- Earlier versions used an Enum constraint, but this is confusing because
+-- not all Enum instances will work properly for the Arbitrary instance here.
+class (Show a, Read a, Integral a, Arbitrary a) => IsInt a where
+  fromIntF :: f Int -> f a
+
+instance IsInt Int where
+  fromIntF = id
+
+-- | Convert an Int to any instance of IsInt
+fromInt :: IsInt a => Int -> a
+fromInt = runIdentity . fromIntF . Identity
+
+{- We don't actually need this, but we can add it if we ever do
+toIntF :: IsInt a => g a -> g Int
+toIntF = unf . fromIntF . F $ id
+
+newtype F g a b = F {unf :: g b -> a}
+
+toInt :: IsInt a => a -> Int
+toInt = runIdentity . toIntF . Identity -}
+
+
+-- How much the minimum key of an arbitrary map should vary
+positionFactor :: Int
+positionFactor = 1
+
+-- How much the gap between consecutive keys in an arbitrary
+-- map should vary
+gapRange :: Int
+gapRange = 5
+
+instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
+  arbitrary = sized (\sz0 -> do
+        sz <- choose (0, sz0)
+        middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
+        let shift = (sz * (gapRange) + 1) `quot` 2
+            start = middle - shift
+        t <- evalStateT (mkArb step sz) start
+        if valid t then pure t else error "Test generated invalid tree!")
+    where
+      step = do
+        i <- get
+        diff <- lift $ choose (1, gapRange)
+        let i' = i + diff
+        put i'
+        pure (fromInt i')
+
+class Monad m => MonadGen m where
+  liftGen :: Gen a -> m a
+instance MonadGen Gen where
+  liftGen = id
+instance MonadGen m => MonadGen (StateT s m) where
+  liftGen = lift . liftGen
+
+-- | Given an action that produces successively larger keys and
+-- a size, produce a map of arbitrary shape with exactly that size.
+mkArb :: (MonadGen m, Arbitrary v) => m k -> Int -> m (Map k v)
+mkArb step n
+  | n <= 0 = return Tip
+  | n == 1 = do
+     k <- step
+     v <- liftGen arbitrary
+     return (singleton k v)
+  | n == 2 = do
+     dir <- liftGen arbitrary
+     p <- step
+     q <- step
+     vOuter <- liftGen arbitrary
+     vInner <- liftGen arbitrary
+     if dir
+       then return (Bin 2 q vOuter (singleton p vInner) Tip)
+       else return (Bin 2 p vOuter Tip (singleton q vInner))
+  | otherwise = do
+      -- This assumes a balance factor of delta = 3
+      let upper = (3*(n - 1)) `quot` 4
+      let lower = (n + 2) `quot` 4
+      ln <- liftGen $ choose (lower, upper)
+      let rn = n - ln - 1
+      liftM4 (\lt x v rt -> Bin n x v lt rt) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
@@ -1114,6 +1199,17 @@ prop_mergeWithKeyModel xs ys
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
 
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeA_effects :: UMap -> UMap -> Property
+prop_mergeA_effects xs ys
+  = effects === sort effects
+  where
+    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
+    whenMissing = traverseMissing (\k _ -> ([k], ()))
+    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
+
 ----------------------------------------------------------------
 
 prop_ordered :: Property
@@ -1358,46 +1454,105 @@ prop_splitModel n ys = length ys > 0 ==>
   in  toAscList l == sort [(k, v) | (k,v) <- xs, k < n] &&
       toAscList r == sort [(k, v) | (k,v) <- xs, k > n]
 
-prop_foldr :: Int -> [(Int, Int)] -> Property
-prop_foldr n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  foldr (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr (:) [] m == List.map snd (List.sort xs) &&
-      foldrWithKey (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldrWithKey (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldrWithKey (\k x xs -> (k,x):xs) [] m == List.sort xs
+prop_fold :: Map Int A -> Property
+prop_fold = \m -> Foldable.fold (f <$> m) === Foldable.fold (f <$> elems m)
+  where
+    f v = [v]
+
+prop_foldMap :: Map Int A -> Property
+prop_foldMap = \m -> Foldable.foldMap f m === Foldable.foldMap f (elems m)
+  where
+    f v = [v]
+
+prop_foldMapWithKey :: Map Int A -> Property
+prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === Foldable.foldMap f (toList m)
+  where
+    f kv = [kv]
+
+-- elems is implemented in terms of foldr, so we don't want to rely on it
+-- when we're trying to test foldr.
+prop_foldr :: Fun (A, B) B -> B -> [(Int, A)] -> Property
+prop_foldr c n ys = foldr c' n m === Foldable.foldr c' n (snd <$> xs)
+  where
+    c' = curry (apply c)
+    xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
+    m  = fromList xs
 
 
-prop_foldr' :: Int -> [(Int, Int)] -> Property
-prop_foldr' n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  foldr' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldr' (:) [] m == List.map snd (List.sort xs) &&
-      foldrWithKey' (\_ a b -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldrWithKey' (\k _ b -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldrWithKey' (\k x xs -> (k,x):xs) [] m == List.sort xs
+-- toList is implemented in terms of foldrWithKey, so we don't want to rely on it
+-- when we're trying to test foldrWithKey.
+prop_foldrWithKey :: Fun (Int, A, B) B -> B -> [(Int, A)] -> Property
+prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (uncurry c') n xs
+  where
+    c' k v acc = apply c (k, v, acc)
+    xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
+    m  = fromList xs
 
-prop_foldl :: Int -> [(Int, Int)] -> Property
-prop_foldl n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  foldl (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-      foldlWithKey (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldlWithKey (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldlWithKey (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+prop_foldr' :: Fun (A, B) B -> B -> Map Int A -> Property
+prop_foldr' c n m = foldr' c' n m === Foldable.foldr' c' n (elems m)
+  where
+    c' = curry (apply c)
 
-prop_foldl' :: Int -> [(Int, Int)] -> Property
-prop_foldl' n ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  foldl' (+) n m == List.foldr (+) n (List.map snd xs) &&
-      foldl' (flip (:)) [] m == reverse (List.map snd (List.sort xs)) &&
-      foldlWithKey' (\b _ a -> a + b) n m == List.foldr (+) n (List.map snd xs) &&
-      foldlWithKey' (\b k _ -> k + b) n m == List.foldr (+) n (List.map fst xs) &&
-      foldlWithKey' (\xs k x -> (k,x):xs) [] m == reverse (List.sort xs)
+prop_foldrWithKey' :: Fun (Int, A, B) B -> B -> Map Int A -> Property
+prop_foldrWithKey' c n m = foldrWithKey' c' n m === Foldable.foldr' (uncurry c') n (toList m)
+  where
+    c' k v acc = apply c (k, v, acc)
+
+prop_foldl :: Fun (B, A) B -> B -> Map Int A -> Property
+prop_foldl c n m = foldl c' n m === Foldable.foldl c' n (elems m)
+  where
+    c' = curry (apply c)
+
+prop_foldlWithKey :: Fun (B, Int, A) B -> B -> Map Int A -> Property
+prop_foldlWithKey c n m = foldlWithKey c' n m === Foldable.foldl (uncurry . c') n (toList m)
+  where
+    c' acc k v = apply c (acc, k, v)
+
+prop_foldl' :: Fun (B, A) B -> B -> Map Int A -> Property
+prop_foldl' c n m = foldl' c' n m === Foldable.foldl' c' n (elems m)
+  where
+    c' = curry (apply c)
+
+prop_foldlWithKey' :: Fun (B, Int, A) B -> B -> Map Int A -> Property
+prop_foldlWithKey' c n m = foldlWithKey' c' n m === Foldable.foldl' (uncurry . c') n (toList m)
+  where
+    c' acc k v = apply c (acc, k, v)
+
+#if MIN_VERSION_base(4,10,0)
+prop_bifold :: Map Int Int -> Property
+prop_bifold m = Bifoldable.bifold (mapKeys (:[]) ((:[]) <$> m)) === Foldable.fold ((\(k,v) -> [k,v]) <$> toList m)
+
+prop_bifoldMap :: Map Int Int -> Property
+prop_bifoldMap m = Bifoldable.bifoldMap (:[]) (:[]) m === Foldable.foldMap (\(k,v) -> [k,v]) (toList m)
+
+prop_bifoldr :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
+prop_bifoldr ck cv n m = Bifoldable.bifoldr ck' cv' n m === Foldable.foldr c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    (k,v) `c'` acc = k `ck'` (v `cv'` acc)
+
+prop_bifoldr' :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
+prop_bifoldr' ck cv n m = Bifoldable.bifoldr' ck' cv' n m === Foldable.foldr' c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    (k,v) `c'` acc = k `ck'` (v `cv'` acc)
+
+prop_bifoldl :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
+prop_bifoldl ck cv n m = Bifoldable.bifoldl ck' cv' n m === Foldable.foldl c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    acc `c'` (k,v) = (acc `ck'` k) `cv'` v
+
+prop_bifoldl' :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
+prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c' n (toList m)
+  where
+    ck' = curry (apply ck)
+    cv' = curry (apply cv)
+    acc `c'` (k,v) = (acc `ck'` k) `cv'` v
+#endif
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
