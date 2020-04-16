@@ -1456,12 +1456,12 @@ prop_fold = \m -> Foldable.fold (f <$> m) === Foldable.fold (f <$> elems m)
     f v = [v]
 
 prop_foldMap :: Map Int A -> Property
-prop_foldMap = \m -> foldMap f m === foldMap f (elems m)
+prop_foldMap = \m -> Foldable.foldMap f m === Foldable.foldMap f (elems m)
   where
     f v = [v]
 
 prop_foldMapWithKey :: Map Int A -> Property
-prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === foldMap f (toList m)
+prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === Foldable.foldMap f (toList m)
   where
     f kv = [kv]
 
@@ -1519,7 +1519,7 @@ prop_bifold :: Map Int Int -> Property
 prop_bifold m = Bifoldable.bifold (mapKeys (:[]) ((:[]) <$> m)) === Foldable.fold ((\(k,v) -> [k,v]) <$> toList m)
 
 prop_bifoldMap :: Map Int Int -> Property
-prop_bifoldMap m = Bifoldable.bifoldMap (:[]) (:[]) m === foldMap (\(k,v) -> [k,v]) (toList m)
+prop_bifoldMap m = Bifoldable.bifoldMap (:[]) (:[]) m === Foldable.foldMap (\(k,v) -> [k,v]) (toList m)
 
 prop_bifoldr :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
 prop_bifoldr ck cv n m = Bifoldable.bifoldr ck' cv' n m === Foldable.foldr c' n (toList m)
