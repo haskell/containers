@@ -182,6 +182,9 @@ module Data.Map.Strict
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** General combining functions
     -- | See "Data.Map.Merge.Strict"
 

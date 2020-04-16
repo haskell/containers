@@ -146,6 +146,9 @@ module Data.IntMap.Lazy (
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** Universal combining function
     , mergeWithKey
 

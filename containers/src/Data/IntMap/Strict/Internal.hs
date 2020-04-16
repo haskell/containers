@@ -163,6 +163,9 @@ module Data.IntMap.Strict.Internal (
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** Universal combining function
     , mergeWithKey
 
@@ -714,6 +717,25 @@ intersectionWith f m1 m2
 intersectionWithKey :: (Key -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWithKey f m1 m2
   = mergeWithKey' bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 $! f k1 x1 x2) (const Nil) (const Nil) m1 m2
+
+{--------------------------------------------------------------------
+  Compose
+--------------------------------------------------------------------}
+-- | /O(|ab|*min(|bc|,W))/. Relate the keys of one map to the values of
+-- the other, by using the values of the former as keys for lookups
+-- in the latter.
+--
+-- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
+--
+-- @
+-- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
+-- @
+--
+-- @since UNRELEASED
+compose :: IntMap c -> IntMap Int -> IntMap c
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   MergeWithKey

@@ -13,7 +13,7 @@ import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
-import Control.Monad (liftM4)
+import Control.Monad (liftM4, (<=<))
 import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
@@ -180,6 +180,7 @@ main = defaultMain
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
          , testProperty "disjoint"             prop_disjoint
+         , testProperty "compose"              prop_compose
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
@@ -1159,6 +1160,9 @@ prop_intersectionWithKeyModel xs ys
 
 prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
+
+prop_compose :: IMap -> IMap -> Int -> Property
+prop_compose bc ab k = (compose bc ab !? k) === ((bc !?) <=< (ab !?)) k
 
 prop_mergeWithKeyModel :: [(Int,Int)] -> [(Int,Int)] -> Bool
 prop_mergeWithKeyModel xs ys

@@ -165,6 +165,9 @@ module Data.IntMap.Strict (
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** Universal combining function
     , mergeWithKey
 

@@ -192,6 +192,9 @@ module Data.Map.Internal (
     -- ** Disjoint
     , disjoint
 
+    -- ** Compose
+    , compose
+
     -- ** General combining function
     , SimpleWhenMissing
     , SimpleWhenMatched
@@ -2087,6 +2090,25 @@ disjoint (Bin _ k _ l r) t
   = not found && disjoint l lt && disjoint r gt
   where
     (lt,found,gt) = splitMember k t
+
+{--------------------------------------------------------------------
+  Compose
+--------------------------------------------------------------------}
+-- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- the other, by using the values of the former as keys for lookups
+-- in the latter.
+--
+-- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
+--
+-- @
+-- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
+-- @
+--
+-- @since UNRELEASED
+compose :: Ord b => Map b c -> Map a b -> Map a c
+compose bc !ab
+  | null bc = empty
+  | otherwise = mapMaybe (bc !?) ab
 
 #if !MIN_VERSION_base (4,8,0)
 -- | The identity type.
