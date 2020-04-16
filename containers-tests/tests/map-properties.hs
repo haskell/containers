@@ -1471,7 +1471,7 @@ prop_foldr :: Fun (A, B) B -> B -> [(Int, A)] -> Property
 prop_foldr c n ys = foldr c' n m === Foldable.foldr c' n (snd <$> xs)
   where
     c' = curry (apply c)
-    xs = List.sortOn fst (List.nubBy ((==) `on` fst) ys)
+    xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
     m  = fromList xs
 
 
@@ -1481,7 +1481,7 @@ prop_foldrWithKey :: Fun (Int, A, B) B -> B -> [(Int, A)] -> Property
 prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (uncurry c') n xs
   where
     c' k v acc = apply c (k, v, acc)
-    xs = List.sortOn fst (List.nubBy ((==) `on` fst) ys)
+    xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
     m  = fromList xs
 
 prop_foldr' :: Fun (A, B) B -> B -> Map Int A -> Property
