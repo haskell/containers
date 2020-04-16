@@ -391,6 +391,9 @@ import qualified Data.Foldable as Foldable
 #if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
 #endif
+#if MIN_VERSION_base(4,10,0)
+import Data.Bifoldable
+#endif
 import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
@@ -4254,6 +4257,28 @@ instance Foldable.Foldable (Map k) where
   {-# INLINABLE sum #-}
   product = foldl' (*) 1
   {-# INLINABLE product #-}
+#endif
+
+#if MIN_VERSION_base(4,10,0)
+instance Bifoldable Map where
+  bifold = go
+    where go Tip = mempty
+          go (Bin 1 k v _ _) = k `mappend` v
+          go (Bin _ k v l r) = go l `mappend` (k `mappend` (v `mappend` go r))
+  {-# INLINABLE bifold #-}
+  bifoldr f g z = go z
+    where go z' Tip             = z'
+          go z' (Bin _ k v l r) = go (f k (g v (go z' r))) l
+  {-# INLINE bifoldr #-}
+  bifoldl f g z = go z
+    where go z' Tip             = z'
+          go z' (Bin _ k v l r) = go (g (f (go z' l) k) v) r
+  {-# INLINE bifoldl #-}
+  bifoldMap f g t = go t
+    where go Tip = mempty
+          go (Bin 1 k v _ _) = f k `mappend` g v
+          go (Bin _ k v l r) = go l `mappend` (f k `mappend` (g v `mappend` go r))
+  {-# INLINE bifoldMap #-}
 #endif
 
 instance (NFData k, NFData a) => NFData (Map k a) where
