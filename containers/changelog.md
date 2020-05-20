@@ -2,12 +2,28 @@
 
 ## 0.6.3.1
 
-* Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
+### Bug fixes
+
+* Fix `traverse` and `traverseWithKey` for `IntMap`, which would
+  previously produce invalid `IntMap`s when the input contained
+  negative keys (Thanks, Felix Paulusma).
 
 * Fix the traversal order of various functions for `Data.IntMap`:
   `traverseWithKey`, `traverseMaybeWithKey`, `filterWithKeyA`,
   `minimum`, `maximum`, `mapAccum`, `mapAccumWithKey`, `mapAccumL`,
-  `mapAccumRWithKey` (Thanks, Felix Paulusma).
+  `mapAccumRWithKey`, `mergeA` (Thanks, Felix Paulusma, Simon Jakobi).
+
+### Additions
+
+* Add `compose` for `Map` and `IntMap` (Thanks, Alexandre Esteves).
+
+* Add `Data.Set.alterF` (Thanks, Simon Jakobi).
+
+* Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
+
+* Add `instance Bifoldable Map` (Thanks, Joseph C. Sible).
+
+### Performance improvements
 
 * Make `(<*)` for `Data.Sequence` incrementally asymptotically optimal.
   This finally completes the task, begun in December 2014, of making all
@@ -15,6 +31,25 @@
   even when their results are consumed incrementally. Many thanks to
   Li-Yao Xia and Bertram Felgenhauer for helping to clean up and begin
   to document this rather tricky code.
+
+* Speed up `fromList` and related functions in `Data.IntSet`, `Data.IntMap`
+  and `Data.IntMap.Strict` (Thanks, Bertram Felgenhauer).
+
+* Use `count{Leading,Trailing}Zeros` in `Data.IntSet` internals (Thanks, Alex
+  Biehl).
+
+### Other changes
+
+* Reduce usage of the `Forest` type synonym in `Data.Tree` (Thanks, David
+  Feuer).
+
+* Address a Core lint warning for `foldToMaybeTree` (Thanks, Matthew Pickering).
+
+* Improve documentation (Thanks to Daniel Wagner, Johannes Waldmann, Steve Mao,
+  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud).
+
+* Improvements to the testsuite and benchmarks (Thanks, Bertram Felgenhauer,
+  Simon Jakobi, Johannes Waldmann).
 
 ## 0.6.2.1
 
