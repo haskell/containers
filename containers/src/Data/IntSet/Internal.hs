@@ -126,6 +126,7 @@ module Data.IntSet.Internal (
     , singleton
     , insert
     , delete
+    , alterF
 
     -- * Combine
     , union
@@ -502,6 +503,18 @@ deleteBM kx bm t@(Tip kx' bm')
   | otherwise = t
 deleteBM _ _ Nil = Nil
 
+alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f (IntSet)
+alterF f k s = fmap choose (f member_)
+  where
+    member_ = member k s
+
+    (inserted, deleted)
+      | member_   = (s         , delete k s)
+      | otherwise = (insert k s, s         )
+
+    choose True  = inserted
+    choose False = deleted
+{-# INLINE alterF #-}
 
 {--------------------------------------------------------------------
   Union
