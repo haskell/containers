@@ -506,7 +506,17 @@ deleteBM kx bm t@(Tip kx' bm')
   | otherwise = t
 deleteBM _ _ Nil = Nil
 
-alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f (IntSet)
+-- | /O(min(n,W))/. @('alterF' f x s)@ can delete or insert @x@ in @s@ depending
+-- on whether it is already present in @s@.
+--
+-- In short:
+--
+-- @
+-- 'member' x \<$\> 'alterF' f x s = f ('member' x s)
+-- @
+--
+-- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f IntSet
 alterF f k s = fmap choose (f member_)
   where
     member_ = member k s
