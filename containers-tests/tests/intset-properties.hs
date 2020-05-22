@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+import Control.Applicative (Const(..))
 import Data.Bits ((.&.), popCount)
 import Data.Word (Word)
 import Data.IntSet
@@ -71,6 +72,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
                    , testProperty "prop_bitcount" prop_bitcount
+                   , testProperty "prop_alterF_list" prop_alterF_list
+                   , testProperty "prop_alterF_const" prop_alterF_const
                    ]
 
 ----------------------------------------------------------------
@@ -425,3 +428,21 @@ prop_bitcount a w = bitcount_orig a w == bitcount_new a w
       where go a 0 = a
             go a x = go (a + 1) (x .&. (x-1))
     bitcount_new a x = a + popCount x
+
+prop_alterF_list
+    :: Fun Bool [Bool]
+    -> Int
+    -> IntSet
+    -> Property
+prop_alterF_list f k s =
+        fmap toSet (alterF     (applyFun f) k s)
+    ===             Set.alterF (applyFun f) k (toSet s)
+
+prop_alterF_const
+    :: Fun Bool (Const Bool Bool)
+    -> Int
+    -> IntSet
+    -> Property
+prop_alterF_const f k s =
+        fmap toSet (alterF     (applyFun f) k s)
+    ===             Set.alterF (applyFun f) k (toSet s)
