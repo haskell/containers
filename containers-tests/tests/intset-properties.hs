@@ -439,10 +439,10 @@ prop_alterF_list f k s =
     ===             Set.alterF (applyFun f) k (toSet s)
 
 prop_alterF_const
-    :: Fun Bool (Const Bool Bool)
+    :: Fun Bool Bool
     -> Int
     -> IntSet
     -> Property
 prop_alterF_const f k s =
-        fmap toSet (alterF     (applyFun f) k s)
-    ===             Set.alterF (applyFun f) k (toSet s)
+        getConst (alterF     (Const . applyFun f) k s        )
+    === getConst (Set.alterF (Const . applyFun f) k (toSet s))
