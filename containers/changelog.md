@@ -46,7 +46,7 @@
 * Address a Core lint warning for `foldToMaybeTree` (Thanks, Matthew Pickering).
 
 * Improve documentation (Thanks to Daniel Wagner, Johannes Waldmann, Steve Mao,
-  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud).
+  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud, Li-Yao Xia).
 
 * Improvements to the testsuite and benchmarks (Thanks, Bertram Felgenhauer,
   Simon Jakobi, Johannes Waldmann).
