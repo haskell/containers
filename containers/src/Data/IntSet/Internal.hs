@@ -126,6 +126,7 @@ module Data.IntSet.Internal (
     , singleton
     , insert
     , delete
+    , alterF
 
     -- * Combine
     , union
@@ -188,6 +189,7 @@ module Data.IntSet.Internal (
     , zero
     ) where
 
+import Control.Applicative (Const(..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
@@ -222,7 +224,9 @@ import qualified GHC.Exts
 #endif
 
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
+#if MIN_VERSION_base(4,8,0)
+import Data.Functor.Identity (Identity(..))
+#else
 import Data.Foldable (Foldable())
 #endif
 
@@ -502,6 +506,40 @@ deleteBM kx bm t@(Tip kx' bm')
   | otherwise = t
 deleteBM _ _ Nil = Nil
 
+-- | /O(min(n,W))/. @('alterF' f x s)@ can delete or insert @x@ in @s@ depending
+-- on whether it is already present in @s@.
+--
+-- In short:
+--
+-- @
+-- 'member' x \<$\> 'alterF' f x s = f ('member' x s)
+-- @
+--
+-- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f IntSet
+alterF f k s = fmap choose (f member_)
+  where
+    member_ = member k s
+
+    (inserted, deleted)
+      | member_   = (s         , delete k s)
+      | otherwise = (insert k s, s         )
+
+    choose True  = inserted
+    choose False = deleted
+#ifndef __GLASGOW_HASKELL__
+{-# INLINE alterF #-}
+#else
+{-# INLINABLE [2] alterF #-}
+
+{-# RULES
+"alterF/Const" forall k (f :: Bool -> Const a Bool) . alterF f k = \s -> Const . getConst . f $ member k s
+ #-}
+#endif
+
+#if MIN_VERSION_base(4,8,0)
+{-# SPECIALIZE alterF :: (Bool -> Identity Bool) -> Key -> IntSet -> Identity IntSet #-}
+#endif
 
 {--------------------------------------------------------------------
   Union
