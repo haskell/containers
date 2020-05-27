@@ -17,7 +17,7 @@
 
 * Add `compose` for `Map` and `IntMap` (Thanks, Alexandre Esteves).
 
-* Add `Data.Set.alterF` (Thanks, Simon Jakobi).
+* Add `alterF` for `Set` and `IntSet` (Thanks, Simon Jakobi).
 
 * Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
 
@@ -46,7 +46,7 @@
 * Address a Core lint warning for `foldToMaybeTree` (Thanks, Matthew Pickering).
 
 * Improve documentation (Thanks to Daniel Wagner, Johannes Waldmann, Steve Mao,
-  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud).
+  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud, Li-Yao Xia).
 
 * Improvements to the testsuite and benchmarks (Thanks, Bertram Felgenhauer,
   Simon Jakobi, Johannes Waldmann).
