@@ -17,7 +17,7 @@
 
 * Add `compose` for `Map` and `IntMap` (Thanks, Alexandre Esteves).
 
-* Add `Data.Set.alterF` (Thanks, Simon Jakobi).
+* Add `alterF` for `Set` and `IntSet` (Thanks, Simon Jakobi).
 
 * Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
 
