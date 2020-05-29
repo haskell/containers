@@ -731,7 +731,7 @@ intersectionWithKey f m1 m2
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
--- @since UNRELEASED
+-- @since 0.6.3.1
 compose :: IntMap c -> IntMap Int -> IntMap c
 compose bc !ab
   | null bc = empty

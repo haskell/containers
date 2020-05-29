@@ -2104,7 +2104,7 @@ disjoint (Bin _ k _ l r) t
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
--- @since UNRELEASED
+-- @since 0.6.3.1
 compose :: Ord b => Map b c -> Map a b -> Map a c
 compose bc !ab
   | null bc = empty
@@ -4282,6 +4282,7 @@ instance Foldable.Foldable (Map k) where
 #endif
 
 #if MIN_VERSION_base(4,10,0)
+-- | @since 0.6.3.1
 instance Bifoldable Map where
   bifold = go
     where go Tip = mempty

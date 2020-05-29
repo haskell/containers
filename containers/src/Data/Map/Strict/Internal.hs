@@ -1216,7 +1216,7 @@ forceMaybe m@(Just !_) = m
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
--- @since UNRELEASED
+-- @since 0.6.3.1
 compose :: Ord b => Map b c -> Map a b -> Map a c
 compose bc !ab
   | null bc = empty

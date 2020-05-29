@@ -516,6 +516,8 @@ deleteBM _ _ Nil = Nil
 -- @
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+--
+-- @since 0.6.3.1
 alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f IntSet
 alterF f k s = fmap choose (f member_)
   where
@@ -957,6 +959,8 @@ map f = fromList . List.map f . toList
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
+--
+-- @since 0.6.3.1
 
 -- Note that for now the test is insufficient to support any fancier implementation.
 mapMonotonic :: (Key -> Key) -> IntSet -> IntSet

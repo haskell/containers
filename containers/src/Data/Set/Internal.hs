@@ -612,6 +612,8 @@ delete = go
 -- the given value.
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+--
+-- @since 0.6.3.1
 alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
 alterF f k s = fmap choose (f member_)
   where
