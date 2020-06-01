@@ -17,6 +17,8 @@
 -- In the documentation, \(n\) is the number of elements in the list while
 -- \(d\) is the number of distinct elements in the list. \(W\) is the number
 -- of bits in an 'Int'.
+--
+-- @since 0.6.0.1
 -----------------------------------------------------------------------------
 
 module Data.Containers.ListUtils (
@@ -53,6 +55,8 @@ import GHC.Exts ( build )
 -- pathological cases. For example, to nub a list of characters, use
 --
 -- @ nubIntOn fromEnum xs @
+--
+-- @since 0.6.0.1
 nubOrd :: Ord a => [a] -> [a]
 nubOrd = nubOrdOn id
 {-# INLINE nubOrd #-}
@@ -65,6 +69,8 @@ nubOrd = nubOrdOn id
 --
 -- @nubOrdOn@ is strict in the values of the function applied to the
 -- elements of the list.
+--
+-- @since 0.6.0.1
 nubOrdOn :: Ord b => (a -> b) -> [a] -> [a]
 -- For some reason we need to write an explicit lambda here to allow this
 -- to inline when only applied to a function.
@@ -129,6 +135,8 @@ constNubOn x _ = x
 -- ==== Strictness
 --
 -- @nubInt@ is strict in the elements of the list.
+--
+-- @since 0.6.0.1
 nubInt :: [Int] -> [Int]
 nubInt = nubIntOn id
 {-# INLINE nubInt #-}
@@ -142,6 +150,8 @@ nubInt = nubIntOn id
 --
 -- @nubIntOn@ is strict in the values of the function applied to the
 -- elements of the list.
+--
+-- @since 0.6.0.1
 nubIntOn :: (a -> Int) -> [a] -> [a]
 -- For some reason we need to write an explicit lambda here to allow this
 -- to inline when only applied to a function.
