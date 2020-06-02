@@ -885,7 +885,11 @@ instance Read1 Seq where
 
 instance Monoid (Seq a) where
     mempty = empty
+#if MIN_VERSION_base(4,9,0)
+    mappend = (Semigroup.<>)
+#else
     mappend = (><)
+#endif
 
 #if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.7
