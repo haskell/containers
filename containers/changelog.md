@@ -51,6 +51,8 @@
 * Improvements to the testsuite and benchmarks (Thanks, Bertram Felgenhauer,
   Simon Jakobi, Johannes Waldmann).
 
+* Canonicalise `Seq`'s `Monoid` instance (Thanks, Fumiaki Kinoshita).
+
 ## 0.6.2.1
 
 * Add `disjoint` for `Map` and `IntMap` (Thanks, Simon Jakobi).
