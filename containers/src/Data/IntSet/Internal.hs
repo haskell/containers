@@ -7,9 +7,7 @@
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
-#endif
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -1049,13 +1047,11 @@ elems
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
 instance GHC.Exts.IsList IntSet where
   type Item IntSet = Key
   fromList = fromList
   toList   = toList
-#endif
 
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: IntSet -> [Key]
@@ -1517,11 +1513,7 @@ tip kx bm = Tip kx bm
 ----------------------------------------------------------------------}
 
 suffixBitMask :: Int
-#if MIN_VERSION_base(4,7,0)
 suffixBitMask = finiteBitSize (undefined::Word) - 1
-#else
-suffixBitMask = bitSize (undefined::Word) - 1
-#endif
 {-# INLINE suffixBitMask #-}
 
 prefixBitMask :: Int

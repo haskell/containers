@@ -7,15 +7,9 @@
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
-#endif
-
-#ifdef USE_MAGIC_PROXY
 {-# LANGUAGE MagicHash #-}
-#endif
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -415,19 +409,13 @@ import GHC.Exts (build, lazy)
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
 #endif
-#ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
-#endif
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read hiding (lift)
 import Data.Data
 import qualified Control.Category as Category
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
-#endif
 
 
 {--------------------------------------------------------------------
@@ -484,9 +472,7 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL__ >= 708
 type role Map nominal representational
-#endif
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
@@ -1337,11 +1323,7 @@ insertAlong q kx x (Bin sz ky y l r) =
 -- proxy that's ultimately erased.
 deleteAlong :: any -> BitQueue -> Map k a -> Map k a
 deleteAlong old !q0 !m = go (bogus old) q0 m where
-#ifdef USE_MAGIC_PROXY
   go :: Proxy# () -> BitQueue -> Map k a -> Map k a
-#else
-  go :: any -> BitQueue -> Map k a -> Map k a
-#endif
   go !_ !_ Tip = Tip
   go foom q (Bin _ ky y l r) =
       case unconsQ q of
@@ -1349,16 +1331,9 @@ deleteAlong old !q0 !m = go (bogus old) q0 m where
         Just (True, tl) -> balanceL ky y l (go foom tl r)
         Nothing -> glue l r
 
-#ifdef USE_MAGIC_PROXY
 {-# NOINLINE bogus #-}
 bogus :: a -> Proxy# ()
 bogus _ = proxy#
-#else
--- No point hiding in this case.
-{-# INLINE bogus #-}
-bogus :: a -> a
-bogus a = a
-#endif
 
 -- Replace the value found in the node described
 -- by the given path with a new one.
@@ -2113,19 +2088,11 @@ compose bc !ab
 #if !MIN_VERSION_base (4,8,0)
 -- | The identity type.
 newtype Identity a = Identity { runIdentity :: a }
-#if __GLASGOW_HASKELL__ == 708
 instance Functor Identity where
   fmap = coerce
 instance Applicative Identity where
   (<*>) = coerce
   pure = Identity
-#else
-instance Functor Identity where
-  fmap f (Identity a) = Identity (f a)
-instance Applicative Identity where
-  Identity f <*> Identity x = Identity (f x)
-  pure = Identity
-#endif
 #endif
 
 -- | A tactic for dealing with keys present in one map but not the other in
@@ -3419,13 +3386,11 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
 instance (Ord k) => GHCExts.IsList (Map k v) where
   type Item (Map k v) = (k,v)
   fromList = fromList
   toList   = toList
-#endif
 
 -- | /O(n*log n)/. Build a map from a list of key\/value pairs. See also 'fromAscList'.
 -- If the list contains more than one value for the same key, the last value

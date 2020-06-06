@@ -46,11 +46,7 @@ import Data.Bits (popCount, unsafeShiftL, unsafeShiftR
     , countLeadingZeros
 #endif
     )
-#if MIN_VERSION_base(4,7,0)
 import Data.Bits (finiteBitSize)
-#else
-import Data.Bits (bitSize)
-#endif
 
 #if !MIN_VERSION_base (4,8,0)
 import Data.Word (Word)
@@ -102,8 +98,4 @@ shiftLL = unsafeShiftL
 
 {-# INLINE wordSize #-}
 wordSize :: Int
-#if MIN_VERSION_base(4,7,0)
 wordSize = finiteBitSize (0 :: Word)
-#else
-wordSize = bitSize (0 :: Word)
-#endif

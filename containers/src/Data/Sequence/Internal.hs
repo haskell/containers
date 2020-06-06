@@ -240,11 +240,8 @@ import qualified GHC.Arr
 
 import Utils.Containers.Internal.Coercions ((.#), (.^#))
 -- Coercion on GHC 7.8+
-#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 import qualified GHC.Exts
-#else
-#endif
 
 -- Identity functor on base 4.8 (GHC 7.10+)
 #if MIN_VERSION_base(4,8,0)
@@ -595,11 +592,8 @@ liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
              (fmap (fmap (f lastx)) (nodeToDigit sf))
   where
     lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
-#if __GLASGOW_HASKELL__ >= 708
     lift_elem = coerce
-#else
-    lift_elem f x (Elem y) = Elem (f x y)
-#endif
+
 {-# NOINLINE [1] liftA2Seq #-}
 
 
@@ -1370,24 +1364,14 @@ instance Sized (Elem a) where
     size _ = 1
 
 instance Functor Elem where
-#if __GLASGOW_HASKELL__ >= 708
 -- This cuts the time for <*> by around a fifth.
     fmap = coerce
-#else
-    fmap f (Elem x) = Elem (f x)
-#endif
 
 instance Foldable Elem where
     foldr f z (Elem x) = f x z
-#if __GLASGOW_HASKELL__ >= 708
     foldMap = coerce
     foldl = coerce
     foldl' = coerce
-#else
-    foldMap f (Elem x) = f x
-    foldl f z (Elem x) = f z x
-    foldl' f z (Elem x) = f z x
-#endif
 
 instance Traversable Elem where
     traverse f (Elem x) = Elem <$> f x
@@ -2540,22 +2524,11 @@ adjust f i (Seq xs)
 --
 -- @since 0.5.8
 adjust'          :: forall a . (a -> a) -> Int -> Seq a -> Seq a
-#if __GLASGOW_HASKELL__ >= 708
 adjust' f i xs
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (length xs) :: Word) =
       coerce $ adjustTree (\ !_k (ForceBox a) -> ForceBox (f a)) i (coerce xs)
   | otherwise   = xs
-#else
--- This is inefficient, but fixing it would take a lot of fuss and bother
--- for little immediate gain. We can deal with that when we have another
--- Haskell implementation to worry about.
-adjust' f i xs =
-  case xs !? i of
-    Nothing -> xs
-    Just x -> let !x' = f x
-              in update i x' xs
-#endif
 
 {-# SPECIALIZE adjustTree :: (Int -> ForceBox a -> ForceBox a) -> Int -> FingerTree (ForceBox a) -> FingerTree (ForceBox a) #-}
 {-# SPECIALIZE adjustTree :: (Int -> Elem a -> Elem a) -> Int -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
@@ -3148,11 +3121,7 @@ foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
  where
   lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
-#if __GLASGOW_HASKELL__ >= 708
   lift_elem g = coerce g
-#else
-  lift_elem g = \s (Elem a) -> g s a
-#endif
   {-# INLINE lift_elem #-}
 -- We have to specialize these functions by hand, unfortunately, because
 -- GHC does not specialize until *all* instances are determined.
@@ -3345,11 +3314,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
         {-# INLINE mb #-}
 
     lift_elem :: (Int -> a) -> (Int -> Elem a)
-#if __GLASGOW_HASKELL__ >= 708
     lift_elem g = coerce g
-#else
-    lift_elem g = Elem . g
-#endif
     {-# INLINE lift_elem #-}
 
 -- | \( O(n) \). Create a sequence consisting of the elements of an 'Array'.
@@ -4380,23 +4345,17 @@ fromList = Seq . mkTree . map_elem
             !n10 = Node3 (3*s) n1 n2 n3
 
     map_elem :: [a] -> [Elem a]
-#if __GLASGOW_HASKELL__ >= 708
     map_elem xs = coerce xs
-#else
-    map_elem xs = Data.List.map Elem xs
-#endif
     {-# INLINE map_elem #-}
 
 -- essentially: Free ((,) a) b.
 data ListFinal a cont = LFinal !cont | LCons !a (ListFinal a cont)
 
-#if __GLASGOW_HASKELL__ >= 708
 instance GHC.Exts.IsList (Seq a) where
     type Item (Seq a) = a
     fromList = fromList
     fromListN = fromList2
     toList = toList
-#endif
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.7
@@ -4421,11 +4380,7 @@ fmapReverse :: (a -> b) -> Seq a -> Seq b
 fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
   where
     lift_elem :: (a -> b) -> (Elem a -> Elem b)
-#if __GLASGOW_HASKELL__ >= 708
     lift_elem = coerce
-#else
-    lift_elem g (Elem a) = Elem (g a)
-#endif
 
 -- If we're mapping over a sequence, we can reverse it at the same time
 -- at no extra charge.
@@ -4749,11 +4704,7 @@ class UnzipWith f where
 -- This instance is only used at the very top of the tree;
 -- the rest of the elements are handled by unzipWithNodeElem
 instance UnzipWith Elem where
-#if __GLASGOW_HASKELL__ >= 708
   unzipWith' = coerce
-#else
-  unzipWith' f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)
-#endif
 
 -- We're very lazy here for the sake of efficiency. We want to be able to
 -- reach any element of either result in logarithmic time. If we pattern

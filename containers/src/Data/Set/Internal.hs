@@ -7,10 +7,8 @@
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
-#endif
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -262,9 +260,7 @@ import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
                  , lexP, readListPrecDefault )
 import Data.Data
@@ -294,9 +290,7 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL__ >= 708
 type role Set nominal
-#endif
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
@@ -1022,13 +1016,11 @@ elems = toAscList
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
 instance (Ord a) => GHCExts.IsList (Set a) where
   type Item (Set a) = a
   fromList = fromList
   toList   = toList
-#endif
 
 -- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]

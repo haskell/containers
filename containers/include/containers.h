@@ -15,14 +15,10 @@
 /*
  * Define INSTANCE_TYPEABLE[0-2]
  */
-#if __GLASGOW_HASKELL__ >= 707
+#if defined(__GLASGOW_HASKELL__)
 #define INSTANCE_TYPEABLE0(tycon) deriving instance Typeable tycon
 #define INSTANCE_TYPEABLE1(tycon) deriving instance Typeable tycon
 #define INSTANCE_TYPEABLE2(tycon) deriving instance Typeable tycon
-#elif defined(__GLASGOW_HASKELL__)
-#define INSTANCE_TYPEABLE0(tycon) deriving instance Typeable tycon
-#define INSTANCE_TYPEABLE1(tycon) deriving instance Typeable1 tycon
-#define INSTANCE_TYPEABLE2(tycon) deriving instance Typeable2 tycon
 #else
 #define INSTANCE_TYPEABLE0(tycon)
 #define INSTANCE_TYPEABLE1(tycon)

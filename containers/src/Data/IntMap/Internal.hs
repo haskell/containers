@@ -8,9 +8,7 @@
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE TypeFamilies #-}
-#endif
 
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -334,9 +332,7 @@ import GHC.Exts (build)
 #if !MIN_VERSION_base(4,8,0)
 import Data.Functor ((<$))
 #endif
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read
 #endif
 import qualified Control.Category as Category
@@ -3053,13 +3049,11 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
 -- | @since 0.5.6.2
 instance GHCExts.IsList (IntMap a) where
   type Item (IntMap a) = (Key,a)
   fromList = fromList
   toList   = toList
-#endif
 
 -- | /O(n)/. Convert the map to a list of key\/value pairs. Subject to list
 -- fusion.

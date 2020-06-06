@@ -26,7 +26,7 @@ extra-source-files:
   benchmarks/LookupGE/*.hs
 
 tested-with:
-  GHC ==7.6.3 || ==7.8.4 || ==7.10.3 || ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.2
+  GHC ==7.8.4 || ==7.10.3 || ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.2
 
 source-repository head
   type:     git
@@ -38,7 +38,7 @@ library
   cpp-options:      -DTESTING
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   include-dirs:     include
@@ -104,7 +104,7 @@ benchmark intmap-benchmarks
   main-is:        IntMap.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
+      base              >=4.7     && <5
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
@@ -115,7 +115,7 @@ benchmark intset-benchmarks
   main-is:        IntSet.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
+      base              >=4.7     && <5
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
@@ -126,7 +126,7 @@ benchmark map-benchmarks
   main-is:        Map.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
+      base              >=4.7     && <5
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
@@ -138,7 +138,7 @@ benchmark sequence-benchmarks
   main-is:        Sequence.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
+      base              >=4.7     && <5
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
@@ -151,7 +151,7 @@ benchmark set-benchmarks
   main-is:        Set.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
+      base              >=4.7     && <5
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
@@ -163,7 +163,7 @@ benchmark set-operations-intmap
   other-modules:  SetOperations
   ghc-options:    -O2
   build-depends:
-      base              >=4.6   && <5
+      base              >=4.7   && <5
     , containers-tests
     , gauge             >=0.2.3 && <0.3
 
@@ -174,7 +174,7 @@ benchmark set-operations-intset
   other-modules:  SetOperations
   ghc-options:    -O2
   build-depends:
-      base              >=4.6   && <5
+      base              >=4.7   && <5
     , containers-tests
     , gauge             >=0.2.3 && <0.3
 
@@ -185,7 +185,7 @@ benchmark set-operations-map
   other-modules:  SetOperations
   ghc-options:    -O2
   build-depends:
-      base              >=4.6   && <5
+      base              >=4.7   && <5
     , containers-tests
     , gauge             >=0.2.3 && <0.3
 
@@ -196,7 +196,7 @@ benchmark set-operations-set
   other-modules:  SetOperations
   ghc-options:    -O2
   build-depends:
-      base              >=4.6   && <5
+      base              >=4.7   && <5
     , containers-tests
     , gauge             >=0.2.3 && <0.3
 
@@ -207,7 +207,7 @@ benchmark lookupge-intmap
   other-modules:  LookupGE_IntMap
   build-depends:  containers-tests
   build-depends:
-      base     >=4.6     && <5
+      base     >=4.7     && <5
     , deepseq  >=1.1.0.0 && <1.5
     , gauge    >=0.2.3   && <0.3
 
@@ -219,7 +219,7 @@ benchmark lookupge-map
   build-depends:  containers-tests
   ghc-options:    -O2
   build-depends:
-      base     >=4.6     && <5
+      base     >=4.7     && <5
     , deepseq  >=1.1.0.0 && <1.5
     , gauge    >=0.2.3   && <0.3
 
@@ -237,7 +237,7 @@ test-suite map-lazy-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -260,7 +260,7 @@ test-suite map-strict-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -280,7 +280,7 @@ test-suite bitqueue-properties
   hs-source-dirs:   tests
   main-is:          bitqueue-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:    base >=4.6 && <5
+  build-depends:    base >=4.7 && <5
   ghc-options:      -O2
   other-extensions:
     BangPatterns
@@ -298,7 +298,7 @@ test-suite set-properties
   type:             exitcode-stdio-1.0
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -323,7 +323,7 @@ test-suite intmap-lazy-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -347,7 +347,7 @@ test-suite intmap-strict-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -370,7 +370,7 @@ test-suite intset-properties
   other-modules:    IntSetValidity
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -393,7 +393,7 @@ test-suite seq-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -414,7 +414,7 @@ test-suite tree-properties
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.6     && <5
+    , base     >=4.7     && <5
     , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
@@ -435,7 +435,7 @@ test-suite map-strictness-properties
   build-depends:    containers-tests
   build-depends:
       array                       >=0.4.0.0
-    , base                        >=4.6     && <5
+    , base                        >=4.7     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
     , QuickCheck                  >=2.7.1
@@ -458,7 +458,7 @@ test-suite intmap-strictness-properties
   build-depends:    containers-tests
   build-depends:
       array                       >=0.4.0.0
-    , base                        >=4.6     && <5
+    , base                        >=4.7     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
     , QuickCheck                  >=2.7.1
@@ -478,7 +478,7 @@ test-suite intset-strictness-properties
   build-depends:    containers-tests
   build-depends:
       array                       >=0.4.0.0
-    , base                        >=4.6     && <5
+    , base                        >=4.7     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
     , QuickCheck                  >=2.7.1
@@ -493,7 +493,7 @@ test-suite listutils-properties
   type:           exitcode-stdio-1.0
   build-depends:  containers-tests
   build-depends:
-      base                        >=4.6   && <5
+      base                        >=4.7   && <5
     , ChasingBottoms
     , deepseq                     >=1.2   && <1.5
     , QuickCheck                  >=2.7.1
