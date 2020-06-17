@@ -2094,7 +2094,7 @@ disjoint (Bin _ k _ l r) t
 {--------------------------------------------------------------------
   Compose
 --------------------------------------------------------------------}
--- Relate the keys of one map to the values of
+-- | Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --
