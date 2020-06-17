@@ -725,7 +725,7 @@ intersectionWithKey f m1 m2
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --
--- Complexity: /O(n*min(m,W))/, where /m/ is the size of the first argument
+-- Complexity: \( O(n*min(m,W)) \), where \(m\) is the size of the first argument
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --
