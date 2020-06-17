@@ -2098,7 +2098,7 @@ disjoint (Bin _ k _ l r) t
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --
--- Complexity: \( O (n * log(m)) \), where \(m\) is the size of the first argument
+-- Complexity: \( O (n * \log(m)) \), where \(m\) is the size of the first argument
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --
