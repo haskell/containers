@@ -2094,9 +2094,11 @@ disjoint (Bin _ k _ l r) t
 {--------------------------------------------------------------------
   Compose
 --------------------------------------------------------------------}
--- | /O(|ab|*log(|bc|))/. Relate the keys of one map to the values of
+-- | Relate the keys of one map to the values of
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
+--
+-- Complexity: \( O (n * \log(m)) \), where \(m\) is the size of the first argument
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --
