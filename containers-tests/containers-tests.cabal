@@ -34,6 +34,7 @@ source-repository head
 
 -- Copy of containers library,
 library
+  default-language: Haskell2010
   -- this is important for testing; may it affect benchmarks?
   cpp-options:      -DTESTING
   build-depends:
@@ -99,6 +100,7 @@ library
 -----------------------------
 
 benchmark intmap-benchmarks
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        IntMap.hs
@@ -110,6 +112,7 @@ benchmark intmap-benchmarks
     , gauge             >=0.2.3   && <0.3
 
 benchmark intset-benchmarks
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        IntSet.hs
@@ -121,6 +124,7 @@ benchmark intset-benchmarks
     , gauge             >=0.2.3   && <0.3
 
 benchmark map-benchmarks
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Map.hs
@@ -133,6 +137,7 @@ benchmark map-benchmarks
     , transformers
 
 benchmark sequence-benchmarks
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Sequence.hs
@@ -146,6 +151,7 @@ benchmark sequence-benchmarks
     , transformers
 
 benchmark set-benchmarks
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Set.hs
@@ -157,6 +163,7 @@ benchmark set-benchmarks
     , gauge             >=0.2.3   && <0.3
 
 benchmark set-operations-intmap
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntMap.hs
@@ -168,6 +175,7 @@ benchmark set-operations-intmap
     , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-intset
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntSet.hs
@@ -179,6 +187,7 @@ benchmark set-operations-intset
     , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-map
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-Map.hs
@@ -190,6 +199,7 @@ benchmark set-operations-map
     , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-set
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-Set.hs
@@ -201,6 +211,7 @@ benchmark set-operations-set
     , gauge             >=0.2.3 && <0.3
 
 benchmark lookupge-intmap
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
   main-is:        IntMap.hs
@@ -212,6 +223,7 @@ benchmark lookupge-intmap
     , gauge    >=0.2.3   && <0.3
 
 benchmark lookupge-map
+  default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
   main-is:        Map.hs
@@ -231,6 +243,7 @@ benchmark lookupge-map
 -- plus the testing stuff.
 
 test-suite map-lazy-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
@@ -254,6 +267,7 @@ test-suite map-lazy-properties
     , transformers
 
 test-suite map-strict-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
@@ -277,6 +291,7 @@ test-suite map-strict-properties
     , transformers
 
 test-suite bitqueue-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          bitqueue-properties.hs
   type:             exitcode-stdio-1.0
@@ -293,6 +308,7 @@ test-suite bitqueue-properties
     , test-framework-quickcheck2
 
 test-suite set-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          set-properties.hs
   type:             exitcode-stdio-1.0
@@ -316,6 +332,7 @@ test-suite set-properties
     , transformers
 
 test-suite intmap-lazy-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
@@ -339,6 +356,7 @@ test-suite intmap-lazy-properties
     , test-framework-quickcheck2
 
 test-suite intmap-strict-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
@@ -364,6 +382,7 @@ test-suite intmap-strict-properties
     , test-framework-quickcheck2
 
 test-suite intset-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-properties.hs
   type:             exitcode-stdio-1.0
@@ -387,6 +406,7 @@ test-suite intset-properties
     , test-framework-quickcheck2
 
 test-suite seq-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          seq-properties.hs
   type:             exitcode-stdio-1.0
@@ -408,6 +428,7 @@ test-suite seq-properties
     , transformers
 
 test-suite tree-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          tree-properties.hs
   type:             exitcode-stdio-1.0
@@ -429,6 +450,7 @@ test-suite tree-properties
     , transformers
 
 test-suite map-strictness-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-strictness.hs
   type:             exitcode-stdio-1.0
@@ -448,6 +470,7 @@ test-suite map-strictness-properties
     CPP
 
 test-suite intmap-strictness-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-strictness.hs
   type:             exitcode-stdio-1.0
@@ -468,6 +491,7 @@ test-suite intmap-strictness-properties
   ghc-options:      -Wall
 
 test-suite intset-strictness-properties
+  default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-strictness.hs
   type:             exitcode-stdio-1.0
@@ -488,6 +512,7 @@ test-suite intset-strictness-properties
   ghc-options:      -Wall
 
 test-suite listutils-properties
+  default-language: Haskell2010
   hs-source-dirs: tests
   main-is:        listutils-properties.hs
   type:           exitcode-stdio-1.0
