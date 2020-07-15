@@ -854,6 +854,8 @@ alter = go
 --
 -- Note: 'alterF' is a flipped version of the @at@ combinator from
 -- @Control.Lens.At@.
+--
+-- @since 0.5.8
 alterF :: (Functor f, Ord k)
        => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
 alterF f k m = atKeyImpl Strict k f m
