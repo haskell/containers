@@ -118,6 +118,11 @@ install:
   - if [ $HCNUMVER -ge 80200 ] ; then echo 'package containers-tests' >> cabal.project ; fi
   - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
+    echo "package containers"       >> cabal.project
+    echo "  ghc-options: -Werror"   >> cabal.project
+    echo ""                         >> cabal.project
+    echo "package containers-tests" >> cabal.project
+    echo "  ghc-options: -Werror"   >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(binary|containers|containers-tests|text)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
@@ -148,6 +153,11 @@ script:
   - if [ $HCNUMVER -ge 80200 ] ; then echo 'package containers-tests' >> cabal.project ; fi
   - "if [ $HCNUMVER -ge 80200 ] ; then echo '  ghc-options: -Werror=missing-methods' >> cabal.project ; fi"
   - |
+    echo "package containers"       >> cabal.project
+    echo "  ghc-options: -Werror"   >> cabal.project
+    echo ""                         >> cabal.project
+    echo "package containers-tests" >> cabal.project
+    echo "  ghc-options: -Werror"   >> cabal.project
   - "for pkg in $($HCPKG list --simple-output); do echo $pkg | sed 's/-[^-]*$//' | (grep -vE -- '^(binary|containers|containers-tests|text)$' || true) | sed 's/^/constraints: /' | sed 's/$/ installed/' >> cabal.project.local; done"
   - cat cabal.project || true
   - cat cabal.project.local || true
