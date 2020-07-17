@@ -67,7 +67,7 @@ module Data.Graph (
     , dfs
     , dff
     , topSort
-    , revTopSort
+    , reverseTopSort
     , components
     , scc
     , bcc
@@ -619,8 +619,8 @@ topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
 
 -- | Reverse ordering of `topSort`.
-revTopSort      :: Graph -> [Vertex]
-revTopSort       = postOrd
+reverseTopSort :: Graph -> [Vertex]
+reverseTopSort = postOrd
 
 ------------------------------------------------------------
 -- Algorithm 3: connected components
