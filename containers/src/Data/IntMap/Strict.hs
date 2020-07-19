@@ -176,6 +176,7 @@ module Data.IntMap.Strict (
     , map
     , mapWithKey
     , traverseWithKey
+    , traverseMaybeWithKey
     , mapAccum
     , mapAccumWithKey
     , mapAccumRWithKey
