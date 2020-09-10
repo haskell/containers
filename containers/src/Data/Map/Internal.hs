@@ -2106,6 +2106,10 @@ disjoint (Bin _ k _ l r) t
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
+-- __Note:__ Prior to UNRELEASED, "Data.Map.Strict" exposed a version of
+-- 'compose' that forced the values of the output 'Map'. This version does not
+-- force these values.
+--
 -- @since 0.6.3.1
 compose :: Ord b => Map b c -> Map a b -> Map a c
 compose bc !ab

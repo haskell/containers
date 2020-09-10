@@ -335,6 +335,7 @@ import Data.Map.Internal
   , balance
   , balanceL
   , balanceR
+  , compose
   , elemAt
   , elems
   , empty
@@ -1204,27 +1205,6 @@ forceMaybe :: Maybe a -> Maybe a
 forceMaybe Nothing = Nothing
 forceMaybe m@(Just !_) = m
 {-# INLINE forceMaybe #-}
-
-{--------------------------------------------------------------------
-  Compose
---------------------------------------------------------------------}
--- | Relate the keys of one map to the values of
--- the other, by using the values of the former as keys for lookups
--- in the latter.
---
--- Complexity: \( O (n * \log(m)) \), where \(m\) is the size of the first argument
---
--- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
---
--- @
--- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
--- @
---
--- @since 0.6.3.1
-compose :: Ord b => Map b c -> Map a b -> Map a c
-compose bc !ab
-  | null bc = empty
-  | otherwise = mapMaybe (bc !?) ab
 
 {--------------------------------------------------------------------
   MergeWithKey
