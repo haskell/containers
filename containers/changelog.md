@@ -1,5 +1,26 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## 0.6.4.1
+
+### Bug fixes
+
+* Replace value-forcing variants of `compose` with lazy variants. This brings
+  `compose` closer in line with functions like `union` and `intersection` which
+  don't evaluate any map values. (Thanks, Simon Jakobi)
+
+### Additions
+
+* Add `reverseTopSort` to `Data.Graph` (Thanks, James Parker)
+
+* Expose `traverseMaybeWithKey` from `Data.IntMap.{Lazy,Strict}` (Thanks, Simon
+  Jakobi)
+
+### Other changes
+
+* Improvements to the testsuite (Thanks, Bertram Felgenhauer)
+
+* Fix build with `stack test` (Thanks, Simon Jakobi)
+
 ## 0.6.3.1
 
 ### Bug fixes
