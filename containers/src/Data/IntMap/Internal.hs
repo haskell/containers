@@ -783,6 +783,10 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
+-- __Note:__ Prior to UNRELEASED, "Data.IntMap.Strict" exposed a version of
+-- 'compose' that forced the values of the output 'IntMap'. This version does
+-- not force these values.
+--
 -- @since 0.6.3.1
 compose :: IntMap c -> IntMap Int -> IntMap c
 compose bc !ab
