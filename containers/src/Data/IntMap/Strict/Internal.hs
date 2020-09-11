@@ -904,7 +904,7 @@ traverseWithKey f = go
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
 --
--- @since UNRELEASED
+-- @since 0.6.4
 traverseMaybeWithKey
   :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
 traverseMaybeWithKey f = go

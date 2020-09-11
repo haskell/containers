@@ -619,6 +619,8 @@ topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
 
 -- | Reverse ordering of `topSort`.
+--
+-- @since 0.6.4
 reverseTopSort :: Graph -> [Vertex]
 reverseTopSort = postOrd
 

@@ -2106,7 +2106,7 @@ disjoint (Bin _ k _ l r) t
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
--- __Note:__ Prior to UNRELEASED, "Data.Map.Strict" exposed a version of
+-- __Note:__ Prior to v0.6.4, "Data.Map.Strict" exposed a version of
 -- 'compose' that forced the values of the output 'Map'. This version does not
 -- force these values.
 --
