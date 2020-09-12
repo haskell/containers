@@ -783,7 +783,7 @@ disjoint t1@(Bin p1 m1 l1 r1) t2@(Bin p2 m2 l2 r2)
 -- ('compose' bc ab '!?') = (bc '!?') <=< (ab '!?')
 -- @
 --
--- __Note:__ Prior to UNRELEASED, "Data.IntMap.Strict" exposed a version of
+-- __Note:__ Prior to v0.6.4, "Data.IntMap.Strict" exposed a version of
 -- 'compose' that forced the values of the output 'IntMap'. This version does
 -- not force these values.
 --
@@ -1896,7 +1896,7 @@ traverseMaybeMissing f = WhenMissing
 
 -- | /O(n)/. Traverse keys\/values and collect the 'Just' results.
 --
--- @since UNRELEASED
+-- @since 0.6.4
 traverseMaybeWithKey
   :: Applicative f => (Key -> a -> f (Maybe b)) -> IntMap a -> f (IntMap b)
 traverseMaybeWithKey f = go
