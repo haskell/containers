@@ -795,6 +795,8 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
 -- > let f _ = Just "c"
 -- > alter f 7 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "a"), (7, "c")]
 -- > alter f 5 (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "c")]
+--
+-- Note that @'adjust' = alter . fmap@.
 
 -- See Map.Internal.Note: Type of local 'go' function
 alter :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
