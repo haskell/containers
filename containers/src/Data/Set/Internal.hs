@@ -850,6 +850,7 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
   Difference
 --------------------------------------------------------------------}
 -- | /O(m*log(n\/m + 1)), m <= n/. Difference of two sets.
+--
 -- Return elements of the first set not existing in the second set.
 --
 -- > difference (fromList [5, 3]) (fromList [5, 7]) == singleton 3
