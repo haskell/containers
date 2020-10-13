@@ -523,7 +523,7 @@ apSeq fs xs@(Seq xsFT) = case viewl fs of
     EmptyR -> fmap firstf xs
     Seq fs''FT :> lastf -> case rigidify xsFT of
          RigidEmpty -> empty
-         RigidOne (Elem x) -> fmap ($x) fs
+         RigidOne (Elem x) -> fmap ($ x) fs
          RigidTwo (Elem x1) (Elem x2) ->
             Seq $ ap2FT firstf fs''FT lastf (x1, x2)
          RigidThree (Elem x1) (Elem x2) (Elem x3) ->
