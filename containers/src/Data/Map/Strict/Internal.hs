@@ -805,7 +805,7 @@ alter = go
     go :: Ord k => (Maybe a -> Maybe a) -> k -> Map k a -> Map k a
     go f !k Tip = case f Nothing of
                Nothing -> Tip
-               Just x  -> singleton k x
+               Just x  -> x `seq` singleton k x
 
     go f k (Bin sx kx x l r) = case compare k kx of
                LT -> balance kx x (go f k l) r
