@@ -155,9 +155,15 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
+#if (MIN_VERSION_base(4,9,0))
             , intersections
+#endif
             , cartesianProduct
             , disjointUnion
+#if (MIN_VERSION_base(4,9,0))
+            , Intersection(..)
+#endif
+
 
             -- * Filter
             , filter
