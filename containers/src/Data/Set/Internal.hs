@@ -906,7 +906,7 @@ intersection t1@(Bin _ x l1 r1) t2
 #endif
 
 #if (MIN_VERSION_base(4,9,0))
--- | The intersection of a series of sets.
+-- | The intersection of a series of sets. Intersections are performed left-to-right.
 intersections :: Ord a => NonEmpty (Set a) -> Set a
 intersections (s :| ss) = Foldable.foldl' intersection s ss
 
