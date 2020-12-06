@@ -206,6 +206,8 @@ module Data.Sequence (
     adjust,         -- :: (a -> a) -> Int -> Seq a -> Seq a
     adjust',        -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
+    pop,            -- :: Int -> Seq a -> (Maybe a, Seq a)
+    popWithDefault, -- :: a -> Int -> Seq a -> (a, Seq a)
     take,           -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
     insertAt,       -- :: Int -> a -> Seq a -> Seq a

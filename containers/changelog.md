@@ -2,7 +2,7 @@
 ## 0.6.5.0
 
 ### Additions
-* [Add `pop` and `popWithDefault` to `Data.Map` and `Data.IntMap`](https://github.com/haskell/containers/pull/757)
+* [Add `pop` and `popWithDefault` to `Data.Map`, `Data.IntMap`, and `Data.Sequence`](https://github.com/haskell/containers/pull/757)
 
 
 ## [0.6.4.1]

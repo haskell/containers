@@ -146,6 +146,8 @@ module Data.Sequence.Internal (
     adjust,         -- :: (a -> a) -> Int -> Seq a -> Seq a
     adjust',        -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
+    pop,            -- :: Int -> Seq a -> (Maybe a, Seq a)
+    popWithDefault, -- :: a -> Int -> Seq a -> (a, Seq a)
     take,           -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
     insertAt,       -- :: Int -> a -> Seq a -> Seq a
@@ -207,6 +209,8 @@ import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..))
+import qualified Control.Arrow as Arrow
+import Data.Maybe (fromMaybe)
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
@@ -2460,6 +2464,26 @@ update i x (Seq xs)
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = Seq (updateTree (Elem x) i xs)
   | otherwise   = Seq xs
+
+-- | \( O(\log(\min(i,n-i))) \). Lookup and delete.
+-- If the index is found, the value corresponding to it is returned and removed
+-- from the sequence. If the index is not found, 'Nothing' is returned together
+-- with the original sequence.
+--
+-- @since 0.6.5
+pop :: Int -> Seq a -> (Maybe a, Seq a)
+pop i s =
+  -- TODO: Implement using a single traversal.
+  (lookup i s, deleteAt i s)
+
+-- | \( O(\log(\min(i,n-i))) \). Lookup and delete.
+-- If the index is found, the value corresponding to it is returned and removed
+-- from the sequence. If the index is not found, a default value is returned
+-- together with the original map.
+--
+-- @since 0.6.5
+popWithDefault :: a -> Int -> Seq a -> (a, Seq a)
+popWithDefault a i s = Arrow.first (fromMaybe a) (pop i s)
 
 -- It seems a shame to copy the implementation of the top layer of
 -- `adjust` instead of just using `update i x = adjust (const x) i`.
