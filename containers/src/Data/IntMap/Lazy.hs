@@ -103,6 +103,8 @@ module Data.IntMap.Lazy (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 

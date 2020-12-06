@@ -122,6 +122,8 @@ module Data.IntMap.Strict (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 

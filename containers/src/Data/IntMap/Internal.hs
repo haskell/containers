@@ -109,6 +109,8 @@ module Data.IntMap.Internal (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 
@@ -312,6 +314,7 @@ import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
 #endif
 
+import Control.Arrow (first)
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
@@ -1010,6 +1013,23 @@ updateLookupWithKey f k t@(Tip ky y)
   | otherwise     = (Nothing,t)
 updateLookupWithKey _ _ Nil = (Nothing,Nil)
 
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, 'Nothing' is returned together with
+-- the original map.
+--
+-- @since 0.6.5
+pop :: Int -> IntMap a -> (Maybe a, IntMap a)
+pop = updateLookupWithKey (\_ _ -> Nothing)
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, a default value is returned together
+-- with the original map.
+--
+-- @since 0.6.5
+popWithDefault :: a -> Int -> IntMap a -> (a, IntMap a)
+popWithDefault a k m = first (fromMaybe a) (pop k m)
 
 
 -- | /O(min(n,W))/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.

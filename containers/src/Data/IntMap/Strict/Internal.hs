@@ -120,6 +120,8 @@ module Data.IntMap.Strict.Internal (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 
@@ -352,6 +354,8 @@ import qualified Data.Foldable as Foldable
 #if !MIN_VERSION_base(4,8,0)
 import Data.Foldable (Foldable())
 #endif
+import Control.Arrow (first)
+import Data.Maybe (fromMaybe)
 
 {--------------------------------------------------------------------
   Query
@@ -579,6 +583,23 @@ updateLookupWithKey f0 !k0 t0 = toPair $ go f0 k0 t0
           | otherwise     -> (Nothing :*: t)
         Nil -> (Nothing :*: Nil)
 
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, 'Nothing' is returned together with
+-- the original map.
+--
+-- @since 0.6.5
+pop :: Int -> IntMap a -> (Maybe a, IntMap a)
+pop = updateLookupWithKey (\_ _ -> Nothing)
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, a default value is returned together
+-- with the original map.
+--
+-- @since 0.6.5
+popWithDefault :: a -> Int -> IntMap a -> (a, IntMap a)
+popWithDefault a k m = first (fromMaybe a) (pop k m)
 
 
 -- | /O(min(n,W))/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.

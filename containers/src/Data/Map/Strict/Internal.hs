@@ -120,6 +120,8 @@ module Data.Map.Strict.Internal
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 
@@ -426,6 +428,9 @@ import Data.Bits (shiftL, shiftR)
 #if __GLASGOW_HASKELL__ >= 709
 import Data.Coerce
 #endif
+
+import Control.Arrow (first)
+import Data.Maybe (fromMaybe)
 
 #if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
@@ -783,6 +788,24 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
 #else
 {-# INLINE updateLookupWithKey #-}
 #endif
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, 'Nothing' is returned together with
+-- the original map.
+--
+-- @since 0.6.5
+pop :: Ord k => k -> Map k a -> (Maybe a, Map k a)
+pop = updateLookupWithKey (\_ _ -> Nothing)
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, a default value is returned together
+-- with the original map.
+--
+-- @since 0.6.5
+popWithDefault :: Ord k => a -> k -> Map k a -> (a, Map k a)
+popWithDefault a k m = first (fromMaybe a) (pop k m)
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.

@@ -123,6 +123,8 @@ module Data.Map.Lazy (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 

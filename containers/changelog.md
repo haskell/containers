@@ -1,4 +1,9 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
+## 0.6.5.0
+
+### Additions
+* [Add `pop` and `popWithDefault` to `Data.Map` and `Data.IntMap`](https://github.com/haskell/containers/pull/757)
+
 
 ## [0.6.4.1]
 

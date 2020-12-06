@@ -167,6 +167,8 @@ module Data.Map.Internal (
     , update
     , updateWithKey
     , updateLookupWithKey
+    , pop
+    , popWithDefault
     , alter
     , alterF
 
@@ -388,6 +390,7 @@ import Data.Semigroup (Semigroup(stimes))
 import Data.Semigroup (Semigroup((<>)))
 #endif
 import Control.Applicative (Const (..))
+import Control.Arrow (first)
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
@@ -398,6 +401,7 @@ import Data.Foldable (Foldable())
 import Data.Bifoldable
 #endif
 import Data.Typeable
+import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
 import qualified Data.Set.Internal as Set
@@ -1143,6 +1147,24 @@ updateLookupWithKey f0 k0 = toPair . go f0 k0
 #else
 {-# INLINE updateLookupWithKey #-}
 #endif
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, 'Nothing' is returned together with
+-- the original map.
+--
+-- @since 0.6.5
+pop :: Ord k => k -> Map k a -> (Maybe a, Map k a)
+pop = updateLookupWithKey (\_ _ -> Nothing)
+
+-- | /O(log n)/. Lookup and delete.
+-- If the key is found, the value corresponding to it is returned and removed
+-- from the map. If the key is not found, a default value is returned together
+-- with the original map.
+--
+-- @since 0.6.5
+popWithDefault :: Ord k => a -> k -> Map k a -> (a, Map k a)
+popWithDefault a k m = first (fromMaybe a) (pop k m)
 
 -- | /O(log n)/. The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
