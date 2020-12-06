@@ -886,7 +886,11 @@ intersection t1@(Bin _ x l1 r1) t2
 #if (MIN_VERSION_base(4,9,0))
 -- | The intersection of a series of sets. Intersections are performed left-to-right.
 intersections :: Ord a => NonEmpty (Set a) -> Set a
-intersections (s :| ss) = Foldable.foldl' intersection s ss
+intersections (s0 :| ss) = List.foldr go id ss s0
+    where
+      go s r acc
+          | null acc = empty
+          | otherwise = r (intersection acc s)
 
 -- | Sets form a 'Semigroup' under 'intersection'.
 newtype Intersection a = Intersection { getIntersection :: Set a }
