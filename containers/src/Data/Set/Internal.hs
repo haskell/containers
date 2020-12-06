@@ -155,6 +155,7 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
+            , intersections
             , cartesianProduct
             , disjointUnion
 
@@ -234,10 +235,11 @@ import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 import Data.Semigroup (Semigroup(stimes))
+import Data.List.NonEmpty (NonEmpty(..))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-import Data.Semigroup (stimesIdempotentMonoid)
+import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
@@ -873,6 +875,20 @@ intersection t1@(Bin _ x l1 r1) t2
     !r1r2 = intersection r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
+#endif
+
+#if (MIN_VERSION_base(4,9,0))
+-- | The intersection of a series of sets.
+intersections :: Ord a => NonEmpty (Set a) -> Set a
+intersections (s :| ss) = Foldable.foldl' intersection s ss
+
+-- | Sets form a 'Semigroup' under 'intersection'.
+newtype Intersection a = Intersection { getIntersection :: Set a }
+    deriving (Show, Eq, Ord)
+
+instance (Ord a) => Semigroup (Intersection a) where
+    (Intersection a) <> (Intersection b) = Intersection $ intersection a b
+    stimes = stimesIdempotent
 #endif
 
 {--------------------------------------------------------------------
