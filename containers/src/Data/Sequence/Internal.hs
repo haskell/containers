@@ -17,6 +17,7 @@
 {-# LANGUAGE PatternGuards #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
+{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
 -----------------------------------------------------------------------------
 -- |
