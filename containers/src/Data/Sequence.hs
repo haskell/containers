@@ -297,7 +297,7 @@ onto the beginning of the second one.
 shift2Right :: Seq a -> Seq a -> (Seq a, Seq a)
 shift2Right Empty ys = (Empty, ys)
 shift2Right (Empty :|> x) ys = (Empty, x :<| ys)
-shift2Right (xs :|> x1 :|> x2) = (xs, x1 :<| x2 :<| ys)
+shift2Right (xs :|> x1 :|> x2) ys = (xs, x1 :<| x2 :<| ys)
 @
 
 @
