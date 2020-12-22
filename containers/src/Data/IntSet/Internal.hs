@@ -221,6 +221,9 @@ import Text.Read
 
 #if __GLASGOW_HASKELL__
 import qualified GHC.Exts
+#if !(MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64))
+import qualified GHC.Int
+#endif
 #endif
 
 import qualified Data.Foldable as Foldable
@@ -1642,7 +1645,7 @@ highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
 ----------------------------------------------------------------------}
 
 indexOfTheOnlyBit bitmask =
-  GHC.Exts.I# (lsbArray `GHC.Exts.indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset)))
+  fromIntegral (GHC.Int.I8# (lsbArray `GHC.Exts.indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset))))
   where unboxInt (GHC.Exts.I# i) = i
 #if WORD_SIZE_IN_BITS==32
         magic = 0x077CB531
