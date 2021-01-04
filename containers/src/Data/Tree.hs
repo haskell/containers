@@ -97,6 +97,7 @@ data Tree a = Node {
     }
 #ifdef __GLASGOW_HASKELL__
   deriving ( Eq
+           , Ord -- ^ @since 0.6.5
            , Read
            , Show
            , Data
@@ -104,7 +105,7 @@ data Tree a = Node {
            , Generic1 -- ^ @since 0.5.8
            )
 #else
-  deriving (Eq, Read, Show)
+  deriving (Eq, Ord, Read, Show)
 #endif
 
 -- | This type synonym exists primarily for historical
