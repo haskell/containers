@@ -202,7 +202,6 @@ import Prelude hiding (
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
-import qualified Data.List
 import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
                             liftA2, liftA3)
 import qualified Control.Applicative as Applicative
@@ -212,6 +211,11 @@ import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
+import qualified Data.Foldable as F
+
+#if !(__GLASGOW_HASKELL__ >= 708)
+import qualified Data.List
+#endif
 
 #if MIN_VERSION_base(4,9,0)
 import qualified Data.Semigroup as Semigroup
