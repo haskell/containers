@@ -2192,6 +2192,9 @@ instance Functor ViewL where
     fmap f (x :< xs)    = f x :< fmap f xs
 
 instance Foldable ViewL where
+    foldMap _ EmptyL = mempty
+    foldMap f (x :< xs) = f x <> foldMap f xs
+
     foldr _ z EmptyL = z
     foldr f z (x :< xs) = f x (foldr f z xs)
 
