@@ -122,7 +122,7 @@ import Data.Array.Unboxed ( UArray )
 #else
 import qualified Data.Array as UA
 #endif
-import Data.List
+import qualified Data.List as L
 #if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
 #endif
@@ -442,7 +442,7 @@ graphFromEdges edges0
   where
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
-    sorted_edges    = sortBy lt edges0
+    sorted_edges    = L.sortBy lt edges0
     edges1          = zipWith (,) [0..] sorted_edges
 
     graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
