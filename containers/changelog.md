@@ -1,6 +1,20 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## [0.6.4.1]
+## 0.6.5.1
+
+* Add support for finger trees with measurements in the `(Int, +)`
+  monoid.
+* Export more `Data.Sequence` internals.
+* Add a `Data.Sequence.StableInternal` module exporting functions
+  intended for use by external packages.
+* Remove the `Functor` and `Traversable` instances from the
+  heretofore "internal" `FingerTree` and `Node` types, in favor
+  of type-specific mapping functions. These instances could
+  break data structure invariants.
+* Remove the `Generic1 FingerTree` instance, which can no longer
+  be derived.
+
+## 0.6.4.1
 
 ### Bug fixes
 

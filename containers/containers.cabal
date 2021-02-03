@@ -41,6 +41,8 @@ Library
 
     exposed-modules:
         Data.Containers.ListUtils
+        Data.FingerTree.IntPlus
+        Data.FingerTree.IntPlus.Unsafe
         Data.IntMap
         Data.IntMap.Lazy
         Data.IntMap.Strict
@@ -65,6 +67,7 @@ Library
         Data.Sequence
         Data.Sequence.Internal
         Data.Sequence.Internal.Sorting
+        Data.Sequence.StableInternal
         Data.Tree
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
