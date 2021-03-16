@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
@@ -6,6 +7,9 @@ import Test.ChasingBottoms.IsBottom
 import Test.Framework (Test, TestName, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Arbitrary(arbitrary))
+#if __GLASGOW_HASKELL__ >= 806
+import Test.QuickCheck (Property)
+#endif
 import Test.QuickCheck.Function (Fun(..), apply)
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
@@ -16,6 +20,9 @@ import qualified Data.IntMap as L
 import Data.Containers.ListUtils
 
 import Utils.IsUnit
+#if __GLASGOW_HASKELL__ >= 806
+import Utils.NoThunks
+#endif
 
 instance Arbitrary v => Arbitrary (IntMap v) where
     arbitrary = M.fromList `fmap` arbitrary
@@ -101,6 +108,16 @@ pFromAscListStrict ks
   where
     elems = [(k, v) | k <- nubInt ks, v <- [undefined, undefined, ()]]
 
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldr' :: IntMap Int -> Property
+pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldl' :: IntMap Int -> Property
+pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
+#endif
+
 ------------------------------------------------------------------------
 -- check for extra thunks
 --
@@ -184,6 +201,10 @@ tests =
         pInsertLookupWithKeyValueStrict
       , testProperty "fromAscList is somewhat value-lazy" pFromAscListLazy
       , testProperty "fromAscList is somewhat value-strict" pFromAscListStrict
+#if __GLASGOW_HASKELL__ >= 806
+      , testProperty "strict foldr'" pStrictFoldr'
+      , testProperty "strict foldl'" pStrictFoldl'
+#endif
       ]
       , tExtraThunksM
       , tExtraThunksL

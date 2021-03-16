@@ -23,6 +23,10 @@ import Control.Applicative (Applicative (..), (<$>))
 #endif
 import Control.Applicative (liftA2)
 
+#if __GLASGOW_HASKELL__ >= 806
+import Utils.NoThunks (whnfHasNoThunks)
+#endif
+
 main :: IO ()
 main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGT" test_lookupGT
@@ -104,6 +108,10 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "powerSet"             prop_powerSet
                    , testProperty "cartesianProduct"     prop_cartesianProduct
                    , testProperty "disjointUnion"        prop_disjointUnion
+#if __GLASGOW_HASKELL__ >= 806
+                   , testProperty "strict foldr"         prop_strictFoldr'
+                   , testProperty "strict foldr"         prop_strictFoldl'
+#endif
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -690,3 +698,13 @@ prop_disjointUnion xs ys =
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True
 isLeft _ = False
+
+#if __GLASGOW_HASKELL__ >= 806
+prop_strictFoldr' :: Set Int -> Property
+prop_strictFoldr' m = whnfHasNoThunks (foldr' (:) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+prop_strictFoldl' :: Set Int -> Property
+prop_strictFoldl' m = whnfHasNoThunks (foldl' (flip (:)) [] m)
+#endif

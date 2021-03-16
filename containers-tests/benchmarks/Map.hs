@@ -72,8 +72,9 @@ main = do
         , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ whnf (ins elems) m
---         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
+        , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
         , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
+        , bench "foldrWithKey'" $ whnf (M.foldrWithKey' consPair []) m
         , bench "update absent" $ whnf (upd Just evens) m_odd
         , bench "update present" $ whnf (upd Just evens) m_even
         , bench "update delete" $ whnf (upd (const Nothing) evens) m
