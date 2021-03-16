@@ -41,9 +41,13 @@ library
       array    >=0.4.0.0
     , base     >=4.6     && <5
     , deepseq  >=1.2     && <1.5
+  if impl(ghc >= 8.6.0)
+    build-depends:
+        nothunks
+      , QuickCheck
 
   include-dirs:     include
-  hs-source-dirs:   src
+  hs-source-dirs:   src, tests
   ghc-options:      -O2 -Wall
   other-extensions:
     BangPatterns
@@ -79,6 +83,9 @@ library
     Utils.Containers.Internal.BitQueue
     Utils.Containers.Internal.BitUtil
     Utils.Containers.Internal.StrictPair
+  if impl(ghc >= 8.6.0)
+    exposed-modules:
+      Utils.NoThunks
 
   other-modules:
     Utils.Containers.Internal.Coercions
@@ -331,6 +338,12 @@ test-suite set-properties
     , test-framework-quickcheck2
     , transformers
 
+  if impl(ghc >= 8.6)
+    build-depends:
+      nothunks
+    other-modules:
+      Utils.NoThunks
+
 test-suite intmap-lazy-properties
   default-language: Haskell2010
   hs-source-dirs:   tests
@@ -474,6 +487,12 @@ test-suite map-strictness-properties
   other-modules:
     Utils.IsUnit
 
+  if impl(ghc >= 8.6)
+    build-depends:
+      nothunks
+    other-modules:
+      Utils.NoThunks
+
 test-suite intmap-strictness-properties
   default-language: Haskell2010
   hs-source-dirs:   tests
@@ -500,6 +519,12 @@ test-suite intmap-strictness-properties
   other-modules:
     Utils.IsUnit
 
+  if impl(ghc >= 8.6)
+    build-depends:
+      nothunks
+    other-modules:
+      Utils.NoThunks
+
 test-suite intset-strictness-properties
   default-language: Haskell2010
   hs-source-dirs:   tests
@@ -520,6 +545,12 @@ test-suite intset-strictness-properties
     , test-framework-quickcheck2  >=0.2.9
 
   ghc-options:      -Wall
+
+  if impl(ghc >= 8.6)
+    build-depends:
+      nothunks
+    other-modules:
+      Utils.NoThunks
 
 test-suite listutils-properties
   default-language: Haskell2010

@@ -987,7 +987,7 @@ foldr' :: (a -> b -> b) -> b -> Set a -> b
 foldr' f z = go z
   where
     go !z' Tip           = z'
-    go z' (Bin _ x l r) = go (f x (go z' r)) l
+    go z' (Bin _ x l r) = go (f x $! go z' r) l
 {-# INLINE foldr' #-}
 
 -- | /O(n)/. Fold the elements in the set using the given left-associative
@@ -1010,7 +1010,9 @@ foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
     go !z' Tip           = z'
-    go z' (Bin _ x l r) = go (f (go z' l) x) r
+    go z' (Bin _ x l r) =
+      let !z'' = go z' l
+      in go (f z'' x) r
 {-# INLINE foldl' #-}
 
 {--------------------------------------------------------------------
