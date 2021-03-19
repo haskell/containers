@@ -1,11 +1,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-module Main where
+module Map (benchmarks) where
 
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Gauge (bench, defaultMain, whnf, nf)
+import Gauge.Benchmark (Benchmark, bgroup, env)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
@@ -18,81 +19,85 @@ import Data.Coerce
 #endif
 import Prelude hiding (lookup)
 
-main = do
-    let m = M.fromAscList elems :: M.Map Int Int
-        m_even = M.fromAscList elems_even :: M.Map Int Int
-        m_odd = M.fromAscList elems_odd :: M.Map Int Int
-    evaluate $ rnf [m, m_even, m_odd]
-    defaultMain
-        [ bench "lookup absent" $ whnf (lookup evens) m_odd
-        , bench "lookup present" $ whnf (lookup evens) m_even
-        , bench "map" $ whnf (M.map (+ 1)) m
-        , bench "map really" $ nf (M.map (+ 2)) m
-        , bench "<$" $ whnf ((1 :: Int) <$) m
-        , bench "<$ really" $ nf ((2 :: Int) <$) m
-        , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
-        , bench "alterF lookup present" $ whnf (atLookup evens) m_even
-        , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
-        , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
-        , bench "insert absent" $ whnf (ins elems_even) m_odd
-        , bench "insert present" $ whnf (ins elems_even) m_even
-        , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
-        , bench "alterF insert present" $ whnf (atIns elems_even) m_even
-        , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
-        , bench "alterF no rules insert present" $ whnf (atInsNoRules elems_even) m_even
-        , bench "delete absent" $ whnf (del evens) m_odd
-        , bench "delete present" $ whnf (del evens) m
-        , bench "alterF delete absent" $ whnf (atDel evens) m_odd
-        , bench "alterF delete present" $ whnf (atDel evens) m
-        , bench "alterF no rules delete absent" $ whnf (atDelNoRules evens) m_odd
-        , bench "alterF no rules delete present" $ whnf (atDelNoRules evens) m
-        , bench "alter absent"  $ whnf (alt id evens) m_odd
-        , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
-        , bench "alter update"  $ whnf (alt id evens) m_even
-        , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
-        , bench "alterF alter absent" $ whnf (atAlt id evens) m_odd
-        , bench "alterF alter insert" $ whnf (atAlt (const (Just 1)) evens) m_odd
-        , bench "alterF alter update" $ whnf (atAlt id evens) m_even
-        , bench "alterF alter delete" $ whnf (atAlt (const Nothing) evens) m
-        , bench "alterF no rules alter absent" $ whnf (atAltNoRules id evens) m_odd
-        , bench "alterF no rules alter insert" $ whnf (atAltNoRules (const (Just 1)) evens) m_odd
-        , bench "alterF no rules alter update" $ whnf (atAltNoRules id evens) m_even
-        , bench "alterF no rules alter delete" $ whnf (atAltNoRules (const Nothing) evens) m
-        , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
-        , bench "insertWith present" $ whnf (insWith elems_even) m_even
-        , bench "insertWith' absent" $ whnf (insWith' elems_even) m_odd
-        , bench "insertWith' present" $ whnf (insWith' elems_even) m_even
-        , bench "insertWithKey absent" $ whnf (insWithKey elems_even) m_odd
-        , bench "insertWithKey present" $ whnf (insWithKey elems_even) m_even
-        , bench "insertWithKey' absent" $ whnf (insWithKey' elems_even) m_odd
-        , bench "insertWithKey' present" $ whnf (insWithKey' elems_even) m_even
-        , bench "insertLookupWithKey absent" $ whnf (insLookupWithKey elems_even) m_odd
-        , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
-        , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
-        , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
-        , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ whnf (ins elems) m
---         , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
-        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
-        , bench "update absent" $ whnf (upd Just evens) m_odd
-        , bench "update present" $ whnf (upd Just evens) m_even
-        , bench "update delete" $ whnf (upd (const Nothing) evens) m
-        , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
-        , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
-        , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
-        , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
-        , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
-        , bench "lookupIndex" $ whnf (lookupIndex keys) m
-        , bench "union" $ whnf (M.union m_even) m_odd
-        , bench "difference" $ whnf (M.difference m) m_even
-        , bench "intersection" $ whnf (M.intersection m) m_even
-        , bench "split" $ whnf (M.split (bound `div` 2)) m
-        , bench "fromList" $ whnf M.fromList elems
-        , bench "fromList-desc" $ whnf M.fromList (reverse elems)
-        , bench "fromAscList" $ whnf M.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
-        , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
-        ]
+benchmarks :: Benchmark
+benchmarks =
+    env (pure
+             ( M.fromAscList elems :: M.Map Int Int
+             , M.fromAscList elems_even :: M.Map Int Int
+             , M.fromAscList elems_odd :: M.Map Int Int
+             )
+        )
+        (\ ~(m, m_even, m_odd) -> bgroup "Map"
+            [ bench "lookup absent" $ whnf (lookup evens) m_odd
+            , bench "lookup present" $ whnf (lookup evens) m_even
+            , bench "map" $ whnf (M.map (+ 1)) m
+            , bench "map really" $ nf (M.map (+ 2)) m
+            , bench "<$" $ whnf ((1 :: Int) <$) m
+            , bench "<$ really" $ nf ((2 :: Int) <$) m
+            , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
+            , bench "alterF lookup present" $ whnf (atLookup evens) m_even
+            , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
+            , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
+            , bench "insert absent" $ whnf (ins elems_even) m_odd
+            , bench "insert present" $ whnf (ins elems_even) m_even
+            , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
+            , bench "alterF insert present" $ whnf (atIns elems_even) m_even
+            , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
+            , bench "alterF no rules insert present" $ whnf (atInsNoRules elems_even) m_even
+            , bench "delete absent" $ whnf (del evens) m_odd
+            , bench "delete present" $ whnf (del evens) m
+            , bench "alterF delete absent" $ whnf (atDel evens) m_odd
+            , bench "alterF delete present" $ whnf (atDel evens) m
+            , bench "alterF no rules delete absent" $ whnf (atDelNoRules evens) m_odd
+            , bench "alterF no rules delete present" $ whnf (atDelNoRules evens) m
+            , bench "alter absent"  $ whnf (alt id evens) m_odd
+            , bench "alter insert"  $ whnf (alt (const (Just 1)) evens) m_odd
+            , bench "alter update"  $ whnf (alt id evens) m_even
+            , bench "alter delete"  $ whnf (alt (const Nothing) evens) m
+            , bench "alterF alter absent" $ whnf (atAlt id evens) m_odd
+            , bench "alterF alter insert" $ whnf (atAlt (const (Just 1)) evens) m_odd
+            , bench "alterF alter update" $ whnf (atAlt id evens) m_even
+            , bench "alterF alter delete" $ whnf (atAlt (const Nothing) evens) m
+            , bench "alterF no rules alter absent" $ whnf (atAltNoRules id evens) m_odd
+            , bench "alterF no rules alter insert" $ whnf (atAltNoRules (const (Just 1)) evens) m_odd
+            , bench "alterF no rules alter update" $ whnf (atAltNoRules id evens) m_even
+            , bench "alterF no rules alter delete" $ whnf (atAltNoRules (const Nothing) evens) m
+            , bench "insertWith absent" $ whnf (insWith elems_even) m_odd
+            , bench "insertWith present" $ whnf (insWith elems_even) m_even
+            , bench "insertWith' absent" $ whnf (insWith' elems_even) m_odd
+            , bench "insertWith' present" $ whnf (insWith' elems_even) m_even
+            , bench "insertWithKey absent" $ whnf (insWithKey elems_even) m_odd
+            , bench "insertWithKey present" $ whnf (insWithKey elems_even) m_even
+            , bench "insertWithKey' absent" $ whnf (insWithKey' elems_even) m_odd
+            , bench "insertWithKey' present" $ whnf (insWithKey' elems_even) m_even
+            , bench "insertLookupWithKey absent" $ whnf (insLookupWithKey elems_even) m_odd
+            , bench "insertLookupWithKey present" $ whnf (insLookupWithKey elems_even) m_even
+            , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
+            , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
+            , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
+            , bench "foldlWithKey" $ whnf (ins elems) m
+--             , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
+            , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
+            , bench "update absent" $ whnf (upd Just evens) m_odd
+            , bench "update present" $ whnf (upd Just evens) m_even
+            , bench "update delete" $ whnf (upd (const Nothing) evens) m
+            , bench "updateLookupWithKey absent" $ whnf (upd' Just evens) m_odd
+            , bench "updateLookupWithKey present" $ whnf (upd' Just evens) m_even
+            , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
+            , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
+            , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
+            , bench "lookupIndex" $ whnf (lookupIndex keys) m
+            , bench "union" $ whnf (M.union m_even) m_odd
+            , bench "difference" $ whnf (M.difference m) m_even
+            , bench "intersection" $ whnf (M.intersection m) m_even
+            , bench "split" $ whnf (M.split (bound `div` 2)) m
+            , bench "fromList" $ whnf M.fromList elems
+            , bench "fromList-desc" $ whnf M.fromList (reverse elems)
+            , bench "fromAscList" $ whnf M.fromAscList elems
+            , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+            , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+            ]
+        )
   where
     bound = 2^12
     elems = zip keys values

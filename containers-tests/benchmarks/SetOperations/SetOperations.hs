@@ -13,10 +13,9 @@ import Data.Tuple as Tuple
 -- * A way to construct the container
 -- * Flag if we should benchmark the operations with reversed arguments.
 -- * A list of operations.
-benchmark :: forall container. (Show container, Eq container) => ([Int] -> container) -> Bool -> [(String, container -> container -> container)] -> IO ()
-benchmark fromList swap methods = do
-
-  defaultMain $ [ bench (method_str++"-"++input_str ++ "_" ++ data_sizes) $
+benchmark :: forall container. (Show container, Eq container) => ([Int] -> container) -> Bool -> [(String, container -> container -> container)] -> Benchmark
+benchmark fromList swap methods = bgroup "set operations"
+                [ bench (method_str++"-"++input_str ++ "_" ++ data_sizes) $
                         whnf (method input1) input2
 
                 | (method_str, method) <- methods
