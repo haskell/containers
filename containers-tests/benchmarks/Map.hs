@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-module Map (benchmarks) where
+module Map (benchmark) where
 
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
@@ -19,8 +19,8 @@ import Data.Coerce
 #endif
 import Prelude hiding (lookup)
 
-benchmarks :: Benchmark
-benchmarks =
+benchmark :: Benchmark
+benchmark =
     env (pure
              ( M.fromAscList elems :: M.Map Int Int
              , M.fromAscList elems_even :: M.Map Int Int

@@ -1,9 +1,10 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
-module SetOperations (benchmark) where
+module SetOperations.Util (benchmark) where
 
-import Gauge (bench, defaultMain, whnf)
+import Gauge (bench, bgroup, defaultMain, whnf)
+import Gauge.Benchmark (Benchmark)
 import Data.List (partition, sortBy)
 import Data.Ord (comparing)
 import Data.Tuple as Tuple
