@@ -3,6 +3,7 @@ module Main where
 import Map
 import LookupGE.Map
 import SetOperations.Map
+import Set
 
 import Gauge
 
@@ -13,7 +14,7 @@ main = do
               [ SetOperations.Map.benchmark
               , LookupGE.Map.benchmark
               ]
-        , bgroup "Set" []
+        , Set.benchmark
         , bgroup "IntMap" []
         , bgroup "IntSet" []
         , bgroup "Sequence" []

@@ -1,51 +1,57 @@
 {-# LANGUAGE BangPatterns #-}
 
-module Main where
+module Set (benchmark) where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, whnf)
+import Gauge (bench, bgroup, env, whnf)
+import Gauge.Benchmark (Benchmark)
 import Data.List (foldl')
 import qualified Data.Set as S
 
-main = do
-    let s = S.fromAscList elems :: S.Set Int
-        s_even = S.fromAscList elems_even :: S.Set Int
-        s_odd = S.fromAscList elems_odd :: S.Set Int
-        strings_s = S.fromList strings
-    evaluate $ rnf [s, s_even, s_odd]
-    defaultMain
-        [ bench "member" $ whnf (member elems) s
-        , bench "insert" $ whnf (ins elems) S.empty
-        , bench "map" $ whnf (S.map (+ 1)) s
-        , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
-        , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
-        , bench "fold" $ whnf (S.fold (:) []) s
-        , bench "delete" $ whnf (del elems) s
-        , bench "findMin" $ whnf S.findMin s
-        , bench "findMax" $ whnf S.findMax s
-        , bench "deleteMin" $ whnf S.deleteMin s
-        , bench "deleteMax" $ whnf S.deleteMax s
-        , bench "unions" $ whnf S.unions [s_even, s_odd]
-        , bench "union" $ whnf (S.union s_even) s_odd
-        , bench "difference" $ whnf (S.difference s) s_even
-        , bench "intersection" $ whnf (S.intersection s) s_even
-        , bench "fromList" $ whnf S.fromList elems
-        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
-        , bench "fromAscList" $ whnf S.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
-        , bench "disjoint:false" $ whnf (S.disjoint s) s_even
-        , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
-        , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
-        , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
-        , bench "alterF:member" $ whnf (alterF_member elems) s
-        , bench "alterF:insert" $ whnf (alterF_ins elems) S.empty
-        , bench "alterF:delete" $ whnf (alterF_del elems) s
-        , bench "alterF:four" $ whnf (alterF_four elems) s
-        , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
-        , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
-        , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
-        ]
+benchmark :: Benchmark
+benchmark =
+    env (pure
+             ( S.fromAscList elems :: S.Set Int
+             , S.fromAscList elems_even :: S.Set Int
+             , S.fromAscList elems_odd :: S.Set Int
+             , S.fromList strings
+             )
+        )
+        (\ ~(s, s_even, s_odd, strings_s) ->
+            bgroup "Set"
+                 [ bench "member" $ whnf (member elems) s
+                 , bench "insert" $ whnf (ins elems) S.empty
+                 , bench "map" $ whnf (S.map (+ 1)) s
+                 , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
+                 , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
+                 , bench "fold" $ whnf (S.fold (:) []) s
+                 , bench "delete" $ whnf (del elems) s
+                 , bench "findMin" $ whnf S.findMin s
+                 , bench "findMax" $ whnf S.findMax s
+                 , bench "deleteMin" $ whnf S.deleteMin s
+                 , bench "deleteMax" $ whnf S.deleteMax s
+                 , bench "unions" $ whnf S.unions [s_even, s_odd]
+                 , bench "union" $ whnf (S.union s_even) s_odd
+                 , bench "difference" $ whnf (S.difference s) s_even
+                 , bench "intersection" $ whnf (S.intersection s) s_even
+                 , bench "fromList" $ whnf S.fromList elems
+                 , bench "fromList-desc" $ whnf S.fromList (reverse elems)
+                 , bench "fromAscList" $ whnf S.fromAscList elems
+                 , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
+                 , bench "disjoint:false" $ whnf (S.disjoint s) s_even
+                 , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
+                 , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
+                 , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
+                 , bench "alterF:member" $ whnf (alterF_member elems) s
+                 , bench "alterF:insert" $ whnf (alterF_ins elems) S.empty
+                 , bench "alterF:delete" $ whnf (alterF_del elems) s
+                 , bench "alterF:four" $ whnf (alterF_four elems) s
+                 , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
+                 , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
+                 , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
+                 ]
+        )
   where
     elems = [1..2^12]
     elems_even = [2,4..2^12]
