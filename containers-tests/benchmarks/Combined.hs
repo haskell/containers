@@ -2,6 +2,7 @@ module Main where
 
 import Map
 import LookupGE.Map
+import Sequence
 import SetOperations.Map
 import Set
 
@@ -17,5 +18,5 @@ main = do
         , Set.benchmark
         , bgroup "IntMap" []
         , bgroup "IntSet" []
-        , bgroup "Sequence" []
+        , Sequence.benchmark
         ]

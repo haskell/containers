@@ -110,6 +110,8 @@ benchmark combined-benchmarks
     , containers-tests
     , deepseq           >=1.1.0.0 && <1.5
     , gauge             >=0.2.3   && <0.3
+    , random                         <1.2
+    , transformers
 
 benchmark intmap-benchmarks
   default-language: Haskell2010
