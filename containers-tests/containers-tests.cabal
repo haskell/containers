@@ -271,6 +271,7 @@ test-suite map-strict-properties
   hs-source-dirs:   tests
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
+  cpp-options:      -DSTRICT
   build-depends:    containers-tests
   build-depends:
       array    >=0.4.0.0
