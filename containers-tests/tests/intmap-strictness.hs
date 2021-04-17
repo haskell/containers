@@ -90,7 +90,7 @@ pInsertLookupWithKeyValueStrict f k v m
 -- also https://github.com/haskell/containers/issues/473
 
 pFromAscListLazy :: [Int] -> Bool
-pFromAscListLazy ks = not . isBottom $ M.fromAscList elems
+pFromAscListLazy ks = not . isBottom $ L.fromAscList elems
   where
     elems = [(k, v) | k <- nubInt ks, v <- [undefined, ()]]
 
@@ -132,7 +132,7 @@ tExtraThunksM = testGroup "IntMap.Strict - extra thunks" $
         msg = "too lazy -- expected fully evaluated ()"
 
 tExtraThunksL :: Test
-tExtraThunksL = testGroup "IntMap.Strict - extra thunks" $
+tExtraThunksL = testGroup "IntMap.Lazy - extra thunks" $
     if not isUnitSupported then [] else
     -- for lazy maps, the *With functions should leave `const () ()` thunks,
     -- but the other functions should produce fully evaluated ().
@@ -147,7 +147,7 @@ tExtraThunksL = testGroup "IntMap.Strict - extra thunks" $
     ]
   where
     m0 = L.singleton 42 ()
-    check :: TestName -> Bool -> IntMap () -> Test
+    check :: TestName -> Bool -> L.IntMap () -> Test
     check n e m = testCase n $ case L.lookup 42 m of
         Just v -> assertBool msg (e == isUnit v)
         _      -> assertString "key not found"
