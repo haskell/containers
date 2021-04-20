@@ -132,7 +132,7 @@ tExtraThunksM = testGroup "IntMap.Strict - extra thunks" $
         msg = "too lazy -- expected fully evaluated ()"
 
 tExtraThunksL :: Test
-tExtraThunksL = testGroup "IntMap.Strict - extra thunks" $
+tExtraThunksL = testGroup "IntMap.Lazy - extra thunks" $
     if not isUnitSupported then [] else
     -- for lazy maps, the *With functions should leave `const () ()` thunks,
     -- but the other functions should produce fully evaluated ().
