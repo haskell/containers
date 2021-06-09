@@ -14,7 +14,7 @@ import Unsafe.Coerce ( unsafeCoerce )
 #if __GLASGOW_HASKELL__ < 707
 import GHC.Exts ( (==#) )
 #else
-import GHC.Exts ( isTrue# )
+import GHC.Exts ( Int#, isTrue# )
 #endif
 #endif
 
@@ -35,7 +35,7 @@ ptrEq x y = reallyUnsafePtrEquality# x y ==# 1#
 hetPtrEq x y = unsafeCoerce reallyUnsafePtrEquality# x y ==# 1#
 #else
 ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
-hetPtrEq x y = isTrue# (unsafeCoerce reallyUnsafePtrEquality# x y)
+hetPtrEq x y = isTrue# (unsafeCoerce (reallyUnsafePtrEquality# :: x -> x -> Int#) x y)
 #endif
 
 #else
