@@ -113,6 +113,7 @@ module Data.Map.Lazy (
     -- * Insertion
     , insert
     , insertWith
+    , insertWithFun
     , insertWithKey
     , insertLookupWithKey
 

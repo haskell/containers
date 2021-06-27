@@ -71,6 +71,17 @@ pInsertWithValueStrict f k v m
                      not (isBottom $ M.insertWith (const2 1) k bottom m)
     | otherwise    = isBottom $ M.insertWith (apply2 f) k bottom m
 
+pInsertWithFunKeyStrict :: Fun (Int, Int) Int -> Fun Int Int -> Int -> Map Int Int -> Bool
+pInsertWithFunKeyStrict f g v m = isBottom $ M.insertWithFun (apply2 f) (apply g) bottom v m
+
+pInsertWithFunValueStrict :: Fun (Int, Int) Int -> Fun Int Int -> Int -> Int -> Map Int Int
+                             -> Bool
+pInsertWithFunValueStrict f g k v m
+    | M.member k m = (isBottom $ M.insertWithFun (const2 bottom) (const bottom) k v m) &&
+                     not (isBottom $ M.insertWithFun (const2 1) (const bottom) k bottom m)
+    | otherwise    = (isBottom $ M.insertWithFun (apply2 f) (apply g) k bottom m) &&
+                     not (isBottom $ M.insertWithFun (const2 bottom) (const 1) k bottom m)
+
 pInsertLookupWithKeyKeyStrict :: Fun (Int, Int, Int) Int -> Int
                               -> Map Int Int -> Bool
 pInsertLookupWithKeyKeyStrict f v m = isBottom $ M.insertLookupWithKey (apply3 f) bottom v m
@@ -94,19 +105,25 @@ tExtraThunksM :: Test
 tExtraThunksM = testGroup "Map.Strict - extra thunks" $
     if not isUnitSupported then [] else
     -- for strict maps, all the values should be evaluated to ()
-    [ check "singleton"           $ m0
-    , check "insert"              $ M.insert 42 () m0
-    , check "insertWith"          $ M.insertWith const 42 () m0
-    , check "fromList"            $ M.fromList [(42,()),(42,())]
-    , check "fromListWith"        $ M.fromListWith const [(42,()),(42,())]
-    , check "fromAscList"         $ M.fromAscList [(42,()),(42,())]
-    , check "fromAscListWith"     $ M.fromAscListWith const [(42,()),(42,())]
-    , check "fromDistinctAscList" $ M.fromAscList [(42,())]
+    [ check  "singleton"           $ m0
+    , check  "insert"              $ M.insert 42 () m0
+    , check  "insertWith"          $ M.insertWith const 42 () m0
+    , check  "insertWithFun_f"     $ M.insertWithFun const (const ()) 42 () m0
+    , check' "insertWithFun_g" 21  $ M.insertWithFun const (const ()) 21 () m0
+    , check  "fromList"            $ M.fromList [(42,()),(42,())]
+    , check  "fromListWith"        $ M.fromListWith const [(42,()),(42,())]
+    , check  "fromAscList"         $ M.fromAscList [(42,()),(42,())]
+    , check  "fromAscListWith"     $ M.fromAscListWith const [(42,()),(42,())]
+    , check  "fromDistinctAscList" $ M.fromAscList [(42,())]
     ]
   where
     m0 = M.singleton 42 ()
+
     check :: TestName -> M.Map Int () -> Test
-    check n m = testCase n $ case M.lookup 42 m of
+    check n m = check' n 42 m
+
+    check' :: TestName -> Int -> M.Map Int () -> Test
+    check' n k m = testCase n $ case M.lookup k m of
         Just v -> assertBool msg (isUnit v)
         _      -> assertString "key not found"
       where
@@ -117,19 +134,25 @@ tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
     if not isUnitSupported then [] else
     -- for lazy maps, the *With functions should leave `const () ()` thunks,
     -- but the other functions should produce fully evaluated ().
-    [ check "singleton"       True  $ m0
-    , check "insert"          True  $ L.insert 42 () m0
-    , check "insertWith"      False $ L.insertWith const 42 () m0
-    , check "fromList"        True  $ L.fromList [(42,()),(42,())]
-    , check "fromListWith"    False $ L.fromListWith const [(42,()),(42,())]
-    , check "fromAscList"     True  $ L.fromAscList [(42,()),(42,())]
-    , check "fromAscListWith" False $ L.fromAscListWith const [(42,()),(42,())]
-    , check "fromDistinctAscList" True $ L.fromAscList [(42,())]
+    [ check  "singleton"           True     $ m0
+    , check  "insert"              True     $ L.insert 42 () m0
+    , check  "insertWith"          False    $ L.insertWith const 42 () m0
+    , check  "insertWithFun_f"     False    $ L.insertWithFun const (const ()) 42 () m0
+    , check' "insertWithFun_g"     False 21 $ L.insertWithFun const (const ()) 21 () m0
+    , check  "fromList"            True     $ L.fromList [(42,()),(42,())]
+    , check  "fromListWith"        False    $ L.fromListWith const [(42,()),(42,())]
+    , check  "fromAscList"         True     $ L.fromAscList [(42,()),(42,())]
+    , check  "fromAscListWith"     False    $ L.fromAscListWith const [(42,()),(42,())]
+    , check  "fromDistinctAscList" True     $ L.fromAscList [(42,())]
     ]
   where
     m0 = L.singleton 42 ()
+
     check :: TestName -> Bool -> L.Map Int () -> Test
-    check n e m = testCase n $ case L.lookup 42 m of
+    check n e m = check' n e 42 m
+
+    check' :: TestName -> Bool -> Int -> L.Map Int () -> Test
+    check' n e k m = testCase n $ case L.lookup k m of
         Just v -> assertBool msg (e == isUnit v)
         _      -> assertString "key not found"
       where
@@ -157,7 +180,9 @@ tests =
       , testProperty "insert is key-strict" pInsertKeyStrict
       , testProperty "insert is value-strict" pInsertValueStrict
       , testProperty "insertWith is key-strict" pInsertWithKeyStrict
+      , testProperty "insertWithFun is key-strict" pInsertWithFunKeyStrict
       , testProperty "insertWith is value-strict" pInsertWithValueStrict
+      , testProperty "insertWithFun is value-strict" pInsertWithFunValueStrict
       , testProperty "insertLookupWithKey is key-strict"
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
