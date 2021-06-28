@@ -78,6 +78,7 @@
 
 module Data.Sequence.Internal (
     Elem(..), FingerTree(..), Node(..), Digit(..), Sized(..), MaybeForce,
+    Split (..),
 #if defined(DEFINE_PATTERN_SYNONYMS)
     Seq (.., Empty, (:<|), (:|>)),
 #else
@@ -94,9 +95,17 @@ module Data.Sequence.Internal (
     empty,          -- :: Seq a
     singleton,      -- :: a -> Seq a
     (<|),           -- :: a -> Seq a -> Seq a
+    cons',
+    consTree,
+    consTree',
     (|>),           -- :: Seq a -> a -> Seq a
+    snoc',
+    snocTree,
+    snocTree',
     (><),           -- :: Seq a -> Seq a -> Seq a
+    appendTree,
     fromList,       -- :: [a] -> Seq a
+    fromListFT,
     fromFunction,   -- :: Int -> (Int -> a) -> Seq a
     fromArray,      -- :: Ix i => Array i a -> Seq a
     -- ** Repetition
@@ -117,9 +126,13 @@ module Data.Sequence.Internal (
     length,         -- :: Seq a -> Int
     -- ** Views
     ViewL(..),
+    ViewLTree(..),
     viewl,          -- :: Seq a -> ViewL a
+    viewLTree,
     ViewR(..),
+    ViewRTree(..),
     viewr,          -- :: Seq a -> ViewR a
+    viewRTree,
     -- * Scans
     scanl,          -- :: (a -> b -> a) -> a -> Seq b -> Seq a
     scanl1,         -- :: (a -> a -> a) -> Seq a -> Seq a
@@ -152,6 +165,7 @@ module Data.Sequence.Internal (
     insertAt,       -- :: Int -> a -> Seq a -> Seq a
     deleteAt,       -- :: Int -> Seq a -> Seq a
     splitAt,        -- :: Int -> Seq a -> (Seq a, Seq a)
+    splitTree,
     -- ** Indexing with predicates
     -- | These functions perform sequential searches from the left
     -- or right ends of the sequence, returning indices of matching
@@ -171,6 +185,9 @@ module Data.Sequence.Internal (
     foldrWithIndex, -- :: (Int -> a -> b -> b) -> b -> Seq a -> b
     -- * Transformations
     mapWithIndex,   -- :: (Int -> a -> b) -> Seq a -> Seq b
+    splitMap,
+    unsafeMapFT,
+    unsafeMapNode,
     traverseWithIndex, -- :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
     reverse,        -- :: Seq a -> Seq a
     intersperse,    -- :: a -> Seq a -> Seq a
@@ -280,7 +297,7 @@ infixr 6 <>
 
 infixr 5 `consTree`
 infixl 5 `snocTree`
-infixr 5 `appendTree0`
+infixr 5 `appendTree`
 
 infixr 5 ><
 infixr 5 <|, :<
@@ -320,6 +337,8 @@ pattern xs :|> x <- (viewr -> xs :> x)
     xs :|> x = xs |> x
 #endif
 
+-- | Types with a notion of size or measure in the @Sum Int@
+-- monoid. These can be used as 'FingerTree' elements.
 class Sized a where
     size :: a -> Int
 
@@ -358,6 +377,9 @@ instance Sized (ForceBox a) where
 -- | General-purpose finite sequences.
 newtype Seq a = Seq (FingerTree (Elem a))
 
+instance Sized (Seq a) where
+  size (Seq xs) = size xs
+
 instance Functor Seq where
     fmap = fmapSeq
 #ifdef __GLASGOW_HASKELL__
@@ -365,7 +387,7 @@ instance Functor Seq where
 #endif
 
 fmapSeq :: (a -> b) -> Seq a -> Seq b
-fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
+fmapSeq f (Seq xs) = Seq (unsafeMapFT (fmap f) xs)
 #ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] fmapSeq #-}
 {-# RULES
@@ -488,7 +510,8 @@ instance Traversable Seq where
         traverseNodeN
             :: Applicative f
             => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
-        traverseNodeN f t = traverse f t
+        traverseNodeN f (Node2 v a b) = liftA2 (Node2 v) (f a) (f b)
+        traverseNodeN f (Node3 v a b c) = liftA3 (Node3 v) (f a) (f b) (f c)
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
@@ -732,14 +755,14 @@ liftA2Middle
     (Rigid s pr (DeepTh sm prm mm sfm) sf)
     -- note: size (DeepTh sm pr mm sfm) = sm = size pr + size mm + size sfm
     = Deep (sm + s * (size midxs + 1)) -- note: sm = s - size pr - size sf
-           (fmap (fmap ffirstx) (digit12ToDigit prm))
+           (fmap (unsafeMapNode ffirstx) (digit12ToDigit prm))
            (liftA2Middle
-               (fmap ffirstx)
-               (fmap flastx)
-               (fmap . f)
+               (unsafeMapNode ffirstx)
+               (unsafeMapNode flastx)
+               (unsafeMapNode . f)
                midxs
                (Rigid s (squashL pr prm) mm (squashR sfm sf)))
-           (fmap (fmap flastx) (digit12ToDigit sfm))
+           (fmap (unsafeMapNode flastx) (digit12ToDigit sfm))
 
 -- At the bottom
 
@@ -750,9 +773,9 @@ liftA2Middle
     midxs
     (Rigid s pr EmptyTh sf)
     = deep
-           (One (fmap ffirstx sf))
-           (mapMulFT s (\(Elem x) -> fmap (fmap (f x)) converted) midxs)
-           (One (fmap flastx pr))
+           (One (unsafeMapNode ffirstx sf))
+           (mapMulFT s (\(Elem x) -> unsafeMapNode (unsafeMapNode (f x)) converted) midxs)
+           (One (unsafeMapNode flastx pr))
    where converted = node2 pr sf
 
 liftA2Middle
@@ -762,9 +785,9 @@ liftA2Middle
     midxs
     (Rigid s pr (SingleTh q) sf)
     = deep
-           (Two (fmap ffirstx q) (fmap ffirstx sf))
-           (mapMulFT s (\(Elem x) -> fmap (fmap (f x)) converted) midxs)
-           (Two (fmap flastx pr) (fmap flastx q))
+           (Two (unsafeMapNode ffirstx q) (unsafeMapNode ffirstx sf))
+           (mapMulFT s (\(Elem x) -> unsafeMapNode (unsafeMapNode (f x)) converted) midxs)
+           (Two (unsafeMapNode flastx pr) (unsafeMapNode flastx q))
    where converted = node3 pr q sf
 
 digit12ToDigit :: Digit12 a -> Digit a
@@ -960,11 +983,22 @@ instance Monoid (Seq a) where
     mappend = (><)
 #endif
 
+instance Sized a => Monoid (FingerTree a) where
+    mempty = EmptyT
+#if MIN_VERSION_base(4,9,0)
+    mappend = (Semigroup.<>)
+#else
+    mappend = appendTree
+#endif
+
 #if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
     stimes = cycleNTimes . fromIntegral
+
+instance Sized a => Semigroup.Semigroup (FingerTree a) where
+    (<>)    = appendTree
 #endif
 
 INSTANCE_TYPEABLE1(Seq)
@@ -1004,12 +1038,31 @@ data FingerTree a
     | Deep {-# UNPACK #-} !Int !(Digit a) (FingerTree (Node a)) !(Digit a)
 #ifdef TESTING
     deriving Show
+#else
+instance Show a => Show (FingerTree a) where
+    showsPrec p xs = showParen (p > 10) $
+        showString "fromList " . shows (F.toList xs)
 #endif
 
+instance (Read a, Sized a) => Read (FingerTree a) where
 #ifdef __GLASGOW_HASKELL__
--- | @since 0.6.1
-deriving instance Generic1 FingerTree
+    readPrec = parens $ prec 10 $ do
+        Ident "fromList" <- lexP
+        xs <- readPrec
+        return $ fromListFT xs
 
+    readListPrec = readListPrecDefault
+#else
+    readsPrec p = readParen (p > 10) $ \ r -> do
+        ("fromList",s) <- lex r
+        (xs,t) <- reads s
+        return (fromListFT xs,t)
+#endif
+
+fromListFT :: Sized a => [a] -> FingerTree a
+fromListFT = foldl' (\acc x -> snocTree acc x) EmptyT
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.1
 deriving instance Generic (FingerTree a)
 #endif
@@ -1152,18 +1205,11 @@ instance Foldable FingerTree where
     foldl1 f (Deep _ pr m sf) =
         foldl f (foldl (foldl f) (foldl1 f pr) m) sf
 
-instance Functor FingerTree where
-    fmap _ EmptyT = EmptyT
-    fmap f (Single x) = Single (f x)
-    fmap f (Deep v pr m sf) =
-        Deep v (fmap f pr) (fmap (fmap f) m) (fmap f sf)
-
-instance Traversable FingerTree where
-    traverse _ EmptyT = pure EmptyT
-    traverse f (Single x) = Single <$> f x
-    traverse f (Deep v pr m sf) =
-        liftA3 (Deep v) (traverse f pr) (traverse (traverse f) m)
-            (traverse f sf)
+unsafeMapFT :: (a -> b) -> FingerTree a -> FingerTree b
+unsafeMapFT _ EmptyT = EmptyT
+unsafeMapFT f (Single x) = Single (f x)
+unsafeMapFT f (Deep v pr m sf) =
+        Deep v (fmap f pr) (unsafeMapFT (unsafeMapNode f) m) (fmap f sf)
 
 instance NFData a => NFData (FingerTree a) where
     rnf EmptyT = ()
@@ -1193,9 +1239,7 @@ data Digit a
     | Two a a
     | Three a a a
     | Four a a a a
-#ifdef TESTING
     deriving Show
-#endif
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.1
@@ -1294,9 +1338,7 @@ digitToTree' !_n (One a) = Single a
 data Node a
     = Node2 {-# UNPACK #-} !Int a a
     | Node3 {-# UNPACK #-} !Int a a a
-#ifdef TESTING
     deriving Show
-#endif
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.1
@@ -1330,15 +1372,14 @@ instance Foldable Node where
     foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
     {-# INLINE foldl' #-}
 
-instance Functor Node where
-    {-# INLINE fmap #-}
-    fmap f (Node2 v a b) = Node2 v (f a) (f b)
-    fmap f (Node3 v a b c) = Node3 v (f a) (f b) (f c)
-
-instance Traversable Node where
-    {-# INLINE traverse #-}
-    traverse f (Node2 v a b) = liftA2 (Node2 v) (f a) (f b)
-    traverse f (Node3 v a b c) = liftA3 (Node3 v) (f a) (f b) (f c)
+{-# INLINE unsafeMapNode #-}
+-- | Map over a 'Node'. The following precondition is assumed
+-- but not checked:
+--
+-- For each @a@ in the 'Node', @'size' (f a) = 'size' a@.
+unsafeMapNode :: (a -> b) -> Node a -> Node b
+unsafeMapNode f (Node2 v a b) = Node2 v (f a) (f b)
+unsafeMapNode f (Node3 v a b c) = Node3 v (f a) (f b) (f c)
 
 instance NFData a => NFData (Node a) where
     rnf (Node2 _ a b) = rnf a `seq` rnf b
@@ -1362,10 +1403,9 @@ nodeToDigit (Node3 _ a b c) = Three a b c
 
 -- Elements
 
+-- | An 'Identity'-like type whose 'size' is always @1@.
 newtype Elem a  =  Elem { getElem :: a }
-#ifdef TESTING
     deriving Show
-#endif
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.1
@@ -1893,24 +1933,26 @@ snocTree' (Deep s pr m (One a)) b =
 
 -- | \( O(\log(\min(n_1,n_2))) \). Concatenate two sequences.
 (><)            :: Seq a -> Seq a -> Seq a
-Seq xs >< Seq ys = Seq (appendTree0 xs ys)
+Seq xs >< Seq ys = Seq (appendTree xs ys)
 
 -- The appendTree/addDigits gunk below is machine generated
 
-appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a)
-appendTree0 EmptyT xs =
+{-# SPECIALIZE appendTree :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
+appendTree :: Sized a => FingerTree a -> FingerTree a -> FingerTree a
+appendTree EmptyT xs =
     xs
-appendTree0 xs EmptyT =
+appendTree xs EmptyT =
     xs
-appendTree0 (Single x) xs =
+appendTree (Single x) xs =
     x `consTree` xs
-appendTree0 xs (Single x) =
+appendTree xs (Single x) =
     xs `snocTree` x
-appendTree0 (Deep s1 pr1 m1 sf1) (Deep s2 pr2 m2 sf2) =
+appendTree (Deep s1 pr1 m1 sf1) (Deep s2 pr2 m2 sf2) =
     Deep (s1 + s2) pr1 m sf2
   where !m = addDigits0 m1 sf1 pr2 m2
 
-addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a))
+{-# SPECIALIZE addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a)) #-}
+addDigits0 :: Sized a => FingerTree (Node a) -> Digit a -> Digit a -> FingerTree (Node a) -> FingerTree (Node a)
 addDigits0 m1 (One a) (One b) m2 =
     appendTree1 m1 (node2 a b) m2
 addDigits0 m1 (One a) (Two b c) m2 =
@@ -3737,7 +3779,7 @@ uncheckedSplitAt :: Int -> Seq a -> (Seq a, Seq a)
 uncheckedSplitAt i (Seq xs) = case splitTreeE i xs of
   l :*: r -> (Seq l, Seq r)
 
-data Split a = Split !(FingerTree (Node a)) !(Node a) !(FingerTree (Node a))
+data Split a = Split !(FingerTree a) a !(FingerTree a)
 #ifdef TESTING
     deriving Show
 #endif
@@ -3749,7 +3791,7 @@ splitTreeE i t@(Single _)
    | otherwise = t :*: EmptyT
 splitTreeE i (Deep s pr m sf)
   | i < spr     = splitPrefixE i s pr m sf
-  | i < spm     = case splitTreeN im m of
+  | i < spm     = case splitTree im m of
             Split ml xs mr -> splitMiddleE (im - size ml) s spr pr ml xs mr sf
   | otherwise   = splitSuffixE (i - spm) s pr m sf
   where
@@ -3757,29 +3799,33 @@ splitTreeE i (Deep s pr m sf)
     spm     = spr + size m
     im      = i - spr
 
-splitTreeN :: Int -> FingerTree (Node a) -> Split a
-splitTreeN !_i EmptyT = error "splitTreeN of empty tree"
-splitTreeN _i (Single x) = Split EmptyT x EmptyT
-splitTreeN i (Deep s pr m sf)
-  | i < spr     = splitPrefixN i s pr m sf
-  | i < spm     = case splitTreeN im m of
-            Split ml xs mr -> splitMiddleN (im - size ml) s spr pr ml xs mr sf
-  | otherwise   = splitSuffixN (i - spm) s pr m sf  where
+{-# SPECIALIZE splitTree :: Int -> FingerTree (Node a) -> Split (Node a) #-}
+splitTree :: Sized a => Int -> FingerTree a -> Split a
+splitTree !_i EmptyT = error "splitTree of empty tree"
+splitTree _i (Single x) = Split EmptyT x EmptyT
+splitTree i (Deep s pr m sf)
+  | i < spr     = splitPrefix i s pr m sf
+  | i < spm     = case splitTree im m of
+            Split ml xs mr -> splitMiddle (im - size ml) s spr pr ml xs mr sf
+  | otherwise   = splitSuffix (i - spm) s pr m sf  where
     spr     = size pr
     spm     = spr + size m
     im      = i - spr
 
-splitMiddleN :: Int -> Int -> Int
+{-# SPECIALIZE splitMiddle :: Int -> Int -> Int
              -> Digit (Node a) -> FingerTree (Node (Node a)) -> Node (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a)
+             -> Split (Node a) #-}
+splitMiddle :: Sized a => Int -> Int -> Int
+             -> Digit a -> FingerTree (Node a) -> Node a -> FingerTree (Node a) -> Digit a
              -> Split a
-splitMiddleN i s spr pr ml (Node2 _ a b) mr sf
+splitMiddle i s spr pr ml (Node2 _ a b) mr sf
   | i < sa      = Split (pullR sprml pr ml) a (Deep (s - sprmla) (One b) mr sf)
   | otherwise   = Split (Deep sprmla pr ml (One a)) b (pullL (s - sprmla - size b) mr sf)
   where
     sa      = size a
     sprml   = spr + size ml
     sprmla  = sa + sprml
-splitMiddleN i s spr pr ml (Node3 _ a b c) mr sf
+splitMiddle i s spr pr ml (Node3 _ a b c) mr sf
   | i < sa      = Split (pullR sprml pr ml) a (Deep (s - sprmla) (Two b c) mr sf)
   | i < sab     = Split (Deep sprmla pr ml (One a)) b (Deep (s - sprmlab) (One c) mr sf)
   | otherwise   = Split (Deep sprmlab pr ml (Two a b)) c (pullL (s - sprmlab - size c) mr sf)
@@ -3824,22 +3870,24 @@ splitPrefixE i s (Four a b c d) m sf = case i of
   2 -> Deep 2 (One a) EmptyT (One b) :*: Deep (s - 2) (Two c d) m sf
   _ -> Deep 3 (Two a b) EmptyT (One c) :*: Deep (s - 3) (One d) m sf
 
-splitPrefixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+{-# SPECIALIZE splitPrefix :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+                    Split (Node a) #-}
+splitPrefix :: Sized a => Int -> Int -> Digit a -> FingerTree (Node a) -> Digit a ->
                     Split a
-splitPrefixN !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
-splitPrefixN i s (Two a b) m sf
+splitPrefix !_i !s (One a) m sf = Split EmptyT a (pullL (s - size a) m sf)
+splitPrefix i s (Two a b) m sf
   | i < sa      = Split EmptyT a (Deep (s - sa) (One b) m sf)
   | otherwise   = Split (Single a) b (pullL (s - sa - size b) m sf)
   where
     sa      = size a
-splitPrefixN i s (Three a b c) m sf
+splitPrefix i s (Three a b c) m sf
   | i < sa      = Split EmptyT a (Deep (s - sa) (Two b c) m sf)
   | i < sab     = Split (Single a) b (Deep (s - sab) (One c) m sf)
   | otherwise   = Split (Deep sab (One a) EmptyT (One b)) c (pullL (s - sab - size c) m sf)
   where
     sa      = size a
     sab     = sa + size b
-splitPrefixN i s (Four a b c d) m sf
+splitPrefix i s (Four a b c d) m sf
   | i < sa      = Split EmptyT a $ Deep (s - sa) (Three b c d) m sf
   | i < sab     = Split (Single a) b $ Deep (s - sab) (Two c d) m sf
   | i < sabc    = Split (Deep sab (One a) EmptyT (One b)) c $ Deep (s - sabc) (One d) m sf
@@ -3865,22 +3913,24 @@ splitSuffixE i s pr m (Four a b c d) = case i of
   2 -> Deep (s - 2) pr m (Two a b) :*: Deep 2 (One c) EmptyT (One d)
   _ -> Deep (s - 1) pr m (Three a b c) :*: Single d
 
-splitSuffixN :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+{-# SPECIALIZE splitSuffix :: Int -> Int -> Digit (Node a) -> FingerTree (Node (Node a)) -> Digit (Node a) ->
+   Split (Node a) #-}
+splitSuffix :: Sized a => Int -> Int -> Digit a -> FingerTree (Node a) -> Digit a ->
    Split a
-splitSuffixN !_i !s pr m (One a) = Split (pullR (s - size a) pr m) a EmptyT
-splitSuffixN i s pr m (Two a b)
+splitSuffix !_i !s pr m (One a) = Split (pullR (s - size a) pr m) a EmptyT
+splitSuffix i s pr m (Two a b)
   | i < sa      = Split (pullR (s - sa - size b) pr m) a (Single b)
   | otherwise   = Split (Deep (s - size b) pr m (One a)) b EmptyT
   where
     sa      = size a
-splitSuffixN i s pr m (Three a b c)
+splitSuffix i s pr m (Three a b c)
   | i < sa      = Split (pullR (s - sab - size c) pr m) a (deep (One b) EmptyT (One c))
   | i < sab     = Split (Deep (s - size b - size c) pr m (One a)) b (Single c)
   | otherwise   = Split (Deep (s - size c) pr m (Two a b)) c EmptyT
   where
     sa      = size a
     sab     = sa + size b
-splitSuffixN i s pr m (Four a b c d)
+splitSuffix i s pr m (Four a b c d)
   | i < sa      = Split (pullR (s - sa - sbcd) pr m) a (Deep sbcd (Two b c) EmptyT (One d))
   | i < sab     = Split (Deep (s - sbcd) pr m (One a)) b (Deep scd (One c) EmptyT (One d))
   | i < sabc    = Split (Deep (s - scd) pr m (Two a b)) c (Single d)
@@ -4006,7 +4056,7 @@ tailsTree f (Deep n pr m sf) =
         (fmap (f . digitToTree) (tailsDigit sf))
   where
     f' ms = let ConsLTree node m' = viewLTree ms in
-        fmap (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
+        unsafeMapNode (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
 
 {-# SPECIALIZE initsTree :: (FingerTree (Elem a) -> Elem b) -> FingerTree (Elem a) -> FingerTree (Elem b) #-}
 {-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
@@ -4021,7 +4071,7 @@ initsTree f (Deep n pr m sf) =
         (fmap (f . deep pr m) (initsDigit sf))
   where
     f' ms =  let SnocRTree m' node = viewRTree ms in
-             fmap (\ sf' -> f (deep pr m' sf')) (initsNode node)
+             unsafeMapNode (\ sf' -> f (deep pr m' sf')) (initsNode node)
 
 {-# INLINE foldlWithIndex #-}
 -- | 'foldlWithIndex' is a version of 'foldl' that also provides access

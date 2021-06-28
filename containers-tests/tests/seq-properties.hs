@@ -12,7 +12,8 @@ import Data.Sequence.Internal
   , Digit (..)
   , node2
   , node3
-  , deep )
+  , deep
+  , unsafeMapNode )
 
 import Data.Sequence
 
@@ -242,7 +243,7 @@ instance (Sized a, Valid a) => Valid (FingerTree a) where
         s == size pr + size m + size sf && valid pr && valid m && valid sf
 
 instance (Sized a, Valid a) => Valid (Node a) where
-    valid node = size node == sum (fmap size node) && all valid node
+    valid node = size node == sum (unsafeMapNode size node) && all valid node
 
 instance Valid a => Valid (Digit a) where
     valid = all valid
