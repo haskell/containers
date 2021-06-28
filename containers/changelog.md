@@ -1,6 +1,25 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## [0.6.4.1]
+## 0.6.5.1
+
+### Bug fixes
+
+* `foldr'` and `foldl'` for `Map` and `Set` are now strict everywhere they
+  should be, and we have detailed tests to make sure they stay that way.
+  (Thanks, coot.)
+
+* The `Ord IntSet` instance, which was broken in the last version, has been
+  repaired.
+
+### New instance
+
+* We now have `Ord a => Ord (Tree a)` (Thanks, Ericson2314.)
+
+### Testing fixes
+
+* Thanks to konsumlamm and infinity0 for various bug fixes in the test suite.
+
+## 0.6.4.1
 
 ### Bug fixes
 
