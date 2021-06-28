@@ -110,6 +110,7 @@ module Data.Map.Strict.Internal
     -- ** Insertion
     , insert
     , insertWith
+    , insertWithFun
     , insertWithKey
     , insertLookupWithKey
 
@@ -557,6 +558,37 @@ insertWith = go
 {-# INLINABLE insertWith #-}
 #else
 {-# INLINE insertWith #-}
+#endif
+
+-- | /O(log n)/. Insert with two functions: 'f' to combine a value (of type 'a')
+-- with the Map value (of type 'b') to produce a new Map value, and 'g' to inject the
+-- input value of type 'a' into type 'b' if key is not present.
+-- This version can be used to avoid unnecessary boxing when 'b' is for example
+-- some sort of container containing elements of type 'a'.
+-- @'insertWithFun' f g key value mp@
+-- will insert the pair (key, g value) into @mp@ if key does
+-- not exist in the map. If the key does exist, the function will
+-- insert the pair @(key, f new_value old_value)@.
+--
+-- > insertWithFun (:) (: []) 5 "x" (fromList [(5, ["a"]), (3, ["b"])]) == fromList [(3, ["b"]), (5, ["x", "a"])]
+-- > insertWithFun (:) (: []) 7 "x" (fromList [(5, ["a"]), (3, ["b"])]) == fromList [(3, ["b"]), (5, ["a"]), (7, ["x"])]
+-- > insertWithFun (:) (: []) 5 "x" empty                               == singleton 5 ["x"]
+
+insertWithFun :: Ord k => (a -> b -> b) -> (a -> b) -> k -> a -> Map k b -> Map k b
+insertWithFun = go
+  where
+    go :: Ord k => (a -> b -> b) -> (a -> b) -> k -> a -> Map k b -> Map k b
+    go _ g !kx x Tip = let !y' = g x in singleton kx y'
+    go f g !kx x (Bin sy ky y l r) =
+        case compare kx ky of
+            LT -> balanceL ky y (go f g kx x l) r
+            GT -> balanceR ky y l (go f g kx x r)
+            EQ -> let !y' = f x y in Bin sy kx y' l r
+
+#if __GLASGOW_HASKELL__
+{-# INLINABLE insertWithFun #-}
+#else
+{-# INLINE insertWithFun #-}
 #endif
 
 insertWithR :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a

@@ -66,6 +66,7 @@ main = defaultMain
          , testCase "singleton" test_singleton
          , testCase "insert" test_insert
          , testCase "insertWith" test_insertWith
+         , testCase "insertWithFun" test_insertWithFun
          , testCase "insertWithKey" test_insertWithKey
          , testCase "insertLookupWithKey" test_insertLookupWithKey
          , testCase "delete" test_delete
@@ -464,6 +465,12 @@ test_insertWith = do
     insertWith (++) 5 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "xxxa")]
     insertWith (++) 7 "xxx" (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "a"), (7, "xxx")]
     insertWith (++) 5 "xxx" empty                         @?= singleton 5 "xxx"
+
+test_insertWithFun :: Assertion
+test_insertWithFun = do
+    insertWithFun (:) (: []) 5 "x" (fromList [(5,["a"]), (3,["b"])]) @?= fromList [(3, ["b"]), (5, ["x", "a"])]
+    insertWithFun (:) (: []) 7 "x" (fromList [(5,["a"]), (3,["b"])]) @?= fromList [(3, ["b"]), (5, ["a"]), (7, ["x"])]
+    insertWithFun (:) (: []) 5 "x" empty                             @?= singleton 5 ["x"]
 
 test_insertWithKey :: Assertion
 test_insertWithKey = do

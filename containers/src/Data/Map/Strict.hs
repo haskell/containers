@@ -129,6 +129,7 @@ module Data.Map.Strict
     -- * Insertion
     , insert
     , insertWith
+    , insertWithFun
     , insertWithKey
     , insertLookupWithKey
 

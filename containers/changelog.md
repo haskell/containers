@@ -9,6 +9,8 @@
 
 ### Additions
 
+* [Add `insertKeyWithFun` to `Data.Map.Strict` and `Data.Map.Lazy`]() (Thanks, Neophytos Michael)
+
 * [Add `reverseTopSort` to `Data.Graph`](https://github.com/haskell/containers/pull/638) (Thanks, James Parker)
 
 * [Expose `traverseMaybeWithKey` from `Data.IntMap.{Lazy,Strict}`](https://github.com/haskell/containers/pull/743) (Thanks, Simon
