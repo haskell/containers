@@ -8,7 +8,7 @@
   should be, and we have detailed tests to make sure they stay that way.
   (Thanks, coot.)
 
-* The `Ord IntSet` instance, which was broken in the last version, has been
+* The `Ord IntSet` instance, which was broken in 0.6.3.1, has been
   repaired.
 
 ### New instance
