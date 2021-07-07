@@ -156,8 +156,15 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
+#if (MIN_VERSION_base(4,9,0))
+            , intersections
+#endif
             , cartesianProduct
             , disjointUnion
+#if (MIN_VERSION_base(4,9,0))
+            , Intersection(..)
+#endif
+
 
             -- * Filter
             , filter
@@ -239,12 +246,13 @@ import Data.Monoid (Monoid(..))
 #endif
 #if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
+import Data.List.NonEmpty (NonEmpty(..))
 #endif
 #if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup((<>)))
 #endif
 #if MIN_VERSION_base(4,9,0)
-import Data.Semigroup (stimesIdempotentMonoid)
+import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 #endif
 #if MIN_VERSION_base(4,8,0)
@@ -895,6 +903,24 @@ intersection t1@(Bin _ x l1 r1) t2
     !r1r2 = intersection r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
+#endif
+
+#if (MIN_VERSION_base(4,9,0))
+-- | The intersection of a series of sets. Intersections are performed left-to-right.
+intersections :: Ord a => NonEmpty (Set a) -> Set a
+intersections (s0 :| ss) = List.foldr go id ss s0
+    where
+      go s r acc
+          | null acc = empty
+          | otherwise = r (intersection acc s)
+
+-- | Sets form a 'Semigroup' under 'intersection'.
+newtype Intersection a = Intersection { getIntersection :: Set a }
+    deriving (Show, Eq, Ord)
+
+instance (Ord a) => Semigroup (Intersection a) where
+    (Intersection a) <> (Intersection b) = Intersection $ intersection a b
+    stimes = stimesIdempotent
 #endif
 
 {--------------------------------------------------------------------
