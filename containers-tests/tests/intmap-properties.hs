@@ -65,6 +65,8 @@ main = defaultMain
              , testCase "update" test_update
              , testCase "updateWithKey" test_updateWithKey
              , testCase "updateLookupWithKey" test_updateLookupWithKey
+             , testCase "pop" test_pop
+             , testCase "popWithDefault" test_popWithDefault
              , testCase "alter" test_alter
              , testCase "union" test_union
              , testCase "mappend" test_mappend
@@ -527,6 +529,26 @@ test_updateLookupWithKey = do
     updateLookupWithKey f (-7) (fromList [(5,"a"), (-3,"b")]) @?= (Nothing,  fromList [(-3, "b"), (5, "a")])
   where
     f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
+
+test_pop :: Assertion
+test_pop = do
+    pop 5 (fromList [(5,"a"), (7,"b")]) @?= (Just "a", fromList [(7, "b")])
+    pop 6 (fromList [(5,"a"), (7,"b")]) @?= (Nothing, fromList [(5, "a"), (7, "b")])
+    pop 7 (fromList [(5,"a"), (7,"b")]) @?= (Just "b", fromList [(5, "a")])
+
+    pop (-5) (fromList [(-5,"a"), (-7,"b")]) @?= (Just "a", fromList [(-7, "b")])
+    pop (-6) (fromList [(-5,"a"), (-7,"b")]) @?= (Nothing, fromList [(-5, "a"), (-7, "b")])
+    pop (-7) (fromList [(-5,"a"), (-7,"b")]) @?= (Just "b", fromList [(-5, "a")])
+
+test_popWithDefault :: Assertion
+test_popWithDefault = do
+    popWithDefault "c" 5 (fromList [(5,"a"), (7,"b")]) @?= ("a", fromList [(7, "b")])
+    popWithDefault "c" 6 (fromList [(5,"a"), (7,"b")]) @?= ("c", fromList [(5, "a"), (7, "b")])
+    popWithDefault "c" 7 (fromList [(5,"a"), (7,"b")]) @?= ("b", fromList [(5, "a")])
+
+    popWithDefault "c" (-5) (fromList [(-5,"a"), (-7,"b")]) @?= ("a", fromList [(-7, "b")])
+    popWithDefault "c" (-6) (fromList [(-5,"a"), (-7,"b")]) @?= ("c", fromList [(-5, "a"), (-7, "b")])
+    popWithDefault "c" (-7) (fromList [(-5,"a"), (-7,"b")]) @?= ("b", fromList [(-5, "a")])
 
 test_alter :: Assertion
 test_alter = do

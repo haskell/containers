@@ -17,7 +17,7 @@ import Data.Sequence.Internal
 import Data.Sequence
 
 import Control.Applicative (Applicative(..), liftA2)
-import Control.Arrow ((***))
+import Control.Arrow ((***), second)
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
@@ -111,6 +111,8 @@ main = defaultMain
        , testProperty "insertAt" prop_insertAt
        , testProperty "deleteAt" prop_deleteAt
        , testProperty "update" prop_update
+       , testProperty "update" prop_pop
+       , testProperty "update" prop_popWithDefault
        , testProperty "take" prop_take
        , testProperty "drop" prop_drop
        , testProperty "splitAt" prop_splitAt
@@ -662,6 +664,15 @@ prop_update :: Int -> A -> Seq A -> Bool
 prop_update i x xs =
     toList' (update i x xs) ~= adjustList (const x) i (toList xs)
 
+prop_pop :: Int -> Seq A -> Bool
+prop_pop i xs =
+    second toList' (pop i xs) == second Just (popList i (toList xs))
+
+prop_popWithDefault :: Int -> A -> Seq A -> Bool
+prop_popWithDefault i x xs =
+       second toList' (popWithDefault x i xs)
+    == (***) (fromMaybe x) Just (popList i (toList xs))
+
 prop_take :: Int -> Seq A -> Bool
 prop_take n xs =
     toList' (take n xs) ~= Prelude.take n (toList xs)
@@ -681,6 +692,12 @@ prop_chunksOf xs =
     in valid chunks .&&.
        conjoin [valid c .&&. 1 <= length c && length c <= n | c <- toList chunks] .&&.
        fold chunks === xs
+
+popList :: Int -> [a] -> (Maybe a, [a])
+popList n as | n < 0 = (Nothing, as)
+popList n as =
+  let (ls, rs) = Data.List.splitAt n as in
+  (listToMaybe rs, ls ++ Data.List.drop 1 rs)
 
 adjustList :: (a -> a) -> Int -> [a] -> [a]
 adjustList f i xs =
