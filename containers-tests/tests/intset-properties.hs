@@ -109,11 +109,11 @@ test_split = do
    split 3 (fromList [1..5]) @?= (fromList [1,2], fromList [4,5])
 
 {--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
+  Arbitrary IntSets, including those with large elements
 --------------------------------------------------------------------}
 instance Arbitrary IntSet where
   arbitrary = do{ xs <- arbitrary
-                ; return (fromList xs)
+                ; return (fromList (fmap getLarge xs))
                 }
 
 {--------------------------------------------------------------------
