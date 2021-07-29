@@ -23,9 +23,9 @@ provided by the ``containers`` package: :haddock:`/Data.Set` and
    mechanism.
 
 
-All of these implementations are *immutable* which means that any update
-functions do not modify the set that you passed in, they creates a new set. In
-order to keep the changes you need to assign it to a new variable. For example::
+Sets are *immutable*. Any function on a set that changes values in the container
+actually creates a new set. In order to keep the changes, you need to assign
+the result of the operation to a new variable. For example::
 
     let s1 = Set.fromList ["a", "b"]
     let s2 = Set.delete "a" s1
