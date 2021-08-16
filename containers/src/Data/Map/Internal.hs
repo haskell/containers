@@ -259,6 +259,10 @@ module Data.Map.Internal (
     , foldrWithKey'
     , foldlWithKey'
 
+    -- ** Monadic folds
+    , foldlWithKeyM
+    , foldrWithKeyM
+
     -- * Conversion
     , elems
     , keys
@@ -3314,6 +3318,34 @@ foldlWithKey' f z = go z
       let !z'' = go z' l
       in go (f z'' kx x) r
 {-# INLINE foldlWithKey' #-}
+
+-- | /O(n)/. Monadic variant of 'foldlWithKey'.
+--
+-- > 'foldlWithKeyM\'' f z0 (fromList [(0,'a'),(1,'b'),(2,'c')]) =
+-- >   f z0 0 'a' >>= (\z1 -> f z1 1 'b' >>= (\z2 -> f z2 2 'c'))
+foldlWithKeyM :: Monad m => (a -> k -> b -> m a) -> a -> Map k b -> m a
+foldlWithKeyM f z = go z
+  where
+    go z' Tip              = return z'
+    go z' (Bin _ kx x l r) = do
+      z'' <- go z' l
+      z''' <- f z'' kx x
+      go z''' r
+{-# INLINE foldlWithKeyM #-}
+
+-- | /O(n)/. Monadic variant of 'foldrWithKey'.
+--
+-- > 'foldrWithKeyM\'' f z0 (fromList [(0,'a'),(1,'b'),(2,'c')]) =
+-- >   (f 2 'c' >=> f 1 'b' >=> f 0 'a') z0
+foldrWithKeyM :: Monad m => (k -> a -> b -> m b) -> b -> Map k a -> m b
+foldrWithKeyM f z = go z
+  where
+    go z' Tip              = return z'
+    go z' (Bin _ kx x l r) = do
+      z'' <- go z' r
+      z''' <- f kx x z''
+      go z''' l
+{-# INLINE foldrWithKeyM #-}
 
 -- | \(O(n)\). Fold the keys and values in the map using the given monoid, such that
 --
