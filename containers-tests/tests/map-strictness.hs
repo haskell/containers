@@ -5,15 +5,13 @@
 module Main (main) where
 
 import Test.ChasingBottoms.IsBottom
-import Test.Framework (Test, TestName, defaultMain, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary(arbitrary))
+import Test.Tasty (TestTree, TestName, defaultMain, testGroup)
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck (testProperty, Arbitrary(arbitrary), Fun)
 #if __GLASGOW_HASKELL__ >= 806
-import Test.QuickCheck (Property)
+import Test.Tasty.QuickCheck (Property)
 #endif
-import Test.QuickCheck.Function (Fun(..), apply)
-import Test.Framework.Providers.HUnit
-import Test.HUnit hiding (Test)
+import Test.QuickCheck.Function (apply)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -118,7 +116,7 @@ pStrictFoldlWithKey' m = whnfHasNoThunks (M.foldlWithKey' (\as _ a -> a : as) []
 -- in most cases. An exception is `L.fromListWith const`, which cannot
 -- evaluate the `const` calls.
 
-tExtraThunksM :: Test
+tExtraThunksM :: TestTree
 tExtraThunksM = testGroup "Map.Strict - extra thunks" $
     if not isUnitSupported then [] else
     -- for strict maps, all the values should be evaluated to ()
@@ -133,14 +131,14 @@ tExtraThunksM = testGroup "Map.Strict - extra thunks" $
     ]
   where
     m0 = M.singleton 42 ()
-    check :: TestName -> M.Map Int () -> Test
+    check :: TestName -> M.Map Int () -> TestTree
     check n m = testCase n $ case M.lookup 42 m of
         Just v -> assertBool msg (isUnit v)
-        _      -> assertString "key not found"
+        _      -> assertBool "key not found" False
       where
         msg = "too lazy -- expected fully evaluated ()"
 
-tExtraThunksL :: Test
+tExtraThunksL :: TestTree
 tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
     if not isUnitSupported then [] else
     -- for lazy maps, the *With functions should leave `const () ()` thunks,
@@ -156,10 +154,10 @@ tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
     ]
   where
     m0 = L.singleton 42 ()
-    check :: TestName -> Bool -> L.Map Int () -> Test
+    check :: TestName -> Bool -> L.Map Int () -> TestTree
     check n e m = testCase n $ case L.lookup 42 m of
         Just v -> assertBool msg (e == isUnit v)
-        _      -> assertString "key not found"
+        _      -> assertBool "key not found" False
       where
         msg | e         = "too lazy -- expected fully evaluated ()"
             | otherwise = "too strict -- expected a thunk"
@@ -167,7 +165,7 @@ tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
 ------------------------------------------------------------------------
 -- * Test list
 
-tests :: [Test]
+tests :: [TestTree]
 tests =
     [
     -- Basic interface
@@ -205,7 +203,7 @@ tests =
 -- * Test harness
 
 main :: IO ()
-main = defaultMain tests
+main = defaultMain $ testGroup "map-strictness" tests
 
 ------------------------------------------------------------------------
 -- * Utilities

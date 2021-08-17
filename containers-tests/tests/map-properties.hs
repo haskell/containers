@@ -30,12 +30,10 @@ import qualified Prelude
 import Data.List (nub,sort)
 import qualified Data.List as List
 import qualified Data.Set as Set
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
-import Test.QuickCheck
-import Test.QuickCheck.Function (Fun (..), apply)
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
+import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B)
 import Control.Arrow (first)
 
@@ -48,7 +46,7 @@ apply2 :: Fun (a,b) c -> a -> b -> c
 apply2 f a b = apply f (a, b)
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ testGroup "map-properties"
          [ testCase "ticket4242" test_ticket4242
          , testCase "index"      test_index
          , testCase "size"       test_size

@@ -266,11 +266,10 @@ test-suite map-lazy-properties
     CPP
 
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
     , transformers
 
 test-suite map-strict-properties
@@ -291,11 +290,10 @@ test-suite map-strict-properties
     CPP
 
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
     , transformers
 
 test-suite bitqueue-properties
@@ -311,9 +309,8 @@ test-suite bitqueue-properties
 
   build-depends:    containers-tests
   build-depends:
-      QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-quickcheck2
+      tasty
+    , tasty-quickcheck
 
 test-suite set-properties
   default-language: Haskell2010
@@ -332,11 +329,10 @@ test-suite set-properties
 
   build-depends:    containers-tests
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
     , transformers
 
   if impl(ghc >= 8.6)
@@ -363,11 +359,10 @@ test-suite intmap-lazy-properties
     CPP
 
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
 
 test-suite intmap-strict-properties
   default-language: Haskell2010
@@ -389,11 +384,10 @@ test-suite intmap-strict-properties
 
   build-depends:    containers-tests
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
 
 test-suite intset-properties
   default-language: Haskell2010
@@ -413,11 +407,9 @@ test-suite intset-properties
 
   build-depends:    containers-tests
   build-depends:
-      HUnit
-    , QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
+      tasty
+    , tasty-hunit
+    , tasty-quickcheck
 
 test-suite seq-properties
   default-language: Haskell2010
@@ -437,8 +429,8 @@ test-suite seq-properties
 
   build-depends:
       QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-quickcheck2
+    , tasty
+    , tasty-quickcheck
     , transformers
 
 test-suite tree-properties
@@ -459,8 +451,8 @@ test-suite tree-properties
 
   build-depends:
       QuickCheck                  >=2.7.1
-    , test-framework
-    , test-framework-quickcheck2
+    , tasty
+    , tasty-quickcheck
     , transformers
 
 test-suite map-strictness-properties
@@ -474,11 +466,10 @@ test-suite map-strictness-properties
     , base                        >=4.6     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
-    , HUnit
     , QuickCheck                  >=2.7.1
-    , test-framework              >=0.3.3
-    , test-framework-quickcheck2  >=0.2.9
-    , test-framework-hunit
+    , tasty
+    , tasty-quickcheck
+    , tasty-hunit
 
   ghc-options:      -Wall
   other-extensions:
@@ -509,11 +500,10 @@ test-suite intmap-strictness-properties
     , base                        >=4.6     && <5
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
-    , HUnit
     , QuickCheck                  >=2.7.1
-    , test-framework              >=0.3.3
-    , test-framework-quickcheck2  >=0.2.9
-    , test-framework-hunit
+    , tasty
+    , tasty-quickcheck
+    , tasty-hunit
 
   ghc-options:      -Wall
 
@@ -542,8 +532,8 @@ test-suite intset-strictness-properties
     , ChasingBottoms
     , deepseq                     >=1.2     && <1.5
     , QuickCheck                  >=2.7.1
-    , test-framework              >=0.3.3
-    , test-framework-quickcheck2  >=0.2.9
+    , tasty
+    , tasty-quickcheck
 
   ghc-options:      -Wall
 
@@ -564,7 +554,7 @@ test-suite listutils-properties
     , ChasingBottoms
     , deepseq                     >=1.2   && <1.5
     , QuickCheck                  >=2.7.1
-    , test-framework              >=0.3.3
-    , test-framework-quickcheck2  >=0.2.9
+    , tasty
+    , tasty-quickcheck
 
   ghc-options:    -Wall

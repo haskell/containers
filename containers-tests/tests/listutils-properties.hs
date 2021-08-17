@@ -2,14 +2,13 @@ module Main where
 
 import Data.List (nub, nubBy)
 import Data.Containers.ListUtils
-import Test.Framework
-import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck (Property, (===))
-import Test.QuickCheck.Function (Fun, apply)
+import Test.Tasty
+import Test.Tasty.QuickCheck
+import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, OrdA, B, OrdB, C)
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ testGroup "listutils-properties"
          [ testProperty "nubOrd" prop_nubOrd
          , testProperty "nubOrdOn" prop_nubOrdOn
          , testProperty "nubOrdOn fusion" prop_nubOrdOnFusion

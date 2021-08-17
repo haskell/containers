@@ -27,18 +27,16 @@ import qualified Prelude (map)
 import Data.List (nub,sort)
 import qualified Data.List as List
 import qualified Data.IntSet as IntSet
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
-import Test.QuickCheck
-import Test.QuickCheck.Function (Fun(..), apply)
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
+import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C)
 
 default (Int)
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ testGroup "intmap-properties"
          [
                testCase "index"      test_index
              , testCase "index_lookup" test_index_lookup
@@ -236,16 +234,6 @@ instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
 type UMap = IntMap ()
 type IMap = IntMap Int
 type SMap = IntMap String
-
-----------------------------------------------------------------
-
-tests :: [Test]
-tests = [ testGroup "Test Case" [
-             ]
-        , testGroup "Property Test" [
-             ]
-        ]
-
 
 ----------------------------------------------------------------
 -- Unit tests

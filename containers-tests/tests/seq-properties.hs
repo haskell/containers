@@ -36,21 +36,17 @@ import Prelude hiding (
   all, sum)
 import qualified Prelude
 import qualified Data.List
-import Test.QuickCheck hiding ((><))
-import Test.QuickCheck.Poly
-#if __GLASGOW_HASKELL__ >= 800
-import Test.QuickCheck.Property
-#endif
-import Test.QuickCheck.Function
-import Test.Framework
-import Test.Framework.Providers.QuickCheck2
+import Test.Tasty
+import Test.Tasty.QuickCheck hiding ((><))
+import Test.QuickCheck.Function (apply)
+import Test.QuickCheck.Poly (A, OrdA, B, OrdB, C)
 import Control.Monad.Zip (MonadZip (..))
 import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
 
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ testGroup "seq-properties"
        [ testProperty "fmap" prop_fmap
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
@@ -872,8 +868,8 @@ prop_empty_con = null Empty
 prop_viewl_pat :: Seq A -> Property
 prop_viewl_pat xs@(y :<| ys)
   | z :< zs <- viewl xs = y === z .&&. ys === zs
-  | otherwise = property failed
-prop_viewl_pat xs = property . liftBool $ null xs
+  | otherwise = property False
+prop_viewl_pat xs = property $ null xs
 
 prop_viewl_con :: A -> Seq A -> Property
 prop_viewl_con x xs = x :<| xs === x <| xs
@@ -881,8 +877,8 @@ prop_viewl_con x xs = x :<| xs === x <| xs
 prop_viewr_pat :: Seq A -> Property
 prop_viewr_pat xs@(ys :|> y)
   | zs :> z <- viewr xs = y === z .&&. ys === zs
-  | otherwise = property failed
-prop_viewr_pat xs = property . liftBool $ null xs
+  | otherwise = property False
+prop_viewr_pat xs = property $ null xs
 
 prop_viewr_con :: Seq A -> A -> Property
 prop_viewr_con xs x = xs :|> x === xs |> x
