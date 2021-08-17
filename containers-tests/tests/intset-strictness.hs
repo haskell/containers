@@ -7,11 +7,10 @@ module Main (main) where
 import Prelude hiding (foldl)
 
 import Test.ChasingBottoms.IsBottom
-import Test.Framework (Test, defaultMain, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary (..))
+import Test.Tasty (TestTree, defaultMain, testGroup)
+import Test.Tasty.QuickCheck (testProperty, Arbitrary (..))
 #if __GLASGOW_HASKELL__ >= 806
-import Test.QuickCheck (Property)
+import Test.Tasty.QuickCheck (Property)
 #endif
 
 import Data.IntSet
@@ -52,9 +51,8 @@ pStrictFoldl' m = whnfHasNoThunks (foldl' (flip (:)) [] m)
 ------------------------------------------------------------------------
 -- * Test list
 
-tests :: [Test]
+tests :: TestTree
 tests =
-    [
     -- Basic interface
       testGroup "IntSet"
       [ testProperty "foldl is lazy in accumulator" pFoldlAccLazy
@@ -63,7 +61,6 @@ tests =
       , testProperty "strict foldl'" pStrictFoldl'
 #endif
       ]
-    ]
 
 ------------------------------------------------------------------------
 -- * Test harness

@@ -5,9 +5,8 @@
 import Control.Applicative ((<$>))
 #endif
 import qualified Data.List as List
-import Test.Framework
-import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck
+import Test.Tasty
+import Test.Tasty.QuickCheck
 import Utils.Containers.Internal.BitUtil (wordSize)
 import Utils.Containers.Internal.BitQueue
     ( BitQueue
@@ -19,9 +18,9 @@ import Utils.Containers.Internal.BitQueue
 default (Int)
 
 main :: IO ()
-main = defaultMain $ map testNum [0..(wordSize - 2)]
+main = defaultMain $ testGroup "bitqueue-properties" $ map testNum [0..(wordSize - 2)]
 
-testNum :: Int -> Test
+testNum :: Int -> TestTree
 testNum n = testProperty ("Size "++show n) (prop_n n)
 
 prop_n :: Int -> Gen Bool

@@ -6,13 +6,10 @@ import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, all, take, drop, splitAt)
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
-import Test.QuickCheck
-import Test.QuickCheck.Function
-import Test.QuickCheck.Poly
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck
+import Test.QuickCheck.Function (apply)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import Control.Monad (liftM, liftM3)
@@ -28,7 +25,8 @@ import Utils.NoThunks (whnfHasNoThunks)
 #endif
 
 main :: IO ()
-main = defaultMain [ testCase "lookupLT" test_lookupLT
+main = defaultMain $ testGroup "set-properties"
+                   [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGT" test_lookupGT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE

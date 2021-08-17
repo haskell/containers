@@ -9,14 +9,13 @@ import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import IntSetValidity (valid)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
-import Test.QuickCheck hiding ((.&.))
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck hiding ((.&.))
 
 main :: IO ()
-main = defaultMain [ testCase "lookupLT" test_lookupLT
+main = defaultMain $ testGroup "intset-properties"
+                   [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGT" test_lookupGT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE

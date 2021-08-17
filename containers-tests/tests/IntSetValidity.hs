@@ -3,7 +3,7 @@ module IntSetValidity (valid) where
 
 import Data.Bits (xor, (.&.))
 import Data.IntSet.Internal
-import Test.QuickCheck (Property, counterexample, property, (.&&.))
+import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
 import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
