@@ -295,12 +295,17 @@ test_notMember = do
 
 test_lookup :: Assertion
 test_lookup = do
-    employeeCurrency 1 @?= Just 1
-    employeeCurrency 2 @?= Nothing
+    employeeCurrency 1      @?= Just 1
+    employeeCurrency 2      @?= Just 2
+    employeeCurrency 3      @?= Just 3
+    employeeCurrency 4      @?= Just 4
+    employeeCurrency 5      @?= Nothing
+    employeeCurrency (2^10) @?= Just 42
+    employeeCurrency 6      @?= Nothing
   where
-    employeeDept = fromList([(1,2), (3,1)])
-    deptCountry = fromList([(1,1), (2,2)])
-    countryCurrency = fromList([(1, 2), (2, 1)])
+    employeeDept    = fromList [(1,2), (2, 14), (3, 10), (4, 18), (2^10, 100)]
+    deptCountry     = fromList [(1,1), (14, 14), (10, 10), (18, 18), (100, 100), (2,2)]
+    countryCurrency = fromList [(1, 2), (2, 1), (14, 2), (10, 3), (18, 4), (100, 42)]
     employeeCurrency :: Int -> Maybe Int
     employeeCurrency name = do
         dept <- lookup name employeeDept
