@@ -123,6 +123,7 @@ module Data.Set (
             , split
             , splitMember
             , splitRoot
+            , between
 
             -- * Indexed
             , lookupIndex
