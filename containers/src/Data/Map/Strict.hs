@@ -238,6 +238,7 @@ module Data.Map.Strict
     , withoutKeys
     , partition
     , partitionWithKey
+    , between
 
     , takeWhileAntitone
     , dropWhileAntitone

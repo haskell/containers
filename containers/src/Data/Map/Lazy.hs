@@ -222,6 +222,7 @@ module Data.Map.Lazy (
     , withoutKeys
     , partition
     , partitionWithKey
+    , between
     , takeWhileAntitone
     , dropWhileAntitone
     , spanAntitone
