@@ -2984,11 +2984,12 @@ spanAntitone p0 m = toPair (go p0 m)
       | p kx = let u :*: v = go p r in link kx x l u :*: v
       | otherwise = let u :*: v = go p l in u :*: link kx x v r
 
--- | /O(log n)/. Filter a map such that its keys lie between two values (inclusive).
+-- | /O(log n)/. Filter a map such that its keys lie between a lower and an upper bound (inclusive).
 --
 -- > between 2 4 (fromList [(3, "a"), (5, "b"), (4, "c"), (1, "d") (2, "e")]) == fromList [(3, "a"), (4, "c"), (2, "e")]
 -- > between 4 2 (fromList [(3, "a"), (5, "b"), (4, "c"), (1, "d") (2, "e")]) == empty
 -- > between 2 2 (fromList [(3, "a"), (5, "b"), (4, "c"), (1, "d") (2, "e")]) == singleton 2 "e"
+
 between :: (Ord k) => k -> k -> Map k a -> Map k a
 between _ _ Tip = Tip
 between lo hi (Bin _ kx x l r)
