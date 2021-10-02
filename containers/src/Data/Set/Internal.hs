@@ -1546,7 +1546,7 @@ between _ _ Tip = Tip
 between lo hi (Bin _ x l r)
     | x < lo = between lo hi r
     | x > hi = between lo hi l
-    | otherwise = link x (between lo hi l) (between lo hi r)
+    | otherwise = link x (dropWhileAntitone (< lo) l) (takeWhileAntitone (<= hi) r)
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.

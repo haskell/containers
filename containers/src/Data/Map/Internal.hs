@@ -2995,7 +2995,7 @@ between _ _ Tip = Tip
 between lo hi (Bin _ kx x l r)
     | kx < lo = between lo hi r
     | kx > hi = between lo hi l
-    | otherwise = link kx x (between lo hi l) (between lo hi r)
+    | otherwise = link kx x (dropWhileAntitone (< lo) l) (takeWhileAntitone (<= hi) r)
 
 -- | /O(n)/. Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
