@@ -214,6 +214,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "deleteMax"            prop_deleteMaxModel
          , testProperty "filter"               prop_filter
          , testProperty "partition"            prop_partition
+         , testProperty "between"              prop_between
          , testProperty "map"                  prop_map
          , testProperty "fmap"                 prop_fmap
          , testProperty "mapkeys"              prop_mapkeys
@@ -1396,6 +1397,12 @@ prop_splitAt n xs = valid taken .&&.
                     dropped === drop n xs
   where
     (taken, dropped) = splitAt n xs
+
+prop_between :: Int -> Int -> [(Int, Int)] -> Property
+prop_between lo hi xs' = valid tw .&&. tw === (filterWithKey (\k _ -> lo <= k && k <= hi) xs)
+    where
+    xs = fromList xs'
+    tw = between lo hi xs
 
 prop_takeWhileAntitone :: [(Either Int Int, Int)] -> Property
 prop_takeWhileAntitone xs' = valid tw .&&. (tw === filterWithKey (\k _ -> isLeft k) xs)
