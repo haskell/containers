@@ -9,7 +9,9 @@ install-dependencies: False
 
 -- text depends on binary, and binary depends on containers, so we need to
 -- reinstall these boot libraries
-installed: +all -binary -text
+-- ghc-heap is depended on by nothunks which we use in the tests, and also
+-- depends on containers
+installed: +all -binary -text -ghc-heap
 
 -- gauge works only with newer GHC, and not with GHC 9.2 yet.
 benchmarks: >=7.8.4 && < 9.2
