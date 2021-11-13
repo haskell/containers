@@ -11,8 +11,8 @@ install-dependencies: False
 -- reinstall these boot libraries
 installed: +all -binary -text
 
--- gauge works only with newer GHC
-benchmarks: >=7.8.4
+-- gauge works only with newer GHC, and not with GHC 9.2 yet.
+benchmarks: >=7.8.4 && < 9.2
 
 haddock: >= 8.2
 
