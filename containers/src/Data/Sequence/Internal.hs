@@ -15,6 +15,7 @@
 {-# LANGUAGE ViewPatterns #-}
 #endif
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
