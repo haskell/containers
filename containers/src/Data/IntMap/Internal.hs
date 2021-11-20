@@ -594,25 +594,22 @@ notMember k m = not $ member k m
 
 -- | /O(min(n,W))/. Lookup the value at a key in the map. See also 'Data.Map.lookup'.
 
--- See Note: Local 'go' functions and capturing]
+-- See Note: Local 'go' functions and capturing
 lookup :: Key -> IntMap a -> Maybe a
 lookup !k = go
   where
-    go (Bin p m l r) | nomatch k p m = Nothing
-                     | zero k m  = go l
-                     | otherwise = go r
+    go (Bin _p m l r) | zero k m  = go l
+                      | otherwise = go r
     go (Tip kx x) | k == kx   = Just x
                   | otherwise = Nothing
     go Nil = Nothing
-
 
 -- See Note: Local 'go' functions and capturing]
 find :: Key -> IntMap a -> a
 find !k = go
   where
-    go (Bin p m l r) | nomatch k p m = not_found
-                     | zero k m  = go l
-                     | otherwise = go r
+    go (Bin _p m l r) | zero k m  = go l
+                      | otherwise = go r
     go (Tip kx x) | k == kx   = x
                   | otherwise = not_found
     go Nil = not_found
@@ -943,8 +940,7 @@ adjust f k m
 -- > adjustWithKey f 7 empty                         == empty
 
 adjustWithKey ::  (Key -> a -> a) -> Key -> IntMap a -> IntMap a
-adjustWithKey f !k t@(Bin p m l r)
-  | nomatch k p m = t
+adjustWithKey f !k (Bin p m l r)
   | zero k m      = Bin p m (adjustWithKey f k l) r
   | otherwise     = Bin p m l (adjustWithKey f k r)
 adjustWithKey f k t@(Tip ky y)
@@ -976,8 +972,7 @@ update f
 -- > updateWithKey f 3 (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
-updateWithKey f !k t@(Bin p m l r)
-  | nomatch k p m = t
+updateWithKey f !k (Bin p m l r)
   | zero k m      = binCheckLeft p m (updateWithKey f k l) r
   | otherwise     = binCheckRight p m l (updateWithKey f k r)
 updateWithKey f k t@(Tip ky y)
@@ -998,8 +993,7 @@ updateWithKey _ _ Nil = Nil
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
-updateLookupWithKey f !k t@(Bin p m l r)
-  | nomatch k p m = (Nothing,t)
+updateLookupWithKey f !k (Bin p m l r)
   | zero k m      = let !(found,l') = updateLookupWithKey f k l
                     in (found,binCheckLeft p m l' r)
   | otherwise     = let !(found,r') = updateLookupWithKey f k r
