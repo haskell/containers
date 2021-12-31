@@ -35,7 +35,13 @@
 
 #ifdef __GLASGOW_HASKELL__
 # define USE_ST_MONAD 1
+#ifndef WORDS_BIGENDIAN
+/*
+ * Unboxed arrays are broken on big-endian architectures.
+ * See https://gitlab.haskell.org/ghc/ghc/-/issues/16998
+ */
 # define USE_UNBOXED_ARRAYS 1
+#endif
 #endif
 
 #endif
