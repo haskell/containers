@@ -37,6 +37,7 @@ common deps
       array    >=0.4.0.0
     , base     >=4.9.1   && <5
     , deepseq  >=1.2     && <1.5
+    , template-haskell
 
 common test-deps
   import: deps

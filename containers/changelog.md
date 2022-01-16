@@ -7,6 +7,11 @@
 * Bump Cabal version for tests, and use `common` clauses to reduce
   duplication.
 
+### New instances
+
+* `Data.Sequence` now offers `Lift` instances for `Seq`, `ViewL`, and `ViewR`
+  for use with Template Haskell.
+
 ## 0.6.5.1
 
 ### Bug fixes

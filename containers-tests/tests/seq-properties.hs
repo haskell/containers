@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 #include "containers.h"
 
@@ -41,11 +42,17 @@ import Test.QuickCheck.Poly (A, OrdA, B, OrdB, C)
 import Control.Monad.Zip (MonadZip (..))
 import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
+import Test.Tasty.HUnit
+import qualified Language.Haskell.TH.Syntax as TH
 
 
 main :: IO ()
 main = defaultMain $ testGroup "seq-properties"
-       [ testProperty "fmap" prop_fmap
+       [ test_lift
+#if MIN_VERSION_template_haskell(2,16,0)
+       , test_liftTyped
+#endif
+       , testProperty "fmap" prop_fmap
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
        , testProperty "foldr'" prop_foldr'
@@ -911,7 +918,6 @@ instance Applicative M where
     Action m f <*> Action n x = Action (m+n) (f x)
 
 instance Monad M where
-    return x = Action 0 x
     Action m x >>= f = let Action n y = f x in Action (m+n) y
 
 instance Foldable M where
@@ -919,3 +925,21 @@ instance Foldable M where
 
 instance Traversable M where
     traverse f (Action n x) = Action n <$> f x
+
+-- ----------
+--
+-- Unit tests
+--
+-- ----------
+
+test_lift :: TestTree
+test_lift = testCase "lift" $ do
+  (mempty :: Seq Int) @=? $([| $(TH.lift (fromList [] :: Seq Integer)) |])
+  fromList [1..3 :: Int] @=? $([| $(TH.lift (fromList [1..3 :: Integer])) |])
+
+#if MIN_VERSION_template_haskell(2,16,0)
+test_liftTyped :: TestTree
+test_liftTyped = testCase "liftTyped" $ do
+  (mempty :: Seq Int) @=? $$([|| $$(TH.liftTyped (fromList [])) ||])
+  fromList [1..3 :: Int] @=? $$([|| $$(TH.liftTyped (fromList [1..3])) ||])
+#endif
