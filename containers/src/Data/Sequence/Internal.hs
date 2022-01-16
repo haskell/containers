@@ -4,18 +4,20 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE TypeOperators #-}
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
 {-# LANGUAGE PatternGuards #-}
-{-# LANGUAGE TypeOperators #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
 {-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
@@ -223,8 +225,7 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
 import Data.Data
 import Data.String (IsString(..))
-#endif
-#if __GLASGOW_HASKELL__
+import qualified Language.Haskell.TH.Syntax as TH
 import GHC.Generics (Generic, Generic1)
 #endif
 
@@ -338,6 +339,28 @@ instance Sized (ForceBox a) where
 
 -- | General-purpose finite sequences.
 newtype Seq a = Seq (FingerTree (Elem a))
+
+#ifdef __GLASGOW_HASKELL__
+-- | @since 0.7
+instance TH.Lift a => TH.Lift (Seq a) where
+#  if MIN_VERSION_template_haskell(2,16,0)
+  liftTyped t = [|| Seq (coerce z) ||]
+#  else
+  lift t = [| Seq (coerce z) |]
+#  endif
+    where
+      -- We rebalance the sequence to use only 3-nodes before lifting its
+      -- underlying finger tree. This should minimize the size and depth of the
+      -- tree generated at run-time. It also reduces the size of the splice,
+      -- but I don't know how that affects the size of the resulting Core once
+      -- all the types are added.
+      Seq ft = zipWith (flip const) (replicate (length t) ()) t
+
+      -- We remove the 'Elem' constructors to reduce the number of types
+      -- and coercions in the splice.
+      z :: FingerTree a
+      z = coerce ft
+#endif
 
 instance Functor Seq where
     fmap = fmapSeq
@@ -974,6 +997,8 @@ deriving instance Generic1 FingerTree
 
 -- | @since 0.6.1
 deriving instance Generic (FingerTree a)
+
+deriving instance TH.Lift a => TH.Lift (FingerTree a)
 #endif
 
 instance Sized a => Sized (FingerTree a) where
@@ -1165,6 +1190,8 @@ deriving instance Generic1 Digit
 
 -- | @since 0.6.1
 deriving instance Generic (Digit a)
+
+deriving instance TH.Lift a => TH.Lift (Digit a)
 #endif
 
 foldDigit :: (b -> b -> b) -> (a -> b) -> Digit a -> b
@@ -1266,6 +1293,8 @@ deriving instance Generic1 Node
 
 -- | @since 0.6.1
 deriving instance Generic (Node a)
+
+deriving instance TH.Lift a => TH.Lift (Node a)
 #endif
 
 foldNode :: (b -> b -> b) -> (a -> b) -> Node a -> b
@@ -2131,6 +2160,9 @@ deriving instance Generic1 ViewL
 
 -- | @since 0.5.8
 deriving instance Generic (ViewL a)
+
+-- | @since 0.7
+deriving instance TH.Lift a => TH.Lift (ViewL a)
 #endif
 
 instance Functor ViewL where
@@ -2195,6 +2227,9 @@ deriving instance Generic1 ViewR
 
 -- | @since 0.5.8
 deriving instance Generic (ViewR a)
+
+-- | @since 0.7
+deriving instance TH.Lift a => TH.Lift (ViewR a)
 #endif
 
 instance Functor ViewR where
