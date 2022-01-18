@@ -4,11 +4,7 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE StandaloneDeriving #-}
-# if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE Safe #-}
-# else
-{-# LANGUAGE Trustworthy #-}
-# endif
 #endif
 
 #include "containers.h"
@@ -107,12 +103,7 @@ import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
 import Control.Applicative
-#if !MIN_VERSION_base(4,8,0)
-import qualified Data.Foldable as F
-import Data.Traversable
-#else
 import Data.Foldable as F
-#endif
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
@@ -123,16 +114,13 @@ import Data.Array.Unboxed ( UArray )
 import qualified Data.Array as UA
 #endif
 import qualified Data.List as L
-#if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
-#endif
-#if (!MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
 #endif
 #ifdef __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
-import Data.Typeable
 #endif
 
 -- Make sure we don't use Integer by mistake.
@@ -158,8 +146,6 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
   deriving (Eq, Show, Read)
 #endif
 
-INSTANCE_TYPEABLE1(SCC)
-
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
@@ -171,7 +157,6 @@ deriving instance Generic1 SCC
 deriving instance Generic (SCC vertex)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 SCC where
   liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
@@ -186,7 +171,6 @@ instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
     readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
-#endif
 
 -- | @since 0.5.9
 instance F.Foldable SCC where
