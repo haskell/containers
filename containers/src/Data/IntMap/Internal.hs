@@ -2,6 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 #ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
@@ -319,6 +320,7 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
 import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
 import Text.Read
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 import qualified Control.Category as Category
 
@@ -368,6 +370,9 @@ type Mask   = Int
 -- 'withoutKeys' to use.
 type IntSetPrefix = Int
 type IntSetBitMap = Word
+
+-- | @since FIXME
+deriving instance Lift a => Lift (IntMap a)
 
 bitmapOf :: Int -> IntSetBitMap
 bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)

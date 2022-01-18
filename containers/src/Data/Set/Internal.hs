@@ -5,7 +5,9 @@
 {-# LANGUAGE Trustworthy #-}
 #endif
 #ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 #endif
 
@@ -250,6 +252,7 @@ import qualified GHC.Exts as GHCExts
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
                  , lexP, readListPrecDefault )
 import Data.Data
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 
@@ -279,6 +282,9 @@ type Size     = Int
 #ifdef __GLASGOW_HASKELL__
 type role Set nominal
 #endif
+
+-- | @since FIXME
+deriving instance Lift a => Lift (Set a)
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
