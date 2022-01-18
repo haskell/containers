@@ -2,7 +2,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 #if defined(__GLASGOW_HASKELL__)
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
 #endif
@@ -393,6 +395,7 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build, lazy)
+import Language.Haskell.TH.Syntax (Lift)
 #  ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #  endif
@@ -460,6 +463,11 @@ type Size     = Int
 
 #ifdef __GLASGOW_HASKELL__
 type role Map nominal representational
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+-- | @since FIXME
+deriving instance (Lift k, Lift a) => Lift (Map k a)
 #endif
 
 instance (Ord k) => Monoid (Map k v) where

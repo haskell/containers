@@ -3,8 +3,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
+#  if __GLASGOW_HASKELL__ >= 802
 {-# LANGUAGE Safe #-}
+#  else
+{-# LANGUAGE Trustworthy #-}
+#  endif
 #endif
 
 #include "containers.h"
@@ -121,6 +126,7 @@ import Data.Semigroup (Semigroup (..))
 #ifdef __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 -- Make sure we don't use Integer by mistake.
@@ -155,6 +161,9 @@ deriving instance Generic1 SCC
 
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
+
+-- | @since FIXME
+deriving instance Lift vertex => Lift (SCC vertex)
 #endif
 
 -- | @since 0.5.9

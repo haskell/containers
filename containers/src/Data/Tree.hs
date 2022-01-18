@@ -3,6 +3,7 @@
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE Trustworthy #-}
 #endif
 
@@ -62,6 +63,7 @@ import Control.DeepSeq (NFData(rnf))
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
 import GHC.Generics (Generic, Generic1)
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 import Control.Monad.Zip (MonadZip (..))
@@ -88,6 +90,7 @@ data Tree a = Node {
            , Data
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
+           , Lift -- ^ @since FIXME
            )
 #else
   deriving (Eq, Ord, Read, Show)

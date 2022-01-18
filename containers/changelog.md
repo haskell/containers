@@ -9,8 +9,9 @@
 
 ### New instances
 
-* `Data.Sequence` now offers `Lift` instances for `Seq`, `ViewL`, and `ViewR`
-  for use with Template Haskell.
+* Add `Lift` instances for use with Template Haskell. Specifically:
+  `Seq`, `ViewL`, and `ViewR` (in `Data.Sequence`), `Map`, `Set`,
+  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`).
 
 ## 0.6.5.1
 

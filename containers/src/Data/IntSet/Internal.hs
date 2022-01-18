@@ -2,7 +2,9 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 #ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE MagicHash #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 #endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
@@ -209,9 +211,10 @@ import Text.Read
 
 #if __GLASGOW_HASKELL__
 import qualified GHC.Exts
-#if !(WORD_SIZE_IN_BITS==64)
+#  if !(WORD_SIZE_IN_BITS==64)
 import qualified GHC.Int
-#endif
+#  endif
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 import qualified Data.Foldable as Foldable
@@ -267,6 +270,11 @@ type Prefix = Int
 type Mask   = Int
 type BitMap = Word
 type Key    = Int
+
+#ifdef __GLASGOW_HASKELL__
+-- | @since FIXME
+deriving instance Lift IntSet
+#endif
 
 instance Monoid IntSet where
     mempty  = empty

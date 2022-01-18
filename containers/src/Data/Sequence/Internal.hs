@@ -341,7 +341,7 @@ instance Sized (ForceBox a) where
 newtype Seq a = Seq (FingerTree (Elem a))
 
 #ifdef __GLASGOW_HASKELL__
--- | @since 0.7
+-- | @since FIXME
 instance TH.Lift a => TH.Lift (Seq a) where
 #  if MIN_VERSION_template_haskell(2,16,0)
   liftTyped t = [|| coerceFT z ||]
@@ -2174,7 +2174,7 @@ deriving instance Generic1 ViewL
 -- | @since 0.5.8
 deriving instance Generic (ViewL a)
 
--- | @since 0.7
+-- | @since FIXME
 deriving instance TH.Lift a => TH.Lift (ViewL a)
 #endif
 
@@ -2241,7 +2241,7 @@ deriving instance Generic1 ViewR
 -- | @since 0.5.8
 deriving instance Generic (ViewR a)
 
--- | @since 0.7
+-- | @since FIXME
 deriving instance TH.Lift a => TH.Lift (ViewR a)
 #endif
 
