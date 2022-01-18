@@ -247,12 +247,6 @@ module Data.IntMap.Strict.Internal (
     , maxView
     , minViewWithKey
     , maxViewWithKey
-
-#ifdef __GLASGOW_HASKELL__
-    -- * Debugging
-    , showTree
-    , showTreeWith
-#endif
     ) where
 
 import Prelude hiding (lookup,map,filter,foldr,foldl,null)
@@ -339,20 +333,11 @@ import Data.IntMap.Internal
   , unions
   , withoutKeys
   )
-#ifdef __GLASGOW_HASKELL__
-import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
-#endif
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
-#if !MIN_VERSION_base(4,8,0)
-import Data.Functor((<$>))
-#endif
 import Control.Applicative (Applicative (..), liftA2)
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable())
-#endif
 
 {--------------------------------------------------------------------
   Query

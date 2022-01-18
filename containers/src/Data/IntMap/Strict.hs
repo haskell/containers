@@ -247,12 +247,6 @@ module Data.IntMap.Strict (
     , maxView
     , minViewWithKey
     , maxViewWithKey
-
-#ifdef __GLASGOW_HASKELL__
-    -- * Debugging
-    , showTree
-    , showTreeWith
-#endif
     ) where
 
 import Data.IntMap.Strict.Internal

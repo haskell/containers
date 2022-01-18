@@ -1,6 +1,7 @@
+cabal-version:      2.2
 name:               containers-tests
 version:            0
-license:            BSD3
+license:            BSD-3-Clause
 license-file:       LICENSE
 maintainer:         libraries@haskell.org
 bug-reports:        https://github.com/haskell/containers/issues
@@ -11,7 +12,6 @@ description:
   This package contains tests and benchmarks for @containers-package
 
 build-type:         Simple
-cabal-version:      >=1.10
 extra-source-files:
   include/containers.h
   tests/Makefile
@@ -26,21 +26,41 @@ extra-source-files:
   benchmarks/LookupGE/*.hs
 
 tested-with:
-  GHC ==7.6.3 || ==7.8.4 || ==7.10.3 || ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.1 || ==9.2.1
+  GHC ==8.0.1 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.1 || ==9.2.1
 
 source-repository head
   type:     git
   location: http://github.com/haskell/containers.git
 
+common deps
+  build-depends:
+      array    >=0.4.0.0
+    , base     >=4.9     && <5
+    , deepseq  >=1.2     && <1.5
+
+common test-deps
+  import: deps
+  build-depends:
+      containers-tests
+    , QuickCheck                  >=2.7.1
+    , tasty
+    , tasty-hunit
+    , tasty-quickcheck
+    , transformers
+
+common benchmark-deps
+  import: deps
+  build-depends:
+      containers-tests
+    , deepseq           >=1.1.0.0 && <1.5
+    , gauge             >=0.2.3   && <0.3
+
 -- Copy of containers library,
 library
+  import: deps
   default-language: Haskell2010
   -- this is important for testing; may it affect benchmarks?
   cpp-options:      -DTESTING
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
   if impl(ghc >= 8.6.0)
     build-depends:
         nothunks
@@ -95,8 +115,6 @@ library
 
   if impl(ghc)
     other-modules:
-      Data.IntMap.Internal.DeprecatedDebug
-      Data.Map.Internal.DeprecatedShowTree
       Utils.Containers.Internal.TypeError
 
   if impl(ghc >= 8.6)
@@ -107,129 +125,95 @@ library
 -----------------------------
 
 benchmark intmap-benchmarks
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        IntMap.hs
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6     && <5
-    , containers-tests
-    , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
 
 benchmark intset-benchmarks
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        IntSet.hs
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6     && <5
-    , containers-tests
-    , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
 
 benchmark map-benchmarks
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Map.hs
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6     && <5
-    , containers-tests
-    , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
-    , transformers
 
 benchmark sequence-benchmarks
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Sequence.hs
   ghc-options:    -O2
   build-depends:
-      base              >=4.6     && <5
-    , containers-tests
-    , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
-    , random            >=0       && <1.2
+      random            >=0       && <1.2
     , transformers
 
 benchmark set-benchmarks
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
   main-is:        Set.hs
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6     && <5
-    , containers-tests
-    , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
 
 benchmark set-operations-intmap
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntMap.hs
   other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6   && <5
-    , containers-tests
-    , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-intset
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntSet.hs
   other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6   && <5
-    , containers-tests
-    , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-map
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-Map.hs
   other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6   && <5
-    , containers-tests
-    , gauge             >=0.2.3 && <0.3
 
 benchmark set-operations-set
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-Set.hs
   other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      base              >=4.6   && <5
-    , containers-tests
-    , gauge             >=0.2.3 && <0.3
 
 benchmark lookupge-intmap
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
   main-is:        IntMap.hs
   other-modules:  LookupGE_IntMap
   build-depends:  containers-tests
-  build-depends:
-      base     >=4.6     && <5
-    , deepseq  >=1.1.0.0 && <1.5
-    , gauge    >=0.2.3   && <0.3
 
 benchmark lookupge-map
+  import: benchmark-deps
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
@@ -237,10 +221,6 @@ benchmark lookupge-map
   other-modules:  LookupGE_Map
   build-depends:  containers-tests
   ghc-options:    -O2
-  build-depends:
-      base     >=4.6     && <5
-    , deepseq  >=1.1.0.0 && <1.5
-    , gauge    >=0.2.3   && <0.3
 
 -------------------
 -- T E S T I N G --
@@ -250,90 +230,52 @@ benchmark lookupge-map
 -- plus the testing stuff.
 
 test-suite map-lazy-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-    , transformers
-
 test-suite map-strict-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-    , transformers
-
 test-suite bitqueue-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          bitqueue-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:    base >=4.6 && <5
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:    containers-tests
-  build-depends:
-      tasty
-    , tasty-quickcheck
-
 test-suite set-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          set-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
-
-  build-depends:    containers-tests
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-    , transformers
 
   if impl(ghc >= 8.6)
     build-depends:
@@ -342,134 +284,77 @@ test-suite set-properties
       Utils.NoThunks
 
 test-suite intmap-lazy-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
   other-modules:    IntMapValidity
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-
 test-suite intmap-strict-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
   other-modules:    IntMapValidity
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:    containers-tests
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-hunit
-    , tasty-quickcheck
-
 test-suite intset-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-properties.hs
   type:             exitcode-stdio-1.0
   other-modules:    IntSetValidity
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:    containers-tests
-  build-depends:
-      tasty
-    , tasty-hunit
-    , tasty-quickcheck
-
 test-suite seq-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          seq-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
-    , transformers
-
 test-suite tree-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          tree-properties.hs
   type:             exitcode-stdio-1.0
-  build-depends:    containers-tests
-  build-depends:
-      array    >=0.4.0.0
-    , base     >=4.6     && <5
-    , deepseq  >=1.2     && <1.5
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
 
-  build-depends:
-      QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
-    , transformers
-
 test-suite map-strictness-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-strictness.hs
   type:             exitcode-stdio-1.0
-  build-depends:    containers-tests
   build-depends:
-      array                       >=0.4.0.0
-    , base                        >=4.6     && <5
-    , ChasingBottoms
-    , deepseq                     >=1.2     && <1.5
-    , QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
-    , tasty-hunit
+      ChasingBottoms
 
   ghc-options:      -Wall
   other-extensions:
@@ -486,6 +371,7 @@ test-suite map-strictness-properties
       Utils.NoThunks
 
 test-suite intmap-strictness-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-strictness.hs
@@ -494,16 +380,8 @@ test-suite intmap-strictness-properties
     BangPatterns
     CPP
 
-  build-depends:    containers-tests
   build-depends:
-      array                       >=0.4.0.0
-    , base                        >=4.6     && <5
-    , ChasingBottoms
-    , deepseq                     >=1.2     && <1.5
-    , QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
-    , tasty-hunit
+      ChasingBottoms
 
   ghc-options:      -Wall
 
@@ -517,6 +395,7 @@ test-suite intmap-strictness-properties
       Utils.NoThunks
 
 test-suite intset-strictness-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-strictness.hs
@@ -525,15 +404,8 @@ test-suite intset-strictness-properties
     BangPatterns
     CPP
 
-  build-depends:    containers-tests
   build-depends:
-      array                       >=0.4.0.0
-    , base                        >=4.6     && <5
-    , ChasingBottoms
-    , deepseq                     >=1.2     && <1.5
-    , QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
+      ChasingBottoms
 
   ghc-options:      -Wall
 
@@ -544,17 +416,12 @@ test-suite intset-strictness-properties
       Utils.NoThunks
 
 test-suite listutils-properties
+  import: test-deps
   default-language: Haskell2010
   hs-source-dirs: tests
   main-is:        listutils-properties.hs
   type:           exitcode-stdio-1.0
-  build-depends:  containers-tests
   build-depends:
-      base                        >=4.6   && <5
-    , ChasingBottoms
-    , deepseq                     >=1.2   && <1.5
-    , QuickCheck                  >=2.7.1
-    , tasty
-    , tasty-quickcheck
+      ChasingBottoms
 
   ghc-options:    -Wall

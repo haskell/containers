@@ -44,22 +44,9 @@ module Utils.Containers.Internal.BitQueue
     , toListQ
     ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Word (Word)
-#endif
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, wordSize)
 import Data.Bits ((.|.), (.&.), testBit)
-#if MIN_VERSION_base(4,8,0)
 import Data.Bits (countTrailingZeros)
-#else
-import Data.Bits (popCount)
-#endif
-
-#if !MIN_VERSION_base(4,8,0)
-countTrailingZeros :: Word -> Int
-countTrailingZeros x = popCount ((x .&. (-x)) - 1)
-{-# INLINE countTrailingZeros #-}
-#endif
 
 -- A bit queue builder. We represent a double word using two words
 -- because we don't currently have access to proper double words.

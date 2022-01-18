@@ -1,15 +1,14 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TypeFamilies #-}
 #endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE TypeFamilies #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -293,34 +292,19 @@ module Data.IntMap.Internal (
     , mapGentlyWhenMatched
     ) where
 
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
 import Control.Applicative (liftA2)
-#else
-import Control.Applicative (Applicative(pure, (<*>)), (<$>), liftA2)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
-import Data.Word (Word)
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
-#endif
-#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
-#endif
 
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable())
-#endif
 import Data.Maybe (fromMaybe)
-import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null)
 
 import Data.IntSet.Internal (Key)
@@ -328,22 +312,15 @@ import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 
-#if __GLASGOW_HASKELL__
+#ifdef __GLASGOW_HASKELL__
+import Data.Coerce
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, Fixity(Prefix),
-                  DataType, mkDataType)
+                  DataType, mkDataType, gcast1)
 import GHC.Exts (build)
-#if !MIN_VERSION_base(4,8,0)
-import Data.Functor ((<$))
-#endif
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read
 #endif
 import qualified Control.Category as Category
-#if __GLASGOW_HASKELL__ >= 709
-import Data.Coerce
-#endif
 
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -433,16 +410,12 @@ infixl 9 !?,\\{-This comment teaches CPP correct behaviour -}
 instance Monoid (IntMap a) where
     mempty  = empty
     mconcat = unions
-#if !(MIN_VERSION_base(4,9,0))
-    mappend = union
-#else
     mappend = (<>)
 
 -- | @since 0.5.7
 instance Semigroup (IntMap a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
-#endif
 
 -- | Folds in order of increasing key.
 instance Foldable.Foldable IntMap where
@@ -468,7 +441,6 @@ instance Foldable.Foldable IntMap where
   {-# INLINE foldl' #-}
   foldr' = foldr'
   {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
   length = size
   {-# INLINE length #-}
   null   = null
@@ -506,7 +478,6 @@ instance Foldable.Foldable IntMap where
   {-# INLINABLE sum #-}
   product = foldl' (*) 1
   {-# INLINABLE product #-}
-#endif
 
 -- | Traverses in order of increasing key.
 instance Traversable IntMap where
@@ -1477,9 +1448,6 @@ instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
 --
 -- @since 0.5.9
 instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
-#if !MIN_VERSION_base(4,8,0)
-  return = pure
-#endif
   m >>= f =
     traverseMaybeMissing $ \k x -> do
       res1 <- missingKey m k x
@@ -1562,17 +1530,6 @@ contramapSecondWhenMatched f t =
 {-# INLINE contramapSecondWhenMatched #-}
 
 
-#if !MIN_VERSION_base(4,8,0)
-newtype Identity a = Identity {runIdentity :: a}
-
-instance Functor Identity where
-    fmap f (Identity x) = Identity (f x)
-
-instance Applicative Identity where
-    pure = Identity
-    Identity f <*> Identity x = Identity (f x)
-#endif
-
 -- | A tactic for dealing with keys present in one map but not the
 -- other in 'merge'.
 --
@@ -1651,9 +1608,6 @@ instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
 --
 -- @since 0.5.9
 instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
-#if !MIN_VERSION_base(4,8,0)
-  return = pure
-#endif
   m >>= f =
     zipWithMaybeAMatched $ \k x y -> do
       res <- runWhenMatched m k x y
@@ -2452,11 +2406,6 @@ map f = go
 {-# NOINLINE [1] map #-}
 {-# RULES
 "map/map" forall f g xs . map f (map g xs) = map (f . g) xs
- #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 709
--- Safe coercions were introduced in 7.8, but did not play well with RULES yet.
-{-# RULES
 "map/coerce" map coerce = coerce
  #-}
 #endif
@@ -3056,7 +3005,8 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.6.2
 instance GHCExts.IsList (IntMap a) where
   type Item (IntMap a) = (Key,a)
@@ -3284,7 +3234,6 @@ nequal (Tip kx x) (Tip ky y)
 nequal Nil Nil = False
 nequal _   _   = True
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 IntMap where
   liftEq eq (Bin p1 m1 l1 r1) (Bin p2 m2 l2 r2)
@@ -3293,7 +3242,6 @@ instance Eq1 IntMap where
     = (kx == ky) && (eq x y)
   liftEq _eq Nil Nil = True
   liftEq _eq _   _   = False
-#endif
 
 {--------------------------------------------------------------------
   Ord
@@ -3302,12 +3250,10 @@ instance Eq1 IntMap where
 instance Ord a => Ord (IntMap a) where
     compare m1 m2 = compare (toList m1) (toList m2)
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Ord1 IntMap where
   liftCompare cmp m n =
     liftCompare (liftCompare cmp) (toList m) (toList n)
-#endif
 
 {--------------------------------------------------------------------
   Functor
@@ -3330,7 +3276,6 @@ instance Show a => Show (IntMap a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Show1 IntMap where
     liftShowsPrec sp sl d m =
@@ -3338,7 +3283,6 @@ instance Show1 IntMap where
       where
         sp' = liftShowsPrec sp sl
         sl' = liftShowList sp sl
-#endif
 
 {--------------------------------------------------------------------
   Read
@@ -3358,7 +3302,6 @@ instance (Read e) => Read (IntMap e) where
     return (fromList xs,t)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Read1 IntMap where
     liftReadsPrec rp rl = readsData $
@@ -3366,13 +3309,6 @@ instance Read1 IntMap where
       where
         rp' = liftReadsPrec rp rl
         rl' = liftReadList rp rl
-#endif
-
-{--------------------------------------------------------------------
-  Typeable
---------------------------------------------------------------------}
-
-INSTANCE_TYPEABLE1(IntMap)
 
 {--------------------------------------------------------------------
   Helpers

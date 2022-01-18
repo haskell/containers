@@ -228,15 +228,6 @@ module Data.IntMap.Lazy (
     , maxView
     , minViewWithKey
     , maxViewWithKey
-
-#ifdef __GLASGOW_HASKELL__
-    -- * Debugging
-    , showTree
-    , showTreeWith
-#endif
     ) where
 
-import Data.IntMap.Internal as IM hiding (showTree, showTreeWith)
-#ifdef __GLASGOW_HASKELL__
-import Data.IntMap.Internal.DeprecatedDebug
-#endif
+import Data.IntMap.Internal as IM

@@ -5,13 +5,7 @@
 -- | A clone of Control.Monad.State.Strict.
 module Utils.Containers.Internal.State where
 
-import Prelude hiding (
-#if MIN_VERSION_base(4,8,0)
-    Applicative
-#endif
-    )
-
-import Control.Monad (ap)
+import Control.Monad (ap, liftM2)
 import Control.Applicative (Applicative(..), liftA)
 
 newtype State s a = State {runState :: s -> (s, a)}
@@ -30,6 +24,10 @@ instance Applicative (State s) where
     {-# INLINE pure #-}
     pure x = State $ \ s -> (s, x)
     (<*>) = ap
+    (*>) = (>>)
+#if MIN_VERSION_base(4,10,0)
+    liftA2 = liftM2
+#endif
 
 execState :: State s a -> s -> a
 execState m x = snd (runState m x)

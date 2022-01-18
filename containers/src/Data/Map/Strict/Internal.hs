@@ -299,10 +299,6 @@ module Data.Map.Strict.Internal
     , maxViewWithKey
 
     -- * Debugging
-#if defined(__GLASGOW_HASKELL__)
-    , showTree
-    , showTreeWith
-#endif
     , valid
     ) where
 
@@ -329,9 +325,7 @@ import Data.Map.Internal
   , (\\)
   , assocs
   , atKeyImpl
-#if MIN_VERSION_base(4,8,0)
   , atKeyPlain
-#endif
   , balance
   , balanceL
   , balanceR
@@ -409,32 +403,23 @@ import Data.Map.Internal
   , unions
   , withoutKeys )
 
-#if defined(__GLASGOW_HASKELL__)
-import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
-#endif
 import Data.Map.Internal.Debug (valid)
 
 import Control.Applicative (Const (..), liftA3)
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative (Applicative (..), (<$>))
-#endif
 import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
 import Utils.Containers.Internal.StrictPair
 
 import Data.Bits (shiftL, shiftR)
-#if __GLASGOW_HASKELL__ >= 709
+#ifdef __GLASGOW_HASKELL__
 import Data.Coerce
 #endif
 
-#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Identity (Identity (..))
 #endif
 
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable())
-#endif
 
 -- $strictness
 --
@@ -872,18 +857,12 @@ alterF f k m = atKeyImpl Strict k f m
 -- `Control.Applicative.Const` and just doing a lookup.
 {-# RULES
 "alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
- #-}
-#if MIN_VERSION_base(4,8,0)
--- base 4.8 and above include Data.Functor.Identity, so we can
--- save a pretty decent amount of time by handling it specially.
-{-# RULES
 "alterF/Identity" forall k f . alterF f k = atKeyIdentity k f
  #-}
 
 atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
 atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
 {-# INLINABLE atKeyIdentity #-}
-#endif
 #endif
 
 {--------------------------------------------------------------------

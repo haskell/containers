@@ -285,10 +285,6 @@ module Data.Map.Strict
     , maxViewWithKey
 
     -- * Debugging
-#ifdef __GLASGOW_HASKELL__
-    , showTree
-    , showTreeWith
-#endif
     , valid
     ) where
 

@@ -1,13 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE TypeFamilies #-}
 #endif
@@ -124,7 +121,7 @@
 
 module Data.Set.Internal (
             -- * Set type
-              Set(..)       -- instance Eq,Ord,Show,Read,Data,Typeable
+              Set(..)       -- instance Eq,Ord,Show,Read,Data
             , Size
 
             -- * Operators
@@ -234,27 +231,14 @@ import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid (Monoid(..))
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
-#endif
-#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
-#endif
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity)
-#endif
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable (foldMap))
-#endif
-import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
 import Utils.Containers.Internal.StrictPair
@@ -262,9 +246,7 @@ import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
                  , lexP, readListPrecDefault )
 import Data.Data
@@ -294,24 +276,19 @@ data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 type role Set nominal
 #endif
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
     mconcat = unions
-#if !(MIN_VERSION_base(4,9,0))
-    mappend = union
-#else
     mappend = (<>)
 
 -- | @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
-#endif
-
 
 -- | Folds in order of increasing key.
 instance Foldable.Foldable Set where
@@ -333,7 +310,6 @@ instance Foldable.Foldable Set where
     {-# INLINE foldl' #-}
     foldr' = foldr'
     {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
     length = size
     {-# INLINE length #-}
     null   = null
@@ -352,8 +328,6 @@ instance Foldable.Foldable Set where
     {-# INLINABLE sum #-}
     product = foldl' (*) 1
     {-# INLINABLE product #-}
-#endif
-
 
 #if __GLASGOW_HASKELL__
 
@@ -633,9 +607,7 @@ alterF f k s = fmap choose (f member_)
  #-}
 #endif
 
-#if MIN_VERSION_base(4,8,0)
 {-# SPECIALIZE alterF :: Ord a => (Bool -> Identity Bool) -> a -> Set a -> Identity (Set a) #-}
-#endif
 
 data AlteredSet a
       -- | The needle is present in the original set.
@@ -1030,7 +1002,8 @@ elems = toAscList
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.6.2
 instance (Ord a) => GHCExts.IsList (Set a) where
   type Item (Set a) = a
@@ -1232,7 +1205,6 @@ instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 Set where
     liftEq eq m n =
@@ -1247,7 +1219,6 @@ instance Ord1 Set where
 instance Show1 Set where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
-#endif
 
 {--------------------------------------------------------------------
   Read
@@ -1266,12 +1237,6 @@ instance (Read a, Ord a) => Read (Set a) where
     (xs,t) <- reads s
     return (fromList xs,t)
 #endif
-
-{--------------------------------------------------------------------
-  Typeable/Data
---------------------------------------------------------------------}
-
-INSTANCE_TYPEABLE1(Set)
 
 {--------------------------------------------------------------------
   NFData
@@ -1878,19 +1843,13 @@ cartesianProduct as bs =
 -- This is used to define cartesianProduct.
 newtype MergeSet a = MergeSet { getMergeSet :: Set a }
 
-#if (MIN_VERSION_base(4,9,0))
 instance Semigroup (MergeSet a) where
   MergeSet xs <> MergeSet ys = MergeSet (merge xs ys)
-#endif
 
 instance Monoid (MergeSet a) where
   mempty = MergeSet empty
 
-#if (MIN_VERSION_base(4,9,0))
   mappend = (<>)
-#else
-  mappend (MergeSet xs) (MergeSet ys) = MergeSet (merge xs ys)
-#endif
 
 -- | Calculate the disjoint union of two sets.
 --

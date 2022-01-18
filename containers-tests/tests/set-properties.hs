@@ -15,9 +15,6 @@ import Control.Monad.Trans.Class
 import Control.Monad (liftM, liftM3)
 import Data.Functor.Identity
 import Data.Foldable (all)
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative (Applicative (..), (<$>))
-#endif
 import Control.Applicative (liftA2)
 
 #if __GLASGOW_HASKELL__ >= 806

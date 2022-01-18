@@ -1,17 +1,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
 #if defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
 #endif
+#define USE_MAGIC_PROXY 1
 
 #ifdef USE_MAGIC_PROXY
 {-# LANGUAGE MagicHash #-}
@@ -344,7 +339,7 @@ module Data.Map.Internal (
     -- Used by the strict version
     , AreWeStrict (..)
     , atKeyImpl
-#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+#ifdef __GLASGOW_HASKELL__
     , atKeyPlain
 #endif
     , bin
@@ -369,35 +364,21 @@ module Data.Map.Internal (
     , mapGentlyWhenMatched
     ) where
 
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity (..))
 import Control.Applicative (liftA3)
-#else
-import Control.Applicative (Applicative(..), (<$>), liftA3)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
 import Data.Semigroup (stimesIdempotentMonoid)
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
-#endif
-#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
 import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable())
-#endif
 #if MIN_VERSION_base(4,10,0)
 import Data.Bifoldable
 #endif
-import Data.Typeable
 import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
 
 import qualified Data.Set.Internal as Set
@@ -412,20 +393,13 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build, lazy)
-#if !MIN_VERSION_base(4,8,0)
-import Data.Functor ((<$))
-#endif
-#ifdef USE_MAGIC_PROXY
+#  ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
-#endif
-#if __GLASGOW_HASKELL__ >= 708
+#  endif
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read hiding (lift)
 import Data.Data
 import qualified Control.Category as Category
-#endif
-#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 #endif
 
@@ -484,22 +458,18 @@ data Map k a  = Bin {-# UNPACK #-} !Size !k a !(Map k a) !(Map k a)
 
 type Size     = Int
 
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 type role Map nominal representational
 #endif
 
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
     mconcat = unions
-#if !(MIN_VERSION_base(4,9,0))
-    mappend = union
-#else
     mappend = (<>)
 
 instance (Ord k) => Semigroup (Map k v) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
-#endif
 
 #if __GLASGOW_HASKELL__
 
@@ -1238,13 +1208,11 @@ alterF f k m = atKeyImpl Lazy k f m
 "alterF/Const" forall k (f :: Maybe a -> Const b (Maybe a)) . alterF f k = \m -> Const . getConst . f $ lookup k m
  #-}
 
-#if MIN_VERSION_base(4,8,0)
 -- base 4.8 and above include Data.Functor.Identity, so we can
 -- save a pretty decent amount of time by handling it specially.
 {-# RULES
 "alterF/Identity" forall k f . alterF f k = atKeyIdentity k f
  #-}
-#endif
 #endif
 
 atKeyImpl :: (Functor f, Ord k) =>
@@ -1299,10 +1267,7 @@ lookupTrace = go emptyQB
       GT -> (go $! q `snocQB` True) k r
       EQ -> TraceResult (Just x) (buildQ q)
 
--- GHC 7.8 doesn't manage to unbox the queue properly
--- unless we explicitly inline this function. This stuff
--- is a bit touchy, unfortunately.
-#if __GLASGOW_HASKELL__ >= 710
+#ifdef __GLASGOW_HASKELL__
 {-# INLINABLE lookupTrace #-}
 #else
 {-# INLINE lookupTrace #-}
@@ -1372,7 +1337,7 @@ replaceAlong q  x (Bin sz ky y l r) =
         Just (True,tl) -> Bin sz ky y l (replaceAlong tl x r)
         Nothing -> Bin sz ky x l r
 
-#if __GLASGOW_HASKELL__ && MIN_VERSION_base(4,8,0)
+#ifdef __GLASGOW_HASKELL__
 atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
 atKeyIdentity k f t = Identity $ atKeyPlain Lazy k (coerce f) t
 {-# INLINABLE atKeyIdentity #-}
@@ -2118,24 +2083,6 @@ compose bc !ab
   | null bc = empty
   | otherwise = mapMaybe (bc !?) ab
 
-#if !MIN_VERSION_base (4,8,0)
--- | The identity type.
-newtype Identity a = Identity { runIdentity :: a }
-#if __GLASGOW_HASKELL__ == 708
-instance Functor Identity where
-  fmap = coerce
-instance Applicative Identity where
-  (<*>) = coerce
-  pure = Identity
-#else
-instance Functor Identity where
-  fmap f (Identity a) = Identity (f a)
-instance Applicative Identity where
-  Identity f <*> Identity x = Identity (f x)
-  pure = Identity
-#endif
-#endif
-
 -- | A tactic for dealing with keys present in one map but not the other in
 -- 'merge' or 'mergeA'.
 --
@@ -2182,9 +2129,6 @@ instance (Applicative f, Monad f) => Applicative (WhenMissing f k x) where
 --
 -- @since 0.5.9
 instance (Applicative f, Monad f) => Monad (WhenMissing f k x) where
-#if !MIN_VERSION_base(4,8,0)
-  return = pure
-#endif
   m >>= f = traverseMaybeMissing $ \k x -> do
          res1 <- missingKey m k x
          case res1 of
@@ -2320,9 +2264,6 @@ instance (Monad f, Applicative f) => Applicative (WhenMatched f k x y) where
 --
 -- @since 0.5.9
 instance (Monad f, Applicative f) => Monad (WhenMatched f k x y) where
-#if !MIN_VERSION_base(4,8,0)
-  return = pure
-#endif
   m >>= f = zipWithMaybeAMatched $ \k x y -> do
     res <- runWhenMatched m k x y
     case res of
@@ -3105,11 +3046,6 @@ map f = go where
 {-# NOINLINE [1] map #-}
 {-# RULES
 "map/map" forall f g xs . map f (map g xs) = map (f . g) xs
- #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 709
--- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
-{-# RULES
 "map/coerce" map coerce = coerce
  #-}
 #endif
@@ -3431,7 +3367,8 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.6.2
 instance (Ord k) => GHCExts.IsList (Map k v) where
   type Item (Map k v) = (k,v)
@@ -4183,7 +4120,6 @@ instance (Eq k,Eq a) => Eq (Map k a) where
 instance (Ord k, Ord v) => Ord (Map k v) where
     compare m1 m2 = compare (toAscList m1) (toAscList m2)
 
-#if MIN_VERSION_base(4,9,0)
 {--------------------------------------------------------------------
   Lifted instances
 --------------------------------------------------------------------}
@@ -4225,7 +4161,6 @@ instance (Ord k, Read k) => Read1 (Map k) where
       where
         rp' = liftReadsPrec rp rl
         rl' = liftReadList rp rl
-#endif
 
 {--------------------------------------------------------------------
   Functor
@@ -4262,7 +4197,6 @@ instance Foldable.Foldable (Map k) where
   {-# INLINE foldl' #-}
   foldr' = foldr'
   {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
   length = size
   {-# INLINE length #-}
   null   = null
@@ -4291,7 +4225,6 @@ instance Foldable.Foldable (Map k) where
   {-# INLINABLE sum #-}
   product = foldl' (*) 1
   {-# INLINABLE product #-}
-#endif
 
 #if MIN_VERSION_base(4,10,0)
 -- | @since 0.6.3.1
@@ -4344,12 +4277,6 @@ instance (Ord k, Read k, Read e) => Read (Map k e) where
 instance (Show k, Show a) => Show (Map k a) where
   showsPrec d m  = showParen (d > 10) $
     showString "fromList " . shows (toList m)
-
-{--------------------------------------------------------------------
-  Typeable
---------------------------------------------------------------------}
-
-INSTANCE_TYPEABLE2(Map)
 
 {--------------------------------------------------------------------
   Utilities
