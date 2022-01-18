@@ -197,9 +197,7 @@ import Prelude hiding (
 #if MIN_VERSION_base(4,11,0)
     (<>),
 #endif
-#if MIN_VERSION_base(4,8,0)
     Applicative, (<$>), foldMap, Monoid,
-#endif
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
@@ -214,16 +212,9 @@ import Utils.Containers.Internal.State (State(..), execState)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
 import qualified Data.Foldable as F
 
-#if !(__GLASGOW_HASKELL__ >= 708)
-import qualified Data.List
-#endif
-
-#if MIN_VERSION_base(4,9,0)
 import qualified Data.Semigroup as Semigroup
 import Data.Functor.Classes
-#endif
 import Data.Traversable
-import Data.Typeable
 
 -- GHC specific stuff
 #ifdef __GLASGOW_HASKELL__
@@ -245,21 +236,10 @@ import qualified GHC.Arr
 #endif
 
 import Utils.Containers.Internal.Coercions ((.#), (.^#))
--- Coercion on GHC 7.8+
-#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
 import qualified GHC.Exts
-#else
-#endif
 
--- Identity functor on base 4.8 (GHC 7.10+)
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
-#endif
-
-#if !MIN_VERSION_base(4,8,0)
-import Data.Word (Word)
-#endif
 
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
@@ -371,11 +351,6 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 {-# NOINLINE [1] fmapSeq #-}
 {-# RULES
 "fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
- #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 709
--- Safe coercions were introduced in 7.8, but did not work well with RULES yet.
-{-# RULES
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
 #endif
@@ -408,12 +383,10 @@ instance Foldable Seq where
     foldl1 f (Seq xs) = getElem (foldl1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
 
-#if MIN_VERSION_base(4,8,0)
     length = length
     {-# INLINE length #-}
     null   = null
     {-# INLINE null #-}
-#endif
 
 instance Traversable Seq where
 #if __GLASGOW_HASKELL__
@@ -601,7 +574,7 @@ liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
              (fmap (fmap (f lastx)) (nodeToDigit sf))
   where
     lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
     lift_elem = coerce
 #else
     lift_elem f x (Elem y) = Elem (f x y)
@@ -914,7 +887,6 @@ instance Show a => Show (Seq a) where
         showString "fromList " . shows (toList xs)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Show1 Seq where
   liftShowsPrec _shwsPrc shwList p xs = showParen (p > 10) $
@@ -927,7 +899,6 @@ instance Eq1 Seq where
 -- | @since 0.5.9
 instance Ord1 Seq where
     liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
-#endif
 
 instance Read a => Read (Seq a) where
 #ifdef __GLASGOW_HASKELL__
@@ -944,31 +915,21 @@ instance Read a => Read (Seq a) where
         return (fromList xs,t)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Read1 Seq where
   liftReadsPrec _rp readLst p = readParen (p > 10) $ \r -> do
     ("fromList",s) <- lex r
     (xs,t) <- readLst s
     pure (fromList xs, t)
-#endif
 
 instance Monoid (Seq a) where
     mempty = empty
-#if MIN_VERSION_base(4,9,0)
     mappend = (Semigroup.<>)
-#else
-    mappend = (><)
-#endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
     stimes = cycleNTimes . fromIntegral
-#endif
-
-INSTANCE_TYPEABLE1(Seq)
 
 #if __GLASGOW_HASKELL__
 instance Data a => Data (Seq a) where
@@ -1380,7 +1341,7 @@ instance Sized (Elem a) where
     size _ = 1
 
 instance Functor Elem where
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 -- This cuts the time for <*> by around a fifth.
     fmap = coerce
 #else
@@ -1389,7 +1350,7 @@ instance Functor Elem where
 
 instance Foldable Elem where
     foldr f z (Elem x) = f x z
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
     foldMap = coerce
     foldl = coerce
     foldl' = coerce
@@ -1408,16 +1369,6 @@ instance NFData a => NFData (Elem a) where
 -------------------------------------------------------
 -- Applicative construction
 -------------------------------------------------------
-#if !MIN_VERSION_base(4,8,0)
-newtype Identity a = Identity {runIdentity :: a}
-
-instance Functor Identity where
-    fmap f (Identity x) = Identity (f x)
-
-instance Applicative Identity where
-    pure = Identity
-    Identity f <*> Identity x = Identity (f x)
-#endif
 
 -- | 'applicativeTree' takes an Applicative-wrapped construction of a
 -- piece of a FingerTree, assumed to always have the same size (which
@@ -1718,15 +1669,8 @@ replicateA n x
 --
 -- For @base >= 4.8.0@ and @containers >= 0.5.11@, 'replicateM'
 -- is a synonym for 'replicateA'.
-#if MIN_VERSION_base(4,8,0)
 replicateM :: Applicative m => Int -> m a -> m (Seq a)
 replicateM = replicateA
-#else
-replicateM :: Monad m => Int -> m a -> m (Seq a)
-replicateM n x
-  | n >= 0      = Applicative.unwrapMonad (replicateA n (Applicative.WrapMonad x))
-  | otherwise   = error "replicateM takes a nonnegative integer argument"
-#endif
 
 -- | /O(/log/ k)/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
@@ -2189,8 +2133,6 @@ deriving instance Generic1 ViewL
 deriving instance Generic (ViewL a)
 #endif
 
-INSTANCE_TYPEABLE1(ViewL)
-
 instance Functor ViewL where
     {-# INLINE fmap #-}
     fmap _ EmptyL       = EmptyL
@@ -2209,13 +2151,11 @@ instance Foldable ViewL where
     foldl1 _ EmptyL = error "foldl1: empty view"
     foldl1 f (x :< xs) = foldl f x xs
 
-#if MIN_VERSION_base(4,8,0)
     null EmptyL = True
     null (_ :< _) = False
 
     length EmptyL = 0
     length (_ :< xs) = 1 + length xs
-#endif
 
 instance Traversable ViewL where
     traverse _ EmptyL       = pure EmptyL
@@ -2257,8 +2197,6 @@ deriving instance Generic1 ViewR
 deriving instance Generic (ViewR a)
 #endif
 
-INSTANCE_TYPEABLE1(ViewR)
-
 instance Functor ViewR where
     {-# INLINE fmap #-}
     fmap _ EmptyR       = EmptyR
@@ -2276,13 +2214,12 @@ instance Foldable ViewR where
 
     foldr1 _ EmptyR = error "foldr1: empty view"
     foldr1 f (xs :> x) = foldr f x xs
-#if MIN_VERSION_base(4,8,0)
+
     null EmptyR = True
     null (_ :> _) = False
 
     length EmptyR = 0
     length (xs :> _) = length xs + 1
-#endif
 
 instance Traversable ViewR where
     traverse _ EmptyR       = pure EmptyR
@@ -2553,7 +2490,7 @@ adjust f i (Seq xs)
 --
 -- @since 0.5.8
 adjust'          :: forall a . (a -> a) -> Int -> Seq a -> Seq a
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 adjust' f i xs
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (length xs) :: Word) =
@@ -3161,7 +3098,7 @@ foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
  where
   lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
   lift_elem g = coerce g
 #else
   lift_elem g = \s (Elem a) -> g s a
@@ -3358,7 +3295,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
         {-# INLINE mb #-}
 
     lift_elem :: (Int -> a) -> (Int -> Elem a)
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
     lift_elem g = coerce g
 #else
     lift_elem g = Elem . g
@@ -4393,7 +4330,7 @@ fromList = Seq . mkTree . map_elem
             !n10 = Node3 (3*s) n1 n2 n3
 
     map_elem :: [a] -> [Elem a]
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
     map_elem xs = coerce xs
 #else
     map_elem xs = Data.List.map Elem xs
@@ -4403,7 +4340,7 @@ fromList = Seq . mkTree . map_elem
 -- essentially: Free ((,) a) b.
 data ListFinal a cont = LFinal !cont | LCons !a (ListFinal a cont)
 
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 instance GHC.Exts.IsList (Seq a) where
     type Item (Seq a) = a
     fromList = fromList
@@ -4434,7 +4371,7 @@ fmapReverse :: (a -> b) -> Seq a -> Seq b
 fmapReverse f (Seq xs) = Seq (fmapReverseTree (lift_elem f) xs)
   where
     lift_elem :: (a -> b) -> (Elem a -> Elem b)
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
     lift_elem = coerce
 #else
     lift_elem g (Elem a) = Elem (g a)
@@ -4762,7 +4699,7 @@ class UnzipWith f where
 -- This instance is only used at the very top of the tree;
 -- the rest of the elements are handled by unzipWithNodeElem
 instance UnzipWith Elem where
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
   unzipWith' = coerce
 #else
   unzipWith' f (Elem a) = case f a of (x, y) -> (Elem x, Elem y)

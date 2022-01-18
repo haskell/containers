@@ -2,11 +2,7 @@
      KindSignatures, TypeFamilies, CPP #-}
 
 #if !defined(TESTING)
-# if __GLASGOW_HASKELL__ >= 710
 {-# LANGUAGE Safe #-}
-# else
-{-# LANGUAGE Trustworthy #-}
-#endif
 #endif
 
 -- | Unsatisfiable constraints for functions being removed.
@@ -14,11 +10,9 @@
 module Utils.Containers.Internal.TypeError where
 import GHC.TypeLits
 
--- | The constraint @Whoops s@ is unsatisfiable for every 'Symbol' @s@.
--- Under GHC 8.0 and above, trying to use a function with a @Whoops s@
--- constraint will lead to a pretty type error explaining how to fix
--- the problem. Under earlier GHC versions, it will produce an extremely
--- ugly type error within which the desired message is buried.
+-- | The constraint @Whoops s@ is unsatisfiable for every 'Symbol' @s@.  Trying
+-- to use a function with a @Whoops s@ constraint will lead to a pretty type
+-- error explaining how to fix the problem.
 --
 -- ==== Example
 --
@@ -28,9 +22,7 @@ import GHC.TypeLits
 -- @
 class Whoops (a :: Symbol)
 
-#if __GLASGOW_HASKELL__ >= 800
 instance TypeError ('Text a) => Whoops a
-#endif
 
 -- Why don't we just use
 --

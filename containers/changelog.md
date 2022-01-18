@@ -1,5 +1,12 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## FIXME
+
+* Drop support for GHC versions before 8.0.2.
+
+* Bump Cabal version for tests, and use `common` clauses to reduce
+  duplication.
+
 ## 0.6.5.1
 
 ### Bug fixes

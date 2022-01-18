@@ -13,9 +13,7 @@ import qualified Data.Map.Strict as MS
 import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
-#if __GLASGOW_HASKELL__ >= 708
 import Data.Coerce
-#endif
 import Prelude hiding (lookup)
 
 main = do
@@ -134,11 +132,7 @@ atIns xs m = foldl' (\m (k, v) -> runIdentity (alterF (\_ -> Identity (Just v)) 
 
 newtype Ident a = Ident { runIdent :: a }
 instance Functor Ident where
-#if __GLASGOW_HASKELL__ >= 708
   fmap = coerce
-#else
-  fmap f (Ident a) = Ident (f a)
-#endif
 
 atInsNoRules :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 atInsNoRules xs m = foldl' (\m (k, v) -> runIdent (alterF (\_ -> Ident (Just v)) k m)) m xs

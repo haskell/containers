@@ -131,10 +131,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "maxView" test_maxView
              , testCase "minViewWithKey" test_minViewWithKey
              , testCase "maxViewWithKey" test_maxViewWithKey
-#if MIN_VERSION_base(4,8,0)
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
-#endif
              , testProperty "valid"                prop_valid
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
@@ -1110,8 +1108,6 @@ test_maxViewWithKey = do
     maxViewWithKey (fromList [(5,"a"), (-3,"b")]) @?= Just ((5,"a"), singleton (-3) "b")
     maxViewWithKey (empty :: SMap) @?= Nothing
 
-
-#if MIN_VERSION_base(4,8,0)
 test_minimum :: Assertion
 test_minimum = do
     getOW (minimum testOrdMap) @?= "min"
@@ -1132,8 +1128,6 @@ data OrdWith a = OrdWith String a
 
 instance Ord a => Ord (OrdWith a) where
     OrdWith _ a1 <= OrdWith _ a2 = a1 <= a2
-#endif
-
 
 ----------------------------------------------------------------
 -- Valid IntMaps

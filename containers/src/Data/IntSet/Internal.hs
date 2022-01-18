@@ -1,14 +1,12 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE MagicHash, DeriveDataTypeable, StandaloneDeriving #-}
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE TypeFamilies #-}
 #endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE TypeFamilies #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -193,20 +191,11 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid (Monoid(..))
-import Data.Word (Word)
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
-#endif
-#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimesIdempotentMonoid)
-#endif
-import Data.Typeable
 import Prelude hiding (filter, foldr, foldl, null, map)
 
 import Utils.Containers.Internal.BitUtil
@@ -220,17 +209,13 @@ import Text.Read
 
 #if __GLASGOW_HASKELL__
 import qualified GHC.Exts
-#if !(MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64))
+#if !(WORD_SIZE_IN_BITS==64)
 import qualified GHC.Int
 #endif
 #endif
 
 import qualified Data.Foldable as Foldable
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity(..))
-#else
-import Data.Foldable (Foldable())
-#endif
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
@@ -286,16 +271,12 @@ type Key    = Int
 instance Monoid IntSet where
     mempty  = empty
     mconcat = unions
-#if !(MIN_VERSION_base(4,9,0))
-    mappend = union
-#else
     mappend = (<>)
 
 -- | @since 0.5.7
 instance Semigroup IntSet where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
-#endif
 
 #if __GLASGOW_HASKELL__
 
@@ -541,9 +522,7 @@ alterF f k s = fmap choose (f member_)
  #-}
 #endif
 
-#if MIN_VERSION_base(4,8,0)
 {-# SPECIALIZE alterF :: (Bool -> Identity Bool) -> Key -> IntSet -> Identity IntSet #-}
-#endif
 
 {--------------------------------------------------------------------
   Union
@@ -1055,7 +1034,8 @@ elems
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.6.2
 instance GHC.Exts.IsList IntSet where
   type Item IntSet = Key
@@ -1244,12 +1224,6 @@ instance Read IntSet where
 #endif
 
 {--------------------------------------------------------------------
-  Typeable
---------------------------------------------------------------------}
-
-INSTANCE_TYPEABLE0(IntSet)
-
-{--------------------------------------------------------------------
   NFData
 --------------------------------------------------------------------}
 
@@ -1375,11 +1349,7 @@ tip kx bm = Tip kx bm
 ----------------------------------------------------------------------}
 
 suffixBitMask :: Int
-#if MIN_VERSION_base(4,7,0)
 suffixBitMask = finiteBitSize (undefined::Word) - 1
-#else
-suffixBitMask = bitSize (undefined::Word) - 1
-#endif
 {-# INLINE suffixBitMask #-}
 
 prefixBitMask :: Int
@@ -1474,7 +1444,7 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 #if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
 indexOfTheOnlyBit :: Nat -> Int
 {-# INLINE indexOfTheOnlyBit #-}
-#if MIN_VERSION_base(4,8,0) && (WORD_SIZE_IN_BITS==64)
+#if WORD_SIZE_IN_BITS==64
 indexOfTheOnlyBit bitmask = countTrailingZeros bitmask
 
 lowestBitSet x = countTrailingZeros x

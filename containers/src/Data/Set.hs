@@ -67,7 +67,7 @@
 module Data.Set (
             -- * Set type
 #if !defined(TESTING)
-              Set          -- instance Eq,Ord,Show,Read,Data,Typeable
+              Set          -- instance Eq,Ord,Show,Read,Data
 #else
               Set(..)
 #endif

@@ -5,12 +5,12 @@
 
 module Utils.Containers.Internal.Coercions where
 
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 import Data.Coerce
 #endif
 
 infixl 8 .#
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 (.#) :: Coercible b a => (b -> c) -> (a -> b) -> a -> c
 (.#) f _ = coerce f
 #else
@@ -34,7 +34,7 @@ infix 9 .^#
 -- @
 --   foldl f b . fmap g = foldl (f .^# g) b
 -- @
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
 (.^#) :: Coercible c b => (a -> c -> d) -> (b -> c) -> (a -> b -> d)
 (.^#) f _ = coerce f
 #else

@@ -1,19 +1,6 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE RoleAnnotations #-}
-{-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
-#endif
-
-#if USE_MAGIC_PROXY
-{-# LANGUAGE MagicHash #-}
 #endif
 
 #include "containers.h"

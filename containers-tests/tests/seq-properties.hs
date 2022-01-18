@@ -25,9 +25,7 @@ import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimes, stimesMonoid)
-#endif
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   lookup, null, length, take, drop, splitAt,
@@ -144,17 +142,13 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
        , testProperty "mfix" test_mfix
-#if __GLASGOW_HASKELL__ >= 800
        , testProperty "Empty pattern" prop_empty_pat
        , testProperty "Empty constructor" prop_empty_con
        , testProperty "Left view pattern" prop_viewl_pat
        , testProperty "Left view constructor" prop_viewl_con
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
-#endif
-#if MIN_VERSION_base(4,9,0)
        , testProperty "stimes" prop_stimes
-#endif
        ]
 
 ------------------------------------------------------------------------
@@ -594,21 +588,13 @@ prop_sortOn :: Fun A OrdB -> Seq A -> Bool
 prop_sortOn (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
   where
-#if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
-#else
-    listSortOn k = Data.List.sortBy (compare `on` k)
-#endif
 
 prop_sortOnStable :: Fun A UnstableOrd -> Seq A -> Bool
 prop_sortOnStable (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
   where
-#if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
-#else
-    listSortOn k = Data.List.sortBy (compare `on` k)
-#endif
 
 prop_unstableSort :: Seq OrdA -> Bool
 prop_unstableSort xs =
@@ -857,7 +843,6 @@ prop_cycleTaking :: Int -> Seq A -> Property
 prop_cycleTaking n xs =
     (n <= 0 || not (null xs)) ==> toList' (cycleTaking n xs) ~= Data.List.take n (Data.List.cycle (toList xs))
 
-#if __GLASGOW_HASKELL__ >= 800
 prop_empty_pat :: Seq A -> Bool
 prop_empty_pat xs@Empty = null xs
 prop_empty_pat xs = not (null xs)
@@ -882,7 +867,6 @@ prop_viewr_pat xs = property $ null xs
 
 prop_viewr_con :: Seq A -> A -> Property
 prop_viewr_con xs x = xs :|> x === xs |> x
-#endif
 
 -- Monad operations
 
@@ -892,11 +876,9 @@ prop_bind xs (Fun _ f) =
 
 -- Semigroup operations
 
-#if MIN_VERSION_base(4,9,0)
 prop_stimes :: NonNegative Int -> Seq A -> Property
 prop_stimes (NonNegative n) s =
   stimes n s === stimesMonoid n s
-#endif
 
 -- MonadFix operation
 
