@@ -19,6 +19,7 @@ import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
+import Data.Semigroup (Arg(..))
 import Data.Function
 import qualified Data.Foldable as Foldable
 #if MIN_VERSION_base(4,10,0)
@@ -99,7 +100,9 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "keys" test_keys
          , testCase "assocs" test_assocs
          , testCase "keysSet" test_keysSet
+         , testCase "argSet" test_argSet
          , testCase "fromSet" test_fromSet
+         , testCase "fromArgSet" test_fromArgSet
          , testCase "toList" test_toList
          , testCase "fromList" test_fromList
          , testCase "fromListWith" test_fromListWith
@@ -238,7 +241,9 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "bifoldl'"             prop_bifoldl'
 #endif
          , testProperty "keysSet"              prop_keysSet
+         , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
+         , testProperty "fromArgSet"           prop_fromArgSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
          , testProperty "spanAntitone"         prop_spanAntitone
@@ -711,10 +716,20 @@ test_keysSet = do
     keysSet (fromList [(5,"a"), (3,"b")]) @?= Set.fromList [3,5]
     keysSet (empty :: UMap) @?= Set.empty
 
+test_argSet :: Assertion
+test_argSet = do
+    argSet (fromList [(5,"a"), (3,"b")]) @?= Set.fromList [Arg 3 "b",Arg 5 "a"]
+    argSet (empty :: UMap) @?= Set.empty
+
 test_fromSet :: Assertion
 test_fromSet = do
    fromSet (\k -> replicate k 'a') (Set.fromList [3, 5]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
    fromSet undefined Set.empty @?= (empty :: IMap)
+
+test_fromArgSet :: Assertion
+test_fromArgSet = do
+   fromArgSet (Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
+   fromArgSet Set.empty @?= (empty :: IMap)
 
 ----------------------------------------------------------------
 -- Lists
@@ -1556,7 +1571,16 @@ prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =
   keysSet (fromList xs) == Set.fromList (List.map fst xs)
 
+prop_argSet :: [(Int, Int)] -> Bool
+prop_argSet xs =
+  argSet (fromList xs) == Set.fromList (List.map (uncurry Arg) xs)
+
 prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (Set.fromList $ List.map fst xs) == fromList xs
+
+prop_fromArgSet :: [(Int, Int)] -> Bool
+prop_fromArgSet ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs

@@ -108,6 +108,7 @@ module Data.Map.Strict
     , empty
     , singleton
     , fromSet
+    , fromArgSet
 
     -- ** From Unordered Lists
     , fromList
@@ -223,6 +224,7 @@ module Data.Map.Strict
     , keys
     , assocs
     , keysSet
+    , argSet
 
     -- ** Lists
     , toList
