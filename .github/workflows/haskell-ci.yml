@@ -250,7 +250,7 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
       - name: tests
         run: |
-          $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct --test-option="-a 2000"
+          $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct --test-options="--quickcheck-tests 1000"  --test-options="--quickcheck-max-size 100"  --test-options="--timeout 10s"
       - name: haddock
         run: |
           if [ $((HCNUMVER >= 80200)) -ne 0 ] ; then $CABAL v2-haddock --haddock-all $ARG_COMPILER --with-haddock $HADDOCK $ARG_TESTS $ARG_BENCH all ; fi
