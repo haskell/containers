@@ -682,7 +682,7 @@ isSubsetOf t1 t2
 --
 -- This function is structured very much like `difference`, `union`,
 -- and `intersection`. Whereas the bounds proofs for those in Blelloch
--- et al needed to accound for both "split work" and "merge work", we
+-- et al needed to account for both "split work" and "merge work", we
 -- only have to worry about split work here, which is the same as in
 -- those functions.
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
