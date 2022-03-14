@@ -96,7 +96,7 @@ buildQ (BQB hi lo) = BQ (BQB hi' lo') where
   lo' = (lo1 `shiftRL` zeros) .|. (hi1 `shiftLL` (wordSize - zeros))
   hi' = hi1 `shiftRL` zeros
 
--- Test if the queue is empty, which occurs when theres
+-- Test if the queue is empty, which occurs when there's
 -- nothing left but a guard bit in the least significant
 -- place.
 nullQ :: BitQueue -> Bool
