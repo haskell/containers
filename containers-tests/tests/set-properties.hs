@@ -97,6 +97,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
                    , testProperty "spanAntitone"         prop_spanAntitone
+                   , testProperty "between"              prop_between
                    , testProperty "take"                 prop_take
                    , testProperty "drop"                 prop_drop
                    , testProperty "splitAt"              prop_splitAt
@@ -668,6 +669,12 @@ prop_spanAntitone xs' = valid tw .&&. valid dw
   where
     xs = fromList xs'
     (tw, dw) = spanAntitone isLeft xs
+
+prop_between :: Int -> Int -> [Int] -> Property
+prop_between lo hi xs' = valid tw .&&. tw === (filter (\x -> lo <= x && x <= hi) xs)
+    where
+    xs = fromList xs'
+    tw = between lo hi xs
 
 prop_powerSet :: Set Int -> Property
 prop_powerSet xs = valid ps .&&. ps === ps'

@@ -167,6 +167,7 @@ module Data.Set.Internal (
             , split
             , splitMember
             , splitRoot
+            , between
 
             -- * Indexed
             , lookupIndex
@@ -1506,6 +1507,17 @@ spanAntitone p0 m = toPair (go p0 m)
       | p x = let u :*: v = go p r in link x l u :*: v
       | otherwise = let u :*: v = go p l in u :*: link x v r
 
+-- | /O(log n)/. Filter a map set that its values lie between a lower and upper bound (inclusive).
+--
+-- > between 2 4 (fromList [3, 5, 4, 1 2]) == fromList [3, 4, 2]
+-- > between 4 2 (fromList [3, 5, 4, 1 2]) == empty
+-- > between 2 2 (fromList [3, 5, 4, 1 2]) == singleton 2
+between :: (Ord a) => a -> a -> Set a -> Set a
+between _ _ Tip = Tip
+between lo hi (Bin _ x l r)
+    | x < lo = between lo hi r
+    | x > hi = between lo hi l
+    | otherwise = link x (dropWhileAntitone (< lo) l) (takeWhileAntitone (<= hi) r)
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.

@@ -256,6 +256,7 @@ module Data.Map.Strict.Internal
     , takeWhileAntitone
     , dropWhileAntitone
     , spanAntitone
+    , between
 
     , mapMaybe
     , mapMaybeWithKey
@@ -391,6 +392,7 @@ import Data.Map.Internal
   , null
   , partition
   , partitionWithKey
+  , between
   , restrictKeys
   , size
   , spanAntitone
