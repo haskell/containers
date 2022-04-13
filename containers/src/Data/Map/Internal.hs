@@ -1800,7 +1800,7 @@ unionsWith f ts
 {-# INLINABLE unionsWith #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
 -- The expression (@'union' t1 t2@) takes the left-biased union of @t1@ and @t2@.
 -- It prefers @t1@ when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
@@ -1824,7 +1824,7 @@ union t1@(Bin _ k1 x1 l1 r1) t2 = case split k1 t2 of
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). Union with a combining function.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
@@ -1844,7 +1844,7 @@ unionWith f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 {-# INLINABLE unionWith #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
 -- Union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
@@ -1875,7 +1875,7 @@ unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 -- relies on doing it the way we do, and it's not clear whether that
 -- bound holds the other way.
 
--- | \(O(m \log(n/m+1)), m \leq n\). Difference of two maps.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Difference of two maps.
 -- Return elements of the first map not existing in the second map.
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
@@ -1894,7 +1894,7 @@ difference t1 (Bin _ k _ l2 r2) = case split k t1 of
 {-# INLINABLE difference #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). Remove all keys in a 'Set' from a 'Map'.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Remove all keys in a 'Set' from a 'Map'.
 --
 -- @
 -- m \`withoutKeys\` s = 'filterWithKey' (\k _ -> k ``Set.notMember`` s) m
@@ -1953,7 +1953,7 @@ differenceWithKey f =
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). Intersection of two maps.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Intersection of two maps.
 -- Return data in the first map for the keys existing in both maps.
 -- (@'intersection' m1 m2 == 'intersectionWith' 'const' m1 m2@).
 --
@@ -1975,7 +1975,7 @@ intersection t1@(Bin _ k x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). Restrict a 'Map' to only those keys
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Restrict a 'Map' to only those keys
 -- found in a 'Set'.
 --
 -- @
@@ -2000,7 +2000,7 @@ restrictKeys m@(Bin _ k x l1 r1) s
 {-# INLINABLE restrictKeys #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). Intersection with a combining function.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -2020,7 +2020,7 @@ intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). Intersection with a combining function.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -2042,7 +2042,7 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). Check whether the key sets of two
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Check whether the key sets of two
 -- maps are disjoint (i.e., their 'intersection' is empty).
 --
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
@@ -2743,7 +2743,7 @@ mergeWithKey f g1 g2 = go
 {--------------------------------------------------------------------
   Submap
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
 -- This function is defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
 --
 isSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
@@ -2752,7 +2752,7 @@ isSubmapOf m1 m2 = isSubmapOfBy (==) m1 m2
 {-# INLINABLE isSubmapOf #-}
 #endif
 
-{- | \(O(m \log(n/m+1)), m \leq n\).
+{- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
  The expression (@'isSubmapOfBy' f t1 t2@) returns 'True' if
  all keys in @t1@ are in tree @t2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following
@@ -2801,7 +2801,7 @@ submap' f (Bin _ kx x l r) t
 {-# INLINABLE submap' #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). Is this a proper submap? (ie. a submap but not equal).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: (Ord k,Eq a) => Map k a -> Map k a -> Bool
 isProperSubmapOf m1 m2
@@ -2810,7 +2810,7 @@ isProperSubmapOf m1 m2
 {-# INLINABLE isProperSubmapOf #-}
 #endif
 
-{- | \(O(m \log(n/m+1)), m \leq n\). Is this a proper submap? (ie. a submap but not equal).
+{- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
  @keys m1@ and @keys m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when

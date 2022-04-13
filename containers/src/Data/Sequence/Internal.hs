@@ -792,8 +792,8 @@ squashR (One12 n) m = node2 n m
 squashR (Two12 n1 n2) m = node3 n1 n2 m
 
 
--- | \(O(m*n)\) (incremental) Takes an \(O(m)\) function and a finger tree of size
--- /n/ and maps the function over the tree leaves. Unlike the usual 'fmap', the
+-- | \(O(mn)\) (incremental) Takes an \(O(m)\) function and a finger tree of size
+-- \(n\) and maps the function over the tree leaves. Unlike the usual 'fmap', the
 -- function is applied to the "leaves" of the 'FingerTree' (i.e., given a
 -- @FingerTree (Elem a)@, it applies the function to elements of type @Elem
 -- a@), replacing the leaves with subtrees of at least the same height, e.g.,

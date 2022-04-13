@@ -261,7 +261,7 @@ import Language.Haskell.TH.Syntax (Lift)
 --------------------------------------------------------------------}
 infixl 9 \\ --
 
--- | \(O(m \log(n/m+1)), m \leq n\). See 'difference'.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__
@@ -646,7 +646,7 @@ alteredSet x0 s0 = go x0 s0
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
 -- @(s1 \`isProperSubsetOf\` s2)@ indicates whether @s1@ is a
 -- proper subset of @s2@.
 --
@@ -661,7 +661,7 @@ isProperSubsetOf s1 s2
 #endif
 
 
--- | \(O(m \log(n/m+1)), m \leq n\).
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\).
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
 --
 -- @
@@ -716,7 +716,7 @@ isSubsetOfX (Bin _ x l r) t
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). Check whether two sets are disjoint
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Check whether two sets are disjoint
 -- (i.e., their intersection is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
@@ -807,7 +807,7 @@ unions = Foldable.foldl' union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | \(O(m \log(n/m+1)), m \leq n\). The union of two sets, preferring the first set when
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
@@ -827,7 +827,7 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). Difference of two sets.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). Difference of two sets.
 --
 -- Return elements of the first set not existing in the second set.
 --
@@ -848,7 +848,7 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O(m \log(n/m+1)), m \leq n\). The intersection of two sets.
+-- | \(O(m \log\bigl(\frac{n+1}{m+1}\bigr)), \; m \leq n\). The intersection of two sets.
 -- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
@@ -1805,7 +1805,7 @@ powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
 
--- | \(O(m*n)\) (conjectured). Calculate the Cartesian product of two sets.
+-- | \(O(mn)\) (conjectured). Calculate the Cartesian product of two sets.
 --
 -- @
 -- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
