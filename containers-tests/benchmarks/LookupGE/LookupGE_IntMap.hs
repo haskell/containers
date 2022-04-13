@@ -72,7 +72,7 @@ lookupGE4 k t = k `seq` case t of
 -- Utilities
 -------------------------------------------------------------------------------
 
--- | /O(log n)/. The minimal key of the map.
+-- | \(O(\log n)\). The minimal key of the map.
 findMinMaybe :: IntMap a -> Maybe (Key, a)
 findMinMaybe m
   | null m = Nothing
