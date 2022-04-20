@@ -3360,8 +3360,8 @@ fromArray :: Ix i => Array i a -> Seq a
 #ifdef __GLASGOW_HASKELL__
 fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
  where
-  -- The following definition uses (Ix i) constraing, which is needed for the
-  -- other fromArray definition.
+  -- The following definition uses an (Ix i) constraint, which is needed for
+  -- the other fromArray definition.
   _ = Data.Array.rangeSize (Data.Array.bounds a)
 #else
 fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array.elems a)
