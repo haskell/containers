@@ -1632,14 +1632,14 @@ maxView (Bin _ x l r) = Just $! toPair $ maxViewSure x l r
   [ratio] is the ratio between an outer and inner sibling of the
           heavier subtree in an unbalanced setting. It determines
           whether a double or single rotation should be performed
-          to restore balance. It is correspondes with the inverse
+          to restore balance. It is corresponds with the inverse
           of $\alpha$ in Adam's article.
 
   Note that according to the Adam's paper:
   - [delta] should be larger than 4.646 with a [ratio] of 2.
   - [delta] should be larger than 3.745 with a [ratio] of 1.534.
 
-  But the Adam's paper is errorneous:
+  But the Adam's paper is erroneous:
   - it can be proved that for delta=2 and delta>=5 there does
     not exist any ratio that would work
   - delta=4.5 and ratio=2 does not work
