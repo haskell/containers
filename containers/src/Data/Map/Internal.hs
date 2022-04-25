@@ -1773,7 +1773,7 @@ maxView t = case maxViewWithKey t of
   Union.
 --------------------------------------------------------------------}
 -- | The union of a list of maps:
---   (@'unions' == 'Prelude.foldl' 'union' 'empty'@).
+--   (@'unions' == 'Foldable.foldl'' 'union' 'empty'@).
 --
 -- > unions [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "b"), (5, "a"), (7, "C")]
@@ -1788,7 +1788,7 @@ unions ts
 #endif
 
 -- | The union of a list of maps, with a combining operation:
---   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
+--   (@'unionsWith' f == 'Foldable.foldl'' ('unionWith' f) 'empty'@).
 --
 -- > unionsWith (++) [(fromList [(5, "a"), (3, "b")]), (fromList [(5, "A"), (7, "C")]), (fromList [(5, "A3"), (3, "B3")])]
 -- >     == fromList [(3, "bB3"), (5, "aAA3"), (7, "C")]

@@ -800,7 +800,7 @@ deleteMax Tip             = Tip
 {--------------------------------------------------------------------
   Union.
 --------------------------------------------------------------------}
--- | The union of the sets in a Foldable structure : (@'unions' == 'foldl' 'union' 'empty'@).
+-- | The union of the sets in a Foldable structure : (@'unions' == 'Foldable.foldl'' 'union' 'empty'@).
 unions :: (Foldable f, Ord a) => f (Set a) -> Set a
 unions = Foldable.foldl' union empty
 #if __GLASGOW_HASKELL__
