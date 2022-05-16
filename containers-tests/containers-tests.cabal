@@ -54,7 +54,7 @@ common benchmark-deps
   build-depends:
       containers-tests
     , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
+    , tasty-bench       >=0.3.1   && <0.4
 
 -- Copy of containers library,
 library
