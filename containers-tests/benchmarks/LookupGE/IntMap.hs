@@ -3,7 +3,7 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, nf)
+import Test.Tasty.Bench (bench, defaultMain, nf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified LookupGE_IntMap as M
