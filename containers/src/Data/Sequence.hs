@@ -78,7 +78,7 @@
 --
 -- == Detailed performance information
 --
--- An amortized running time is given for each operation, with /n/ referring
+-- An amortized running time is given for each operation, with \(n\) referring
 -- to the length of the sequence and /i/ being the integral index used by
 -- some operations. These bounds hold even in a persistent (shared) setting.
 --

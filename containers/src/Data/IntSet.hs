@@ -31,9 +31,9 @@
 --
 -- == Performance information
 --
--- Many operations have a worst-case complexity of /O(min(n,W))/.
+-- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
--- elements with a maximum of /W/ -- the number of bits in an 'Int'
+-- elements with a maximum of \(W\) -- the number of bits in an 'Int'
 -- (32 or 64).
 --
 --

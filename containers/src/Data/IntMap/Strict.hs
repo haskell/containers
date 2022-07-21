@@ -48,8 +48,8 @@
 --
 -- == Detailed performance information
 --
--- The amortized running time is given for each operation, with /n/ referring to
--- the number of entries in the map and /W/ referring to the number of bits in
+-- The amortized running time is given for each operation, with \(n\) referring to
+-- the number of entries in the map and \(W\) referring to the number of bits in
 -- an 'Int' (32 or 64).
 --
 -- Benchmarks comparing "Data.IntMap.Strict" with other dictionary

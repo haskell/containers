@@ -4,7 +4,7 @@ import Control.Applicative
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
-import Gauge (bench, bgroup, defaultMain, nf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, nf)
 import Data.Foldable (foldl', foldr')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
