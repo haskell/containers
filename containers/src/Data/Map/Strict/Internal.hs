@@ -226,7 +226,9 @@ module Data.Map.Strict.Internal
     , keys
     , assocs
     , keysSet
+    , argSet
     , fromSet
+    , fromArgSet
 
     -- ** Lists
     , toList
@@ -327,6 +329,7 @@ import Data.Map.Internal
   , (!)
   , (!?)
   , (\\)
+  , argSet
   , assocs
   , atKeyImpl
   , atKeyPlain
@@ -413,6 +416,7 @@ import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
 import Data.Map.Internal.Debug (valid)
 
 import Control.Applicative (Const (..), liftA3)
+import Data.Semigroup (Arg (..))
 import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
 import Utils.Containers.Internal.StrictPair
@@ -1466,6 +1470,15 @@ mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
 fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l) (fromSet f r)
+
+-- | /O(n)/. Build a map from a set of elements contained inside 'Arg's.
+--
+-- > fromArgSet (Data.Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromArgSet Data.Set.empty == empty
+
+fromArgSet :: Set.Set (Arg k a) -> Map k a
+fromArgSet Set.Tip = Tip
+fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromArgSet r)
 
 {--------------------------------------------------------------------
   Lists

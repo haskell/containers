@@ -264,7 +264,9 @@ module Data.Map.Internal (
     , keys
     , assocs
     , keysSet
+    , argSet
     , fromSet
+    , fromArgSet
 
     -- ** Lists
     , toList
@@ -370,7 +372,7 @@ import Data.Functor.Identity (Identity (..))
 import Control.Applicative (liftA3)
 import Data.Functor.Classes
 import Data.Semigroup (stimesIdempotentMonoid)
-import Data.Semigroup (Semigroup(stimes))
+import Data.Semigroup (Arg(..), Semigroup(stimes))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
@@ -3362,6 +3364,15 @@ keysSet :: Map k a -> Set.Set k
 keysSet Tip = Set.Tip
 keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 
+-- | \(O(n)\). The set of all elements of the map contained in 'Arg's.
+--
+-- > argSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [Arg 3 "b",Arg 5 "a"]
+-- > argSet empty == Data.Set.empty
+
+argSet :: Map k a -> Set.Set (Arg k a)
+argSet Tip = Set.Tip
+argSet (Bin sz kx x l r) = Set.Bin sz (Arg kx x) (argSet l) (argSet r)
+
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value.
 --
@@ -3371,6 +3382,15 @@ keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
 fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
+
+-- | /O(n)/. Build a map from a set of elements contained inside 'Arg's.
+--
+-- > fromArgSet (Data.Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > fromArgSet Data.Set.empty == empty
+
+fromArgSet :: Set.Set (Arg k a) -> Map k a
+fromArgSet Set.Tip = Tip
+fromArgSet (Set.Bin sz (Arg x v) l r) = Bin sz x v (fromArgSet l) (fromArgSet r)
 
 {--------------------------------------------------------------------
   Lists
