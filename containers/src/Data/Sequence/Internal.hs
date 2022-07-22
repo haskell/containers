@@ -474,7 +474,7 @@ instance Traversable Seq where
                 (\a' b' c' d' -> Four (Elem a') (Elem b') (Elem c') (Elem d'))
                 (f a)
                 (f b)
-                (f c) <*> 
+                (f c) <*>
                 (f d)
         traverseDigitN
             :: Applicative f
@@ -792,8 +792,8 @@ squashR (One12 n) m = node2 n m
 squashR (Two12 n1 n2) m = node3 n1 n2 m
 
 
--- | /O(m*n)/ (incremental) Takes an /O(m)/ function and a finger tree of size
--- /n/ and maps the function over the tree leaves. Unlike the usual 'fmap', the
+-- | \(O(mn)\) (incremental) Takes an \(O(m)\) function and a finger tree of size
+-- \(n\) and maps the function over the tree leaves. Unlike the usual 'fmap', the
 -- function is applied to the "leaves" of the 'FingerTree' (i.e., given a
 -- @FingerTree (Elem a)@, it applies the function to elements of type @Elem
 -- a@), replacing the leaves with subtrees of at least the same height, e.g.,
@@ -808,7 +808,7 @@ mapMulNode :: Int -> (a -> b) -> Node a -> Node b
 mapMulNode mul f (Node2 s a b)   = Node2 (mul * s) (f a) (f b)
 mapMulNode mul f (Node3 s a b c) = Node3 (mul * s) (f a) (f b) (f c)
 
--- | /O(log n)/ (incremental) Takes the extra flexibility out of a 'FingerTree'
+-- | \(O(\log n)\) (incremental) Takes the extra flexibility out of a 'FingerTree'
 -- to make it a genuine 2-3 finger tree. The result of 'rigidify' will have
 -- only two and three digits at the top level and only one and two
 -- digits elsewhere. If the tree has fewer than four elements, 'rigidify'
@@ -838,7 +838,7 @@ rigidify (Deep s (One a) m sf) = case viewLTree m of
      Three b c d -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c d)
      Four b c d e -> RigidFull $ Rigid s (node3 a b c) EmptyTh (node2 d e)
 
--- | /O(log n)/ (incremental) Takes a tree whose left side has been rigidified
+-- | \(O(\log n)\) (incremental) Takes a tree whose left side has been rigidified
 -- and finishes the job.
 rigidifyRight :: Int -> Digit23 (Elem a) -> FingerTree (Node (Elem a)) -> Digit (Elem a) -> Rigidified (Elem a)
 
@@ -855,7 +855,7 @@ rigidifyRight s pr m (One e) = case viewRTree m of
       Node2 _ a b -> RigidThree a b e
       Node3 _ a b c -> RigidFull $ Rigid s (node2 a b) EmptyTh (node2 c e)
 
--- | /O(log n)/ (incremental) Rejigger a finger tree so the digits are all ones
+-- | \(O(\log n)\) (incremental) Rejigger a finger tree so the digits are all ones
 -- and twos.
 thin :: Sized a => FingerTree a -> Thin a
 -- Note that 'thin12' will produce a 'DeepTh' constructor immediately before
@@ -1024,7 +1024,7 @@ instance Sized a => Sized (FingerTree a) where
 instance Foldable FingerTree where
     foldMap _ EmptyT = mempty
     foldMap f' (Single x') = f' x'
-    foldMap f' (Deep _ pr' m' sf') = 
+    foldMap f' (Deep _ pr' m' sf') =
         foldMapDigit f' pr' <>
         foldMapTree (foldMapNode f') m' <>
         foldMapDigit f' sf'
@@ -1032,7 +1032,7 @@ instance Foldable FingerTree where
         foldMapTree :: Monoid m => (Node a -> m) -> FingerTree (Node a) -> m
         foldMapTree _ EmptyT = mempty
         foldMapTree f (Single x) = f x
-        foldMapTree f (Deep _ pr m sf) = 
+        foldMapTree f (Deep _ pr m sf) =
             foldMapDigitN f pr <>
             foldMapTree (foldMapNodeN f) m <>
             foldMapDigitN f sf
@@ -1420,7 +1420,7 @@ instance NFData a => NFData (Elem a) where
 {-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
 {-# SPECIALIZE applicativeTree :: Int -> Int -> Identity a -> Identity (FingerTree a) #-}
 -- Special note: the Identity specialization automatically does node sharing,
--- reducing memory usage of the resulting tree to /O(log n)/.
+-- reducing memory usage of the resulting tree to \(O(\log n)\).
 applicativeTree :: Applicative f => Int -> Int -> f a -> f (FingerTree a)
 applicativeTree n !mSize m = case n of
     0 -> pure EmptyT
@@ -1714,7 +1714,7 @@ replicateA n x
 replicateM :: Applicative m => Int -> m a -> m (Seq a)
 replicateM = replicateA
 
--- | /O(/log/ k)/. @'cycleTaking' k xs@ forms a sequence of length @k@ by
+-- | \(O(\log k)\). @'cycleTaking' k xs@ forms a sequence of length @k@ by
 -- repeatedly concatenating @xs@ with itself. @xs@ may only be empty if
 -- @k@ is 0.
 --
@@ -2348,7 +2348,7 @@ index (Seq xs) i
   -- See note on unsigned arithmetic in splitAt
   | fromIntegral i < (fromIntegral (size xs) :: Word) = case lookupTree i xs of
                 Place _ (Elem x) -> x
-  | otherwise   = 
+  | otherwise   =
       error $ "index out of bounds in call to: Data.Sequence.index " ++ show i
 
 -- | \( O(\log(\min(i,n-i))) \). The element at the specified position,
@@ -3360,8 +3360,8 @@ fromArray :: Ix i => Array i a -> Seq a
 #ifdef __GLASGOW_HASKELL__
 fromArray a = fromFunction (GHC.Arr.numElements a) (GHC.Arr.unsafeAt a)
  where
-  -- The following definition uses (Ix i) constraing, which is needed for the
-  -- other fromArray definition.
+  -- The following definition uses an (Ix i) constraint, which is needed for
+  -- the other fromArray definition.
   _ = Data.Array.rangeSize (Data.Array.bounds a)
 #else
 fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array.elems a)

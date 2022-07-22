@@ -13,9 +13,6 @@ install-dependencies: False
 -- depends on containers
 installed: +all -binary -text -ghc-heap
 
--- gauge works only with newer GHC, and not with GHC 9.2 yet.
-benchmarks: >=7.8.4 && < 9.2
-
 haddock: >= 8.2
 
 cabal-check: False

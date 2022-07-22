@@ -6,7 +6,7 @@ module Data.Map.Internal.Debug where
 import Data.Map.Internal (Map (..), size, delta)
 import Control.Monad (guard)
 
--- | /O(n)/. Show the tree that implements the map. The tree is shown
+-- | \(O(n)\). Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format. See 'showTreeWith'.
 showTree :: (Show k,Show a) => Map k a -> String
 showTree m
@@ -15,7 +15,7 @@ showTree m
     showElem k x  = show k ++ ":=" ++ show x
 
 
-{- | /O(n)/. The expression (@'showTreeWith' showelem hang wide map@) shows
+{- | \(O(n)\). The expression (@'showTreeWith' showelem hang wide map@) shows
  the tree that implements the map. Elements are shown using the @showElem@ function. If @hang@ is
  'True', a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.
@@ -103,7 +103,7 @@ withEmpty bars = "   ":bars
 {--------------------------------------------------------------------
   Assertions
 --------------------------------------------------------------------}
--- | /O(n)/. Test if the internal map structure is valid.
+-- | \(O(n)\). Test if the internal map structure is valid.
 --
 -- > valid (fromAscList [(3,"b"), (5,"a")]) == True
 -- > valid (fromAscList [(5,"a"), (3,"b")]) == False

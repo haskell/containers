@@ -5,7 +5,7 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (foldl')
 import Data.Monoid (Sum(..))
 import qualified Data.IntSet as IS

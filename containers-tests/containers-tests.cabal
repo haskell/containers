@@ -26,7 +26,7 @@ extra-source-files:
   benchmarks/LookupGE/*.hs
 
 tested-with:
-  GHC ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.1 || ==9.2.1
+  GHC ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.2
 
 source-repository head
   type:     git
@@ -54,7 +54,7 @@ common benchmark-deps
   build-depends:
       containers-tests
     , deepseq           >=1.1.0.0 && <1.5
-    , gauge             >=0.2.3   && <0.3
+    , tasty-bench       >=0.3.1   && <0.4
 
 -- Copy of containers library,
 library
