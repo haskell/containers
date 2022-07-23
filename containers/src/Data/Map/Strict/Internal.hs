@@ -1471,7 +1471,7 @@ fromSet :: (k -> a) -> Set.Set k -> Map k a
 fromSet _ Set.Tip = Tip
 fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l) (fromSet f r)
 
--- | /O(n)/. Build a map from a set of elements contained inside 'Arg's.
+-- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
 --
 -- > fromArgSet (Data.Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) == fromList [(5,"aaaaa"), (3,"aaa")]
 -- > fromArgSet Data.Set.empty == empty
