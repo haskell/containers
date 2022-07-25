@@ -104,6 +104,10 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "argSet" test_argSet
          , testCase "fromSet" test_fromSet
          , testCase "fromArgSet" test_fromArgSet
+         , testCase "unsafeSet" test_unsafeSet
+         , testCase "unsafeSetA" test_unsafeSetA
+         , testCase "unsafeFromSet" test_unsafeFromSet
+         , testCase "unsafeFromSetA" test_unsafeFromSetA
          , testCase "toList" test_toList
          , testCase "fromList" test_fromList
          , testCase "fromListWith" test_fromListWith
@@ -252,6 +256,10 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
          , testProperty "fromArgSet"           prop_fromArgSet
+         , testProperty "unsafeSet"            prop_unsafeSet
+         , testProperty "unsafeSetA"           prop_unsafeSetA
+         , testProperty "unsafeFromSet"        prop_unsafeFromSet
+         , testProperty "unsafeFromSetA"       prop_unsafeFromSetA
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
          , testProperty "spanAntitone"         prop_spanAntitone
@@ -706,6 +714,26 @@ test_fromArgSet :: Assertion
 test_fromArgSet = do
    fromArgSet (Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) @?= fromList [(5,"aaaaa"), (3,"aaa")]
    fromArgSet Set.empty @?= (empty :: IMap)
+
+test_unsafeSet :: Assertion
+test_unsafeSet = do
+   unsafeSet (,) (fromList [(5,"a"), (3,"b")]) @?= Set.fromList [(5,"a"), (3,"b")]
+   unsafeSet undefined (empty :: UMap) @?= (Set.empty :: Set.Set Int)
+
+test_unsafeSetA :: Assertion
+test_unsafeSetA = do
+   unsafeSetA (\x y -> Just (x,y)) (fromList [(5,"a"), (3,"b")]) @?= Just (Set.fromList [(5,"a"), (3,"b")])
+   unsafeSetA undefined (empty :: UMap) @?= Identity (Set.empty :: Set.Set Int)
+
+test_unsafeFromSet :: Assertion
+test_unsafeFromSet = do
+   unsafeFromSet (\k -> (k+1, replicate k 'a')) (Set.fromList [2, 4]) @?= fromList [(5,"aaaa"), (3,"aa")]
+   unsafeFromSet undefined Set.empty @?= (empty :: IMap)
+
+test_unsafeFromSetA :: Assertion
+test_unsafeFromSetA = do
+   unsafeFromSetA (\k -> Just (k+1, replicate k 'a')) (Set.fromList [2, 4]) @?= Just (fromList [(5,"aaaa"), (3,"aa")])
+   unsafeFromSetA undefined Set.empty @?= Identity (empty :: IMap)
 
 ----------------------------------------------------------------
 -- Lists
@@ -1671,6 +1699,26 @@ prop_fromArgSet :: [(Int, Int)] -> Bool
 prop_fromArgSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs
+
+prop_unsafeSet :: [(Int, Int)] -> Bool
+prop_unsafeSet ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in unsafeSet (,) (fromList xs) == Set.fromList xs
+
+prop_unsafeSetA :: [(Int, Int)] -> Bool
+prop_unsafeSetA ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in unsafeSetA (\x y -> Identity (x,y)) (fromList xs) == Identity (Set.fromList xs)
+
+prop_unsafeFromSet :: [(Int, Int)] -> Bool
+prop_unsafeFromSet ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in unsafeFromSet id (Set.fromList xs) == fromList xs
+
+prop_unsafeFromSetA :: [(Int, Int)] -> Bool
+prop_unsafeFromSetA ys =
+  let xs = List.nubBy ((==) `on` fst) ys
+  in unsafeFromSetA Identity (Set.fromList xs) == Identity (fromList xs)
 
 prop_eq :: Map Int A -> Map Int A -> Property
 prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)
