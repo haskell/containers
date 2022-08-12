@@ -35,7 +35,10 @@ Library
     default-language: Haskell2010
     build-depends: base >= 4.9.1 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, template-haskell
     hs-source-dirs: src
-    ghc-options: -O2 -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates
+    -- -fno-warn-unused-imports is turned off right now because it generates warnings which are painful to deal with
+    -- in a backwards compatible way. See https://github.com/haskell/containers/pull/841#issuecomment-1186732698
+    -- for more details
+    ghc-options: -O2 -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates -fno-warn-unused-imports
 
     other-extensions: CPP, BangPatterns
 
