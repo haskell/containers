@@ -199,12 +199,12 @@ import Prelude hiding (
 #if MIN_VERSION_base(4,11,0)
     (<>),
 #endif
-    Applicative, (<$>), foldMap, Monoid,
+    (<$>), foldMap, Monoid,
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
-import Control.Applicative (Applicative(..), (<$>), (<**>),  Alternative,
-                            liftA2, liftA3)
+import Control.Applicative ((<$>), (<**>),  Alternative,
+                            liftA3)
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf))
 import Control.Monad (MonadPlus(..))

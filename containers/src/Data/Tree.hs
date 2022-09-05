@@ -53,7 +53,6 @@ module Data.Tree(
     ) where
 
 import Data.Foldable (toList)
-import Control.Applicative (Applicative(..), liftA2)
 import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
