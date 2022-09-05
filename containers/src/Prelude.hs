@@ -4,7 +4,9 @@
 -- @liftA2@ wasn't previously exported from the standard prelude.
 module Prelude
   ( module Prel
+#if !MIN_VERSION_base(4,18,0)
   , Applicative (..)
+#endif
 #if !MIN_VERSION_base(4,10,0)
   , liftA2
 #endif
