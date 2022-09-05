@@ -345,7 +345,6 @@ import Data.IntMap.Internal.DeprecatedDebug (showTree, showTreeWith)
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
-import Control.Applicative (Applicative (..), liftA2)
 import qualified Data.Foldable as Foldable
 
 {--------------------------------------------------------------------

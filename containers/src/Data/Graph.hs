@@ -107,7 +107,6 @@ import qualified Data.IntSet as Set
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
-import Control.Applicative
 import Data.Foldable as F
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe

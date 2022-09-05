@@ -294,7 +294,6 @@ module Data.IntMap.Internal (
     ) where
 
 import Data.Functor.Identity (Identity (..))
-import Control.Applicative (liftA2)
 import Data.Semigroup (Semigroup(stimes))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
