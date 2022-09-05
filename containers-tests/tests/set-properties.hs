@@ -105,7 +105,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "disjointUnion"        prop_disjointUnion
 #if __GLASGOW_HASKELL__ >= 806
                    , testProperty "strict foldr"         prop_strictFoldr'
-                   , testProperty "strict foldr"         prop_strictFoldl'
+                   , testProperty "strict foldl"         prop_strictFoldl'
 #endif
                    ]
 
