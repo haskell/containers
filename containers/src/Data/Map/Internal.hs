@@ -131,9 +131,7 @@
 module Data.Map.Internal (
     -- * Map type
       Map(..)          -- instance Eq,Show,Read
-#if __GLASGOW_HASKELL__ >= 708
     , pattern Bin
-#endif
     , NonEmptyMap(..)  -- instance Eq,Show,Read
     , Size
 

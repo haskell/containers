@@ -126,9 +126,7 @@
 module Data.Set.Internal (
             -- * Set type
               Set(..)         -- instance Eq,Ord,Show,Read,Data
-#if __GLASGOW_HASKELL__ >= 708
             , pattern Bin
-#endif
             , NonEmptySet(..) -- instance Eq,Ord,Show,Read,Data
             , Size
 
@@ -219,11 +217,9 @@ module Data.Set.Internal (
             , elems
             , toList
             , fromList
-#if MIN_VERSION_base(4,9,0)
             , elemsNE
             , toListNE
             , fromListNE
-#endif
 
             -- ** Ordered list
             , toAscList
@@ -232,12 +228,10 @@ module Data.Set.Internal (
             , fromDistinctAscList
             , fromDescList
             , fromDistinctDescList
-#if MIN_VERSION_base(4,9,0)
             , toAscListNE
             , toDescListNE
             , fromDistinctAscListNE
             , fromDistinctDescListNE
-#endif
 
             -- * Debugging
             , showTree, showTreeNE
@@ -390,15 +384,12 @@ instance Foldable.Foldable NonEmptySet where
     -- {-# INLINE foldl' #-}
     -- foldr' = foldr'
     -- {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
     length = sizeNE
     {-# INLINE length #-}
     null _ = False
     {-# INLINE null #-}
-#if MIN_VERSION_base(4,9,0)
     toList = NEL.toList . toListNE
     {-# INLINE toList #-}
-#endif
     elem x xs = elem x $ NE xs
     {-# INLINABLE elem #-}
     minimum = lookupMinNE
@@ -409,7 +400,6 @@ instance Foldable.Foldable NonEmptySet where
     -- {-# INLINABLE sum #-}
     -- product = foldl' (*) 1
     -- {-# INLINABLE product #-}
-#endif
 
 #if __GLASGOW_HASKELL__
 
@@ -1364,10 +1354,8 @@ foldl1By' f g = go
 elems :: Set a -> [a]
 elems = toAscList
 
-#if MIN_VERSION_base(4,9,0)
 elemsNE :: NonEmptySet a -> NEL.NonEmpty a
 elemsNE = toAscListNE
-#endif
 
 {--------------------------------------------------------------------
   Lists
@@ -1385,29 +1373,23 @@ instance (Ord a) => GHCExts.IsList (Set a) where
 toList :: Set a -> [a]
 toList = toAscList
 
-#if MIN_VERSION_base(4,9,0)
 toListNE :: NonEmptySet a -> NEL.NonEmpty a
 toListNE = toAscListNE
-#endif
 
 -- | \(O(n)\). Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
 
-#if MIN_VERSION_base(4,9,0)
 toAscListNE :: NonEmptySet a -> NEL.NonEmpty a
 toAscListNE = foldr1 (<>) . mapMonotonicNE pure
-#endif
 
 -- | \(O(n)\). Convert the set to a descending list of elements. Subject to list
 -- fusion.
 toDescList :: Set a -> [a]
 toDescList = foldl (flip (:)) []
 
-#if MIN_VERSION_base(4,9,0)
 toDescListNE :: NonEmptySet a -> NEL.NonEmpty a
 toDescListNE = foldl1 (<>) . mapMonotonicNE pure
-#endif
 
 -- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
@@ -1452,11 +1434,9 @@ fromList (x : xs) = NE $ fromListNE' x xs
 {-# INLINABLE fromList #-}
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 fromListNE :: Ord a => NEL.NonEmpty a -> NonEmptySet a
 fromListNE (x NEL.:| xs) = fromListNE' x xs
 {-# INLINABLE fromListNE #-}
-#endif
 
 fromListNE' :: Ord a => a -> [a] -> NonEmptySet a
 fromListNE' x [] = Bin' 1 x Tip Tip
@@ -1544,10 +1524,8 @@ fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList [] = Tip
 fromDistinctAscList (x0 : xs0) = NE $ fromDistinctAscListNE' x0 xs0
 
-#if MIN_VERSION_base(4,9,0)
 fromDistinctAscListNE :: NEL.NonEmpty a -> NonEmptySet a
 fromDistinctAscListNE (x NEL.:| xs) = fromDistinctAscListNE' x xs
-#endif
 
 fromDistinctAscListNE' :: a -> [a] -> NonEmptySet a
 fromDistinctAscListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
@@ -1576,10 +1554,8 @@ fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
 fromDistinctDescList (x0 : xs0) = NE $ fromDistinctDescListNE' x0 xs0
 
-#if MIN_VERSION_base(4,9,0)
 fromDistinctDescListNE :: NEL.NonEmpty a -> NonEmptySet a
 fromDistinctDescListNE (x NEL.:| xs) = fromDistinctDescListNE' x xs
-#endif
 
 fromDistinctDescListNE' :: a -> [a] -> NonEmptySet a
 fromDistinctDescListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
