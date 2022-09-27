@@ -478,6 +478,7 @@ pattern Bin :: Size -> k -> a -> Map k a -> Map k a -> Map k a
 pattern Bin s k a l r = NE (Bin' s k a l r)
 
 type role Map nominal representational
+type role NonEmptyMap nominal representational
 #endif
 
 #ifdef __GLASGOW_HASKELL__
