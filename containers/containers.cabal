@@ -1,5 +1,5 @@
 name: containers
-version: 0.6.2.1
+version: 0.6.6
 license: BSD3
 license-file: LICENSE
 maintainer: libraries@haskell.org
@@ -20,21 +20,22 @@ description:
     remains valid even if structures are shared.
 
 build-type: Simple
-cabal-version:  >=1.8
+cabal-version:  >=1.10
 extra-source-files:
     include/containers.h
     changelog.md
 
-tested-with: GHC==8.6.4, GHC==8.4.4, GHC==8.2.2, GHC==8.0.2, GHC==7.10.3, GHC==7.8.4, GHC==7.6.3
+tested-with: GHC==9.4.2, GHC==9.2.2, GHC==9.0.2, GHC==8.10.7, GHC==8.8.4, GHC==8.6.5, GHC==8.4.4, GHC==8.2.2, GHC==8.0.2
 
 source-repository head
     type:     git
     location: http://github.com/haskell/containers.git
 
 Library
-    build-depends: base >= 4.6 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5
+    default-language: Haskell2010
+    build-depends: base >= 4.9.1 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.5, template-haskell
     hs-source-dirs: src
-    ghc-options: -O2 -Wall
+    ghc-options: -O2 -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates
 
     other-extensions: CPP, BangPatterns
 
@@ -70,6 +71,7 @@ Library
         Utils.Containers.Internal.StrictPair
 
     other-modules:
+        Prelude
         Utils.Containers.Internal.State
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality

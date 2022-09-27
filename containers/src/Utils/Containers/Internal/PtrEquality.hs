@@ -11,11 +11,7 @@ module Utils.Containers.Internal.PtrEquality (ptrEq, hetPtrEq) where
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts ( reallyUnsafePtrEquality# )
 import Unsafe.Coerce ( unsafeCoerce )
-#if __GLASGOW_HASKELL__ < 707
-import GHC.Exts ( (==#) )
-#else
-import GHC.Exts ( isTrue# )
-#endif
+import GHC.Exts ( Int#, isTrue# )
 #endif
 
 -- | Checks if two pointers are equal. Yes means yes;
@@ -30,13 +26,8 @@ ptrEq :: a -> a -> Bool
 hetPtrEq :: a -> b -> Bool
 
 #ifdef __GLASGOW_HASKELL__
-#if __GLASGOW_HASKELL__ < 707
-ptrEq x y = reallyUnsafePtrEquality# x y ==# 1#
-hetPtrEq x y = unsafeCoerce reallyUnsafePtrEquality# x y ==# 1#
-#else
 ptrEq x y = isTrue# (reallyUnsafePtrEquality# x y)
-hetPtrEq x y = isTrue# (unsafeCoerce reallyUnsafePtrEquality# x y)
-#endif
+hetPtrEq x y = isTrue# (unsafeCoerce (reallyUnsafePtrEquality# :: x -> x -> Int#) x y)
 
 #else
 -- Not GHC

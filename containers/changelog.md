@@ -1,13 +1,111 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## FIXME
+
+* Drop support for GHC versions before 8.0.2.
+
+* Bump Cabal version for tests, and use `common` clauses to reduce
+  duplication.
+
+### New instances
+
+* Add `Lift` instances for use with Template Haskell. Specifically:
+  `Seq`, `ViewL`, and `ViewR` (in `Data.Sequence`), `Map`, `Set`,
+  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`).
+
+## 0.6.5.1
+
+### Bug fixes
+
+* `foldr'` and `foldl'` for `Map` and `Set` are now strict everywhere they
+  should be, and we have detailed tests to make sure they stay that way.
+  (Thanks, coot.)
+
+* The `Ord IntSet` instance, which was broken in 0.6.3.1, has been
+  repaired.
+
+### New instance
+
+* We now have `Ord a => Ord (Tree a)` (Thanks, Ericson2314.)
+
+### Testing fixes
+
+* Thanks to konsumlamm and infinity0 for various bug fixes in the test suite.
+
+## 0.6.4.1
+
+### Bug fixes
+
+* [Replace value-forcing variants of `compose` with lazy variants.](https://github.com/haskell/containers/pull/745)
+  *  This brings `compose` closer in line with functions like `union` and `intersection` which don't evaluate any map values. (Thanks, Simon Jakobi)
+
+### Additions
+
+* [Add `reverseTopSort` to `Data.Graph`](https://github.com/haskell/containers/pull/638) (Thanks, James Parker)
+
+* [Expose `traverseMaybeWithKey` from `Data.IntMap.{Lazy,Strict}`](https://github.com/haskell/containers/pull/743) (Thanks, Simon
+  Jakobi)
+
+### Other changes
+
+* Improvements to the testsuite: [#663](https://github.com/haskell/containers/pull/663), [#662](https://github.com/haskell/containers/pull/662) (Thanks, Bertram Felgenhauer)
+
+* [Fix build with `stack test`](https://github.com/haskell/containers/pull/738) (Thanks, Simon Jakobi)
+
+[0.6.4.1]: https://github.com/haskell/containers/compare/v0.6.3.1-release...v0.6.4.1
+
 ## 0.6.3.1
 
-* Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
+### Bug fixes
+
+* Fix `traverse` and `traverseWithKey` for `IntMap`, which would
+  previously produce invalid `IntMap`s when the input contained
+  negative keys (Thanks, Felix Paulusma).
 
 * Fix the traversal order of various functions for `Data.IntMap`:
   `traverseWithKey`, `traverseMaybeWithKey`, `filterWithKeyA`,
   `minimum`, `maximum`, `mapAccum`, `mapAccumWithKey`, `mapAccumL`,
-  `mapAccumRWithKey` (Thanks, Felix Paulusma).
+  `mapAccumRWithKey`, `mergeA` (Thanks, Felix Paulusma, Simon Jakobi).
+
+### Additions
+
+* Add `compose` for `Map` and `IntMap` (Thanks, Alexandre Esteves).
+
+* Add `alterF` for `Set` and `IntSet` (Thanks, Simon Jakobi).
+
+* Add `Data.IntSet.mapMonotonic` (Thanks, Javran Cheng).
+
+* Add `instance Bifoldable Map` (Thanks, Joseph C. Sible).
+
+### Performance improvements
+
+* Make `(<*)` for `Data.Sequence` incrementally asymptotically optimal.
+  This finally completes the task, begun in December 2014, of making all
+  the `Applicative` methods for sequences asymptotically optimal
+  even when their results are consumed incrementally. Many thanks to
+  Li-Yao Xia and Bertram Felgenhauer for helping to clean up and begin
+  to document this rather tricky code.
+
+* Speed up `fromList` and related functions in `Data.IntSet`, `Data.IntMap`
+  and `Data.IntMap.Strict` (Thanks, Bertram Felgenhauer).
+
+* Use `count{Leading,Trailing}Zeros` in `Data.IntSet` internals (Thanks, Alex
+  Biehl).
+
+### Other changes
+
+* Reduce usage of the `Forest` type synonym in `Data.Tree` (Thanks, David
+  Feuer).
+
+* Address a Core lint warning for `foldToMaybeTree` (Thanks, Matthew Pickering).
+
+* Improve documentation (Thanks to Daniel Wagner, Johannes Waldmann, Steve Mao,
+  Gabriel Greif, Jean-Baptiste Mazon, Ziyang Liu, Matt Renaud, Li-Yao Xia).
+
+* Improvements to the testsuite and benchmarks (Thanks, Bertram Felgenhauer,
+  Simon Jakobi, Johannes Waldmann).
+
+* Canonicalise `Seq`'s `Monoid` instance (Thanks, Fumiaki Kinoshita).
 
 ## 0.6.2.1
 

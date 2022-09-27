@@ -1,7 +1,10 @@
 flags: {}
 packages:
-- containers
 - containers-tests
+### containers is disabled by default in order to avoid dependency resolution
+### problems with test dependencies that incur circular dependencies on
+### containers itself.
+# - containers
 
 ### Uncoment the resolver you want to use and re-run `stack build/test/bench`.
 # resolver: lts-10.0

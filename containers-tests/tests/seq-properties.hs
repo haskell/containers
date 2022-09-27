@@ -1,5 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE TemplateHaskell #-}
 
 #include "containers.h"
 
@@ -25,9 +26,7 @@ import Data.Functor ((<$>), (<$))
 import Data.Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (stimes, stimesMonoid)
-#endif
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   lookup, null, length, take, drop, splitAt,
@@ -36,22 +35,24 @@ import Prelude hiding (
   all, sum)
 import qualified Prelude
 import qualified Data.List
-import Test.QuickCheck hiding ((><))
-import Test.QuickCheck.Poly
-#if __GLASGOW_HASKELL__ >= 800
-import Test.QuickCheck.Property
-#endif
-import Test.QuickCheck.Function
-import Test.Framework
-import Test.Framework.Providers.QuickCheck2
+import Test.Tasty
+import Test.Tasty.QuickCheck hiding ((><))
+import Test.QuickCheck.Function (apply)
+import Test.QuickCheck.Poly (A, OrdA, B, OrdB, C)
 import Control.Monad.Zip (MonadZip (..))
 import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
+import Test.Tasty.HUnit
+import qualified Language.Haskell.TH.Syntax as TH
 
 
 main :: IO ()
-main = defaultMain
-       [ testProperty "fmap" prop_fmap
+main = defaultMain $ testGroup "seq-properties"
+       [ test_lift
+#if MIN_VERSION_template_haskell(2,16,0)
+       , test_liftTyped
+#endif
+       , testProperty "fmap" prop_fmap
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
        , testProperty "foldr'" prop_foldr'
@@ -143,21 +144,18 @@ main = defaultMain
        , testProperty "<*> NOINLINE" prop_ap_NOINLINE
        , testProperty "liftA2" prop_liftA2
        , testProperty "*>" prop_then
+       , testProperty "<*" prop_before
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testProperty ">>=" prop_bind
        , testProperty "mfix" test_mfix
-#if __GLASGOW_HASKELL__ >= 800
        , testProperty "Empty pattern" prop_empty_pat
        , testProperty "Empty constructor" prop_empty_con
        , testProperty "Left view pattern" prop_viewl_pat
        , testProperty "Left view constructor" prop_viewl_con
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
-#endif
-#if MIN_VERSION_base(4,9,0)
        , testProperty "stimes" prop_stimes
-#endif
        ]
 
 ------------------------------------------------------------------------
@@ -597,21 +595,13 @@ prop_sortOn :: Fun A OrdB -> Seq A -> Bool
 prop_sortOn (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
   where
-#if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
-#else
-    listSortOn k = Data.List.sortBy (compare `on` k)
-#endif
 
 prop_sortOnStable :: Fun A UnstableOrd -> Seq A -> Bool
 prop_sortOnStable (Fun _ f) xs =
     toList' (sortOn f xs) ~= listSortOn f (toList xs)
   where
-#if MIN_VERSION_base(4,8,0)
     listSortOn = Data.List.sortOn
-#else
-    listSortOn k = Data.List.sortBy (compare `on` k)
-#endif
 
 prop_unstableSort :: Seq OrdA -> Bool
 prop_unstableSort xs =
@@ -843,6 +833,15 @@ prop_then :: Seq A -> Seq B -> Bool
 prop_then xs ys =
     toList' (xs *> ys) ~= (toList xs *> toList ys)
 
+-- We take only the length of the second sequence because
+-- the implementation throws the rest away; there's no
+-- point wasting test cases varying other aspects of that
+-- argument.
+prop_before :: Seq A -> NonNegative Int -> Bool
+prop_before xs (NonNegative lys) =
+    toList' (xs <* ys) ~= (toList xs <* toList ys)
+  where ys = replicate lys ()
+
 prop_intersperse :: A -> Seq A -> Bool
 prop_intersperse x xs =
     toList' (intersperse x xs) ~= Data.List.intersperse x (toList xs)
@@ -851,7 +850,6 @@ prop_cycleTaking :: Int -> Seq A -> Property
 prop_cycleTaking n xs =
     (n <= 0 || not (null xs)) ==> toList' (cycleTaking n xs) ~= Data.List.take n (Data.List.cycle (toList xs))
 
-#if __GLASGOW_HASKELL__ >= 800
 prop_empty_pat :: Seq A -> Bool
 prop_empty_pat xs@Empty = null xs
 prop_empty_pat xs = not (null xs)
@@ -862,8 +860,8 @@ prop_empty_con = null Empty
 prop_viewl_pat :: Seq A -> Property
 prop_viewl_pat xs@(y :<| ys)
   | z :< zs <- viewl xs = y === z .&&. ys === zs
-  | otherwise = property failed
-prop_viewl_pat xs = property . liftBool $ null xs
+  | otherwise = property False
+prop_viewl_pat xs = property $ null xs
 
 prop_viewl_con :: A -> Seq A -> Property
 prop_viewl_con x xs = x :<| xs === x <| xs
@@ -871,12 +869,11 @@ prop_viewl_con x xs = x :<| xs === x <| xs
 prop_viewr_pat :: Seq A -> Property
 prop_viewr_pat xs@(ys :|> y)
   | zs :> z <- viewr xs = y === z .&&. ys === zs
-  | otherwise = property failed
-prop_viewr_pat xs = property . liftBool $ null xs
+  | otherwise = property False
+prop_viewr_pat xs = property $ null xs
 
 prop_viewr_con :: Seq A -> A -> Property
 prop_viewr_con xs x = xs :|> x === xs |> x
-#endif
 
 -- Monad operations
 
@@ -886,11 +883,9 @@ prop_bind xs (Fun _ f) =
 
 -- Semigroup operations
 
-#if MIN_VERSION_base(4,9,0)
 prop_stimes :: NonNegative Int -> Seq A -> Property
 prop_stimes (NonNegative n) s =
   stimes n s === stimesMonoid n s
-#endif
 
 -- MonadFix operation
 
@@ -923,7 +918,6 @@ instance Applicative M where
     Action m f <*> Action n x = Action (m+n) (f x)
 
 instance Monad M where
-    return x = Action 0 x
     Action m x >>= f = let Action n y = f x in Action (m+n) y
 
 instance Foldable M where
@@ -931,3 +925,21 @@ instance Foldable M where
 
 instance Traversable M where
     traverse f (Action n x) = Action n <$> f x
+
+-- ----------
+--
+-- Unit tests
+--
+-- ----------
+
+test_lift :: TestTree
+test_lift = testCase "lift" $ do
+  (mempty :: Seq Int) @=? $([| $(TH.lift (fromList [] :: Seq Integer)) |])
+  fromList [1..3 :: Int] @=? $([| $(TH.lift (fromList [1..3 :: Integer])) |])
+
+#if MIN_VERSION_template_haskell(2,16,0)
+test_liftTyped :: TestTree
+test_liftTyped = testCase "liftTyped" $ do
+  (mempty :: Seq Int) @=? $$([|| $$(TH.liftTyped (fromList [])) ||])
+  fromList [1..3 :: Int] @=? $$([|| $$(TH.liftTyped (fromList [1..3])) ||])
+#endif

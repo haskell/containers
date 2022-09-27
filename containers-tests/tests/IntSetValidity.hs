@@ -3,7 +3,7 @@ module IntSetValidity (valid) where
 
 import Data.Bits (xor, (.&.))
 import Data.IntSet.Internal
-import Test.QuickCheck (Property, counterexample, property, (.&&.))
+import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
 import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
@@ -84,6 +84,6 @@ validTipPrefix :: Prefix -> Bool
 -- Last 5 bits of the prefix must be zero for 32 bit arches.
 validTipPrefix p = (0x0000001F .&. p) == 0
 #else
--- Last 6 bits of the prefix must be zero 64 bit anches.
+-- Last 6 bits of the prefix must be zero for 64 bit arches.
 validTipPrefix p = (0x000000000000003F .&. p) == 0
 #endif

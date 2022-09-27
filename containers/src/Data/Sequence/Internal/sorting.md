@@ -137,7 +137,7 @@ mail@doisinkidney.com, 1/11/18
 The `sortOn` and `unstableSortOn` functions perform the Schwartzian transform, however instead of the following implementation:
 
 ```haskell
-sortOn f = fmap snd . sortBy (conparing fst) . fmap (\x -> (f x, x))
+sortOn f = fmap snd . sortBy (comparing fst) . fmap (\x -> (f x, x))
 ```
 
 The `fmap`s are fused manually with the creation of the queue, avoiding the two extra traversals. It still suffers a slowdown of roughly 20%:

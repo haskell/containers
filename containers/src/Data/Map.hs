@@ -6,9 +6,7 @@
 #ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE DataKinds, FlexibleContexts #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 800
 {-# LANGUAGE MonoLocalBinds #-}
-#endif
 
 #include "containers.h"
 

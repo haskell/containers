@@ -3,9 +3,8 @@
 {-# LANGUAGE Safe #-}
 #endif
 #ifdef __GLASGOW_HASKELL__
-{-# LANGUAGE DataKinds, FlexibleContexts #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 800
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE MonoLocalBinds #-}
 #endif
 
@@ -46,15 +45,14 @@
 --      Workshop on ML, September 1998, pages 77-86,
 --      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
 --
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
---      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
---      October 1968, pages 514-534.
+--    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
+--      Journal of the ACM, 15(4), October 1968, pages 514-534.
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
--- Many operations have a worst-case complexity of /O(min(n,W))/.
+-- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
--- elements with a maximum of /W/ -- the number of bits in an 'Int'
+-- elements with a maximum of \(W\) -- the number of bits in an 'Int'
 -- (32 or 64).
 -----------------------------------------------------------------------------
 

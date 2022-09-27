@@ -1,15 +1,14 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 708
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RoleAnnotations #-}
+{-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 #endif
@@ -126,11 +125,9 @@
 
 module Data.Set.Internal (
             -- * Set type
-              Set(..)         -- instance Eq,Ord,Show,Read,Data,Typeable
-#if __GLASGOW_HASKELL__ >= 708
+              Set(..)         -- instance Eq,Ord,Show,Read,Data
             , pattern Bin
-#endif
-            , NonEmptySet(..) -- instance Eq,Ord,Show,Read,Data,Typeable
+            , NonEmptySet(..) -- instance Eq,Ord,Show,Read,Data
             , Size
 
             -- * Operators
@@ -163,8 +160,11 @@ module Data.Set.Internal (
             , unions
             , difference, differenceNE
             , intersection, intersectionNE
+            , intersections
             , cartesianProduct, cartesianProductNE
             , disjointUnion, disjointUnionNE, disjointUnionNEX, disjointUnionXNE
+            , Intersection(..)
+
 
             -- * Filter
             , filter, filterNE
@@ -217,11 +217,9 @@ module Data.Set.Internal (
             , elems
             , toList
             , fromList
-#if MIN_VERSION_base(4,9,0)
             , elemsNE
             , toListNE
             , fromListNE
-#endif
 
             -- ** Ordered list
             , toAscList
@@ -230,12 +228,10 @@ module Data.Set.Internal (
             , fromDistinctAscList
             , fromDescList
             , fromDistinctDescList
-#if MIN_VERSION_base(4,9,0)
             , toAscListNE
             , toDescListNE
             , fromDistinctAscListNE
             , fromDistinctDescListNE
-#endif
 
             -- * Debugging
             , showTree, showTreeNE
@@ -253,30 +249,16 @@ import Prelude hiding (filter,foldl,foldl1,foldr,foldr1,null,map,take,drop,split
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
-#if !MIN_VERSION_base(4,8,0)
-import Data.Monoid (Monoid(..))
-#endif
-#if MIN_VERSION_base(4,9,0)
 import Data.Semigroup (Semigroup(stimes))
-#endif
-#if !(MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+import Data.List.NonEmpty (NonEmpty(..))
+#if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-#if MIN_VERSION_base(4,9,0)
-import Data.Semigroup (stimesIdempotentMonoid)
+import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
-#endif
-#if MIN_VERSION_base(4,8,0)
 import Data.Functor.Identity (Identity)
-#endif
 import qualified Data.Foldable as Foldable
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (Foldable (foldMap))
-#endif
-#if MIN_VERSION_base(4,9,0)
 import qualified Data.List.NonEmpty as NEL
-#endif
-import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
 import Utils.Containers.Internal.StrictPair
@@ -284,12 +266,11 @@ import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
-#if __GLASGOW_HASKELL__ >= 708
 import qualified GHC.Exts as GHCExts
-#endif
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
                  , lexP, readListPrecDefault )
 import Data.Data
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 
@@ -298,7 +279,7 @@ import Data.Data
 --------------------------------------------------------------------}
 infixl 9 \\ --
 
--- | /O(m*log(n\/m+1)), m <= n/. See 'difference'.
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__
@@ -321,30 +302,27 @@ type Size     = Int
 #if __GLASGOW_HASKELL__ >= 802
 {-# COMPLETE Bin, Tip #-}
 #endif
-#if __GLASGOW_HASKELL__ >= 710
+#ifdef __GLASGOW_HASKELL__
 pattern Bin :: Size -> a -> Set a -> Set a -> Set a
-#endif
-#if __GLASGOW_HASKELL__ >= 708
 pattern Bin s a l r = NE (Bin' s a l r)
 
 type role Set nominal
 type role NonEmptySet nominal
 #endif
 
+-- | @since FIXME
+deriving instance Lift a => Lift (Set a)
+deriving instance Lift a => Lift (NonEmptySet a)
+
 instance Ord a => Monoid (Set a) where
     mempty  = empty
     mconcat = unions
-#if !(MIN_VERSION_base(4,9,0))
-    mappend = union
-#else
     mappend = (<>)
 
 -- | @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
-#endif
-
 
 -- | Folds in order of increasing key.
 instance Foldable.Foldable Set where
@@ -366,7 +344,6 @@ instance Foldable.Foldable Set where
     {-# INLINE foldl' #-}
     foldr' = foldr'
     {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
     length = size
     {-# INLINE length #-}
     null   = null
@@ -385,7 +362,6 @@ instance Foldable.Foldable Set where
     {-# INLINABLE sum #-}
     product = foldl' (*) 1
     {-# INLINABLE product #-}
-#endif
 
 instance Foldable.Foldable NonEmptySet where
     fold = goNE
@@ -408,15 +384,12 @@ instance Foldable.Foldable NonEmptySet where
     -- {-# INLINE foldl' #-}
     -- foldr' = foldr'
     -- {-# INLINE foldr' #-}
-#if MIN_VERSION_base(4,8,0)
     length = sizeNE
     {-# INLINE length #-}
     null _ = False
     {-# INLINE null #-}
-#if MIN_VERSION_base(4,9,0)
     toList = NEL.toList . toListNE
     {-# INLINE toList #-}
-#endif
     elem x xs = elem x $ NE xs
     {-# INLINABLE elem #-}
     minimum = lookupMinNE
@@ -427,7 +400,6 @@ instance Foldable.Foldable NonEmptySet where
     -- {-# INLINABLE sum #-}
     -- product = foldl' (*) 1
     -- {-# INLINABLE product #-}
-#endif
 
 #if __GLASGOW_HASKELL__
 
@@ -458,7 +430,7 @@ setDataType = mkDataType "Data.Set.Internal.Set" [fromListConstr]
 {--------------------------------------------------------------------
   Query
 --------------------------------------------------------------------}
--- | /O(1)/. Is this the empty set?
+-- | \(O(1)\). Is this the empty set?
 null :: Set a -> Bool
 null Tip = True
 null (NE _) = False
@@ -470,7 +442,7 @@ nonEmpty Tip = Nothing
 nonEmpty (NE ne) = Just ne
 {-# INLINE nonEmpty #-}
 
--- | /O(1)/. The number of elements in the set.
+-- | \(O(1)\). The number of elements in the set.
 size :: Set a -> Int
 size Tip = 0
 size (NE ne) = sizeNE ne
@@ -480,7 +452,7 @@ sizeNE :: NonEmptySet a -> Int
 sizeNE (Bin' sz _ _ _) = sz
 {-# INLINE sizeNE #-}
 
--- | /O(log n)/. Is the element in the set?
+-- | \(O(\log n)\). Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
 member !_ Tip = False
 member x (NE t) = memberNE x t
@@ -499,7 +471,7 @@ memberNE !a (Bin' _ x l r) = case compare a x of
 {-# INLINE memberNE #-}
 #endif
 
--- | /O(log n)/. Is the element not in the set?
+-- | \(O(\log n)\). Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
 #if __GLASGOW_HASKELL__
@@ -518,7 +490,7 @@ notMemberNE a t = not $ memberNE a t
 
 --------------------------------------------------------------------
 
--- | /O(log n)/. Find largest element smaller than the given one.
+-- | \(O(\log n)\). Find largest element smaller than the given one.
 --
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
@@ -550,7 +522,7 @@ lookupLTWithDefaultNE x best (Bin' _ y l r)
 
 --------------------------------------------------------------------
 
--- | /O(log n)/. Find smallest element greater than the given one.
+-- | \(O(\log n)\). Find smallest element greater than the given one.
 --
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
@@ -582,7 +554,7 @@ lookupGTWithDefaultNE x best (Bin' _ y l r)
 
 --------------------------------------------------------------------
 
--- | /O(log n)/. Find largest element smaller or equal to the given one.
+-- | \(O(\log n)\). Find largest element smaller or equal to the given one.
 --
 -- > lookupLE 2 (fromList [3, 5]) == Nothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
@@ -617,7 +589,7 @@ lookupLEWithDefaultNE x best (Bin' _ y l r) = case compare x y of
 
 --------------------------------------------------------------------
 
--- | /O(log n)/. Find smallest element greater or equal to the given one.
+-- | \(O(\log n)\). Find smallest element greater or equal to the given one.
 --
 -- > lookupGE 3 (fromList [3, 5]) == Just 3
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
@@ -653,12 +625,12 @@ lookupGEWithDefaultNE x best (Bin' _ y l r) = case compare x y of
 {--------------------------------------------------------------------
   Construction
 --------------------------------------------------------------------}
--- | /O(1)/. The empty set.
+-- | \(O(1)\). The empty set.
 empty  :: Set a
 empty = Tip
 {-# INLINE empty #-}
 
--- | /O(1)/. Create a singleton set.
+-- | \(O(1)\). Create a singleton set.
 singleton :: a -> Set a
 singleton = NE . singletonNE
 {-# INLINE singleton #-}
@@ -670,7 +642,7 @@ singletonNE x = Bin' 1 x Tip Tip
 {--------------------------------------------------------------------
   Insertion, Deletion
 --------------------------------------------------------------------}
--- | /O(log n)/. Insert an element in a set.
+-- | \(O(\log n)\). Insert an element in a set.
 -- If the set already contains an element equal to the given value,
 -- it is replaced with the new value.
 
@@ -757,7 +729,7 @@ insertRReturningDifferentNE orig !x (Bin' _ y l r) = case compare x y of
 
 --------------------------------------------------------------------
 
--- | /O(log n)/. Delete an element from a set.
+-- | \(O(\log n)\). Delete an element from a set.
 
 delete :: Ord a => a -> Set a -> Set a
 delete !_ Tip = Tip
@@ -792,7 +764,7 @@ deleteReturningDifferentNE !x (Bin' _ y l r) = case compare x y of
 {-# INLINE deleteNE #-}
 #endif
 
--- | /O(log n)/ @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
+-- | \(O(\log n)\) @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
 -- whether an equal element is found in @s@.
 --
 -- In short:
@@ -805,6 +777,8 @@ deleteReturningDifferentNE !x (Bin' _ y l r) = case compare x y of
 -- the given value.
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
+--
+-- @since 0.6.3.1
 alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
 alterF f k s = fmap choose (f member_)
   where
@@ -824,9 +798,7 @@ alterF f k s = fmap choose (f member_)
  #-}
 #endif
 
-#if MIN_VERSION_base(4,8,0)
 {-# SPECIALIZE alterF :: Ord a => (Bool -> Identity Bool) -> a -> Set a -> Identity (Set a) #-}
-#endif
 
 data AlteredSet a
       -- | The needle is present in the original set.
@@ -859,7 +831,7 @@ alteredSet x0 s0 = go x0 s0
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | /O(m*log(n\/m + 1)), m <= n/.
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
 -- @(s1 \`isProperSubsetOf\` s2)@ indicates whether @s1@ is a
 -- proper subset of @s2@.
 --
@@ -880,7 +852,7 @@ isProperSubsetOfNE s1 s2
 {-# INLINABLE isProperSubsetOfNE #-}
 #endif
 
--- | /O(m*log(n\/m + 1)), m <= n/.
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
 --
 -- @
@@ -908,7 +880,7 @@ isSubsetOfNE t1 t2
 --
 -- This function is structured very much like `difference`, `union`,
 -- and `intersection`. Whereas the bounds proofs for those in Blelloch
--- et al needed to accound for both "split work" and "merge work", we
+-- et al needed to account for both "split work" and "merge work", we
 -- only have to worry about split work here, which is the same as in
 -- those functions.
 isSubsetOfSkipSize :: Ord a => Set a -> Set a -> Bool
@@ -946,7 +918,7 @@ isSubsetOfSkipSizeNE (Bin' _ x l r) t
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | /O(m*log(n\/m + 1)), m <= n/. Check whether two sets are disjoint
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Check whether two sets are disjoint
 -- (i.e., their intersection is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
@@ -989,7 +961,7 @@ lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
 lookupMinSure _ (NE ne) = lookupMinNE ne
 
--- | /O(log n)/. The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of a set.
 --
 -- @since 0.5.9
 
@@ -1000,7 +972,7 @@ lookupMin (NE (Bin' _ x l _)) = Just $! lookupMinSure x l
 lookupMinNE :: NonEmptySet a -> a
 lookupMinNE (Bin' _ x l _) = lookupMinSure x l
 
--- | /O(log n)/. The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of a set.
 findMin :: Set a -> a
 findMin t
   | Just r <- lookupMin t = r
@@ -1010,7 +982,7 @@ lookupMaxSure :: a -> Set a -> a
 lookupMaxSure x Tip = x
 lookupMaxSure _ (NE (Bin' _ x _ r)) = lookupMaxSure x r
 
--- | /O(log n)/. The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of a set.
 --
 -- @since 0.5.9
 
@@ -1021,13 +993,13 @@ lookupMax (NE (Bin' _ x _ r)) = Just $! lookupMaxSure x r
 lookupMaxNE :: NonEmptySet a -> a
 lookupMaxNE (Bin' _ x l _) = lookupMaxSure x l
 
--- | /O(log n)/. The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of a set.
 findMax :: Set a -> a
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Set.findMax: empty set has no maximal element"
 
--- | /O(log n)/. Delete the minimal element. Returns an empty set if the set is empty.
+-- | \(O(\log n)\). Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
 deleteMin (NE ne) = deleteMinNE ne
 deleteMin Tip = Tip
@@ -1036,7 +1008,7 @@ deleteMinNE :: NonEmptySet a -> Set a
 deleteMinNE (Bin' _ _ Tip r) = r
 deleteMinNE (Bin' _ x (NE l) r) = balanceR x (deleteMinNE l) r
 
--- | /O(log n)/. Delete the maximal element. Returns an empty set if the set is empty.
+-- | \(O(\log n)\). Delete the maximal element. Returns an empty set if the set is empty.
 deleteMax :: Set a -> Set a
 deleteMax (NE ne) = deleteMaxNE ne
 deleteMax Tip = Tip
@@ -1055,7 +1027,7 @@ unions = Foldable.foldl' union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | /O(m*log(n\/m + 1)), m <= n/. The union of two sets, preferring the first set when
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
@@ -1089,7 +1061,11 @@ unionNE t1@(Bin' _ x l1 r1) t2 = case splitS x (NE t2) of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | /O(m*log(n\/m + 1)), m <= n/. Difference of two sets.
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Difference of two sets.
+--
+-- Return elements of the first set not existing in the second set.
+--
+-- > difference (fromList [5, 3]) (fromList [5, 7]) == singleton 3
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
@@ -1114,7 +1090,7 @@ differenceNE' t1 (Bin' _ x l2 r2) = case splitS x t1 of
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | /O(m*log(n\/m + 1)), m <= n/. The intersection of two sets.
+-- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). The intersection of two sets.
 -- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
@@ -1155,10 +1131,26 @@ intersectionNE t1@(Bin' _ x l1 r1) t2
 {-# INLINABLE intersectionNE #-}
 #endif
 
+-- | The intersection of a series of sets. Intersections are performed left-to-right.
+intersections :: Ord a => NonEmpty (Set a) -> Set a
+intersections (s0 :| ss) = List.foldr go id ss s0
+    where
+      go s r acc
+          | null acc = empty
+          | otherwise = r (intersection acc s)
+
+-- | Sets form a 'Semigroup' under 'intersection'.
+newtype Intersection a = Intersection { getIntersection :: Set a }
+    deriving (Show, Eq, Ord)
+
+instance (Ord a) => Semigroup (Intersection a) where
+    (Intersection a) <> (Intersection b) = Intersection $ intersection a b
+    stimes = stimesIdempotent
+
 {--------------------------------------------------------------------
   Filter and partition
 --------------------------------------------------------------------}
--- | /O(n)/. Filter all elements that satisfy the predicate.
+-- | \(O(n)\). Filter all elements that satisfy the predicate.
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
 filter p (NE ne) = filterNE p ne
@@ -1173,7 +1165,7 @@ filterNE p t@(Bin' _ x l r)
       !l' = filter p l
       !r' = filter p r
 
--- | /O(n)/. Partition the set into two sets, one with all elements that satisfy
+-- | \(O(n)\). Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
 partition :: (a -> Bool) -> Set a -> (Set a, Set a)
@@ -1201,7 +1193,7 @@ partitionSNE p t@(Bin' _ x l r) = case partitionS p l :*: partitionS p r of
   Map
 ----------------------------------------------------------------------}
 
--- | /O(n*log n)/.
+-- | \(O(n \log n)\).
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
 --
 -- It's worth noting that the size of the result may be smaller if,
@@ -1216,7 +1208,7 @@ map f = fromList . List.map f . toList
 mapNE :: Ord b => (a->b) -> NonEmptySet a -> NonEmptySet b
 mapNE f = fromListNE . fmap f . toListNE
 
--- | /O(n)/. The
+-- | \(O(n)\). The
 --
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
 -- /The precondition is not checked./
@@ -1236,7 +1228,7 @@ mapMonotonicNE f (Bin' sz x l r) = Bin' sz (f x) (mapMonotonic f l) (mapMonotoni
 {--------------------------------------------------------------------
   Fold
 --------------------------------------------------------------------}
--- | /O(n)/. Fold the elements in the set using the given right-associative
+-- | \(O(n)\). Fold the elements in the set using the given right-associative
 -- binary operator. This function is an equivalent of 'foldr' and is present
 -- for compatibility only.
 --
@@ -1245,7 +1237,7 @@ fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
 {-# INLINE fold #-}
 
--- | /O(n)/. Fold the elements in the set using the given right-associative
+-- | \(O(n)\). Fold the elements in the set using the given right-associative
 -- binary operator, such that @'foldr' f z == 'Prelude.foldr' f z . 'toAscList'@.
 --
 -- For example,
@@ -1272,14 +1264,14 @@ foldr1By f g = go
     go (Bin' _ v l Tip) = finish l (g v)
 {-# INLINE foldr1By #-}
 
--- | /O(n)/. A strict version of 'foldr'. Each application of the operator is
+-- | \(O(n)\). A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldr' :: (a -> b -> b) -> b -> Set a -> b
 foldr' f z = go z
   where
     go !z' Tip           = z'
-    go z' (NE (Bin' _ x l r)) = go (f x (go z' r)) l
+    go z' (NE (Bin' _ x l r)) = go (f x $! go z' r) l
 {-# INLINE foldr' #-}
 
 foldr1' :: (b -> b -> b) -> NonEmptySet b -> b
@@ -1298,7 +1290,7 @@ foldr1By' f g = go
     go (Bin' _ v l (NE r)) = finish l (f v (go r))
     go (Bin' _ v l Tip) = finish l (g v)
 {-# INLINE foldr1By' #-}
--- | /O(n)/. Fold the elements in the set using the given left-associative
+-- | \(O(n)\). Fold the elements in the set using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'toAscList'@.
 --
 -- For example,
@@ -1328,14 +1320,16 @@ foldl1By f g = go
     go (Bin' _ v Tip r) = finish (g v) r
 {-# INLINE foldl1By #-}
 
--- | /O(n)/. A strict version of 'foldl'. Each application of the operator is
+-- | \(O(n)\). A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
 foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
     go !z' Tip           = z'
-    go z' (NE (Bin' _ x l r)) = go (f (go z' l) x) r
+    go z' (NE (Bin' _ x l r)) =
+      let !z'' = go z' l
+      in go (f z'' x) r
 {-# INLINE foldl' #-}
 
 foldl1' :: (b -> b -> b) -> NonEmptySet b -> b
@@ -1355,20 +1349,19 @@ foldl1By' f g = go
 {--------------------------------------------------------------------
   List variations
 --------------------------------------------------------------------}
--- | /O(n)/. An alias of 'toAscList'. The elements of a set in ascending order.
+-- | \(O(n)\). An alias of 'toAscList'. The elements of a set in ascending order.
 -- Subject to list fusion.
 elems :: Set a -> [a]
 elems = toAscList
 
-#if MIN_VERSION_base(4,9,0)
 elemsNE :: NonEmptySet a -> NEL.NonEmpty a
 elemsNE = toAscListNE
-#endif
 
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-#if __GLASGOW_HASKELL__ >= 708
+
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.6.2
 instance (Ord a) => GHCExts.IsList (Set a) where
   type Item (Set a) = a
@@ -1376,33 +1369,27 @@ instance (Ord a) => GHCExts.IsList (Set a) where
   toList   = toList
 #endif
 
--- | /O(n)/. Convert the set to a list of elements. Subject to list fusion.
+-- | \(O(n)\). Convert the set to a list of elements. Subject to list fusion.
 toList :: Set a -> [a]
 toList = toAscList
 
-#if MIN_VERSION_base(4,9,0)
 toListNE :: NonEmptySet a -> NEL.NonEmpty a
 toListNE = toAscListNE
-#endif
 
--- | /O(n)/. Convert the set to an ascending list of elements. Subject to list fusion.
+-- | \(O(n)\). Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
 
-#if MIN_VERSION_base(4,9,0)
 toAscListNE :: NonEmptySet a -> NEL.NonEmpty a
 toAscListNE = foldr1 (<>) . mapMonotonicNE pure
-#endif
 
--- | /O(n)/. Convert the set to a descending list of elements. Subject to list
+-- | \(O(n)\). Convert the set to a descending list of elements. Subject to list
 -- fusion.
 toDescList :: Set a -> [a]
 toDescList = foldl (flip (:)) []
 
-#if MIN_VERSION_base(4,9,0)
 toDescListNE :: NonEmptySet a -> NEL.NonEmpty a
 toDescListNE = foldl1 (<>) . mapMonotonicNE pure
-#endif
 
 -- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
@@ -1433,7 +1420,7 @@ foldlFB = foldl
 {-# RULES "Set.toDescListBack" [1] foldlFB (\xs x -> x : xs) [] = toDescList #-}
 #endif
 
--- | /O(n*log n)/. Create a set from a list of elements.
+-- | \(O(n \log n)\). Create a set from a list of elements.
 --
 -- If the elements are ordered, a linear-time implementation is used,
 -- with the performance equal to 'fromDistinctAscList'.
@@ -1447,11 +1434,9 @@ fromList (x : xs) = NE $ fromListNE' x xs
 {-# INLINABLE fromList #-}
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 fromListNE :: Ord a => NEL.NonEmpty a -> NonEmptySet a
 fromListNE (x NEL.:| xs) = fromListNE' x xs
 {-# INLINABLE fromListNE #-}
-#endif
 
 fromListNE' :: Ord a => a -> [a] -> NonEmptySet a
 fromListNE' x [] = Bin' 1 x Tip Tip
@@ -1498,7 +1483,7 @@ fromListNE' x0 xs0
   Note that if [xs] is ascending that:
     fromAscList xs == fromList xs
 --------------------------------------------------------------------}
--- | /O(n)/. Build a set from an ascending list in linear time.
+-- | \(O(n)\). Build a set from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: Eq a => [a] -> Set a
 fromAscList xs = fromDistinctAscList (combineEq xs)
@@ -1506,7 +1491,7 @@ fromAscList xs = fromDistinctAscList (combineEq xs)
 {-# INLINABLE fromAscList #-}
 #endif
 
--- | /O(n)/. Build a set from a descending list in linear time.
+-- | \(O(n)\). Build a set from a descending list in linear time.
 -- /The precondition (input list is descending) is not checked./
 --
 -- @since 0.5.8
@@ -1530,7 +1515,7 @@ combineEq (x : xs) = combineEq' x xs
       | z == y = combineEq' z ys
       | otherwise = z : combineEq' y ys
 
--- | /O(n)/. Build a set from an ascending list of distinct elements in linear time.
+-- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
 
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
@@ -1539,10 +1524,8 @@ fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList [] = Tip
 fromDistinctAscList (x0 : xs0) = NE $ fromDistinctAscListNE' x0 xs0
 
-#if MIN_VERSION_base(4,9,0)
 fromDistinctAscListNE :: NEL.NonEmpty a -> NonEmptySet a
 fromDistinctAscListNE (x NEL.:| xs) = fromDistinctAscListNE' x xs
-#endif
 
 fromDistinctAscListNE' :: a -> [a] -> NonEmptySet a
 fromDistinctAscListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
@@ -1560,7 +1543,7 @@ fromDistinctAscListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
                       (l :*: (y:ys)) -> case create (s `shiftR` 1) ys of
                         (r :*: zs) -> (link y l r :*: zs)
 
--- | /O(n)/. Build a set from a descending list of distinct elements in linear time.
+-- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
@@ -1571,10 +1554,8 @@ fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
 fromDistinctDescList (x0 : xs0) = NE $ fromDistinctDescListNE' x0 xs0
 
-#if MIN_VERSION_base(4,9,0)
 fromDistinctDescListNE :: NEL.NonEmpty a -> NonEmptySet a
 fromDistinctDescListNE (x NEL.:| xs) = fromDistinctDescListNE' x xs
-#endif
 
 fromDistinctDescListNE' :: a -> [a] -> NonEmptySet a
 fromDistinctDescListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
@@ -1614,7 +1595,6 @@ instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 Set where
     liftEq eq m n =
@@ -1629,7 +1609,6 @@ instance Ord1 Set where
 instance Show1 Set where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
-#endif
 
 {--------------------------------------------------------------------
   Read
@@ -1650,12 +1629,6 @@ instance (Read a, Ord a) => Read (Set a) where
 #endif
 
 {--------------------------------------------------------------------
-  Typeable/Data
---------------------------------------------------------------------}
-
-INSTANCE_TYPEABLE1(Set)
-
-{--------------------------------------------------------------------
   NFData
 --------------------------------------------------------------------}
 
@@ -1666,7 +1639,7 @@ instance NFData a => NFData (Set a) where
 {--------------------------------------------------------------------
   Split
 --------------------------------------------------------------------}
--- | /O(log n)/. The expression (@'split' x set@) is a pair @(set1,set2)@
+-- | \(O(\log n)\). The expression (@'split' x set@) is a pair @(set1,set2)@
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
 -- comprises the elements of @set@ greater than @x@.
 split :: Ord a => a -> Set a -> (Set a,Set a)
@@ -1690,7 +1663,7 @@ splitSNE x (Bin' _ y l r)
           EQ -> (l :*: r)
 {-# INLINABLE splitSNE #-}
 
--- | /O(log n)/. Performs a 'split' but also returns whether the pivot
+-- | \(O(\log n)\). Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember _ Tip = (Tip, False, Tip)
@@ -1717,7 +1690,7 @@ splitMemberNE x (Bin' _ y l r)
   Indexing
 --------------------------------------------------------------------}
 
--- | /O(log n)/. Return the /index/ of an element, which is its zero-based
+-- | \(O(\log n)\). Return the /index/ of an element, which is its zero-based
 -- index in the sorted sequence of elements. The index is a number from /0/ up
 -- to, but not including, the 'size' of the set. Calls 'error' when the element
 -- is not a 'member' of the set.
@@ -1752,7 +1725,7 @@ findIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
   GT -> findIndexS (idx + size l + 1) x r
   EQ -> idx + size l
 
--- | /O(log n)/. Lookup the /index/ of an element, which is its zero-based index in
+-- | \(O(\log n)\). Lookup the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
 -- including, the 'size' of the set.
 --
@@ -1786,7 +1759,7 @@ lookupIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
   GT -> lookupIndexS (idx + size l + 1) x r
   EQ -> Just $! idx + size l
 
--- | /O(log n)/. Retrieve an element by its /index/, i.e. by its zero-based
+-- | \(O(\log n)\). Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
 -- than zero, greater or equal to 'size' of the set), 'error' is called.
 --
@@ -1809,7 +1782,7 @@ elemAtNE i (Bin' _ x l r)
   where
     sizeL = size l
 
--- | /O(log n)/. Delete the element at /index/, i.e. by its zero-based index in
+-- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sorted sequence of elements. If the /index/ is out of range (less than zero,
 -- greater or equal to 'size' of the set), 'error' is called.
 --
@@ -1892,7 +1865,7 @@ dropSNE i (Bin' _ x l r) =
     EQ -> insertMin x r
   where sizeL = size l
 
--- | /O(log n)/. Split a set at a particular index.
+-- | \(O(\log n)\). Split a set at a particular index.
 --
 -- @
 -- splitAt !n !xs = ('take' n xs, 'drop' n xs)
@@ -1923,7 +1896,7 @@ splitAtSNE i (Bin' _ x l r)
       EQ -> l :*: insertMin x r
   where sizeL = size l
 
--- | /O(log n)/. Take while a predicate on the elements holds.
+-- | \(O(\log n)\). Take while a predicate on the elements holds.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
 -- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
 --
@@ -1943,7 +1916,7 @@ takeWhileAntitoneNE p (Bin' _ x l r)
   | p x = link x l (takeWhileAntitone p r)
   | otherwise = takeWhileAntitone p l
 
--- | /O(log n)/. Drop while a predicate on the elements holds.
+-- | \(O(\log n)\). Drop while a predicate on the elements holds.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
 -- @j \< k ==\> p j \>= p k@. See note at 'spanAntitone'.
 --
@@ -1963,7 +1936,7 @@ dropWhileAntitoneNE p (Bin' _ x l r)
   | p x = dropWhileAntitone p r
   | otherwise = link x (dropWhileAntitone p l) r
 
--- | /O(log n)/. Divide a set at the point where a predicate on the elements stops holding.
+-- | \(O(\log n)\). Divide a set at the point where a predicate on the elements stops holding.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
 -- @j \< k ==\> p j \>= p k@.
 --
@@ -2098,7 +2071,7 @@ glueNE l@(Bin' sl xl ll lr) r@(Bin' sr xr rl rr)
   | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceRNE m l' r
   | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceLNE m l r'
 
--- | /O(log n)/. Delete and find the minimal element.
+-- | \(O(\log n)\). Delete and find the minimal element.
 --
 -- > deleteFindMin set = (findMin set, deleteMin set)
 
@@ -2107,7 +2080,7 @@ deleteFindMin t
   | Just r <- minView t = r
   | otherwise = (error "Set.deleteFindMin: can not return the minimal element of an empty set", Tip)
 
--- | /O(log n)/. Delete and find the maximal element.
+-- | \(O(\log n)\). Delete and find the maximal element.
 --
 -- > deleteFindMax set = (findMax set, deleteMax set)
 deleteFindMax :: Set a -> (a,Set a)
@@ -2123,7 +2096,7 @@ minViewSure = go
       case go xl ll lr of
         xm :*: l' -> xm :*: balanceR x l' r
 
--- | /O(log n)/. Retrieves the minimal key of the set, and the set
+-- | \(O(\log n)\). Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
@@ -2140,7 +2113,7 @@ maxViewSure = go
       case go xr rl rr of
         xm :*: r' -> xm :*: balanceL x l r'
 
--- | /O(log n)/. Retrieves the maximal key of the set, and the set
+-- | \(O(\log n)\). Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
@@ -2159,14 +2132,14 @@ maxViewNE (Bin' _ x l r) = toPair $ maxViewSure x l r
   [ratio] is the ratio between an outer and inner sibling of the
           heavier subtree in an unbalanced setting. It determines
           whether a double or single rotation should be performed
-          to restore balance. It is correspondes with the inverse
+          to restore balance. It is corresponds with the inverse
           of $\alpha$ in Adam's article.
 
   Note that according to the Adam's paper:
   - [delta] should be larger than 4.646 with a [ratio] of 2.
   - [delta] should be larger than 3.745 with a [ratio] of 1.534.
 
-  But the Adam's paper is errorneous:
+  But the Adam's paper is erroneous:
   - it can be proved that for delta=2 and delta>=5 there does
     not exist any ratio that would work
   - delta=4.5 and ratio=2 does not work
@@ -2366,7 +2339,7 @@ binNE x l r = Bin' (size l + size r + 1) x l r
   Utilities
 --------------------------------------------------------------------}
 
--- | /O(1)/.  Decompose a set into pieces based on the structure of the underlying
+-- | \(O(1)\).  Decompose a set into pieces based on the structure of the underlying
 -- tree.  This function is useful for consuming a set in parallel.
 --
 -- No guarantee is made as to the sizes of the pieces; an internal, but
@@ -2429,7 +2402,7 @@ nePowerSetNE xs = foldr1By f (singletonNE.singletonNE) xs
     f :: a -> NonEmptySet (NonEmptySet a) -> NonEmptySet (NonEmptySet a)
     f v acc = insertMinNE (singletonNE v) (NE $ mapMonotonicNE (insertMinNE v . NE) acc) `glueNE` acc
 
--- | /O(m*n)/ (conjectured). Calculate the Cartesian product of two sets.
+-- | \(O(mn)\) (conjectured). Calculate the Cartesian product of two sets.
 --
 -- @
 -- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
@@ -2484,19 +2457,13 @@ cartesianProductNE as bs = goFoldMapNE as
 -- This is used to define cartesianProduct.
 newtype MergeSet a = MergeSet { getMergeSet :: Set a }
 
-#if (MIN_VERSION_base(4,9,0))
 instance Semigroup (MergeSet a) where
   MergeSet xs <> MergeSet ys = MergeSet (merge xs ys)
-#endif
 
 instance Monoid (MergeSet a) where
   mempty = MergeSet empty
 
-#if (MIN_VERSION_base(4,9,0))
   mappend = (<>)
-#else
-  mappend (MergeSet xs) (MergeSet ys) = MergeSet (merge xs ys)
-#endif
 
 -- | Calculate the disjoint union of two sets.
 --
@@ -2524,7 +2491,7 @@ disjointUnionXNE as bs = mergeXNE (mapMonotonic Left as) (mapMonotonicNE Right b
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
--- | /O(n)/. Show the tree that implements the set. The tree is shown
+-- | \(O(n)\). Show the tree that implements the set. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => Set a -> String
 showTree s
@@ -2535,7 +2502,7 @@ showTreeNE s
   = showTreeWithNE True False s
 
 
-{- | /O(n)/. The expression (@showTreeWith hang wide map@) shows
+{- | \(O(n)\). The expression (@showTreeWith hang wide map@) shows
  the tree that implements the set. If @hang@ is
  @True@, a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.
@@ -2637,7 +2604,7 @@ withEmpty bars = "   ":bars
 {--------------------------------------------------------------------
   Assertions
 --------------------------------------------------------------------}
--- | /O(n)/. Test if the internal set structure is valid.
+-- | \(O(n)\). Test if the internal set structure is valid.
 valid :: Ord a => Set a -> Bool
 valid t
   = balanced t && ordered t && validsize t

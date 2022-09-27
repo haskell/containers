@@ -1,0 +1,11 @@
+version: 2
+
+sphinx:
+  configuration: containers/docs/conf.py
+
+submodules:
+  include:
+    - containers/docs/_extensions/haddock-autolink
+
+python:
+  version: 3.7

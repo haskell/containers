@@ -1,19 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-#if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
-#endif
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
-#endif
-#if __GLASGOW_HASKELL__ >= 708
-{-# LANGUAGE RoleAnnotations #-}
-{-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
-#endif
-
-#if USE_MAGIC_PROXY
-{-# LANGUAGE MagicHash #-}
 #endif
 
 #include "containers.h"
@@ -112,9 +100,6 @@ import Data.IntMap.Internal
   , runWhenMissing
   )
 import Data.IntMap.Strict.Internal
-#if !MIN_VERSION_base(4,8,0)
-import Control.Applicative (Applicative (..), (<$>))
-#endif
 import Prelude hiding (filter, map, foldl, foldr)
 
 -- | Map covariantly over a @'WhenMissing' f k x@.
