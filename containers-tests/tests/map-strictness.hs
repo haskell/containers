@@ -1,15 +1,26 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
 
 import Test.ChasingBottoms.IsBottom
-import Test.Framework (Test, defaultMain, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary(arbitrary))
-import Test.QuickCheck.Function (Fun(..), apply)
+import Test.Tasty (TestTree, TestName, defaultMain, testGroup)
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck (testProperty, Arbitrary(arbitrary), Fun)
+#if __GLASGOW_HASKELL__ >= 806
+import Test.Tasty.QuickCheck (Property)
+#endif
+import Test.QuickCheck.Function (apply)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
+import qualified Data.Map as L
+
+import Utils.IsUnit
+#if __GLASGOW_HASKELL__ >= 806
+import Utils.NoThunks
+#endif
 
 instance (Arbitrary k, Arbitrary v, Ord k) =>
          Arbitrary (Map k v) where
@@ -77,10 +88,84 @@ pInsertLookupWithKeyValueStrict f k v m
                      not (isBottom $ M.insertLookupWithKey (const3 1) k bottom m)
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldr' :: Map Int Int -> Property
+pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldl' :: Map Int Int -> Property
+pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldrWithKey' :: Map Int Int -> Property
+pStrictFoldrWithKey' m = whnfHasNoThunks (M.foldrWithKey' (\_ a as -> a : as) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldlWithKey' :: Map Int Int -> Property
+pStrictFoldlWithKey' m = whnfHasNoThunks (M.foldlWithKey' (\as _ a -> a : as) [] m)
+#endif
+
+------------------------------------------------------------------------
+-- check for extra thunks
+--
+-- These tests distinguish between `()`, a fully evaluated value, and
+-- things like `id ()` which are extra thunks that should be avoided
+-- in most cases. An exception is `L.fromListWith const`, which cannot
+-- evaluate the `const` calls.
+
+tExtraThunksM :: TestTree
+tExtraThunksM = testGroup "Map.Strict - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for strict maps, all the values should be evaluated to ()
+    [ check "singleton"           $ m0
+    , check "insert"              $ M.insert 42 () m0
+    , check "insertWith"          $ M.insertWith const 42 () m0
+    , check "fromList"            $ M.fromList [(42,()),(42,())]
+    , check "fromListWith"        $ M.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"         $ M.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith"     $ M.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" $ M.fromAscList [(42,())]
+    ]
+  where
+    m0 = M.singleton 42 ()
+    check :: TestName -> M.Map Int () -> TestTree
+    check n m = testCase n $ case M.lookup 42 m of
+        Just v -> assertBool msg (isUnit v)
+        _      -> assertBool "key not found" False
+      where
+        msg = "too lazy -- expected fully evaluated ()"
+
+tExtraThunksL :: TestTree
+tExtraThunksL = testGroup "Map.Lazy - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for lazy maps, the *With functions should leave `const () ()` thunks,
+    -- but the other functions should produce fully evaluated ().
+    [ check "singleton"       True  $ m0
+    , check "insert"          True  $ L.insert 42 () m0
+    , check "insertWith"      False $ L.insertWith const 42 () m0
+    , check "fromList"        True  $ L.fromList [(42,()),(42,())]
+    , check "fromListWith"    False $ L.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"     True  $ L.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith" False $ L.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" True $ L.fromAscList [(42,())]
+    ]
+  where
+    m0 = L.singleton 42 ()
+    check :: TestName -> Bool -> L.Map Int () -> TestTree
+    check n e m = testCase n $ case L.lookup 42 m of
+        Just v -> assertBool msg (e == isUnit v)
+        _      -> assertBool "key not found" False
+      where
+        msg | e         = "too lazy -- expected fully evaluated ()"
+            | otherwise = "too strict -- expected a thunk"
+
 ------------------------------------------------------------------------
 -- * Test list
 
-tests :: [Test]
+tests :: [TestTree]
 tests =
     [
     -- Basic interface
@@ -103,14 +188,22 @@ tests =
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
+#if __GLASGOW_HASKELL__ >= 806
+      , testProperty "strict foldr'" pStrictFoldr'
+      , testProperty "strict foldl'" pStrictFoldl'
+      , testProperty "strict foldrWithKey'" pStrictFoldrWithKey'
+      , testProperty "strict foldlWithKey'" pStrictFoldlWithKey'
+#endif
       ]
+      , tExtraThunksM
+      , tExtraThunksL
     ]
 
 ------------------------------------------------------------------------
 -- * Test harness
 
 main :: IO ()
-main = defaultMain tests
+main = defaultMain $ testGroup "map-strictness" tests
 
 ------------------------------------------------------------------------
 -- * Utilities
@@ -123,3 +216,4 @@ const2 x _ _ = x
 
 const3 :: a -> b -> c -> d -> a
 const3 x _ _ _ = x
+

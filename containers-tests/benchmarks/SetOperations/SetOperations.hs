@@ -3,7 +3,7 @@
 
 module SetOperations (benchmark) where
 
-import Gauge (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (partition, sortBy)
 import Data.Ord (comparing)
 import Data.Tuple as Tuple

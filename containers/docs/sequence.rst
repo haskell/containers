@@ -12,7 +12,7 @@ defines the ``Seq`` data type.
 Short Example
 -------------
 
-The following GHCi session shows some of the basic sequence funcitonality::
+The following GHCi session shows some of the basic sequence functionality::
 
     -- Import the Seq type and operators for combining sequences unqualified.
     -- Import the rest of the Sequence module qualified.

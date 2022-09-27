@@ -1,15 +1,26 @@
+{-# LANGUAGE CPP #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
 
 import Test.ChasingBottoms.IsBottom
-import Test.Framework (Test, defaultMain, testGroup)
-import Test.Framework.Providers.QuickCheck2 (testProperty)
-import Test.QuickCheck (Arbitrary(arbitrary))
-import Test.QuickCheck.Function (Fun(..), apply)
+import Test.Tasty (TestTree, TestName, defaultMain, testGroup)
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck (testProperty, Arbitrary(arbitrary), Fun)
+#if __GLASGOW_HASKELL__ >= 806
+import Test.Tasty.QuickCheck (Property)
+#endif
+import Test.QuickCheck.Function (apply)
 
 import Data.IntMap.Strict (IntMap)
 import qualified Data.IntMap.Strict as M
+import qualified Data.IntMap as L
+import Data.Containers.ListUtils
+
+import Utils.IsUnit
+#if __GLASGOW_HASKELL__ >= 806
+import Utils.NoThunks
+#endif
 
 instance Arbitrary v => Arbitrary (IntMap v) where
     arbitrary = M.fromList `fmap` arbitrary
@@ -77,9 +88,92 @@ pInsertLookupWithKeyValueStrict f k v m
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
 ------------------------------------------------------------------------
+-- test a corner case of fromAscList
+--
+-- If the list contains duplicate keys, then (only) the first of the
+-- given values is not evaluated. This may change in the future, see
+-- also https://github.com/haskell/containers/issues/473
+
+pFromAscListLazy :: [Int] -> Bool
+pFromAscListLazy ks = not . isBottom $ L.fromAscList elems
+  where
+    elems = [(k, v) | k <- nubInt ks, v <- [undefined, ()]]
+
+pFromAscListStrict :: [Int] -> Bool
+pFromAscListStrict ks
+    | null ks   = not . isBottom $ M.fromAscList elems
+    | otherwise = isBottom $ M.fromAscList elems
+  where
+    elems = [(k, v) | k <- nubInt ks, v <- [undefined, undefined, ()]]
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldr' :: IntMap Int -> Property
+pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldl' :: IntMap Int -> Property
+pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
+#endif
+
+------------------------------------------------------------------------
+-- check for extra thunks
+--
+-- These tests distinguish between `()`, a fully evaluated value, and
+-- things like `id ()` which are extra thunks that should be avoided
+-- in most cases. An exception is `L.fromListWith const`, which cannot
+-- evaluate the `const` calls.
+
+tExtraThunksM :: TestTree
+tExtraThunksM = testGroup "IntMap.Strict - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for strict maps, all the values should be evaluated to ()
+    [ check "singleton"           $ m0
+    , check "insert"              $ M.insert 42 () m0
+    , check "insertWith"          $ M.insertWith const 42 () m0
+    , check "fromList"            $ M.fromList [(42,()),(42,())]
+    , check "fromListWith"        $ M.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"         $ M.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith"     $ M.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" $ M.fromAscList [(42,())]
+    ]
+  where
+    m0 = M.singleton 42 ()
+    check :: TestName -> IntMap () -> TestTree
+    check n m = testCase n $ case M.lookup 42 m of
+        Just v -> assertBool msg (isUnit v)
+        _      -> assertBool "key not found" False
+      where
+        msg = "too lazy -- expected fully evaluated ()"
+
+tExtraThunksL :: TestTree
+tExtraThunksL = testGroup "IntMap.Lazy - extra thunks" $
+    if not isUnitSupported then [] else
+    -- for lazy maps, the *With functions should leave `const () ()` thunks,
+    -- but the other functions should produce fully evaluated ().
+    [ check "singleton"       True  $ m0
+    , check "insert"          True  $ L.insert 42 () m0
+    , check "insertWith"      False $ L.insertWith const 42 () m0
+    , check "fromList"        True  $ L.fromList [(42,()),(42,())]
+    , check "fromListWith"    False $ L.fromListWith const [(42,()),(42,())]
+    , check "fromAscList"     True  $ L.fromAscList [(42,()),(42,())]
+    , check "fromAscListWith" False $ L.fromAscListWith const [(42,()),(42,())]
+    , check "fromDistinctAscList" True $ L.fromAscList [(42,())]
+    ]
+  where
+    m0 = L.singleton 42 ()
+    check :: TestName -> Bool -> L.IntMap () -> TestTree
+    check n e m = testCase n $ case L.lookup 42 m of
+        Just v -> assertBool msg (e == isUnit v)
+        _      -> assertBool "key not found" False
+      where
+        msg | e         = "too lazy -- expected fully evaluated ()"
+            | otherwise = "too strict -- expected a thunk"
+
+------------------------------------------------------------------------
 -- * Test list
 
-tests :: [Test]
+tests :: [TestTree]
 tests =
     [
     -- Basic interface
@@ -103,14 +197,22 @@ tests =
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
+      , testProperty "fromAscList is somewhat value-lazy" pFromAscListLazy
+      , testProperty "fromAscList is somewhat value-strict" pFromAscListStrict
+#if __GLASGOW_HASKELL__ >= 806
+      , testProperty "strict foldr'" pStrictFoldr'
+      , testProperty "strict foldl'" pStrictFoldl'
+#endif
       ]
+      , tExtraThunksM
+      , tExtraThunksL
     ]
 
 ------------------------------------------------------------------------
 -- * Test harness
 
 main :: IO ()
-main = defaultMain tests
+main = defaultMain $ testGroup "intmap-strictness" tests
 
 ------------------------------------------------------------------------
 -- * Utilities

@@ -3,12 +3,13 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
-# if __GLASGOW_HASKELL__ >= 710
+#  if __GLASGOW_HASKELL__ >= 802
 {-# LANGUAGE Safe #-}
-# else
+#  else
 {-# LANGUAGE Trustworthy #-}
-# endif
+#  endif
 #endif
 
 #include "containers.h"
@@ -67,6 +68,7 @@ module Data.Graph (
     , dfs
     , dff
     , topSort
+    , reverseTopSort
     , components
     , scc
     , bcc
@@ -105,13 +107,7 @@ import qualified Data.IntSet as Set
 import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
-import Control.Applicative
-#if !MIN_VERSION_base(4,8,0)
-import qualified Data.Foldable as F
-import Data.Traversable
-#else
 import Data.Foldable as F
-#endif
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
@@ -121,17 +117,15 @@ import Data.Array.Unboxed ( UArray )
 #else
 import qualified Data.Array as UA
 #endif
-import Data.List
-#if MIN_VERSION_base(4,9,0)
+import qualified Data.List as L
 import Data.Functor.Classes
-#endif
-#if (!MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
 #endif
 #ifdef __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
-import Data.Typeable
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 -- Make sure we don't use Integer by mistake.
@@ -157,8 +151,6 @@ data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
   deriving (Eq, Show, Read)
 #endif
 
-INSTANCE_TYPEABLE1(SCC)
-
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
@@ -168,9 +160,11 @@ deriving instance Generic1 SCC
 
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
+
+-- | @since FIXME
+deriving instance Lift vertex => Lift (SCC vertex)
 #endif
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 SCC where
   liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
@@ -185,7 +179,6 @@ instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
     readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
-#endif
 
 -- | @since 0.5.9
 instance F.Foldable SCC where
@@ -383,7 +376,7 @@ graphFromEdges' x = (a,b) where
 -- type @key@ labeled by values of type @node@ and produces a @Graph@-based
 -- representation of that list. The @Graph@ result represents the /shape/ of the
 -- graph, and the functions describe a) how to retrieve the label and adjacent
--- vertices of a given vertex, and b) how to retrive a vertex given a key.
+-- vertices of a given vertex, and b) how to retrieve a vertex given a key.
 --
 -- @(graph, nodeFromVertex, vertexFromKey) = graphFromEdges edgeList@
 --
@@ -441,7 +434,7 @@ graphFromEdges edges0
   where
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
-    sorted_edges    = sortBy lt edges0
+    sorted_edges    = L.sortBy lt edges0
     edges1          = zipWith (,) [0..] sorted_edges
 
     graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
@@ -616,6 +609,12 @@ postOrd g = postorderF (dff g) []
 -- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
 topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
+
+-- | Reverse ordering of `topSort`.
+--
+-- @since 0.6.4
+reverseTopSort :: Graph -> [Vertex]
+reverseTopSort = postOrd
 
 ------------------------------------------------------------
 -- Algorithm 3: connected components

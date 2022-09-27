@@ -44,22 +44,9 @@ module Utils.Containers.Internal.BitQueue
     , toListQ
     ) where
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Word (Word)
-#endif
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, wordSize)
 import Data.Bits ((.|.), (.&.), testBit)
-#if MIN_VERSION_base(4,8,0)
 import Data.Bits (countTrailingZeros)
-#else
-import Data.Bits (popCount)
-#endif
-
-#if !MIN_VERSION_base(4,8,0)
-countTrailingZeros :: Word -> Int
-countTrailingZeros x = popCount ((x .&. (-x)) - 1)
-{-# INLINE countTrailingZeros #-}
-#endif
 
 -- A bit queue builder. We represent a double word using two words
 -- because we don't currently have access to proper double words.
@@ -109,7 +96,7 @@ buildQ (BQB hi lo) = BQ (BQB hi' lo') where
   lo' = (lo1 `shiftRL` zeros) .|. (hi1 `shiftLL` (wordSize - zeros))
   hi' = hi1 `shiftRL` zeros
 
--- Test if the queue is empty, which occurs when theres
+-- Test if the queue is empty, which occurs when there's
 -- nothing left but a guard bit in the least significant
 -- place.
 nullQ :: BitQueue -> Bool

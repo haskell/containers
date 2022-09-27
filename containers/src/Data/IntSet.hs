@@ -31,9 +31,9 @@
 --
 -- == Performance information
 --
--- Many operations have a worst-case complexity of /O(min(n,W))/.
+-- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
--- elements with a maximum of /W/ -- the number of bits in an 'Int'
+-- elements with a maximum of \(W\) -- the number of bits in an 'Int'
 -- (32 or 64).
 --
 --
@@ -49,9 +49,8 @@
 --      Workshop on ML, September 1998, pages 77-86,
 --      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
 --
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve
---      Information Coded In Alphanumeric/\", Journal of the ACM, 15(4),
---      October 1968, pages 514-534.
+--    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
+--      Journal of the ACM, 15(4), October 1968, pages 514-534.
 --
 -- Additionally, this implementation places bitmaps in the leaves of the tree.
 -- Their size is the natural size of a machine word (32 or 64 bits) and greatly
@@ -85,6 +84,9 @@ module Data.IntSet (
 
             -- * Deletion
             , delete
+
+            -- * Generalized insertion/deletion
+            , alterF
 
             -- * Query
             , member

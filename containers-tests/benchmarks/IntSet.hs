@@ -5,12 +5,9 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (foldl')
 import Data.Monoid (Sum(..))
-#if !MIN_VERSION_base(4,8,0)
-import Data.Foldable (foldMap)
-#endif
 import qualified Data.IntSet as IS
 -- benchmarks for "instance Ord IntSet"
 -- uses IntSet as keys of maps, and elements of sets

@@ -1,4 +1,4 @@
-The `containers` Package [![Build Status](https://travis-ci.org/haskell/containers.svg?branch=master)](https://travis-ci.org/haskell/containers)
+The `containers` Package [![Build Status](https://github.com/haskell/containers/workflows/Haskell-CI/badge.svg)](https://github.com/haskell/containers/actions?query=branch%3Amaster)
 ========================
 
 For a walkthrough of what this package provides with examples of common

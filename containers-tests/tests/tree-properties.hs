@@ -4,10 +4,9 @@ import Data.Tree as T
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>), liftA2)
 
-import Test.Framework
-import Test.Framework.Providers.QuickCheck2
-import Test.QuickCheck
-import Test.QuickCheck.Function (Fun (..), apply)
+import Test.Tasty
+import Test.Tasty.QuickCheck
+import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C)
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
@@ -15,7 +14,7 @@ import Control.Monad (ap)
 default (Int)
 
 main :: IO ()
-main = defaultMain
+main = defaultMain $ testGroup "tree-properties"
          [
            testProperty "monad_id1"                prop_monad_id1
          , testProperty "monad_id2"                prop_monad_id2

@@ -4,7 +4,7 @@ import Control.Applicative
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
-import Gauge (bench, bgroup, defaultMain, nf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, nf)
 import Data.Foldable (foldl', foldr')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
@@ -126,15 +126,15 @@ main = do
               nf (\s -> ((+) <$> s <*> s) `S.index` (S.length s * S.length s `div` 2))
                  (S.fromFunction (floor (sqrt $ fromIntegral (maxBound::Int))-10) (+1))
          , bench "nf100/2500/rep" $
-              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (100,2500)
+              nf (\(s,t) -> (,) <$> S.replicate s () <*> S.replicate t ()) (100,2500)
          , bench "nf100/2500/ff" $
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (100,2500)
          , bench "nf500/500/rep" $
-              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (500,500)
+              nf (\(s,t) -> (,) <$> S.replicate s () <*> S.replicate t ()) (500,500)
          , bench "nf500/500/ff" $
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (500,500)
          , bench "nf2500/100/rep" $
-              nf (\(s,t) -> (,) <$> replicate s () <*> replicate t ()) (2500,100)
+              nf (\(s,t) -> (,) <$> S.replicate s () <*> S.replicate t ()) (2500,100)
          , bench "nf2500/100/ff" $
               nf (\(s,t) -> (,) <$> S.fromFunction s (+1) <*> S.fromFunction t (*2)) (2500,100)
          ]

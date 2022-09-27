@@ -1,8 +1,9 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE DeriveDataTypeable, StandaloneDeriving #-}
+{-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE Trustworthy #-}
 #endif
 
@@ -51,44 +52,29 @@ module Data.Tree(
 
     ) where
 
-#if MIN_VERSION_base(4,8,0)
 import Data.Foldable (toList)
-import Control.Applicative (Applicative(..), liftA2)
-#else
-import Control.Applicative (Applicative(..), liftA2, (<$>))
-import Data.Foldable (Foldable(foldMap), toList)
-import Data.Monoid (Monoid(..))
-import Data.Traversable (Traversable(traverse))
-#endif
-
 import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
-import Data.Typeable
 import Control.DeepSeq (NFData(rnf))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
 import GHC.Generics (Generic, Generic1)
+import Language.Haskell.TH.Syntax (Lift)
 #endif
 
 import Control.Monad.Zip (MonadZip (..))
 
-#if MIN_VERSION_base(4,8,0)
 import Data.Coerce
-#endif
 
-#if MIN_VERSION_base(4,9,0)
 import Data.Functor.Classes
-#endif
-#if (!MIN_VERSION_base(4,11,0)) && MIN_VERSION_base(4,9,0)
+
+#if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
 #endif
 
-#if !MIN_VERSION_base(4,8,0)
-import Data.Functor ((<$))
-#endif
 
 -- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
@@ -97,21 +83,22 @@ data Tree a = Node {
     }
 #ifdef __GLASGOW_HASKELL__
   deriving ( Eq
+           , Ord -- ^ @since 0.6.5
            , Read
            , Show
            , Data
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
+           , Lift -- ^ @since FIXME
            )
 #else
-  deriving (Eq, Read, Show)
+  deriving (Eq, Ord, Read, Show)
 #endif
 
 -- | This type synonym exists primarily for historical
 -- reasons.
 type Forest a = [Tree a]
 
-#if MIN_VERSION_base(4,9,0)
 -- | @since 0.5.9
 instance Eq1 Tree where
   liftEq eq = leq
@@ -146,9 +133,6 @@ instance Read1 Tree where
       (fr, s9) <- liftReadList rd rdl s8
       ("}", s10) <- lex s9
       pure (Node a fr, s10)
-#endif
-
-INSTANCE_TYPEABLE1(Tree)
 
 instance Functor Tree where
     fmap = fmapTree
@@ -156,9 +140,8 @@ instance Functor Tree where
 
 fmapTree :: (a -> b) -> Tree a -> Tree b
 fmapTree f (Node x ts) = Node (f x) (map (fmapTree f) ts)
-#if MIN_VERSION_base(4,8,0)
--- Safe coercions were introduced in 4.7.0, but I am not sure if they played
--- well enough with RULES to do what we want.
+
+#ifdef __GLASGOW_HASKELL__
 {-# NOINLINE [1] fmapTree #-}
 {-# RULES
 "fmapTree/coerce" fmapTree coerce = coerce
@@ -199,12 +182,11 @@ instance Traversable Tree where
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
 
-#if MIN_VERSION_base(4,8,0)
     null _ = False
     {-# INLINE null #-}
+
     toList = flatten
     {-# INLINE toList #-}
-#endif
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts

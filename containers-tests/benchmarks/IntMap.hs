@@ -3,7 +3,7 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Gauge (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
@@ -11,10 +11,18 @@ import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
 
 main = do
-    let m = M.fromAscList elems :: M.IntMap Int
-    evaluate $ rnf [m]
+    let m     = M.fromAscList elems_hits   :: M.IntMap Int
+    let m'    = M.fromAscList elems_mid    :: M.IntMap Int
+    let m''   = M.fromAscList elems_most   :: M.IntMap Int
+    let m'''  = M.fromAscList elems_misses :: M.IntMap Int
+    let m'''' = M.fromAscList elems_mixed  :: M.IntMap Int
+    evaluate $ rnf [m, m', m'', m''', m'''']
     defaultMain
-        [ bench "lookup" $ whnf (lookup keys) m
+        [ bench "lookup_hits" $ whnf (lookup keys) m
+        , bench "lookup_half" $ whnf (lookup keys) m'
+        , bench "lookup_most" $ whnf (lookup keys) m''
+        , bench "lookup_misses" $ whnf (lookup keys'') m'''
+        , bench "lookup_mixed" $ whnf (lookup keys) m''''
         , bench "insert" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
         , bench "insertWith update" $ whnf (insWith elems) m
@@ -44,12 +52,23 @@ main = do
                     (M.fromList $ zip [1..10] [1..10])
         ]
   where
-    elems = zip keys values
+    elems = elems_hits
+    elems_hits   = zip keys values
+    elems_mid    = zip (map (+ (2^12 `div` 2)) keys) values
+    elems_most   = zip (map (+ (2^12 `div` 10)) keys) values
+    elems_misses = zip (map (\x-> x * 2 + 1) keys) values
+    elems_mixed = zip mixedKeys values
+    --------------------------------------------------------
     keys = [1..2^12]
+    keys' = fmap (+ 1000000) keys
+    keys'' = fmap (* 2) [1..2^12]
+    mixedKeys = interleave keys keys'
     values = [1..2^12]
+    --------------------------------------------------------
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
 
+------------------------------------------------------------
 add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z
 {-# INLINE add3 #-}
@@ -95,3 +114,8 @@ alt xs m = foldl' (\m k -> M.alter id k m) m xs
 maybeDel :: Int -> Maybe Int
 maybeDel n | n `mod` 3 == 0 = Nothing
            | otherwise      = Just n
+
+------------------------------------------------------------
+interleave :: [Int] -> [Int] -> [Int]
+interleave [] ys = ys
+interleave (x:xs) (y:ys) = x : y : interleave xs ys

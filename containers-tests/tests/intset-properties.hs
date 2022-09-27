@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+import Control.Applicative (Const(..))
 import Data.Bits ((.&.), popCount)
 import Data.Word (Word)
 import Data.IntSet
@@ -8,14 +9,13 @@ import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import IntSetValidity (valid)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl)
-import Test.Framework
-import Test.Framework.Providers.HUnit
-import Test.Framework.Providers.QuickCheck2
-import Test.HUnit hiding (Test, Testable)
-import Test.QuickCheck hiding ((.&.))
+import Test.Tasty
+import Test.Tasty.HUnit
+import Test.Tasty.QuickCheck hiding ((.&.))
 
 main :: IO ()
-main = defaultMain [ testCase "lookupLT" test_lookupLT
+main = defaultMain $ testGroup "intset-properties"
+                   [ testCase "lookupLT" test_lookupLT
                    , testCase "lookupGT" test_lookupGT
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
@@ -71,6 +71,8 @@ main = defaultMain [ testCase "lookupLT" test_lookupLT
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
                    , testProperty "prop_bitcount" prop_bitcount
+                   , testProperty "prop_alterF_list" prop_alterF_list
+                   , testProperty "prop_alterF_const" prop_alterF_const
                    ]
 
 ----------------------------------------------------------------
@@ -425,3 +427,21 @@ prop_bitcount a w = bitcount_orig a w == bitcount_new a w
       where go a 0 = a
             go a x = go (a + 1) (x .&. (x-1))
     bitcount_new a x = a + popCount x
+
+prop_alterF_list
+    :: Fun Bool [Bool]
+    -> Int
+    -> IntSet
+    -> Property
+prop_alterF_list f k s =
+        fmap toSet (alterF     (applyFun f) k s)
+    ===             Set.alterF (applyFun f) k (toSet s)
+
+prop_alterF_const
+    :: Fun Bool Bool
+    -> Int
+    -> IntSet
+    -> Property
+prop_alterF_const f k s =
+        getConst (alterF     (Const . applyFun f) k s        )
+    === getConst (Set.alterF (Const . applyFun f) k (toSet s))

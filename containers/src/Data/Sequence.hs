@@ -78,7 +78,7 @@
 --
 -- == Detailed performance information
 --
--- An amortized running time is given for each operation, with /n/ referring
+-- An amortized running time is given for each operation, with \(n\) referring
 -- to the length of the sequence and /i/ being the integral index used by
 -- some operations. These bounds hold even in a persistent (shared) setting.
 --
@@ -102,9 +102,15 @@
 --
 -- Several functions take special advantage of sharing to produce
 -- results using much less time and memory than one might expect. These
--- are documented individually for functions, but also include the
--- methods '<$' and '*>', each of which take time and space proportional
--- to the logarithm of the size of the result.
+-- are documented individually for functions, but also include certain
+-- class methods:
+--
+-- '<$' and '*>' each take time and space proportional
+-- to the logarithm of the size of their result.
+--
+-- '<*' takes time and space proportional to the product of the length
+-- of its first argument and the logarithm of the length of its second
+-- argument.
 --
 -- == Warning
 --
@@ -244,7 +250,6 @@ import Data.Sequence.Internal.Sorting
 import Prelude ()
 #ifdef __HADDOCK_VERSION__
 import Control.Monad (Monad (..))
-import Control.Applicative (Applicative (..))
 import Data.Functor (Functor (..))
 #endif
 
@@ -291,7 +296,7 @@ onto the beginning of the second one.
 shift2Right :: Seq a -> Seq a -> (Seq a, Seq a)
 shift2Right Empty ys = (Empty, ys)
 shift2Right (Empty :|> x) ys = (Empty, x :<| ys)
-shift2Right (xs :|> x1 :|> x2) = (xs, x1 :<| x2 :<| ys)
+shift2Right (xs :|> x1 :|> x2) ys = (xs, x1 :<| x2 :<| ys)
 @
 
 @
