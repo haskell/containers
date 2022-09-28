@@ -1,0 +1,24 @@
+-- Note [ Template Haskell Dependencies ]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- Modules in containers use DeriveLift in order to give Lift instances for
+-- the data types. This is problematic for GHC when compiling multiple components at once
+-- which involve loading containers and template-haskell into the same session because
+--
+-- * Lift comes from Language.Haskell.TH.Syntax
+-- * DeriveLift used identifiers from Language.Haskell.TH.Lib.Internal
+--
+-- Therefore the modules add an import on Language.Haskell.TH.Syntax (in order to import Lift)
+-- but no dependency is recorded between the module and
+-- Language.Haskell.TH.Lib.Internal. However, we need to compile the Internal module
+-- before the module in containers as the desugared code for DeriveLift depends on the
+-- combinators defined in this module.
+--
+-- Can we fix this in GHC? How about adding these edges if a module enables DeriveLift?
+-- This option is precluded because -XDeriveLift is included in Haskell2021 so almost
+-- all modules which exhibit a new dependency on `template-haskell` library without
+-- using it. The most straightforward but ugly solution is to explicitly add these
+-- edges to the build graph. Most projects will not encounter this issue because
+-- they will not be compiled in the same session as the `template-haskell` package.
+--
+-- This has already caused a couple of build system issues in GHC, see !9049 for example.

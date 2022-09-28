@@ -126,6 +126,8 @@ import Data.Semigroup (Semigroup (..))
 import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #endif
 
 -- Make sure we don't use Integer by mistake.

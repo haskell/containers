@@ -215,6 +215,8 @@ import qualified GHC.Exts
 import qualified GHC.Int
 #  endif
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #endif
 
 import qualified Data.Foldable as Foldable

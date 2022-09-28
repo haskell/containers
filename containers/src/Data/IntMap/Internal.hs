@@ -72,6 +72,7 @@
 -- constructors are ordered by frequency.
 -- On GHC 7.0, reordering constructors from Nil | Tip | Bin to Bin | Tip | Nil
 -- improves the benchmark by circa 10%.
+--
 
 module Data.IntMap.Internal (
     -- * Map type
@@ -320,6 +321,8 @@ import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
 import Text.Read
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #endif
 import qualified Control.Category as Category
 
