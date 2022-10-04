@@ -3052,9 +3052,9 @@ mergeANE
   -> NonEmptyMap k b -- ^ Map @m2@
   -> f (Maybe (NonEmptyMap k c))
 mergeANE
-    (w0 @ WhenMissing{missingKey = g1k})
+    w0@(WhenMissing{missingKey = g1k})
     w1
-    (w2 @ (WhenMatched f))
+    w2@(WhenMatched f)
     (Bin' _ kx x1 l1 r1)
     t2
   = fmap nonEmpty $ case splitLookupNE kx t2 of
