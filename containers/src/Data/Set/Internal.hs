@@ -146,6 +146,7 @@ module Data.Set.Internal (
             , empty
             , singleton
             , insert
+            , insertWith
             , delete
             , alterF
             , powerSet
@@ -215,6 +216,7 @@ module Data.Set.Internal (
             , elems
             , toList
             , fromList
+            , fromListWith
 
             -- ** Ordered list
             , toAscList
@@ -535,6 +537,39 @@ insert x0 = go x0 x0
 #else
 {-# INLINE insert #-}
 #endif
+
+#ifndef __GLASGOW_HASKELL__
+lazy :: a -> a
+lazy a = a
+#endif
+
+-- | \(O(\log n)\). Insert an element in a set with a custom function for handling repetitions.
+-- If the set already contains an element equal to the given value,
+-- a function is applied to handle the output value.
+-- The present element is the first one to be applied.
+-- Used by `fromListWith`.
+
+-- See Note: Type of local 'go' function
+-- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
+insertWith :: Ord a => (a -> a -> a) -> a -> Set a -> Set a
+insertWith comb x0 = go x0 x0 comb
+  where
+    go :: Ord a => a -> a -> (a -> a -> a) -> Set a -> Set a
+    go orig !_ _ Tip = singleton (lazy orig)
+    go orig !x c t@(Bin sz y l r) = case compare x y of
+        LT | l' `ptrEq` l -> t
+           | otherwise -> balanceL y l' r
+           where !l' = go orig x c l
+        GT | r' `ptrEq` r -> t
+           | otherwise -> balanceR y l r'
+           where !r' = go orig x c r
+        EQ -> Bin sz (c y (lazy orig)) l r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE insertWith #-}
+#else
+{-# INLINE insertWith #-}
+#endif
+
 
 #ifndef __GLASGOW_HASKELL__
 lazy :: a -> a
@@ -1129,6 +1164,53 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                                                    (r, zs, ws) -> (link y l r, zs, ws)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromList #-}
+#endif
+
+-- | \(O(n \log n)\). Create a set from a list of elements with a custom function for handling repetitions.
+--
+-- If the elements are ordered, a linear-time implementation is used,
+-- with the performance equal to 'fromDistinctAscList'.
+-- The present element is the first one to be applied.
+
+-- For some reason, when 'singleton' is used in fromList or in
+-- create, it is not inlined, so we inline it manually.
+fromListWith :: Ord a => (a -> a -> a) -> [a] -> Set a
+fromListWith _ [] = Tip
+fromListWith _ [x] = Bin 1 x Tip Tip
+fromListWith comb (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
+                             | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+  where
+    not_ordered _ [] = False
+    not_ordered x (y : _) = x >= y
+    {-# INLINE not_ordered #-}
+
+    fromList' t0 xs = Foldable.foldl' ins t0 xs
+      where ins t x = insertWith comb x t
+      
+    go !_ t [] = t
+    go _ t [x] = insertMax x t
+    go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
+                        | otherwise = case create s xss of
+                            (r, ys, []) -> go (s `shiftL` 1) (link x l r) ys
+                            (r, _,  ys) -> fromList' (link x l r) ys
+
+    -- The create is returning a triple (tree, xs, ys). Both xs and ys
+    -- represent not yet processed elements and only one of them can be nonempty.
+    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
+    -- and must be inserted using fromList'. Otherwise the keys have been
+    -- ordered so far.
+    create !_ [] = (Tip, [], [])
+    create s xs@(x : xss)
+      | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
+                                      else (Bin 1 x Tip Tip, xss, [])
+      | otherwise = case create (s `shiftR` 1) xs of
+                      res@(_, [], _) -> res
+                      (l, [y], zs) -> (insertMax y l, [], zs)
+                      (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
+                                         | otherwise -> case create (s `shiftR` 1) yss of
+                                                   (r, zs, ws) -> (link y l r, zs, ws)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromListWith #-}
 #endif
 
 {--------------------------------------------------------------------

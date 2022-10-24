@@ -76,6 +76,7 @@ module Data.Set (
             , empty
             , singleton
             , fromList
+            , fromListWith
             , fromAscList
             , fromDescList
             , fromDistinctAscList
@@ -84,6 +85,7 @@ module Data.Set (
 
             -- * Insertion
             , insert
+            , insertWith
 
             -- * Deletion
             , delete
