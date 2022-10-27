@@ -155,14 +155,10 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
-#if (MIN_VERSION_base(4,9,0))
             , intersections
-#endif
             , cartesianProduct
             , disjointUnion
-#if (MIN_VERSION_base(4,9,0))
             , Intersection(..)
-#endif
 
 
             -- * Filter
@@ -883,7 +879,6 @@ intersection t1@(Bin _ x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
-#if (MIN_VERSION_base(4,9,0))
 -- | The intersection of a series of sets. Intersections are performed left-to-right.
 intersections :: Ord a => NonEmpty (Set a) -> Set a
 intersections (s0 :| ss) = List.foldr go id ss s0
@@ -899,7 +894,6 @@ newtype Intersection a = Intersection { getIntersection :: Set a }
 instance (Ord a) => Semigroup (Intersection a) where
     (Intersection a) <> (Intersection b) = Intersection $ intersection a b
     stimes = stimesIdempotent
-#endif
 
 {--------------------------------------------------------------------
   Filter and partition

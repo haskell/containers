@@ -1,12 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts, DataKinds #-}
-#if __GLASGOW_HASKELL__ >= 800
-{-# LANGUAGE MonoLocalBinds #-}
-#endif
-#if __GLASGOW_HASKELL__ < 710
--- Why do we need this? Guess it doesn't matter; this is all
--- going away soon.
-{-# LANGUAGE Trustworthy #-}
-#endif
+{-# LANGUAGE CPP, FlexibleContexts, DataKinds, MonoLocalBinds #-}
 
 #include "containers.h"
 
