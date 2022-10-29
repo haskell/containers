@@ -712,7 +712,7 @@ isSubsetOfX (Bin _ x l r) t
     size l <= size lt && size r <= size gt &&
     isSubsetOfX l lt && isSubsetOfX r gt
   where
-    (lt,found,gt) = splitMember x t
+    (lt,found,gt) = splitMemberUnbalanced x t
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOfX #-}
 #endif
@@ -743,7 +743,7 @@ disjoint (Bin _ x l r) t
   -- Analogous implementation to `subsetOfX`
   = not found && disjoint l lt && disjoint r gt
   where
-    (lt,found,gt) = splitMember x t
+    (lt,found,gt) = splitMemberUnbalanced x t
 
 {--------------------------------------------------------------------
   Minimal, Maximal
@@ -1306,6 +1306,24 @@ splitMember x (Bin _ y l r)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
+#endif
+
+-- Same as 'splitMember' but skips re-balancing by using 'bin' instead of 'link'.
+-- Attempting to build new trees out of these will error when re-balancing but
+-- this can improve performance when the resulting trees are disposable.
+splitMemberUnbalanced :: Ord a => a -> Set a -> (Set a,Bool,Set a)
+splitMemberUnbalanced _ Tip = (Tip, False, Tip)
+splitMemberUnbalanced x (Bin _ y l r)
+   = case compare x y of
+       LT -> let (lt, found, gt) = splitMemberUnbalanced x l
+                 !gt' = bin y gt r
+             in (lt, found, gt')
+       GT -> let (lt, found, gt) = splitMemberUnbalanced x r
+                 !lt' = bin y l lt
+             in (lt', found, gt)
+       EQ -> (l, True, r)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE splitMemberUnbalanced #-}
 #endif
 
 {--------------------------------------------------------------------
