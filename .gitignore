@@ -6,8 +6,8 @@
 *.swo
 *.tix
 .hpc/
-/dist/*
-/dist-newstyle/*
+**/dist/*
+**/dist-newstyle/*
 GNUmakefile
 dist-install
 ghc.mk
