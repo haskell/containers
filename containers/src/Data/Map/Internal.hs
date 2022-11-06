@@ -3052,9 +3052,9 @@ mergeANE
   -> NonEmptyMap k b -- ^ Map @m2@
   -> f (Maybe (NonEmptyMap k c))
 mergeANE
-    (w0 @ WhenMissing{missingKey = g1k})
+    w0@(WhenMissing{missingKey = g1k})
     w1
-    (w2 @ (WhenMatched f))
+    w2@(WhenMatched f)
     (Bin' _ kx x1 l1 r1)
     t2
   = fmap nonEmpty $ case splitLookupNE kx t2 of
@@ -3912,8 +3912,8 @@ fromListWith f xs
 
 -- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
--- > let f k a1 a2 = (show k) ++ a1 ++ a2
--- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"a")] == fromList [(3, "3ab"), (5, "5a5ba")]
+-- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
+-- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
 -- > fromListWithKey f [] == empty
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a

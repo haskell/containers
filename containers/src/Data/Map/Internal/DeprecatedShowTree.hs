@@ -1,6 +1,4 @@
-{-# LANGUAGE CPP, FlexibleContexts, DataKinds #-}
-{-# LANGUAGE MonoLocalBinds #-}
-
+{-# LANGUAGE CPP, FlexibleContexts, DataKinds, MonoLocalBinds #-}
 #include "containers.h"
 
 -- | This module simply holds disabled copies of functions from

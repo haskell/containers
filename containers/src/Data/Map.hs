@@ -4,9 +4,8 @@
 #endif
 
 #ifdef __GLASGOW_HASKELL__
-{-# LANGUAGE DataKinds, FlexibleContexts #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, MonoLocalBinds #-}
 #endif
-{-# LANGUAGE MonoLocalBinds #-}
 
 #include "containers.h"
 
