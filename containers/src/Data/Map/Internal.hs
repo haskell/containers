@@ -1899,7 +1899,7 @@ difference t1 (Bin _ k _ l2 r2) = case split k t1 of
 -- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Remove all keys in a 'Set' from a 'Map'.
 --
 -- @
--- m \`withoutKeys\` s = 'filterWithKey' (\k _ -> k ``Set.notMember`` s) m
+-- m \`withoutKeys\` s = 'filterWithKey' (\\k _ -> k ``Set.notMember`` s) m
 -- m \`withoutKeys\` s = m ``difference`` 'fromSet' (const ()) s
 -- @
 --
@@ -1981,7 +1981,7 @@ intersection t1@(Bin _ k x l1 r1) t2
 -- found in a 'Set'.
 --
 -- @
--- m \`restrictKeys\` s = 'filterWithKey' (\k _ -> k ``Set.member`` s) m
+-- m \`restrictKeys\` s = 'filterWithKey' (\\k _ -> k ``Set.member`` s) m
 -- m \`restrictKeys\` s = m ``intersection`` 'fromSet' (const ()) s
 -- @
 --
@@ -2467,10 +2467,8 @@ filterMissing f = WhenMissing
 -- | Filter the entries whose keys are missing from the other map
 -- using some 'Applicative' action.
 --
--- @
--- filterAMissing f = Merge.Lazy.traverseMaybeMissing $
---   \k x -> (\b -> guard b *> Just x) <$> f k x
--- @
+-- > filterAMissing f = Merge.Lazy.traverseMaybeMissing $
+-- >   \k x -> (\b -> guard b *> Just x) <$> f k x
 --
 -- but this should be a little faster.
 --
@@ -2899,7 +2897,7 @@ takeWhileAntitone p (Bin _ kx x l r)
 --
 -- @
 -- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' (p . fst) . 'toList'
--- dropWhileAntitone p = 'filterWithKey' (\k -> not (p k))
+-- dropWhileAntitone p = 'filterWithKey' (\\k _ -> not (p k))
 -- @
 --
 -- @since 0.5.8
@@ -2916,7 +2914,7 @@ dropWhileAntitone p (Bin _ kx x l r)
 --
 -- @
 -- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
--- spanAntitone p xs = partitionWithKey (\k _ -> p k) xs
+-- spanAntitone p xs = partitionWithKey (\\k _ -> p k) xs
 -- @
 --
 -- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the map
@@ -3082,7 +3080,7 @@ mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey
 #endif
 
 -- | \(O(n)\).
--- @'traverseWithKey' f m == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
+-- @'traverseWithKey' f m == 'fromList' \<$\> 'traverse' (\\(k, v) -> (,) k \<$\> f k v) ('toList' m)@
 -- That is, behaves exactly like a regular 'traverse' except that the traversing
 -- function also has access to the key associated with a value.
 --
