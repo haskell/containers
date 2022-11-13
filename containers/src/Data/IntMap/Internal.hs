@@ -228,6 +228,10 @@ module Data.IntMap.Internal (
     , partition
     , partitionWithKey
 
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -2613,6 +2617,101 @@ partitionWithKey predicate0 t0 = toPair $ go predicate0 t0
           | predicate k x -> (t :*: Nil)
           | otherwise     -> (Nil :*: t)
         Nil -> (Nil :*: Nil)
+
+-- | \(O(\min(n,W))\). Take while a predicate on the keys holds.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+-- See note at 'spanAntitone'.
+--
+-- @
+-- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' (p . fst) . 'toList'
+-- takeWhileAntitone p = 'filterWithKey' (\\k _ -> p k)
+-- @
+--
+-- @since FIXME
+takeWhileAntitone :: (Key -> Bool) -> IntMap a -> IntMap a
+takeWhileAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then union r (go predicate l)
+        else go predicate r
+    _ -> go predicate t
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = union l (go predicate' r)
+      | otherwise            = go predicate' l
+    go predicate' t'@(Tip ky _)
+      | predicate' ky = t'
+      | otherwise     = Nil
+    go _ Nil = Nil
+
+-- | \(O(\min(n,W))\). Drop while a predicate on the keys holds.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+-- See note at 'spanAntitone'.
+--
+-- @
+-- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' (p . fst) . 'toList'
+-- dropWhileAntitone p = 'filterWithKey' (\\k _ -> not (p k))
+-- @
+--
+-- @since FIXME
+dropWhileAntitone :: (Key -> Bool) -> IntMap a -> IntMap a
+dropWhileAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then go predicate l
+        else union (go predicate r) l
+    _ -> go predicate t
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = go predicate' r
+      | otherwise            = union (go predicate' l) r
+    go predicate' t'@(Tip ky _)
+      | predicate' ky = Nil
+      | otherwise     = t'
+    go _ Nil = Nil
+
+-- | \(O(\min(n,W))\). Divide a map at the point where a predicate on the keys stops holding.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+--
+-- @
+-- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
+-- spanAntitone p xs = 'partitionWithKey' (\\k _ -> p k) xs
+-- @
+--
+-- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the map
+-- at some /unspecified/ point.
+--
+-- @since FIXME
+spanAntitone :: (Key -> Bool) -> IntMap a -> (IntMap a, IntMap a)
+spanAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then
+          case go predicate l of
+            (lt :*: gt) ->
+              let !lt' = union r lt
+              in (lt', gt)
+        else
+          case go predicate r of
+            (lt :*: gt) ->
+              let !gt' = union gt l
+              in (lt, gt')
+    _ -> case go predicate t of
+          (lt :*: gt) -> (lt, gt)
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = case go predicate' r of (lt :*: gt) -> union l lt :*: gt
+      | otherwise            = case go predicate' l of (lt :*: gt) -> lt :*: union gt r
+    go predicate' t'@(Tip ky _)
+      | predicate' ky = (t' :*: Nil)
+      | otherwise     = (Nil :*: t')
+    go _ Nil = (Nil :*: Nil)
 
 -- | \(O(n)\). Map values and collect the 'Just' results.
 --
