@@ -136,6 +136,11 @@ module Data.IntSet.Internal (
     -- * Filter
     , filter
     , partition
+
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , split
     , splitMember
     , splitRoot
@@ -779,6 +784,95 @@ partition predicate0 t0 = toPair $ go predicate0 t0
                              | otherwise           = bm
             {-# INLINE bitPred #-}
 
+-- | \(O(\min(n,W))\). Take while a predicate on the elements holds.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+-- See note at 'spanAntitone'.
+--
+-- @
+-- takeWhileAntitone p = 'fromDistinctAscList' . 'Data.List.takeWhile' p . 'toList'
+-- takeWhileAntitone p = 'filter' p
+-- @
+--
+-- @since FIXME
+takeWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
+takeWhileAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then union r (go predicate l)
+        else go predicate r
+    _ -> go predicate t
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = union l (go predicate' r)
+      | otherwise            = go predicate' l
+    go predicate' (Tip kx bm) = tip kx (takeWhileAntitoneBits kx predicate' bm)
+    go _ Nil = Nil
+
+-- | \(O(\min(n,W))\). Drop while a predicate on the elements holds.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+-- See note at 'spanAntitone'.
+--
+-- @
+-- dropWhileAntitone p = 'fromDistinctAscList' . 'Data.List.dropWhile' p . 'toList'
+-- dropWhileAntitone p = 'filter' (not . p)
+-- @
+--
+-- @since FIXME
+dropWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
+dropWhileAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then go predicate l
+        else union (go predicate r) l
+    _ -> go predicate t
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = go predicate' r
+      | otherwise            = union (go predicate' l) r
+    go predicate' (Tip kx bm) = tip kx (bm `xor` takeWhileAntitoneBits kx predicate' bm)
+    go _ Nil = Nil
+
+-- | \(O(\min(n,W))\). Divide a map at the point where a predicate on the elements stops holding.
+-- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
+--
+-- @
+-- spanAntitone p xs = ('takeWhileAntitone' p xs, 'dropWhileAntitone' p xs)
+-- spanAntitone p xs = 'partition' p xs
+-- @
+--
+-- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the set
+-- at some /unspecified/ point.
+--
+-- @since FIXME
+spanAntitone :: (Key -> Bool) -> IntSet -> (IntSet, IntSet)
+spanAntitone predicate t =
+  case t of
+    Bin _ m l r
+      | m < 0 ->
+        if predicate 0 -- handle negative numbers.
+        then
+          case go predicate l of
+            (lt :*: gt) ->
+              let !lt' = union r lt
+              in (lt', gt)
+        else
+          case go predicate r of
+            (lt :*: gt) ->
+              let !gt' = union gt l
+              in (lt, gt')
+    _ -> case go predicate t of
+          (lt :*: gt) -> (lt, gt)
+  where
+    go predicate' (Bin p m l r)
+      | predicate' (p .|. m) = case go predicate' r of (lt :*: gt) -> union l lt :*: gt
+      | otherwise            = case go predicate' l of (lt :*: gt) -> lt :*: union gt r
+    go predicate' (Tip kx bm) = let bm' = takeWhileAntitoneBits kx predicate' bm
+                                in (tip kx bm' :*: tip kx (bm `xor` bm'))
+    go _ Nil = (Nil :*: Nil)
 
 -- | \(O(\min(n,W))\). The expression (@'split' x set@) is a pair @(set1,set2)@
 -- where @set1@ comprises the elements of @set@ less than @x@ and @set2@
@@ -1441,6 +1535,7 @@ foldlBits :: Int -> (a -> Int -> a) -> a -> Nat -> a
 foldl'Bits :: Int -> (a -> Int -> a) -> a -> Nat -> a
 foldrBits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
+takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 
 {-# INLINE lowestBitSet #-}
 {-# INLINE highestBitSet #-}
@@ -1448,6 +1543,7 @@ foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 {-# INLINE foldl'Bits #-}
 {-# INLINE foldrBits #-}
 {-# INLINE foldr'Bits #-}
+{-# INLINE takeWhileAntitoneBits #-}
 
 #if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
 indexOfTheOnlyBit :: Nat -> Int
@@ -1545,6 +1641,28 @@ foldr'Bits prefix f z bitmap = go (revNat bitmap) z
           where !bitmask = lowestBitMask bm
                 !bi = indexOfTheOnlyBit bitmask
 
+takeWhileAntitoneBits prefix predicate bitmap =
+  -- Binary search for the first index where the predicate returns false, but skip a predicate
+  -- call if the high half of the current range is empty. This ensures
+  -- min (log2 WORD_SIZE_IN_BITS + 1) (popcount bitmap) predicate calls.
+  let next d h (n',b') =
+        if n' .&. h /= 0 && (predicate $! prefix+b'+d) then (n' `shiftRL` d, b'+d) else (n',b')
+      {-# INLINE next #-}
+      (n,b) = next 2  0xF $
+              next 4  0xF0 $
+              next 8  0xFF00 $
+              next 16 0xFFFF0000 $
+#if WORD_SIZE_IN_BITS==32
+              (bitmap,0)
+#else
+              next 32 0xFFFFFFFF00000000 $
+              (bitmap,0)
+#endif
+      m | n .&. 0x2 /= 0 && (predicate $! prefix+b+1) = (4 `shiftLL` b) - 1
+        | n .&. 0x1 /= 0 && (predicate $! prefix+b)   = (2 `shiftLL` b) - 1
+        | otherwise                                   = (1 `shiftLL` b) - 1
+  in bitmap .&. m
+
 #else
 {----------------------------------------------------------------------
   In general case we use logarithmic implementation of
@@ -1595,6 +1713,11 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
         go !_ 0 = z
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
+
+takeWhileAntitoneBits prefix predicate = foldl'Bits prefix f 0 -- Does not use antitone property
+  where
+    f acc bi | predicate bi = acc .|. bitmapOf bi
+             | otherwise    = acc
 
 #endif
 
