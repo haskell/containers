@@ -50,6 +50,7 @@ main = do
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
                     (M.fromList $ zip [1..10] [1..10])
+        , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
         ]
   where
     elems = elems_hits
@@ -64,6 +65,7 @@ main = do
     keys'' = fmap (* 2) [1..2^12]
     mixedKeys = interleave keys keys'
     values = [1..2^12]
+    key_mid = 2^11
     --------------------------------------------------------
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs

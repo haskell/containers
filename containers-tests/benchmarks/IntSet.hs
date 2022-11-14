@@ -19,7 +19,8 @@ main = do
     let s = IS.fromAscList elems :: IS.IntSet
         s_even = IS.fromAscList elems_even :: IS.IntSet
         s_odd = IS.fromAscList elems_odd :: IS.IntSet
-    evaluate $ rnf [s, s_even, s_odd]
+        s_sparse = IS.fromAscList elems_sparse :: IS.IntSet
+    evaluate $ rnf [s, s_even, s_odd, s_sparse]
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) IS.empty
@@ -47,11 +48,16 @@ main = do
           $ whnf (num_transitions . det 2 0) $ hard_nfa    1 16
         , bench "instanceOrd:sparse" -- many Bin, each Tip is singleton
           $ whnf (num_transitions . det 2 0) $ hard_nfa 1111 16
+        , bench "spanAntitone:dense" $ whnf (IS.spanAntitone (<key_mid)) s
+        , bench "spanAntitone:sparse" $ whnf (IS.spanAntitone (<key_sparse_mid)) s_sparse
         ]
   where
     elems = [1..2^12]
     elems_even = [2,4..2^12]
     elems_odd = [1,3..2^12]
+    key_mid = 2^11
+    elems_sparse = map (*64) elems -- when built into a map, each Tip is a singleton
+    key_sparse_mid = 64 * key_mid
 
 member :: [Int] -> IS.IntSet -> Int
 member xs s = foldl' (\n x -> if IS.member x s then n + 1 else n) 0 xs
