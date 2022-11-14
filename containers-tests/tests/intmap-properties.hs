@@ -180,6 +180,9 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "deleteMax"            prop_deleteMaxModel
              , testProperty "filter"               prop_filter
              , testProperty "partition"            prop_partition
+             , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
+             , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
+             , testProperty "spanAntitone"         prop_spanAntitone
              , testProperty "map"                  prop_map
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
@@ -1468,6 +1471,26 @@ prop_partition p ys = length ys > 0 ==>
       valid r .&&.
       m === let (a,b) = (List.partition (apply p . snd) xs)
             in (fromList a, fromList b)
+
+prop_takeWhileAntitone :: Int -> [(Int, Int)] -> Property
+prop_takeWhileAntitone x ys =
+  let l = takeWhileAntitone (<x) (fromList ys)
+  in  valid l .&&.
+      l === fromList (List.filter ((<x) . fst) ys)
+
+prop_dropWhileAntitone :: Int -> [(Int, Int)] -> Property
+prop_dropWhileAntitone x ys =
+  let r = dropWhileAntitone (<x) (fromList ys)
+  in  valid r .&&.
+      r === fromList (List.filter ((>=x) . fst) ys)
+
+prop_spanAntitone :: Int -> [(Int, Int)] -> Property
+prop_spanAntitone x ys =
+  let (l, r) = spanAntitone (<x) (fromList ys)
+  in  valid l .&&.
+      valid r .&&.
+      l === fromList (List.filter ((<x) . fst) ys) .&&.
+      r === fromList (List.filter ((>=x) . fst) ys)
 
 prop_map :: Fun Int Int -> [(Int, Int)] -> Property
 prop_map f ys = length ys > 0 ==>
