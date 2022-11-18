@@ -1629,11 +1629,6 @@ findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Map.findMin: empty map has no minimal element"
 
--- | \(O(\log n)\). The maximal key of the map. Calls 'error' if the map is empty.
---
--- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
--- > findMax empty                            Error: empty map has no maximal element
-
 lookupMaxSure :: k -> a -> Map k a -> (k, a)
 lookupMaxSure k a Tip = (k, a)
 lookupMaxSure _ _ (Bin _ k a _ r) = lookupMaxSure k a r
@@ -1648,6 +1643,11 @@ lookupMaxSure _ _ (Bin _ k a _ r) = lookupMaxSure k a r
 lookupMax :: Map k a -> Maybe (k, a)
 lookupMax Tip = Nothing
 lookupMax (Bin _ k x _ r) = Just $! lookupMaxSure k x r
+
+-- | \(O(\log n)\). The maximal key of the map. Calls 'error' if the map is empty.
+--
+-- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
+-- > findMax empty                            Error: empty map has no maximal element
 
 findMax :: Map k a -> (k,a)
 findMax t
