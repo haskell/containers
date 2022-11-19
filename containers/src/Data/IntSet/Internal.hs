@@ -1299,7 +1299,7 @@ showWide wide bars
 
 showsBars :: [String] -> ShowS
 showsBars [] = id
-showsBars bars = showString (concat (reverse (tail bars))) . showString node
+showsBars (_ : tl) = showString (concat (reverse tl)) . showString node
 
 showsBitMap :: Word -> ShowS
 showsBitMap = showString . showBitMap

@@ -1977,7 +1977,7 @@ showsBars :: [String] -> ShowS
 showsBars bars
   = case bars of
       [] -> id
-      _  -> showString (concat (reverse (tail bars))) . showString node
+      _ : tl -> showString (concat (reverse tl)) . showString node
 
 node :: String
 node           = "+--"
