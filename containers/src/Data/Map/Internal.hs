@@ -3,6 +3,7 @@
 {-# LANGUAGE PatternGuards #-}
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE UnboxedTuples #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
@@ -236,7 +237,9 @@ module Data.Map.Internal (
     -- * Traversal
     -- ** Map
     , map
+    , mapU
     , mapWithKey
+    , mapWithKeyU
     , traverseWithKey
     , traverseMaybeWithKey
     , mapAccum
@@ -301,6 +304,7 @@ module Data.Map.Internal (
 
     , mapMaybe
     , mapMaybeWithKey
+    , mapMaybeWithKeyU
     , mapEither
     , mapEitherWithKey
 
@@ -407,6 +411,8 @@ import Data.Data
 import qualified Control.Category as Category
 import Data.Coerce
 #endif
+import Utils.Containers.Internal.UnboxedMaybe
+import Utils.Containers.Internal.UnboxedSolo
 
 
 {--------------------------------------------------------------------
@@ -2849,6 +2855,7 @@ isProperSubmapOfBy f t1 t2
 filter :: (a -> Bool) -> Map k a -> Map k a
 filter p m
   = filterWithKey (\_ x -> p x) m
+{-# INLINE filter #-}
 
 -- | \(O(n)\). Filter all keys\/values that satisfy the predicate.
 --
@@ -2863,6 +2870,32 @@ filterWithKey p t@(Bin _ kx x l r)
   | otherwise = link2 pl pr
   where !pl = filterWithKey p l
         !pr = filterWithKey p r
+{-# NOINLINE [1] filterWithKey #-}
+
+{-# RULES
+"filterWK/filterWK" forall p q m. filterWithKey p (filterWithKey q m) =
+  filterWithKey (\k x -> q k x && p k x) m
+"filterWK/mapU" forall p f m. filterWithKey p (mapU f m) =
+  mapMaybeWithKeyU (\k x -> case f x of
+    SoloU y
+      | p k y -> JustU y
+      | otherwise -> NothingU) m
+"filterWK/mapWK#" forall p f m. filterWithKey p (mapWithKeyU f m) =
+  mapMaybeWithKeyU (\k x -> case f k x of
+    SoloU y
+      | p k y -> JustU y
+      | otherwise -> NothingU) m
+"mapU/filterWK" forall f p m. mapU f (filterWithKey p m) =
+  mapMaybeWithKeyU (\k x ->
+    if p k x
+    then case f x of SoloU y -> JustU y
+    else NothingU) m
+"mapWK#/filterWK" forall f p m. mapWithKeyU f (filterWithKey p m) =
+  mapMaybeWithKeyU (\k x ->
+    if p k x
+    then case f k x of SoloU y -> JustU y
+    else NothingU) m
+ #-}
 
 -- | \(O(n)\). Filter keys and values using an 'Applicative'
 -- predicate.
@@ -2977,6 +3010,7 @@ partitionWithKey p0 t0 = toPair $ go p0 t0
 
 mapMaybe :: (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
+{-# INLINE mapMaybe #-}
 
 -- | \(O(n)\). Map keys\/values and collect the 'Just' results.
 --
@@ -2984,10 +3018,46 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
-mapMaybeWithKey _ Tip = Tip
-mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
-  Just y  -> link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-  Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+mapMaybeWithKey f = \m ->
+  mapMaybeWithKeyU (\k x -> toMaybeU (f k x)) m
+{-# INLINE mapMaybeWithKey #-}
+
+mapMaybeWithKeyU :: (k -> a -> MaybeU b) -> Map k a -> Map k b
+mapMaybeWithKeyU _ Tip = Tip
+mapMaybeWithKeyU f (Bin _ kx x l r) = case f kx x of
+  JustU y  -> link kx y (mapMaybeWithKeyU f l) (mapMaybeWithKeyU f r)
+  NothingU -> link2 (mapMaybeWithKeyU f l) (mapMaybeWithKeyU f r)
+{-# NOINLINE [1] mapMaybeWithKeyU #-}
+
+{-# RULES
+"mapMaybeWK#/mapU" forall f g m. mapMaybeWithKeyU f (mapU g m) =
+  mapMaybeWithKeyU (\k x -> case g x of SoloU y -> f k y) m
+"mapU/mapMaybeWK#" forall f g m. mapU f (mapMaybeWithKeyU g m) =
+  mapMaybeWithKeyU
+    (\k x -> case g k x of
+               NothingU -> NothingU
+               JustU y -> case f y of SoloU z -> JustU z) m
+"mapMaybeWK#/mapWK#" forall f g m. mapMaybeWithKeyU f (mapWithKeyU g m) =
+  mapMaybeWithKeyU (\k x -> case g k x of SoloU y -> f k y) m
+"mapWK#/mapMaybeWK#" forall f g m. mapWithKeyU f (mapMaybeWithKeyU g m) =
+  mapMaybeWithKeyU
+    (\k x -> case g k x of
+               NothingU -> NothingU
+               JustU y -> case f k y of SoloU z -> JustU z) m
+"mapMaybeWK#/mapMaybeWK#" forall f g m. mapMaybeWithKeyU f (mapMaybeWithKeyU g m) =
+  mapMaybeWithKeyU
+    (\k x -> case g k x of
+               NothingU -> NothingU
+               JustU y -> f k y) m
+"mapMaybeWK#/filterWK" forall f p m. mapMaybeWithKeyU f (filterWithKey p m) =
+  mapMaybeWithKeyU (\k x -> if p k x then f k x else NothingU) m
+"filterWK/mapMaybeWK#" forall p f m. filterWithKey p (mapMaybeWithKeyU f m) =
+  mapMaybeWithKeyU (\k x -> case f k x of
+    NothingU -> NothingU
+    JustU y
+      | p k y -> JustU y
+      | otherwise -> NothingU) m
+ #-}
 
 -- | \(O(n)\). Traverse keys\/values and collect the 'Just' results.
 --
@@ -3045,17 +3115,38 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map f = go where
-  go Tip = Tip
-  go (Bin sx kx x l r) = Bin sx kx (f x) (go l) (go r)
--- We use a `go` function to allow `map` to inline. This makes
--- a big difference if someone uses `map (const x) m` instead
--- of `x <$ m`; it doesn't seem to do any harm.
-
+-- We define map using mapU solely to reduce the number of rewrite
+-- rules we need.
+map f = mapU (\x -> SoloU (f x))
+-- We delay inlinability of map to support map/coerce. While a
+-- mapU/coerce rule seems to work when everything is done just so,
+-- it feels too brittle to me for now (GHC 9.4).
 #ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] map #-}
+{-# INLINABLE [1] map #-}
+#endif
+
+mapU :: (a -> SoloU b) -> Map k a -> Map k b
+mapU f = go where
+  go Tip = Tip
+  go (Bin sx kx x l r)
+    | SoloU y <- f x
+    = Bin sx kx y (go l) (go r)
+#if defined (__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ >= 806) && (__GLASGOW_HASKELL__ < 810)
+  -- Something goes wrong checking SoloU completeness
+  -- in these versions
+  go _ = error "impossible"
+#endif
+
+-- We use a `go` function to allow `mapU` to inline. Without this,
+-- we'd slow down both strict and lazy map, which wouldn't be great.
+-- This also lets us avoid a custom implementation of <$
+
+-- We don't let mapU inline until phase 0 because we need a step
+-- after map inlines.
+#ifdef __GLASGOW_HASKELL__
+{-# NOINLINE [0] mapU #-}
 {-# RULES
-"map/map" forall f g xs . map f (map g xs) = map (f . g) xs
+"mapU/mapU" forall f g xs . mapU f (mapU g xs) = mapU (\x -> case g x of SoloU y -> f y) xs
 "map/coerce" map coerce = coerce
  #-}
 #endif
@@ -3066,20 +3157,34 @@ map f = go where
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
-mapWithKey _ Tip = Tip
-mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
+mapWithKey f = mapWithKeyU (\k a -> SoloU (f k a))
+#ifdef __GLASGOW_HASKELL__
+{-# INLINABLE mapWithKey #-}
+#endif
+
+-- | A version of 'mapWithKey' that takes a function producing a unary
+-- unboxed tuple.
+mapWithKeyU :: (k -> a -> SoloU b) -> Map k a -> Map k b
+mapWithKeyU f = go where
+  go Tip = Tip
+  go (Bin sx kx x l r)
+    | SoloU y <- f kx x
+    = Bin sx kx y (go l) (go r)
+#if defined (__GLASGOW_HASKELL__) && (__GLASGOW_HASKELL__ >= 806) && (__GLASGOW_HASKELL__ < 810)
+  -- Something goes wrong checking SoloU completeness
+  -- in these versions
+  go _ = error "impossible"
+#endif
 
 #ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] mapWithKey #-}
+{-# NOINLINE [1] mapWithKeyU #-}
 {-# RULES
-"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
-  mapWithKey (\k a -> f k (g k a)) xs
-"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
-  mapWithKey (\k a -> f k (g a)) xs
-"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
-  mapWithKey (\k a -> f (g k a)) xs
+"mapWK#/mapWK#" forall f g xs. mapWithKeyU f (mapWithKeyU g xs) = mapWithKeyU (\k x -> case g k x of SoloU y -> f k y) xs
+"mapWK#/mapU" forall f g xs. mapWithKeyU f (mapU g xs) = mapWithKeyU (\k x -> case g x of SoloU y -> f k y) xs
+"mapU/mapWK#" forall f g xs. mapU f (mapWithKeyU g xs) = mapWithKeyU (\k x -> case g k x of SoloU y -> f y) xs
  #-}
 #endif
+
 
 -- | \(O(n)\).
 -- @'traverseWithKey' f m == 'fromList' <$> 'traverse' (\(k, v) -> (,) k <$> f k v) ('toList' m)@
@@ -4195,9 +4300,10 @@ instance (Ord k, Read k) => Read1 (Map k) where
 --------------------------------------------------------------------}
 instance Functor (Map k) where
   fmap f m  = map f m
+  a <$ m = map (const a) m
 #ifdef __GLASGOW_HASKELL__
-  _ <$ Tip = Tip
-  a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
+  {-# INLINABLE fmap #-}
+  {-# INLINABLE (<$) #-}
 #endif
 
 -- | Traverses in order of increasing key.
