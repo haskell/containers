@@ -797,15 +797,15 @@ partition predicate0 t0 = toPair $ go predicate0 t0
 takeWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
 takeWhileAntitone predicate t =
   case t of
-    Bin _ m l r
+    Bin p m l r
       | m < 0 ->
         if predicate 0 -- handle negative numbers.
-        then union r (go predicate l)
+        then bin p m (go predicate l) r
         else go predicate r
     _ -> go predicate t
   where
     go predicate' (Bin p m l r)
-      | predicate' (p .|. m) = union l (go predicate' r)
+      | predicate' (p .|. m) = bin p m l (go predicate' r)
       | otherwise            = go predicate' l
     go predicate' (Tip kx bm) = tip kx (takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
@@ -823,16 +823,16 @@ takeWhileAntitone predicate t =
 dropWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
 dropWhileAntitone predicate t =
   case t of
-    Bin _ m l r
+    Bin p m l r
       | m < 0 ->
         if predicate 0 -- handle negative numbers.
         then go predicate l
-        else union (go predicate r) l
+        else bin p m l (go predicate r)
     _ -> go predicate t
   where
     go predicate' (Bin p m l r)
       | predicate' (p .|. m) = go predicate' r
-      | otherwise            = union (go predicate' l) r
+      | otherwise            = bin p m (go predicate' l) r
     go predicate' (Tip kx bm) = tip kx (bm `xor` takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
 
@@ -851,25 +851,25 @@ dropWhileAntitone predicate t =
 spanAntitone :: (Key -> Bool) -> IntSet -> (IntSet, IntSet)
 spanAntitone predicate t =
   case t of
-    Bin _ m l r
+    Bin p m l r
       | m < 0 ->
         if predicate 0 -- handle negative numbers.
         then
           case go predicate l of
             (lt :*: gt) ->
-              let !lt' = union r lt
+              let !lt' = bin p m lt r
               in (lt', gt)
         else
           case go predicate r of
             (lt :*: gt) ->
-              let !gt' = union gt l
+              let !gt' = bin p m l gt
               in (lt, gt')
     _ -> case go predicate t of
           (lt :*: gt) -> (lt, gt)
   where
     go predicate' (Bin p m l r)
-      | predicate' (p .|. m) = case go predicate' r of (lt :*: gt) -> union l lt :*: gt
-      | otherwise            = case go predicate' l of (lt :*: gt) -> lt :*: union gt r
+      | predicate' (p .|. m) = case go predicate' r of (lt :*: gt) -> bin p m l lt :*: gt
+      | otherwise            = case go predicate' l of (lt :*: gt) -> lt :*: bin p m gt r
     go predicate' (Tip kx bm) = let bm' = takeWhileAntitoneBits kx predicate' bm
                                 in (tip kx bm' :*: tip kx (bm `xor` bm'))
     go _ Nil = (Nil :*: Nil)
