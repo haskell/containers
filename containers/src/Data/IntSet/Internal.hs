@@ -503,7 +503,7 @@ deleteBM _ _ Nil = Nil
 -- In short:
 --
 -- @
--- 'member' x \<$\> 'alterF' f x s = f ('member' x s)
+-- 'member' x '<$>' 'alterF' f x s = f ('member' x s)
 -- @
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
