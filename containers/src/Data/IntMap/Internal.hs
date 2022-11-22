@@ -1032,7 +1032,7 @@ alter f k Nil     = case f Nothing of
 
 -- | \(O(\min(n,W))\). The expression (@'alterF' f k map@) alters the value @x@ at
 -- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
--- or update a value in an 'IntMap'.  In short : @'lookup' k <$> 'alterF' f k m = f
+-- or update a value in an 'IntMap'.  In short : @'lookup' k \<$\> 'alterF' f k m = f
 -- ('lookup' k m)@.
 --
 -- Example:
