@@ -805,8 +805,8 @@ takeWhileAntitone predicate t =
     _ -> go predicate t
   where
     go predicate' (Bin p m l r)
-      | predicate' (p .|. m) = bin p m l (go predicate' r)
-      | otherwise            = go predicate' l
+      | predicate' $! p+m = bin p m l (go predicate' r)
+      | otherwise         = go predicate' l
     go predicate' (Tip kx bm) = tip kx (takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
 
@@ -831,8 +831,8 @@ dropWhileAntitone predicate t =
     _ -> go predicate t
   where
     go predicate' (Bin p m l r)
-      | predicate' (p .|. m) = go predicate' r
-      | otherwise            = bin p m (go predicate' l) r
+      | predicate' $! p+m = go predicate' r
+      | otherwise         = bin p m (go predicate' l) r
     go predicate' (Tip kx bm) = tip kx (bm `xor` takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
 
@@ -868,8 +868,8 @@ spanAntitone predicate t =
           (lt :*: gt) -> (lt, gt)
   where
     go predicate' (Bin p m l r)
-      | predicate' (p .|. m) = case go predicate' r of (lt :*: gt) -> bin p m l lt :*: gt
-      | otherwise            = case go predicate' l of (lt :*: gt) -> lt :*: bin p m gt r
+      | predicate' $! p+m = case go predicate' r of (lt :*: gt) -> bin p m l lt :*: gt
+      | otherwise         = case go predicate' l of (lt :*: gt) -> lt :*: bin p m gt r
     go predicate' (Tip kx bm) = let bm' = takeWhileAntitoneBits kx predicate' bm
                                 in (tip kx bm' :*: tip kx (bm `xor` bm'))
     go _ Nil = (Nil :*: Nil)
