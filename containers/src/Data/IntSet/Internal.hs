@@ -1648,19 +1648,18 @@ takeWhileAntitoneBits prefix predicate bitmap =
   let next d h (n',b') =
         if n' .&. h /= 0 && (predicate $! prefix+b'+d) then (n' `shiftRL` d, b'+d) else (n',b')
       {-# INLINE next #-}
-      (n,b) = next 2  0xF $
+      (_,b) = next 1  0x2 $
+              next 2  0xC $
               next 4  0xF0 $
               next 8  0xFF00 $
               next 16 0xFFFF0000 $
-#if WORD_SIZE_IN_BITS==32
-              (bitmap,0)
-#else
+#if WORD_SIZE_IN_BITS==64
               next 32 0xFFFFFFFF00000000 $
-              (bitmap,0)
 #endif
-      m | n .&. 0x2 /= 0 && (predicate $! prefix+b+1) = (4 `shiftLL` b) - 1
-        | n .&. 0x1 /= 0 && (predicate $! prefix+b)   = (2 `shiftLL` b) - 1
-        | otherwise                                   = (1 `shiftLL` b) - 1
+              (bitmap,0)
+      m = if b /= 0 || (bitmap .&. 0x1 /= 0 && predicate prefix)
+          then ((2 `shiftLL` b) - 1)
+          else ((1 `shiftLL` b) - 1)
   in bitmap .&. m
 
 #else
