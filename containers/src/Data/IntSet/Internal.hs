@@ -836,7 +836,7 @@ dropWhileAntitone predicate t =
     go predicate' (Tip kx bm) = tip kx (bm `xor` takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
 
--- | \(O(\min(n,W))\). Divide a map at the point where a predicate on the elements stops holding.
+-- | \(O(\min(n,W))\). Divide a set at the point where a predicate on the elements stops holding.
 -- The user is responsible for ensuring that for all @Int@s, @j \< k ==\> p j \>= p k@.
 --
 -- @
