@@ -50,14 +50,18 @@ main = do
           $ whnf (num_transitions . det 2 0) $ hard_nfa 1111 16
         , bench "spanAntitone:dense" $ whnf (IS.spanAntitone (<elem_mid)) s
         , bench "spanAntitone:sparse" $ whnf (IS.spanAntitone (<elem_sparse_mid)) s_sparse
+        , bench "split:dense" $ whnf (IS.split elem_mid) s
+        , bench "split:sparse" $ whnf (IS.split elem_sparse_mid) s_sparse
+        , bench "splitMember:dense" $ whnf ((\(!l, !x, !r) -> ()) . IS.splitMember elem_mid) s
+        , bench "splitMember:sparse" $ whnf ((\(!l, !x, !r) -> ()) . IS.splitMember elem_sparse_mid) s_sparse
         ]
   where
     elems = [1..2^12]
     elems_even = [2,4..2^12]
     elems_odd = [1,3..2^12]
-    elem_mid = 2^11
+    elem_mid = 2^11 + 31 -- falls in the middle of a packed Tip bitmask (assuming 64-bit words)
     elems_sparse = map (*64) elems -- when built into a map, each Tip is a singleton
-    elem_sparse_mid = 64 * elem_mid
+    elem_sparse_mid = 2^11 * 64
 
 member :: [Int] -> IS.IntSet -> Int
 member xs s = foldl' (\n x -> if IS.member x s then n + 1 else n) 0 xs

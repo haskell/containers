@@ -51,6 +51,8 @@ main = do
         , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
                     (M.fromList $ zip [1..10] [1..10])
         , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
+        , bench "split" $ whnf (M.split key_mid) m
+        , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
         ]
   where
     elems = elems_hits
