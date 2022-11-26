@@ -933,8 +933,16 @@ splitMember x t =
   where
     go x' t'@(Bin p m l r)
         | nomatch x' p m = if x' < p then (Nil, False, t') else (t', False, Nil)
-        | zero x' m      = case go x' l of (lt, fnd, gt) -> (lt, fnd, bin p m gt r)
-        | otherwise      = case go x' r of (lt, fnd, gt) -> (bin p m l lt, fnd, gt)
+        | zero x' m =
+          case go x' l of
+            (lt, fnd, gt) ->
+              let !gt' = bin p m gt r
+              in (lt, fnd, gt')
+        | otherwise =
+          case go x' r of
+            (lt, fnd, gt) ->
+              let !lt' = bin p m l lt
+              in (lt', fnd, gt)
     go x' t'@(Tip kx' bm)
         | kx' > x'          = (Nil, False, t')
           -- equivalent to kx' > prefixOf x'

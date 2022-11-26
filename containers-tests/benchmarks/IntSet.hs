@@ -52,8 +52,8 @@ main = do
         , bench "spanAntitone:sparse" $ whnf (IS.spanAntitone (<elem_sparse_mid)) s_sparse
         , bench "split:dense" $ whnf (IS.split elem_mid) s
         , bench "split:sparse" $ whnf (IS.split elem_sparse_mid) s_sparse
-        , bench "splitMember:dense" $ whnf ((\(!l, !x, !r) -> ()) . IS.splitMember elem_mid) s
-        , bench "splitMember:sparse" $ whnf ((\(!l, !x, !r) -> ()) . IS.splitMember elem_sparse_mid) s_sparse
+        , bench "splitMember:dense" $ whnf (IS.splitMember elem_mid) s
+        , bench "splitMember:sparse" $ whnf (IS.splitMember elem_sparse_mid) s_sparse
         ]
   where
     elems = [1..2^12]
