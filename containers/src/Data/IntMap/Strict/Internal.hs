@@ -217,6 +217,10 @@ module Data.IntMap.Strict.Internal (
     , partition
     , partitionWithKey
 
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -327,6 +331,9 @@ import Data.IntMap.Internal
   , null
   , partition
   , partitionWithKey
+  , takeWhileAntitone
+  , dropWhileAntitone
+  , spanAntitone
   , restrictKeys
   , size
   , split

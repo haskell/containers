@@ -111,6 +111,11 @@ module Data.IntSet (
             -- * Filter
             , IS.filter
             , partition
+
+            , takeWhileAntitone
+            , dropWhileAntitone
+            , spanAntitone
+
             , split
             , splitMember
             , splitRoot

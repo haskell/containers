@@ -70,6 +70,9 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "takeWhileAntitone" prop_takeWhileAntitone
+                   , testProperty "dropWhileAntitone" prop_dropWhileAntitone
+                   , testProperty "spanAntitone" prop_spanAntitone
                    , testProperty "prop_bitcount" prop_bitcount
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
@@ -419,6 +422,26 @@ prop_filter s i =
   in valid odds .&&.
      valid evens .&&.
      parts === (odds, evens)
+
+prop_takeWhileAntitone :: Int -> [Int] -> Property
+prop_takeWhileAntitone x ys =
+  let l = takeWhileAntitone (<x) (fromList ys)
+  in  valid l .&&.
+      l === fromList (List.filter (<x) ys)
+
+prop_dropWhileAntitone :: Int -> [Int] -> Property
+prop_dropWhileAntitone x ys =
+  let r = dropWhileAntitone (<x) (fromList ys)
+  in  valid r .&&.
+      r === fromList (List.filter (>=x) ys)
+
+prop_spanAntitone :: Int -> [Int] -> Property
+prop_spanAntitone x ys =
+  let (l, r) = spanAntitone (<x) (fromList ys)
+  in  valid l .&&.
+      valid r .&&.
+      l === fromList (List.filter (<x) ys) .&&.
+      r === fromList (List.filter (>=x) ys)
 
 prop_bitcount :: Int -> Word -> Bool
 prop_bitcount a w = bitcount_orig a w == bitcount_new a w

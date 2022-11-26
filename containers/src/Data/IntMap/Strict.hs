@@ -217,6 +217,10 @@ module Data.IntMap.Strict (
     , partition
     , partitionWithKey
 
+    , takeWhileAntitone
+    , dropWhileAntitone
+    , spanAntitone
+
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
