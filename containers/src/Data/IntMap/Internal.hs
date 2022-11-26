@@ -2782,26 +2782,26 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 split :: Key -> IntMap a -> (IntMap a, IntMap a)
 split k t =
   case t of
-    Bin _ m l r
+    Bin p m l r
       | m < 0 ->
         if k >= 0 -- handle negative numbers.
         then
           case go k l of
             (lt :*: gt) ->
-              let !lt' = union r lt
+              let !lt' = bin p m lt r
               in (lt', gt)
         else
           case go k r of
             (lt :*: gt) ->
-              let !gt' = union gt l
+              let !gt' = bin p m l gt
               in (lt, gt')
     _ -> case go k t of
           (lt :*: gt) -> (lt, gt)
   where
     go k' t'@(Bin p m l r)
       | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
-      | zero k' m = case go k' l of (lt :*: gt) -> lt :*: union gt r
-      | otherwise = case go k' r of (lt :*: gt) -> union l lt :*: gt
+      | zero k' m = case go k' l of (lt :*: gt) -> lt :*: bin p m gt r
+      | otherwise = case go k' r of (lt :*: gt) -> bin p m l lt :*: gt
     go k' t'@(Tip ky _)
       | k' > ky   = (t' :*: Nil)
       | k' < ky   = (Nil :*: t')
@@ -2832,11 +2832,11 @@ splitLookup :: Key -> IntMap a -> (IntMap a, Maybe a, IntMap a)
 splitLookup k t =
   case
     case t of
-      Bin _ m l r
+      Bin p m l r
         | m < 0 ->
           if k >= 0 -- handle negative numbers.
-          then mapLT (union r) (go k l)
-          else mapGT (`union` l) (go k r)
+          then mapLT (flip (bin p m) r) (go k l)
+          else mapGT (bin p m l) (go k r)
       _ -> go k t
   of SplitLookup lt fnd gt -> (lt, fnd, gt)
   where
@@ -2845,8 +2845,8 @@ splitLookup k t =
           if k' > p
           then SplitLookup t' Nothing Nil
           else SplitLookup Nil Nothing t'
-      | zero k' m = mapGT (`union` r) (go k' l)
-      | otherwise = mapLT (union l) (go k' r)
+      | zero k' m = mapGT (flip (bin p m) r) (go k' l)
+      | otherwise = mapLT (bin p m l) (go k' r)
     go k' t'@(Tip ky y)
       | k' > ky   = SplitLookup t'  Nothing  Nil
       | k' < ky   = SplitLookup Nil Nothing  t'
