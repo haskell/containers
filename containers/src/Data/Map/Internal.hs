@@ -398,6 +398,8 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build, lazy)
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #  ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #  endif

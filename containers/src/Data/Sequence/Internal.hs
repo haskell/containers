@@ -226,6 +226,8 @@ import Text.Read (Lexeme(Ident), lexP, parens, prec,
 import Data.Data
 import Data.String (IsString(..))
 import qualified Language.Haskell.TH.Syntax as TH
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 import GHC.Generics (Generic, Generic1)
 #endif
 

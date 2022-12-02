@@ -63,6 +63,8 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Data (Data)
 import GHC.Generics (Generic, Generic1)
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #endif
 
 import Control.Monad.Zip (MonadZip (..))

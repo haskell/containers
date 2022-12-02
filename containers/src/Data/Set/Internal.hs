@@ -257,6 +257,8 @@ import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
                  , lexP, readListPrecDefault )
 import Data.Data
 import Language.Haskell.TH.Syntax (Lift)
+-- See Note [ Template Haskell Dependencies ]
+import Language.Haskell.TH ()
 #endif
 
 
