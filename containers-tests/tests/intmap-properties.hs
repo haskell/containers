@@ -187,6 +187,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fmap"                 prop_fmap
              , testProperty "mapkeys"              prop_mapkeys
              , testProperty "split"                prop_splitModel
+             , testProperty "splitLookup"          prop_splitLookup
              , testProperty "splitRoot"            prop_splitRoot
              , testProperty "foldr"                prop_foldr
              , testProperty "foldr'"               prop_foldr'
@@ -1518,6 +1519,16 @@ prop_splitModel n ys = length ys > 0 ==>
       valid r .&&.
       toAscList l === sort [(k, v) | (k,v) <- xs, k < n] .&&.
       toAscList r === sort [(k, v) | (k,v) <- xs, k > n]
+
+prop_splitLookup :: Int -> [(Int, Int)] -> Property
+prop_splitLookup n ys =
+    let xs = List.nubBy ((==) `on` fst) ys
+        (l, x, r) = splitLookup n (fromList xs)
+    in  valid l .&&.
+        valid r .&&.
+        x === List.lookup n xs .&&.
+        toAscList l === sort [(k, v) | (k,v) <- xs, k < n] .&&.
+        toAscList r === sort [(k, v) | (k,v) <- xs, k > n]
 
 prop_splitRoot :: IMap -> Bool
 prop_splitRoot s = loop ls && (s == unions ls)

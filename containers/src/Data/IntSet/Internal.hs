@@ -884,23 +884,26 @@ spanAntitone predicate t =
 split :: Key -> IntSet -> (IntSet,IntSet)
 split x t =
   case t of
-      Bin _ m l r
-          | m < 0 -> if x >= 0  -- handle negative numbers.
-                     then case go x l of (lt :*: gt) -> let !lt' = union lt r
-                                                        in (lt', gt)
-                     else case go x r of (lt :*: gt) -> let !gt' = union gt l
-                                                        in (lt, gt')
-      _ -> case go x t of
+    Bin p m l r
+      | m < 0 ->
+        if x >= 0  -- handle negative numbers.
+        then
+          case go x l of
+            (lt :*: gt) ->
+              let !lt' = bin p m lt r
+              in (lt', gt)
+        else
+          case go x r of
+            (lt :*: gt) ->
+              let !gt' = bin p m l gt
+              in (lt, gt')
+    _ -> case go x t of
           (lt :*: gt) -> (lt, gt)
   where
     go !x' t'@(Bin p m l r)
-        | match x' p m = if zero x' m
-                         then case go x' l of
-                             (lt :*: gt) -> lt :*: union gt r
-                         else case go x' r of
-                             (lt :*: gt) -> union lt l :*: gt
-        | otherwise   = if x' < p then (Nil :*: t')
-                        else (t' :*: Nil)
+        | nomatch x' p m = if x' < p then (Nil :*: t') else (t' :*: Nil)
+        | zero x' m      = case go x' l of (lt :*: gt) -> lt :*: bin p m gt r
+        | otherwise      = case go x' r of (lt :*: gt) -> bin p m l lt :*: gt
     go x' t'@(Tip kx' bm)
         | kx' > x'          = (Nil :*: t')
           -- equivalent to kx' > prefixOf x'
@@ -915,22 +918,33 @@ split x t =
 splitMember :: Key -> IntSet -> (IntSet,Bool,IntSet)
 splitMember x t =
   case t of
-      Bin _ m l r | m < 0 -> if x >= 0
-                             then case go x l of
-                                 (lt, fnd, gt) -> let !lt' = union lt r
-                                                  in (lt', fnd, gt)
-                             else case go x r of
-                                 (lt, fnd, gt) -> let !gt' = union gt l
-                                                  in (lt, fnd, gt')
-      _ -> go x t
+    Bin p m l r
+      | m < 0 ->
+        if x >= 0 -- handle negative numbers.
+        then
+          case go x l of
+            (lt, fnd, gt) ->
+              let !lt' = bin p m lt r
+              in (lt', fnd, gt)
+        else
+          case go x r of
+            (lt, fnd, gt) ->
+              let !gt' = bin p m l gt
+              in (lt, fnd, gt')
+    _ -> go x t
   where
     go x' t'@(Bin p m l r)
-        | match x' p m = if zero x' m
-                         then case go x' l of
-                             (lt, fnd, gt) -> (lt, fnd, union gt r)
-                         else case go x' r of
-                             (lt, fnd, gt) -> (union lt l, fnd, gt)
-        | otherwise   = if x' < p then (Nil, False, t') else (t', False, Nil)
+        | nomatch x' p m = if x' < p then (Nil, False, t') else (t', False, Nil)
+        | zero x' m =
+          case go x' l of
+            (lt, fnd, gt) ->
+              let !gt' = bin p m gt r
+              in (lt, fnd, gt')
+        | otherwise =
+          case go x' r of
+            (lt, fnd, gt) ->
+              let !lt' = bin p m l lt
+              in (lt', fnd, gt)
     go x' t'@(Tip kx' bm)
         | kx' > x'          = (Nil, False, t')
           -- equivalent to kx' > prefixOf x'
