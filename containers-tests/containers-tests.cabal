@@ -163,6 +163,14 @@ benchmark sequence-benchmarks
       random            >=0       && <1.2
     , transformers
 
+benchmark tree-benchmarks
+  import: benchmark-deps
+  default-language: Haskell2010
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        Tree.hs
+  ghc-options:    -O1
+
 benchmark set-benchmarks
   import: benchmark-deps
   default-language: Haskell2010

@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
@@ -52,7 +53,7 @@ module Data.Tree(
 
     ) where
 
-import Data.Foldable (toList)
+import Data.Foldable (toList, foldl')
 import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
@@ -184,11 +185,20 @@ instance Traversable Tree where
 instance Foldable Tree where
     foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
 
+    foldr f = go where
+      go z (Node x ts) = f x (foldr (\tr b -> go b tr) z ts)
+
+    foldl' f = go where
+      go z (Node x ts) = let !x' = f z x in foldl' go x' ts
+
     null _ = False
     {-# INLINE null #-}
 
     toList = flatten
     {-# INLINE toList #-}
+
+    sum     = foldl' (+) 0
+    product = foldl' (*) 1
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts

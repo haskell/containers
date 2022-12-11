@@ -10,6 +10,7 @@ import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C)
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
+import Data.Foldable (toList)
 
 default (Int)
 
@@ -22,6 +23,7 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "ap_ap"                    prop_ap_ap
          , testProperty "ap_liftA2"                prop_ap_liftA2
          , testProperty "monadFix_ls"              prop_monadFix_ls
+         , testProperty "foldr"                    prop_foldr
          ]
 
 {--------------------------------------------------------------------
@@ -101,3 +103,6 @@ prop_monadFix_ls val ta ti =
     f :: (Int -> Int) -> Int -> Tree (Int -> Int)
     f q y = let t = apply ti y
             in fmap (\w -> fact w q) t
+
+prop_foldr :: Fun (A,B) B -> B -> Tree A -> Property
+prop_foldr f z t = foldr (apply2 f) z t === foldr (apply2 f) z (toList t)
