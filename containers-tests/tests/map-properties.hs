@@ -7,7 +7,7 @@ import Data.Map.Merge.Strict
 import Data.Map.Lazy as Data.Map hiding (showTree, showTreeWith)
 import Data.Map.Merge.Lazy
 #endif
-import Data.Map.Internal (Map (..), link2, link, bin)
+import Data.Map.Internal (Map (..), NonEmptyMap(..), link2, link, bin)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
@@ -332,15 +332,15 @@ mkArb step n
      vOuter <- liftGen arbitrary
      vInner <- liftGen arbitrary
      if dir
-       then return (Bin 2 q vOuter (singleton p vInner) Tip)
-       else return (Bin 2 p vOuter Tip (singleton q vInner))
+       then return (NE (Bin' 2 q vOuter (singleton p vInner) Tip))
+       else return (NE (Bin' 2 p vOuter Tip (singleton q vInner)))
   | otherwise = do
       -- This assumes a balance factor of delta = 3
       let upper = (3*(n - 1)) `quot` 4
       let lower = (n + 2) `quot` 4
       ln <- liftGen $ choose (lower, upper)
       let rn = n - ln - 1
-      liftM4 (\lt x v rt -> Bin n x v lt rt) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
+      liftM4 (\lt x v rt -> NE (Bin' n x v lt rt)) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.

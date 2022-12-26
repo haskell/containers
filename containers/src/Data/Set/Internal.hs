@@ -6,9 +6,11 @@
 #endif
 #ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -118,12 +120,14 @@
 -- Currently in GHC 7.0, when type has 2 constructors, a forward conditional
 -- jump is made when successfully matching second constructor. Successful match
 -- of first constructor results in the forward jump not taken.
--- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
+-- On GHC 7.0, reordering constructors from Tip | NE to NE | Tip
 -- improves the benchmark by up to 10% on x86.
 
 module Data.Set.Internal (
             -- * Set type
-              Set(..)       -- instance Eq,Ord,Show,Read,Data
+              Set(..)         -- instance Eq,Ord,Show,Read,Data
+            , pattern Bin
+            , NonEmptySet(..) -- instance Eq,Ord,Show,Read,Data
             , Size
 
             -- * Operators
@@ -131,79 +135,81 @@ module Data.Set.Internal (
 
             -- * Query
             , null
-            , size
-            , member
-            , notMember
-            , lookupLT
-            , lookupGT
-            , lookupLE
-            , lookupGE
-            , isSubsetOf
-            , isProperSubsetOf
-            , disjoint
+            , nonEmpty
+            , size, sizeNE
+            , member, memberNE
+            , notMember, notMemberNE
+            , lookupLT, lookupLTNE
+            , lookupGT, lookupGTNE
+            , lookupLE, lookupLENE
+            , lookupGE, lookupGENE
+            , isSubsetOf, isSubsetOfNE
+            , isProperSubsetOf, isProperSubsetOfNE
+            , disjoint, disjointNE, disjointNEX
 
             -- * Construction
             , empty
-            , singleton
-            , insert
-            , delete
+            , singleton, singletonNE
+            , insert, insertNE
+            , delete, deleteNE
             , alterF
-            , powerSet
+            , powerSet, powerSetNE
 
             -- * Combine
-            , union
+            , union, unionNE
             , unions
-            , difference
-            , intersection
+            , difference, differenceNE
+            , intersection, intersectionNE
             , intersections
-            , cartesianProduct
-            , disjointUnion
+            , cartesianProduct, cartesianProductNE
+            , disjointUnion, disjointUnionNE, disjointUnionNEX, disjointUnionXNE
             , Intersection(..)
 
 
             -- * Filter
-            , filter
-            , takeWhileAntitone
-            , dropWhileAntitone
-            , spanAntitone
-            , partition
-            , split
-            , splitMember
-            , splitRoot
+            , filter, filterNE
+            , takeWhileAntitone, takeWhileAntitoneNE
+            , dropWhileAntitone, dropWhileAntitoneNE
+            , spanAntitone, spanAntitoneNE
+            , partition, partitionNE
+            , split, splitNE
+            , splitMember, splitMemberNE
+            , splitRoot, splitRootNE, splitNERootNE
 
             -- * Indexed
-            , lookupIndex
-            , findIndex
-            , elemAt
-            , deleteAt
-            , take
-            , drop
-            , splitAt
+            , lookupIndex, lookupIndexNE
+            , findIndex, findIndexNE
+            , elemAt, elemAtNE
+            , deleteAt, deleteAtNE
+            , take, takeNE
+            , drop, dropNE
+            , splitAt, splitAtNE
 
             -- * Map
-            , map
-            , mapMonotonic
+            , map, mapNE
+            , mapMonotonic, mapMonotonicNE
 
             -- * Folds
-            , foldr
-            , foldl
-            -- ** Strict folds
-            , foldr'
-            , foldl'
+            , foldr, foldr1
+            , foldl, foldl1
+            , foldr', foldr1'
+            , foldr1By, foldr1By'
+            , foldl1By, foldl1By'
+            , foldl', foldl1'
             -- ** Legacy folds
             , fold
 
             -- * Min\/Max
-            , lookupMin
-            , lookupMax
+            , lookupMin, lookupMinNE
+            , lookupMax, lookupMaxNE
             , findMin
             , findMax
-            , deleteMin
-            , deleteMax
+            , deleteMin, deleteMinNE
+            , deleteMax, deleteMaxNE
             , deleteFindMin
             , deleteFindMax
-            , maxView
-            , minView
+            , maxView, maxViewNE
+            , minView, minViewNE
 
             -- * Conversion
 
@@ -211,6 +217,9 @@ module Data.Set.Internal (
             , elems
             , toList
             , fromList
+            , elemsNE
+            , toListNE
+            , fromListNE
 
             -- ** Ordered list
             , toAscList
@@ -219,20 +228,24 @@ module Data.Set.Internal (
             , fromDistinctAscList
             , fromDescList
             , fromDistinctDescList
+            , toAscListNE
+            , toDescListNE
+            , fromDistinctAscListNE
+            , fromDistinctDescListNE
 
             -- * Debugging
-            , showTree
-            , showTreeWith
-            , valid
+            , showTree, showTreeNE
+            , showTreeWith, showTreeWithNE
+            , valid, validNE
 
             -- Internals (for testing)
-            , bin
-            , balanced
-            , link
-            , merge
+            , bin, binNE
+            , balanced, balancedNE
+            , link, linkNE
+            , merge, mergeNE
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
+import Prelude hiding (filter,foldl,foldl1,foldr,foldr1,null,map,take,drop,splitAt)
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
@@ -245,6 +258,7 @@ import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
+import qualified Data.List.NonEmpty as NEL
 import Control.DeepSeq (NFData(rnf))
 
 import Utils.Containers.Internal.StrictPair
@@ -280,17 +294,27 @@ m1 \\ m2 = difference m1 m2
 -- | A set of values @a@.
 
 -- See Note: Order of constructors
-data Set a    = Bin {-# UNPACK #-} !Size !a !(Set a) !(Set a)
+data Set a    = NE {-# UNPACK #-} !(NonEmptySet a)
               | Tip
+
+data NonEmptySet a = Bin' {-# UNPACK #-} !Size !a !(Set a) !(Set a)
 
 type Size     = Int
 
+#if __GLASGOW_HASKELL__ >= 802
+{-# COMPLETE Bin, Tip #-}
+#endif
 #ifdef __GLASGOW_HASKELL__
+pattern Bin :: Size -> a -> Set a -> Set a -> Set a
+pattern Bin s a l r = NE (Bin' s a l r)
+
 type role Set nominal
+type role NonEmptySet nominal
 #endif
 
 -- | @since FIXME
 deriving instance Lift a => Lift (Set a)
+deriving instance Lift a => Lift (NonEmptySet a)
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
@@ -306,8 +330,8 @@ instance Ord a => Semigroup (Set a) where
 instance Foldable.Foldable Set where
     fold = go
       where go Tip = mempty
-            go (Bin 1 k _ _) = k
-            go (Bin _ k l r) = go l `mappend` (k `mappend` go r)
+            go (NE (Bin'  1 k _ _)) = k
+            go (NE (Bin'  _ k l r)) = go l `mappend` (k `mappend` go r)
     {-# INLINABLE fold #-}
     foldr = foldr
     {-# INLINE foldr #-}
@@ -315,8 +339,8 @@ instance Foldable.Foldable Set where
     {-# INLINE foldl #-}
     foldMap f t = go t
       where go Tip = mempty
-            go (Bin 1 k _ _) = f k
-            go (Bin _ k l r) = go l `mappend` (f k `mappend` go r)
+            go (NE (Bin'  1 k _ _)) = f k
+            go (NE (Bin'  _ k l r)) = go l `mappend` (f k `mappend` go r)
     {-# INLINE foldMap #-}
     foldl' = foldl'
     {-# INLINE foldl' #-}
@@ -330,7 +354,7 @@ instance Foldable.Foldable Set where
     {-# INLINE toList #-}
     elem = go
       where go !_ Tip = False
-            go x (Bin _ y l r) = x == y || go x l || go x r
+            go x (NE (Bin' _ y l r)) = x == y || go x l || go x r
     {-# INLINABLE elem #-}
     minimum = findMin
     {-# INLINE minimum #-}
@@ -340,6 +364,44 @@ instance Foldable.Foldable Set where
     {-# INLINABLE sum #-}
     product = foldl' (*) 1
     {-# INLINABLE product #-}
+
+instance Foldable.Foldable NonEmptySet where
+    fold = goNE
+      where goNE (Bin'  1 k _ _) = k
+            goNE (Bin'  _ k l r) = go l `mappend` (k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINABLE fold #-}
+    -- foldr f z s = foldr
+    -- {-# INLINE foldr #-}
+    -- foldl = foldl
+    -- {-# INLINE foldl #-}
+    foldMap f t = goNE t
+      where goNE (Bin'  1 k _ _) = f k
+            goNE (Bin'  _ k l r) = go l `mappend` (f k `mappend` go r)
+            go Tip = mempty
+            go (NE s) = goNE s
+    {-# INLINE foldMap #-}
+    -- foldl' = foldl'
+    -- {-# INLINE foldl' #-}
+    -- foldr' = foldr'
+    -- {-# INLINE foldr' #-}
+    length = sizeNE
+    {-# INLINE length #-}
+    null _ = False
+    {-# INLINE null #-}
+    toList = NEL.toList . toListNE
+    {-# INLINE toList #-}
+    elem x xs = elem x $ NE xs
+    {-# INLINABLE elem #-}
+    minimum = lookupMinNE
+    {-# INLINE minimum #-}
+    maximum = lookupMaxNE
+    {-# INLINE maximum #-}
+    -- sum = foldl' (+) 0
+    -- {-# INLINABLE sum #-}
+    -- product = foldl' (*) 1
+    -- {-# INLINABLE product #-}
 
 #if __GLASGOW_HASKELL__
 
@@ -372,29 +434,43 @@ setDataType = mkDataType "Data.Set.Internal.Set" [fromListConstr]
 --------------------------------------------------------------------}
 -- | \(O(1)\). Is this the empty set?
 null :: Set a -> Bool
-null Tip      = True
-null (Bin {}) = False
+null Tip = True
+null (NE _) = False
 {-# INLINE null #-}
+
+-- | /O(1)/. Return 'Just' if the set is not empty.
+nonEmpty :: Set a -> Maybe (NonEmptySet a)
+nonEmpty Tip = Nothing
+nonEmpty (NE ne) = Just ne
+{-# INLINE nonEmpty #-}
 
 -- | \(O(1)\). The number of elements in the set.
 size :: Set a -> Int
 size Tip = 0
-size (Bin sz _ _ _) = sz
+size (NE ne) = sizeNE ne
 {-# INLINE size #-}
+
+sizeNE :: NonEmptySet a -> Int
+sizeNE (Bin' sz _ _ _) = sz
+{-# INLINE sizeNE #-}
 
 -- | \(O(\log n)\). Is the element in the set?
 member :: Ord a => a -> Set a -> Bool
-member = go
-  where
-    go !_ Tip = False
-    go x (Bin _ y l r) = case compare x y of
-      LT -> go x l
-      GT -> go x r
-      EQ -> True
+member !_ Tip = False
+member x (NE t) = memberNE x t
+
+memberNE :: Ord a => a -> NonEmptySet a -> Bool
+memberNE !a (Bin' _ x l r) = case compare a x of
+  EQ -> True
+  LT -> member a l
+  GT -> member a r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
+{-# INLINABLE memberNE #-}
 #else
 {-# INLINE member #-}
+{-# INLINE memberNE #-}
 #endif
 
 -- | \(O(\log n)\). Is the element not in the set?
@@ -406,45 +482,79 @@ notMember a t = not $ member a t
 {-# INLINE notMember #-}
 #endif
 
+notMemberNE :: Ord a => a -> NonEmptySet a -> Bool
+notMemberNE a t = not $ memberNE a t
+#if __GLASGOW_HASKELL__
+{-# INLINABLE notMemberNE #-}
+#else
+{-# INLINE notMemberNE #-}
+#endif
+
+--------------------------------------------------------------------
+
 -- | \(O(\log n)\). Find largest element smaller than the given one.
 --
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
 lookupLT :: Ord a => a -> Set a -> Maybe a
-lookupLT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (Bin _ y l r) | x <= y = goNothing x l
-                              | otherwise = goJust x y r
+lookupLT !_ Tip = Nothing
+lookupLT x (NE ne) = lookupLTNE x ne
 
-    goJust !_ best Tip = Just best
-    goJust x best (Bin _ y l r) | x <= y = goJust x best l
-                                | otherwise = goJust x y r
+lookupLTNE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupLTNE x (Bin' _ y l r)
+    | x <= y = lookupLT x l
+    | otherwise = lookupLTWithDefault x y r
+
+lookupLTWithDefault :: Ord a => a -> a -> Set a -> Maybe a
+lookupLTWithDefault !_ best Tip = Just best
+lookupLTWithDefault x best (NE ne) = lookupLTWithDefaultNE x best ne
+
+lookupLTWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
+lookupLTWithDefaultNE x best (Bin' _ y l r)
+    | x <= y = lookupLTWithDefault x best l
+    | otherwise = lookupLTWithDefault x y r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
+{-# INLINABLE lookupLTNE #-}
 #else
 {-# INLINE lookupLT #-}
+{-# INLINE lookupLTNE #-}
 #endif
+
+--------------------------------------------------------------------
 
 -- | \(O(\log n)\). Find smallest element greater than the given one.
 --
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
 lookupGT :: Ord a => a -> Set a -> Maybe a
-lookupGT = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (Bin _ y l r) | x < y = goJust x y l
-                              | otherwise = goNothing x r
+lookupGT !_ Tip = Nothing
+lookupGT x (NE ne) = lookupGTNE x ne
 
-    goJust !_ best Tip = Just best
-    goJust x best (Bin _ y l r) | x < y = goJust x y l
-                                | otherwise = goJust x best r
+lookupGTNE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupGTNE x (Bin' _ y l r)
+    | x < y = lookupGTWithDefault x y l
+    | otherwise = lookupGT x r
+
+lookupGTWithDefault :: Ord a => a -> a -> Set a -> Maybe a
+lookupGTWithDefault !_ best Tip = Just best
+lookupGTWithDefault x best (NE ne) = lookupGTWithDefaultNE x best ne
+
+lookupGTWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
+lookupGTWithDefaultNE x best (Bin' _ y l r)
+    | x < y = lookupGTWithDefault x y l
+    | otherwise = lookupGTWithDefault x best r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
+{-# INLINABLE lookupGTNE #-}
 #else
 {-# INLINE lookupGT #-}
+{-# INLINE lookupGTNE #-}
 #endif
+
+--------------------------------------------------------------------
 
 -- | \(O(\log n)\). Find largest element smaller or equal to the given one.
 --
@@ -452,22 +562,34 @@ lookupGT = goNothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
 -- > lookupLE 5 (fromList [3, 5]) == Just 5
 lookupLE :: Ord a => a -> Set a -> Maybe a
-lookupLE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (Bin _ y l r) = case compare x y of LT -> goNothing x l
-                                                    EQ -> Just y
-                                                    GT -> goJust x y r
+lookupLE !_ Tip = Nothing
+lookupLE x (NE ne) = lookupLENE x ne
 
-    goJust !_ best Tip = Just best
-    goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
-                                                      EQ -> Just y
-                                                      GT -> goJust x y r
+lookupLENE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupLENE x (Bin' _ y l r) = case compare x y of
+    LT -> lookupLE x l
+    EQ -> Just y
+    GT -> lookupLEWithDefault x y r
+
+lookupLEWithDefault :: Ord a => a -> a -> Set a -> Maybe a
+lookupLEWithDefault !_ best Tip = Just best
+lookupLEWithDefault x best (NE ne) = lookupLEWithDefaultNE x best ne
+
+lookupLEWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
+lookupLEWithDefaultNE x best (Bin' _ y l r) = case compare x y of
+    LT -> lookupLEWithDefault x best l
+    EQ -> Just y
+    GT -> lookupLEWithDefault x y r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
+{-# INLINABLE lookupLENE #-}
 #else
 {-# INLINE lookupLE #-}
+{-# INLINE lookupLENE #-}
 #endif
+
+--------------------------------------------------------------------
 
 -- | \(O(\log n)\). Find smallest element greater or equal to the given one.
 --
@@ -475,21 +597,31 @@ lookupLE = goNothing
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
 -- > lookupGE 6 (fromList [3, 5]) == Nothing
 lookupGE :: Ord a => a -> Set a -> Maybe a
-lookupGE = goNothing
-  where
-    goNothing !_ Tip = Nothing
-    goNothing x (Bin _ y l r) = case compare x y of LT -> goJust x y l
-                                                    EQ -> Just y
-                                                    GT -> goNothing x r
+lookupGE !_ Tip = Nothing
+lookupGE x (NE ne) = lookupGENE x ne
 
-    goJust !_ best Tip = Just best
-    goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
-                                                      EQ -> Just y
-                                                      GT -> goJust x best r
+lookupGENE :: Ord a => a -> NonEmptySet a -> Maybe a
+lookupGENE x (Bin' _ y l r) = case compare x y of
+    LT -> lookupGEWithDefault x y l
+    EQ -> Just y
+    GT -> lookupGE x r
+
+lookupGEWithDefault :: Ord a => a -> a -> Set a -> Maybe a
+lookupGEWithDefault !_ best Tip = Just best
+lookupGEWithDefault x best (NE ne) = lookupGEWithDefaultNE x best ne
+
+lookupGEWithDefaultNE :: Ord a => a -> a -> NonEmptySet a -> Maybe a
+lookupGEWithDefaultNE x best (Bin' _ y l r) = case compare x y of
+    LT -> lookupGEWithDefault x y l
+    EQ -> Just y
+    GT -> lookupGEWithDefault x best r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
+{-# INLINABLE lookupGENE #-}
 #else
 {-# INLINE lookupGE #-}
+{-# INLINE lookupGENE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -502,8 +634,12 @@ empty = Tip
 
 -- | \(O(1)\). Create a singleton set.
 singleton :: a -> Set a
-singleton x = Bin 1 x Tip Tip
+singleton = NE . singletonNE
 {-# INLINE singleton #-}
+
+singletonNE :: a -> NonEmptySet a
+singletonNE x = Bin' 1 x Tip Tip
+{-# INLINE singletonNE #-}
 
 {--------------------------------------------------------------------
   Insertion, Deletion
@@ -515,23 +651,38 @@ singleton x = Bin 1 x Tip Tip
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insert :: Ord a => a -> Set a -> Set a
-insert x0 = go x0 x0
-  where
-    go :: Ord a => a -> a -> Set a -> Set a
-    go orig !_ Tip = singleton (lazy orig)
-    go orig !x t@(Bin sz y l r) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceL y l' r
-           where !l' = go orig x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceR y l r'
-           where !r' = go orig x r
-        EQ | lazy orig `seq` (orig `ptrEq` y) -> t
-           | otherwise -> Bin sz (lazy orig) l r
+insert x0 s0 = case insertReturningDifferent x0 x0 s0 of
+  Nothing -> s0
+  Just q -> NE q
+
+insertNE :: Ord a => a -> NonEmptySet a -> NonEmptySet a
+insertNE x0 s0 = case insertReturningDifferentNE x0 x0 s0 of
+  Nothing -> s0
+  Just q -> q
+
+-- | Returns 'Nothing' if the element is already in the Set, and 'Just s' if a
+-- new set had to be created to contain it.
+insertReturningDifferent :: Ord a => a -> a -> Set a -> Maybe (NonEmptySet a)
+insertReturningDifferent orig !_ Tip = Just $ singletonNE (lazy orig)
+insertReturningDifferent orig !x (NE ne) = insertReturningDifferentNE orig x ne
+
+insertReturningDifferentNE :: Ord a => a -> a -> NonEmptySet a -> Maybe (NonEmptySet a)
+insertReturningDifferentNE orig !x (Bin' sz y l r) = case compare x y of
+    LT -> case insertReturningDifferent orig x l of
+       Nothing -> Nothing
+       Just l' -> Just $! balanceLNE y l' r
+    GT -> case insertReturningDifferent orig x r of
+       Nothing -> Nothing
+       Just r' -> Just $! balanceRNE y l r'
+    EQ | lazy orig `seq` (orig `ptrEq` y) -> Nothing
+       | otherwise -> Just $ Bin' sz (lazy orig) l r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
+{-# INLINABLE insertNE #-}
 #else
 {-# INLINE insert #-}
+{-# INLINE insertNE #-}
 #endif
 
 #ifndef __GLASGOW_HASKELL__
@@ -539,50 +690,80 @@ lazy :: a -> a
 lazy a = a
 #endif
 
+--------------------------------------------------------------------
+
 -- Insert an element to the set only if it is not in the set.
 -- Used by `union`.
 
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
 insertR :: Ord a => a -> Set a -> Set a
-insertR x0 = go x0 x0
-  where
-    go :: Ord a => a -> a -> Set a -> Set a
-    go orig !_ Tip = singleton (lazy orig)
-    go orig !x t@(Bin _ y l r) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceL y l' r
-           where !l' = go orig x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceR y l r'
-           where !r' = go orig x r
-        EQ -> t
+insertR x0 s0 = case insertRReturningDifferent x0 x0 s0 of
+  Nothing -> s0
+  Just s -> NE s
+
+insertRNE :: Ord a => a -> NonEmptySet a -> NonEmptySet a
+insertRNE x0 s0 = case insertRReturningDifferentNE x0 x0 s0 of
+  Nothing -> s0
+  Just s -> s
+
+insertRReturningDifferent :: Ord a => a -> a -> Set a -> Maybe (NonEmptySet a)
+insertRReturningDifferent orig !_ Tip = Just $ singletonNE (lazy orig)
+insertRReturningDifferent orig !x (NE ne) = insertRReturningDifferentNE orig x ne
+
+insertRReturningDifferentNE :: Ord a => a -> a -> NonEmptySet a -> Maybe (NonEmptySet a)
+insertRReturningDifferentNE orig !x (Bin' _ y l r) = case compare x y of
+    LT -> case insertRReturningDifferent orig x l of
+      Nothing -> Nothing
+      Just l' -> Just $! balanceLNE y l' r
+    GT -> case insertRReturningDifferent orig x r of
+       Nothing -> Nothing
+       Just r' -> Just $! balanceRNE y l r'
+    EQ -> Nothing
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
+{-# INLINABLE insertRNE #-}
 #else
 {-# INLINE insertR #-}
+{-# INLINE insertRNE #-}
 #endif
+
+--------------------------------------------------------------------
 
 -- | \(O(\log n)\). Delete an element from a set.
 
--- See Note: Type of local 'go' function
 delete :: Ord a => a -> Set a -> Set a
-delete = go
-  where
-    go :: Ord a => a -> Set a -> Set a
-    go !_ Tip = Tip
-    go x t@(Bin _ y l r) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceR y l' r
-           where !l' = go x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceL y l r'
-           where !r' = go x r
-        EQ -> glue l r
+delete !_ Tip = Tip
+delete x s0 = case deleteReturningDifferent x s0 of
+  Nothing -> s0
+  Just s -> s
+
+deleteNE :: Ord a => a -> NonEmptySet a -> Set a
+deleteNE x s0 = case deleteReturningDifferentNE x s0 of
+  Nothing -> NE s0
+  Just s -> s
+
+deleteReturningDifferent :: Ord a => a -> Set a -> Maybe (Set a)
+deleteReturningDifferent !_ Tip = Nothing
+deleteReturningDifferent x (NE ne) = deleteReturningDifferentNE x ne
+
+deleteReturningDifferentNE :: Ord a => a -> NonEmptySet a -> Maybe (Set a)
+deleteReturningDifferentNE !x (Bin' _ y l r) = case compare x y of
+  LT -> case deleteReturningDifferent x l of
+    Nothing -> Nothing
+    Just l' -> Just $ balanceR y l' r
+  GT -> case deleteReturningDifferent x r of
+    Nothing -> Nothing
+    Just r' -> Just $ balanceL y l r'
+  EQ -> Just $ glue l r
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE delete #-}
+{-# INLINABLE deleteNE #-}
 #else
 {-# INLINE delete #-}
+{-# INLINE deleteNE #-}
 #endif
 
 -- | \(O(\log n)\) @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
@@ -634,8 +815,8 @@ alteredSet :: Ord a => a -> Set a -> AlteredSet a
 alteredSet x0 s0 = go x0 s0
   where
     go :: Ord a => a -> Set a -> AlteredSet a
-    go x Tip           = Inserted (singleton x)
-    go x (Bin _ y l r) = case compare x y of
+    go x Tip = Inserted (singleton x)
+    go x (NE (Bin' _ y l r)) = case compare x y of
         LT -> case go x l of
             Deleted d           -> Deleted (balanceR y d r)
             Inserted i          -> Inserted (balanceL y i r)
@@ -661,11 +842,17 @@ alteredSet x0 s0 = go x0 s0
 -- @
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
-    = size s1 < size s2 && isSubsetOfX s1 s2
+    = size s1 < size s2 && isSubsetOfSkipSize s1 s2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
 #endif
 
+isProperSubsetOfNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+isProperSubsetOfNE s1 s2
+    = sizeNE s1 < sizeNE s2 && isSubsetOfSkipSizeNE s1 (NE s2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE isProperSubsetOfNE #-}
+#endif
 
 -- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
@@ -678,9 +865,16 @@ isProperSubsetOf s1 s2
 -- @
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
-  = size t1 <= size t2 && isSubsetOfX t1 t2
+  = size t1 <= size t2 && isSubsetOfSkipSize t1 t2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOf #-}
+#endif
+
+isSubsetOfNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+isSubsetOfNE t1 t2
+  = sizeNE t1 <= sizeNE t2 && isSubsetOfSkipSizeNE t1 (NE t2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE isSubsetOfNE #-}
 #endif
 
 -- Test whether a set is a subset of another without the *initial*
@@ -691,12 +885,15 @@ isSubsetOf t1 t2
 -- et al needed to account for both "split work" and "merge work", we
 -- only have to worry about split work here, which is the same as in
 -- those functions.
-isSubsetOfX :: Ord a => Set a -> Set a -> Bool
-isSubsetOfX Tip _ = True
-isSubsetOfX _ Tip = False
+isSubsetOfSkipSize :: Ord a => Set a -> Set a -> Bool
+isSubsetOfSkipSize Tip _ = True
+isSubsetOfSkipSize _ Tip = False
+isSubsetOfSkipSize (NE ne) t = isSubsetOfSkipSizeNE ne t
+
 -- Skip the final split when we hit a singleton.
-isSubsetOfX (Bin 1 x _ _) t = member x t
-isSubsetOfX (Bin _ x l r) t
+isSubsetOfSkipSizeNE :: Ord a => NonEmptySet a -> Set a -> Bool
+isSubsetOfSkipSizeNE (Bin' 1 x _ _) t = member x t
+isSubsetOfSkipSizeNE (Bin' _ x l r) t
   = found &&
     -- Cheap size checks can sometimes save expensive recursive calls when the
     -- result will be False. Suppose we check whether [1..10] (with root 4) is
@@ -712,11 +909,12 @@ isSubsetOfX (Bin _ x l r) t
     -- costs without obvious benefits. It might be worth considering if we find
     -- a way to use it to tighten the bounds in some useful/comprehensible way.
     size l <= size lt && size r <= size gt &&
-    isSubsetOfX l lt && isSubsetOfX r gt
+    isSubsetOfSkipSize l lt && isSubsetOfSkipSize r gt
   where
     (lt,found,gt) = splitMember x t
 #if __GLASGOW_HASKELL__
-{-# INLINABLE isSubsetOfX #-}
+{-# INLINABLE isSubsetOfSkipSize #-}
+{-# INLINABLE isSubsetOfSkipSizeNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -739,9 +937,15 @@ isSubsetOfX (Bin _ x l r) t
 disjoint :: Ord a => Set a -> Set a -> Bool
 disjoint Tip _ = True
 disjoint _ Tip = True
+disjoint (NE ne) t = disjointNEX ne t
+
+disjointNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Bool
+disjointNE ne0 ne1 = disjointNEX ne0 $ NE ne1
+
 -- Avoid a split for the singleton case.
-disjoint (Bin 1 x _ _) t = x `notMember` t
-disjoint (Bin _ x l r) t
+disjointNEX :: Ord a => NonEmptySet a -> Set a -> Bool
+disjointNEX (Bin' 1 x _ _) t = x `notMember` t
+disjointNEX (Bin' _ x l r) t
   -- Analogous implementation to `subsetOfX`
   = not found && disjoint l lt && disjoint r gt
   where
@@ -757,7 +961,7 @@ disjoint (Bin _ x l r) t
 
 lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
-lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
+lookupMinSure _ (NE ne) = lookupMinNE ne
 
 -- | \(O(\log n)\). The minimal element of a set.
 --
@@ -765,7 +969,10 @@ lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
 
 lookupMin :: Set a -> Maybe a
 lookupMin Tip = Nothing
-lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
+lookupMin (NE (Bin' _ x l _)) = Just $! lookupMinSure x l
+
+lookupMinNE :: NonEmptySet a -> a
+lookupMinNE (Bin' _ x l _) = lookupMinSure x l
 
 -- | \(O(\log n)\). The minimal element of a set.
 findMin :: Set a -> a
@@ -775,7 +982,7 @@ findMin t
 
 lookupMaxSure :: a -> Set a -> a
 lookupMaxSure x Tip = x
-lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
+lookupMaxSure _ (NE (Bin' _ x _ r)) = lookupMaxSure x r
 
 -- | \(O(\log n)\). The maximal element of a set.
 --
@@ -783,7 +990,10 @@ lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
 
 lookupMax :: Set a -> Maybe a
 lookupMax Tip = Nothing
-lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
+lookupMax (NE (Bin' _ x _ r)) = Just $! lookupMaxSure x r
+
+lookupMaxNE :: NonEmptySet a -> a
+lookupMaxNE (Bin' _ x l _) = lookupMaxSure x l
 
 -- | \(O(\log n)\). The maximal element of a set.
 findMax :: Set a -> a
@@ -793,15 +1003,21 @@ findMax t
 
 -- | \(O(\log n)\). Delete the minimal element. Returns an empty set if the set is empty.
 deleteMin :: Set a -> Set a
-deleteMin (Bin _ _ Tip r) = r
-deleteMin (Bin _ x l r)   = balanceR x (deleteMin l) r
-deleteMin Tip             = Tip
+deleteMin (NE ne) = deleteMinNE ne
+deleteMin Tip = Tip
+
+deleteMinNE :: NonEmptySet a -> Set a
+deleteMinNE (Bin' _ _ Tip r) = r
+deleteMinNE (Bin' _ x (NE l) r) = balanceR x (deleteMinNE l) r
 
 -- | \(O(\log n)\). Delete the maximal element. Returns an empty set if the set is empty.
 deleteMax :: Set a -> Set a
-deleteMax (Bin _ _ l Tip) = l
-deleteMax (Bin _ x l r)   = balanceL x l (deleteMax r)
-deleteMax Tip             = Tip
+deleteMax (NE ne) = deleteMaxNE ne
+deleteMax Tip = Tip
+
+deleteMaxNE :: NonEmptySet a -> Set a
+deleteMaxNE (Bin' _ _ l Tip) = l
+deleteMaxNE (Bin' _ x l (NE r)) = balanceL x l (deleteMaxNE r)
 
 {--------------------------------------------------------------------
   Union.
@@ -817,10 +1033,10 @@ unions = Foldable.foldl' union empty
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
-union t1 (Bin 1 x _ _) = insertR x t1
-union (Bin 1 x _ _) t2 = insert x t2
+union t1 (NE (Bin' 1 x _ _)) = insertR x t1
+union (NE (Bin' 1 x _ _)) t2 = insert x t2
 union Tip t2  = t2
-union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
+union t1@(NE (Bin' _ x l1 r1)) t2 = case splitS x t2 of
   (l2 :*: r2)
     | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
     | otherwise -> link x l1l2 r1r2
@@ -829,6 +1045,20 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 #if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
 #endif
+
+unionNE :: Ord a => NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+unionNE t1 (Bin' _ x Tip Tip) = insertRNE x t1
+unionNE (Bin' _ x Tip Tip) t2 = insertNE x t2
+unionNE t1@(Bin' _ x l1 r1) t2 = case splitS x (NE t2) of
+  (l2 :*: r2)
+    | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
+    | otherwise -> linkNE x l1l2 r1r2
+    where !l1l2 = union l1 l2
+          !r1r2 = union r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE unionNE #-}
+#endif
+
 
 {--------------------------------------------------------------------
   Difference
@@ -841,14 +1071,22 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 difference :: Ord a => Set a -> Set a -> Set a
 difference Tip _   = Tip
 difference t1 Tip  = t1
-difference t1 (Bin _ x l2 r2) = case split x t1 of
-   (l1, r1)
+difference t1 (NE t2) = differenceNE' t1 t2
+
+differenceNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
+differenceNE t1 t2 = differenceNE' (NE t1) t2
+
+differenceNE' :: Ord a => Set a -> NonEmptySet a -> Set a
+differenceNE' t1 (Bin' _ x l2 r2) = case splitS x t1 of
+   (l1 :*: r1)
      | size l1l2 + size r1r2 == size t1 -> t1
      | otherwise -> merge l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
+{-# INLINABLE differenceNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -868,7 +1106,7 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
 intersection :: Ord a => Set a -> Set a -> Set a
 intersection Tip _ = Tip
 intersection _ Tip = Tip
-intersection t1@(Bin _ x l1 r1) t2
+intersection t1@(NE (Bin' _ x l1 r1)) t2
   | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
         then t1
         else link x l1l2 r1r2
@@ -879,6 +1117,20 @@ intersection t1@(Bin _ x l1 r1) t2
     !r1r2 = intersection r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
+#endif
+
+intersectionNE :: Ord a => NonEmptySet a -> NonEmptySet a -> Set a
+intersectionNE t1@(Bin' _ x l1 r1) t2
+  | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
+        then NE t1
+        else link x l1l2 r1r2
+  | otherwise = merge l1l2 r1r2
+  where
+    !(l2, b, r2) = splitMemberNE x t2
+    !l1l2 = intersection l1 l2
+    !r1r2 = intersection r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE intersectionNE #-}
 #endif
 
 -- | The intersection of a series of sets. Intersections are performed left-to-right.
@@ -903,9 +1155,12 @@ instance (Ord a) => Semigroup (Intersection a) where
 -- | \(O(n)\). Filter all elements that satisfy the predicate.
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
-filter p t@(Bin _ x l r)
+filter p (NE ne) = filterNE p ne
+
+filterNE :: (a -> Bool) -> NonEmptySet a -> Set a
+filterNE p t@(Bin' _ x l r)
     | p x = if l `ptrEq` l' && r `ptrEq` r'
-            then t
+            then NE t
             else link x l' r'
     | otherwise = merge l' r'
     where
@@ -915,19 +1170,26 @@ filter p t@(Bin _ x l r)
 -- | \(O(n)\). Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
 -- See also 'split'.
-partition :: (a -> Bool) -> Set a -> (Set a,Set a)
-partition p0 t0 = toPair $ go p0 t0
-  where
-    go _ Tip = (Tip :*: Tip)
-    go p t@(Bin _ x l r) = case (go p l, go p r) of
-      ((l1 :*: l2), (r1 :*: r2))
-        | p x       -> (if l1 `ptrEq` l && r1 `ptrEq` r
-                        then t
-                        else link x l1 r1) :*: merge l2 r2
-        | otherwise -> merge l1 r1 :*:
-                       (if l2 `ptrEq` l && r2 `ptrEq` r
-                        then t
-                        else link x l2 r2)
+partition :: (a -> Bool) -> Set a -> (Set a, Set a)
+partition p0 t0 = toPair $ partitionS p0 t0
+
+partitionNE :: (a -> Bool) -> NonEmptySet a -> (Set a, Set a)
+partitionNE p0 t0 = toPair $ partitionSNE p0 t0
+
+partitionS :: (a -> Bool) -> Set a -> StrictPair (Set a) (Set a)
+partitionS _ Tip = Tip :*: Tip
+partitionS p (NE ne) = partitionSNE p ne
+
+partitionSNE :: (a -> Bool) -> NonEmptySet a -> StrictPair (Set a) (Set a)
+partitionSNE p t@(Bin' _ x l r) = case partitionS p l :*: partitionS p r of
+  (l1 :*: l2) :*: (r1 :*: r2)
+    | p x       -> (NE $ if l1 `ptrEq` l && r1 `ptrEq` r
+                    then t
+                    else linkNE x l1 r1) :*: merge l2 r2
+    | otherwise -> merge l1 r1 :*:
+                   (NE $ if l2 `ptrEq` l && r2 `ptrEq` r
+                    then t
+                    else linkNE x l2 r2)
 
 {----------------------------------------------------------------------
   Map
@@ -945,6 +1207,9 @@ map f = fromList . List.map f . toList
 {-# INLINABLE map #-}
 #endif
 
+mapNE :: Ord b => (a->b) -> NonEmptySet a -> NonEmptySet b
+mapNE f = fromListNE . fmap f . toListNE
+
 -- | \(O(n)\). The
 --
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
@@ -955,9 +1220,12 @@ map f = fromList . List.map f . toList
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
 
-mapMonotonic :: (a->b) -> Set a -> Set b
+mapMonotonic :: (a -> b) -> Set a -> Set b
 mapMonotonic _ Tip = Tip
-mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f r)
+mapMonotonic p (NE ne) = NE $ mapMonotonicNE p ne
+
+mapMonotonicNE :: (a -> b) -> NonEmptySet a -> NonEmptySet b
+mapMonotonicNE f (Bin' sz x l r) = Bin' sz (f x) (mapMonotonic f l) (mapMonotonic f r)
 
 {--------------------------------------------------------------------
   Fold
@@ -981,8 +1249,22 @@ foldr :: (a -> b -> b) -> b -> Set a -> b
 foldr f z = go z
   where
     go z' Tip           = z'
-    go z' (Bin _ x l r) = go (f x (go z' r)) l
+    go z' (NE (Bin' _ x l r)) = go (f x (go z' r)) l
 {-# INLINE foldr #-}
+
+foldr1 :: (b -> b -> b) -> NonEmptySet b -> b
+foldr1 f = foldr1By f id
+{-# INLINE foldr1 #-}
+
+foldr1By :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
+foldr1By f g = go
+  where
+    finish :: Set a -> b -> b
+    finish l acc = foldr f acc l
+    go :: NonEmptySet a -> b
+    go (Bin' _ v l (NE r)) = finish l (f v (go r))
+    go (Bin' _ v l Tip) = finish l (g v)
+{-# INLINE foldr1By #-}
 
 -- | \(O(n)\). A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
@@ -991,9 +1273,25 @@ foldr' :: (a -> b -> b) -> b -> Set a -> b
 foldr' f z = go z
   where
     go !z' Tip           = z'
-    go z' (Bin _ x l r) = go (f x $! go z' r) l
+    go z' (NE (Bin' _ x l r)) = go (f x $! go z' r) l
 {-# INLINE foldr' #-}
 
+foldr1' :: (b -> b -> b) -> NonEmptySet b -> b
+foldr1' f = go
+  where
+    go (Bin' _ x l Tip) = foldr' f x l
+    go (Bin' _ x l (NE r)) = foldr' f (f x (go r)) l
+{-# INLINE foldr1' #-}
+
+foldr1By' :: forall a b . (a -> b -> b) -> (a -> b) -> NonEmptySet a -> b
+foldr1By' f g = go
+  where
+    finish :: Set a -> b -> b
+    finish l !acc = foldr' f acc l
+    go :: NonEmptySet a -> b
+    go (Bin' _ v l (NE r)) = finish l (f v (go r))
+    go (Bin' _ v l Tip) = finish l (g v)
+{-# INLINE foldr1By' #-}
 -- | \(O(n)\). Fold the elements in the set using the given left-associative
 -- binary operator, such that @'foldl' f z == 'Prelude.foldl' f z . 'toAscList'@.
 --
@@ -1004,8 +1302,25 @@ foldl :: (a -> b -> a) -> a -> Set b -> a
 foldl f z = go z
   where
     go z' Tip           = z'
-    go z' (Bin _ x l r) = go (f (go z' l) x) r
+    go z' (NE (Bin' _ x l r)) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
+
+foldl1 :: (b -> b -> b) -> NonEmptySet b -> b
+foldl1 f = go
+  where
+    go (Bin' _ x Tip r) = foldl f x r
+    go (Bin' _ x (NE l) r) = foldl f (f (go l) x) r
+{-# INLINE foldl1 #-}
+
+foldl1By :: forall a b . (b -> a -> b) -> (a -> b) -> NonEmptySet a -> b
+foldl1By f g = go
+  where
+    finish :: b -> Set a -> b
+    finish acc r = foldl f acc r
+    go :: NonEmptySet a -> b
+    go (Bin' _ v (NE l) r) = finish (f (go l) v) r
+    go (Bin' _ v Tip r) = finish (g v) r
+{-# INLINE foldl1By #-}
 
 -- | \(O(n)\). A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
@@ -1014,10 +1329,24 @@ foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
     go !z' Tip           = z'
-    go z' (Bin _ x l r) =
+    go z' (NE (Bin' _ x l r)) =
       let !z'' = go z' l
       in go (f z'' x) r
 {-# INLINE foldl' #-}
+
+foldl1' :: (b -> b -> b) -> NonEmptySet b -> b
+foldl1' f = foldl1By' f id
+{-# INLINE foldl1' #-}
+
+foldl1By' :: forall a b . (b -> a -> b) -> (a -> b) -> NonEmptySet a -> b
+foldl1By' f g = go
+  where
+    finish :: b -> Set a -> b
+    finish !acc r = foldl' f acc r
+    go :: NonEmptySet a -> b
+    go (Bin' _ v (NE l) r) = finish (f (go l) v) r
+    go (Bin' _ v Tip r) = finish (g v) r
+{-# INLINE foldl1By' #-}
 
 {--------------------------------------------------------------------
   List variations
@@ -1026,6 +1355,9 @@ foldl' f z = go z
 -- Subject to list fusion.
 elems :: Set a -> [a]
 elems = toAscList
+
+elemsNE :: NonEmptySet a -> NEL.NonEmpty a
+elemsNE = toAscListNE
 
 {--------------------------------------------------------------------
   Lists
@@ -1043,14 +1375,23 @@ instance (Ord a) => GHCExts.IsList (Set a) where
 toList :: Set a -> [a]
 toList = toAscList
 
+toListNE :: NonEmptySet a -> NEL.NonEmpty a
+toListNE = toAscListNE
+
 -- | \(O(n)\). Convert the set to an ascending list of elements. Subject to list fusion.
 toAscList :: Set a -> [a]
 toAscList = foldr (:) []
+
+toAscListNE :: NonEmptySet a -> NEL.NonEmpty a
+toAscListNE = foldr1 (<>) . mapMonotonicNE pure
 
 -- | \(O(n)\). Convert the set to a descending list of elements. Subject to list
 -- fusion.
 toDescList :: Set a -> [a]
 toDescList = foldl (flip (:)) []
+
+toDescListNE :: NonEmptySet a -> NEL.NonEmpty a
+toDescListNE = foldl1 (<>) . mapMonotonicNE pure
 
 -- List fusion for the list generating functions.
 #if __GLASGOW_HASKELL__
@@ -1090,23 +1431,34 @@ foldlFB = foldl
 -- create, it is not inlined, so we inline it manually.
 fromList :: Ord a => [a] -> Set a
 fromList [] = Tip
-fromList [x] = Bin 1 x Tip Tip
-fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
-                    | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+fromList (x : xs) = NE $ fromListNE' x xs
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromList #-}
+#endif
+
+fromListNE :: Ord a => NEL.NonEmpty a -> NonEmptySet a
+fromListNE (x NEL.:| xs) = fromListNE' x xs
+{-# INLINABLE fromListNE #-}
+
+fromListNE' :: Ord a => a -> [a] -> NonEmptySet a
+fromListNE' x [] = Bin' 1 x Tip Tip
+fromListNE' x0 xs0
+    | not_ordered x0 xs0 = fromList' (Bin' 1 x0 Tip Tip) xs0
+    | otherwise = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     not_ordered _ [] = False
     not_ordered x (y : _) = x >= y
     {-# INLINE not_ordered #-}
 
     fromList' t0 xs = Foldable.foldl' ins t0 xs
-      where ins t x = insert x t
+      where ins t x = insertNE x t
 
     go !_ t [] = t
-    go _ t [x] = insertMax x t
+    go _ t [x] = insertMaxNE x (NE t)
     go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
                         | otherwise = case create s xss of
-                            (r, ys, []) -> go (s `shiftL` 1) (link x l r) ys
-                            (r, _,  ys) -> fromList' (link x l r) ys
+                            (r, ys, []) -> go (s `shiftL` 1) (linkNE x (NE l) r) ys
+                            (r, _,  ys) -> fromList' (linkNE x (NE l) r) ys
 
     -- The create is returning a triple (tree, xs, ys). Both xs and ys
     -- represent not yet processed elements and only one of them can be nonempty.
@@ -1115,8 +1467,8 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
     -- ordered so far.
     create !_ [] = (Tip, [], [])
     create s xs@(x : xss)
-      | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
-                                      else (Bin 1 x Tip Tip, xss, [])
+      | s == 1 = if not_ordered x xss then (NE $ Bin' 1 x Tip Tip, [], xss)
+                                      else (NE $ Bin' 1 x Tip Tip, xss, [])
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_, [], _) -> res
                       (l, [y], zs) -> (insertMax y l, [], zs)
@@ -1124,7 +1476,7 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
                                          | otherwise -> case create (s `shiftR` 1) yss of
                                                    (r, zs, ws) -> (link y l r, zs, ws)
 #if __GLASGOW_HASKELL__
-{-# INLINABLE fromList #-}
+{-# INLINABLE fromListNE' #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1172,16 +1524,22 @@ combineEq (x : xs) = combineEq' x xs
 -- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList [] = Tip
-fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+fromDistinctAscList (x0 : xs0) = NE $ fromDistinctAscListNE' x0 xs0
+
+fromDistinctAscListNE :: NEL.NonEmpty a -> NonEmptySet a
+fromDistinctAscListNE (x NEL.:| xs) = fromDistinctAscListNE' x xs
+
+fromDistinctAscListNE' :: a -> [a] -> NonEmptySet a
+fromDistinctAscListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s l (x : xs) = case create s xs of
-                        (r :*: ys) -> let !t' = link x l r
+                        (r :*: ys) -> let !t' = linkNE x (NE l) r
                                       in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
     create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
+      | s == 1 = (NE (Bin' 1 x Tip Tip) :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_ :*: []) -> res
                       (l :*: (y:ys)) -> case create (s `shiftR` 1) ys of
@@ -1196,16 +1554,22 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
 -- @since 0.5.8
 fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList [] = Tip
-fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+fromDistinctDescList (x0 : xs0) = NE $ fromDistinctDescListNE' x0 xs0
+
+fromDistinctDescListNE :: NEL.NonEmpty a -> NonEmptySet a
+fromDistinctDescListNE (x NEL.:| xs) = fromDistinctDescListNE' x xs
+
+fromDistinctDescListNE' :: a -> [a] -> NonEmptySet a
+fromDistinctDescListNE' x0 xs0 = go (1::Int) (Bin' 1 x0 Tip Tip) xs0
   where
     go !_ t [] = t
     go s r (x : xs) = case create s xs of
-                        (l :*: ys) -> let !t' = link x l r
+                        (l :*: ys) -> let !t' = linkNE x l (NE r)
                                       in go (s `shiftL` 1) t' ys
 
     create !_ [] = (Tip :*: [])
     create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
+      | s == 1 = (NE (Bin' 1 x Tip Tip) :*: xs')
       | otherwise = case create (s `shiftR` 1) xs of
                       res@(_ :*: []) -> res
                       (r :*: (y:ys)) -> case create (s `shiftR` 1) ys of
@@ -1272,7 +1636,7 @@ instance (Read a, Ord a) => Read (Set a) where
 
 instance NFData a => NFData (Set a) where
     rnf Tip           = ()
-    rnf (Bin _ y l r) = rnf y `seq` rnf l `seq` rnf r
+    rnf (NE (Bin' _ y l r)) = rnf y `seq` rnf l `seq` rnf r
 
 {--------------------------------------------------------------------
   Split
@@ -1284,20 +1648,34 @@ split :: Ord a => a -> Set a -> (Set a,Set a)
 split x t = toPair $ splitS x t
 {-# INLINABLE split #-}
 
+splitNE :: Ord a => a -> NonEmptySet a -> (Set a,Set a)
+splitNE x t = toPair $ splitSNE x t
+{-# INLINABLE splitNE #-}
+
 splitS :: Ord a => a -> Set a -> StrictPair (Set a) (Set a)
 splitS _ Tip = (Tip :*: Tip)
-splitS x (Bin _ y l r)
+splitS x (NE ne) = splitSNE x ne
+{-# INLINABLE splitS #-}
+
+splitSNE :: Ord a => a -> NonEmptySet a -> StrictPair (Set a) (Set a)
+splitSNE x (Bin' _ y l r)
       = case compare x y of
           LT -> let (lt :*: gt) = splitS x l in (lt :*: link y gt r)
           GT -> let (lt :*: gt) = splitS x r in (link y l lt :*: gt)
           EQ -> (l :*: r)
-{-# INLINABLE splitS #-}
+{-# INLINABLE splitSNE #-}
 
 -- | \(O(\log n)\). Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
 splitMember _ Tip = (Tip, False, Tip)
-splitMember x (Bin _ y l r)
+splitMember x (NE ne) = splitMemberNE x ne
+#if __GLASGOW_HASKELL__
+{-# INLINABLE splitMember #-}
+#endif
+
+splitMemberNE :: Ord a => a -> NonEmptySet a -> (Set a, Bool, Set a)
+splitMemberNE x (Bin' _ y l r)
    = case compare x y of
        LT -> let (lt, found, gt) = splitMember x l
                  !gt' = link y gt r
@@ -1307,7 +1685,7 @@ splitMember x (Bin _ y l r)
              in (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__
-{-# INLINABLE splitMember #-}
+{-# INLINABLE splitMemberNE #-}
 #endif
 
 {--------------------------------------------------------------------
@@ -1328,17 +1706,26 @@ splitMember x (Bin _ y l r)
 
 -- See Note: Type of local 'go' function
 findIndex :: Ord a => a -> Set a -> Int
-findIndex = go 0
-  where
-    go :: Ord a => Int -> a -> Set a -> Int
-    go !_ !_ Tip  = error "Set.findIndex: element is not in the set"
-    go idx x (Bin _ kx l r) = case compare x kx of
-      LT -> go idx x l
-      GT -> go (idx + size l + 1) x r
-      EQ -> idx + size l
+findIndex = findIndexS 0
 #if __GLASGOW_HASKELL__
 {-# INLINABLE findIndex #-}
 #endif
+
+findIndexNE :: Ord a => a -> NonEmptySet a -> Int
+findIndexNE = findIndexSNE 0
+#if __GLASGOW_HASKELL__
+{-# INLINABLE findIndexNE #-}
+#endif
+
+findIndexS :: Ord a => Int -> a -> Set a -> Int
+findIndexS !_ !_ Tip  = error "Set.findIndex: element is not in the set"
+findIndexS idx x (NE ne) = findIndexSNE idx x ne
+
+findIndexSNE :: Ord a => Int -> a -> NonEmptySet a -> Int
+findIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
+  LT -> findIndexS idx x l
+  GT -> findIndexS (idx + size l + 1) x r
+  EQ -> idx + size l
 
 -- | \(O(\log n)\). Lookup the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
@@ -1353,17 +1740,26 @@ findIndex = go 0
 
 -- See Note: Type of local 'go' function
 lookupIndex :: Ord a => a -> Set a -> Maybe Int
-lookupIndex = go 0
-  where
-    go :: Ord a => Int -> a -> Set a -> Maybe Int
-    go !_ !_ Tip  = Nothing
-    go idx x (Bin _ kx l r) = case compare x kx of
-      LT -> go idx x l
-      GT -> go (idx + size l + 1) x r
-      EQ -> Just $! idx + size l
+lookupIndex = lookupIndexS 0
 #if __GLASGOW_HASKELL__
 {-# INLINABLE lookupIndex #-}
 #endif
+
+lookupIndexNE :: Ord a => a -> NonEmptySet a -> Maybe Int
+lookupIndexNE = lookupIndexSNE 0
+#if __GLASGOW_HASKELL__
+{-# INLINABLE lookupIndexNE #-}
+#endif
+
+lookupIndexS :: Ord a => Int -> a -> Set a -> Maybe Int
+lookupIndexS !_ !_ Tip  = Nothing
+lookupIndexS idx x (NE ne) = lookupIndexSNE idx x ne
+
+lookupIndexSNE :: Ord a => Int -> a -> NonEmptySet a -> Maybe Int
+lookupIndexSNE idx x (Bin' _ kx l r) = case compare x kx of
+  LT -> lookupIndexS idx x l
+  GT -> lookupIndexS (idx + size l + 1) x r
+  EQ -> Just $! idx + size l
 
 -- | \(O(\log n)\). Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
@@ -1377,7 +1773,10 @@ lookupIndex = go 0
 
 elemAt :: Int -> Set a -> a
 elemAt !_ Tip = error "Set.elemAt: index out of range"
-elemAt i (Bin _ x l r)
+elemAt i (NE ne) = elemAtNE i ne
+
+elemAtNE :: Int -> NonEmptySet a -> a
+elemAtNE i (Bin' _ x l r)
   = case compare i sizeL of
       LT -> elemAt i l
       GT -> elemAt (i-sizeL-1) r
@@ -1397,15 +1796,16 @@ elemAt i (Bin _ x l r)
 -- @since 0.5.4
 
 deleteAt :: Int -> Set a -> Set a
-deleteAt !i t =
-  case t of
-    Tip -> error "Set.deleteAt: index out of range"
-    Bin _ x l r -> case compare i sizeL of
-      LT -> balanceR x (deleteAt i l) r
-      GT -> balanceL x l (deleteAt (i-sizeL-1) r)
-      EQ -> glue l r
-      where
-        sizeL = size l
+deleteAt !_ Tip = error "Set.deleteAt: index out of range"
+deleteAt i (NE ne) = deleteAtNE i ne
+
+deleteAtNE :: Int -> NonEmptySet a -> Set a
+deleteAtNE !i (Bin' _ x l r) = case compare i sizeL of
+    LT -> balanceR x (deleteAt i l) r
+    GT -> balanceL x l (deleteAt (i-sizeL-1) r)
+    EQ -> glue l r
+    where
+      sizeL = size l
 
 -- | Take a given number of elements in order, beginning
 -- with the smallest ones.
@@ -1417,16 +1817,25 @@ deleteAt !i t =
 -- @since 0.5.8
 take :: Int -> Set a -> Set a
 take i m | i >= size m = m
-take i0 m0 = go i0 m0
-  where
-    go i !_ | i <= 0 = Tip
-    go !_ Tip = Tip
-    go i (Bin _ x l r) =
-      case compare i sizeL of
-        LT -> go i l
-        GT -> link x l (go (i - sizeL - 1) r)
-        EQ -> l
-      where sizeL = size l
+take i0 m0 = takeS i0 m0
+
+takeNE :: Int -> NonEmptySet a -> Set a
+takeNE i m | i >= sizeNE m = NE m
+takeNE i !_ | i <= 0 = Tip
+takeNE i0 m0 = takeSNE i0 m0
+
+takeS :: Int -> Set a -> Set a
+takeS i !_ | i <= 0 = Tip
+takeS !_ Tip = Tip
+takeS i (NE ne) = takeSNE i ne
+
+takeSNE :: Int -> NonEmptySet a -> Set a
+takeSNE i (Bin' _ x l r) =
+  case compare i sizeL of
+    LT -> takeS i l
+    GT -> link x l (takeS (i - sizeL - 1) r)
+    EQ -> l
+  where sizeL = size l
 
 -- | Drop a given number of elements in order, beginning
 -- with the smallest ones.
@@ -1438,16 +1847,25 @@ take i0 m0 = go i0 m0
 -- @since 0.5.8
 drop :: Int -> Set a -> Set a
 drop i m | i >= size m = Tip
-drop i0 m0 = go i0 m0
-  where
-    go i m | i <= 0 = m
-    go !_ Tip = Tip
-    go i (Bin _ x l r) =
-      case compare i sizeL of
-        LT -> link x (go i l) r
-        GT -> go (i - sizeL - 1) r
-        EQ -> insertMin x r
-      where sizeL = size l
+drop i0 m0 = dropS i0 m0
+
+dropNE :: Int -> NonEmptySet a -> Set a
+dropNE i m | i >= sizeNE m = Tip
+dropNE i m | i <= 0 = NE m
+dropNE i0 m0 = dropSNE i0 m0
+
+dropS :: Int -> Set a -> Set a
+dropS i m | i <= 0 = m
+dropS !_ Tip = Tip
+dropS i (NE ne) = dropSNE i ne
+
+dropSNE :: Int -> NonEmptySet a -> Set a
+dropSNE i (Bin' _ x l r) =
+  case compare i sizeL of
+    LT -> link x (dropS i l) r
+    GT -> dropS (i - sizeL - 1) r
+    EQ -> insertMin x r
+  where sizeL = size l
 
 -- | \(O(\log n)\). Split a set at a particular index.
 --
@@ -1457,18 +1875,28 @@ drop i0 m0 = go i0 m0
 splitAt :: Int -> Set a -> (Set a, Set a)
 splitAt i0 m0
   | i0 >= size m0 = (m0, Tip)
-  | otherwise = toPair $ go i0 m0
-  where
-    go i m | i <= 0 = Tip :*: m
-    go !_ Tip = Tip :*: Tip
-    go i (Bin _ x l r)
-      = case compare i sizeL of
-          LT -> case go i l of
-                  ll :*: lr -> ll :*: link x lr r
-          GT -> case go (i - sizeL - 1) r of
-                  rl :*: rr -> link x l rl :*: rr
-          EQ -> l :*: insertMin x r
-      where sizeL = size l
+  | otherwise = toPair $ splitAtS i0 m0
+
+splitAtNE :: Int -> NonEmptySet a -> (Set a, Set a)
+splitAtNE i0 m0
+  | i0 >= sizeNE m0 = (NE m0, Tip)
+  | i0 <= 0 = (Tip, NE m0)
+  | otherwise = toPair $ splitAtSNE i0 m0
+
+splitAtS :: Int -> Set a -> StrictPair (Set a) (Set a)
+splitAtS i m | i <= 0 = Tip :*: m
+splitAtS !_ Tip = Tip :*: Tip
+splitAtS i (NE ne) = splitAtSNE i ne
+
+splitAtSNE :: Int -> NonEmptySet a -> StrictPair (Set a) (Set a)
+splitAtSNE i (Bin' _ x l r)
+  = case compare i sizeL of
+      LT -> case splitAtS i l of
+              ll :*: lr -> ll :*: link x lr r
+      GT -> case splitAtS (i - sizeL - 1) r of
+              rl :*: rr -> link x l rl :*: rr
+      EQ -> l :*: insertMin x r
+  where sizeL = size l
 
 -- | \(O(\log n)\). Take while a predicate on the elements holds.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
@@ -1483,7 +1911,10 @@ splitAt i0 m0
 
 takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
 takeWhileAntitone _ Tip = Tip
-takeWhileAntitone p (Bin _ x l r)
+takeWhileAntitone p (NE ne) = takeWhileAntitoneNE p ne
+
+takeWhileAntitoneNE :: (a -> Bool) -> NonEmptySet a -> Set a
+takeWhileAntitoneNE p (Bin' _ x l r)
   | p x = link x l (takeWhileAntitone p r)
   | otherwise = takeWhileAntitone p l
 
@@ -1500,7 +1931,10 @@ takeWhileAntitone p (Bin _ x l r)
 
 dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
 dropWhileAntitone _ Tip = Tip
-dropWhileAntitone p (Bin _ x l r)
+dropWhileAntitone p (NE ne) = dropWhileAntitoneNE p ne
+
+dropWhileAntitoneNE :: (a -> Bool) -> NonEmptySet a -> Set a
+dropWhileAntitoneNE p (Bin' _ x l r)
   | p x = dropWhileAntitone p r
   | otherwise = link x (dropWhileAntitone p l) r
 
@@ -1521,12 +1955,19 @@ dropWhileAntitone p (Bin _ x l r)
 -- @since 0.5.8
 
 spanAntitone :: (a -> Bool) -> Set a -> (Set a, Set a)
-spanAntitone p0 m = toPair (go p0 m)
-  where
-    go _ Tip = Tip :*: Tip
-    go p (Bin _ x l r)
-      | p x = let u :*: v = go p r in link x l u :*: v
-      | otherwise = let u :*: v = go p l in u :*: link x v r
+spanAntitone p m = toPair $ spanAntitoneS p m
+
+spanAntitoneNE :: (a -> Bool) -> NonEmptySet a -> (Set a, Set a)
+spanAntitoneNE p m = toPair $ spanAntitoneSNE p m
+
+spanAntitoneS :: (a -> Bool) -> Set a -> StrictPair (Set a) (Set a)
+spanAntitoneS _ Tip = Tip :*: Tip
+spanAntitoneS p (NE ne) = spanAntitoneSNE p ne
+
+spanAntitoneSNE :: (a -> Bool) -> NonEmptySet a -> StrictPair (Set a) (Set a)
+spanAntitoneSNE p (Bin' _ x l r)
+  | p x = let u :*: v = spanAntitoneS p r in link x l u :*: v
+  | otherwise = let u :*: v = spanAntitoneS p l in u :*: link x v r
 
 
 {--------------------------------------------------------------------
@@ -1535,7 +1976,7 @@ spanAntitone p0 m = toPair (go p0 m)
   in [r] > [x], and that [l] and [r] are valid trees.
 
   In order of sophistication:
-    [Bin sz x l r]    The type constructor.
+    [NE sz x l r]    The type constructor.
     [bin x l r]       Maintains the correct size, assumes that both [l]
                       and [r] are balanced with respect to each other.
     [balance x l r]   Restores the balance and size.
@@ -1554,28 +1995,47 @@ spanAntitone p0 m = toPair (go p0 m)
 {--------------------------------------------------------------------
   Link
 --------------------------------------------------------------------}
+
 link :: a -> Set a -> Set a -> Set a
-link x Tip r  = insertMin x r
-link x l Tip  = insertMax x l
-link x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
-  | delta*sizeL < sizeR  = balanceL z (link x l lz) rz
-  | delta*sizeR < sizeL  = balanceR y ly (link x ry r)
-  | otherwise            = bin x l r
+link x l r = NE $ linkNE x l r
+
+linkNE :: a -> Set a -> Set a -> NonEmptySet a
+linkNE x Tip r  = insertMinNE x r
+linkNE x l Tip  = insertMaxNE x l
+linkNE x (NE l) (NE r) = linkNENE x l r
+
+linkXNE :: a -> Set a -> NonEmptySet a -> NonEmptySet a
+linkXNE x Tip r  = insertMinNE x (NE r)
+linkXNE x (NE l) r = linkNENE x l r
+
+linkNEX :: a -> NonEmptySet a -> Set a -> NonEmptySet a
+linkNEX x l Tip  = insertMaxNE x (NE l)
+linkNEX x l (NE r) = linkNENE x l r
+
+linkNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+linkNENE x l@(Bin' sizeL y ly ry) r@(Bin' sizeR z lz rz)
+  | delta*sizeL < sizeR  = balanceLNE z (linkNEX x l lz) rz
+  | delta*sizeR < sizeL  = balanceRNE y ly (linkXNE x ry r)
+  | otherwise            = binNE x (NE l) (NE r)
 
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: a -> Set a -> Set a
-insertMax x t
-  = case t of
-      Tip -> singleton x
-      Bin _ y l r
-          -> balanceR y l (insertMax x r)
+insertMax, insertMin :: a -> Set a -> Set a
+insertMaxNE, insertMinNE :: a -> Set a -> NonEmptySet a
 
-insertMin x t
+insertMax x t = NE $ insertMaxNE x t
+insertMaxNE x t
   = case t of
-      Tip -> singleton x
-      Bin _ y l r
-          -> balanceL y (insertMin x l) r
+      Tip -> singletonNE x
+      NE (Bin' _ y l r)
+          -> balanceRNE y l (insertMaxNE x r)
+
+insertMin x t = NE $ insertMinNE x t
+insertMinNE x t
+  = case t of
+      Tip -> singletonNE x
+      NE (Bin' _ y l r)
+          -> balanceLNE y (insertMinNE x l) r
 
 {--------------------------------------------------------------------
   [merge l r]: merges two trees.
@@ -1583,10 +2043,21 @@ insertMin x t
 merge :: Set a -> Set a -> Set a
 merge Tip r   = r
 merge l Tip   = l
-merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
-  | delta*sizeL < sizeR = balanceL y (merge l ly) ry
-  | delta*sizeR < sizeL = balanceR x lx (merge rx r)
-  | otherwise           = glue l r
+merge (NE l) (NE r) = NE $ mergeNE l r
+
+mergeXNE :: Set a -> NonEmptySet a -> NonEmptySet a
+mergeXNE Tip r = r
+mergeXNE (NE l) r = mergeNE l r
+
+mergeNEX :: NonEmptySet a -> Set a -> NonEmptySet a
+mergeNEX l Tip = l
+mergeNEX l (NE r) = mergeNE l r
+
+mergeNE :: NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+mergeNE l@(Bin' sizeL x lx rx) r@(Bin' sizeR y ly ry)
+  | delta*sizeL < sizeR = balanceLNE y (mergeNEX l ly) ry
+  | delta*sizeR < sizeL = balanceRNE x lx (mergeXNE rx r)
+  | otherwise           = glueNE l r
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
@@ -1595,9 +2066,12 @@ merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
-glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
-  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceR m l' r
-  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceL m l r'
+glue (NE l) (NE r) = NE $ glueNE l r
+
+glueNE :: NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+glueNE l@(Bin' sl xl ll lr) r@(Bin' sr xr rl rr)
+  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceRNE m l' r
+  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceLNE m l r'
 
 -- | \(O(\log n)\). Delete and find the minimal element.
 --
@@ -1620,7 +2094,7 @@ minViewSure :: a -> Set a -> Set a -> StrictPair a (Set a)
 minViewSure = go
   where
     go x Tip r = x :*: r
-    go x (Bin _ xl ll lr) r =
+    go x (NE (Bin' _ xl ll lr)) r =
       case go xl ll lr of
         xm :*: l' -> xm :*: balanceR x l' r
 
@@ -1628,13 +2102,16 @@ minViewSure = go
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: Set a -> Maybe (a, Set a)
 minView Tip = Nothing
-minView (Bin _ x l r) = Just $! toPair $ minViewSure x l r
+minView (NE ne) = Just $! minViewNE ne
+
+minViewNE :: NonEmptySet a -> (a, Set a)
+minViewNE (Bin' _ x l r) = toPair $ minViewSure x l r
 
 maxViewSure :: a -> Set a -> Set a -> StrictPair a (Set a)
 maxViewSure = go
   where
     go x l Tip = x :*: l
-    go x l (Bin _ xr rl rr) =
+    go x l (NE (Bin' _ xr rl rr)) =
       case go xr rl rr of
         xm :*: r' -> xm :*: balanceL x l r'
 
@@ -1642,7 +2119,10 @@ maxViewSure = go
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: Set a -> Maybe (a, Set a)
 maxView Tip = Nothing
-maxView (Bin _ x l r) = Just $! toPair $ maxViewSure x l r
+maxView (NE ne) = Just $! maxViewNE ne
+
+maxViewNE :: NonEmptySet a -> (a, Set a)
+maxViewNE (Bin' _ x l r) = toPair $ maxViewSure x l r
 
 {--------------------------------------------------------------------
   [balance x l r] balances two trees with value x.
@@ -1685,29 +2165,29 @@ ratio = 2
 --
 --   balance :: a -> Set a -> Set a -> Set a
 --   balance x l r
---     | sizeL + sizeR <= 1   = Bin sizeX x l r
+--     | sizeL + sizeR <= 1   = NE $ Bin' sizeX x l r
 --     | sizeR > delta*sizeL  = rotateL x l r
 --     | sizeL > delta*sizeR  = rotateR x l r
---     | otherwise            = Bin sizeX x l r
+--     | otherwise            = NE $ Bin' sizeX x l r
 --     where
 --       sizeL = size l
 --       sizeR = size r
 --       sizeX = sizeL + sizeR + 1
 --
 --   rotateL :: a -> Set a -> Set a -> Set a
---   rotateL x l r@(Bin _ _ ly ry) | size ly < ratio*size ry = singleL x l r
+--   rotateL x l r@(NE _ _ ly ry) | size ly < ratio*size ry = singleL x l r
 --                                 | otherwise               = doubleL x l r
 --   rotateR :: a -> Set a -> Set a -> Set a
---   rotateR x l@(Bin _ _ ly ry) r | size ry < ratio*size ly = singleR x l r
+--   rotateR x l@(NE _ _ ly ry) r | size ry < ratio*size ly = singleR x l r
 --                                 | otherwise               = doubleR x l r
 --
 --   singleL, singleR :: a -> Set a -> Set a -> Set a
---   singleL x1 t1 (Bin _ x2 t2 t3)  = bin x2 (bin x1 t1 t2) t3
---   singleR x1 (Bin _ x2 t1 t2) t3  = bin x2 t1 (bin x1 t2 t3)
+--   singleL x1 t1 (NE _ x2 t2 t3)  = bin x2 (bin x1 t1 t2) t3
+--   singleR x1 (NE _ x2 t1 t2) t3  = bin x2 t1 (bin x1 t2 t3)
 --
 --   doubleL, doubleR :: a -> Set a -> Set a -> Set a
---   doubleL x1 t1 (Bin _ x2 (Bin _ x3 t2 t3) t4) = bin x3 (bin x1 t1 t2) (bin x2 t3 t4)
---   doubleR x1 (Bin _ x2 t1 (Bin _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
+--   doubleL x1 t1 (NE (Bin' _ x2 (NE _ x3 t2 t3) t4)) = bin x3 (bin x1 t1 t2) (bin x2 t3 t4)
+--   doubleR x1 (NE _ x2 t1 (NE _ x3 t2 t3)) t4 = bin x3 (bin x2 t1 t2) (bin x1 t3 t4)
 --
 -- It is only written in such a way that every node is pattern-matched only once.
 --
@@ -1723,59 +2203,139 @@ ratio = 2
 balanceL :: a -> Set a -> Set a -> Set a
 balanceL x l r = case r of
   Tip -> case l of
-           Tip -> Bin 1 x Tip Tip
-           (Bin _ _ Tip Tip) -> Bin 2 x l Tip
-           (Bin _ lx Tip (Bin _ lrx _ _)) -> Bin 3 lrx (Bin 1 lx Tip Tip) (Bin 1 x Tip Tip)
-           (Bin _ lx ll@(Bin _ _ _ _) Tip) -> Bin 3 lx ll (Bin 1 x Tip Tip)
-           (Bin ls lx ll@(Bin lls _ _ _) lr@(Bin lrs lrx lrl lrr))
-             | lrs < ratio*lls -> Bin (1+ls) lx ll (Bin (1+lrs) x lr Tip)
-             | otherwise -> Bin (1+ls) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+size lrr) x lrr Tip)
+    Tip -> NE $ Bin' 1 x Tip Tip
+    (NE nel) -> NE $ balanceLNEE x nel
 
-  (Bin rs _ _ _) -> case l of
-           Tip -> Bin (1+rs) x Tip r
-
-           (Bin ls lx ll lr)
-              | ls > delta*rs  -> case (ll, lr) of
-                   (Bin lls _ _ _, Bin lrs lrx lrl lrr)
-                     | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
-                     | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
-                   (_, _) -> error "Failure in Data.Map.balanceL"
-              | otherwise -> Bin (1+ls+rs) x l r
+  (NE ner@(Bin' rs _ _ _)) -> case l of
+    Tip -> NE $ Bin' (1+rs) x Tip r
+    (NE nel) -> NE $ balanceLNENE x nel ner
 {-# NOINLINE balanceL #-}
+
+balanceLNE :: a -> NonEmptySet a -> Set a -> NonEmptySet a
+balanceLNE x nel r = case r of
+  Tip -> balanceLNEE x nel
+  (NE ner) -> balanceLNENE x nel ner
+{-# NOINLINE balanceLNE #-}
+
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceLNEE :: a -> NonEmptySet a -> NonEmptySet a
+balanceLNEE x nel = case nel of
+  (Bin' _ _ Tip Tip) ->
+    Bin' 2 x (NE nel) Tip
+  (Bin' _ lx Tip (NE (Bin' _ lrx _ _))) ->
+    Bin' 3 lrx (NE $ Bin' 1 lx Tip Tip) (NE $ Bin' 1 x Tip Tip)
+  (Bin' _ lx ll@(NE (Bin' _ _ _ _)) Tip) ->
+    Bin' 3 lx ll (NE $ Bin' 1 x Tip Tip)
+  (Bin' ls lx ll@(NE (Bin' lls _ _ _))
+                          lr@(NE (Bin' lrs lrx lrl lrr)))
+    | lrs < ratio*lls ->
+      Bin' (1+ls) lx ll (NE $ Bin' (1+lrs) x lr Tip)
+    | otherwise ->
+      Bin' (1+ls) lrx
+        (NE $ Bin' (1+lls+size lrl) lx ll lrl)
+        (NE $ Bin' (1+size lrr) x lrr Tip)
+{-# INLINE balanceLNEE #-}
+
+-- | Balance helper where:
+-- - Left child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceLNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+balanceLNENE x l@(Bin' ls lx ll lr) r@(Bin' rs _ _ _)
+  | ls > delta*rs = case (ll, lr) of
+    (NE (Bin' lls _ _ _), NE (Bin' lrs lrx lrl lrr))
+      | lrs < ratio*lls -> Bin' (1+ls+rs) lx
+        ll
+        (NE $ Bin' (1+rs+lrs) x lr $ NE r)
+      | otherwise -> Bin' (1+ls+rs) lrx
+        (NE $ Bin' (1+lls+size lrl) lx ll lrl)
+        (NE $ Bin' (1+rs+size lrr) x lrr $ NE r)
+    (_, _) -> error "Failure in Data.Set.balanceL"
+  | otherwise = Bin' (1+ls+rs) x (NE l) (NE r)
+{-# INLINE balanceLNENE #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
 balanceR :: a -> Set a -> Set a -> Set a
 balanceR x l r = case l of
   Tip -> case r of
-           Tip -> Bin 1 x Tip Tip
-           (Bin _ _ Tip Tip) -> Bin 2 x Tip r
-           (Bin _ rx Tip rr@(Bin _ _ _ _)) -> Bin 3 rx (Bin 1 x Tip Tip) rr
-           (Bin _ rx (Bin _ rlx _ _) Tip) -> Bin 3 rlx (Bin 1 x Tip Tip) (Bin 1 rx Tip Tip)
-           (Bin rs rx rl@(Bin rls rlx rll rlr) rr@(Bin rrs _ _ _))
-             | rls < ratio*rrs -> Bin (1+rs) rx (Bin (1+rls) x Tip rl) rr
-             | otherwise -> Bin (1+rs) rlx (Bin (1+size rll) x Tip rll) (Bin (1+rrs+size rlr) rx rlr rr)
+    Tip -> NE $ Bin' 1 x Tip Tip
+    (NE ner) -> NE $ balanceRNEE x ner
 
-  (Bin ls _ _ _) -> case r of
-           Tip -> Bin (1+ls) x l Tip
-
-           (Bin rs rx rl rr)
-              | rs > delta*ls  -> case (rl, rr) of
-                   (Bin rls rlx rll rlr, Bin rrs _ _ _)
-                     | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
-                     | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
-                   (_, _) -> error "Failure in Data.Map.balanceR"
-              | otherwise -> Bin (1+ls+rs) x l r
+  (NE nel@(Bin' ls _ _ _)) -> case r of
+    Tip -> NE $ Bin' (1+ls) x l Tip
+    (NE ner) -> NE $ balanceRNENE x nel ner
 {-# NOINLINE balanceR #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is empty
+-- - Right child is non-empty
+balanceRNE :: a -> Set a -> NonEmptySet a -> NonEmptySet a
+balanceRNE x l ner = case l of
+  Tip -> balanceRNEE x ner
+  (NE nel) -> balanceRNENE x nel ner
+{-# NOINLINE balanceRNE #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is empty
+balanceRNEE :: a -> NonEmptySet a -> NonEmptySet a
+balanceRNEE x ner = case ner of
+  (Bin' _ _ Tip Tip) ->
+    Bin' 2 x Tip (NE ner)
+  (Bin' _ rx Tip rr@(NE (Bin' _ _ _ _))) ->
+    Bin' 3 rx (NE (Bin' 1 x Tip Tip)) rr
+  (Bin' _ rx (NE (Bin' _ rlx _ _)) Tip) ->
+    Bin' 3 rlx
+      (NE (Bin' 1 x Tip Tip))
+      (NE (Bin' 1 rx Tip Tip))
+  (Bin' rs rx
+         rl@(NE (Bin' rls rlx rll rlr))
+         rr@(NE (Bin' rrs _ _ _)))
+    | rls < ratio*rrs -> Bin' (1+rs) rx
+      (NE (Bin' (1+rls) x Tip rl))
+      rr
+    | otherwise -> Bin' (1+rs) rlx
+      (NE (Bin' (1+size rll) x Tip rll))
+      (NE (Bin' (1+rrs+size rlr) rx rlr rr))
+{-# INLINE balanceRNEE #-}
+
+-- | Balance helper where:
+-- - Right child might be too big
+-- - Left child is non-empty
+-- - Right child is non-empty
+balanceRNENE :: a -> NonEmptySet a -> NonEmptySet a -> NonEmptySet a
+balanceRNENE x l@(Bin' ls _ _ _) r@(Bin' rs rx rl rr)
+  | rs > delta*ls = case (rl, rr) of
+    (NE (Bin' rls rlx rll rlr), NE (Bin' rrs _ _ _))
+      | rls < ratio*rrs -> Bin' (1+ls+rs) rx
+        (NE (Bin' (1+ls+rls) x (NE l) rl))
+        rr
+      | otherwise -> Bin' (1+ls+rs) rlx
+        (NE $ Bin' (1+ls+size rll) x (NE l) rll)
+        (NE $ Bin' (1+rrs+size rlr) rx rlr rr)
+    (_, _) -> error "Failure in Data.Set.balanceR"
+  | otherwise = Bin' (1+ls+rs) x (NE l) (NE r)
+{-# INLINE balanceRNENE #-}
+
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree
 --------------------------------------------------------------------}
+
 bin :: a -> Set a -> Set a -> Set a
 bin x l r
-  = Bin (size l + size r + 1) x l r
+  = NE $ Bin' (size l + size r + 1) x l r
 {-# INLINE bin #-}
 
+binNE :: a -> Set a -> Set a -> NonEmptySet a
+binNE x l r = Bin' (size l + size r + 1) x l r
+{-# INLINE binNE #-}
 
 {--------------------------------------------------------------------
   Utilities
@@ -1805,9 +2365,17 @@ splitRoot :: Set a -> [Set a]
 splitRoot orig =
   case orig of
     Tip           -> []
-    Bin _ v l r -> [l, singleton v, r]
+    NE (Bin' _ v l r) -> [l, singleton v, r]
 {-# INLINE splitRoot #-}
 
+splitRootNE :: NonEmptySet a -> NEL.NonEmpty (Set a)
+splitRootNE (Bin' _ v l r) = l NEL.:| [singleton v, r]
+
+splitNERootNE :: NonEmptySet a -> NEL.NonEmpty (NonEmptySet a)
+splitNERootNE (Bin' _ v Tip Tip) = pure $ singletonNE v
+splitNERootNE (Bin' _ v (NE l) Tip) = l NEL.:| [singletonNE v]
+splitNERootNE (Bin' _ v Tip (NE r)) = singletonNE v NEL.:| [r]
+splitNERootNE (Bin' _ v (NE l) (NE r)) = l NEL.:| [singletonNE v, r]
 
 -- | Calculate the power set of a set: the set of all its subsets.
 --
@@ -1826,6 +2394,15 @@ splitRoot orig =
 powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
+
+powerSetNE :: NonEmptySet a -> NonEmptySet (Set a)
+powerSetNE xs = insertMinNE empty . NE . mapMonotonicNE NE $ nePowerSetNE xs
+
+nePowerSetNE :: forall a . NonEmptySet a -> NonEmptySet (NonEmptySet a)
+nePowerSetNE xs = foldr1By f (singletonNE.singletonNE) xs
+  where
+    f :: a -> NonEmptySet (NonEmptySet a) -> NonEmptySet (NonEmptySet a)
+    f v acc = insertMinNE (singletonNE v) (NE $ mapMonotonicNE (insertMinNE v . NE) acc) `glueNE` acc
 
 -- | \(O(mn)\) (conjectured). Calculate the Cartesian product of two sets.
 --
@@ -1861,9 +2438,20 @@ cartesianProduct :: Set a -> Set b -> Set (a, b)
 -- When the second argument has at most one element, we can be a little
 -- clever.
 cartesianProduct !_as Tip = Tip
-cartesianProduct as (Bin 1 b _ _) = mapMonotonic (flip (,) b) as
+cartesianProduct as (NE (Bin' 1 b _ _)) = mapMonotonic (flip (,) b) as
 cartesianProduct as bs =
   getMergeSet $ foldMap (\a -> MergeSet $ mapMonotonic ((,) a) bs) as
+
+cartesianProductNE :: forall a b . NonEmptySet a -> NonEmptySet b -> NonEmptySet (a, b)
+cartesianProductNE as (Bin' 1 b _ _) = mapMonotonicNE (flip (,) b) as
+cartesianProductNE as bs = goFoldMapNE as
+  where
+    f a = mapMonotonicNE ((,) a) bs
+    goFoldMapNE :: NonEmptySet a -> NonEmptySet (a, b)
+    goFoldMapNE (Bin'  1 k _ _) = f k
+    goFoldMapNE (Bin'  _ k l r) = goFoldMap l `mergeXNE` (f k `mergeNEX` goFoldMap r)
+    goFoldMap Tip = empty
+    goFoldMap (NE s) = NE $ goFoldMapNE s
 
 -- A version of Set with peculiar Semigroup and Monoid instances.
 -- The result of xs <> ys will only be a valid set if the greatest
@@ -1894,6 +2482,14 @@ instance Monoid (MergeSet a) where
 disjointUnion :: Set a -> Set b -> Set (Either a b)
 disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 
+disjointUnionNE :: NonEmptySet a -> NonEmptySet b -> NonEmptySet (Either a b)
+disjointUnionNE as bs = mergeNE (mapMonotonicNE Left as) (mapMonotonicNE Right bs)
+
+disjointUnionNEX :: NonEmptySet a -> Set b -> NonEmptySet (Either a b)
+disjointUnionNEX as bs = mergeNEX (mapMonotonicNE Left as) (mapMonotonic Right bs)
+
+disjointUnionXNE :: Set a -> NonEmptySet b -> NonEmptySet (Either a b)
+disjointUnionXNE as bs = mergeXNE (mapMonotonic Left as) (mapMonotonicNE Right bs)
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
@@ -1902,6 +2498,10 @@ disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 showTree :: Show a => Set a -> String
 showTree s
   = showTreeWith True False s
+
+showTreeNE :: Show a => NonEmptySet a -> String
+showTreeNE s
+  = showTreeWithNE True False s
 
 
 {- | \(O(n)\). The expression (@showTreeWith hang wide map@) shows
@@ -1944,13 +2544,23 @@ showTreeWith hang wide t
   | hang      = (showsTreeHang wide [] t) ""
   | otherwise = (showsTree wide [] [] t) ""
 
+showTreeWithNE :: Show a => Bool -> Bool -> NonEmptySet a -> String
+showTreeWithNE hang wide t
+  | hang      = (showsTreeHangNE wide [] t) ""
+  | otherwise = (showsTreeNE wide [] [] t) ""
+
 showsTree :: Show a => Bool -> [String] -> [String] -> Set a -> ShowS
 showsTree wide lbars rbars t
   = case t of
       Tip -> showsBars lbars . showString "|\n"
-      Bin _ x Tip Tip
+      NE ne -> showsTreeNE wide lbars rbars ne
+
+showsTreeNE :: Show a => Bool -> [String] -> [String] -> NonEmptySet a -> ShowS
+showsTreeNE wide lbars rbars t
+  = case t of
+      Bin' _ x Tip Tip
           -> showsBars lbars . shows x . showString "\n"
-      Bin _ x l r
+      Bin' _ x l r
           -> showsTree wide (withBar rbars) (withEmpty rbars) r .
              showWide wide rbars .
              showsBars lbars . shows x . showString "\n" .
@@ -1961,9 +2571,14 @@ showsTreeHang :: Show a => Bool -> [String] -> Set a -> ShowS
 showsTreeHang wide bars t
   = case t of
       Tip -> showsBars bars . showString "|\n"
-      Bin _ x Tip Tip
+      NE ne -> showsTreeHangNE wide bars ne
+
+showsTreeHangNE :: Show a => Bool -> [String] -> NonEmptySet a -> ShowS
+showsTreeHangNE wide bars t
+  = case t of
+      Bin' _ x Tip Tip
           -> showsBars bars . shows x . showString "\n"
-      Bin _ x l r
+      Bin' _ x l r
           -> showsBars bars . shows x . showString "\n" .
              showWide wide bars .
              showsTreeHang wide (withBar bars) l .
@@ -1996,29 +2611,53 @@ valid :: Ord a => Set a -> Bool
 valid t
   = balanced t && ordered t && validsize t
 
+validNE :: Ord a => NonEmptySet a -> Bool
+validNE t
+  = balancedNE t && orderedNE t && validsizeNE t
+
+--------------------------------------------------------------------
+
 ordered :: Ord a => Set a -> Bool
-ordered t
-  = bounded (const True) (const True) t
-  where
-    bounded lo hi t'
-      = case t' of
-          Tip         -> True
-          Bin _ x l r -> (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
+ordered = bounded (const True) (const True)
+
+orderedNE :: Ord a => NonEmptySet a -> Bool
+orderedNE = boundedNE (const True) (const True)
+
+bounded :: Ord a => (a -> Bool) -> (a -> Bool) -> Set a -> Bool
+bounded lo hi t' = case t' of
+  Tip -> True
+  NE ne -> boundedNE lo hi ne
+
+boundedNE :: Ord a => (a -> Bool) -> (a -> Bool) -> NonEmptySet a -> Bool
+boundedNE lo hi (Bin' _ x l r) =
+  (lo x) && (hi x) && bounded lo (<x) l && bounded (>x) hi r
+
+--------------------------------------------------------------------
 
 balanced :: Set a -> Bool
-balanced t
-  = case t of
-      Tip         -> True
-      Bin _ _ l r -> (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
-                     balanced l && balanced r
+balanced t = case t of
+  Tip -> True
+  NE ne -> balancedNE ne
+
+balancedNE :: NonEmptySet a -> Bool
+balancedNE (Bin' _ _ l r) =
+  (size l + size r <= 1 || (size l <= delta*size r && size r <= delta*size l)) &&
+    balanced l && balanced r
+
+--------------------------------------------------------------------
 
 validsize :: Set a -> Bool
-validsize t
-  = (realsize t == Just (size t))
-  where
-    realsize t'
-      = case t' of
-          Tip          -> Just 0
-          Bin sz _ l r -> case (realsize l,realsize r) of
-                            (Just n,Just m)  | n+m+1 == sz  -> Just sz
-                            _                -> Nothing
+validsize t = realsize t == Just (size t)
+
+validsizeNE :: NonEmptySet a -> Bool
+validsizeNE t = realsizeNE t == Just (sizeNE t)
+
+realsize :: Set a -> Maybe Size
+realsize t' = case t' of
+  Tip          -> Just 0
+  NE ne -> realsizeNE ne
+
+realsizeNE :: NonEmptySet a -> Maybe Size
+realsizeNE (Bin' sz _ l r) = case (realsize l,realsize r) of
+  (Just n, Just m)  | n+m+1 == sz  -> Just sz
+  _                -> Nothing
