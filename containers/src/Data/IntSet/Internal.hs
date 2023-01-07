@@ -352,7 +352,7 @@ member !x = go
 notMember :: Key -> IntSet -> Bool
 notMember k = not . member k
 
--- | \(O(\log n)\). Find largest element smaller than the given one.
+-- | \(O(\min(n,W))\). Find largest element smaller than the given one.
 --
 -- > lookupLT 3 (fromList [3, 5]) == Nothing
 -- > lookupLT 5 (fromList [3, 5]) == Just 3
@@ -373,7 +373,7 @@ lookupLT !x t = case t of
     go def Nil = unsafeFindMax def
 
 
--- | \(O(\log n)\). Find smallest element greater than the given one.
+-- | \(O(\min(n,W))\). Find smallest element greater than the given one.
 --
 -- > lookupGT 4 (fromList [3, 5]) == Just 5
 -- > lookupGT 5 (fromList [3, 5]) == Nothing
@@ -394,7 +394,7 @@ lookupGT !x t = case t of
     go def Nil = unsafeFindMin def
 
 
--- | \(O(\log n)\). Find largest element smaller or equal to the given one.
+-- | \(O(\min(n,W))\). Find largest element smaller or equal to the given one.
 --
 -- > lookupLE 2 (fromList [3, 5]) == Nothing
 -- > lookupLE 4 (fromList [3, 5]) == Just 3
@@ -416,7 +416,7 @@ lookupLE !x t = case t of
     go def Nil = unsafeFindMax def
 
 
--- | \(O(\log n)\). Find smallest element greater or equal to the given one.
+-- | \(O(\min(n,W))\). Find smallest element greater or equal to the given one.
 --
 -- > lookupGE 3 (fromList [3, 5]) == Just 3
 -- > lookupGE 4 (fromList [3, 5]) == Just 5
@@ -1353,14 +1353,14 @@ instance NFData IntSet where rnf x = seq x ()
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
--- | \(O(n)\). Show the tree that implements the set. The tree is shown
+-- | \(O(n \min(n,W))\). Show the tree that implements the set. The tree is shown
 -- in a compressed, hanging format.
 showTree :: IntSet -> String
 showTree s
   = showTreeWith True False s
 
 
-{- | \(O(n)\). The expression (@'showTreeWith' hang wide map@) shows
+{- | \(O(n \min(n,W))\). The expression (@'showTreeWith' hang wide map@) shows
  the tree that implements the set. If @hang@ is
  'True', a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.

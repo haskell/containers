@@ -1407,7 +1407,7 @@ deleteAt !i t =
       where
         sizeL = size l
 
--- | Take a given number of elements in order, beginning
+-- | \(O(\log n)\). Take a given number of elements in order, beginning
 -- with the smallest ones.
 --
 -- @
@@ -1428,7 +1428,7 @@ take i0 m0 = go i0 m0
         EQ -> l
       where sizeL = size l
 
--- | Drop a given number of elements in order, beginning
+-- | \(O(\log n)\). Drop a given number of elements in order, beginning
 -- with the smallest ones.
 --
 -- @
@@ -1809,7 +1809,7 @@ splitRoot orig =
 {-# INLINE splitRoot #-}
 
 
--- | Calculate the power set of a set: the set of all its subsets.
+-- | \(O(2^n \log n)\). Calculate the power set of a set: the set of all its subsets.
 --
 -- @
 -- t ``member`` powerSet s == t ``isSubsetOf`` s
@@ -1827,7 +1827,7 @@ powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
 
--- | \(O(mn)\) (conjectured). Calculate the Cartesian product of two sets.
+-- | \(O(nm)\). Calculate the Cartesian product of two sets.
 --
 -- @
 -- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
@@ -1879,7 +1879,7 @@ instance Monoid (MergeSet a) where
 
   mappend = (<>)
 
--- | Calculate the disjoint union of two sets.
+-- | \(O(n+m)\). Calculate the disjoint union of two sets.
 --
 -- @ disjointUnion xs ys = map Left xs ``union`` map Right ys @
 --
@@ -1897,14 +1897,14 @@ disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
--- | \(O(n)\). Show the tree that implements the set. The tree is shown
+-- | \(O(n \log n)\). Show the tree that implements the set. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => Set a -> String
 showTree s
   = showTreeWith True False s
 
 
-{- | \(O(n)\). The expression (@showTreeWith hang wide map@) shows
+{- | \(O(n \log n)\). The expression (@showTreeWith hang wide map@) shows
  the tree that implements the set. If @hang@ is
  @True@, a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.
