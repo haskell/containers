@@ -616,7 +616,7 @@ findWithDefault def !k = go
                   | otherwise = def
     go Nil = def
 
--- | \(O(\log n)\). Find largest key smaller than the given one and return the
+-- | \(O(\min(n,W))\). Find largest key smaller than the given one and return the
 -- corresponding (key, value) pair.
 --
 -- > lookupLT 3 (fromList [(3,'a'), (5,'b')]) == Nothing
@@ -637,7 +637,7 @@ lookupLT !k t = case t of
       | otherwise = Just (ky, y)
     go def Nil = unsafeFindMax def
 
--- | \(O(\log n)\). Find smallest key greater than the given one and return the
+-- | \(O(\min(n,W))\). Find smallest key greater than the given one and return the
 -- corresponding (key, value) pair.
 --
 -- > lookupGT 4 (fromList [(3,'a'), (5,'b')]) == Just (5, 'b')
@@ -658,7 +658,7 @@ lookupGT !k t = case t of
       | otherwise = Just (ky, y)
     go def Nil = unsafeFindMin def
 
--- | \(O(\log n)\). Find largest key smaller or equal to the given one and return
+-- | \(O(\min(n,W))\). Find largest key smaller or equal to the given one and return
 -- the corresponding (key, value) pair.
 --
 -- > lookupLE 2 (fromList [(3,'a'), (5,'b')]) == Nothing
@@ -680,7 +680,7 @@ lookupLE !k t = case t of
       | otherwise = Just (ky, y)
     go def Nil = unsafeFindMax def
 
--- | \(O(\log n)\). Find smallest key greater or equal to the given one and return
+-- | \(O(\min(n,W))\). Find smallest key greater or equal to the given one and return
 -- the corresponding (key, value) pair.
 --
 -- > lookupGE 3 (fromList [(3,'a'), (5,'b')]) == Just (3, 'a')
@@ -1010,7 +1010,7 @@ alter f k Nil     = case f Nothing of
                       Just x -> Tip k x
                       Nothing -> Nil
 
--- | \(O(\log n)\). The expression (@'alterF' f k map@) alters the value @x@ at
+-- | \(O(\min(n,W))\). The expression (@'alterF' f k map@) alters the value @x@ at
 -- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
 -- or update a value in an 'IntMap'.  In short : @'lookup' k <$> 'alterF' f k m = f
 -- ('lookup' k m)@.
@@ -3550,14 +3550,14 @@ splitRoot orig =
   Debugging
 --------------------------------------------------------------------}
 
--- | \(O(n)\). Show the tree that implements the map. The tree is shown
+-- | \(O(n \min(n,W))\). Show the tree that implements the map. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => IntMap a -> String
 showTree s
   = showTreeWith True False s
 
 
-{- | \(O(n)\). The expression (@'showTreeWith' hang wide map@) shows
+{- | \(O(n \min(n,W))\). The expression (@'showTreeWith' hang wide map@) shows
  the tree that implements the map. If @hang@ is
  'True', a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.

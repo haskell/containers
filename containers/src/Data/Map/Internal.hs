@@ -1489,7 +1489,7 @@ elemAt i (Bin _ kx x l r)
   where
     sizeL = size l
 
--- | Take a given number of entries in key order, beginning
+-- | \(O(\log n)\). Take a given number of entries in key order, beginning
 -- with the smallest keys.
 --
 -- @
@@ -1511,7 +1511,7 @@ take i0 m0 = go i0 m0
         EQ -> l
       where sizeL = size l
 
--- | Drop a given number of entries in key order, beginning
+-- | \(O(\log n)\). Drop a given number of entries in key order, beginning
 -- with the smallest keys.
 --
 -- @
@@ -3831,7 +3831,7 @@ splitLookup k0 m = case go k0 m of
 {-# INLINABLE splitLookup #-}
 #endif
 
--- | A variant of 'splitLookup' that indicates only whether the
+-- | \(O(\log n)\). A variant of 'splitLookup' that indicates only whether the
 -- key was present, rather than producing its value. This is used to
 -- implement 'intersection' to avoid allocating unnecessary 'Just'
 -- constructors.

@@ -1407,7 +1407,7 @@ deleteAt !i t =
       where
         sizeL = size l
 
--- | Take a given number of elements in order, beginning
+-- | \(O(\log n)\). Take a given number of elements in order, beginning
 -- with the smallest ones.
 --
 -- @
@@ -1428,7 +1428,7 @@ take i0 m0 = go i0 m0
         EQ -> l
       where sizeL = size l
 
--- | Drop a given number of elements in order, beginning
+-- | \(O(\log n)\). Drop a given number of elements in order, beginning
 -- with the smallest ones.
 --
 -- @
@@ -1809,7 +1809,7 @@ splitRoot orig =
 {-# INLINE splitRoot #-}
 
 
--- | Calculate the power set of a set: the set of all its subsets.
+-- | \(O(2^n \log n)\). Calculate the power set of a set: the set of all its subsets.
 --
 -- @
 -- t ``member`` powerSet s == t ``isSubsetOf`` s
@@ -1823,11 +1823,22 @@ splitRoot orig =
 -- @
 --
 -- @since 0.5.11
+
+-- Proof of complexity: step executes n times. At the ith step,
+-- "insertMin x `mapMonotonic` pxs" takes O(2^i log i) time since pxs has size
+-- 2^i - 1 and we insertMin into its elements which are sets of size <= i.
+-- "insertMin (singleton x)" and "`glue` pxs" are cheaper operations that both
+-- take O(i) time. Over n steps, we have a total cost of
+--
+--   O(\sum_{i=1}^{n-1} 2^i log i)
+-- = O(log n * \sum_{i=1}^{n-1} 2^i)
+-- = O(2^n log n)
+
 powerSet :: Set a -> Set (Set a)
 powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
   step x pxs = insertMin (singleton x) (insertMin x `mapMonotonic` pxs) `glue` pxs
 
--- | \(O(mn)\) (conjectured). Calculate the Cartesian product of two sets.
+-- | \(O(nm)\). Calculate the Cartesian product of two sets.
 --
 -- @
 -- cartesianProduct xs ys = fromList $ liftA2 (,) (toList xs) (toList ys)
@@ -1842,11 +1853,7 @@ powerSet xs0 = insertMin empty (foldr' step Tip xs0) where
 --
 -- @since 0.5.11
 cartesianProduct :: Set a -> Set b -> Set (a, b)
--- I don't know for sure if this implementation (slightly modified from one
--- that Edward Kmett hacked together) is optimal. TODO: try to prove or
--- refute it.
---
--- We could definitely get big-O optimal (O(m * n)) in a rather simple way:
+-- The obvious big-O optimal (O(nm)) implementation would be
 --
 --   cartesianProduct _as Tip = Tip
 --   cartesianProduct as bs = fromDistinctAscList
@@ -1855,8 +1862,31 @@ cartesianProduct :: Set a -> Set b -> Set (a, b)
 -- Unfortunately, this is much slower in practice, at least when the sets are
 -- constructed from ascending lists. I tried doing the same thing using a
 -- known-length (perfect balancing) variant of fromDistinctAscList, but it
--- still didn't come close to the performance of Kmett's version in my very
--- informal tests.
+-- still didn't come close to the performance of the implementation we use in my
+-- very informal tests.
+--
+-- The implementation we use (slightly modified from one that Edward Kmett
+-- hacked together) is also optimal but performs better in practice. We map
+-- each element a in as to a set made up of (a,b) for every element b in bs,
+-- taking O(nm) overall. Then we merge these sets up the tree of as, which takes
+-- O(n log m). A brief sketch of proof for the latter:
+--
+-- Consider all nodes in the tree at the same distance from the root to be at
+-- the same "level". The nodes farthest from the root are at level 0, with
+-- levels increasing by 1 towards the root. Being a balanced tree, there are
+-- O(n/2^i) nodes at level i. At every node at level i, we merge the merged left
+-- set, current set, and merged right set into a set of size O(2^i*m) in
+-- O(log (2^i*m)) = O(i + log m) time. Over all levels, we do a total work of
+--
+--   O(\sum_{i=0}^{root_level} n * (i + log m) / 2^i)
+-- = O(  \sum_{i=0}^{root_level} n * i / 2^i
+--     + \sum_{i=0}^{root_level} n * log m / 2^i)
+-- = O(  n * \sum_{i=0}^{root_level} i/2^i
+--     + n * log m * \sum_{i=0}^{root_level} 1/2^i)
+-- = O(  n * \sum_{i=0}^{inf} i/2^i
+--     + n * log m * \sum_{i=0}^{inf} 1/2^i)
+--
+-- The sum terms converge, and we get O(n log m).
 
 -- When the second argument has at most one element, we can be a little
 -- clever.
@@ -1879,7 +1909,7 @@ instance Monoid (MergeSet a) where
 
   mappend = (<>)
 
--- | Calculate the disjoint union of two sets.
+-- | \(O(n+m)\). Calculate the disjoint union of two sets.
 --
 -- @ disjointUnion xs ys = map Left xs ``union`` map Right ys @
 --
@@ -1897,14 +1927,14 @@ disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
 {--------------------------------------------------------------------
   Debugging
 --------------------------------------------------------------------}
--- | \(O(n)\). Show the tree that implements the set. The tree is shown
+-- | \(O(n \log n)\). Show the tree that implements the set. The tree is shown
 -- in a compressed, hanging format.
 showTree :: Show a => Set a -> String
 showTree s
   = showTreeWith True False s
 
 
-{- | \(O(n)\). The expression (@showTreeWith hang wide map@) shows
+{- | \(O(n \log n)\). The expression (@showTreeWith hang wide map@) shows
  the tree that implements the set. If @hang@ is
  @True@, a /hanging/ tree is shown otherwise a rotated tree is shown. If
  @wide@ is 'True', an extra wide version is shown.
