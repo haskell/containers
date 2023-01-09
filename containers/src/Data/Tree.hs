@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
@@ -52,7 +53,8 @@ module Data.Tree(
 
     ) where
 
-import Data.Foldable (toList)
+import Data.Foldable (fold, foldl', toList)
+import Data.Traversable (foldMapDefault)
 import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
@@ -179,16 +181,59 @@ mfixTree f
                     [0..] children)
 
 instance Traversable Tree where
-    traverse f (Node x ts) = liftA2 Node (f x) (traverse (traverse f) ts)
+  traverse f = go
+    where go (Node x ts) = liftA2 Node (f x) (traverse go ts)
+  {-# INLINE traverse #-}
 
+-- | Folds in preorder
+
+-- See Note [Implemented Foldable Tree functions]
 instance Foldable Tree where
-    foldMap f (Node x ts) = f x `mappend` foldMap (foldMap f) ts
+    fold = foldMap id
+    {-# INLINABLE fold #-}
+
+    foldMap = foldMapDefault
+    {-# INLINE foldMap #-}
+
+    foldr f z = \t -> go t z  -- Use a lambda to allow inlining with two arguments
+      where
+        go (Node x ts) = f x . foldr (\t k -> go t . k) id ts
+        -- This is equivalent to the following simpler definition, but has been found to optimize
+        -- better in benchmarks:
+        -- go (Node x ts) z' = f x (foldr go z' ts)
+    {-# INLINE foldr #-}
+
+    foldl' f = go
+      where go !z (Node x ts) = foldl' go (f z x) ts
+    {-# INLINE foldl' #-}
+
+    foldr1 f = go id
+      where go k (Node x ts) = foldr (\n k' prev -> f prev (go k' n)) k ts x
+    {-# INLINE foldr1 #-}
+
+    foldl1 f (Node x ts) = foldl (foldl f) x ts
 
     null _ = False
     {-# INLINE null #-}
 
-    toList = flatten
-    {-# INLINE toList #-}
+    elem = any . (==)
+    {-# INLINABLE elem #-}
+
+    maximum = foldl1' max
+    {-# INLINABLE maximum #-}
+
+    minimum = foldl1' min
+    {-# INLINABLE minimum #-}
+
+    sum = foldl1' (+)
+    {-# INLINABLE sum #-}
+
+    product = foldl1' (*)
+    {-# INLINABLE product #-}
+
+foldl1' :: (a -> a -> a) -> Tree a -> a
+foldl1' f = \(Node x ts) -> foldl' (foldl' f) x ts
+{-# INLINE foldl1' #-}
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
@@ -262,8 +307,7 @@ draw (Node x ts0) = lines x ++ drawSubTrees ts0
 --
 -- > flatten (Node 1 [Node 2 [], Node 3 []]) == [1,2,3]
 flatten :: Tree a -> [a]
-flatten t = squish t []
-  where squish (Node x ts) xs = x:Prelude.foldr squish xs ts
+flatten = toList
 
 -- | Returns the list of nodes at each level of the tree.
 --
@@ -415,3 +459,23 @@ unfoldForestQ f aQ = case viewl aQ of
     splitOnto as (_:bs) q = case viewr q of
         q' :> a -> splitOnto (a:as) bs q'
         EmptyR -> error "unfoldForestQ"
+
+--------------------------------------------------------------------------------
+
+-- Note [Implemented Foldable Tree functions]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- Implemented:
+--
+-- foldMap, foldr, foldl': Basic functions.
+-- fold, elem: Implemented same as the default definition, but INLINABLE to
+-- allow specialization.
+-- foldr1, foldl1, null, maximum, minimum: Implemented more efficiently than
+-- defaults since trees are non-empty.
+-- sum, product: Implemented as strict left folds. Defaults use the lazy foldMap
+-- before base 4.15.1.
+--
+-- Not implemented:
+--
+-- foldMap', toList, length: Defaults perform well.
+-- foldr', foldl: Unlikely to be used.

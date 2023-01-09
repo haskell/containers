@@ -152,6 +152,14 @@ benchmark map-benchmarks
   main-is:        Map.hs
   ghc-options:    -O2
 
+benchmark tree-benchmarks
+  import: benchmark-deps
+  default-language: Haskell2010
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        Tree.hs
+  ghc-options:    -O2
+
 benchmark sequence-benchmarks
   import: benchmark-deps
   default-language: Haskell2010
