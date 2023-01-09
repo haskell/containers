@@ -669,16 +669,16 @@ prop_spanAntitone xs' = valid tw .&&. valid dw
     xs = fromList xs'
     (tw, dw) = spanAntitone isLeft xs
 
-prop_powerSet :: Set Int -> Property
-prop_powerSet xs = valid ps .&&. ps === ps'
-  where
-    xs' = take 10 xs
-
-    ps = powerSet xs'
-    ps' = fromList . fmap fromList $ lps (toList xs')
-
-    lps [] = [[]]
-    lps (y : ys) = fmap (y:) (lps ys) ++ lps ys
+prop_powerSet :: Property
+prop_powerSet = forAll (resize 10 arbitrary :: Gen (Set Int)) $ \xs ->
+   -- We don't actually have to check on the values directly, because the power
+   -- set is the *only* one that can be produced by a function with the type of
+   -- `powerSet` and satisfy the criteria below. In particular, the `valid ps`
+   -- test ensures that we haven't duplicated any subsets, while the size test
+   -- ensures that we haven't omitted any. Parametricity ensures that we
+   -- haven't produced any elements out of thin air.
+   let ps = powerSet xs
+   in valid ps .&&. all valid ps .&&. size ps === 2^size xs
 
 prop_cartesianProduct :: Set Int -> Set Int -> Property
 prop_cartesianProduct xs ys =
