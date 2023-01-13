@@ -109,7 +109,6 @@ library
       Utils.NoThunks
 
   other-modules:
-    Prelude
     Utils.Containers.Internal.Coercions
     Utils.Containers.Internal.PtrEquality
     Utils.Containers.Internal.State
@@ -120,6 +119,10 @@ library
       Data.IntMap.Internal.DeprecatedDebug
       Data.Map.Internal.DeprecatedShowTree
       Utils.Containers.Internal.TypeError
+
+  if impl(ghc < 7.10)
+    other-modules:
+      Prelude
 
   if impl(ghc >= 8.6)
     ghc-options: -Werror
