@@ -12,16 +12,14 @@ main = do
   evaluate $ rnf randGs
   defaultMain
     [ bgroup "buildG" $ forGs randGs $ \g -> nf (G.buildG (bounds (getG g))) (getEdges g)
-    , bgroup "graphFromEdges" $
-        forGs [randG1, randG2, randG3] $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
+    , bgroup "graphFromEdges" $ forGs randGs $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
     , bgroup "transposeG" $ forGs randGs $ nf G.transposeG . getG
     , bgroup "dfs" $ forGs randGs $ nf (flip G.dfs [1]) . getG
     , bgroup "dff" $ forGs randGs $ nf G.dff . getG
     , bgroup "topSort" $ forGs randGs $ nf G.topSort . getG
     , bgroup "scc" $ forGs randGs $ nf G.scc . getG
     , bgroup "bcc" $ forGs randGs $ nf G.bcc . getG
-    , bgroup "stronglyConnCompR" $
-        forGs [randG1, randG2, randG3] $ nf G.stronglyConnCompR . getAdjList
+    , bgroup "stronglyConnCompR" $ forGs randGs $ nf G.stronglyConnCompR . getAdjList
     ]
   where
     randG1 = buildRandG 100 1000 
