@@ -12,19 +12,22 @@ main = do
   evaluate $ rnf randGs
   defaultMain
     [ bgroup "buildG" $ forGs randGs $ \g -> nf (G.buildG (bounds (getG g))) (getEdges g)
-    , bgroup "graphFromEdges" $ forGs randGs $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
+    , bgroup "graphFromEdges" $
+        forGs [randG1, randG2, randG3] $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
     , bgroup "dfs" $ forGs randGs $ nf (flip G.dfs [1]) . getG
     , bgroup "dff" $ forGs randGs $ nf G.dff . getG
     , bgroup "topSort" $ forGs randGs $ nf G.topSort . getG
     , bgroup "scc" $ forGs randGs $ nf G.scc . getG
     , bgroup "bcc" $ forGs [randG1, randG2] $ nf G.bcc . getG
-    , bgroup "stronglyConnCompR" $ forGs randGs $ nf G.stronglyConnCompR . getAdjList
+    , bgroup "stronglyConnCompR" $
+        forGs [randG1, randG2, randG3] $ nf G.stronglyConnCompR . getAdjList
     ]
   where
     randG1 = buildRandG 100 1000 
     randG2 = buildRandG 100 10000
     randG3 = buildRandG 10000 100000
-    randGs = [randG1, randG2, randG3]
+    randG4 = buildRandG 100000 1000000
+    randGs = [randG1, randG2, randG3, randG4]
 
 -- Note: In practice it does not make sense to run topSort or bcc on a random
 -- graph. For topSort the graph should be acyclic and for bcc the graph should

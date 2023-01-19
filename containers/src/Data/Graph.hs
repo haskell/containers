@@ -472,27 +472,24 @@ dff g         = dfs g (vertices g)
 -- | A spanning forest of the part of the graph reachable from the listed
 -- vertices, obtained from a depth-first search of the graph starting at
 -- each of the listed vertices in order.
-dfs          :: Graph -> [Vertex] -> Forest Vertex
-dfs g vs      = prune (bounds g) (map (generate g) vs)
 
-generate     :: Graph -> Vertex -> Tree Vertex
-generate g v  = Node v (map (generate g) (g!v))
-
-prune        :: Bounds -> Forest Vertex -> Forest Vertex
-prune bnds ts = run bnds (chop ts)
-
-chop         :: Forest Vertex -> SetM s (Forest Vertex)
-chop []       = return []
-chop (Node v ts : us)
-              = do
-                visited <- contains v
-                if visited then
-                  chop us
-                 else do
-                  include v
-                  as <- chop ts
-                  bs <- chop us
-                  return (Node v as : bs)
+-- This function deviates from King and Launchbury's implementation by
+-- bundling together the functions generate, prune, and chop for efficiency
+-- reasons.
+dfs :: Graph -> [Vertex] -> Forest Vertex
+dfs g vs0 = run (bounds g) $ go vs0
+  where
+    go :: [Vertex] -> SetM s (Forest Vertex)
+    go [] = pure []
+    go (v:vs) = do
+      visited <- contains v
+      if visited
+      then go vs
+      else do
+        include v
+        as <- go (g!v)
+        bs <- go vs
+        pure $ Node v as : bs
 
 -- A monad holding a set of vertices visited so far.
 #if USE_ST_MONAD
