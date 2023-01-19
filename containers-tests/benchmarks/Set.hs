@@ -45,6 +45,8 @@ main = do
         , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
         , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
         , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
+        , bench "powerSet" $ whnf S.powerSet (S.fromList[1..20])
+        , bench "member.powerSet" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..20]))
         ]
   where
     elems = [1..2^12]
