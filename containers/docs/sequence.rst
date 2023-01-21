@@ -236,13 +236,15 @@ Let's do the same thing with sequences!
 
     -- Imports the patterns to match on.
     import Data.Sequence (Seq (Empty, (:<|), (:|>)))
+    import qualified Data.Sequence as Seq
 
     case Seq.fromList [1, 2, 3] of
       Empty -> "empty sequence"
-      x :<| xs -> "first:" ++ x ++ " rest:" ++ show xs
+      x :<| xs -> "first:" ++ show x ++ " rest:" ++ show xs
     > "first:1 rest:fromList [2,3]"
 
-.. NOTE:: You can't copy/paste this into GHCi because it's multiple lines.
+.. NOTE:: You can copy/paste this into GHCi using the syntax for multi-line input ``:{ ... :}`` or by enabling `multiline mode
+          <https://downloads.haskell.org/~ghc/latest/docs/html/users_guide/ghci.html#multiline-input>`_ ``:set +m``.
 
 You can also take an element off the end::
 
