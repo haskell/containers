@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -711,26 +712,42 @@ path g v w    = w `elem` (reachable g v)
 -- An undirected graph is biconnected if the deletion of any vertex
 -- leaves it connected.
 bcc :: Graph -> Forest [Vertex]
-bcc g = (concat . map bicomps . map (do_label g dnum)) forest
- where forest = dff g
-       dnum   = preArr (bounds g) forest
+bcc g = concatMap bicomps forest
+  where
+    -- The algorithm here is the same as given by King and Launchbury, which is
+    -- an adaptation of Hopcroft and Tarjan's. The implementation, however, has
+    -- been modified from King and Launchbury to make it efficient.
 
-do_label :: Graph -> UArray Vertex Int -> Tree Vertex -> Tree (Vertex,Int,Int)
-do_label g dnum (Node v ts) = Node (v, dnum UA.! v, lv) us
- where us = map (do_label g dnum) ts
-       lv = minimum ([dnum UA.! v] ++ [dnum UA.! w | w <- g!v]
-                     ++ [lu | Node (_,_,lu) _ <- us])
+    forest = dff g
 
-bicomps :: Tree (Vertex,Int,Int) -> Forest [Vertex]
-bicomps (Node (v,_,_) ts)
-      = [ Node (v:vs) us | (_,Node vs us) <- map collect ts]
+    -- dnum!v is the index of vertex v in the dfs preorder of vertices
+    dnum = preArr (bounds g) forest
 
-collect :: Tree (Vertex,Int,Int) -> (Int, Tree [Vertex])
-collect (Node (v,dv,lv) ts) = (lv, Node (v:vs) cs)
- where collected = map collect ts
-       vs = concat [ ws | (lw, Node ws _) <- collected, lw<dv]
-       cs = concat [ if lw<dv then us else [Node (v:ws) us]
-                        | (lw, Node ws us) <- collected ]
+    -- Wraps up the component of every child of the root
+    bicomps :: Tree Vertex -> Forest [Vertex]
+    bicomps (Node v tws) =
+      [Node (v : curw []) (donew []) | (_, curw, donew) <- map collect tws]
+
+    -- Returns a triple of
+    -- * lowpoint of v
+    -- * difference list of vertices in v's component
+    -- * difference list of trees of components, whose root components are
+    --   adjacent to v's component
+    collect :: Tree Vertex
+            -> (Int, [Vertex] -> [Vertex], [Tree [Vertex]] -> [Tree [Vertex]])
+    collect (Node v tws) = (lowv, (v:) . curv, donev)
+      where
+        dv = dnum UA.! v
+        accf (lowv', curv', donev') tw
+          | loww < dv  -- w's component extends through v
+            = (lowv'', curv' . curw, donev' . donew)
+          | otherwise  -- w's component ends with v as an articulation point
+            = (lowv'', curv', donev' . (Node (v : curw []) (donew []) :))
+          where
+            (loww, curw, donew) = collect tw
+            !lowv'' = min lowv' loww
+        !lowv0 = F.foldl' min dv [dnum UA.! w | w <- g!v]
+        !(lowv, curv, donev) = F.foldl' accf (lowv0, id, id) tws
 
 --------------------------------------------------------------------------------
 

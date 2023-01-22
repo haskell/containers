@@ -19,7 +19,7 @@ main = do
     , bgroup "dff" $ forGs randGs $ nf G.dff . getG
     , bgroup "topSort" $ forGs randGs $ nf G.topSort . getG
     , bgroup "scc" $ forGs randGs $ nf G.scc . getG
-    , bgroup "bcc" $ forGs [randG1, randG2] $ nf G.bcc . getG
+    , bgroup "bcc" $ forGs randGs $ nf G.bcc . getG
     , bgroup "stronglyConnCompR" $
         forGs [randG1, randG2, randG3] $ nf G.stronglyConnCompR . getAdjList
     ]
