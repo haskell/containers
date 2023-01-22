@@ -1739,7 +1739,7 @@ balanceL x l r = case r of
                    (Bin lls _ _ _, Bin lrs lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
-                   (_, _) -> error "Failure in Data.Map.balanceL"
+                   (_, _) -> error "Failure in Data.Set.balanceL"
               | otherwise -> Bin (1+ls+rs) x l r
 {-# NOINLINE balanceL #-}
 
@@ -1764,7 +1764,7 @@ balanceR x l r = case l of
                    (Bin rls rlx rll rlr, Bin rrs _ _ _)
                      | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
-                   (_, _) -> error "Failure in Data.Map.balanceR"
+                   (_, _) -> error "Failure in Data.Set.balanceR"
               | otherwise -> Bin (1+ls+rs) x l r
 {-# NOINLINE balanceR #-}
 
