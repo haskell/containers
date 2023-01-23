@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
@@ -248,7 +249,9 @@ import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
 
 import qualified Data.Array as A
-import Data.Bits ((.&.),(.|.),xor,countTrailingZeros,popCount,complement, bit)
+import qualified Data.Array.Unboxed as AU
+-- import Data.Bits ((.&.),(.|.),xor,countTrailingZeros,popCount,complement, bit)
+import Data.Bits ((.&.),(.|.),xor,countTrailingZeros,popCount)
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -1827,7 +1830,7 @@ splitRoot orig =
 --
 -- @since 0.5.11
 
-powerSet :: Set a -> Set (Set a)
+powerSet :: forall a . Set a -> Set (Set a)
 powerSet xs =
   let !w = length xs
       !u = A.listArray (0, w-1) $ toList xs
@@ -1841,6 +1844,8 @@ powerSet xs =
         else let ST up med lo = splitBits m
              in  bin (u A.! (w - 1 - med))
                      (v A.! up) (v A.! lo)
+{-
+      make :: Int -> Int -> Set (Set a)
       make !begin !s =
         if s == 0 then Tip
         else let !sl = div (s-1) 2; !sr = s - 1 - sl
@@ -1848,10 +1853,26 @@ powerSet xs =
              in  bin (v A.! bit_pattern w (begin + sl))
                      (make begin sl)
                      (make (begin + sl+1) sr)
-  in  make 0 (2^w)
+-}
+      full = 2^(w+1)-1 :: Int
+      stp = -- VU.iterateN (2^w) (next_pattern full) 0
+        AU.listArray (0, 2^w-1) $ iterate (next_pattern full) (0::Int)
+      make_fun :: Int -> Int -> Set (Set a)
+      make_fun !begin !s = 
+        if s == 0
+        then Tip
+        else
+          let !sl = shiftR (s-1) 1; !sr = s - 1 - sl
+          in  bin (v A.! (stp A.! (begin + sl)))
+                  (make_fun begin sl)
+                  (make_fun (begin + sl+1) sr)
+            
+  in  make_fun 0 (2^w)
 
 generateA :: A.Ix i => (i,i) -> (i -> a) -> A.Array i a
 generateA bnd f = A.listArray bnd $ fmap f $ A.range bnd
+
+{-
 
 -- | @bit_pattern w i@ is the bit pattern at position i
 -- in the lexicographic enumeration of their meanings as sets.
@@ -1872,6 +1893,25 @@ bit_pattern !width !i =
         else go (shiftR topmask 1)
              (n .&. complement topmask) set
   in  go (bit $ width-1) i 0
+-}
+
+-- | next bitpattern, first arg. is 2^(w+1)-1
+next_pattern :: Int -> Int -> Int
+{-# inline next_pattern #-}
+next_pattern full m =
+  if even m
+  then -- switch highest trailing zero bit to one
+                            -- ex.: m = 10100      000000
+       let lo = full .&. xor m (m-1) -- 00111     000111
+           b  = xor lo (shiftR lo 1) -- 00100        100
+       in  m .|. shiftR b 1          -- 10110
+  else -- remove lowest one bit (at index 0)
+       -- then move now-lowest one bit on place to the right
+                             -- ex.: m = 1101111    111  101
+       let mm = m - 1                -- 1101110    110  100
+           lo = xor mm (mm-1)        -- 0000011    011  111
+           b =  xor lo (shiftR lo 1) -- 0000010    010  100
+       in  xor mm (b .|. shiftR b 1)  -- 1101101    101  010
 
 data StrictTriple = ST !Int !Int !Int
 
