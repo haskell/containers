@@ -248,8 +248,9 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
 
-import qualified Data.Array as A
-import qualified Data.Array.Unboxed as AU
+import qualified Data.Vector as V
+import qualified Data.Vector.Unboxed as VU
+
 -- import Data.Bits ((.&.),(.|.),xor,countTrailingZeros,popCount,complement, bit)
 import Data.Bits ((.&.),(.|.),xor,countTrailingZeros,popCount)
 
@@ -1833,44 +1834,31 @@ splitRoot orig =
 powerSet :: forall a . Set a -> Set (Set a)
 powerSet xs =
   let !w = length xs
-      !u = A.listArray (0, w-1) $ toList xs
+      !u = V.fromListN w $ toList xs
       -- v ! m is the set with bit pattern m,
       -- e.g., for xs = [1,2,3],
       -- we have  fmap Foldable.toList v =  array (0,7)
       -- [(0,[]),(1,[3]),(2,[2]),(3,[2,3]),(4,[1]),(5,[1,3]),(6,[1,2]),(7,[1,2,3])]
-      !v = generateA (0, 2^w -1) $ \ m ->
+      !v = V.generate (2^w) $ \ m ->
         if m == 0
         then Tip
         else let ST up med lo = splitBits m
-             in  bin (u A.! (w - 1 - med))
-                     (v A.! up) (v A.! lo)
-{-
-      make :: Int -> Int -> Set (Set a)
-      make !begin !s =
-        if s == 0 then Tip
-        else let !sl = div (s-1) 2; !sr = s - 1 - sl
-                 -- @bit_pattern@ puts sets in lexicographic order
-             in  bin (v A.! bit_pattern w (begin + sl))
-                     (make begin sl)
-                     (make (begin + sl+1) sr)
--}
+             in  bin (u V.! (w - 1 - med))
+                     (v V.! up) (v V.! lo)
+
       full = 2^(w+1)-1 :: Int
-      stp = -- VU.iterateN (2^w) (next_pattern full) 0
-        AU.listArray (0, 2^w-1) $ iterate (next_pattern full) (0::Int)
-      make_fun :: Int -> Int -> Set (Set a)
-      make_fun !begin !s = 
+      stp = VU.iterateN (2^w) (next_pattern full) 0
+      make :: Int -> Int -> Set (Set a)
+      make !begin !s = 
         if s == 0
         then Tip
         else
           let !sl = shiftR (s-1) 1; !sr = s - 1 - sl
-          in  bin (v A.! (stp A.! (begin + sl)))
-                  (make_fun begin sl)
-                  (make_fun (begin + sl+1) sr)
+          in  bin (v V.! (stp VU.! (begin + sl)))
+                  (make begin sl)
+                  (make (begin + sl+1) sr)
             
-  in  make_fun 0 (2^w)
-
-generateA :: A.Ix i => (i,i) -> (i -> a) -> A.Array i a
-generateA bnd f = A.listArray bnd $ fmap f $ A.range bnd
+  in  make 0 (2^w)
 
 {-
 

@@ -38,6 +38,7 @@ common deps
     , base     >=4.9.1   && <5
     , deepseq  >=1.2     && <1.5
     , template-haskell
+    , vector
 
 common test-deps
   import: deps
