@@ -13,6 +13,10 @@ import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
 import Data.Foldable (foldl', toList)
 import Data.Traversable (foldMapDefault)
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Foldable1 as Foldable1
+#endif
 
 default (Int)
 
@@ -36,6 +40,13 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "minimum"                  prop_minimum
          , testProperty "sum"                      prop_sum
          , testProperty "product"                  prop_product
+#if MIN_VERSION_base(4,18,0)
+         , testProperty "toNonEmpty"               prop_toNonEmpty
+         , testProperty "last"                     prop_last
+         , testProperty "foldrMap1"                prop_foldrMap1
+         , testProperty "foldlMap1'"               prop_foldlMap1'
+         , testProperty "foldlMap1"                prop_foldlMap1
+#endif
          ]
 
 {--------------------------------------------------------------------
@@ -166,3 +177,29 @@ prop_sum t = sum t === sum (toList t)
 
 prop_product :: Tree OrdA -> Property
 prop_product t = product t === product (toList t)
+
+#if MIN_VERSION_base(4,18,0)
+prop_toNonEmpty :: Tree A -> Property
+prop_toNonEmpty t = Foldable1.toNonEmpty t === NE.fromList (toList t)
+
+prop_last :: Tree A -> Property
+prop_last t = Foldable1.last t === NE.last (Foldable1.toNonEmpty t)
+
+prop_foldrMap1 :: Tree A -> Property
+prop_foldrMap1 t =
+    Foldable1.foldrMap1 Inj f t === Foldable1.foldrMap1 Inj f (Foldable1.toNonEmpty t)
+  where
+    f x z = Inj x :* z
+
+prop_foldlMap1' :: Tree A -> Property
+prop_foldlMap1' t =
+    Foldable1.foldlMap1' Inj f t === Foldable1.foldlMap1' Inj f (Foldable1.toNonEmpty t)
+  where
+    f z x = z :* Inj x
+
+prop_foldlMap1 :: Tree A -> Property
+prop_foldlMap1 t =
+    Foldable1.foldlMap1 Inj f t === Foldable1.foldlMap1 Inj f (Foldable1.toNonEmpty t)
+  where
+    f z x = z :* Inj x
+#endif

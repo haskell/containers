@@ -79,6 +79,10 @@ import Data.Functor.Classes
 import Data.Semigroup (Semigroup (..))
 #endif
 
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.Foldable1 as Foldable1
+import Data.List.NonEmpty (NonEmpty(..))
+#endif
 
 -- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
@@ -207,11 +211,9 @@ instance Foldable Tree where
       where go !z (Node x ts) = foldl' go (f z x) ts
     {-# INLINE foldl' #-}
 
-    foldr1 f = go id
-      where go k (Node x ts) = foldr (\n k' prev -> f prev (go k' n)) k ts x
-    {-# INLINE foldr1 #-}
+    foldr1 = foldrMap1 id
 
-    foldl1 f (Node x ts) = foldl (foldl f) x ts
+    foldl1 = foldlMap1 id
 
     null _ = False
     {-# INLINE null #-}
@@ -219,21 +221,74 @@ instance Foldable Tree where
     elem = any . (==)
     {-# INLINABLE elem #-}
 
-    maximum = foldl1' max
+    maximum = foldlMap1' id max
     {-# INLINABLE maximum #-}
 
-    minimum = foldl1' min
+    minimum = foldlMap1' id min
     {-# INLINABLE minimum #-}
 
-    sum = foldl1' (+)
+    sum = foldlMap1' id (+)
     {-# INLINABLE sum #-}
 
-    product = foldl1' (*)
+    product = foldlMap1' id (*)
     {-# INLINABLE product #-}
 
-foldl1' :: (a -> a -> a) -> Tree a -> a
-foldl1' f = \(Node x ts) -> foldl' (foldl' f) x ts
-{-# INLINE foldl1' #-}
+#if MIN_VERSION_base(4,18,0)
+-- | Folds in preorder
+--
+-- @since FIXME
+
+-- See Note [Implemented Foldable1 Tree functions]
+instance Foldable1.Foldable1 Tree where
+  foldMap1 f = foldrMap1 f (\x z -> f x <> z)
+  {-# INLINABLE foldMap1 #-}
+
+  foldMap1' f = foldlMap1' f (\z x -> z <> f x)
+  {-# INLINABLE foldMap1' #-}
+
+  toNonEmpty (Node x ts) = x :| concatMap toList ts
+
+  maximum = maximum
+  {-# INLINABLE maximum #-}
+
+  minimum = minimum
+  {-# INLINABLE minimum #-}
+
+  last (Node x [])     = x
+  last (Node _ (t:ts)) = Foldable1.last (foldl (const id) t ts)
+
+  foldrMap1 = foldrMap1
+
+  foldlMap1' = foldlMap1'
+
+  foldlMap1 = foldlMap1
+#endif
+
+foldrMap1 :: (a -> b) -> (a -> b -> b) -> Tree a -> b
+foldrMap1 f g = go
+  where
+    go (Node x [])     = f x
+    go (Node x (t:ts)) = g x (foldrMap1NE go (\t' z -> foldr g z t') t ts)
+{-# INLINE foldrMap1 #-}
+
+-- This is foldrMap1 for Data.List.NonEmpty, but is not available before
+-- base 4.18.
+foldrMap1NE :: (a -> b) -> (a -> b -> b) -> a -> [a] -> b
+foldrMap1NE f g = go
+  where
+    go x []      = f x
+    go x (x':xs) = g x (go x' xs)
+{-# INLINE foldrMap1NE #-}
+
+foldlMap1' :: (a -> b) -> (b -> a -> b) -> Tree a -> b
+foldlMap1' f g =  -- Use a lambda to allow inlining with two arguments
+  \(Node x ts) -> foldl' (foldl' g) (f x) ts
+{-# INLINE foldlMap1' #-}
+
+foldlMap1 :: (a -> b) -> (b -> a -> b) -> Tree a -> b
+foldlMap1 f g =  -- Use a lambda to allow inlining with two arguments
+  \(Node x ts) -> foldl (foldl g) (f x) ts
+{-# INLINE foldlMap1 #-}
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
@@ -479,3 +534,19 @@ unfoldForestQ f aQ = case viewl aQ of
 --
 -- foldMap', toList, length: Defaults perform well.
 -- foldr', foldl: Unlikely to be used.
+
+-- Note [Implemented Foldable1 Tree functions]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- Implemented:
+--
+-- foldrMap1, foldlMap1': Basic functions
+-- foldMap, foldMap1': Implemented same as the default definition, but
+-- INLINABLE to allow specialization.
+-- toNonEmpty, last, foldlMap1: Implemented more efficiently than default.
+-- maximum, minimum: Uses Foldable's implementation.
+--
+-- Not implemented:
+--
+-- fold1, head: Defaults perform well.
+-- foldrMap1': Unlikely to be used.
