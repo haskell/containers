@@ -79,6 +79,10 @@ import Data.Functor.Classes
 import Data.Semigroup (Semigroup (..))
 #endif
 
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.Foldable1 as F1
+import qualified Data.List.NonEmpty as NE
+#endif
 
 -- | Non-empty, possibly infinite, multi-way trees; also known as /rose trees/.
 data Tree a = Node {
@@ -230,6 +234,26 @@ instance Foldable Tree where
 
     product = foldl1' (*)
     {-# INLINABLE product #-}
+
+#if MIN_VERSION_base(4,18,0)
+instance F1.Foldable1 Tree where
+    foldMap1 f (Node x [])       = f x
+    foldMap1 f (Node x (y : ys)) = f x <> F1.foldMap1 (F1.foldMap1 f) (y NE.:| ys)
+
+    foldMap1' f = go where
+        go (Node x ys) =
+            foldl' (\m zs -> let gozs = go zs in gozs `seq` m <> gozs) (f x) ys
+
+    foldlMap1 f g (Node x xs) = goForest (f x) xs where
+        goForest = foldl' go
+        go y (Node z zs) = goForest (g y z) zs
+
+    foldlMap1' f g (Node x xs) = goForest (f x) xs where
+        goForest !y = foldl' go y
+        go !y (Node z zs) = goForest (g y z) zs
+
+    head (Node x _) = x
+#endif
 
 foldl1' :: (a -> a -> a) -> Tree a -> a
 foldl1' f = \(Node x ts) -> foldl' (foldl' f) x ts
