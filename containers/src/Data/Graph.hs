@@ -94,7 +94,7 @@ module Data.Graph (
 
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST.Safe (newArray, readArray, writeArray)
+import Data.Array.ST.Safe (newArray, readArray, writeArray, runSTArray)
 # if USE_UNBOXED_ARRAYS
 import Data.Array.ST.Safe (STUArray)
 # else
@@ -332,7 +332,19 @@ buildG bounds0 edges0 = accumArray (flip (:)) [] bounds0 edges0
 --
 -- > transposeG (buildG (0,2) [(0,1), (1,2)]) == array (0,2) [(0,[]),(1,[0]),(2,[1])]
 transposeG  :: Graph -> Graph
+#if USE_ST_MONAD
+transposeG g = runSTArray $ do
+  -- Construct the graph directly. This saves time and allocations compared to
+  -- the alternate implementation below.
+  g' <- newArray (bounds g) []
+  F.for_ (vertices g) $ \v ->
+    F.for_ (g!v) $ \w -> do
+      vs <- readArray g' w
+      writeArray g' w (v:vs)
+  pure g'
+#else
 transposeG g = buildG (bounds g) (reverseE g)
+#endif
 
 reverseE    :: Graph -> [Edge]
 reverseE g   = [ (w, v) | (v, w) <- edges g ]

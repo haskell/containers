@@ -17,6 +17,7 @@ main = defaultMain $ testGroup "graph-properties"
   , testCase "dfs" test_dfs
   , testCase "dff" test_dff
 
+  , testProperty "prop_transposeG" prop_transposeG
   , testProperty "prop_dfs" prop_dfs
   , testProperty "prop_dff" prop_dff
   , testProperty "prop_topSort" prop_topSort
@@ -120,6 +121,10 @@ test_dff = do
 ----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
+
+prop_transposeG :: Graph -> Property
+prop_transposeG (Graph g) =
+  L.sort (G.edges (G.transposeG g)) === L.sort ([(v,u) | (u,v) <- G.edges g])
 
 -- Note: This tests some simple properties but not complete correctness
 prop_dfs :: Graph -> Property

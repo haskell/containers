@@ -14,6 +14,7 @@ main = do
     [ bgroup "buildG" $ forGs randGs $ \g -> nf (G.buildG (bounds (getG g))) (getEdges g)
     , bgroup "graphFromEdges" $
         forGs [randG1, randG2, randG3] $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
+    , bgroup "transposeG" $ forGs randGs $ nf G.transposeG . getG
     , bgroup "dfs" $ forGs randGs $ nf (flip G.dfs [1]) . getG
     , bgroup "dff" $ forGs randGs $ nf G.dff . getG
     , bgroup "topSort" $ forGs randGs $ nf G.topSort . getG
