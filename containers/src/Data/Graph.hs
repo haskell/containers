@@ -302,6 +302,8 @@ type UArray i a = Array i a
 -- > vertices (buildG (0,2) [(0,1),(1,2)]) == [0,1,2]
 vertices :: Graph -> [Vertex]
 vertices  = indices
+-- See Note [Inline for fusion]
+{-# INLINE vertices #-}
 
 -- | Returns the list of edges in the graph.
 --
@@ -312,6 +314,8 @@ vertices  = indices
 -- > edges (buildG (0,2) [(0,1),(1,2)]) == [(0,1),(1,2)]
 edges    :: Graph -> [Edge]
 edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
+-- See Note [Inline for fusion]
+{-# INLINE edges #-}
 
 -- | Build a graph from a list of edges.
 --
@@ -324,7 +328,9 @@ edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 -- > buildG (0,2) [(0,1), (1,2)] == array (0,1) [(0,[1]),(1,[2])]
 -- > buildG (0,2) [(0,1), (0,2), (1,2)] == array (0,2) [(0,[2,1]),(1,[2]),(2,[])]
 buildG :: Bounds -> [Edge] -> Graph
-buildG bounds0 edges0 = accumArray (flip (:)) [] bounds0 edges0
+buildG = accumArray (flip (:)) []
+-- See Note [Inline for fusion]
+{-# INLINE buildG #-}
 
 -- | The graph obtained by reversing all edges.
 --
@@ -336,6 +342,8 @@ transposeG g = buildG (bounds g) (reverseE g)
 
 reverseE    :: Graph -> [Edge]
 reverseE g   = [ (w, v) | (v, w) <- edges g ]
+-- See Note [Inline for fusion]
+{-# INLINE reverseE #-}
 
 -- | A table of the count of edges from each node.
 --
@@ -723,3 +731,12 @@ collect (Node (v,dv,lv) ts) = (lv, Node (v:vs) cs)
        vs = concat [ ws | (lw, Node ws _) <- collected, lw<dv]
        cs = concat [ if lw<dv then us else [Node (v:ws) us]
                         | (lw, Node ws us) <- collected ]
+
+--------------------------------------------------------------------------------
+
+-- Note [Inline for fusion]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- We inline simple functions that produce or consume lists so that list fusion
+-- can fire. transposeG is a function where this is particularly useful; it has
+-- two intermediate lists in its definition which get fused away.
