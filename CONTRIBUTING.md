@@ -38,7 +38,7 @@ stack bench
 - If you're using Stack, make sure you have version >= 1.6.1
   ([stack#3624](https://github.com/commercialhaskell/stack/issues/3624),
   [stack#3345](https://github.com/commercialhaskell/stack/issues/3345)).
-
+- You may need to edit `stack.yaml` to use the Stackage snapshot you want.
 
 ## Sending Pull Requests
 
