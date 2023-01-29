@@ -9,26 +9,16 @@ All such changes should be discussed on the libraries@haskell.org mailing list.
 
 ## Building, testing, and benchmarking
 
-Building, testing, and benchmarking the containers package can be done using either `cabal-install` or `stack`.
+Building, testing, and benchmarking the containers package can be done using either `cabal` or `stack`.
 
-### With cabal-install
+### With cabal
 
-Minimum cabal version: 1.24
-
-_Note: The procedure here is a little weird because cabal configure is unable to solve for the constraints. We're looking into why that is ([#462](https://github.com/haskell/containers/issues/462))._
+Minimum cabal version: 2.4
 
 ```
-cabal sandbox init
-cabal install --only-dependencies
-# Install test dependencies
-cabal install 'test-framework >= 0.3.3' 'test-framework-quickcheck2 >= 0.2.9' 'QuickCheck >= 2.4.0.1' 'ChasingBottoms' 'HUnit' 'test-framework-hunit'
-# Install benchmark dependencies
-cabal install 'criterion'
-# If you only need tests or benchmarks, you can omit the other --enable-xyz flag.
-cabal configure -v2 --enable-tests --enable-benchmarks
-cabal build
-cabal test
-cabal bench
+cabal build containers
+cabal test containers-test
+cabal bench containers-test
 ``` 
 
 
