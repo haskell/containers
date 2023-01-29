@@ -19,7 +19,7 @@ Minimum cabal version: 2.4
 cabal build containers
 cabal test containers-test
 cabal bench containers-test
-``` 
+```
 
 
 ### With [Stack](https://docs.haskellstack.org/en/stable/README/)
