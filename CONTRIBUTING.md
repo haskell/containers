@@ -11,6 +11,8 @@ All such changes should be discussed on the libraries@haskell.org mailing list.
 
 Building, testing, and benchmarking the containers package can be done using either `cabal` or `stack`.
 
+To avoid recompiling the tests' other dependencies when making changes, you can remove `containers` from the `packages` stanza of the `cabal.project` file.
+
 ### With cabal
 
 Minimum cabal version: 2.4
