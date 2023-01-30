@@ -236,6 +236,7 @@ stronglyConnComp edges0
   where
     get_node (AcyclicSCC (n, _, _)) = AcyclicSCC n
     get_node (CyclicSCC triples)     = CyclicSCC [n | (n,_,_) <- triples]
+{-# INLINABLE stronglyConnComp #-}
 
 -- | The strongly connected components of a directed graph, reverse topologically
 -- sorted.  The function is the same as 'stronglyConnComp', except that
@@ -269,6 +270,7 @@ stronglyConnCompR edges0
                  where
                    dec (Node v ts) vs = vertex_fn v : foldr dec vs ts
     mentions_itself v = v `elem` (graph ! v)
+{-# INLINABLE stronglyConnCompR #-}
 
 -------------------------------------------------------------------------
 --                                                                      -
@@ -379,6 +381,7 @@ graphFromEdges'
         -> (Graph, Vertex -> (node, key, [key]))
 graphFromEdges' x = (a,b) where
     (a,b,_) = graphFromEdges x
+{-# INLINABLE graphFromEdges' #-}
 
 -- | Build a graph from a list of nodes uniquely identified by keys,
 -- with a list of keys of nodes this node should have edges to.
@@ -466,6 +469,7 @@ graphFromEdges edges0
                                    GT -> findVertex (mid+1) b
                               where
                                 mid = a + (b - a) `div` 2
+{-# INLINABLE graphFromEdges #-}
 
 -------------------------------------------------------------------------
 --                                                                      -
