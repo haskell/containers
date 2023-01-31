@@ -621,10 +621,16 @@ postOrd g = postorderF (dff g) []
 -- | \(O(V+E)\). A topological sort of the graph.
 -- The order is partially specified by the condition that a vertex /i/
 -- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
+--
+-- Note: A topological sort exists only when there are no cycles in the graph.
+-- If the graph has cycles, the output of this function will not be a
+-- topological sort. In such a case consider using 'scc'.
 topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
 
 -- | \(O(V+E)\). Reverse ordering of `topSort`.
+--
+-- See note in 'topSort'.
 --
 -- @since 0.6.4
 reverseTopSort :: Graph -> [Vertex]
@@ -718,6 +724,10 @@ path g v w    = w `elem` (reachable g v)
 -- | \(O(V+E)\). The biconnected components of a graph.
 -- An undirected graph is biconnected if the deletion of any vertex
 -- leaves it connected.
+--
+-- The input graph is expected to be undirected, i.e. for every edge in the
+-- graph the reverse edge is also in the graph. If the graph is not undirected
+-- the output is arbitrary.
 bcc :: Graph -> [Tree [Vertex]]
 bcc g = concatMap bicomps forest
   where
