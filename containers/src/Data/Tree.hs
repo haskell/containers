@@ -242,7 +242,17 @@ instance Foldable Tree where
 
 -- See Note [Implemented Foldable1 Tree functions]
 instance Foldable1.Foldable1 Tree where
-  foldMap1 f = foldrMap1 f (\x z -> f x <> z)
+  foldMap1 f = go
+    where
+      -- We'd like to write
+      --
+      -- go (Node x (t : ts)) = f x <> Foldable1.foldMap1 go (t :| ts)
+      --
+      -- but foldMap1 for NonEmpty isn't very good, so we don't. See
+      -- https://github.com/haskell/containers/pull/921#issuecomment-1410398618
+      go (Node x []) = f x
+      go (Node x (t : ts)) =
+        f x <> Foldable1.foldrMap1 go (\t' z -> go t' <> z) (t :| ts)
   {-# INLINABLE foldMap1 #-}
 
   foldMap1' f = foldlMap1' f (\z x -> z <> f x)
@@ -255,9 +265,6 @@ instance Foldable1.Foldable1 Tree where
 
   minimum = minimum
   {-# INLINABLE minimum #-}
-
-  last (Node x [])     = x
-  last (Node _ (t:ts)) = Foldable1.last (foldl (const id) t ts)
 
   foldrMap1 = foldrMap1
 
@@ -545,7 +552,7 @@ unfoldForestQ f aQ = case viewl aQ of
 -- foldrMap1, foldlMap1': Basic functions
 -- foldMap, foldMap1': Implemented same as the default definition, but
 -- INLINABLE to allow specialization.
--- toNonEmpty, last, foldlMap1: Implemented more efficiently than default.
+-- toNonEmpty, foldlMap1: Implemented more efficiently than default.
 -- maximum, minimum: Uses Foldable's implementation.
 --
 -- Not implemented:
