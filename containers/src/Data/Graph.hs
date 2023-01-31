@@ -215,8 +215,8 @@ flattenSCC :: SCC vertex -> [vertex]
 flattenSCC (AcyclicSCC v) = [v]
 flattenSCC (CyclicSCC vs) = vs
 
--- | The strongly connected components of a directed graph, reverse topologically
--- sorted.
+-- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
+-- reverse topologically sorted.
 --
 -- ==== __Examples__
 --
@@ -238,9 +238,9 @@ stronglyConnComp edges0
     get_node (CyclicSCC triples)     = CyclicSCC [n | (n,_,_) <- triples]
 {-# INLINABLE stronglyConnComp #-}
 
--- | The strongly connected components of a directed graph, reverse topologically
--- sorted.  The function is the same as 'stronglyConnComp', except that
--- all the information about each node retained.
+-- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
+-- reverse topologically sorted.  The function is the same as
+-- 'stronglyConnComp', except that all the information about each node retained.
 -- This interface is used when you expect to apply 'SCC' to
 -- (some of) the result of 'SCC', so you don't want to lose the
 -- dependency information.
@@ -296,7 +296,7 @@ type Edge    = (Vertex, Vertex)
 type UArray i a = Array i a
 #endif
 
--- | Returns the list of vertices in the graph.
+-- | \(O(V)\). Returns the list of vertices in the graph.
 --
 -- ==== __Examples__
 --
@@ -308,7 +308,7 @@ vertices  = indices
 -- See Note [Inline for fusion]
 {-# INLINE vertices #-}
 
--- | Returns the list of edges in the graph.
+-- | \(O(V+E)\). Returns the list of edges in the graph.
 --
 -- ==== __Examples__
 --
@@ -320,7 +320,7 @@ edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 -- See Note [Inline for fusion]
 {-# INLINE edges #-}
 
--- | Build a graph from a list of edges.
+-- | \(O(V+E)\). Build a graph from a list of edges.
 --
 -- Warning: This function will cause a runtime exception if a vertex in the edge
 -- list is not within the given @Bounds@.
@@ -335,7 +335,7 @@ buildG = accumArray (flip (:)) []
 -- See Note [Inline for fusion]
 {-# INLINE buildG #-}
 
--- | The graph obtained by reversing all edges.
+-- | \(O(V+E)\). The graph obtained by reversing all edges.
 --
 -- ==== __Examples__
 --
@@ -348,7 +348,7 @@ reverseE g   = [ (w, v) | (v, w) <- edges g ]
 -- See Note [Inline for fusion]
 {-# INLINE reverseE #-}
 
--- | A table of the count of edges from each node.
+-- | \(O(V+E)\). A table of the count of edges from each node.
 --
 -- ==== __Examples__
 --
@@ -362,7 +362,7 @@ outdegree :: Graph -> Array Vertex Int
 -- out. Note that we *can't* be so lazy with indegree.
 outdegree  = fmap length
 
--- | A table of the count of edges into each node.
+-- | \(O(V+E)\). A table of the count of edges into each node.
 --
 -- ==== __Examples__
 --
@@ -372,8 +372,8 @@ outdegree  = fmap length
 indegree :: Graph -> Array Vertex Int
 indegree g = accumArray (+) 0 (bounds g) [(v, 1) | (_, outs) <- assocs g, v <- outs]
 
--- | Identical to 'graphFromEdges', except that the return value
--- does not include the function which maps keys to vertices.  This
+-- | \(O((V+E) \log V)\). Identical to 'graphFromEdges', except that the return
+-- value does not include the function which maps keys to vertices. This
 -- version of 'graphFromEdges' is for backwards compatibility.
 graphFromEdges'
         :: Ord key
@@ -383,8 +383,8 @@ graphFromEdges' x = (a,b) where
     (a,b,_) = graphFromEdges x
 {-# INLINABLE graphFromEdges' #-}
 
--- | Build a graph from a list of nodes uniquely identified by keys,
--- with a list of keys of nodes this node should have edges to.
+-- | \(O((V+E) \log V)\). Build a graph from a list of nodes uniquely identified
+-- by keys, with a list of keys of nodes this node should have edges to.
 --
 -- This function takes an adjacency list representing a graph with vertices of
 -- type @key@ labeled by values of type @node@ and produces a @Graph@-based
@@ -396,9 +396,11 @@ graphFromEdges' x = (a,b) where
 --
 -- * @graph :: Graph@ is the raw, array based adjacency list for the graph.
 -- * @nodeFromVertex :: Vertex -> (node, key, [key])@ returns the node
---   associated with the given 0-based @Int@ vertex; see /warning/ below.
+--   associated with the given 0-based @Int@ vertex; see /warning/ below. This
+--   runs in \(O(1)\) time.
 -- * @vertexFromKey :: key -> Maybe Vertex@ returns the @Int@ vertex for the
---   key if it exists in the graph, @Nothing@ otherwise.
+--   key if it exists in the graph, @Nothing@ otherwise. This runs in
+--   \(O(\log V)\) time.
 --
 -- To safely use this API you must either extract the list of vertices directly
 -- from the graph or first call @vertexFromKey k@ to check if a vertex
@@ -477,13 +479,13 @@ graphFromEdges edges0
 --                                                                      -
 -------------------------------------------------------------------------
 
--- | A spanning forest of the graph, obtained from a depth-first search of
--- the graph starting from each vertex in an unspecified order.
+-- | \(O(V+E)\). A spanning forest of the graph, obtained from a depth-first
+-- search of the graph starting from each vertex in an unspecified order.
 dff          :: Graph -> Forest Vertex
 dff g         = dfs g (vertices g)
 
--- | A spanning forest of the part of the graph reachable from the listed
--- vertices, obtained from a depth-first search of the graph starting at
+-- | \(O(V+E)\). A spanning forest of the part of the graph reachable from the
+-- listed vertices, obtained from a depth-first search of the graph starting at
 -- each of the listed vertices in order.
 
 -- This function deviates from King and Launchbury's implementation by
@@ -616,13 +618,13 @@ postorderF ts = foldr (.) id $ map postorder ts
 postOrd :: Graph -> [Vertex]
 postOrd g = postorderF (dff g) []
 
--- | A topological sort of the graph.
+-- | \(O(V+E)\). A topological sort of the graph.
 -- The order is partially specified by the condition that a vertex /i/
 -- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
 topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
 
--- | Reverse ordering of `topSort`.
+-- | \(O(V+E)\). Reverse ordering of `topSort`.
 --
 -- @since 0.6.4
 reverseTopSort :: Graph -> [Vertex]
@@ -632,7 +634,7 @@ reverseTopSort = postOrd
 -- Algorithm 3: connected components
 ------------------------------------------------------------
 
--- | The connected components of a graph.
+-- | \(O(V+E)\). The connected components of a graph.
 -- Two vertices are connected if there is a path between them, traversing
 -- edges in either direction.
 components   :: Graph -> Forest Vertex
@@ -643,7 +645,8 @@ undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 
 -- Algorithm 4: strongly connected components
 
--- | The strongly connected components of a graph, in reverse topological order.
+-- | \(O(V+E)\). The strongly connected components of a graph, in reverse
+-- topological order.
 --
 -- ==== __Examples__
 --
@@ -686,7 +689,7 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 -- Algorithm 6: Finding reachable vertices
 ------------------------------------------------------------
 
--- | Returns the list of vertices reachable from a given vertex.
+-- | \(O(V+E)\). Returns the list of vertices reachable from a given vertex.
 --
 -- ==== __Examples__
 --
@@ -696,7 +699,7 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 reachable :: Graph -> Vertex -> [Vertex]
 reachable g v = preorderF (dfs g [v])
 
--- | Returns @True@ if the second vertex reachable from the first.
+-- | \(O(V+E)\). Returns @True@ if the second vertex reachable from the first.
 --
 -- ==== __Examples__
 --
@@ -712,7 +715,7 @@ path g v w    = w `elem` (reachable g v)
 -- Algorithm 7: Biconnected components
 ------------------------------------------------------------
 
--- | The biconnected components of a graph.
+-- | \(O(V+E)\). The biconnected components of a graph.
 -- An undirected graph is biconnected if the deletion of any vertex
 -- leaves it connected.
 bcc :: Graph -> Forest [Vertex]
