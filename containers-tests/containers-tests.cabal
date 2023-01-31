@@ -109,7 +109,7 @@ library
       Utils.NoThunks
 
   other-modules:
-    Prelude
+    Utils.Containers.Internal.Prelude
     Utils.Containers.Internal.Coercions
     Utils.Containers.Internal.PtrEquality
     Utils.Containers.Internal.State

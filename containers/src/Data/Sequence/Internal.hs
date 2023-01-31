@@ -194,7 +194,7 @@ module Data.Sequence.Internal (
 #endif
     ) where
 
-import Prelude hiding (
+import Utils.Containers.Internal.Prelude hiding (
     Functor(..),
 #if MIN_VERSION_base(4,11,0)
     (<>),
@@ -203,6 +203,7 @@ import Prelude hiding (
     null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
+import Prelude ()
 import Control.Applicative ((<$>), (<**>),  Alternative,
                             liftA3)
 import qualified Control.Applicative as Applicative

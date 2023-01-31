@@ -7,6 +7,8 @@ module Utils.Containers.Internal.State where
 
 import Control.Monad (ap, liftM2)
 import Control.Applicative (liftA)
+import Utils.Containers.Internal.Prelude
+import Prelude ()
 
 newtype State s a = State {runState :: s -> (s, a)}
 

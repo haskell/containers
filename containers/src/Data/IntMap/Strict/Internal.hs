@@ -259,7 +259,9 @@ module Data.IntMap.Strict.Internal (
 #endif
     ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null)
+import Utils.Containers.Internal.Prelude hiding
+  (lookup,map,filter,foldr,foldl,null)
+import Prelude ()
 
 import Data.Bits
 import qualified Data.IntMap.Internal as L

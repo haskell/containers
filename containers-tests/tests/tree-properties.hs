@@ -130,9 +130,9 @@ prop_monad_assoc ta atb btc =
 -- sensitive to the Monad instance.
 prop_monadFix_ls :: Int -> Tree Int -> Fun Int (Tree Int) -> Property
 prop_monadFix_ls val ta ti =
-  fmap ($val) (mfix (\x -> ta >>= \y -> f x y))
+  fmap ($ val) (mfix (\x -> ta >>= \y -> f x y))
   ===
-  fmap ($val) (ta >>= \y -> mfix (\x -> f x y))
+  fmap ($ val) (ta >>= \y -> mfix (\x -> f x y))
   where
     fact :: Int -> (Int -> Int) -> Int -> Int
     fact x _ 0 = x + 1

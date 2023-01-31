@@ -383,7 +383,9 @@ import qualified Data.Foldable as Foldable
 #if MIN_VERSION_base(4,10,0)
 import Data.Bifoldable
 #endif
-import Prelude hiding (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
+import Utils.Containers.Internal.Prelude hiding
+  (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
+import Prelude ()
 
 import qualified Data.Set.Internal as Set
 import Data.Set.Internal (Set)
