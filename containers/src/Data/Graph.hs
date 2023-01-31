@@ -481,7 +481,7 @@ graphFromEdges edges0
 
 -- | \(O(V+E)\). A spanning forest of the graph, obtained from a depth-first
 -- search of the graph starting from each vertex in an unspecified order.
-dff          :: Graph -> Forest Vertex
+dff          :: Graph -> [Tree Vertex]
 dff g         = dfs g (vertices g)
 
 -- | \(O(V+E)\). A spanning forest of the part of the graph reachable from the
@@ -589,10 +589,10 @@ include v     = SetM $ \ m -> ((), Set.insert v m)
 preorder' :: Tree a -> [a] -> [a]
 preorder' (Node a ts) = (a :) . preorderF' ts
 
-preorderF' :: Forest a -> [a] -> [a]
+preorderF' :: [Tree a] -> [a] -> [a]
 preorderF' ts = foldr (.) id $ map preorder' ts
 
-preorderF :: Forest a -> [a]
+preorderF :: [Tree a] -> [a]
 preorderF ts = preorderF' ts []
 
 tabulate        :: Bounds -> [Vertex] -> UArray Vertex Int
@@ -602,7 +602,7 @@ tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
 -- away, and these days that only happens when it's the first
 -- list argument.
 
-preArr          :: Bounds -> Forest Vertex -> UArray Vertex Int
+preArr          :: Bounds -> [Tree Vertex] -> UArray Vertex Int
 preArr bnds      = tabulate bnds . preorderF
 
 ------------------------------------------------------------
@@ -612,7 +612,7 @@ preArr bnds      = tabulate bnds . preorderF
 postorder :: Tree a -> [a] -> [a]
 postorder (Node a ts) = postorderF ts . (a :)
 
-postorderF   :: Forest a -> [a] -> [a]
+postorderF   :: [Tree a] -> [a] -> [a]
 postorderF ts = foldr (.) id $ map postorder ts
 
 postOrd :: Graph -> [Vertex]
@@ -637,7 +637,7 @@ reverseTopSort = postOrd
 -- | \(O(V+E)\). The connected components of a graph.
 -- Two vertices are connected if there is a path between them, traversing
 -- edges in either direction.
-components   :: Graph -> Forest Vertex
+components   :: Graph -> [Tree Vertex]
 components    = dff . undirected
 
 undirected   :: Graph -> Graph
@@ -654,7 +654,7 @@ undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 -- >   == [Node {rootLabel = 0, subForest = [Node {rootLabel = 1, subForest = [Node {rootLabel = 2, subForest = []}]}]}
 -- >      ,Node {rootLabel = 3, subForest = []}]
 
-scc  :: Graph -> Forest Vertex
+scc  :: Graph -> [Tree Vertex]
 scc g = dfs g (reverse (postOrd (transposeG g)))
 
 ------------------------------------------------------------
@@ -718,7 +718,7 @@ path g v w    = w `elem` (reachable g v)
 -- | \(O(V+E)\). The biconnected components of a graph.
 -- An undirected graph is biconnected if the deletion of any vertex
 -- leaves it connected.
-bcc :: Graph -> Forest [Vertex]
+bcc :: Graph -> [Tree [Vertex]]
 bcc g = concatMap bicomps forest
   where
     -- The algorithm here is the same as given by King and Launchbury, which is
