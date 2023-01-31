@@ -164,7 +164,7 @@ deriving instance Generic1 SCC
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
 
--- | @since FIXME
+-- | @since 0.6.6
 deriving instance Lift vertex => Lift (SCC vertex)
 #endif
 

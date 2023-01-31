@@ -289,7 +289,7 @@ type Size     = Int
 type role Set nominal
 #endif
 
--- | @since FIXME
+-- | @since 0.6.6
 deriving instance Lift a => Lift (Set a)
 
 instance Ord a => Monoid (Set a) where

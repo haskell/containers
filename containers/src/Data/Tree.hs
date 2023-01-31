@@ -97,7 +97,7 @@ data Tree a = Node {
            , Data
            , Generic  -- ^ @since 0.5.8
            , Generic1 -- ^ @since 0.5.8
-           , Lift -- ^ @since FIXME
+           , Lift -- ^ @since 0.6.6
            )
 #else
   deriving (Eq, Ord, Read, Show)
@@ -236,7 +236,7 @@ instance Foldable Tree where
 #if MIN_VERSION_base(4,18,0)
 -- | Folds in preorder
 --
--- @since FIXME
+-- @since 0.6.7
 
 -- See Note [Implemented Foldable1 Tree functions]
 instance Foldable1.Foldable1 Tree where
