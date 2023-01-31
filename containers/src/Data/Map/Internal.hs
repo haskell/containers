@@ -470,7 +470,7 @@ type role Map nominal representational
 #endif
 
 #ifdef __GLASGOW_HASKELL__
--- | @since FIXME
+-- | @since 0.6.6
 deriving instance (Lift k, Lift a) => Lift (Map k a)
 #endif
 

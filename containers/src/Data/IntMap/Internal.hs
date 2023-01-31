@@ -377,7 +377,7 @@ type Mask   = Int
 type IntSetPrefix = Int
 type IntSetBitMap = Word
 
--- | @since FIXME
+-- | @since 0.6.6
 deriving instance Lift a => Lift (IntMap a)
 
 bitmapOf :: Int -> IntSetBitMap
@@ -2630,7 +2630,7 @@ partitionWithKey predicate0 t0 = toPair $ go predicate0 t0
 -- takeWhileAntitone p = 'filterWithKey' (\\k _ -> p k)
 -- @
 --
--- @since FIXME
+-- @since 0.6.7
 takeWhileAntitone :: (Key -> Bool) -> IntMap a -> IntMap a
 takeWhileAntitone predicate t =
   case t of
@@ -2658,7 +2658,7 @@ takeWhileAntitone predicate t =
 -- dropWhileAntitone p = 'filterWithKey' (\\k _ -> not (p k))
 -- @
 --
--- @since FIXME
+-- @since 0.6.7
 dropWhileAntitone :: (Key -> Bool) -> IntMap a -> IntMap a
 dropWhileAntitone predicate t =
   case t of
@@ -2688,7 +2688,7 @@ dropWhileAntitone predicate t =
 -- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the map
 -- at some /unspecified/ point.
 --
--- @since FIXME
+-- @since 0.6.7
 spanAntitone :: (Key -> Bool) -> IntMap a -> (IntMap a, IntMap a)
 spanAntitone predicate t =
   case t of

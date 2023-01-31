@@ -279,7 +279,7 @@ type BitMap = Word
 type Key    = Int
 
 #ifdef __GLASGOW_HASKELL__
--- | @since FIXME
+-- | @since 0.6.6
 deriving instance Lift IntSet
 #endif
 
@@ -795,7 +795,7 @@ partition predicate0 t0 = toPair $ go predicate0 t0
 -- takeWhileAntitone p = 'filter' p
 -- @
 --
--- @since FIXME
+-- @since 0.6.7
 takeWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
 takeWhileAntitone predicate t =
   case t of
@@ -821,7 +821,7 @@ takeWhileAntitone predicate t =
 -- dropWhileAntitone p = 'filter' (not . p)
 -- @
 --
--- @since FIXME
+-- @since 0.6.7
 dropWhileAntitone :: (Key -> Bool) -> IntSet -> IntSet
 dropWhileAntitone predicate t =
   case t of
@@ -849,7 +849,7 @@ dropWhileAntitone predicate t =
 -- Note: if @p@ is not actually antitone, then @spanAntitone@ will split the set
 -- at some /unspecified/ point.
 --
--- @since FIXME
+-- @since 0.6.7
 spanAntitone :: (Key -> Bool) -> IntSet -> (IntSet, IntSet)
 spanAntitone predicate t =
   case t of
