@@ -232,7 +232,9 @@ module Data.Set.Internal (
             , merge
             ) where
 
-import Prelude hiding (filter,foldl,foldr,null,map,take,drop,splitAt)
+import Utils.Containers.Internal.Prelude hiding
+  (filter,foldl,foldr,null,map,take,drop,splitAt)
+import Prelude ()
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)

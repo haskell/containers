@@ -71,7 +71,7 @@ Library
         Utils.Containers.Internal.StrictPair
 
     other-modules:
-        Prelude
+        Utils.Containers.Internal.Prelude
         Utils.Containers.Internal.State
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality

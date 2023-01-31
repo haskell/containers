@@ -53,6 +53,8 @@ module Data.Tree(
 
     ) where
 
+import Utils.Containers.Internal.Prelude as Prelude
+import Prelude ()
 import Data.Foldable (fold, foldl', toList)
 import Data.Traversable (foldMapDefault)
 import Control.Monad (liftM)

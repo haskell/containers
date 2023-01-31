@@ -310,7 +310,9 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
-import Prelude hiding (lookup, map, filter, foldr, foldl, null)
+import Utils.Containers.Internal.Prelude hiding
+  (lookup, map, filter, foldr, foldl, null)
+import Prelude ()
 
 import Data.IntSet.Internal (Key)
 import qualified Data.IntSet.Internal as IntSet

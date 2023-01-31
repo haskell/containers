@@ -93,6 +93,8 @@ module Data.Graph (
 
     ) where
 
+import Utils.Containers.Internal.Prelude
+import Prelude ()
 #if USE_ST_MONAD
 import Control.Monad.ST
 import Data.Array.ST.Safe (newArray, readArray, writeArray)

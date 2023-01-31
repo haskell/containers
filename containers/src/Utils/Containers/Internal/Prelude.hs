@@ -1,9 +1,8 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE PackageImports #-}
 -- | This hideous module lets us avoid dealing with the fact that
 -- @liftA2@ wasn't previously exported from the standard prelude.
-module Prelude
-  ( module Prel
+module Utils.Containers.Internal.Prelude
+  ( module Prelude
   , Applicative (..)
 #if !MIN_VERSION_base(4,10,0)
   , liftA2
@@ -11,7 +10,7 @@ module Prelude
   )
   where
 
-import "base" Prelude as Prel hiding (Applicative(..))
+import Prelude hiding (Applicative(..))
 import Control.Applicative(Applicative(..))
 
 #if !MIN_VERSION_base(4,10,0)
