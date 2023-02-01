@@ -217,8 +217,8 @@ flattenSCC :: SCC vertex -> [vertex]
 flattenSCC (AcyclicSCC v) = [v]
 flattenSCC (CyclicSCC vs) = vs
 
--- | The strongly connected components of a directed graph, reverse topologically
--- sorted.
+-- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
+-- reverse topologically sorted.
 --
 -- ==== __Examples__
 --
@@ -240,9 +240,9 @@ stronglyConnComp edges0
     get_node (CyclicSCC triples)     = CyclicSCC [n | (n,_,_) <- triples]
 {-# INLINABLE stronglyConnComp #-}
 
--- | The strongly connected components of a directed graph, reverse topologically
--- sorted.  The function is the same as 'stronglyConnComp', except that
--- all the information about each node retained.
+-- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
+-- reverse topologically sorted.  The function is the same as
+-- 'stronglyConnComp', except that all the information about each node retained.
 -- This interface is used when you expect to apply 'SCC' to
 -- (some of) the result of 'SCC', so you don't want to lose the
 -- dependency information.
@@ -298,7 +298,7 @@ type Edge    = (Vertex, Vertex)
 type UArray i a = Array i a
 #endif
 
--- | Returns the list of vertices in the graph.
+-- | \(O(V)\). Returns the list of vertices in the graph.
 --
 -- ==== __Examples__
 --
@@ -310,7 +310,7 @@ vertices  = indices
 -- See Note [Inline for fusion]
 {-# INLINE vertices #-}
 
--- | Returns the list of edges in the graph.
+-- | \(O(V+E)\). Returns the list of edges in the graph.
 --
 -- ==== __Examples__
 --
@@ -322,7 +322,7 @@ edges g   = [ (v, w) | v <- vertices g, w <- g!v ]
 -- See Note [Inline for fusion]
 {-# INLINE edges #-}
 
--- | Build a graph from a list of edges.
+-- | \(O(V+E)\). Build a graph from a list of edges.
 --
 -- Warning: This function will cause a runtime exception if a vertex in the edge
 -- list is not within the given @Bounds@.
@@ -337,7 +337,7 @@ buildG = accumArray (flip (:)) []
 -- See Note [Inline for fusion]
 {-# INLINE buildG #-}
 
--- | The graph obtained by reversing all edges.
+-- | \(O(V+E)\). The graph obtained by reversing all edges.
 --
 -- ==== __Examples__
 --
@@ -350,7 +350,7 @@ reverseE g   = [ (w, v) | (v, w) <- edges g ]
 -- See Note [Inline for fusion]
 {-# INLINE reverseE #-}
 
--- | A table of the count of edges from each node.
+-- | \(O(V+E)\). A table of the count of edges from each node.
 --
 -- ==== __Examples__
 --
@@ -364,7 +364,7 @@ outdegree :: Graph -> Array Vertex Int
 -- out. Note that we *can't* be so lazy with indegree.
 outdegree  = fmap length
 
--- | A table of the count of edges into each node.
+-- | \(O(V+E)\). A table of the count of edges into each node.
 --
 -- ==== __Examples__
 --
@@ -374,8 +374,8 @@ outdegree  = fmap length
 indegree :: Graph -> Array Vertex Int
 indegree g = accumArray (+) 0 (bounds g) [(v, 1) | (_, outs) <- assocs g, v <- outs]
 
--- | Identical to 'graphFromEdges', except that the return value
--- does not include the function which maps keys to vertices.  This
+-- | \(O((V+E) \log V)\). Identical to 'graphFromEdges', except that the return
+-- value does not include the function which maps keys to vertices. This
 -- version of 'graphFromEdges' is for backwards compatibility.
 graphFromEdges'
         :: Ord key
@@ -385,8 +385,8 @@ graphFromEdges' x = (a,b) where
     (a,b,_) = graphFromEdges x
 {-# INLINABLE graphFromEdges' #-}
 
--- | Build a graph from a list of nodes uniquely identified by keys,
--- with a list of keys of nodes this node should have edges to.
+-- | \(O((V+E) \log V)\). Build a graph from a list of nodes uniquely identified
+-- by keys, with a list of keys of nodes this node should have edges to.
 --
 -- This function takes an adjacency list representing a graph with vertices of
 -- type @key@ labeled by values of type @node@ and produces a @Graph@-based
@@ -398,9 +398,11 @@ graphFromEdges' x = (a,b) where
 --
 -- * @graph :: Graph@ is the raw, array based adjacency list for the graph.
 -- * @nodeFromVertex :: Vertex -> (node, key, [key])@ returns the node
---   associated with the given 0-based @Int@ vertex; see /warning/ below.
+--   associated with the given 0-based @Int@ vertex; see /warning/ below. This
+--   runs in \(O(1)\) time.
 -- * @vertexFromKey :: key -> Maybe Vertex@ returns the @Int@ vertex for the
---   key if it exists in the graph, @Nothing@ otherwise.
+--   key if it exists in the graph, @Nothing@ otherwise. This runs in
+--   \(O(\log V)\) time.
 --
 -- To safely use this API you must either extract the list of vertices directly
 -- from the graph or first call @vertexFromKey k@ to check if a vertex
@@ -479,13 +481,13 @@ graphFromEdges edges0
 --                                                                      -
 -------------------------------------------------------------------------
 
--- | A spanning forest of the graph, obtained from a depth-first search of
--- the graph starting from each vertex in an unspecified order.
-dff          :: Graph -> Forest Vertex
+-- | \(O(V+E)\). A spanning forest of the graph, obtained from a depth-first
+-- search of the graph starting from each vertex in an unspecified order.
+dff          :: Graph -> [Tree Vertex]
 dff g         = dfs g (vertices g)
 
--- | A spanning forest of the part of the graph reachable from the listed
--- vertices, obtained from a depth-first search of the graph starting at
+-- | \(O(V+E)\). A spanning forest of the part of the graph reachable from the
+-- listed vertices, obtained from a depth-first search of the graph starting at
 -- each of the listed vertices in order.
 
 -- This function deviates from King and Launchbury's implementation by
@@ -589,10 +591,10 @@ include v     = SetM $ \ m -> ((), Set.insert v m)
 preorder' :: Tree a -> [a] -> [a]
 preorder' (Node a ts) = (a :) . preorderF' ts
 
-preorderF' :: Forest a -> [a] -> [a]
+preorderF' :: [Tree a] -> [a] -> [a]
 preorderF' ts = foldr (.) id $ map preorder' ts
 
-preorderF :: Forest a -> [a]
+preorderF :: [Tree a] -> [a]
 preorderF ts = preorderF' ts []
 
 tabulate        :: Bounds -> [Vertex] -> UArray Vertex Int
@@ -602,7 +604,7 @@ tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
 -- away, and these days that only happens when it's the first
 -- list argument.
 
-preArr          :: Bounds -> Forest Vertex -> UArray Vertex Int
+preArr          :: Bounds -> [Tree Vertex] -> UArray Vertex Int
 preArr bnds      = tabulate bnds . preorderF
 
 ------------------------------------------------------------
@@ -612,19 +614,25 @@ preArr bnds      = tabulate bnds . preorderF
 postorder :: Tree a -> [a] -> [a]
 postorder (Node a ts) = postorderF ts . (a :)
 
-postorderF   :: Forest a -> [a] -> [a]
+postorderF   :: [Tree a] -> [a] -> [a]
 postorderF ts = foldr (.) id $ map postorder ts
 
 postOrd :: Graph -> [Vertex]
 postOrd g = postorderF (dff g) []
 
--- | A topological sort of the graph.
+-- | \(O(V+E)\). A topological sort of the graph.
 -- The order is partially specified by the condition that a vertex /i/
 -- precedes /j/ whenever /j/ is reachable from /i/ but not vice versa.
+--
+-- Note: A topological sort exists only when there are no cycles in the graph.
+-- If the graph has cycles, the output of this function will not be a
+-- topological sort. In such a case consider using 'scc'.
 topSort      :: Graph -> [Vertex]
 topSort       = reverse . postOrd
 
--- | Reverse ordering of `topSort`.
+-- | \(O(V+E)\). Reverse ordering of `topSort`.
+--
+-- See note in 'topSort'.
 --
 -- @since 0.6.4
 reverseTopSort :: Graph -> [Vertex]
@@ -634,10 +642,10 @@ reverseTopSort = postOrd
 -- Algorithm 3: connected components
 ------------------------------------------------------------
 
--- | The connected components of a graph.
+-- | \(O(V+E)\). The connected components of a graph.
 -- Two vertices are connected if there is a path between them, traversing
 -- edges in either direction.
-components   :: Graph -> Forest Vertex
+components   :: Graph -> [Tree Vertex]
 components    = dff . undirected
 
 undirected   :: Graph -> Graph
@@ -645,7 +653,8 @@ undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 
 -- Algorithm 4: strongly connected components
 
--- | The strongly connected components of a graph, in reverse topological order.
+-- | \(O(V+E)\). The strongly connected components of a graph, in reverse
+-- topological order.
 --
 -- ==== __Examples__
 --
@@ -653,7 +662,7 @@ undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 -- >   == [Node {rootLabel = 0, subForest = [Node {rootLabel = 1, subForest = [Node {rootLabel = 2, subForest = []}]}]}
 -- >      ,Node {rootLabel = 3, subForest = []}]
 
-scc  :: Graph -> Forest Vertex
+scc  :: Graph -> [Tree Vertex]
 scc g = dfs g (reverse (postOrd (transposeG g)))
 
 ------------------------------------------------------------
@@ -688,7 +697,7 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 -- Algorithm 6: Finding reachable vertices
 ------------------------------------------------------------
 
--- | Returns the list of vertices reachable from a given vertex.
+-- | \(O(V+E)\). Returns the list of vertices reachable from a given vertex.
 --
 -- ==== __Examples__
 --
@@ -698,7 +707,7 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 reachable :: Graph -> Vertex -> [Vertex]
 reachable g v = preorderF (dfs g [v])
 
--- | Returns @True@ if the second vertex reachable from the first.
+-- | \(O(V+E)\). Returns @True@ if the second vertex reachable from the first.
 --
 -- ==== __Examples__
 --
@@ -714,10 +723,14 @@ path g v w    = w `elem` (reachable g v)
 -- Algorithm 7: Biconnected components
 ------------------------------------------------------------
 
--- | The biconnected components of a graph.
+-- | \(O(V+E)\). The biconnected components of a graph.
 -- An undirected graph is biconnected if the deletion of any vertex
 -- leaves it connected.
-bcc :: Graph -> Forest [Vertex]
+--
+-- The input graph is expected to be undirected, i.e. for every edge in the
+-- graph the reverse edge is also in the graph. If the graph is not undirected
+-- the output is arbitrary.
+bcc :: Graph -> [Tree [Vertex]]
 bcc g = concatMap bicomps forest
   where
     -- The algorithm here is the same as given by King and Launchbury, which is
