@@ -302,6 +302,7 @@ foldlMap1 f g =  -- Use a lambda to allow inlining with two arguments
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 
+-- | @since 0.5.10.1
 instance MonadZip Tree where
   mzipWith f (Node a as) (Node b bs)
     = Node (f a b) (mzipWith (mzipWith f) as bs)
@@ -489,8 +490,9 @@ unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 --
 -- See 'unfoldTree' for more info.
 --
--- Implemented using an algorithm adapted from /Breadth-First Numbering: Lessons
--- from a Small Exercise in Algorithm Design/, by Chris Okasaki, /ICFP'00/.
+-- Implemented using an algorithm adapted from
+-- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
+-- by Chris Okasaki, /ICFP'00/.
 unfoldTreeM_BF :: Monad m => (b -> m (a, [b])) -> b -> m (Tree a)
 unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
   where
@@ -502,8 +504,9 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
 --
 -- See 'unfoldForest' for more info.
 --
--- Implemented using an algorithm adapted from /Breadth-First Numbering: Lessons
--- from a Small Exercise in Algorithm Design/, by Chris Okasaki, /ICFP'00/.
+-- Implemented using an algorithm adapted from
+-- /Breadth-First Numbering: Lessons from a Small Exercise in Algorithm Design/,
+-- by Chris Okasaki, /ICFP'00/.
 unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
 
