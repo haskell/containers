@@ -4659,6 +4659,8 @@ splitMapNode splt f s (Node3 ns a b c) = Node3 ns (f first a) (f second b) (f th
 -- | @ 'mzipWith' = 'zipWith' @
 --
 -- @ 'munzip' = 'unzip' @
+--
+-- @since 0.5.10.1
 instance MonadZip Seq where
   mzipWith = zipWith
   munzip = unzip
