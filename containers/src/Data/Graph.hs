@@ -493,10 +493,10 @@ dff g         = dfs g (vertices g)
 -- This function deviates from King and Launchbury's implementation by
 -- bundling together the functions generate, prune, and chop for efficiency
 -- reasons.
-dfs :: Graph -> [Vertex] -> Forest Vertex
+dfs :: Graph -> [Vertex] -> [Tree Vertex]
 dfs g vs0 = run (bounds g) $ go vs0
   where
-    go :: [Vertex] -> SetM s (Forest Vertex)
+    go :: [Vertex] -> SetM s [Tree Vertex]
     go [] = pure []
     go (v:vs) = do
       visited <- contains v
@@ -743,7 +743,7 @@ bcc g = concatMap bicomps forest
     dnum = preArr (bounds g) forest
 
     -- Wraps up the component of every child of the root
-    bicomps :: Tree Vertex -> Forest [Vertex]
+    bicomps :: Tree Vertex -> [Tree [Vertex]]
     bicomps (Node v tws) =
       [Node (v : curw []) (donew []) | (_, curw, donew) <- map collect tws]
 
