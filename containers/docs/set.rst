@@ -74,11 +74,11 @@ The following GHCi session shows some of the basic set functionality::
 
 
 .. TIP:: You can use the `OverloadedLists
-	 <https://ghc.haskell.org/trac/ghc/wiki/OverloadedLists>`_ extension so
-	 you don't need to write ``fromList [1, 2, 3]`` everywhere. Instead you
-	 can just write ``[1, 2, 3]`` and if the function is expecting a set it
-	 will be converted automatically! The code here will continue to use
-	 ``fromList`` for clarity though.
+	 <https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/overloaded_lists.html>`_
+     extension so you don't need to write ``fromList [1, 2, 3]`` everywhere.
+     Instead you can just write ``[1, 2, 3]`` and if the function is
+     expecting a set it will be converted automatically! The code here
+     will continue to use ``fromList`` for clarity though.
 
 
 Importing Set and IntSet
