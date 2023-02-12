@@ -9,24 +9,23 @@ import qualified Data.Graph as G
 
 main :: IO ()
 main = do
-  evaluate $ rnf randGs
+  evaluate $ rnf allGs
   defaultMain
-    [ bgroup "buildG" $ forGs randGs $ \g -> nf (G.buildG (bounds (getG g))) (getEdges g)
-    , bgroup "graphFromEdges" $ forGs randGs $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
-    , bgroup "transposeG" $ forGs randGs $ nf G.transposeG . getG
-    , bgroup "dfs" $ forGs randGs $ nf (flip G.dfs [1]) . getG
-    , bgroup "dff" $ forGs randGs $ nf G.dff . getG
-    , bgroup "topSort" $ forGs randGs $ nf G.topSort . getG
-    , bgroup "scc" $ forGs randGs $ nf G.scc . getG
-    , bgroup "bcc" $ forGs randGs $ nf G.bcc . getG
-    , bgroup "stronglyConnCompR" $ forGs randGs $ nf G.stronglyConnCompR . getAdjList
+    [ bgroup "buildG" $ forGs allGs $ \g -> nf (G.buildG (bounds (getG g))) (getEdges g)
+    , bgroup "graphFromEdges" $ forGs allGs $ nf ((\(g, _, _) -> g) . G.graphFromEdges) . getAdjList
+    , bgroup "transposeG" $ forGs allGs $ nf G.transposeG . getG
+    , bgroup "dfs" $ forGs allGs $ nf (flip G.dfs [1]) . getG
+    , bgroup "dff" $ forGs allGs $ nf G.dff . getG
+    , bgroup "topSort" $ forGs allGs $ nf G.topSort . getG
+    , bgroup "scc" $ forGs allGs $ nf G.scc . getG
+    , bgroup "bcc" $ forGs allGs $ nf G.bcc . getG
+    , bgroup "stronglyConnCompR" $ forGs allGs $ nf G.stronglyConnCompR . getAdjList
     ]
   where
-    randG1 = buildRandG 100 1000 
-    randG2 = buildRandG 100 10000
-    randG3 = buildRandG 10000 100000
-    randG4 = buildRandG 100000 1000000
-    randGs = [randG1, randG2, randG3, randG4]
+    allGs = randGs ++ starGs ++ lineGs
+    randGs = map (uncurry buildRandG) [(100, 1000), (100, 10000), (10000, 100000), (100000, 1000000)]
+    starGs = map buildStarG [100, 1000000]
+    lineGs = map buildLineG [100, 1000000]
 
 -- Note: In practice it does not make sense to run topSort or bcc on a random
 -- graph. For topSort the graph should be acyclic and for bcc the graph should
@@ -46,12 +45,32 @@ data Graph = Graph
 instance NFData Graph where
   rnf (Graph label g edges adj) = rnf label `seq` rnf g `seq` rnf edges `seq` rnf adj
 
+-- Makes a Graph for benchmarks, from a label, vertex bounds, and the edge list.
+makeG :: String -> G.Bounds -> [G.Edge] -> Graph
+makeG label bnds edges =
+  let g = G.buildG bnds edges
+  in Graph label g edges [(u, u, vs) | (u, vs) <- assocs g]
+
 -- A graph with vertices [1..n] and m random edges.
 buildRandG :: Int -> Int -> Graph
-buildRandG n m = Graph label g (G.edges g) [(u, u, vs') | (u, vs') <- assocs g]
+buildRandG n m = makeG label (1, n) edges
   where
-    label = "n=" ++ show n ++ ",m=" ++ show m
+    label = "rand,n=" ++ show n ++ ",m=" ++ show m
     xs = randomRs (1, n) (mkStdGen 1)
     (us, xs') = splitAt m xs
     vs = take m xs'
-    g = G.buildG (1, n) (zip us vs)
+    edges = zip us vs
+
+-- A star graph, i.e. a graph with an edge from vertex 1 to every other vertex.
+-- This serves as an extreme case of a "wide" graph.
+buildStarG :: Int -> Graph
+buildStarG n = makeG label (1, n) [(1, i) | i <- [2..n]]
+  where
+    label = "star,n=" ++ show n
+
+-- A line graph, i.e. a graph with an edge from every vertex i to i+1. This
+-- serves an as extreme case of a "deep" graph.
+buildLineG :: Int -> Graph
+buildLineG n = makeG label (1, n) (zip [1..n-1] [2..])
+  where
+    label = "line,n=" ++ show n
