@@ -70,7 +70,7 @@ The following GHCi session shows some of the basic sequence functionality::
     > 3
 
 .. TIP:: You can use the `OverloadedLists
-	 <http://downloads.haskell.org/~ghc/latest/docs/html/users_guide/glasgow_exts.html#overloaded-lists>`_
+	 <https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/overloaded_lists.html>`_
 	 extension so you don't need to write ``fromList [1, 2, 3]`` everywhere.
 	 Instead you can just write ``[1, 2, 3]`` and if the function is
 	 expecting a sequence it will be converted automatically! The code here
