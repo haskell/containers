@@ -43,6 +43,7 @@ main = defaultMain $ testGroup "tree-properties"
 #if MIN_VERSION_base(4,18,0)
          , testProperty "toNonEmpty"               prop_toNonEmpty
          , testProperty "last"                     prop_last
+         , testProperty "last_path"                prop_last_path
          , testProperty "foldrMap1"                prop_foldrMap1
          , testProperty "foldlMap1'"               prop_foldlMap1'
          , testProperty "foldlMap1"                prop_foldlMap1
@@ -184,6 +185,18 @@ prop_toNonEmpty t = Foldable1.toNonEmpty t === NE.fromList (toList t)
 
 prop_last :: Tree A -> Property
 prop_last t = Foldable1.last t === NE.last (Foldable1.toNonEmpty t)
+
+-- Tests that last only looks at the path going down to the last leaf.
+prop_last_path :: Tree A -> Property
+prop_last_path t = Foldable1.last (replace t) === Foldable1.last t
+  where
+    -- Replace all trees with bottom except for the last one.
+    replace :: Tree a -> Tree a
+    replace (Node x ts) = Node x (replaces ts)
+    replaces :: [Tree a] -> [Tree a]
+    replaces [] = []
+    replaces [t] = [replace t]
+    replaces (t:ts) = error "error tree" : replaces ts
 
 prop_foldrMap1 :: Tree A -> Property
 prop_foldrMap1 t =
