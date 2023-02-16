@@ -552,9 +552,9 @@ unfoldForestQ f aQ = case viewl aQ of
 --
 -- Implemented:
 --
--- foldrMap1, foldlMap1': Basic functions
--- foldMap, foldMap1': Implemented same as the default definition, but
--- INLINABLE to allow specialization.
+-- foldMap, foldrMap1, foldlMap1': Basic functions
+-- foldMap1': Implemented same as the default definition, but INLINABLE to
+-- allow specialization.
 -- toNonEmpty, foldlMap1: Implemented more efficiently than default.
 -- maximum, minimum: Uses Foldable's implementation.
 --
