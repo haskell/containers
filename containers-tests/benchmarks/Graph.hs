@@ -22,10 +22,11 @@ main = do
     , bgroup "stronglyConnCompR" $ forGs allGs $ nf G.stronglyConnCompR . getAdjList
     ]
   where
-    allGs = randGs ++ starGs ++ lineGs
+    allGs = randGs ++ starGs ++ lineGs ++ maxDAGs
     randGs = map (uncurry buildRandG) [(100, 1000), (100, 10000), (10000, 100000), (100000, 1000000)]
     starGs = map buildStarG [100, 1000000]
     lineGs = map buildLineG [100, 1000000]
+    maxDAGs = map buildMaxDAG [15, 1500]
 
 -- Note: In practice it does not make sense to run topSort or bcc on a random
 -- graph. For topSort the graph should be acyclic and for bcc the graph should
@@ -74,3 +75,10 @@ buildLineG :: Int -> Graph
 buildLineG n = makeG label (1, n) (zip [1..n-1] [2..])
   where
     label = "line,n=" ++ show n
+
+-- A maximal DAG. There is an edge from vertex i to j for every i, j when i < j.
+-- The number of edges is n * (n - 1) / 2.
+buildMaxDAG :: Int -> Graph
+buildMaxDAG n = makeG label (1, n) [(i, j) | i <- [1 .. n-1], j <- [i+1 .. n]]
+  where
+    label = "maxDAG,n=" ++ show n
