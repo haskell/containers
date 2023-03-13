@@ -9,11 +9,16 @@ All such changes should be discussed on the libraries@haskell.org mailing list.
 
 ## Building, testing, and benchmarking
 
-Building, testing, and benchmarking the containers package can be done using either `cabal` or `stack`.
+Building, testing, and benchmarking the containers package is done using `cabal`.
 
-To avoid recompiling the tests' other dependencies when making changes, you can remove `containers` from the `packages` stanza of the `cabal.project` file.
+To avoid recompiling the tests' other dependencies when making changes, you can
+remove `containers` from the `packages` stanza of the `cabal.project` file.
+Note: this will not work in the unlikely event that you are fixing a bug that
+affects the test or benchmark framework itself. The `Data.Set` (for example)
+used in the tests and benchmarks is compiled separately from the one exposed by
+the `containers` package.
 
-### With cabal
+### Procedure
 
 Minimum cabal version: 2.4
 
@@ -22,25 +27,6 @@ cabal build containers
 cabal test containers-test
 cabal bench containers-test
 ```
-
-
-### With [Stack](https://docs.haskellstack.org/en/stable/README/)
-
-Minimum stack version: 1.6.1
-
-```
-stack build
-stack test
-stack bench
-```
-
-
-## Troubleshooting
-
-- If you're using Stack, make sure you have version >= 1.6.1
-  ([stack#3624](https://github.com/commercialhaskell/stack/issues/3624),
-  [stack#3345](https://github.com/commercialhaskell/stack/issues/3345)).
-- You may need to edit `stack.yaml` to use the Stackage snapshot you want.
 
 ## Sending Pull Requests
 
@@ -67,10 +53,11 @@ When you send a pull request, please:
 
 ## Docs
 
-The internal docs are generated using Haddock which can be invoked with `cabal
-haddock` or `stack haddock`.
+The API documentation is generated using Haddock which is invoked with
+`cabal haddock`.
 
-The external docs are served by ReadTheDocs at
+The "user's manual" is served by ReadTheDocs at
 https://haskell-containers.readthedocs.io and live in the `docs/` directory. To
-build the docs locally run `pip install sphinx sphinx-autobuild sphinx_rtd_theme` to install the
-dependencies, `git submodule update --init`, and then `cd docs/ && make html`.
+build it locally run `pip install sphinx sphinx-autobuild sphinx_rtd_theme` to
+install the dependencies, `git submodule update --init`, and then
+`cd docs/ && make html`.
