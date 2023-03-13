@@ -1,5 +1,10 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## ???
+
+* Remove the `stack.yaml` file. It was extremely stale, and its utility was a
+  bit dubious in a GHC boot package. Closes #938.
+
 ## 0.6.7
 
 ### Additions

@@ -71,8 +71,9 @@ For some of the examples you'll need ``containers >= 0.5.9`` which ships with
 If you have an older version, don't worry about it, the majority of the code
 works with older versions of the package. If you want, you can get a recent
 version by `from haskell.org <https://www.haskell.org/downloads>`_, or with
-`Stack <https://www.haskellstack.org>`_ using ``stack --resolver lts-10.2
-ghci``.
+`Stack <https://www.haskellstack.org>`_ using something like
+``stack --resolver lts-20.14 ghci`` (see `Stackage <https://stackage.org>`_
+for the latest long-term support (LTS) or nightly resolver version).
 
 
 Importing modules
