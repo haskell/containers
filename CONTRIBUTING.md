@@ -31,10 +31,10 @@ cabal bench containers-test
 #### For Windows users : 
 
 To compile `containers-test`, you need symbolic links to be activated on git.
-To do so on Windows 10 on higher, follow these steps :
+To do so on Windows 10 or higher, follow these steps:
 
-1. Activate developper mode on in your Windows preferences
-2. Enable git symlinks : `git config --global core.symlinks true`
+1. Activate developer mode in your Windows preferences
+2. Enable git symlinks: `git config --global core.symlinks true`
 3. Clone the repository again once git is properly configured
 
 ## Sending Pull Requests
