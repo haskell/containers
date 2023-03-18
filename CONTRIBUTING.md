@@ -22,15 +22,35 @@ the `containers` package.
 
 Minimum cabal version: 2.4
 
+Build:
 ```
 cabal build containers
-cabal test containers-test
-cabal bench containers-test
+```
+
+Run all tests or benchmarks:
+```
+cabal test containers-tests
+cabal bench containers-tests
+```
+
+To run a particular test or benchmark suite, name the target from
+`containers-tests/containers-tests.cabal`:
+```
+cabal run set-properties  # cabal test also works
+cabal run map-benchmarks  # cabal bench also works
+```
+
+To run selective tests or benchmarks, you can pass a
+[filter pattern](https://hackage.haskell.org/package/tasty#patterns) as
+supported by `tasty`:
+```
+cabal run set-properties -- -p fromList
+cabal test set-properties --test-options "-p fromList"
 ```
 
 #### For Windows users
 
-To compile `containers-test`, you need symbolic links to be activated on git.
+To compile `containers-tests`, you need symbolic links to be activated on git.
 To do so on Windows 10 or higher, follow these steps:
 
 1. Activate developer mode in your Windows preferences.
