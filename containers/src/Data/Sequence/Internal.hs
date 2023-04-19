@@ -1888,7 +1888,8 @@ snocTree' (Deep s pr m (One a)) b =
 (><)            :: Seq a -> Seq a -> Seq a
 Seq xs >< Seq ys = Seq (appendTree0 xs ys)
 
--- The appendTree/addDigits gunk below is machine generated
+-- The appendTree/addDigits gunk below was originally machine generated via mkappend.hs,
+-- but has since been manually edited to include strictness annotations.
 
 appendTree0 :: FingerTree (Elem a) -> FingerTree (Elem a) -> FingerTree (Elem a)
 appendTree0 EmptyT xs =
