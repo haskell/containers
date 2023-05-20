@@ -311,7 +311,7 @@ import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
 import Utils.Containers.Internal.Prelude hiding
-  (lookup, map, filter, foldr, foldl, null)
+  (lookup, map, filter, foldr, foldl, foldl', null)
 import Prelude ()
 
 import Data.IntSet.Internal (Key)

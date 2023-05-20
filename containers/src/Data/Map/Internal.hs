@@ -384,7 +384,7 @@ import qualified Data.Foldable as Foldable
 import Data.Bifoldable
 #endif
 import Utils.Containers.Internal.Prelude hiding
-  (lookup, map, filter, foldr, foldl, null, splitAt, take, drop)
+  (lookup, map, filter, foldr, foldl, foldl', null, splitAt, take, drop)
 import Prelude ()
 
 import qualified Data.Set.Internal as Set

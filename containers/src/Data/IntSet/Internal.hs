@@ -204,7 +204,7 @@ import Data.Semigroup (Semigroup((<>)))
 #endif
 import Data.Semigroup (stimesIdempotentMonoid)
 import Utils.Containers.Internal.Prelude hiding
-  (filter, foldr, foldl, null, map)
+  (filter, foldr, foldl, foldl', null, map)
 import Prelude ()
 
 import Utils.Containers.Internal.BitUtil

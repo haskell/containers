@@ -128,8 +128,8 @@ module Data.IntSet (
             , IS.foldr
             , IS.foldl
             -- ** Strict folds
-            , foldr'
-            , foldl'
+            , IS.foldr'
+            , IS.foldl'
             -- ** Legacy folds
             , fold
 

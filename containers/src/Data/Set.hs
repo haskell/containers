@@ -141,8 +141,8 @@ module Data.Set (
             , S.foldr
             , S.foldl
             -- ** Strict folds
-            , foldr'
-            , foldl'
+            , S.foldr'
+            , S.foldl'
             -- ** Legacy folds
             , fold
 

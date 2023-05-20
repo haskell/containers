@@ -233,7 +233,7 @@ module Data.Set.Internal (
             ) where
 
 import Utils.Containers.Internal.Prelude hiding
-  (filter,foldl,foldr,null,map,take,drop,splitAt)
+  (filter,foldl,foldl',foldr,null,map,take,drop,splitAt)
 import Prelude ()
 import Control.Applicative (Const(..))
 import qualified Data.List as List

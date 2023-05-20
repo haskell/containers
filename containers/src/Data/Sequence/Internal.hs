@@ -199,8 +199,8 @@ import Utils.Containers.Internal.Prelude hiding (
 #if MIN_VERSION_base(4,11,0)
     (<>),
 #endif
-    (<$>), foldMap, Monoid,
-    null, length, lookup, take, drop, splitAt, foldl, foldl1, foldr, foldr1,
+    (<$>), Monoid,
+    null, length, lookup, take, drop, splitAt,
     scanl, scanl1, scanr, scanr1, replicate, zip, zipWith, zip3, zipWith3,
     unzip, takeWhile, dropWhile, iterate, reverse, filter, mapM, sum, all)
 import Prelude ()
@@ -212,7 +212,7 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, foldl', foldr'), toList)
+import Data.Foldable (foldr', toList)
 import qualified Data.Foldable as F
 
 import qualified Data.Semigroup as Semigroup
