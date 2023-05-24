@@ -260,7 +260,7 @@ module Data.IntMap.Strict.Internal (
     ) where
 
 import Utils.Containers.Internal.Prelude hiding
-  (lookup,map,filter,foldr,foldl,null)
+  (lookup,map,filter,foldr,foldl,foldl',null)
 import Prelude ()
 
 import Data.Bits

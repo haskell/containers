@@ -308,7 +308,9 @@ module Data.Map.Strict.Internal
     , valid
     ) where
 
-import Prelude hiding (lookup,map,filter,foldr,foldl,null,take,drop,splitAt)
+import Utils.Containers.Internal.Prelude hiding
+  (lookup,map,filter,foldr,foldl,foldl',null,take,drop,splitAt)
+import Prelude ()
 
 import Data.Map.Internal
   ( Map (..)
