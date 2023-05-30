@@ -1173,21 +1173,22 @@ combineEq (x : xs) = combineEq' x xs
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
 -- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList [] = Tip
-fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
   where
-    go !_ t [] = t
-    go s l (x : xs) = case create s xs of
-                        (r :*: ys) -> let !t' = link x l r
-                                      in go (s `shiftL` 1) t' ys
+    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
+    next (State0 stk) !x = linkTop (Bin 1 x Tip Tip) stk
+    next (State1 l stk) x = State0 (Push x l stk)
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (l :*: (y:ys)) -> case create (s `shiftR` 1) ys of
-                        (r :*: zs) -> (link y l r :*: zs)
+    linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+    linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
+      | rsz == lsz = linkTop (bin x l r) stk
+    linkTop l stk = State1 l stk
+
+    linkAll :: FromDistinctMonoState a -> Set a
+    linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
+    linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
+
+{-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
@@ -1197,21 +1198,35 @@ fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
 --
 -- @since 0.5.8
 fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList [] = Tip
-fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
+fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
   where
-    go !_ t [] = t
-    go s r (x : xs) = case create s xs of
-                        (l :*: ys) -> let !t' = link x l r
-                                      in go (s `shiftL` 1) t' ys
+    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
+    next (State0 stk) !x = linkTop (Bin 1 x Tip Tip) stk
+    next (State1 r stk) x = State0 (Push x r stk)
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (r :*: (y:ys)) -> case create (s `shiftR` 1) ys of
-                        (l :*: zs) -> (link y l r :*: zs)
+    linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+    linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
+      | lsz == rsz = linkTop (bin x l r) stk
+    linkTop r stk = State1 r stk
+
+    linkAll :: FromDistinctMonoState a -> Set a
+    linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
+    linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
+
+{-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
+
+data FromDistinctMonoState a
+  = State0 !(Stack a)
+  | State1 !(Set a) !(Stack a)
+
+data Stack a = Push !a !(Set a) !(Stack a) | Nada
+
+foldl'Stack :: (b -> a -> Set a -> b) -> b -> Stack a -> b
+foldl'Stack f = go
+  where
+    go !z Nada = z
+    go z (Push x t stk) = go (f z x t) stk
+{-# INLINE foldl'Stack #-}
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this

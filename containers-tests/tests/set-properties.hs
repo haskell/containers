@@ -67,7 +67,9 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
+                   , testProperty "prop_fromDistinctAscList" prop_fromDistinctAscList
                    , testProperty "prop_fromListDesc" prop_fromListDesc
+                   , testProperty "prop_fromDistinctDescList" prop_fromDistinctDescList
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
@@ -514,11 +516,17 @@ prop_AscDescList xs = toAscList s == reverse (toDescList s)
 prop_fromList :: [Int] -> Property
 prop_fromList xs =
            t === fromAscList sort_xs .&&.
-           t === fromDistinctAscList nub_sort_xs .&&.
            t === List.foldr insert empty xs
   where t = fromList xs
         sort_xs = sort xs
-        nub_sort_xs = List.map List.head $ List.group sort_xs
+
+prop_fromDistinctAscList :: [Int] -> Property
+prop_fromDistinctAscList xs =
+    valid t .&&.
+    toList t === nub_sort_xs
+  where
+    t = fromDistinctAscList nub_sort_xs
+    nub_sort_xs = List.map List.head $ List.group $ sort xs
 
 prop_fromListDesc :: [Int] -> Property
 prop_fromListDesc xs =
@@ -528,6 +536,14 @@ prop_fromListDesc xs =
   where t = fromList xs
         sort_xs = reverse (sort xs)
         nub_sort_xs = List.map List.head $ List.group sort_xs
+
+prop_fromDistinctDescList :: [Int] -> Property
+prop_fromDistinctDescList xs =
+    valid t .&&.
+    toList t === nub_sort_xs
+  where
+    t = fromDistinctDescList (reverse nub_sort_xs)
+    nub_sort_xs = List.map List.head $ List.group $ sort xs
 
 {--------------------------------------------------------------------
   Set operations are like IntSet operations

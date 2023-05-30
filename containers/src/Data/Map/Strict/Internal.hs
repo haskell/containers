@@ -328,6 +328,9 @@ import Data.Map.Internal
   , filterAMissing
   , merge
   , mergeA
+  , FromDistinctMonoState (..)
+  , Stack (..)
+  , foldl'Stack
   , (!)
   , (!?)
   , (\\)
@@ -338,6 +341,7 @@ import Data.Map.Internal
   , balance
   , balanceL
   , balanceR
+  , bin
   , compose
   , elemAt
   , elems
@@ -1698,22 +1702,22 @@ fromDescListWithKey f xs
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
 -- create, it is not inlined, so we inline it manually.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList [] = Tip
-fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
+fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
   where
-    go !_ t [] = t
-    go s l ((kx, x) : xs) =
-      case create s xs of
-        (r :*: ys) -> x `seq` let !t' = link kx x l r
-                           in go (s `shiftL` 1) t' ys
+    next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
+    next (State0 stk) (!kx, !x) = linkTop (Bin 1 kx x Tip Tip) stk
+    next (State1 l stk) (kx, x) = State0 (Push kx x l stk)
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (l :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (r :*: zs) -> y `seq` (link ky y l r :*: zs)
+    linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
+    linkTop r@(Bin rsz _ _ _ _) (Push kx x l@(Bin lsz _ _ _ _) stk)
+      | rsz == lsz = linkTop (bin kx x l r) stk
+    linkTop l stk = State1 l stk
+
+    linkAll :: FromDistinctMonoState k a -> Map k a
+    linkAll (State0 stk)    = foldl'Stack (\r kx x l -> link kx x l r) Tip stk
+    linkAll (State1 r0 stk) = foldl'Stack (\r kx x l -> link kx x l r) r0 stk
+
+{-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
 -- /The precondition is not checked./
@@ -1725,19 +1729,19 @@ fromDistinctAscList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip T
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
 fromDistinctDescList :: [(k,a)] -> Map k a
-fromDistinctDescList [] = Tip
-fromDistinctDescList ((kx0, x0) : xs0) = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
+fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
   where
-    go !_ t [] = t
-    go s r ((kx, x) : xs) =
-      case create s xs of
-        (l :*: ys) -> x `seq` let !t' = link kx x l r
-                              in go (s `shiftL` 1) t' ys
+    next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
+    next (State0 stk) (!kx, !x) = linkTop (Bin 1 kx x Tip Tip) stk
+    next (State1 r stk) (kx, x) = State0 (Push kx x r stk)
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x' : xs')
-      | s == 1 = case x' of (kx, x) -> x `seq` (Bin 1 kx x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (r :*: (ky, y):ys) -> case create (s `shiftR` 1) ys of
-                        (l :*: zs) -> y `seq` (link ky y l r :*: zs)
+    linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
+    linkTop l@(Bin lsz _ _ _ _) (Push kx x r@(Bin rsz _ _ _ _) stk)
+      | lsz == rsz = linkTop (bin kx x l r) stk
+    linkTop r stk = State1 r stk
+
+    linkAll :: FromDistinctMonoState k a -> Map k a
+    linkAll (State0 stk)    = foldl'Stack (\l kx x r -> link kx x l r) Tip stk
+    linkAll (State1 l0 stk) = foldl'Stack (\l kx x r -> link kx x l r) l0 stk
+
+{-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
