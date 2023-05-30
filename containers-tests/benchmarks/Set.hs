@@ -14,6 +14,7 @@ main = do
         s_odd = S.fromAscList elems_odd :: S.Set Int
         strings_s = S.fromList strings
     evaluate $ rnf [s, s_even, s_odd]
+    evaluate $ rnf elems_rev
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
@@ -34,6 +35,9 @@ main = do
         , bench "fromList-desc" $ whnf S.fromList (reverse elems)
         , bench "fromAscList" $ whnf S.fromAscList elems
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
+        , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
+        , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_rev
+        , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
         , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
         , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
@@ -53,9 +57,11 @@ main = do
         , bench "member.powerSet (18)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..18]))
         ]
   where
-    elems = [1..2^12]
-    elems_even = [2,4..2^12]
-    elems_odd = [1,3..2^12]
+    bound = 2^12
+    elems = [1..bound]
+    elems_even = [2,4..bound]
+    elems_odd = [1,3..bound]
+    elems_rev = reverse elems
     strings = map show elems
 
 member :: [Int] -> S.Set Int -> Int
