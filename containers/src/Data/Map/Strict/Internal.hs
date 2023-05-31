@@ -1700,6 +1700,8 @@ fromDescListWithKey f xs
 
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
 -- create, it is not inlined, so we inline it manually.
+
+-- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctAscList :: [(k,a)] -> Map k a
 fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
   where
@@ -1727,6 +1729,8 @@ fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
+
+-- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctDescList :: [(k,a)] -> Map k a
 fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
   where

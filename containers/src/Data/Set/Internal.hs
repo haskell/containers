@@ -1171,6 +1171,8 @@ combineEq (x : xs) = combineEq' x xs
 
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
 -- create, it is not inlined, so we inline it manually.
+
+-- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
 fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
   where
@@ -1191,11 +1193,13 @@ fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
+--
+-- @since 0.5.8
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
---
--- @since 0.5.8
+
+-- See Note [fromDistinctAscList implementation]
 fromDistinctDescList :: [a] -> Set a
 fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
   where
@@ -2068,3 +2072,51 @@ validsize t
           Bin sz _ l r -> case (realsize l,realsize r) of
                             (Just n,Just m)  | n+m+1 == sz  -> Just sz
                             _                -> Nothing
+
+--------------------------------------------------------------------
+
+-- Note [fromDistinctAscList implementation]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- fromDistinctAscList is implemented by building up perfectly balanced trees
+-- while we consume elements from the list one by one. A stack of
+-- (root, perfectly balanced left branch) pairs is maintained, in increasing
+-- order of size from top to bottom.
+--
+-- When we get an element from the list, we attempt to link it as the right
+-- branch with the top (root, perfect left branch) of the stack to create a new
+-- perfect tree. We can only do this if the left branch has size 1. If we link
+-- it, we get a perfect tree of size 3. We repeat this process, merging with the
+-- top of the stack as long as the sizes match. When we can't link any more, the
+-- perfect tree we built so far is a potential left branch. The next element
+-- we find becomes the root, and we push this new (root, left branch) on the
+-- stack.
+--
+-- When we are out of elements, we link the (root, left branch)s in the stack
+-- top to bottom to get the final tree.
+--
+-- How long does this take? We do O(1) work per element excluding the links.
+-- Over n elements, we build trees with at most n nodes total, and each link is
+-- done in O(1) using `bin`. The final linking of the stack is done in O(log n)
+-- using `link`  (proof below). The total time is thus O(n).
+--
+-- Additionally, the implemention is written using foldl' over the input list,
+-- which makes it participate as a good consumer in list fusion.
+--
+-- fromDistinctDescList is implemented similarly, adapted for left and right
+-- sides being swapped.
+--
+-- ~~~
+--
+-- A `link` operation links trees L and R with a root in
+-- O(|log(size(L)) - log(size(R))|). Let's say there are m (root, tree) in the
+-- stack, the size of the ith tree being 2^{k_i} - 1. We also know that
+-- k_i > k_j for i > j, and n = \sum_{i=1}^m 2^{k_i}. With this information, we
+-- can calculate the total time to link everything on the stack:
+--
+--   O(\sum_{i=2}^m |log(2^{k_i} - 1) - log(\sum_{j=1}^{i-1} 2^{k_j})|)
+-- = O(\sum_{i=2}^m log(2^{k_i} - 1) - log(\sum_{j=1}^{i-1} 2^{k_j}))
+-- = O(\sum_{i=2}^m log(2^{k_i} - 1) - log(2^{k_{i-1}}))
+-- = O(\sum_{i=2}^m k_i - k_{i-1})
+-- = O(k_m - k_1)
+-- = O(log n)
