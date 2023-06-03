@@ -11,9 +11,13 @@ import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
-import Data.Foldable (foldl', toList)
+import Data.Foldable (fold, foldl', toList)
 import Data.Traversable (foldMapDefault)
+#if !(MIN_VERSION_base(4,11,0))
+import Data.Semigroup (Semigroup ((<>)))
+#endif
 #if MIN_VERSION_base(4,18,0)
+import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Foldable1 as Foldable1
 #endif
@@ -32,6 +36,7 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "monadFix_ls"              prop_monadFix_ls
          , testProperty "toList"                   prop_toList
          , testProperty "foldMap"                  prop_foldMap
+         , testProperty "foldMap_structure"        prop_foldMap_structure
          , testProperty "foldl'"                   prop_foldl'
          , testProperty "foldr1"                   prop_foldr1
          , testProperty "foldl1"                   prop_foldl1
@@ -41,8 +46,10 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "sum"                      prop_sum
          , testProperty "product"                  prop_product
 #if MIN_VERSION_base(4,18,0)
+         , testProperty "foldMap1_structure"       prop_foldMap1_structure
          , testProperty "toNonEmpty"               prop_toNonEmpty
          , testProperty "last"                     prop_last
+         , testProperty "last_path"                prop_last_path
          , testProperty "foldrMap1"                prop_foldrMap1
          , testProperty "foldlMap1'"               prop_foldlMap1'
          , testProperty "foldlMap1"                prop_foldlMap1
@@ -85,6 +92,25 @@ data Magma a
   = Inj a
   | Magma a :* Magma a
   deriving (Eq, Show)
+
+-- Unlawful on purpose.
+instance Semigroup (Magma a) where
+  (<>) = (:*)
+
+data UnitalMagma a
+  = Unit
+  | UInj a
+  | UnitalMagma a :** UnitalMagma a
+  deriving (Eq, Show)
+
+-- Unlawful on purpose.
+instance Semigroup (UnitalMagma a) where
+  (<>) = (:**)
+
+-- Unlawful on purpose.
+instance Monoid (UnitalMagma a) where
+  mempty = Unit
+  mappend = (<>)
 
 ----------------------------------------------------------------
 -- Unit tests
@@ -150,6 +176,14 @@ prop_foldMap t =
   foldMap (:[]) t === toList t .&&.
   foldMap (:[]) t === foldMapDefault (:[]) t
 
+-- We use UnitalMagma with foldMap to test that the structure of the fold
+-- follows that of the tree. This is desirable here because we can be more
+-- efficient/lazy with some monoids, such as Data.Monoid.Last, compared
+-- to a foldr-based foldMap.
+prop_foldMap_structure :: Tree A -> Property
+prop_foldMap_structure t =
+  foldMap UInj t === foldTree (\x ys -> fold (UInj x : ys)) t
+
 prop_foldl' :: Tree A -> Property
 prop_foldl' t = foldl' (flip (:)) [] t === reverse (toList t)
 
@@ -179,11 +213,31 @@ prop_product :: Tree OrdA -> Property
 prop_product t = product t === product (toList t)
 
 #if MIN_VERSION_base(4,18,0)
+-- We use Magma with foldMap1 to test that the structure of the fold follows
+-- that of the tree. This is desirable here because we can be more
+-- efficient/lazy with some semigroups, such as Data.Semigroup.Last, compared
+-- to a foldrMap1-based foldMap1.
+prop_foldMap1_structure :: Tree A -> Property
+prop_foldMap1_structure t =
+  Foldable1.foldMap1 Inj t === foldTree (\x ys -> Foldable1.fold1 (Inj x :| ys)) t
+
 prop_toNonEmpty :: Tree A -> Property
 prop_toNonEmpty t = Foldable1.toNonEmpty t === NE.fromList (toList t)
 
 prop_last :: Tree A -> Property
 prop_last t = Foldable1.last t === NE.last (Foldable1.toNonEmpty t)
+
+-- Tests that last only looks at the path going down to the last leaf.
+prop_last_path :: Tree A -> Property
+prop_last_path t = Foldable1.last (replace t) === Foldable1.last t
+  where
+    -- Replace all trees with bottom except for the last one.
+    replace :: Tree a -> Tree a
+    replace (Node x ts) = Node x (replaces ts)
+    replaces :: [Tree a] -> [Tree a]
+    replaces [] = []
+    replaces [t] = [replace t]
+    replaces (t:ts) = error "error tree" : replaces ts
 
 prop_foldrMap1 :: Tree A -> Property
 prop_foldrMap1 t =
