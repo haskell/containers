@@ -355,6 +355,10 @@ module Data.Map.Internal (
     , link
     , link2
     , glue
+    , fromDistinctAscList_linkTop
+    , fromDistinctAscList_linkAll
+    , fromDistinctDescList_linkTop
+    , fromDistinctDescList_linkAll
     , MaybeS(..)
     , Identity(..)
     , FromDistinctMonoState(..)
@@ -3706,22 +3710,23 @@ fromDescListWithKey f xs
 
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
   where
     next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
-    next (State0 stk) (!kx, x) = linkTop (Bin 1 kx x Tip Tip) stk
+    next (State0 stk) (!kx, x) = fromDistinctAscList_linkTop (Bin 1 kx x Tip Tip) stk
     next (State1 l stk) (kx, x) = State0 (Push kx x l stk)
-
-    linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
-    linkTop r@(Bin rsz _ _ _ _) (Push kx x l@(Bin lsz _ _ _ _) stk)
-      | rsz == lsz = linkTop (bin kx x l r) stk
-    linkTop l stk = State1 l stk
-
-    linkAll :: FromDistinctMonoState k a -> Map k a
-    linkAll (State0 stk)    = foldl'Stack (\r kx x l -> link kx x l r) Tip stk
-    linkAll (State1 r0 stk) = foldl'Stack (\r kx x l -> link kx x l r) r0 stk
-
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
+
+fromDistinctAscList_linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
+fromDistinctAscList_linkTop r@(Bin rsz _ _ _ _) (Push kx x l@(Bin lsz _ _ _ _) stk)
+  | rsz == lsz = fromDistinctAscList_linkTop (bin kx x l r) stk
+fromDistinctAscList_linkTop l stk = State1 l stk
+{-# INLINABLE fromDistinctAscList_linkTop #-}
+
+fromDistinctAscList_linkAll :: FromDistinctMonoState k a -> Map k a
+fromDistinctAscList_linkAll (State0 stk)    = foldl'Stack (\r kx x l -> link kx x l r) Tip stk
+fromDistinctAscList_linkAll (State1 r0 stk) = foldl'Stack (\r kx x l -> link kx x l r) r0 stk
+{-# INLINABLE fromDistinctAscList_linkAll #-}
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
 -- /The precondition is not checked./
@@ -3737,22 +3742,23 @@ fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
 
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctDescList :: [(k,a)] -> Map k a
-fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
   where
     next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
-    next (State0 stk) (!kx, x) = linkTop (Bin 1 kx x Tip Tip) stk
+    next (State0 stk) (!kx, x) = fromDistinctDescList_linkTop (Bin 1 kx x Tip Tip) stk
     next (State1 r stk) (kx, x) = State0 (Push kx x r stk)
-
-    linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
-    linkTop l@(Bin lsz _ _ _ _) (Push kx x r@(Bin rsz _ _ _ _) stk)
-      | lsz == rsz = linkTop (bin kx x l r) stk
-    linkTop r stk = State1 r stk
-
-    linkAll :: FromDistinctMonoState k a -> Map k a
-    linkAll (State0 stk)    = foldl'Stack (\l kx x r -> link kx x l r) Tip stk
-    linkAll (State1 l0 stk) = foldl'Stack (\l kx x r -> link kx x l r) l0 stk
-
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
+
+fromDistinctDescList_linkTop :: Map k a -> Stack k a -> FromDistinctMonoState k a
+fromDistinctDescList_linkTop l@(Bin lsz _ _ _ _) (Push kx x r@(Bin rsz _ _ _ _) stk)
+  | lsz == rsz = fromDistinctDescList_linkTop (bin kx x l r) stk
+fromDistinctDescList_linkTop r stk = State1 r stk
+{-# INLINABLE fromDistinctDescList_linkTop #-}
+
+fromDistinctDescList_linkAll :: FromDistinctMonoState k a -> Map k a
+fromDistinctDescList_linkAll (State0 stk)    = foldl'Stack (\l kx x r -> link kx x l r) Tip stk
+fromDistinctDescList_linkAll (State1 l0 stk) = foldl'Stack (\l kx x r -> link kx x l r) l0 stk
+{-# INLINABLE fromDistinctDescList_linkAll #-}
 
 data FromDistinctMonoState k a
   = State0 !(Stack k a)

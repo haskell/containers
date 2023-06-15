@@ -1174,22 +1174,23 @@ combineEq (x : xs) = combineEq' x xs
 
 -- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
   where
     next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = linkTop (Bin 1 x Tip Tip) stk
+    next (State0 stk) !x = fromDistinctAscList_linkTop (Bin 1 x Tip Tip) stk
     next (State1 l stk) x = State0 (Push x l stk)
-
-    linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-    linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
-      | rsz == lsz = linkTop (bin x l r) stk
-    linkTop l stk = State1 l stk
-
-    linkAll :: FromDistinctMonoState a -> Set a
-    linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
-    linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
-
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
+
+fromDistinctAscList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+fromDistinctAscList_linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
+  | rsz == lsz = fromDistinctAscList_linkTop (bin x l r) stk
+fromDistinctAscList_linkTop l stk = State1 l stk
+{-# INLINABLE fromDistinctAscList_linkTop #-}
+
+fromDistinctAscList_linkAll :: FromDistinctMonoState a -> Set a
+fromDistinctAscList_linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
+fromDistinctAscList_linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
+{-# INLINABLE fromDistinctAscList_linkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
@@ -1201,22 +1202,23 @@ fromDistinctAscList = linkAll . Foldable.foldl' next (State0 Nada)
 
 -- See Note [fromDistinctAscList implementation]
 fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList = linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
   where
     next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = linkTop (Bin 1 x Tip Tip) stk
+    next (State0 stk) !x = fromDistinctDescList_linkTop (Bin 1 x Tip Tip) stk
     next (State1 r stk) x = State0 (Push x r stk)
-
-    linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-    linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
-      | lsz == rsz = linkTop (bin x l r) stk
-    linkTop r stk = State1 r stk
-
-    linkAll :: FromDistinctMonoState a -> Set a
-    linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
-    linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
-
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
+
+fromDistinctDescList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+fromDistinctDescList_linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
+  | lsz == rsz = fromDistinctDescList_linkTop (bin x l r) stk
+fromDistinctDescList_linkTop r stk = State1 r stk
+{-# INLINABLE fromDistinctDescList_linkTop #-}
+
+fromDistinctDescList_linkAll :: FromDistinctMonoState a -> Set a
+fromDistinctDescList_linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
+fromDistinctDescList_linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
+{-# INLINABLE fromDistinctDescList_linkAll #-}
 
 data FromDistinctMonoState a
   = State0 !(Stack a)
