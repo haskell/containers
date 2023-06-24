@@ -187,6 +187,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "mergeA effects"       prop_mergeA_effects
          , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
          , testProperty "fromDescList"         prop_rev_ordered
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
@@ -1243,10 +1244,13 @@ prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
-prop_fromDistinctDescList :: Int -> [A] -> Property
-prop_fromDistinctDescList top lst = valid converted .&&. (toList converted === reverse original) where
-  original = zip [top, (top-1)..0] lst
-  converted = fromDistinctDescList original
+prop_fromDistinctDescList :: [(Int, A)] -> Property
+prop_fromDistinctDescList xs =
+    valid t .&&.
+    toList t === nub_sort_xs
+  where
+    t = fromDistinctDescList (reverse nub_sort_xs)
+    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1256,10 +1260,16 @@ prop_fromList :: [Int] -> Bool
 prop_fromList xs
   = case fromList (zip xs xs) of
       t -> t == fromAscList (zip sort_xs sort_xs) &&
-           t == fromDistinctAscList (zip nub_sort_xs nub_sort_xs) &&
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
-        nub_sort_xs = List.map List.head $ List.group sort_xs
+
+prop_fromDistinctAscList :: [(Int, A)] -> Property
+prop_fromDistinctAscList xs =
+    valid t .&&.
+    toList t === nub_sort_xs
+  where
+    t = fromDistinctAscList nub_sort_xs
+    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
 
 ----------------------------------------------------------------
 

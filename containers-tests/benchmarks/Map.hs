@@ -21,6 +21,7 @@ main = do
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
     evaluate $ rnf [m, m_even, m_odd]
+    evaluate $ rnf elems_rev
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -90,6 +91,9 @@ main = do
         , bench "fromList-desc" $ whnf M.fromList (reverse elems)
         , bench "fromAscList" $ whnf M.fromAscList elems
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        , bench "fromDistinctAscList:fusion" $ whnf (\n -> M.fromDistinctAscList [(i,i) | i <- [1..n]]) bound
+        , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
+        , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         ]
   where
@@ -97,6 +101,7 @@ main = do
     elems = zip keys values
     elems_even = zip evens evens
     elems_odd = zip odds odds
+    elems_rev = reverse elems
     keys = [1..bound]
     evens = [2,4..bound]
     odds = [1,3..bound]

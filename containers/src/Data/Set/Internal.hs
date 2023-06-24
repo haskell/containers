@@ -1085,8 +1085,7 @@ foldlFB = foldl
 
 -- | \(O(n \log n)\). Create a set from a list of elements.
 --
--- If the elements are ordered, a linear-time implementation is used,
--- with the performance equal to 'fromDistinctAscList'.
+-- If the elements are ordered, a linear-time implementation is used.
 
 -- For some reason, when 'singleton' is used in fromList or in
 -- create, it is not inlined, so we inline it manually.
@@ -1172,46 +1171,67 @@ combineEq (x : xs) = combineEq' x xs
 
 -- For some reason, when 'singleton' is used in fromDistinctAscList or in
 -- create, it is not inlined, so we inline it manually.
-fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList [] = Tip
-fromDistinctAscList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
-  where
-    go !_ t [] = t
-    go s l (x : xs) = case create s xs of
-                        (r :*: ys) -> let !t' = link x l r
-                                      in go (s `shiftL` 1) t' ys
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (l :*: (y:ys)) -> case create (s `shiftR` 1) ys of
-                        (r :*: zs) -> (link y l r :*: zs)
+-- See Note [fromDistinctAscList implementation]
+fromDistinctAscList :: [a] -> Set a
+fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
+  where
+    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
+    next (State0 stk) !x = fromDistinctAscList_linkTop (Bin 1 x Tip Tip) stk
+    next (State1 l stk) x = State0 (Push x l stk)
+{-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
+
+fromDistinctAscList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+fromDistinctAscList_linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
+  | rsz == lsz = fromDistinctAscList_linkTop (bin x l r) stk
+fromDistinctAscList_linkTop l stk = State1 l stk
+{-# INLINABLE fromDistinctAscList_linkTop #-}
+
+fromDistinctAscList_linkAll :: FromDistinctMonoState a -> Set a
+fromDistinctAscList_linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
+fromDistinctAscList_linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
+{-# INLINABLE fromDistinctAscList_linkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
+--
+-- @since 0.5.8
 
 -- For some reason, when 'singleton' is used in fromDistinctDescList or in
 -- create, it is not inlined, so we inline it manually.
---
--- @since 0.5.8
-fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList [] = Tip
-fromDistinctDescList (x0 : xs0) = go (1::Int) (Bin 1 x0 Tip Tip) xs0
-  where
-    go !_ t [] = t
-    go s r (x : xs) = case create s xs of
-                        (l :*: ys) -> let !t' = link x l r
-                                      in go (s `shiftL` 1) t' ys
 
-    create !_ [] = (Tip :*: [])
-    create s xs@(x : xs')
-      | s == 1 = (Bin 1 x Tip Tip :*: xs')
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_ :*: []) -> res
-                      (r :*: (y:ys)) -> case create (s `shiftR` 1) ys of
-                        (l :*: zs) -> (link y l r :*: zs)
+-- See Note [fromDistinctAscList implementation]
+fromDistinctDescList :: [a] -> Set a
+fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
+  where
+    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
+    next (State0 stk) !x = fromDistinctDescList_linkTop (Bin 1 x Tip Tip) stk
+    next (State1 r stk) x = State0 (Push x r stk)
+{-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
+
+fromDistinctDescList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
+fromDistinctDescList_linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
+  | lsz == rsz = fromDistinctDescList_linkTop (bin x l r) stk
+fromDistinctDescList_linkTop r stk = State1 r stk
+{-# INLINABLE fromDistinctDescList_linkTop #-}
+
+fromDistinctDescList_linkAll :: FromDistinctMonoState a -> Set a
+fromDistinctDescList_linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
+fromDistinctDescList_linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
+{-# INLINABLE fromDistinctDescList_linkAll #-}
+
+data FromDistinctMonoState a
+  = State0 !(Stack a)
+  | State1 !(Set a) !(Stack a)
+
+data Stack a = Push !a !(Set a) !(Stack a) | Nada
+
+foldl'Stack :: (b -> a -> Set a -> b) -> b -> Stack a -> b
+foldl'Stack f = go
+  where
+    go !z Nada = z
+    go z (Push x t stk) = go (f z x t) stk
+{-# INLINE foldl'Stack #-}
 
 {--------------------------------------------------------------------
   Eq converts the set to a list. In a lazy setting, this
@@ -2054,3 +2074,51 @@ validsize t
           Bin sz _ l r -> case (realsize l,realsize r) of
                             (Just n,Just m)  | n+m+1 == sz  -> Just sz
                             _                -> Nothing
+
+--------------------------------------------------------------------
+
+-- Note [fromDistinctAscList implementation]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- fromDistinctAscList is implemented by building up perfectly balanced trees
+-- while we consume elements from the list one by one. A stack of
+-- (root, perfectly balanced left branch) pairs is maintained, in increasing
+-- order of size from top to bottom.
+--
+-- When we get an element from the list, we attempt to link it as the right
+-- branch with the top (root, perfect left branch) of the stack to create a new
+-- perfect tree. We can only do this if the left branch has size 1. If we link
+-- it, we get a perfect tree of size 3. We repeat this process, merging with the
+-- top of the stack as long as the sizes match. When we can't link any more, the
+-- perfect tree we built so far is a potential left branch. The next element
+-- we find becomes the root, and we push this new (root, left branch) on the
+-- stack.
+--
+-- When we are out of elements, we link the (root, left branch)s in the stack
+-- top to bottom to get the final tree.
+--
+-- How long does this take? We do O(1) work per element excluding the links.
+-- Over n elements, we build trees with at most n nodes total, and each link is
+-- done in O(1) using `bin`. The final linking of the stack is done in O(log n)
+-- using `link`  (proof below). The total time is thus O(n).
+--
+-- Additionally, the implemention is written using foldl' over the input list,
+-- which makes it participate as a good consumer in list fusion.
+--
+-- fromDistinctDescList is implemented similarly, adapted for left and right
+-- sides being swapped.
+--
+-- ~~~
+--
+-- A `link` operation links trees L and R with a root in
+-- O(|log(size(L)) - log(size(R))|). Let's say there are m (root, tree) in the
+-- stack, the size of the ith tree being 2^{k_i} - 1. We also know that
+-- k_i > k_j for i > j, and n = \sum_{i=1}^m 2^{k_i}. With this information, we
+-- can calculate the total time to link everything on the stack:
+--
+--   O(\sum_{i=2}^m |log(2^{k_i} - 1) - log(\sum_{j=1}^{i-1} 2^{k_j})|)
+-- = O(\sum_{i=2}^m log(2^{k_i} - 1) - log(\sum_{j=1}^{i-1} 2^{k_j}))
+-- = O(\sum_{i=2}^m log(2^{k_i} - 1) - log(2^{k_{i-1}}))
+-- = O(\sum_{i=2}^m k_i - k_{i-1})
+-- = O(k_m - k_1)
+-- = O(log n)
