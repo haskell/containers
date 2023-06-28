@@ -28,9 +28,7 @@ instance Applicative (State s) where
     (<*>) = ap
     m *> n = State $ \s -> case runState m s of
       (s', _) -> runState n s'
-#if MIN_VERSION_base(4,10,0)
     liftA2 = liftM2
-#endif
 
 execState :: State s a -> s -> a
 execState m x = snd (runState m x)

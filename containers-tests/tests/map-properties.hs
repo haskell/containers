@@ -22,9 +22,7 @@ import Data.Ord
 import Data.Semigroup (Arg(..))
 import Data.Function
 import qualified Data.Foldable as Foldable
-#if MIN_VERSION_base(4,10,0)
 import qualified Data.Bifoldable as Bifoldable
-#endif
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, take, drop, splitAt)
 import qualified Prelude
 
@@ -233,14 +231,12 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "foldlWithKey"         prop_foldlWithKey
          , testProperty "foldl'"               prop_foldl'
          , testProperty "foldlWithKey'"        prop_foldlWithKey'
-#if MIN_VERSION_base(4,10,0)
          , testProperty "bifold"               prop_bifold
          , testProperty "bifoldMap"            prop_bifoldMap
          , testProperty "bifoldr"              prop_bifoldr
          , testProperty "bifoldr'"             prop_bifoldr'
          , testProperty "bifoldl"              prop_bifoldl
          , testProperty "bifoldl'"             prop_bifoldl'
-#endif
          , testProperty "keysSet"              prop_keysSet
          , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
@@ -1541,7 +1537,6 @@ prop_foldlWithKey' c n m = foldlWithKey' c' n m === Foldable.foldl' (uncurry . c
   where
     c' acc k v = apply c (acc, k, v)
 
-#if MIN_VERSION_base(4,10,0)
 prop_bifold :: Map Int Int -> Property
 prop_bifold m = Bifoldable.bifold (mapKeys (:[]) ((:[]) <$> m)) === Foldable.fold ((\(k,v) -> [k,v]) <$> toList m)
 
@@ -1575,7 +1570,6 @@ prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c'
     ck' = curry (apply ck)
     cv' = curry (apply cv)
     acc `c'` (k,v) = (acc `ck'` k) `cv'` v
-#endif
 
 prop_keysSet :: [(Int, Int)] -> Bool
 prop_keysSet xs =

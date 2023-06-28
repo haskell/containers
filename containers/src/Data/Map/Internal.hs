@@ -387,9 +387,7 @@ import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
-#if MIN_VERSION_base(4,10,0)
 import Data.Bifoldable
-#endif
 import Utils.Containers.Internal.Prelude hiding
   (lookup, map, filter, foldr, foldl, foldl', null, splitAt, take, drop)
 import Prelude ()
@@ -4283,7 +4281,6 @@ instance Foldable.Foldable (Map k) where
   product = foldl' (*) 1
   {-# INLINABLE product #-}
 
-#if MIN_VERSION_base(4,10,0)
 -- | @since 0.6.3.1
 instance Bifoldable Map where
   bifold = go
@@ -4304,7 +4301,6 @@ instance Bifoldable Map where
           go (Bin 1 k v _ _) = f k `mappend` g v
           go (Bin _ k v l r) = go l `mappend` (f k `mappend` (g v `mappend` go r))
   {-# INLINE bifoldMap #-}
-#endif
 
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
