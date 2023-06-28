@@ -275,10 +275,8 @@ infixl 5 |>, :>
 infixr 5 :<|
 infixl 5 :|>
 
-#if __GLASGOW_HASKELL__ >= 801
 {-# COMPLETE (:<|), Empty #-}
 {-# COMPLETE (:|>), Empty #-}
-#endif
 
 -- | A bidirectional pattern synonym matching an empty sequence.
 --
@@ -529,9 +527,7 @@ instance Applicative Seq where
     pure = singleton
     xs *> ys = cycleNTimes (length xs) ys
     (<*>) = apSeq
-#if MIN_VERSION_base(4,10,0)
     liftA2 = liftA2Seq
-#endif
     xs <* ys = beforeSeq xs ys
 
 apSeq :: Seq (a -> b) -> Seq a -> Seq b

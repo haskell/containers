@@ -13,6 +13,4 @@ install-dependencies: False
 -- depends on containers
 installed: +all -binary -text -ghc-heap
 
-haddock: >= 8.2
-
 cabal-check: False

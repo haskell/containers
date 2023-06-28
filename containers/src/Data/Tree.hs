@@ -162,10 +162,8 @@ instance Applicative Tree where
     pure x = Node x []
     Node f tfs <*> tx@(Node x txs) =
         Node (f x) (map (f <$>) txs ++ map (<*> tx) tfs)
-#if MIN_VERSION_base(4,10,0)
     liftA2 f (Node x txs) ty@(Node y tys) =
         Node (f x y) (map (f x <$>) tys ++ map (\tx -> liftA2 f tx ty) txs)
-#endif
     Node x txs <* ty@(Node _ tys) =
         Node x (map (x <$) tys ++ map (<* ty) txs)
     Node _ txs *> ty@(Node y tys) =

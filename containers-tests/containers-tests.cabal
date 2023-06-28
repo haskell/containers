@@ -26,8 +26,8 @@ extra-source-files:
   benchmarks/LookupGE/*.hs
 
 tested-with:
-  GHC ==8.0.2 || ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.2 ||
-      ==9.4.2 || ==9.6.1
+  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.8 ||
+      ==9.4.5 || ==9.6.2
 
 source-repository head
   type:     git
@@ -36,7 +36,7 @@ source-repository head
 common deps
   build-depends:
       array    >=0.4.0.0
-    , base     >=4.9.1   && <5
+    , base     >=4.10    && <5
     , deepseq  >=1.2     && <1.5
     , template-haskell
 
