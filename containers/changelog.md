@@ -2,6 +2,12 @@
 
 ## ???
 
+* Breaking changes to `Data.Graph.SCC v`:
+  * `CyclicSCC [v]` is now not a constructor,
+    but a bundled pattern synonym for backward compatibility.
+  * `NECyclicSCC (NonEmpty v)` is a new constructor, maintaining an invariant
+    that a set of mutually reachable vertices is non-empty.
+
 * Remove the `stack.yaml` file. It was extremely stale, and its utility was a
   bit dubious in a GHC boot package. Closes #938.
 

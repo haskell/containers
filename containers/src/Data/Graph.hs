@@ -5,8 +5,11 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Safe #-}
+{-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE ViewPatterns #-}
 #endif
 
 #include "containers.h"
@@ -74,7 +77,11 @@ module Data.Graph (
 
 
     -- * Strongly Connected Components
-    , SCC(..)
+    , SCC(..
+#ifdef __GLASGOW_HASKELL__
+      , CyclicSCC
+#endif
+      )
 
     -- ** Construction
     , stronglyConnComp
@@ -107,6 +114,9 @@ import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
 import Data.Foldable as F
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.Foldable1 as F1
+#endif
 import Control.DeepSeq (NFData(rnf))
 import Data.Maybe
 import Data.Array
@@ -117,6 +127,8 @@ import Data.Array.Unboxed ( UArray )
 import qualified Data.Array as UA
 #endif
 import qualified Data.List as L
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import Data.Functor.Classes
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
@@ -124,7 +136,7 @@ import Data.Semigroup (Semigroup (..))
 #ifdef __GLASGOW_HASKELL__
 import GHC.Generics (Generic, Generic1)
 import Data.Data (Data)
-import Language.Haskell.TH.Syntax (Lift)
+import Language.Haskell.TH.Syntax (Lift(..))
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 #endif
@@ -139,14 +151,25 @@ default ()
 -------------------------------------------------------------------------
 
 -- | Strongly connected component.
-data SCC vertex = AcyclicSCC vertex     -- ^ A single vertex that is not
-                                        -- in any cycle.
-                | CyclicSCC  [vertex]   -- ^ A maximal set of mutually
-                                        -- reachable vertices.
+data SCC vertex
+  = AcyclicSCC vertex
+  -- ^ A single vertex that is not in any cycle.
+  | NECyclicSCC {-# UNPACK #-} !(NonEmpty vertex)
+  -- ^ A maximal set of mutually reachable vertices.
+  --
+  -- @since 0.7.0
   deriving ( Eq   -- ^ @since 0.5.9
            , Show -- ^ @since 0.5.9
            , Read -- ^ @since 0.5.9
            )
+
+-- | Partial pattern synonym for backward compatibility with @containers < 0.7@.
+pattern CyclicSCC :: [vertex] -> SCC vertex
+pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
+  CyclicSCC [] = error "CyclicSCC: an argument cannot be an empty list"
+  CyclicSCC (x : xs) = NECyclicSCC (x :| xs)
+
+{-# COMPLETE AcyclicSCC, CyclicSCC #-}
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
@@ -158,47 +181,65 @@ deriving instance Generic1 SCC
 -- | @since 0.5.9
 deriving instance Generic (SCC vertex)
 
+-- There is no instance Lift (NonEmpty v) before template-haskell-2.15.
+#if MIN_VERSION_template_haskell(2,15,0)
 -- | @since 0.6.6
 deriving instance Lift vertex => Lift (SCC vertex)
+#else
+instance Lift vertex => Lift (SCC vertex) where
+  lift (AcyclicSCC v) = [| AcyclicSCC v |]
+  lift (NECyclicSCC (v :| vs)) = [| NECyclicSCC (v :| vs) |]
+#endif
+
 #endif
 
 -- | @since 0.5.9
 instance Eq1 SCC where
   liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
-  liftEq eq (CyclicSCC vs1) (CyclicSCC vs2) = liftEq eq vs1 vs2
+  liftEq eq (NECyclicSCC vs1) (NECyclicSCC vs2) = liftEq eq vs1 vs2
   liftEq _ _ _ = False
 -- | @since 0.5.9
 instance Show1 SCC where
   liftShowsPrec sp _sl d (AcyclicSCC v) = showsUnaryWith sp "AcyclicSCC" d v
-  liftShowsPrec _sp sl d (CyclicSCC vs) = showsUnaryWith (const sl) "CyclicSCC" d vs
+  liftShowsPrec sp sl d (NECyclicSCC vs) = showsUnaryWith (liftShowsPrec sp sl) "NECyclicSCC" d vs
 -- | @since 0.5.9
 instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
+    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC <>
     readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
 
 -- | @since 0.5.9
 instance F.Foldable SCC where
   foldr c n (AcyclicSCC v) = c v n
-  foldr c n (CyclicSCC vs) = foldr c n vs
+  foldr c n (NECyclicSCC vs) = foldr c n vs
+
+#if MIN_VERSION_base(4,18,0)
+-- | @since 0.7.0
+instance F1.Foldable1 SCC where
+  foldMap1 f (AcyclicSCC v) = f v
+  foldMap1 f (NECyclicSCC vs) = F1.foldMap1 f vs
+  -- TODO define more methods
+#endif
 
 -- | @since 0.5.9
 instance Traversable SCC where
-  -- We treat the non-empty cyclic case specially to cut one
-  -- fmap application.
   traverse f (AcyclicSCC vertex) = AcyclicSCC <$> f vertex
-  traverse _f (CyclicSCC []) = pure (CyclicSCC [])
-  traverse f (CyclicSCC (x : xs)) =
-    liftA2 (\x' xs' -> CyclicSCC (x' : xs')) (f x) (traverse f xs)
+  -- Avoid traverse from instance Traversable NonEmpty,
+  -- it is redundantly lazy.
+  traverse f (NECyclicSCC (x :| xs)) =
+    liftA2 (\x' xs' -> NECyclicSCC (x' :| xs')) (f x) (traverse f xs)
 
 instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
-    rnf (CyclicSCC vs) = rnf vs
+    rnf (NECyclicSCC vs) = rnf vs
 
 -- | @since 0.5.4
 instance Functor SCC where
     fmap f (AcyclicSCC v) = AcyclicSCC (f v)
-    fmap f (CyclicSCC vs) = CyclicSCC (fmap f vs)
+    -- Avoid fmap from instance Functor NonEmpty,
+    -- it is redundantly lazy.
+    fmap f (NECyclicSCC (x :| xs)) = NECyclicSCC (f x :| map f xs)
 
 -- | The vertices of a list of strongly connected components.
 flattenSCCs :: [SCC a] -> [a]
@@ -207,7 +248,7 @@ flattenSCCs = concatMap flattenSCC
 -- | The vertices of a strongly connected component.
 flattenSCC :: SCC vertex -> [vertex]
 flattenSCC (AcyclicSCC v) = [v]
-flattenSCC (CyclicSCC vs) = vs
+flattenSCC (NECyclicSCC vs) = NE.toList vs
 
 -- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
 -- reverse topologically sorted.
@@ -229,7 +270,8 @@ stronglyConnComp edges0
   = map get_node (stronglyConnCompR edges0)
   where
     get_node (AcyclicSCC (n, _, _)) = AcyclicSCC n
-    get_node (CyclicSCC triples)     = CyclicSCC [n | (n,_,_) <- triples]
+    get_node (NECyclicSCC ((n0, _, _) :| triples)) =
+      NECyclicSCC (n0 :| [n | (n, _, _) <- triples])
 {-# INLINABLE stronglyConnComp #-}
 
 -- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
@@ -258,11 +300,12 @@ stronglyConnCompR edges0
   where
     (graph, vertex_fn,_) = graphFromEdges edges0
     forest             = scc graph
-    decode (Node v []) | mentions_itself v = CyclicSCC [vertex_fn v]
+
+    decode (Node v []) | mentions_itself v = NECyclicSCC (vertex_fn v :| [])
                        | otherwise         = AcyclicSCC (vertex_fn v)
-    decode other = CyclicSCC (dec other [])
-                 where
-                   dec (Node v ts) vs = vertex_fn v : foldr dec vs ts
+    decode (Node v ts) = NECyclicSCC (vertex_fn v :| foldr dec [] ts)
+
+    dec (Node v ts) vs = vertex_fn v : foldr dec vs ts
     mentions_itself v = v `elem` (graph ! v)
 {-# INLINABLE stronglyConnCompR #-}
 
