@@ -980,7 +980,7 @@ unionsWith f ts
 {--------------------------------------------------------------------
   Union with a combining function
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Union with a combining function.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 
@@ -996,7 +996,7 @@ unionWith f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 {-# INLINABLE unionWith #-}
 #endif
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
 -- Union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
@@ -1054,7 +1054,7 @@ differenceWithKey f = merge preserveMissing dropMissing (zipWithMaybeMatched f)
   Intersection
 --------------------------------------------------------------------}
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Intersection with a combining function.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -1072,7 +1072,7 @@ intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
 {-# INLINABLE intersectionWith #-}
 #endif
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Intersection with a combining function.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
