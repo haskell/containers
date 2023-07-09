@@ -163,6 +163,7 @@ data SCC vertex
            , Read -- ^ @since 0.5.9
            )
 
+#ifdef __GLASGOW_HASKELL__
 -- | Partial pattern synonym for backward compatibility with @containers < 0.7@.
 pattern CyclicSCC :: [vertex] -> SCC vertex
 pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
@@ -171,7 +172,6 @@ pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
 
 {-# COMPLETE AcyclicSCC, CyclicSCC #-}
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
 
