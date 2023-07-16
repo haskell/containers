@@ -90,7 +90,9 @@ main = do
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromList-desc" $ whnf M.fromList (reverse elems)
         , bench "fromAscList" $ whnf M.fromAscList elems_asc
+        , bench "fromAscList:fusion" $ whnf (\n -> M.fromAscList [(i `div` 2, i) | i <- [1..n]]) bound
         , bench "fromDescList" $ whnf M.fromDescList elems_desc
+        , bench "fromDescList:fusion" $ whnf (\n -> M.fromDescList [(i `div` 2, i) | i <- [n,n-1..1]]) bound
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> M.fromDistinctAscList [(i,i) | i <- [1..n]]) bound
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev

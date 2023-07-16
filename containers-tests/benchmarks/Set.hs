@@ -36,7 +36,9 @@ main = do
         , bench "fromAscList" $ whnf S.fromAscList elems_asc
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
+        , bench "fromAscList:fusion" $ whnf (\n -> S.fromAscList [i `div` 2 | i <- [1..n]]) bound
         , bench "fromDescList" $ whnf S.fromDescList elems_desc
+        , bench "fromDescList:fusion" $ whnf (\n -> S.fromDescList [i `div` 2 | i <- [n,n-1..1]]) bound
         , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
