@@ -76,6 +76,7 @@ module Data.IntSet (
             , empty
             , singleton
             , fromList
+            , fromRange
             , fromAscList
             , fromDistinctAscList
 

@@ -123,6 +123,7 @@ module Data.IntSet.Internal (
     -- * Construction
     , empty
     , singleton
+    , fromRange
     , insert
     , delete
     , alterF
@@ -1214,6 +1215,60 @@ fromList xs
   = Foldable.foldl' ins empty xs
   where
     ins t x  = insert x t
+
+-- | \(O(n / W)\). Create a set from a range of integers.
+--
+-- > fromRange (low, high) == fromList [low..high]
+--
+-- @since FIXME
+fromRange :: (Key, Key) -> IntSet
+fromRange (lx,rx)
+  | lx > rx  = empty
+  | lp == rp = Tip lp (bitmapOf rx `shiftLL` 1 - bitmapOf lx)
+  | otherwise =
+      let m = branchMask lx rx
+          p = mask lx m
+      in if m < 0  -- handle negative numbers
+         then Bin 0 m (goR 0) (goL 0)
+         else Bin p m (goL (p .|. m)) (goR (p .|. m))
+  where
+    lp = prefixOf lx
+    rp = prefixOf rx
+    -- goL p0 = fromList [lx .. p0-1]
+    -- Expected: p0 is lx where one 0-bit is flipped to 1 and all bits lower than that are 0.
+    --           p0 can be 0 (pretend that bit WORD_SIZE is flipped to 1).
+    goL :: Prefix -> IntSet
+    goL !p0 = go (Tip lp (- bitmapOf lx)) (lp + lbm prefixBitMask)
+      where
+        go !l p | p == p0 = l
+        go l p =
+          let m = lbm p
+              p' = p `xor` m
+              l' = Bin p' m l (goFull p (shr1 m))
+          in go l' (p + m)
+    -- goR p0 = fromList [p0 .. rx]
+    -- Expected: p0 is a prefix of rx
+    goR :: Prefix -> IntSet
+    goR !p0 = go (Tip rp (bitmapOf rx `shiftLL` 1 - 1)) rp
+      where
+        go !r p | p == p0 = r
+        go r p =
+          let m = lbm p
+              p' = p `xor` m
+              r' = Bin p' m (goFull p' (shr1 m)) r
+          in go r' p'
+    -- goFull p m = fromList [p .. p+2*m-1]
+    -- Expected: popCount m == 1, p == mask p m
+    goFull :: Prefix -> Mask -> IntSet
+    goFull p m
+      | m < suffixBitMask = Tip p (complement 0)
+      | otherwise         = Bin p m (goFull p (shr1 m)) (goFull (p .|. m) (shr1 m))
+    lbm :: Prefix -> Prefix
+    lbm p = intFromNat (lowestBitMask (natFromInt p))
+    {-# INLINE lbm #-}
+    shr1 :: Mask -> Mask
+    shr1 m = intFromNat (natFromInt m `shiftRL` 1)
+    {-# INLINE shr1 #-}
 
 -- | \(O(n)\). Build a set from an ascending list of elements.
 -- /The precondition (input list is ascending) is not checked./

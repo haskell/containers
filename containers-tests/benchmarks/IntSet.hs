@@ -38,6 +38,8 @@ main = do
         , bench "difference" $ whnf (IS.difference s) s_even
         , bench "intersection" $ whnf (IS.intersection s) s_even
         , bench "fromList" $ whnf IS.fromList elems
+        , bench "fromRange" $ whnf IS.fromRange (1,bound)
+        , bench "fromRange:small" $ whnf IS.fromRange (-1,0)
         , bench "fromAscList" $ whnf IS.fromAscList elems
         , bench "fromDistinctAscList" $ whnf IS.fromDistinctAscList elems
         , bench "disjoint:false" $ whnf (IS.disjoint s) s_even
@@ -56,12 +58,13 @@ main = do
         , bench "splitMember:sparse" $ whnf (IS.splitMember elem_sparse_mid) s_sparse
         ]
   where
-    elems = [1..2^12]
-    elems_even = [2,4..2^12]
-    elems_odd = [1,3..2^12]
-    elem_mid = 2^11 + 31 -- falls in the middle of a packed Tip bitmask (assuming 64-bit words)
+    bound = 2^12
+    elems = [1..bound]
+    elems_even = [2,4..bound]
+    elems_odd = [1,3..bound]
+    elem_mid = bound `div` 2 + 31 -- falls in the middle of a packed Tip bitmask (assuming 64-bit words)
     elems_sparse = map (*64) elems -- when built into a map, each Tip is a singleton
-    elem_sparse_mid = 2^11 * 64
+    elem_sparse_mid = bound `div` 2 * 64
 
 member :: [Int] -> IS.IntSet -> Int
 member xs s = foldl' (\n x -> if IS.member x s then n + 1 else n) 0 xs
