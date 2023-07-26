@@ -1707,7 +1707,8 @@ replicateA n x
   | otherwise   = error "replicateA takes a nonnegative integer argument"
 {-# SPECIALIZE replicateA :: Int -> State a b -> State a (Seq b) #-}
 
--- | 'replicateM' is a sequence counterpart of 'Control.Monad.replicateM'.
+-- | 'replicateM' is the @Seq@ counterpart of
+-- @Control.Monad.'Control.Monad.replicateM'@.
 --
 -- > replicateM n x = sequence (replicate n x)
 --
