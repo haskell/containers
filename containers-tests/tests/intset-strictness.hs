@@ -2,7 +2,7 @@
 {-# OPTIONS_GHC -Wno-orphans #-}
 module Main (main) where
 
-import Prelude hiding (foldl)
+import Prelude hiding (foldl, foldl')
 
 import Test.ChasingBottoms.IsBottom
 import Test.Tasty (TestTree, defaultMain, testGroup)

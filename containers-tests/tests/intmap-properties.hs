@@ -21,7 +21,7 @@ import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
-import Prelude hiding (lookup, null, map, filter, foldr, foldl)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
 import qualified Prelude (map)
 
 import Data.List (nub,sort)

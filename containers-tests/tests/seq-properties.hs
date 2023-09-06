@@ -30,7 +30,7 @@ import Data.Semigroup (stimes, stimesMonoid)
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
   lookup, null, length, take, drop, splitAt,
-  foldl, foldl1, foldr, foldr1, scanl, scanl1, scanr, scanr1,
+  foldl, foldl', foldl1, foldr, foldr1, scanl, scanl1, scanr, scanr1,
   filter, reverse, replicate, zip, zipWith, zip3, zipWith3,
   all, sum)
 import qualified Prelude

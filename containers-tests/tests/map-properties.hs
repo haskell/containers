@@ -23,7 +23,7 @@ import Data.Semigroup (Arg(..))
 import Data.Function
 import qualified Data.Foldable as Foldable
 import qualified Data.Bifoldable as Bifoldable
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, take, drop, splitAt)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt)
 import qualified Prelude
 
 import Data.List (nub,sort)

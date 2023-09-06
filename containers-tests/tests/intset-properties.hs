@@ -8,7 +8,7 @@ import qualified Data.List as List
 import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import IntSetValidity (valid)
-import Prelude hiding (lookup, null, map, filter, foldr, foldl)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck hiding ((.&.))
