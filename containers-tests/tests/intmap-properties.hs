@@ -102,7 +102,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "fromAscListWithKey" test_fromAscListWithKey
              , testCase "fromDistinctAscList" test_fromDistinctAscList
              , testCase "filter" test_filter
-             , testCase "filterWithKey" test_filteWithKey
+             , testCase "filterKeys" test_filterKeys
+             , testCase "filterWithKey" test_filterWithKey
              , testCase "partition" test_partition
              , testCase "partitionWithKey" test_partitionWithKey
              , testCase "mapMaybe" test_mapMaybe
@@ -858,8 +859,13 @@ test_filter = do
     filter (> "x") (fromList [(5,"a"), (-3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (-3,"b")]) @?= empty
 
-test_filteWithKey :: Assertion
-test_filteWithKey = do
+test_filterKeys :: Assertion
+test_filterKeys = do
+    filterKeys (> 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
+    filterKeys (> 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+
+test_filterWithKey :: Assertion
+test_filterWithKey = do
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 

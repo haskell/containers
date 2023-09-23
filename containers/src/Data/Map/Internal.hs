@@ -288,6 +288,7 @@ module Data.Map.Internal (
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
 
     , takeWhileAntitone
@@ -2856,6 +2857,20 @@ isProperSubmapOfBy f t1 t2
 filter :: (a -> Bool) -> Map k a -> Map k a
 filter p m
   = filterWithKey (\_ x -> p x) m
+
+-- | \(O(n)\). Filter all keys that satisfy the predicate.
+--
+-- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+
+filterKeys :: (k -> Bool) -> Map k a -> Map k a
+filterKeys _ Tip = Tip
+filterKeys p t@(Bin _ kx x l r)
+  | p kx      = if pl `ptrEq` l && pr `ptrEq` r
+                then t
+                else link kx x pl pr
+  | otherwise = link2 pl pr
+  where !pl = filterKeys p l
+        !pr = filterKeys p r
 
 -- | \(O(n)\). Filter all keys\/values that satisfy the predicate.
 --

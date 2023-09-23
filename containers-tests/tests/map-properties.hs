@@ -115,7 +115,7 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "fromDistinctAscList" test_fromDistinctAscList
          , testCase "fromDistinctDescList" test_fromDistinctDescList
          , testCase "filter" test_filter
-         , testCase "filterWithKey" test_filteWithKey
+         , testCase "filterWithKey" test_filterWithKey
          , testCase "partition" test_partition
          , testCase "partitionWithKey" test_partitionWithKey
          , testCase "mapMaybe" test_mapMaybe
@@ -820,8 +820,11 @@ test_filter = do
     filter (> "x") (fromList [(5,"a"), (3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (3,"b")]) @?= empty
 
-test_filteWithKey :: Assertion
-test_filteWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+test_filterKeys :: Assertion
+test_filterKeys = filterWithKey (> 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+
+test_filterWithKey :: Assertion
+test_filterWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
 
 test_partition :: Assertion
 test_partition = do

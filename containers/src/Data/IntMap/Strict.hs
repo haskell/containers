@@ -211,6 +211,7 @@ module Data.IntMap.Strict (
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
