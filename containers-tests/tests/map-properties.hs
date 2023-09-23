@@ -821,7 +821,7 @@ test_filter = do
     filter (< "a") (fromList [(5,"a"), (3,"b")]) @?= empty
 
 test_filterKeys :: Assertion
-test_filterKeys = filterWithKey (> 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+test_filterKeys = filterKey (> 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
 
 test_filterWithKey :: Assertion
 test_filterWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
