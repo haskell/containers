@@ -202,6 +202,10 @@ values with the same key.
     Map.fromListWith (++) [(1, "a"), (1, "b"), (2, "x"), (2, "y")]
     > fromList [(1,"ba"),(2,"yx")]
 
+.. TIP::
+   Read the documentation of :haddock_short:`/Data.Map.Strict#fromListWith`
+   to avoid accidental ``O(n²)`` performance when writing patterns
+   such as ``fromListWith (++)``.
 
 
 Create a list from a map
