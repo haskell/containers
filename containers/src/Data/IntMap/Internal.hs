@@ -2545,7 +2545,7 @@ mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
 mapKeysWith c f
   = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
 
--- | \(O(n \min(n,W))\).
+-- | \(O(n)\).
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
 -- is strictly monotonic.
 -- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
@@ -3063,7 +3063,7 @@ keys = foldrWithKey (\k _ ks -> k : ks) []
 assocs :: IntMap a -> [(Key,a)]
 assocs = toAscList
 
--- | \(O(n \min(n,W))\). The set of all keys of the map.
+-- | \(O(n)\). The set of all keys of the map.
 --
 -- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.IntSet.fromList [3,5]
 -- > keysSet empty == Data.IntSet.empty
