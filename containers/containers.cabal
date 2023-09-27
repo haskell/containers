@@ -1,5 +1,5 @@
 name: containers
-version: 0.6.7
+version: 0.6.8
 license: BSD3
 license-file: LICENSE
 maintainer: libraries@haskell.org
@@ -26,7 +26,9 @@ extra-source-files:
     changelog.md
     mkappend.hs
 
-tested-with: GHC==9.6.2, GHC==9.4.5, GHC==9.2.8, GHC==9.0.2, GHC==8.10.7, GHC==8.8.4, GHC==8.6.5, GHC==8.4.4, GHC==8.2.2
+tested-with:
+  GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.8 ||
+      ==9.4.5 || ==9.6.2 || ==9.8.1
 
 source-repository head
     type:     git

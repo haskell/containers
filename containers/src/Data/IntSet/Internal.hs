@@ -1220,7 +1220,7 @@ fromList xs
 --
 -- > fromRange (low, high) == fromList [low..high]
 --
--- @since FIXME
+-- @since 0.7
 fromRange :: (Key, Key) -> IntSet
 fromRange (lx,rx)
   | lx > rx  = empty
