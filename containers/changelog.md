@@ -1,15 +1,30 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## ???
+## 0.7
 
-* Breaking changes to `Data.Graph.SCC v`:
+### Breaking changes
+
+* Breaking changes to `Data.Graph.SCC v` (bodʲɪˈɡrʲim):
   * `CyclicSCC [v]` is now not a constructor,
     but a bundled pattern synonym for backward compatibility.
   * `NECyclicSCC (NonEmpty v)` is a new constructor, maintaining an invariant
     that a set of mutually reachable vertices is non-empty.
 
+### Additions
+
+* Add `Data.IntSet.fromRange`. (Soumik Sarkar)
+
+### Documentation and other
+
+* Add, improve, and correct documentation. (Niklas Hambüchen, Soumik Sarkar,
+  tomjaguarpaw)
+
+### Other/internal
+
 * Remove the `stack.yaml` file. It was extremely stale, and its utility was a
   bit dubious in a GHC boot package. Closes #938.
+
+* Add a bunch of new tests and benchmarks. (Soumik Sarkar)
 
 ## 0.6.7
 
