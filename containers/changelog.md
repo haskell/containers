@@ -1,14 +1,6 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## 0.7
-
-### Breaking changes
-
-* Breaking changes to `Data.Graph.SCC v` (bodʲɪˈɡrʲim):
-  * `CyclicSCC [v]` is now not a constructor,
-    but a bundled pattern synonym for backward compatibility.
-  * `NECyclicSCC (NonEmpty v)` is a new constructor, maintaining an invariant
-    that a set of mutually reachable vertices is non-empty.
+## 0.6.8
 
 ### Additions
 
