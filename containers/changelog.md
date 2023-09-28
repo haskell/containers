@@ -14,10 +14,15 @@
 
 * Add `Data.IntSet.fromRange`. (Soumik Sarkar)
 
+### Improvements
+
+* Speed up conversion from monotonic lists to `Set`s and
+  `Map`s. (Soumik Sarkar)
+
 ### Documentation and other
 
 * Add, improve, and correct documentation. (Niklas Hambüchen, Soumik Sarkar,
-  tomjaguarpaw)
+  tomjaguarpaw, Alice Rixte, Tom Smeding)
 
 ### Other/internal
 
@@ -25,6 +30,9 @@
   bit dubious in a GHC boot package. Closes #938.
 
 * Add a bunch of new tests and benchmarks. (Soumik Sarkar)
+
+* Future-proof test suite against export of `foldl'` from `Prelude`.
+  (Teo Camarasu)
 
 ## 0.6.7
 
