@@ -2863,14 +2863,7 @@ filter p m
 -- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
-filterKeys _ Tip = Tip
-filterKeys p t@(Bin _ kx x l r)
-  | p kx      = if pl `ptrEq` l && pr `ptrEq` r
-                then t
-                else link kx x pl pr
-  | otherwise = link2 pl pr
-  where !pl = filterKeys p l
-        !pr = filterKeys p r
+filterKeys p m = filterWithKey (\k _ -> p k) m
 
 -- | \(O(n)\). Filter all keys\/values that satisfy the predicate.
 --
