@@ -593,7 +593,7 @@ delete = go
 -- In short:
 --
 -- @
--- 'member' x \<$\> 'alterF' f x s = f ('member' x s)
+-- 'member' x '<$>' 'alterF' f x s = f ('member' x s)
 -- @
 --
 -- Note that unlike 'insert', 'alterF' will /not/ replace an element equal to
