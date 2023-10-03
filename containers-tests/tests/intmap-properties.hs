@@ -219,16 +219,16 @@ apply3 f a b c = apply f (a, b, c)
 
 
 {--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
+  Arbitrary IntMaps, including those with large keys
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = fmap fromList arbitrary
+  arbitrary = fmap (fromList . fmap (\(k,v) -> (getLarge k, v))) arbitrary
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
-  arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
+  arbitrary = fmap (NonEmptyIntMap . fromList  . fmap (\(k,v) -> (getLarge k, v)) . getNonEmpty) arbitrary
 
 
 ------------------------------------------------------------------------
