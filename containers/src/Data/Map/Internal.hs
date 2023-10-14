@@ -7,6 +7,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 #define USE_MAGIC_PROXY 1
 #endif
 
@@ -299,6 +300,7 @@ module Data.Map.Internal (
 
     , restrictKeys
     , withoutKeys
+    , partitionKeys
     , partition
     , partitionWithKey
 
@@ -1964,6 +1966,48 @@ withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
        !rm' = withoutKeys rm rs
 #if __GLASGOW_HASKELL__
 {-# INLINABLE withoutKeys #-}
+#endif
+
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Partition the map according to a set.
+-- The first map contains the input 'Map' restricted to those keys found in the 'Set',
+-- the second map contains the input 'Map' without all keys in the 'Set'.
+-- This is more efficient than using 'restrictKeys' and 'withoutKeys' together.
+--
+-- @
+-- m \`partitionKeys\` s = (m ``restrictKeys`` s, m ``withoutKeys`` s)
+-- @
+partitionKeys :: forall k a. Ord k => Map k a -> Set k -> (Map k a, Map k a)
+partitionKeys xs ys =
+  case go xs ys of
+    xs' :*: ys' -> (xs', ys')
+  where
+    go :: Map k a -> Set k -> StrictPair (Map k a) (Map k a)
+    go Tip                 _           = Tip :*: Tip
+    go m                   Set.Tip     = Tip :*: m
+    go m@(Bin _ k x lm rm) s@Set.Bin{} =
+      case b of
+        True  -> with :*: without
+          where
+            with    =
+              if lmWith `ptrEq` lm && rmWith `ptrEq` rm
+              then m
+              else link k x lmWith rmWith
+            without =
+              link2 lmWithout rmWithout
+        False -> with :*: without
+          where
+            with    = link2 lmWith rmWith
+            without =
+              if lmWithout `ptrEq` lm && rmWithout `ptrEq` rm
+              then m
+              else link k x lmWithout rmWithout
+        where
+          !(lmWith :*: lmWithout) = go lm ls'
+          !(rmWith :*: rmWithout) = go rm rs'
+
+          !(!ls', b, !rs') = Set.splitMember k s
+#if __GLASGOW_HASKELL__
+{-# INLINABLE partitionKeys #-}
 #endif
 
 -- | \(O(n+m)\). Difference with a combining function.
