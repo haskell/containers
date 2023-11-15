@@ -2266,37 +2266,37 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
+lookupMinSure :: IntMap a -> (Key, a)
+lookupMinSure (Tip k v)     = (k,v)
+lookupMinSure (Bin _ _ l _) = lookupMinSure l
+lookupMinSure Nil           = error "lookupMinSure Nil"
+
 -- | \(O(\min(n,W))\). The minimal key of the map. Returns 'Nothing' if the map is empty.
 lookupMin :: IntMap a -> Maybe (Key, a)
-lookupMin Nil = Nothing
-lookupMin (Tip k v) = Just (k,v)
-lookupMin (Bin _ m l r)
-  | m < 0     = go r
-  | otherwise = go l
-    where go (Tip k v)      = Just (k,v)
-          go (Bin _ _ l' _) = go l'
-          go Nil            = Nothing
+lookupMin Nil           = Nothing
+lookupMin (Tip k v)     = Just (k,v)
+lookupMin (Bin _ m l r) = Just $! lookupMinSure (if m < 0 then r else l)
+{-# INLINE lookupMin #-}
 
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
--- Use 'minViewWithKey' if the map may be empty.
 findMin :: IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
 
+lookupMaxSure :: IntMap a -> (Key, a)
+lookupMaxSure (Tip k v)     = (k,v)
+lookupMaxSure (Bin _ _ _ r) = lookupMaxSure r
+lookupMaxSure Nil           = error "lookupMaxSure Nil"
+
 -- | \(O(\min(n,W))\). The maximal key of the map. Returns 'Nothing' if the map is empty.
 lookupMax :: IntMap a -> Maybe (Key, a)
-lookupMax Nil = Nothing
-lookupMax (Tip k v) = Just (k,v)
-lookupMax (Bin _ m l r)
-  | m < 0     = go l
-  | otherwise = go r
-    where go (Tip k v)      = Just (k,v)
-          go (Bin _ _ _ r') = go r'
-          go Nil            = Nothing
+lookupMax Nil           = Nothing
+lookupMax (Tip k v)     = Just (k,v)
+lookupMax (Bin _ m l r) = Just $! lookupMaxSure (if m < 0 then l else r)
+{-# INLINE lookupMax #-}
 
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
--- Use 'maxViewWithKey' if the map may be empty.
 findMax :: IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
