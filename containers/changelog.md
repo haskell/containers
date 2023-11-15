@@ -35,6 +35,10 @@
   provided `only2` function with empty maps, contrary to documentation.
   (Soumik Sarkar)
 
+### Additions
+
+* Add `lookupMin` and `lookupMax` for `Data.IntSet`. (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions

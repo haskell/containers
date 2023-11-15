@@ -754,23 +754,29 @@ disjoint (Bin _ x l r) t
   Minimal, Maximal
 --------------------------------------------------------------------}
 
--- We perform call-pattern specialization manually on lookupMin
--- and lookupMax. Otherwise, GHC doesn't seem to do it, which is
--- unfortunate if, for example, someone uses findMin or findMax.
+-- Note [Inline lookupMin]
+-- ~~~~~~~~~~~~~~~~~~~~~~~
+-- The core of lookupMin is implemented as lookupMinSure, a recursive function
+-- that does not involve Maybes. lookupMin wraps the result of lookupMinSure in
+-- a Just. We inline lookupMin so that GHC optimizations can eliminate the Maybe
+-- if it is matched on at the call site.
 
 lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
 lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMin :: Set a -> Maybe a
 lookupMin Tip = Nothing
 lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
+{-# INLINE lookupMin #-} -- See Note [Inline lookupMin]
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Calls 'error' if the set is
+-- empty.
 findMin :: Set a -> a
 findMin t
   | Just r <- lookupMin t = r
@@ -780,15 +786,18 @@ lookupMaxSure :: a -> Set a -> a
 lookupMaxSure x Tip = x
 lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMax :: Set a -> Maybe a
 lookupMax Tip = Nothing
 lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
+{-# INLINE lookupMax #-} -- See Note [Inline lookupMin]
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Calls 'error' if the set is
+-- empty.
 findMax :: Set a -> a
 findMax t
   | Just r <- lookupMax t = r

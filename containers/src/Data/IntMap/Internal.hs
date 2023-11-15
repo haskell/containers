@@ -2301,37 +2301,55 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
+-- The KeyValue type is used when returning a key-value pair and helps with
+-- GHC optimizations.
+--
+-- For lookupMinSure, if the return type is (Int, a), GHC compiles it to a
+-- worker $wlookupMinSure :: IntMap a -> (# Int, a #). If the return type is
+-- KeyValue a instead, the worker does not box the int and returns
+-- (# Int#, a #).
+-- For a modern enough GHC (>=9.4), this measure turns out to be unnecessary in
+-- this instance. We still use it for older GHCs and to make our intent clear.
+
+data KeyValue a = KeyValue {-# UNPACK #-} !Key a
+
+kvToTuple :: KeyValue a -> (Key, a)
+kvToTuple (KeyValue k x) = (k, x)
+{-# INLINE kvToTuple #-}
+
+lookupMinSure :: IntMap a -> KeyValue a
+lookupMinSure (Tip k v)   = KeyValue k v
+lookupMinSure (Bin _ l _) = lookupMinSure l
+lookupMinSure Nil         = error "lookupMinSure Nil"
+
 -- | \(O(\min(n,W))\). The minimal key of the map. Returns 'Nothing' if the map is empty.
 lookupMin :: IntMap a -> Maybe (Key, a)
-lookupMin Nil = Nothing
-lookupMin (Tip k v) = Just (k,v)
-lookupMin (Bin p l r)
-  | signBranch p = go r
-  | otherwise = go l
-    where go (Tip k v)    = Just (k,v)
-          go (Bin _ l' _) = go l'
-          go Nil          = Nothing
+lookupMin Nil         = Nothing
+lookupMin (Tip k v)   = Just (k,v)
+lookupMin (Bin p l r) =
+  Just $! kvToTuple (lookupMinSure (if signBranch p then r else l))
+{-# INLINE lookupMin #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
--- Use 'minViewWithKey' if the map may be empty.
 findMin :: IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
 
+lookupMaxSure :: IntMap a -> KeyValue a
+lookupMaxSure (Tip k v)   = KeyValue k v
+lookupMaxSure (Bin _ _ r) = lookupMaxSure r
+lookupMaxSure Nil         = error "lookupMaxSure Nil"
+
 -- | \(O(\min(n,W))\). The maximal key of the map. Returns 'Nothing' if the map is empty.
 lookupMax :: IntMap a -> Maybe (Key, a)
-lookupMax Nil = Nothing
-lookupMax (Tip k v) = Just (k,v)
-lookupMax (Bin p l r)
-  | signBranch p = go l
-  | otherwise = go r
-    where go (Tip k v)    = Just (k,v)
-          go (Bin _ _ r') = go r'
-          go Nil          = Nothing
+lookupMax Nil         = Nothing
+lookupMax (Tip k v)   = Just (k,v)
+lookupMax (Bin p l r) =
+  Just $! kvToTuple (lookupMaxSure (if signBranch p then l else r))
+{-# INLINE lookupMax #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
--- Use 'maxViewWithKey' if the map may be empty.
 findMax :: IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
