@@ -761,15 +761,18 @@ lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
 lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMin :: Set a -> Maybe a
 lookupMin Tip = Nothing
 lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
+{-# INLINE lookupMin #-}
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Calls 'error' if the set is
+-- empty.
 findMin :: Set a -> a
 findMin t
   | Just r <- lookupMin t = r
@@ -779,15 +782,18 @@ lookupMaxSure :: a -> Set a -> a
 lookupMaxSure x Tip = x
 lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMax :: Set a -> Maybe a
 lookupMax Tip = Nothing
 lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
+{-# INLINE lookupMax #-}
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Calls 'error' if the set is
+-- empty.
 findMax :: Set a -> a
 findMax t
   | Just r <- lookupMax t = r
