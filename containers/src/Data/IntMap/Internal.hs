@@ -2582,13 +2582,10 @@ filter p m
 -- | \(O(n)\). Filter all keys that satisfy some predicate.
 --
 -- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > filterKeys (> 4) == filterWithKey (\k _ -> k > 4)
 
 filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
-filterKeys predicate = go
-    where
-    go Nil           = Nil
-    go t@(Tip k _)   = if predicate k then t else Nil
-    go (Bin p m l r) = bin p m (go l) (go r)
+filterKeys predicate = filterWithKey (\k _ -> predicate k)
 
 -- | \(O(n)\). Filter all keys\/values that satisfy some predicate.
 --

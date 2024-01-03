@@ -87,6 +87,24 @@ pInsertLookupWithKeyValueStrict f k v m
                      not (isBottom $ M.insertLookupWithKey (const3 1) k bottom m)
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
+pFilterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+pFilterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (apply2 fun) m
+
+-- pFilterKeys :: Fun (Int, Int) Bool -> IMap -> Property
+-- pFilterKeys fun m =
+--   valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+--   where
+--     m' = filterKeys (apply2 fun) m
+
+-- pFilter :: Fun (Int, Int) Bool -> IMap -> Property
+-- pFilter fun m =
+--   valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+--   where
+--     m' = filter (apply2 fun) m
+
 ------------------------------------------------------------------------
 -- test a corner case of fromAscList
 --
@@ -199,6 +217,7 @@ tests =
         pInsertLookupWithKeyValueStrict
       , testProperty "fromAscList is somewhat value-lazy" pFromAscListLazy
       , testProperty "fromAscList is somewhat value-strict" pFromAscListStrict
+      , testProperty "filterWithKey" pFilterWithKey
 #if __GLASGOW_HASKELL__ >= 806
       , testProperty "strict foldr'" pStrictFoldr'
       , testProperty "strict foldl'" pStrictFoldl'
