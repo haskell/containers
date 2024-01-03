@@ -1,7 +1,10 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 #if defined(__GLASGOW_HASKELL__)
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE Trustworthy #-}
+{-# LANGUAGE UnboxedTuples #-}
 #endif
 {-# OPTIONS_HADDOCK not-home #-}
 
@@ -428,6 +431,8 @@ import Data.Semigroup (Arg (..))
 import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
 import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.UnboxedMaybe (pattern NothingU, pattern JustU)
+import Utils.Containers.Internal.UnboxedSolo (pattern SoloU)
 
 import Data.Bits (shiftL, shiftR)
 #ifdef __GLASGOW_HASKELL__
@@ -1289,6 +1294,7 @@ mergeWithKey f g1 g2 = go
 
 mapMaybe :: (a -> Maybe b) -> Map k a -> Map k b
 mapMaybe f = mapMaybeWithKey (\_ x -> f x)
+{-# INLINABLE mapMaybe #-}
 
 -- | \(O(n)\). Map keys\/values and collect the 'Just' results.
 --
@@ -1296,10 +1302,11 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 -- > mapMaybeWithKey f (fromList [(5,"a"), (3,"b")]) == singleton 3 "key : 3"
 
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
-mapMaybeWithKey _ Tip = Tip
-mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
-  Just y  -> y `seq` link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
-  Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
+mapMaybeWithKey f = \m ->
+  L.mapMaybeWithKeyU (\k x -> case f k x of
+    Nothing -> NothingU
+    Just !a -> JustU a) m
+{-# INLINABLE mapMaybeWithKey #-}
 
 -- | \(O(n)\). Traverse keys\/values and collect the 'Just' results.
 --
@@ -1358,19 +1365,9 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > map (++ "x") (fromList [(5,"a"), (3,"b")]) == fromList [(3, "bx"), (5, "ax")]
 
 map :: (a -> b) -> Map k a -> Map k b
-map f = go
-  where
-    go Tip = Tip
-    go (Bin sx kx x l r) = let !x' = f x in Bin sx kx x' (go l) (go r)
--- We use `go` to let `map` inline. This is important if `f` is a constant
--- function.
-
+map f = L.mapU (\x -> let !y = f x in SoloU y)
 #ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] map #-}
-{-# RULES
-"map/map" forall f g xs . map f (map g xs) = map (\x -> f $! g x) xs
-"map/mapL" forall f g xs . map f (L.map g xs) = map (\x -> f (g x)) xs
- #-}
+{-# INLINABLE map #-}
 #endif
 
 -- | \(O(n)\). Map a function over all values in the map.
@@ -1379,27 +1376,9 @@ map f = go
 -- > mapWithKey f (fromList [(5,"a"), (3,"b")]) == fromList [(3, "3:b"), (5, "5:a")]
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
-mapWithKey _ Tip = Tip
-mapWithKey f (Bin sx kx x l r) =
-  let x' = f kx x
-  in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
-
+mapWithKey f = L.mapWithKeyU (\k x -> let !y = f k x in SoloU y)
 #ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] mapWithKey #-}
-{-# RULES
-"mapWithKey/mapWithKey" forall f g xs . mapWithKey f (mapWithKey g xs) =
-  mapWithKey (\k a -> f k $! g k a) xs
-"mapWithKey/mapWithKeyL" forall f g xs . mapWithKey f (L.mapWithKey g xs) =
-  mapWithKey (\k a -> f k (g k a)) xs
-"mapWithKey/map" forall f g xs . mapWithKey f (map g xs) =
-  mapWithKey (\k a -> f k $! g a) xs
-"mapWithKey/mapL" forall f g xs . mapWithKey f (L.map g xs) =
-  mapWithKey (\k a -> f k (g a)) xs
-"map/mapWithKey" forall f g xs . map f (mapWithKey g xs) =
-  mapWithKey (\k a -> f $! g k a) xs
-"map/mapWithKeyL" forall f g xs . map f (L.mapWithKey g xs) =
-  mapWithKey (\k a -> f (g k a)) xs
- #-}
+{-# INLINABLE mapWithKey #-}
 #endif
 
 -- | \(O(n)\).
