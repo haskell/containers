@@ -35,6 +35,7 @@ main = do
         , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
+        , bench "insert alternate" $ whnf (ins elems_alts) m_even
         , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
         , bench "alterF insert present" $ whnf (atIns elems_even) m_even
         , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
@@ -100,6 +101,7 @@ main = do
     bound = 2^12
     elems = zip keys values
     elems_even = zip evens evens
+    elems_alts = zip evens odds
     elems_odd = zip odds odds
     elems_rev = reverse elems
     keys = [1..bound]
