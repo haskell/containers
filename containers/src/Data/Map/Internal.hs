@@ -776,24 +776,24 @@ singleton k x = Bin 1 k x Tip Tip
 -- See Note: Type of local 'go' function
 -- See Note: Avoiding worker/wrapper
 insert :: Ord k => k -> a -> Map k a -> Map k a
-insert kx0 = go kx0 kx0
+insert kx0 ax0 m0 =
+    case go kx0 ax0 m0 of (m :*: _) -> m
   where
     -- Unlike insertR, we only get sharing here
     -- when the inserted value is at the same address
     -- as the present value. We try anyway; this condition
     -- seems particularly likely to occur in 'union'.
-    go :: Ord k => k -> k -> a -> Map k a -> Map k a
-    go orig !_  x Tip = singleton (lazy orig) x
-    go orig !kx x t@(Bin sz ky y l r) =
+    go :: Ord k => k -> a -> Map k a -> StrictPair (Map k a) Bool
+    go !kx x Tip = singleton kx x :*: False
+    go !kx x (Bin sz ky y l r) =
         case compare kx ky of
-            LT | l' `ptrEq` l -> t
-               | otherwise -> balanceL ky y l' r
-               where !l' = go orig kx x l
-            GT | r' `ptrEq` r -> t
-               | otherwise -> balanceR ky y l r'
-               where !r' = go orig kx x r
-            EQ | x `ptrEq` y && (lazy orig `seq` (orig `ptrEq` ky)) -> t
-               | otherwise -> Bin sz (lazy orig) x l r
+            LT | found -> Bin sz ky y l' r :*: found
+               | otherwise -> balanceL ky y l' r :*: found
+               where !(l' :*: found)  = go kx x l
+            GT | found -> Bin sz ky y l r' :*: found
+               | otherwise -> balanceR ky y l r' :*: found
+               where !(r' :*: found) = go kx x r
+            EQ -> Bin sz kx x l r :*: True
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
 #else
