@@ -838,19 +838,19 @@ insertR k0 a0 m0 = go k0 a0 m0 id
 -- Also see the performance note on 'fromListWith'.
 
 insertWith :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith = go
+insertWith f k0 a0 m0 =
+    case go k0 a0 m0 of (m :*: _) -> m
   where
-    -- We have no hope of making pointer equality tricks work
-    -- here, because lazy insertWith *always* changes the tree,
-    -- either adding a new entry or replacing an element with a
-    -- thunk.
-    go :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-    go _ !kx x Tip = singleton kx x
-    go f !kx x (Bin sy ky y l r) =
+    go !kx x Tip = singleton kx x :*: False
+    go !kx x (Bin sy ky y l r) =
         case compare kx ky of
-            LT -> balanceL ky y (go f kx x l) r
-            GT -> balanceR ky y l (go f kx x r)
-            EQ -> Bin sy kx (f x y) l r
+            LT | found -> Bin sy ky y l' r :*: found
+               | otherwise -> balanceL ky y l' r :*: found
+               where !(l' :*: found)  = go kx x l
+            GT | found -> Bin sy ky y l r' :*: found
+               | otherwise -> balanceR ky y l r' :*: found
+               where !(r' :*: found) = go kx x r
+            EQ -> Bin sy kx (f x y) l r :*: True
 
 #if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
