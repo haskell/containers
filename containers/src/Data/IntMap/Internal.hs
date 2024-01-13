@@ -2815,7 +2815,7 @@ split k t =
     _ -> case go k t of
           (lt :*: gt) -> (lt, gt)
   where
-    go k' t'@(Bin p m l r)
+    go !k' t'@(Bin p m l r)
       | nomatch k' p m = if k' > p then t' :*: Nil else Nil :*: t'
       | zero k' m = case go k' l of (lt :*: gt) -> lt :*: bin p m gt r
       | otherwise = case go k' r of (lt :*: gt) -> bin p m l lt :*: gt
@@ -2857,7 +2857,7 @@ splitLookup k t =
       _ -> go k t
   of SplitLookup lt fnd gt -> (lt, fnd, gt)
   where
-    go k' t'@(Bin p m l r)
+    go !k' t'@(Bin p m l r)
       | nomatch k' p m =
           if k' > p
           then SplitLookup t' Nothing Nil
