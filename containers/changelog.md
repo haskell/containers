@@ -1,5 +1,14 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## Next release
+
+### Breaking changes
+
+* `Data.IntMap.Lazy.split`, `Data.IntMap.Strict.split`,
+  `Data.IntMap.Lazy.splitLookup` and `Data.IntMap.Strict.splitLookup` are now
+  strict in the key. Previously, the key was ignored for an empty map.
+  (Soumik Sarkar)
+
 ## 0.7
 
 ### Breaking changes
