@@ -5,9 +5,9 @@
 ### Breaking changes
 
 * `Data.IntMap.Lazy.split`, `Data.IntMap.Strict.split`,
-  `Data.IntMap.Lazy.splitLookup` and `Data.IntMap.Strict.splitLookup` are now
-  strict in the key. Previously, the key was ignored for an empty map.
-  (Soumik Sarkar)
+  `Data.IntMap.Lazy.splitLookup`, `Data.IntMap.Strict.splitLookup` and
+  `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
+  ignored for an empty map or set. (Soumik Sarkar)
 
 ## 0.7
 
