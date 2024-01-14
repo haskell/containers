@@ -936,7 +936,7 @@ splitMember x t =
               in (lt, fnd, gt')
     _ -> go x t
   where
-    go x' t'@(Bin p m l r)
+    go !x' t'@(Bin p m l r)
         | nomatch x' p m = if x' < p then (Nil, False, t') else (t', False, Nil)
         | zero x' m =
           case go x' l of
