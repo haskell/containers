@@ -255,6 +255,8 @@ flattenSCC :: SCC vertex -> [vertex]
 flattenSCC = NE.toList . flattenSCC1
 
 -- | The vertices of a strongly connected component.
+--
+-- @since 0.7.1
 flattenSCC1 :: SCC vertex -> NonEmpty vertex
 flattenSCC1 (AcyclicSCC v) = v :| []
 flattenSCC1 (NECyclicSCC vs) = vs
