@@ -290,7 +290,7 @@ import Data.Semigroup (Semigroup((<>)))
 import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Functor.Classes
 
-import Control.DeepSeq (NFData(rnf))
+import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
@@ -510,6 +510,14 @@ instance NFData a => NFData (IntMap a) where
     rnf Nil = ()
     rnf (Tip _ v) = rnf v
     rnf (Bin _ l r) = rnf l `seq` rnf r
+
+-- | @since 0.7.1
+instance NFData1 IntMap where
+    liftRnf rnfx = go
+      where
+      go Nil         = ()
+      go (Tip _ v)   = rnfx v
+      go (Bin _ l r) = go l `seq` go r
 
 #if __GLASGOW_HASKELL__
 
