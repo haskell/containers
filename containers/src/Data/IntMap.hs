@@ -50,10 +50,29 @@
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
+--
 -- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
 -- elements with a maximum of \(W\) -- the number of bits in an 'Int'
--- (32 or 64).
+-- (32 or 64). These peculiar asymptotics are determined by the depth
+-- of the Patricia trees:
+--
+-- * even for an extremely unbalanced tree, the depth cannot be larger than
+--   the number of elements \(n\),
+-- * each level of a Patricia tree determines at least one more bit
+--   shared by all subelements, so there could not be more
+--   than \(W\) levels.
+--
+-- If all \(n\) keys in the tree are between 0 and \(N\) (or, say, between \(-N\) and \(N\)),
+-- the estimate can be refined to \(O(\min(n, \log N))\). If the set of keys
+-- is sufficiently "dense", this becomes \(O(\min(n, \log n))\) or simply
+-- the familiar \(O(\log n)\), matching balanced binary trees.
+--
+-- The most performant scenario for 'IntMap' are keys from a contiguous subset,
+-- in which case the complexity is proportional to \(\log n\), capped by \(W\).
+-- The worst scenario are exponentially growing keys \(1,2,4,\ldots,2^n\),
+-- for which complexity grows as fast as \(n\) but again is capped by \(W\).
+--
 -----------------------------------------------------------------------------
 
 module Data.IntMap
