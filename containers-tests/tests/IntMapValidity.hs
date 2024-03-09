@@ -21,13 +21,13 @@ nilNeverChildOfBin t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    Bin _ _ l r -> noNilInSet l && noNilInSet r
+    Bin _ l r -> noNilInSet l && noNilInSet r
   where
     noNilInSet t' =
       case t' of
         Nil -> False
         Tip _ _ -> True
-        Bin _ _ l' r' -> noNilInSet l' && noNilInSet r'
+        Bin _ l' r' -> noNilInSet l' && noNilInSet r'
 
 -- Invariant: The Mask is a power of 2. It is the largest bit position at which
 --            two keys of the map differ.
@@ -36,8 +36,8 @@ maskPowerOfTwo t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    Bin _ m l r ->
-      bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+    Bin p l r ->
+      bitcount 0 (fromIntegral (getMask p)) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
 
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
@@ -46,9 +46,9 @@ commonPrefix t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    b@(Bin p _ l r) -> all (sharedPrefix p) (keys b) && commonPrefix l && commonPrefix r
+    b@(Bin p l r) -> all (sharedPrefix (getPrefix p)) (keys b) && commonPrefix l && commonPrefix r
   where
-    sharedPrefix :: Prefix -> Int -> Bool
+    sharedPrefix :: Int -> Int -> Bool
     sharedPrefix p a = p == p .&. a
 
 -- Invariant: In Bin prefix mask left right, left consists of the elements that
@@ -58,8 +58,8 @@ maskRespected t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    Bin _ binMask l r ->
-      all (\x -> zero x binMask) (keys l) &&
-      all (\x -> not (zero x binMask)) (keys r) &&
+    Bin p l r ->
+      all (\x -> x .&. getMask p == 0) (keys l) &&
+      all (\x -> x .&. getMask p /= 0) (keys r) &&
       maskRespected l &&
       maskRespected r

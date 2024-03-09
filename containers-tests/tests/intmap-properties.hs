@@ -224,6 +224,7 @@ apply3 f a b c = apply f (a, b, c)
 
 instance Arbitrary a => Arbitrary (IntMap a) where
   arbitrary = fmap fromList arbitrary
+  shrink = fmap fromList . shrink . toAscList
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
