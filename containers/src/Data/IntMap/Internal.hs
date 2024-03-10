@@ -363,13 +363,13 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
               | Tip {-# UNPACK #-} !Key a
               | Nil
 
--- | A Prefix stores the most significant bits shared by all keys in a Bin,
+-- | A @Prefix@ stores the most significant bits shared by all keys in a Bin,
 -- immediately followed a single set bit, which we refer to as "mask".
 --
 -- Invariant: All keys in the left child have the mask bit unset, and all keys
 --            in the right child have the mask bit set.
 --
--- It follows from the invariant that the @Int@ value of the Prefix is the
+-- It follows from the invariant that the @Int@ value of the @Prefix@ is the
 -- smallest value that can be present in the right child.
 newtype Prefix = Prefix { unPrefix :: Int }
   deriving (Eq, Lift)
@@ -3108,8 +3108,10 @@ keysSet Nil = IntSet.Nil
 keysSet (Tip kx _) = IntSet.singleton kx
 keysSet (Bin p l r)
   | unPrefix p .&. IntSet.suffixBitMask == 0
-  = IntSet.Bin (getPrefix p) (getMask p) (keysSet l) (keysSet r)
-  | otherwise = IntSet.Tip (unPrefix p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
+  , m <- getMask p
+  = IntSet.Bin (unPrefix p `xor` m) m (keysSet l) (keysSet r)
+  | otherwise
+  = IntSet.Tip (unPrefix p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
   where computeBm !acc (Bin _ l' r') = computeBm (computeBm acc l') r'
         computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
         computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
@@ -3500,10 +3502,16 @@ instance Read1 IntMap where
   Link
 --------------------------------------------------------------------}
 
+-- | Link two @IntMap@s. The maps must not be empty. The @Prefix@es of the two
+-- maps must be different. @k1@ must share the prefix of @t1@. @p2@ must be the
+-- prefix of @t2@.
 linkKey :: Key -> IntMap a -> Prefix -> IntMap a -> IntMap a
-linkKey k1 t1 (Prefix p2) t2 = link k1 t1 p2 t2
+linkKey k1 t1 p2 t2 = link k1 t1 (unPrefix p2) t2
 {-# INLINE linkKey #-}
 
+-- | Link two @IntMap@s. The maps must not be empty. The @Prefix@es of the two
+-- maps must be different. @k1@ must share the prefix of @t1@ and @k2@ must
+-- share the prefix of @t2@.
 link :: Int -> IntMap a -> Int -> IntMap a -> IntMap a
 link k1 t1 k2 t2 = linkWithMask (branchMask k1 k2) k1 t1 k2 t2
 {-# INLINE link #-}
