@@ -3558,10 +3558,12 @@ nomatch i p = i .&. prefixMask /= px .&. prefixMask
     prefixMask = px `xor` (-px)
 {-# INLINE nomatch #-}
 
--- | Whether the @Int@ is less than the minimum key that may be present in
--- the right child.
+-- | Whether the @Int@ is to the left of the split created by a @Bin@ with this
+-- @Prefix@.
+-- This does not imply that the @Int@ belongs in this @Bin@. That fact is
+-- usually determined first using @nomatch@.
 left :: Int -> Prefix -> Bool
-left i (Prefix p) = natFromInt i < natFromInt p
+left i p = natFromInt i < natFromInt (unPrefix p)
 {-# INLINE left #-}
 
 -- | Whether this Prefix splits a Bin at the sign bit.
@@ -3569,7 +3571,7 @@ left i (Prefix p) = natFromInt i < natFromInt p
 -- If it is true, the left child contains non-negative keys and the right child
 -- contains negative keys.
 signBranch :: Prefix -> Bool
-signBranch (Prefix p) = p == (minBound :: Int)
+signBranch p = unPrefix p == (minBound :: Int)
 {-# INLINE signBranch #-}
 
 -- | The prefix of key @i@ up to (but not including) the switching
