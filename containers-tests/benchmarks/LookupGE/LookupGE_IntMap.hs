@@ -12,18 +12,18 @@ lookupGE1 k m =
 
 lookupGE2 :: Key -> IntMap a -> Maybe (Key,a)
 lookupGE2 k t = case t of
-    Bin _ m l r | m < 0 -> if k >= 0
+    Bin p l r | signBranch p -> if k >= 0
       then go l
       else case go r of
         Nothing -> Just $ findMin l
         justx -> justx
     _ -> go t
   where
-    go (Bin p m l r)
-      | nomatch k p m = if k < p
+    go (Bin p l r)
+      | nomatch k p = if k < unPrefix p
         then Just $ findMin l
         else Nothing
-      | zero k m = case go l of
+      | left k p = case go l of
         Nothing -> Just $ findMin r
         justx -> justx
       | otherwise = go r
@@ -34,14 +34,14 @@ lookupGE2 k t = case t of
 
 lookupGE3 :: Key -> IntMap a -> Maybe (Key,a)
 lookupGE3 k t = k `seq` case t of
-    Bin _ m l r | m < 0 -> if k >= 0
+    Bin p l r | signBranch p -> if k >= 0
       then go Nothing l
       else go (Just (findMin l)) r
     _ -> go Nothing t
   where
-    go def (Bin p m l r)
-      | nomatch k p m = if k < p then Just $ findMin l else def
-      | zero k m  = go (Just $ findMin r) l
+    go def (Bin p l r)
+      | nomatch k p = if k < unPrefix p then Just $ findMin l else def
+      | left k p  = go (Just $ findMin r) l
       | otherwise = go def r
     go def (Tip ky y)
       | k > ky    = def
@@ -50,13 +50,13 @@ lookupGE3 k t = k `seq` case t of
 
 lookupGE4 :: Key -> IntMap a -> Maybe (Key,a)
 lookupGE4 k t = k `seq` case t of
-    Bin _ m l r | m < 0 -> if k >= 0 then go Nil l
-                                     else go l r
+    Bin p l r | signBranch p -> if k >= 0 then go Nil l
+                                          else go l r
     _ -> go Nil t
   where
-    go def (Bin p m l r)
-      | nomatch k p m = if k < p then fMin l else fMin def
-      | zero k m  = go r l
+    go def (Bin p l r)
+      | nomatch k p = if k < unPrefix p then fMin l else fMin def
+      | left k p  = go r l
       | otherwise = go def r
     go def (Tip ky y)
       | k > ky    = fMin def
@@ -66,7 +66,7 @@ lookupGE4 k t = k `seq` case t of
     fMin :: IntMap a -> Maybe (Key, a)
     fMin Nil = Nothing
     fMin (Tip ky y) = Just (ky, y)
-    fMin (Bin _ _ l _) = fMin l
+    fMin (Bin _ l _) = fMin l
 
 -------------------------------------------------------------------------------
 -- Utilities
