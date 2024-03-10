@@ -1169,7 +1169,7 @@ withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1 
      | otherwise -> t1
   where
     px1 = unPrefix p1
-    p2' = Prefix (p2+m2)
+    p2' = Prefix (p2 .|. m2)
     difference1
         | nomatch p2 p1 = t1
         | left p2 p1    = binCheckLeft p1 (withoutKeys l1 t2) r1
@@ -1249,7 +1249,7 @@ restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1
      | otherwise -> Nil
   where
     px1 = unPrefix p1
-    p2' = Prefix (p2+m2)
+    p2' = Prefix (p2 .|. m2)
     intersection1
         | nomatch p2 p1 = Nil
         | left p2 p1    = restrictKeys l1 t2
@@ -2125,7 +2125,7 @@ mergeA
       | otherwise = binA p t2 t1
       where
         m = branchMask k1 k2
-        p = Prefix (mask k1 m + m)
+        p = Prefix (mask k1 m .|. m)
     {-# INLINE linkA #-}
 
     -- A variant of 'bin' that ensures that effects for negative keys are executed
@@ -3122,7 +3122,7 @@ keysSet (Bin p l r)
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p+m)) (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p .|. m)) (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where
     -- This is slightly complicated, as we to convert the dense
@@ -3142,7 +3142,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
           | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
               buildTree g prefix bmask bits2
           | otherwise ->
-              Bin (Prefix (prefix+bits2))
+              Bin (Prefix (prefix .|. bits2))
                 (buildTree g prefix bmask bits2)
                 (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
@@ -3514,7 +3514,7 @@ linkWithMask m k1 t1 k2 t2
   | natFromInt k1 < natFromInt k2 = Bin p t1 t2
   | otherwise = Bin p t2 t1
   where
-    p = Prefix (mask k1 m + m)
+    p = Prefix (mask k1 m .|. m)
 {-# INLINE linkWithMask #-}
 
 {--------------------------------------------------------------------
