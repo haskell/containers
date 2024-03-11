@@ -3560,7 +3560,7 @@ nomatchMask i p m
 
 -- | Whether the @Int@ does not start with the given @Prefix@.
 nomatch :: Int -> Prefix -> Bool
-nomatch i p = i .&. prefixMask /= px .&. prefixMask
+nomatch i p = (i `xor` px) .&. prefixMask /= 0
   where
     px = unPrefix p
     prefixMask = px `xor` (-px)
