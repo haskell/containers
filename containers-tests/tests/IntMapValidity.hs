@@ -37,7 +37,9 @@ maskPowerOfTwo t =
     Nil -> True
     Tip _ _ -> True
     Bin p l r ->
-      bitcount 0 (fromIntegral (getMask p)) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+      let px = unPrefix p
+          m = px .&. (-px)
+      in bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
 
 -- Invariant: Prefix is the common high-order bits that all elements share to
 --            the left of the Mask bit.
@@ -46,7 +48,10 @@ commonPrefix t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    b@(Bin p l r) -> all (sharedPrefix (getPrefix p)) (keys b) && commonPrefix l && commonPrefix r
+    b@(Bin p l r) ->
+      let px = unPrefix p
+          prefix = px .&. (px-1)
+      in all (sharedPrefix prefix) (keys b) && commonPrefix l && commonPrefix r
   where
     sharedPrefix :: Int -> Int -> Bool
     sharedPrefix p a = p == p .&. a
@@ -59,7 +64,9 @@ maskRespected t =
     Nil -> True
     Tip _ _ -> True
     Bin p l r ->
-      all (\x -> x .&. getMask p == 0) (keys l) &&
-      all (\x -> x .&. getMask p /= 0) (keys r) &&
-      maskRespected l &&
-      maskRespected r
+      let px = unPrefix p
+          m = px .&. (-px)
+      in all (\x -> x .&. m == 0) (keys l) &&
+         all (\x -> x .&. m /= 0) (keys r) &&
+         maskRespected l &&
+         maskRespected r

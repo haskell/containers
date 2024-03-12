@@ -270,8 +270,6 @@ module Data.IntMap.Internal (
 
     -- * Internal types
     , Prefix(..), Nat
-    , getPrefix
-    , getMask
 
     -- * Utility
     , natFromInt
@@ -374,12 +372,6 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 -- smallest value that can be present in the right child.
 newtype Prefix = Prefix { unPrefix :: Int }
   deriving (Eq, Lift)
-
-getPrefix :: Prefix -> Int
-getPrefix (Prefix p) = p .&. (p-1)
-
-getMask :: Prefix -> Int
-getMask (Prefix p) = p .&. (-p)
 
 -- Some stuff from "Data.IntSet.Internal", for 'restrictKeys' and
 -- 'withoutKeys' to use.
@@ -1173,9 +1165,10 @@ withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1 
         | left px1 p2'      = withoutKeys t1 l2
         | otherwise         = withoutKeys t1 r2
 withoutKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
-    let minbit = bitmapOf (getPrefix p1)
+    let px1 = unPrefix p1
+        minbit = bitmapOf (px1 .&. (px1-1))
         lt_minbit = minbit - 1
-        maxbit = bitmapOf (unPrefix p1 .|. unPrefix p1 - 1)
+        maxbit = bitmapOf (px1 .|. (px1-1))
         gt_maxbit = (-maxbit) `xor` maxbit
     -- TODO(wrengr): should we manually inline/unroll 'updatePrefix'
     -- and 'withoutBM' here, in order to avoid redundant case analyses?
@@ -1253,9 +1246,10 @@ restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1
         | left px1 p2'      = restrictKeys t1 l2
         | otherwise         = restrictKeys t1 r2
 restrictKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
-    let minbit = bitmapOf (getPrefix p1)
+    let px1 = unPrefix p1
+        minbit = bitmapOf (px1 .&. (px1-1))
         ge_minbit = complement (minbit - 1)
-        maxbit = bitmapOf (unPrefix p1 .|. unPrefix p1 - 1)
+        maxbit = bitmapOf (px1 .|. (px1-1))
         le_maxbit = maxbit .|. (maxbit - 1)
     -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
     -- and 'restrictBM' here, in order to avoid redundant case analyses?
@@ -3082,8 +3076,8 @@ keysSet Nil = IntSet.Nil
 keysSet (Tip kx _) = IntSet.singleton kx
 keysSet (Bin p l r)
   | unPrefix p .&. IntSet.suffixBitMask == 0
-  , m <- getMask p
-  = IntSet.Bin (unPrefix p `xor` m) m (keysSet l) (keysSet r)
+  , px <- unPrefix p, m <- px .&. (-px)
+  = IntSet.Bin (px `xor` m) m (keysSet l) (keysSet r)
   | otherwise
   = IntSet.Tip (unPrefix p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
   where computeBm !acc (Bin _ l' r') = computeBm (computeBm acc l') r'
@@ -3604,7 +3598,8 @@ maskW i m
 -- | Whether the left prefix is shorter than the prefix length indicated by the
 -- right mask.
 shorterMask :: Prefix -> Int -> Ordering
-shorterMask p1 m2 = natFromInt m2 `compare` natFromInt (getMask p1)
+shorterMask p1 m2 = natFromInt m2 `compare` natFromInt (px1 .&. (-px1))
+  where px1 = unPrefix p1
 {-# INLINE shorterMask #-}
 
 -- | The first switching bit where the two prefixes disagree.
