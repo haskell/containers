@@ -285,9 +285,10 @@ module Data.IntMap.Internal (
     , nomatch
     , left
     , signBranch
+    , MapMapBranch
+    , mapMapBranch
     , mask
     , maskW
-    , shorter
     , branchMask
     , highestBitMask
 
@@ -744,20 +745,13 @@ disjoint Nil _ = True
 disjoint _ Nil = True
 disjoint (Tip kx _) ys = notMember kx ys
 disjoint xs (Tip ky _) = notMember ky xs
-disjoint t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case shorter p1 p2 of
-  LT -> disjoint1
-  GT -> disjoint2
-  EQ | p1 == p2 -> disjoint l1 l2 && disjoint r1 r2
-     | otherwise -> True
-  where
-    px1 = unPrefix p1
-    px2 = unPrefix p2
-    disjoint1 | nomatch px2 p1 = True
-              | left px2 p1    = disjoint l1 t2
-              | otherwise      = disjoint r1 t2
-    disjoint2 | nomatch px1 p2 = True
-              | left px1 p2    = disjoint t1 l2
-              | otherwise      = disjoint t1 r2
+disjoint t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+  ABL -> disjoint l1 t2
+  ABR -> disjoint r1 t2
+  BAL -> disjoint t1 l2
+  BAR -> disjoint t1 r2
+  EQL -> disjoint l1 l2 && disjoint r1 r2
+  NOM -> True
 
 {--------------------------------------------------------------------
   Compose
@@ -1383,22 +1377,13 @@ mergeWithKey' :: (Prefix -> IntMap c -> IntMap c -> IntMap c)
               -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey' bin' f g1 g2 = go
   where
-    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case shorter p1 p2 of
-      LT -> merge1
-      GT -> merge2
-      EQ | p1 == p2 -> bin' p1 (go l1 l2) (go r1 r2)
-         | otherwise -> maybe_link px1 (g1 t1) px2 (g2 t2)
-      where
-        px1 = unPrefix p1
-        px2 = unPrefix p2
-        merge1
-          | nomatch px2 p1 = maybe_link px1 (g1 t1) px2 (g2 t2)
-          | left px2 p1    = bin' p1 (go l1 t2) (g1 r1)
-          | otherwise      = bin' p1 (g1 l1) (go r1 t2)
-        merge2
-          | nomatch px1 p2 = maybe_link px1 (g1 t1) px2 (g2 t2)
-          | left px1 p2    = bin' p2 (go t1 l2) (g2 r2)
-          | otherwise      = bin' p2 (g2 l2) (go t1 r2)
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+      ABL -> bin' p1 (go l1 t2) (g1 r1)
+      ABR -> bin' p1 (g1 l1) (go r1 t2)
+      BAL -> bin' p2 (go t1 l2) (g2 r2)
+      BAR -> bin' p2 (g2 l2) (go t1 r2)
+      EQL -> bin' p1 (go l1 l2) (go r1 r2)
+      NOM -> maybe_link (unPrefix p1) (g1 t1) (unPrefix p2) (g2 t2)
 
     go t1'@(Bin _ _ _) t2'@(Tip k2' _) = merge0 t2' k2' t1'
       where
@@ -2080,20 +2065,13 @@ mergeA
         merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
         merge1 Nil           = subsingletonBy g2k k2 x2
 
-    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case shorter p1 p2 of
-      LT -> merge1
-      GT -> merge2
-      EQ | p1 == p2  -> binA p1 (go l1 l2) (go r1 r2)
-         | otherwise -> linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
-      where
-        px1 = unPrefix p1
-        px2 = unPrefix p2
-        merge1 | nomatch px2 p1 = linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
-               | left px2 p1    = binA p1 (go l1 t2) (g1t r1)
-               | otherwise      = binA p1 (g1t l1) (go r1 t2)
-        merge2 | nomatch px1 p2 = linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
-               | left px1 p2    = binA p2 (go t1 l2) (g2t r2)
-               | otherwise      = binA p2 (g2t l2) (go t1 r2)
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+      ABL -> binA p1 (go l1 t2) (g1t r1)
+      ABR -> binA p1 (g1t l1) (go r1 t2)
+      BAL -> binA p2 (go t1 l2) (g2t r2)
+      BAR -> binA p2 (g2t l2) (go t1 r2)
+      EQL -> binA p1 (go l1 l2) (go r1 r2)
+      NOM -> linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
 
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
@@ -2367,16 +2345,14 @@ isProperSubmapOfBy predicate t1 t2
       _  -> False
 
 submapCmp :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Ordering
-submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case shorter p1 p2 of
-  LT -> GT
-  GT -> submapCmpLt
-  EQ | p1 == p2 -> submapCmpEq
-     | otherwise -> GT  -- disjoint
+submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+  ABL -> GT
+  ABR -> GT
+  BAL -> submapCmp predicate t1 l2
+  BAR -> submapCmp predicate t1 r2
+  EQL -> submapCmpEq
+  NOM -> GT
   where
-    px1 = unPrefix p1
-    submapCmpLt | nomatch px1 p2 = GT
-                | left px1 p2    = submapCmp predicate t1 l2
-                | otherwise      = submapCmp predicate t1 r2
     submapCmpEq = case (submapCmp predicate l1 l2, submapCmp predicate r1 r2) of
                     (GT,_ ) -> GT
                     (_ ,GT) -> GT
@@ -2417,15 +2393,13 @@ isSubmapOf m1 m2
   > isSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)])
 -}
 isSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
-isSubmapOfBy predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case shorter p1 p2 of
-  LT -> False
-  GT ->
-    let px1 = unPrefix p1
-    in not (nomatch px1 p2) &&
-       if left px1 p2
-       then isSubmapOfBy predicate t1 l2
-       else isSubmapOfBy predicate t1 r2
-  EQ -> (p1==p2) && isSubmapOfBy predicate l1 l2 && isSubmapOfBy predicate r1 r2
+isSubmapOfBy predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+  ABL -> False
+  ABR -> False
+  BAL -> isSubmapOfBy predicate t1 l2
+  BAR -> isSubmapOfBy predicate t1 r2
+  EQL -> isSubmapOfBy predicate l1 l2 && isSubmapOfBy predicate r1 r2
+  NOM -> False
 isSubmapOfBy _         (Bin _ _ _) _ = False
 isSubmapOfBy predicate (Tip k x) t     = case lookup k t of
                                          Just y  -> predicate x y
@@ -3548,6 +3522,32 @@ binCheckRight p l r   = Bin p l r
 {-# INLINE binCheckRight #-}
 
 {--------------------------------------------------------------------
+  Branching
+--------------------------------------------------------------------}
+
+data MapMapBranch
+  = ABL  -- ^ A contains B in the left child
+  | ABR  -- ^ A contains B in the right child
+  | BAL  -- ^ B contains A in the left child
+  | BAR  -- ^ B contains A in the right child
+  | EQL  -- ^ A and B have equal prefixes
+  | NOM  -- ^ A and B have prefixes that do not match
+
+mapMapBranch :: Prefix -> Prefix -> MapMapBranch
+mapMapBranch p1 p2 = case compare pw1 pw2 of
+  LT | pw2 <= (pw1 .|. (pw1-1)) -> ABR
+     | (pw2 .&. (pw2-1)) <= pw1 -> BAL
+     | otherwise                -> NOM
+  GT | pw1 <= (pw2 .|. (pw2-1)) -> BAR
+     | (pw1 .&. (pw1-1)) <= pw2 -> ABL
+     | otherwise                -> NOM
+  EQ                            -> EQL
+  where
+    pw1 = natFromInt (unPrefix p1)
+    pw2 = natFromInt (unPrefix p2)
+{-# INLINE mapMapBranch #-}
+
+{--------------------------------------------------------------------
   Endian independent bit twiddling
 --------------------------------------------------------------------}
 
@@ -3600,11 +3600,6 @@ maskW :: Nat -> Nat -> Int
 maskW i m
   = intFromNat (i .&. ((-m) `xor` m))
 {-# INLINE maskW #-}
-
--- | Whether the left prefix is shorter than the right.
-shorter :: Prefix -> Prefix -> Ordering
-shorter p1 p2 = natFromInt (getMask p2) `compare` natFromInt (getMask p1)
-{-# INLINE shorter #-}
 
 -- | Whether the left prefix is shorter than the prefix length indicated by the
 -- right mask.
