@@ -69,7 +69,7 @@ library
       , QuickCheck
 
   include-dirs:     include
-  hs-source-dirs:   src, tests
+  hs-source-dirs:   ../containers/src, tests
   ghc-options:      -O2 -Wall
   other-extensions:
     BangPatterns
