@@ -28,6 +28,8 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -184,9 +186,13 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "mergeA effects"       prop_mergeA_effects
-         , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromAscList"          prop_fromAscList
+         , testProperty "fromAscListWith"      prop_fromAscListWith
+         , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
          , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
-         , testProperty "fromDescList"         prop_rev_ordered
+         , testProperty "fromDescList"         prop_fromDescList
+         , testProperty "fromDescListWith"     prop_fromDescListWith
+         , testProperty "fromDescListWithKey"  prop_fromDescListWithKey
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -1222,17 +1228,24 @@ prop_mergeA_effects xs ys
 
 ----------------------------------------------------------------
 
-prop_ordered :: Property
-prop_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
+-- fromAscListWith, fromAscListWithKey, fromDescListWith, fromDescListWithKey
+-- all effectively perform a left fold over adjacent elements in the input list
+-- using some function as long as the keys are equal.
+--
+-- The property tests for these functions compare the result against the
+-- sequence we would get if we used NE.groupBy instead. We use Magma to check
+-- the fold direction (left, not right) and the order of arguments to the fold
+-- function (new then old).
 
-prop_rev_ordered :: Property
-prop_rev_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromDescList (reverse xs) == fromList xs
+data Magma a
+  = Inj a
+  | Magma a :* Magma a
+  deriving (Eq, Show)
+
+groupByK :: Eq k => [(k, a)] -> [(k, NonEmpty a)]
+groupByK =
+    List.map (\ys -> (fst (NE.head ys), NE.map snd ys)) .
+    NE.groupBy ((==) `on` fst)
 
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
@@ -1240,13 +1253,43 @@ prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
+prop_fromDescList :: [(Int, A)] -> Property
+prop_fromDescList xs =
+    valid t .&&.
+    toList t === reverse nub_last_down_sort_xs
+  where
+    down_sort_xs = List.sortBy (comparing (Down . fst)) xs
+    t = fromDescList down_sort_xs
+    nub_last_down_sort_xs = List.map NE.last $ NE.groupBy ((==) `on` fst) down_sort_xs
+
+prop_fromDescListWith :: [(Int, A)] -> Property
+prop_fromDescListWith ys =
+    valid t .&&.
+    toList t === reverse combined_down_sort_xs
+  where
+    xs = [(kx, Inj x) | (kx,x) <- ys]
+    down_sort_xs = List.sortBy (comparing (Down . fst)) xs
+    t = fromDescListWith (:*) down_sort_xs
+    combined_down_sort_xs = [(kx, Foldable.foldl1 (flip (:*)) x) | (kx,x) <- groupByK down_sort_xs]
+
+prop_fromDescListWithKey :: [(Int, A)] -> Property
+prop_fromDescListWithKey ys =
+    valid t .&&.
+    toList t === reverse combined_down_sort_xs
+  where
+    xs = [(kx, Inj (Left x)) | (kx,x) <- ys]
+    down_sort_xs = List.sortBy (comparing (Down . fst)) xs
+    t = fromDescListWithKey (\kx (Inj (Left x)) acc -> Inj (Right (kx,x)) :* acc) down_sort_xs
+    combined_down_sort_xs = [ (kx, Foldable.foldl1 (\acc (Inj (Left x)) -> Inj (Right (kx,x)) :* acc) xs)
+                            | (kx,xs) <- groupByK down_sort_xs ]
+
 prop_fromDistinctDescList :: [(Int, A)] -> Property
 prop_fromDistinctDescList xs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === reverse nub_down_sort_xs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    t = fromDistinctDescList nub_down_sort_xs
+    nub_down_sort_xs = List.map NE.last $ NE.groupBy ((==) `on` fst) $ List.sortBy (comparing (Down . fst)) xs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1258,6 +1301,36 @@ prop_fromList xs
       t -> t == fromAscList (zip sort_xs sort_xs) &&
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
+
+prop_fromAscList :: [(Int, A)] -> Property
+prop_fromAscList xs =
+    valid t .&&.
+    toList t === nub_last_sort_xs
+  where
+    sort_xs = List.sortBy (comparing fst) xs
+    t = fromAscList sort_xs
+    nub_last_sort_xs = List.map NE.last $ NE.groupBy ((==) `on` fst) sort_xs
+
+prop_fromAscListWith :: [(Int, A)] -> Property
+prop_fromAscListWith ys =
+    valid t .&&.
+    toList t === combined_sort_xs
+  where
+    xs = [(kx, Inj x) | (kx,x) <- ys]
+    sort_xs = List.sortBy (comparing fst) xs
+    t = fromAscListWith (:*) sort_xs
+    combined_sort_xs = [(kx, Foldable.foldl1 (flip (:*)) x) | (kx,x) <- groupByK sort_xs]
+
+prop_fromAscListWithKey :: [(Int, A)] -> Property
+prop_fromAscListWithKey ys =
+    valid t .&&.
+    toList t === combined_sort_xs
+  where
+    xs = [(kx, Inj (Left x)) | (kx,x) <- ys]
+    sort_xs = List.sortBy (comparing fst) xs
+    t = fromAscListWithKey (\kx (Inj (Left x)) acc -> Inj (Right (kx,x)) :* acc) sort_xs
+    combined_sort_xs = [ (kx, Foldable.foldl1 (\acc (Inj (Left x)) -> Inj (Right (kx,x)) :* acc) xs)
+                       | (kx,xs) <- groupByK sort_xs ]
 
 prop_fromDistinctAscList :: [(Int, A)] -> Property
 prop_fromDistinctAscList xs =
