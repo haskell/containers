@@ -283,7 +283,7 @@ module Data.IntMap.Internal (
     , nomatch
     , left
     , signBranch
-    , MapMapBranch
+    , MapMapBranch(..)
     , mapMapBranch
     , mask
     , maskW
@@ -3527,6 +3527,8 @@ data MapMapBranch
   | EQL  -- ^ A and B have equal prefixes
   | NOM  -- ^ A and B have prefixes that do not match
 
+-- | Calculates how two @Bin@s relate to each other by comparing their
+-- @Prefix@es.
 mapMapBranch :: Prefix -> Prefix -> MapMapBranch
 mapMapBranch p1 p2 = case compare pw1 pw2 of
   LT | pw2 <= (pw1 .|. (pw1-1)) -> ABR
@@ -3553,6 +3555,13 @@ nomatchMask i p m
 {-# INLINE nomatchMask #-}
 
 -- | Whether the @Int@ does not start with the given @Prefix@.
+--
+-- An @Int@ starts with a @Prefix@ if it shares the high bits with the internal
+-- @Int@ value of the @Prefix@ up to the mask bit. See also: the documentation
+-- of @Prefix@.
+--
+-- @nomatch@ is usually used to determine whether a key belongs in a @Bin@,
+-- since all keys in a @Bin@ share a @Prefix@.
 nomatch :: Int -> Prefix -> Bool
 nomatch i p = (i `xor` px) .&. prefixMask /= 0
   where
@@ -3562,13 +3571,15 @@ nomatch i p = (i `xor` px) .&. prefixMask /= 0
 
 -- | Whether the @Int@ is to the left of the split created by a @Bin@ with this
 -- @Prefix@.
+--
 -- This does not imply that the @Int@ belongs in this @Bin@. That fact is
 -- usually determined first using @nomatch@.
 left :: Int -> Prefix -> Bool
 left i p = natFromInt i < natFromInt (unPrefix p)
 {-# INLINE left #-}
 
--- | Whether this Prefix splits a Bin at the sign bit.
+-- | Whether this @Prefix@ splits a @Bin@ at the sign bit.
+--
 -- This can only be True at the top level.
 -- If it is true, the left child contains non-negative keys and the right child
 -- contains negative keys.
