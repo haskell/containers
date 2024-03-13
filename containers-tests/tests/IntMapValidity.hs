@@ -1,9 +1,11 @@
 module IntMapValidity (valid) where
 
-import Data.Bits (xor, (.&.))
+import Data.Bits (xor, (.&.), (.|.), shiftR)
+import Data.List (intercalate)
 import Data.IntMap.Internal
-import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
-import Utils.Containers.Internal.BitUtil (bitcount)
+import Numeric (showHex)
+import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.), conjoin)
+import Utils.Containers.Internal.BitUtil (bitcount, shiftRL)
 
 {--------------------------------------------------------------------
   Assertions
@@ -12,8 +14,7 @@ import Utils.Containers.Internal.BitUtil (bitcount)
 valid :: IntMap a -> Property
 valid t =
   counterexample "nilNeverChildOfBin" (nilNeverChildOfBin t) .&&.
-  counterexample "commonPrefix" (commonPrefix t) .&&.
-  counterexample "maskRespected" (maskRespected t)
+  counterexample "prefixOk" (prefixOk t)
 
 -- Invariant: Nil is never found as a child of Bin.
 nilNeverChildOfBin :: IntMap a  -> Bool
@@ -29,44 +30,43 @@ nilNeverChildOfBin t =
         Tip _ _ -> True
         Bin _ l' r' -> noNilInSet l' && noNilInSet r'
 
--- Invariant: The Mask is a power of 2. It is the largest bit position at which
---            two keys of the map differ.
-maskPowerOfTwo :: IntMap a -> Bool
-maskPowerOfTwo t =
+-- Invariants:
+-- * All keys in a Bin start with the Bin's Prefix.
+-- * All keys in the Bin's left child start with the Bin's Prefix followed by a
+--   zero bit.
+-- * All keys in the Bin's right child start with the Bin's Prefix followed by a
+--   one bit.
+prefixOk :: IntMap a -> Property
+prefixOk t =
   case t of
-    Nil -> True
-    Tip _ _ -> True
+    Nil -> property ()
+    Tip _ _ -> property ()
     Bin p l r ->
       let px = unPrefix p
           m = px .&. (-px)
-      in bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+          m' = fromIntegral (fromIntegral m `shiftRL` 1)
+          -- pl = px but make the next bit 0 and shift the mask bit right
+          pl = Prefix ((px `xor` m) .|. m')
+          -- pr = px but keep the next bit 1 and shift the mask bit right
+          pr = Prefix (px .|. m')
+          keysl = keys l
+          keysr = keys r
+          debugStr = concat
+            [ "px=" ++ showIntHex px
+            , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
+            , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
+            ]
+      in counterexample debugStr $
+           all (match p) (keysl ++ keysr) &&
+           all (match pl) keysl &&
+           all (match pr) keysr
 
--- Invariant: Prefix is the common high-order bits that all elements share to
---            the left of the Mask bit.
-commonPrefix :: IntMap a -> Bool
-commonPrefix t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    b@(Bin p l r) ->
-      let px = unPrefix p
-          prefix = px .&. (px-1)
-      in all (sharedPrefix prefix) (keys b) && commonPrefix l && commonPrefix r
+-- | Whether the @Int@ starts with the given @Prefix@.
+match :: Prefix -> Int -> Bool
+match p k = (k `xor` px) .&. prefixMask == 0
   where
-    sharedPrefix :: Int -> Int -> Bool
-    sharedPrefix p a = p == p .&. a
+    px = unPrefix p
+    prefixMask = px `xor` (-px)
 
--- Invariant: In Bin prefix mask left right, left consists of the elements that
---            don't have the mask bit set; right is all the elements that do.
-maskRespected :: IntMap a -> Bool
-maskRespected t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    Bin p l r ->
-      let px = unPrefix p
-          m = px .&. (-px)
-      in all (\x -> x .&. m == 0) (keys l) &&
-         all (\x -> x .&. m /= 0) (keys r) &&
-         maskRespected l &&
-         maskRespected r
+showIntHex :: Int -> String
+showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""
