@@ -358,18 +358,22 @@ intFromNat = fromIntegral
 data IntMap a = Bin {-# UNPACK #-} !Prefix
                     !(IntMap a)
                     !(IntMap a)
--- Invariant: Nil is never found as a child of Bin.
               | Tip {-# UNPACK #-} !Key a
               | Nil
+-- IntMap invariants:
+-- * Nil is never found as a child of Bin.
+-- * The Prefix of a Bin is the common high-order bits that all keys in the
+--   Bin share.
+-- * We call the bit immediately following the shared prefix the mask bit.
+--   All keys in the left child of a Bin have the mask bit unset, and all keys
+--   in the right child have the mask bit set.
 
--- | A @Prefix@ stores the most significant bits shared by all keys in a Bin,
--- immediately followed a single set bit, which we refer to as "mask".
+-- | A @Prefix@ is some prefix of high-order bits of an @Int@.
 --
--- Invariant: All keys in the left child have the mask bit unset, and all keys
---            in the right child have the mask bit set.
---
--- It follows from the invariant that the @Int@ value of the @Prefix@ is the
--- smallest value that can be present in the right child.
+-- This is represented by an @Int@ which starts with the prefix bits,
+-- immediately followed by a set bit. This is the mask bit for a @Bin@. It
+-- follows from the IntMap invariants that this @Int@ value is the smallest
+-- value that can be present in its right child.
 newtype Prefix = Prefix { unPrefix :: Int }
   deriving (Eq, Lift)
 
