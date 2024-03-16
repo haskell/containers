@@ -368,6 +368,9 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 --   All keys in the left child of a Bin have the mask bit unset, and all keys
 --   in the right child have the mask bit set.
 
+-- See Note [Okasaki-Gill] for how the implementation here relates to the one in
+-- Okasaki and Gill's paper.
+
 -- | A @Prefix@ is some prefix of high-order bits of an @Int@.
 --
 -- This is represented by an @Int@ which starts with the prefix bits,
@@ -3725,3 +3728,47 @@ node = "+--"
 withBar, withEmpty :: [String] -> [String]
 withBar bars   = "|  ":bars
 withEmpty bars = "   ":bars
+
+{--------------------------------------------------------------------
+  Notes
+--------------------------------------------------------------------}
+
+-- Note [Okasaki-Gill]
+-- ~~~~~~~~~~~~~~~~~~~
+--
+-- The IntMap structure is based on the map described in the paper "Fast
+-- Mergeable Integer Maps" by Chris Okasaki and Andy Gill, with some
+-- differences.
+--
+-- The paper spends most of its time describing a little-endian tree, where the
+-- branching is done first on low bits then high bits. It then briefly describes
+-- a big-endian tree. The implementation here is big-endian.
+--
+-- The definition of Okasaki and Gill's map would be written in Haskell as
+--
+-- data Dict a
+--   = Empty
+--   | Lf !Int a
+--   | Br !Int !Int !(Dict a) !(Dict a)
+--
+-- Empty is the same as IntMap's Nil, and Lf is the same as Tip.
+--
+-- In Br, the first Int is the shared prefix and the second is the mask bit by
+-- itself. For the big-endian map, the paper suggests that the prefix be the
+-- common prefix, followed by a 0-bit, followed by all 1-bits. This is so that
+-- the prefix value can be used as a point of split for binary search.
+--
+-- IntMap's Bin corresponds to Br, but is different because it has only one
+-- Int (newtyped as Prefix). This describes both prefix and mask, so it is not
+-- necessary to store them separately. This value is, in fact, one plus the
+-- value suggested for the prefix in the paper. This representation is chosen
+-- because it saves one word per Bin without detriment to the efficiency of
+-- operations.
+--
+-- The implementation of operations such as lookup, insert, union, follow
+-- the described implementations on Dict and split into the same cases. For
+-- instance, for insert, the three cases on a Br are whether the key belongs
+-- outside the map, or it belongs in the left child, or it belongs in the
+-- right child. We have the same three cases for a Bin. However, the bitwise
+-- operations we use to determine the case is naturally different due to the
+-- difference in representation.
