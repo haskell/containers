@@ -360,23 +360,39 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
                     !(IntMap a)
               | Tip {-# UNPACK #-} !Key a
               | Nil
--- IntMap invariants:
+
+-- IntMap structure and invariants:
+--
 -- * Nil is never found as a child of Bin.
--- * The Prefix of a Bin is the common high-order bits that all keys in the
---   Bin share.
--- * We call the bit immediately following the shared prefix the mask bit.
---   All keys in the left child of a Bin have the mask bit unset, and all keys
---   in the right child have the mask bit set.
+--
+-- * The Prefix of a Bin indicates the common high-order bits that all keys in
+--   the Bin share.
+--
+-- * The least significant set bit of the Int value of a Prefix is called the
+--   mask bit.
+--
+-- * All the bits to the left of the mask bit are called the shared prefix. All
+--   keys stored in the Bin begin with the shared prefix.
+--
+-- * All keys in the left child of the Bin have the mask bit unset, and all keys
+--   in the right child have the mask bit set. It follows that
+--
+--   1. The Int value of the Prefix of a Bin is the smallest key that can be
+--      present in the right child of the Bin.
+--
+--   2. All keys in the right child of a Bin are greater than keys in the
+--      left child, with one exceptional situation. If the Bin separates
+--      negative and non-negative keys, the mask bit is the sign bit and the
+--      left child stores the non-negative keys while the right child stores the
+--      negative keys.
+--
+-- * All bits to the right of the mask bit are set to 0 in a Prefix.
+--
 
 -- See Note [Okasaki-Gill] for how the implementation here relates to the one in
 -- Okasaki and Gill's paper.
 
--- | A @Prefix@ is some prefix of high-order bits of an @Int@.
---
--- This is represented by an @Int@ which starts with the prefix bits,
--- immediately followed by a set bit. This is the mask bit for a @Bin@. It
--- follows from the IntMap invariants that this @Int@ value is the smallest
--- value that can be present in its right child.
+-- | A @Prefix@ represents some prefix of high-order bits of an @Int@.
 newtype Prefix = Prefix { unPrefix :: Int }
   deriving (Eq, Lift)
 
