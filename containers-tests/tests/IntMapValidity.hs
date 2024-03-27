@@ -1,6 +1,6 @@
 module IntMapValidity (valid) where
 
-import Data.Bits ((.&.), finiteBitSize, testBit)
+import Data.Bits (xor, (.&.))
 import Data.List (intercalate, elemIndex)
 import Data.IntMap.Internal
 import Numeric (showHex)
@@ -54,18 +54,11 @@ prefixOk t =
            counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
            counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
--- | Inefficient but easily understandable comparison of prefixes
 hasPrefix :: Int -> Prefix -> Bool
-hasPrefix k p = case elemIndex True pbits of
-  Nothing -> error "no mask bit" -- should already be checked
-  Just i -> drop (i+1) kbits == drop (i+1) pbits
+hasPrefix i p = (i `xor` px) .&. prefixMask == 0
   where
-    kbits = toBits k
-    pbits = toBits (unPrefix p)
-
--- | Bits from lowest to highest.
-toBits :: Int -> [Bool]
-toBits x = fmap (testBit x) [0 .. finiteBitSize (0 :: Int) - 1]
+    px = unPrefix p
+    prefixMask = px `xor` (-px)
 
 showIntHex :: Int -> String
 showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""
