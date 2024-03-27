@@ -3542,6 +3542,11 @@ binCheckRight p l r   = Bin p l r
   Branching
 --------------------------------------------------------------------}
 
+-- | A @MapMapBranch@ is returned by 'mapMapBranch' to indicate how two @Bin@s
+-- relate to each other.
+--
+-- Consider that @A@ and @B@ are the @Bin@s whose @Prefix@es are given to
+-- @mapMapBranch@ as the first and second arguments respectively.
 data MapMapBranch
   = ABL  -- ^ A contains B in the left child
   | ABR  -- ^ A contains B in the right child
