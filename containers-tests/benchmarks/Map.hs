@@ -5,7 +5,7 @@ module Main where
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Test.Tasty.Bench (bench, defaultMain, whnf, nf)
+import Test.Tasty.Bench (bench, defaultMain, whnf, nf, bcompare)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
@@ -15,13 +15,16 @@ import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
 import Prelude hiding (lookup)
+import Utils.Containers.Internal.StrictPair
 
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
+        m_odd_keys = M.keysSet m_odd
     evaluate $ rnf [m, m_even, m_odd]
     evaluate $ rnf elems_rev
+    evaluate $ rnf m_odd_keys
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -95,6 +98,12 @@ main = do
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+
+        , bench "restrictKeys+withoutKeys"
+        $ whnf (\ks -> M.restrictKeys m ks :*: M.withoutKeys m ks) m_odd_keys
+        , bcompare "/restrictKeys+withoutKeys/"
+        $ bench "partitionKeys"
+        $ whnf (M.partitionKeys m) m_odd_keys
         ]
   where
     bound = 2^12

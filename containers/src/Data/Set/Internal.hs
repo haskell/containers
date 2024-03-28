@@ -250,6 +250,7 @@ import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
 
 import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.StrictTriple
 import Utils.Containers.Internal.PtrEquality
 
 #if __GLASGOW_HASKELL__
@@ -1318,16 +1319,20 @@ splitS x (Bin _ y l r)
 -- | \(O(\log n)\). Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
-splitMember _ Tip = (Tip, False, Tip)
-splitMember x (Bin _ y l r)
-   = case compare x y of
-       LT -> let (lt, found, gt) = splitMember x l
-                 !gt' = link y gt r
-             in (lt, found, gt')
-       GT -> let (lt, found, gt) = splitMember x r
-                 !lt' = link y l lt
-             in (lt', found, gt)
-       EQ -> (l, True, r)
+splitMember k0 s = case go k0 s of
+  StrictTriple l b r -> (l, b, r)
+  where
+    go :: Ord a => a -> Set a -> StrictTriple (Set a) Bool (Set a)
+    go _ Tip = StrictTriple Tip False Tip
+    go x (Bin _ y l r)
+       = case compare x y of
+           LT -> let StrictTriple lt found gt = go x l
+                     !gt' = link y gt r
+                 in StrictTriple lt found gt'
+           GT -> let StrictTriple lt found gt = go x r
+                     !lt' = link y l lt
+                 in StrictTriple lt' found gt
+           EQ -> StrictTriple l True r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif

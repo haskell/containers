@@ -115,6 +115,7 @@ library
     Utils.Containers.Internal.PtrEquality
     Utils.Containers.Internal.State
     Utils.Containers.Internal.StrictMaybe
+    Utils.Containers.Internal.StrictTriple
 
   if impl(ghc)
     other-modules:
