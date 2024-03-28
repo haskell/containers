@@ -108,6 +108,20 @@ pStrictFoldlWithKey' :: Map Int Int -> Property
 pStrictFoldlWithKey' m = whnfHasNoThunks (M.foldlWithKey' (\as _ a -> a : as) [] m)
 #endif
 
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFromDistinctAscList :: [Int] -> Property
+pStrictFromDistinctAscList = whnfHasNoThunks . evalSpine . M.elems . M.fromDistinctAscList . zip [0::Int ..] . map (Just $!)
+  where
+    evalSpine xs = length xs `seq` xs
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFromDistinctDescList :: [Int] -> Property
+pStrictFromDistinctDescList = whnfHasNoThunks . evalSpine . M.elems . M.fromDistinctDescList . zip [0::Int, -1 ..] . map (Just $!)
+  where
+    evalSpine xs = length xs `seq` xs
+#endif
+
 ------------------------------------------------------------------------
 -- check for extra thunks
 --
@@ -193,6 +207,8 @@ tests =
       , testProperty "strict foldl'" pStrictFoldl'
       , testProperty "strict foldrWithKey'" pStrictFoldrWithKey'
       , testProperty "strict foldlWithKey'" pStrictFoldlWithKey'
+      , testProperty "strict fromDistinctAscList" pStrictFromDistinctAscList
+      , testProperty "strict fromDistinctDescList" pStrictFromDistinctDescList
 #endif
       ]
       , tExtraThunksM
