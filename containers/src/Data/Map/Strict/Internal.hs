@@ -1762,7 +1762,7 @@ fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0
   where
     next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
     next (State0 stk) (!kx, !x) = fromDistinctAscList_linkTop (Bin 1 kx x Tip Tip) stk
-    next (State1 l stk) (kx, x) = State0 (Push kx x l stk)
+    next (State1 l stk) (!kx, !x) = State0 (Push kx x l stk)
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
@@ -1781,5 +1781,5 @@ fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (Stat
   where
     next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
     next (State0 stk) (!kx, !x) = fromDistinctDescList_linkTop (Bin 1 kx x Tip Tip) stk
-    next (State1 r stk) (kx, x) = State0 (Push kx x r stk)
+    next (State1 r stk) (!kx, !x) = State0 (Push kx x r stk)
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
