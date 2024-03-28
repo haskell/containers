@@ -34,7 +34,7 @@ nilNeverChildOfBin t =
         Bin _ l' r' -> noNilInSet l' && noNilInSet r'
 
 -- Invariants:
--- * All keys in a Bin start with the Bin's Prefix.
+-- * All keys in a Bin start with the Bin's shared prefix.
 -- * All keys in the Bin's left child have the Prefix's mask bit unset.
 -- * All keys in the Bin's right child have the Prefix's mask bit set.
 prefixOk :: IntMap a -> Property
