@@ -1,6 +1,10 @@
-module IntMapValidity (valid) where
+module IntMapValidity
+  ( valid
+  , hasPrefix
+  , hasPrefixSimple
+  ) where
 
-import Data.Bits (xor, (.&.))
+import Data.Bits (finiteBitSize, testBit, xor, (.&.))
 import Data.List (intercalate, elemIndex)
 import Data.IntMap.Internal
 import Numeric (showHex)
@@ -55,10 +59,19 @@ prefixOk t =
            counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
 hasPrefix :: Int -> Prefix -> Bool
-hasPrefix i p = (i `xor` px) .&. prefixMask == 0
+hasPrefix i p = not (nomatch i p)
+
+-- We test that hasPrefix behaves the same as hasPrefixSimple.
+hasPrefixSimple :: Int -> Prefix -> Bool
+hasPrefixSimple k p = case elemIndex True pbits of
+  Nothing -> error "no mask bit" -- should not happen
+  Just i -> drop (i+1) kbits == drop (i+1) pbits
   where
-    px = unPrefix p
-    prefixMask = px `xor` (-px)
+    kbits = toBits k
+    pbits = toBits (unPrefix p)
+
+    -- Bits from lowest to highest.
+    toBits x = fmap (testBit x) [0 .. finiteBitSize (0 :: Int) - 1]
 
 showIntHex :: Int -> String
 showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""

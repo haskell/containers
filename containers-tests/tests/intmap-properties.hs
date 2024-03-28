@@ -10,7 +10,8 @@ import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
-import IntMapValidity (valid)
+import Data.IntMap.Internal (Prefix(..))
+import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
 import Control.Monad ((<=<))
@@ -134,6 +135,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
              , testProperty "valid"                prop_valid
+             , testProperty "hasPrefix"            prop_hasPrefix
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
@@ -1150,6 +1152,10 @@ forValidUnitTree f = forValid f
 
 prop_valid :: Property
 prop_valid = forValidUnitTree $ \t -> valid t
+
+prop_hasPrefix :: Int -> NonZero Int -> Property
+prop_hasPrefix i (NonZero p) =
+  hasPrefix i (Prefix p) === hasPrefixSimple i (Prefix p)
 
 ----------------------------------------------------------------
 -- QuickCheck
