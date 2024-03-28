@@ -3557,6 +3557,22 @@ data MapMapBranch
 
 -- | Calculates how two @Bin@s relate to each other by comparing their
 -- @Prefix@es.
+
+-- Notes:
+-- * pw .|. (pw-1) sets every bit below the mask bit to 1. This is the greatest
+--   key the Bin can have.
+-- * pw .&. (pw-1) sets the mask bit and every bit below it to 0. This is the
+--   smallest key the Bin can have.
+--
+-- First, we compare the prefixes to each other. Then we compare a prefix
+-- against the greatest/smallest keys the other prefix's Bin could have. This is
+-- enough to determine how the two Bins relate to each other. The conditions can
+-- be stated as:
+--
+-- * If pw1 from Bin A is less than pw2 from Bin B, and pw2 is <= the greatest
+--   key of Bin A, then Bin A contains Bin B in its right child.
+-- * ...and so on
+
 mapMapBranch :: Prefix -> Prefix -> MapMapBranch
 mapMapBranch p1 p2 = case compare pw1 pw2 of
   LT | pw2 <= (pw1 .|. (pw1-1)) -> ABR
