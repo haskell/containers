@@ -223,6 +223,7 @@ module Data.IntMap.Internal (
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
@@ -2589,6 +2590,14 @@ mapKeysMonotonic f
 filter :: (a -> Bool) -> IntMap a -> IntMap a
 filter p m
   = filterWithKey (\_ x -> p x) m
+
+-- | \(O(n)\). Filter all keys that satisfy some predicate.
+--
+-- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- > filterKeys (> 4) == filterWithKey (\k _ -> k > 4)
+
+filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
+filterKeys predicate = filterWithKey (\k _ -> predicate k)
 
 -- | \(O(n)\). Filter all keys\/values that satisfy some predicate.
 --
