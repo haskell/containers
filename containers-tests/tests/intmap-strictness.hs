@@ -116,6 +116,13 @@ pStrictFoldl' :: IntMap Int -> Property
 pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
 #endif
 
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFromDistinctAscList :: [Int] -> Property
+pStrictFromDistinctAscList = whnfHasNoThunks . evalSpine . M.elems . M.fromDistinctAscList . zip [0::Int ..] . map (Just $!)
+  where
+    evalSpine xs = length xs `seq` xs
+#endif
+
 ------------------------------------------------------------------------
 -- check for extra thunks
 --
@@ -202,6 +209,7 @@ tests =
 #if __GLASGOW_HASKELL__ >= 806
       , testProperty "strict foldr'" pStrictFoldr'
       , testProperty "strict foldl'" pStrictFoldl'
+      , testProperty "strict fromDistinctAscList" pStrictFromDistinctAscList
 #endif
       ]
       , tExtraThunksM
