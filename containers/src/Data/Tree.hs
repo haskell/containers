@@ -61,7 +61,7 @@ import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
 import Data.Sequence (Seq, empty, singleton, (<|), (|>), fromList,
             ViewL(..), ViewR(..), viewl, viewr)
-import Control.DeepSeq (NFData(rnf))
+import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Data (Data)
@@ -299,6 +299,9 @@ foldlMap1 f g =  -- Use a lambda to allow inlining with two arguments
 
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
+
+instance NFData1 Tree where
+    liftRnf rnfx (Node x ts) = rnfx x `seq` liftRnf (liftRnf rnfx) ts
 
 -- | @since 0.5.10.1
 instance MonadZip Tree where
