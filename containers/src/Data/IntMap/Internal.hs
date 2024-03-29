@@ -2368,7 +2368,7 @@ submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 o
   BAL -> submapCmp predicate t1 l2
   BAR -> submapCmp predicate t1 r2
   EQL -> submapCmpEq
-  NOM -> GT
+  NOM -> GT  -- disjoint
   where
     submapCmpEq = case (submapCmp predicate l1 l2, submapCmp predicate r1 r2) of
                     (GT,_ ) -> GT
