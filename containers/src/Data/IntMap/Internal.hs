@@ -361,7 +361,9 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
               | Tip {-# UNPACK #-} !Key a
               | Nil
 
--- IntMap structure and invariants:
+--
+-- Note [IntMap structure and invariants]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --
 -- * Nil is never found as a child of Bin.
 --
@@ -3603,11 +3605,12 @@ nomatchMask i p m
 -- | Whether the @Int@ does not start with the given @Prefix@.
 --
 -- An @Int@ starts with a @Prefix@ if it shares the high bits with the internal
--- @Int@ value of the @Prefix@ up to the mask bit. See also: the documentation
--- of @Prefix@.
+-- @Int@ value of the @Prefix@ up to the mask bit.
 --
 -- @nomatch@ is usually used to determine whether a key belongs in a @Bin@,
 -- since all keys in a @Bin@ share a @Prefix@.
+
+-- See also: Note [IntMap structure and invariants]
 nomatch :: Int -> Prefix -> Bool
 nomatch i p = (i `xor` px) .&. prefixMask /= 0
   where
