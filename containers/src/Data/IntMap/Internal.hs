@@ -3575,16 +3575,18 @@ data MapMapBranch
 
 mapMapBranch :: Prefix -> Prefix -> MapMapBranch
 mapMapBranch p1 p2 = case compare pw1 pw2 of
-  LT | pw2 <= (pw1 .|. (pw1-1)) -> ABR
-     | (pw2 .&. (pw2-1)) <= pw1 -> BAL
-     | otherwise                -> NOM
-  GT | pw1 <= (pw2 .|. (pw2-1)) -> BAR
-     | (pw1 .&. (pw1-1)) <= pw2 -> ABL
-     | otherwise                -> NOM
-  EQ                            -> EQL
+  LT | pw2 <= greatest pw1 -> ABR
+     | smallest pw2 <= pw1 -> BAL
+     | otherwise           -> NOM
+  GT | pw1 <= greatest pw2 -> BAR
+     | smallest pw1 <= pw2 -> ABL
+     | otherwise           -> NOM
+  EQ                       -> EQL
   where
     pw1 = natFromInt (unPrefix p1)
     pw2 = natFromInt (unPrefix p2)
+    greatest pw = pw .|. (pw-1)
+    smallest pw = pw .&. (pw-1)
 {-# INLINE mapMapBranch #-}
 
 {--------------------------------------------------------------------
