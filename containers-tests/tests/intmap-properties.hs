@@ -211,6 +211,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
+             , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
+             , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -1648,3 +1650,21 @@ prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
         -- so this also checks the order of traversing is the same.
   where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
+
+prop_isProperSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isProperSubmapOfBy f m1 m2 =
+  isProperSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1 && size m1 < size m2)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)
+
+prop_isSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isSubmapOfBy f m1 m2 =
+  isSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)
