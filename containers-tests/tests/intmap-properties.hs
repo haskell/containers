@@ -227,13 +227,23 @@ apply3 f a b c = apply f (a, b, c)
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = fmap fromList arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = fromList <$> listOf ((,) <$> kgen <*> arbitrary)
   shrink = fmap fromList . shrink . toAscList
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
-  arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = NonEmptyIntMap . fromList <$> listOf1 ((,) <$> kgen <*> arbitrary)
+  shrink =
+    fmap (NonEmptyIntMap . fromList) .
+    List.filter (not . List.null) .
+    shrink .
+    toAscList .
+    getNonEmptyIntMap
 
 
 ------------------------------------------------------------------------
