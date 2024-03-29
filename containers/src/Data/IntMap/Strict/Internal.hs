@@ -1076,7 +1076,7 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p+m)) (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p .|. m)) (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where -- This is slightly complicated, as we to convert the dense
         -- representation of IntSet into tree representation of IntMap.
@@ -1093,7 +1093,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
                        | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
                            buildTree g prefix bmask bits2
                        | otherwise ->
-                           Bin (Prefix (prefix+bits2)) (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+                           Bin (Prefix (prefix .|. bits2)) (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
 {--------------------------------------------------------------------
   Lists
