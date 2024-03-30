@@ -57,6 +57,11 @@ common benchmark-deps
     , deepseq           >=1.1.0.0 && <1.6
     , tasty-bench       >=0.3.1   && <0.4
 
+  -- Flags recommended by tasty-bench
+  ghc-options:      "-with-rtsopts=-A32m"
+  if impl(ghc >= 8.6)
+    ghc-options:    -fproc-alignment=64
+
 -- Copy of containers library,
 library
   import: deps
@@ -70,7 +75,11 @@ library
 
   include-dirs:     include
   hs-source-dirs:   src, tests
+
   ghc-options:      -O2 -Wall
+  if impl(ghc >= 8.6)
+    ghc-options:    -fproc-alignment=64
+
   other-extensions:
     BangPatterns
     CPP
