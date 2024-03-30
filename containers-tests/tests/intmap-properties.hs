@@ -10,7 +10,8 @@ import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
-import IntMapValidity (valid)
+import Data.IntMap.Internal (Prefix(..))
+import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
 import Control.Monad ((<=<))
@@ -134,6 +135,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
              , testProperty "valid"                prop_valid
+             , testProperty "hasPrefix"            prop_hasPrefix
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
@@ -209,6 +211,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
+             , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
+             , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
              ]
 
 apply2 :: Fun (a, b) c -> a -> b -> c
@@ -223,12 +227,23 @@ apply3 f a b c = apply f (a, b, c)
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = fmap fromList arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = fromList <$> listOf ((,) <$> kgen <*> arbitrary)
+  shrink = fmap fromList . shrink . toAscList
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
-  arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = NonEmptyIntMap . fromList <$> listOf1 ((,) <$> kgen <*> arbitrary)
+  shrink =
+    fmap (NonEmptyIntMap . fromList) .
+    List.filter (not . List.null) .
+    shrink .
+    toAscList .
+    getNonEmptyIntMap
 
 
 ------------------------------------------------------------------------
@@ -1150,6 +1165,10 @@ forValidUnitTree f = forValid f
 prop_valid :: Property
 prop_valid = forValidUnitTree $ \t -> valid t
 
+prop_hasPrefix :: Int -> NonZero Int -> Property
+prop_hasPrefix i (NonZero p) =
+  hasPrefix i (Prefix p) === hasPrefixSimple i (Prefix p)
+
 ----------------------------------------------------------------
 -- QuickCheck
 ----------------------------------------------------------------
@@ -1641,3 +1660,21 @@ prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
         -- so this also checks the order of traversing is the same.
   where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
+
+prop_isProperSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isProperSubmapOfBy f m1 m2 =
+  isProperSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1 && size m1 < size m2)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)
+
+prop_isSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isSubmapOfBy f m1 m2 =
+  isSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)
