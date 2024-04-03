@@ -1431,23 +1431,25 @@ splitS x (Bin _ y l r)
           EQ -> (l :*: r)
 {-# INLINABLE splitS #-}
 
+splitMemberS :: Ord a => a -> Set a -> StrictTriple (Set a) Bool (Set a)
+splitMemberS x = go
+  where
+    go Tip           = StrictTriple Tip False Tip
+    go (Bin _ y l r) = case compare x y of
+      LT -> let StrictTriple lt found gt = splitMemberS x l
+            in StrictTriple lt found (link y gt r)
+      GT -> let StrictTriple lt found gt = splitMemberS x r
+            in StrictTriple (link y l lt) found gt
+      EQ -> StrictTriple l True r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE splitMemberS #-}
+#endif
+
 -- | \(O(\log n)\). Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
-splitMember k0 s = case go k0 s of
+splitMember k0 s = case splitMemberS k0 s of
   StrictTriple l b r -> (l, b, r)
-  where
-    go :: Ord a => a -> Set a -> StrictTriple (Set a) Bool (Set a)
-    go _ Tip = StrictTriple Tip False Tip
-    go x (Bin _ y l r)
-       = case compare x y of
-           LT -> let StrictTriple lt found gt = go x l
-                     !gt' = link y gt r
-                 in StrictTriple lt found gt'
-           GT -> let StrictTriple lt found gt = go x r
-                     !lt' = link y l lt
-                 in StrictTriple lt' found gt
-           EQ -> StrictTriple l True r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif

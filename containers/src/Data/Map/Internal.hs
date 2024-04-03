@@ -1979,36 +1979,39 @@ withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
 -- @
 partitionKeys :: forall k a. Ord k => Map k a -> Set k -> (Map k a, Map k a)
 partitionKeys xs ys =
-  case go xs ys of
+  case partitionKeysWorker xs ys of
     xs' :*: ys' -> (xs', ys')
-  where
-    go :: Map k a -> Set k -> StrictPair (Map k a) (Map k a)
-    go Tip                 _           = Tip :*: Tip
-    go m                   Set.Tip     = Tip :*: m
-    go m@(Bin _ k x lm rm) s@Set.Bin{} =
-      case b of
-        True  -> with :*: without
-          where
-            with    =
-              if lmWith `ptrEq` lm && rmWith `ptrEq` rm
-              then m
-              else link k x lmWith rmWith
-            without =
-              link2 lmWithout rmWithout
-        False -> with :*: without
-          where
-            with    = link2 lmWith rmWith
-            without =
-              if lmWithout `ptrEq` lm && rmWithout `ptrEq` rm
-              then m
-              else link k x lmWithout rmWithout
-        where
-          !(lmWith :*: lmWithout) = go lm ls'
-          !(rmWith :*: rmWithout) = go rm rs'
-
-          !(!ls', b, !rs') = Set.splitMember k s
 #if __GLASGOW_HASKELL__
 {-# INLINABLE partitionKeys #-}
+#endif
+
+partitionKeysWorker :: Ord k => Map k a -> Set k -> StrictPair (Map k a) (Map k a)
+partitionKeysWorker Tip                 _           = Tip :*: Tip
+partitionKeysWorker m                   Set.Tip     = Tip :*: m
+partitionKeysWorker m@(Bin _ k x lm rm) s@Set.Bin{} =
+  case b of
+    True  -> with :*: without
+      where
+        with    =
+          if lmWith `ptrEq` lm && rmWith `ptrEq` rm
+          then m
+          else link k x lmWith rmWith
+        without =
+          link2 lmWithout rmWithout
+    False -> with :*: without
+      where
+        with    = link2 lmWith rmWith
+        without =
+          if lmWithout `ptrEq` lm && rmWithout `ptrEq` rm
+          then m
+          else link k x lmWithout rmWithout
+    where
+      !(lmWith :*: lmWithout) = partitionKeysWorker lm ls'
+      !(rmWith :*: rmWithout) = partitionKeysWorker rm rs'
+
+      !(!ls', b, !rs') = Set.splitMember k s
+#if __GLASGOW_HASKELL__
+{-# INLINABLE partitionKeysWorker #-}
 #endif
 
 -- | \(O(n+m)\). Difference with a combining function.

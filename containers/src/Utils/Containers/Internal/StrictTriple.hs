@@ -3,8 +3,6 @@
 {-# LANGUAGE Safe #-}
 #endif
 
-#include "containers.h"
-
 -- | A strict triple
 
 module Utils.Containers.Internal.StrictTriple (StrictTriple(..)) where
