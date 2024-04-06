@@ -70,7 +70,7 @@ tipsValid :: IntSet -> Bool
 tipsValid t =
   case t of
     Nil -> True
-    tip@(Tip p b) -> validTipPrefix p
+    tip@(Tip p b) -> validTipPrefix p && b /= 0
     Bin _ l r -> tipsValid l && tipsValid r
 
 validTipPrefix :: Int -> Bool
