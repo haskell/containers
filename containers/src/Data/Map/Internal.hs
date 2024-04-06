@@ -7,7 +7,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-{-# LANGUAGE ScopedTypeVariables #-}
 #define USE_MAGIC_PROXY 1
 #endif
 
@@ -1977,7 +1976,7 @@ withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
 -- @
 -- m \`partitionKeys\` s = (m ``restrictKeys`` s, m ``withoutKeys`` s)
 -- @
-partitionKeys :: forall k a. Ord k => Map k a -> Set k -> (Map k a, Map k a)
+partitionKeys :: Ord k => Map k a -> Set k -> (Map k a, Map k a)
 partitionKeys xs ys =
   case partitionKeysWorker xs ys of
     xs' :*: ys' -> (xs', ys')

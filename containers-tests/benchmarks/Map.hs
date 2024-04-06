@@ -5,7 +5,7 @@ module Main where
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Test.Tasty.Bench (bench, defaultMain, whnf, nf, bcompare)
+import Test.Tasty.Bench (bench, defaultMain, whnf, nf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
@@ -15,7 +15,6 @@ import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
 import Prelude hiding (lookup)
-import Utils.Containers.Internal.StrictPair
 
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
@@ -102,11 +101,9 @@ main = do
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
 
-        , bench "restrictKeys+withoutKeys"
-        $ whnf (\ks -> M.restrictKeys m ks :*: M.withoutKeys m ks) m_odd_keys
-        , bcompare "/restrictKeys+withoutKeys/"
-        $ bench "partitionKeys"
-        $ whnf (M.partitionKeys m) m_odd_keys
+        , bench "restrictKeys" $ whnf (M.restrictKeys m) m_odd_keys
+        , bench "withoutKeys" $ whnf (M.withoutKeys m) m_odd_keys
+        , bench "partitionKeys" $ whnf (M.partitionKeys m) m_odd_keys
         ]
   where
     bound = 2^12
