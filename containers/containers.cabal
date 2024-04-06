@@ -53,6 +53,7 @@ Library
         Data.IntMap.Merge.Lazy
         Data.IntMap.Merge.Strict
         Data.IntSet.Internal
+        Data.IntSet.Internal.IntTreeCommons
         Data.IntSet
         Data.Map
         Data.Map.Lazy

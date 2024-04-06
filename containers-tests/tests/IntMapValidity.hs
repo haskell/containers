@@ -6,6 +6,7 @@ module IntMapValidity
 
 import Data.Bits (finiteBitSize, testBit, xor, (.&.))
 import Data.List (intercalate, elemIndex)
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
 import Data.IntMap.Internal
 import Numeric (showHex)
 import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))

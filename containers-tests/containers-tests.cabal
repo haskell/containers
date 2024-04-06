@@ -96,6 +96,7 @@ library
     Data.IntMap.Strict.Internal
     Data.IntSet
     Data.IntSet.Internal
+    Data.IntSet.Internal.IntTreeCommons
     Data.Map
     Data.Map.Internal
     Data.Map.Internal.Debug

@@ -10,7 +10,7 @@ import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
-import Data.IntMap.Internal (Prefix(..))
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
 import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))

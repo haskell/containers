@@ -240,6 +240,7 @@ module Data.IntMap.Lazy (
 #endif
     ) where
 
+import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntMap.Internal as IM hiding (showTree, showTreeWith)
 #ifdef __GLASGOW_HASKELL__
 import Data.IntMap.Internal.DeprecatedDebug

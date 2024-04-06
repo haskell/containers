@@ -46,9 +46,6 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
                    , testProperty "prop_fromRange" prop_fromRange
-                   , testProperty "prop_MaskPow2" prop_MaskPow2
-                   , testProperty "prop_Prefix" prop_Prefix
-                   , testProperty "prop_LeftRight" prop_LeftRight
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
@@ -283,28 +280,6 @@ prop_fromRange = forAll (scale (*100) arbitrary) go
   where
     go (l,h) = valid t .&&. t === fromAscList [l..h]
       where t = fromRange (l,h)
-
-{--------------------------------------------------------------------
-  Bin invariants
---------------------------------------------------------------------}
-powersOf2 :: IntSet
-powersOf2 = fromList [2^i | i <- [0..63]]
-
--- Check the invariant that the mask is a power of 2.
-prop_MaskPow2 :: IntSet -> Bool
-prop_MaskPow2 (Bin _ msk left right) = member msk powersOf2 && prop_MaskPow2 left && prop_MaskPow2 right
-prop_MaskPow2 _ = True
-
--- Check that the prefix satisfies its invariant.
-prop_Prefix :: IntSet -> Bool
-prop_Prefix s@(Bin prefix msk left right) = all (\elem -> match elem prefix msk) (toList s) && prop_Prefix left && prop_Prefix right
-prop_Prefix _ = True
-
--- Check that the left elements don't have the mask bit set, and the right
--- ones do.
-prop_LeftRight :: IntSet -> Bool
-prop_LeftRight (Bin _ msk left right) = and [x .&. msk == 0 | x <- toList left] && and [x .&. msk == msk | x <- toList right]
-prop_LeftRight _ = True
 
 {--------------------------------------------------------------------
   IntSet operations are like Set operations

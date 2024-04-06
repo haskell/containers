@@ -265,14 +265,10 @@ import Prelude ()
 
 import Data.Bits
 import qualified Data.IntMap.Internal as L
+import Data.IntSet.Internal.IntTreeCommons
+  (Key, Prefix(..), nomatch, left, signBranch, mask, branchMask)
 import Data.IntMap.Internal
   ( IntMap (..)
-  , Key
-  , Prefix(..)
-  , mask
-  , branchMask
-  , nomatch
-  , left
   , natFromInt
   , intFromNat
   , bin
@@ -281,7 +277,6 @@ import Data.IntMap.Internal
   , link
   , linkKey
   , linkWithMask
-  , signBranch
 
   , (\\)
   , (!)
@@ -1076,7 +1071,7 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p .|. m)) (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Bin p l r) = Bin p (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where -- This is slightly complicated, as we to convert the dense
         -- representation of IntSet into tree representation of IntMap.
