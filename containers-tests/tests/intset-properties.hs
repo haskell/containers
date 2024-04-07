@@ -38,8 +38,9 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
                    , testProperty "prop_UnionComm" prop_UnionComm
-                   , testProperty "prop_Diff" prop_Diff
-                   , testProperty "prop_Int" prop_Int
+                   , testProperty "prop_union" prop_union
+                   , testProperty "prop_difference" prop_difference
+                   , testProperty "prop_intersection" prop_intersection
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
@@ -228,19 +229,26 @@ prop_UnionComm :: IntSet -> IntSet -> Bool
 prop_UnionComm t1 t2
   = (union t1 t2 == union t2 t1)
 
-prop_Diff :: [Int] -> [Int] -> Property
-prop_Diff xs ys =
-  case difference (fromList xs) (fromList ys) of
+prop_union :: IntSet -> IntSet -> Property
+prop_union xs ys =
+  case union xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort ((List.\\) (nub xs)  (nub ys))
+      toAscList t === List.nub (List.sort (toAscList xs ++ toAscList ys))
 
-prop_Int :: [Int] -> [Int] -> Property
-prop_Int xs ys =
-  case intersection (fromList xs) (fromList ys) of
+prop_difference :: IntSet -> IntSet -> Property
+prop_difference xs ys =
+  case difference xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort (nub ((List.intersect) (xs)  (ys)))
+      toAscList t === (toAscList xs List.\\ toAscList ys)
+
+prop_intersection :: IntSet -> IntSet -> Property
+prop_intersection xs ys =
+  case intersection xs ys of
+    t ->
+      valid t .&&.
+      toAscList t === (toAscList xs `List.intersect` toAscList ys)
 
 prop_disjoint :: IntSet -> IntSet -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
