@@ -110,9 +110,8 @@ test_split = do
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 instance Arbitrary IntSet where
-  arbitrary = do{ xs <- arbitrary
-                ; return (fromList xs)
-                }
+  arbitrary = fromList <$> oneof [arbitrary, fmap (fmap getLarge) arbitrary]
+  shrink = fmap fromList . shrink . toAscList
 
 {--------------------------------------------------------------------
   Valid IntMaps
