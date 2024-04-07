@@ -670,8 +670,8 @@ subsetCmp :: IntSet -> IntSet -> Ordering
 subsetCmp t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> GT
   ABR -> GT
-  BAL -> subsetCmp t1 l2
-  BAR -> subsetCmp t1 r2
+  BAL -> case subsetCmp t1 l2 of GT -> GT ; _ -> LT
+  BAR -> case subsetCmp t1 r2 of GT -> GT ; _ -> LT
   EQL -> subsetCmpEq
   NOM -> GT  -- disjoint
   where
