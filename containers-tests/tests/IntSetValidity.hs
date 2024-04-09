@@ -53,10 +53,10 @@ prefixesOk t = case t of
         , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
         ]
       currentOk = counterexample debugStr $
-       counterexample "mask bit absent" (px /= 0) .&&.
-       counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
-       counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
-       counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
+        counterexample "mask bit absent" (px /= 0) .&&.
+        counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
+        counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
+        counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
 hasPrefix :: Int -> Prefix -> Bool
 hasPrefix i p = not (nomatch i p)
