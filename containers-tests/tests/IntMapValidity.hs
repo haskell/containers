@@ -18,7 +18,7 @@ import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
 valid :: IntMap a -> Property
 valid t =
   counterexample "nilNeverChildOfBin" (nilNeverChildOfBin t) .&&.
-  counterexample "prefixOk" (prefixOk t)
+  counterexample "prefixesOk" (prefixesOk t)
 
 -- Invariant: Nil is never found as a child of Bin.
 nilNeverChildOfBin :: IntMap a  -> Bool
@@ -38,26 +38,26 @@ nilNeverChildOfBin t =
 -- * All keys in a Bin start with the Bin's shared prefix.
 -- * All keys in the Bin's left child have the Prefix's mask bit unset.
 -- * All keys in the Bin's right child have the Prefix's mask bit set.
-prefixOk :: IntMap a -> Property
-prefixOk t =
-  case t of
-    Nil -> property ()
-    Tip _ _ -> property ()
-    Bin p l r ->
-      let px = unPrefix p
-          m = px .&. (-px)
-          keysl = keys l
-          keysr = keys r
-          debugStr = concat
-            [ "px=" ++ showIntHex px
-            , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
-            , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
-            ]
-      in counterexample debugStr $
-           counterexample "mask bit absent" (px /= 0) .&&.
-           counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
-           counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
-           counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
+prefixesOk :: IntMap a -> Property
+prefixesOk t = case t of
+  Nil -> property ()
+  Tip _ _ -> property ()
+  Bin p l r -> currentOk .&&. prefixesOk l .&&. prefixesOk r
+    where
+      px = unPrefix p
+      m = px .&. (-px)
+      keysl = keys l
+      keysr = keys r
+      debugStr = concat
+        [ "px=" ++ showIntHex px
+        , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
+        , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
+        ]
+      currentOk = counterexample debugStr $
+        counterexample "mask bit absent" (px /= 0) .&&.
+        counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
+        counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
+        counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
 hasPrefix :: Int -> Prefix -> Bool
 hasPrefix i p = not (nomatch i p)
