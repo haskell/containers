@@ -4015,22 +4015,16 @@ data MinView k a = MinView !k a !(Map k a)
 data MaxView k a = MaxView !k a !(Map k a)
 
 minViewSure :: k -> a -> Map k a -> Map k a -> MinView k a
-minViewSure = go
-  where
-    go k x Tip r = MinView k x r
-    go k x (Bin _ kl xl ll lr) r =
-      case go kl xl ll lr of
-        MinView km xm l' -> MinView km xm (balanceR k x l' r)
-{-# NOINLINE minViewSure #-}
+minViewSure !k x l !r = case l of
+  Tip -> MinView k x r
+  Bin _ lk lx ll lr -> case minViewSure lk lx ll lr of
+    MinView km xm l' -> MinView km xm (balanceR k x l' r)
 
 maxViewSure :: k -> a -> Map k a -> Map k a -> MaxView k a
-maxViewSure = go
-  where
-    go k x l Tip = MaxView k x l
-    go k x l (Bin _ kr xr rl rr) =
-      case go kr xr rl rr of
-        MaxView km xm r' -> MaxView km xm (balanceL k x l r')
-{-# NOINLINE maxViewSure #-}
+maxViewSure !k x !l r = case r of
+  Tip -> MaxView k x l
+  Bin _ rk rx rl rr -> case maxViewSure rk rx rl rr of
+    MaxView km xm r' -> MaxView km xm (balanceL k x l r')
 
 -- | \(O(\log n)\). Delete and find the minimal element.
 --
