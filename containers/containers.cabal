@@ -39,6 +39,8 @@ Library
     build-depends: base >= 4.10 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.6, template-haskell
     hs-source-dirs: src
     ghc-options: -O2 -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates
+    if impl(ghc >= 9.4)
+        ghc-options:    -fworker-wrapper-cbv
 
     other-extensions: CPP, BangPatterns
 
