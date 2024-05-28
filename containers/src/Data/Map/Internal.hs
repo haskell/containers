@@ -2891,12 +2891,12 @@ filterWithKey p t@(Bin _ kx x l r)
 filterWithKeyA :: Applicative f => (k -> a -> f Bool) -> Map k a -> f (Map k a)
 filterWithKeyA _ Tip = pure Tip
 filterWithKeyA p t@(Bin _ kx x l r) =
-  liftA3 combine (p kx x) (filterWithKeyA p l) (filterWithKeyA p r)
+  liftA3 combine (filterWithKeyA p l) (p kx x) (filterWithKeyA p r)
   where
-    combine True pl pr
+    combine pl True pr
       | pl `ptrEq` l && pr `ptrEq` r = t
       | otherwise = link kx x pl pr
-    combine False pl pr = link2 pl pr
+    combine pl False pr = link2 pl pr
 
 -- | \(O(\log n)\). Take while a predicate on the keys holds.
 -- The user is responsible for ensuring that for all keys @j@ and @k@ in the map,

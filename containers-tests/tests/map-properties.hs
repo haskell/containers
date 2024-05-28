@@ -1212,13 +1212,49 @@ prop_mergeWithKeyModel xs ys
 -- This uses the instance
 --     Monoid a => Applicative ((,) a)
 -- to test that effects are sequenced in ascending key order.
-prop_mergeA_effects :: UMap -> UMap -> Property
-prop_mergeA_effects xs ys
+prop_mergeA_effects :: WhenMissingSpec -> WhenMissingSpec -> WhenMatchedSpec -> UMap -> UMap -> Property
+prop_mergeA_effects onlyLeft onlyRight both xs ys
   = effects === sort effects
   where
-    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
-    whenMissing = traverseMissing (\k _ -> ([k], ()))
-    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
+    (effects, _m) = mergeA (whenMissing onlyLeft) (whenMissing onlyRight) (whenMatched both) xs ys
+    whenMissing spec = case spec of
+      DropMissing -> dropMissing
+      PreserveMissing -> preserveMissing
+      FilterMissing -> filterMissing (\_ _ -> False)
+      FilterAMissing -> filterAMissing (\k _ -> ([k], False))
+      MapMissing -> mapMissing (\_ _ -> ())
+      TraverseMissing -> traverseMissing (\k _ -> ([k], ()))
+      MapMaybeMissing -> mapMaybeMissing (\_ _ -> Nothing)
+      TraverseMaybeMissing -> traverseMaybeMissing (\k _ -> ([k], Nothing))
+    whenMatched spec = case spec of
+      ZipWithMatched -> zipWithMatched (\_ _ _ -> ())
+      ZipWithAMatched -> zipWithAMatched (\k _ _ -> ([k], ()))
+      ZipWithMaybeMatched -> zipWithMaybeMatched (\_ _ _ -> Nothing)
+      ZipWithMaybeAMatched -> zipWithMaybeAMatched (\k _ _ -> ([k], Nothing))
+
+data WhenMissingSpec
+  = DropMissing
+  | PreserveMissing
+  | FilterMissing
+  | FilterAMissing
+  | MapMissing
+  | TraverseMissing
+  | MapMaybeMissing
+  | TraverseMaybeMissing
+  deriving (Bounded, Enum, Show)
+
+instance Arbitrary WhenMissingSpec where
+  arbitrary = arbitraryBoundedEnum
+
+data WhenMatchedSpec
+  = ZipWithMatched
+  | ZipWithAMatched
+  | ZipWithMaybeMatched
+  | ZipWithMaybeAMatched
+  deriving (Bounded, Enum, Show)
+
+instance Arbitrary WhenMatchedSpec where
+  arbitrary = arbitraryBoundedEnum
 
 ----------------------------------------------------------------
 
