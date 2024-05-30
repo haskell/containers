@@ -2367,11 +2367,14 @@ submapCmp :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Ordering
 submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 of
   ABL -> GT
   ABR -> GT
-  BAL -> submapCmp predicate t1 l2
-  BAR -> submapCmp predicate t1 r2
+  BAL -> submapCmpLt l2
+  BAR -> submapCmpLt r2
   EQL -> submapCmpEq
   NOM -> GT  -- disjoint
   where
+    submapCmpLt t = case submapCmp predicate t1 t of
+                      GT -> GT
+                      _  -> LT
     submapCmpEq = case (submapCmp predicate l1 l2, submapCmp predicate r1 r2) of
                     (GT,_ ) -> GT
                     (_ ,GT) -> GT
