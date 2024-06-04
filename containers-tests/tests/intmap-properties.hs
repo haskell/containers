@@ -1014,6 +1014,9 @@ test_isProperSubmapOfBy = do
     isProperSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
     isProperSubmapOfBy (<)  (fromList [(-1,1)])       (fromList [(-1,1),(2,2)]) @?= False
 
+    -- See Github #1007
+    isProperSubmapOfBy (==) (fromList [(-3,1),(-1,1)]) (fromList [(-3,1),(-1,1),(0,1)]) @?= True
+
 test_isProperSubmapOf :: Assertion
 test_isProperSubmapOf = do
     isProperSubmapOf (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
@@ -1023,6 +1026,9 @@ test_isProperSubmapOf = do
     isProperSubmapOf (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
     isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= False
     isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
+
+    -- See Github #1007
+    isProperSubmapOf (fromList [(-3,1),(-1,1)]) (fromList [(-3,1),(-1,1),(0,1)]) @?= True
 
 ----------------------------------------------------------------
 -- Min/Max

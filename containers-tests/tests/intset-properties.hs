@@ -20,6 +20,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
+                   , testCase "isProperSubsetOf" test_isProperSubsetOf
                    , testProperty "prop_Valid" prop_Valid
                    , testProperty "prop_EmptyValid" prop_EmptyValid
                    , testProperty "prop_SingletonValid" prop_SingletonValid
@@ -106,6 +107,19 @@ test_lookupGE = do
 test_split :: Assertion
 test_split = do
    split 3 (fromList [1..5]) @?= (fromList [1,2], fromList [4,5])
+
+test_isProperSubsetOf :: Assertion
+test_isProperSubsetOf = do
+    isProperSubsetOf (fromList [1]) (fromList [1,2]) @?= True
+    isProperSubsetOf (fromList [1,2]) (fromList [1,2]) @?= False
+    isProperSubsetOf (fromList [1,2]) (fromList [1]) @?= False
+
+    isProperSubsetOf (fromList [-1]) (fromList [-1,2]) @?= True
+    isProperSubsetOf (fromList [-1,2]) (fromList [-1,2]) @?= False
+    isProperSubsetOf (fromList [-1,2]) (fromList [-1]) @?= False
+
+    -- See Github #1007
+    isProperSubsetOf (fromList [-65,-1]) (fromList [-65,-1,0]) @?= True
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
