@@ -155,13 +155,9 @@ module Data.IntSet (
             -- * Debugging
             , showTree
             , showTreeWith
-
-#if defined(TESTING)
-            -- * Internals
-            , match
-#endif
             ) where
 
+import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntSet.Internal as IS
 
 -- $strictness

@@ -38,17 +38,15 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
                    , testProperty "prop_UnionComm" prop_UnionComm
-                   , testProperty "prop_Diff" prop_Diff
-                   , testProperty "prop_Int" prop_Int
+                   , testProperty "prop_union" prop_union
+                   , testProperty "prop_difference" prop_difference
+                   , testProperty "prop_intersection" prop_intersection
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
                    , testProperty "prop_fromRange" prop_fromRange
-                   , testProperty "prop_MaskPow2" prop_MaskPow2
-                   , testProperty "prop_Prefix" prop_Prefix
-                   , testProperty "prop_LeftRight" prop_LeftRight
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
@@ -113,9 +111,8 @@ test_split = do
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 instance Arbitrary IntSet where
-  arbitrary = do{ xs <- arbitrary
-                ; return (fromList xs)
-                }
+  arbitrary = fromList <$> oneof [arbitrary, fmap (fmap getLarge) arbitrary]
+  shrink = fmap fromList . shrink . toAscList
 
 {--------------------------------------------------------------------
   Valid IntMaps
@@ -232,19 +229,26 @@ prop_UnionComm :: IntSet -> IntSet -> Bool
 prop_UnionComm t1 t2
   = (union t1 t2 == union t2 t1)
 
-prop_Diff :: [Int] -> [Int] -> Property
-prop_Diff xs ys =
-  case difference (fromList xs) (fromList ys) of
+prop_union :: IntSet -> IntSet -> Property
+prop_union xs ys =
+  case union xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort ((List.\\) (nub xs)  (nub ys))
+      toAscList t === List.nub (List.sort (toAscList xs ++ toAscList ys))
 
-prop_Int :: [Int] -> [Int] -> Property
-prop_Int xs ys =
-  case intersection (fromList xs) (fromList ys) of
+prop_difference :: IntSet -> IntSet -> Property
+prop_difference xs ys =
+  case difference xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort (nub ((List.intersect) (xs)  (ys)))
+      toAscList t === (toAscList xs List.\\ toAscList ys)
+
+prop_intersection :: IntSet -> IntSet -> Property
+prop_intersection xs ys =
+  case intersection xs ys of
+    t ->
+      valid t .&&.
+      toAscList t === (toAscList xs `List.intersect` toAscList ys)
 
 prop_disjoint :: IntSet -> IntSet -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
@@ -283,28 +287,6 @@ prop_fromRange = forAll (scale (*100) arbitrary) go
   where
     go (l,h) = valid t .&&. t === fromAscList [l..h]
       where t = fromRange (l,h)
-
-{--------------------------------------------------------------------
-  Bin invariants
---------------------------------------------------------------------}
-powersOf2 :: IntSet
-powersOf2 = fromList [2^i | i <- [0..63]]
-
--- Check the invariant that the mask is a power of 2.
-prop_MaskPow2 :: IntSet -> Bool
-prop_MaskPow2 (Bin _ msk left right) = member msk powersOf2 && prop_MaskPow2 left && prop_MaskPow2 right
-prop_MaskPow2 _ = True
-
--- Check that the prefix satisfies its invariant.
-prop_Prefix :: IntSet -> Bool
-prop_Prefix s@(Bin prefix msk left right) = all (\elem -> match elem prefix msk) (toList s) && prop_Prefix left && prop_Prefix right
-prop_Prefix _ = True
-
--- Check that the left elements don't have the mask bit set, and the right
--- ones do.
-prop_LeftRight :: IntSet -> Bool
-prop_LeftRight (Bin _ msk left right) = and [x .&. msk == 0 | x <- toList left] && and [x .&. msk == msk | x <- toList right]
-prop_LeftRight _ = True
 
 {--------------------------------------------------------------------
   IntSet operations are like Set operations

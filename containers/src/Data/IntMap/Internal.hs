@@ -47,14 +47,6 @@
 -- @since 0.5.9
 -----------------------------------------------------------------------------
 
--- [Note: INLINE bit fiddling]
--- ~~~~~~~~~~~~~~~~~~~~~~~~~~~
--- It is essential that the bit fiddling functions like mask, zero, branchMask
--- etc are inlined. If they do not, the memory allocation skyrockets. The GHC
--- usually gets it right, but it is disastrous if it does not. Therefore we
--- explicitly mark these functions INLINE.
-
-
 -- [Note: Local 'go' functions and capturing]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- Care must be taken when using 'go' function which captures an argument.
@@ -76,7 +68,7 @@
 
 module Data.IntMap.Internal (
     -- * Map type
-      IntMap(..), Key          -- instance Eq,Show
+      IntMap(..)          -- instance Eq,Show
 
     -- * Operators
     , (!), (!?), (\\)
@@ -269,7 +261,7 @@ module Data.IntMap.Internal (
     , showTreeWith
 
     -- * Internal types
-    , Prefix(..), Nat
+    , Nat
 
     -- * Utility
     , natFromInt
@@ -280,15 +272,6 @@ module Data.IntMap.Internal (
     , bin
     , binCheckLeft
     , binCheckRight
-    , nomatch
-    , left
-    , signBranch
-    , MapMapBranch(..)
-    , mapMapBranch
-    , mask
-    , maskW
-    , branchMask
-    , highestBitMask
 
     -- * Used by "IntMap.Merge.Lazy" and "IntMap.Merge.Strict"
     , mapWhenMissing
@@ -316,8 +299,18 @@ import Utils.Containers.Internal.Prelude hiding
   (lookup, map, filter, foldr, foldl, foldl', null)
 import Prelude ()
 
-import Data.IntSet.Internal (Key)
 import qualified Data.IntSet.Internal as IntSet
+import Data.IntSet.Internal.IntTreeCommons
+  ( Key
+  , Prefix(..)
+  , nomatch
+  , left
+  , signBranch
+  , mask
+  , branchMask
+  , TreeTreeBranch(..)
+  , treeTreeBranch
+  )
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 
@@ -393,10 +386,6 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 
 -- See Note [Okasaki-Gill] for how the implementation here relates to the one in
 -- Okasaki and Gill's paper.
-
--- | A @Prefix@ represents some prefix of high-order bits of an @Int@.
-newtype Prefix = Prefix { unPrefix :: Int }
-  deriving (Eq, Lift)
 
 -- Some stuff from "Data.IntSet.Internal", for 'restrictKeys' and
 -- 'withoutKeys' to use.
@@ -762,7 +751,7 @@ disjoint Nil _ = True
 disjoint _ Nil = True
 disjoint (Tip kx _) ys = notMember kx ys
 disjoint xs (Tip ky _) = notMember ky xs
-disjoint t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+disjoint t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> disjoint l1 t2
   ABR -> disjoint r1 t2
   BAL -> disjoint t1 l2
@@ -1173,22 +1162,14 @@ differenceWithKey f m1 m2
 --
 -- @since 0.5.8
 withoutKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1 m2 of
-  LT -> difference1
-  GT -> difference2
-  EQ | p1 == p2' -> bin p1 (withoutKeys l1 l2) (withoutKeys r1 r2)
-     | otherwise -> t1
+withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+  ABL -> binCheckLeft p1 (withoutKeys l1 t2) r1
+  ABR -> binCheckRight p1 l1 (withoutKeys r1 t2)
+  BAL -> withoutKeys t1 l2
+  BAR -> withoutKeys t1 r2
+  EQL -> bin p1 (withoutKeys l1 l2) (withoutKeys r1 r2)
+  NOM -> t1
   where
-    px1 = unPrefix p1
-    p2' = Prefix (p2 .|. m2)
-    difference1
-        | nomatch p2 p1 = t1
-        | left p2 p1    = binCheckLeft p1 (withoutKeys l1 t2) r1
-        | otherwise     = binCheckRight p1 l1 (withoutKeys r1 t2)
-    difference2
-        | nomatchMask px1 p2 m2 = t1
-        | left px1 p2'      = withoutKeys t1 l2
-        | otherwise         = withoutKeys t1 r2
 withoutKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
     let px1 = unPrefix p1
         minbit = bitmapOf (px1 .&. (px1-1))
@@ -1254,22 +1235,13 @@ intersection m1 m2
 --
 -- @since 0.5.8
 restrictKeys :: IntMap a -> IntSet.IntSet -> IntMap a
-restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 m2 l2 r2) = case shorterMask p1 m2 of
-  LT -> intersection1
-  GT -> intersection2
-  EQ | p1 == p2' -> bin p1 (restrictKeys l1 l2) (restrictKeys r1 r2)
-     | otherwise -> Nil
-  where
-    px1 = unPrefix p1
-    p2' = Prefix (p2 .|. m2)
-    intersection1
-        | nomatch p2 p1 = Nil
-        | left p2 p1    = restrictKeys l1 t2
-        | otherwise     = restrictKeys r1 t2
-    intersection2
-        | nomatchMask px1 p2 m2 = Nil
-        | left px1 p2'      = restrictKeys t1 l2
-        | otherwise         = restrictKeys t1 r2
+restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+  ABL -> restrictKeys l1 t2
+  ABR -> restrictKeys r1 t2
+  BAL -> restrictKeys t1 l2
+  BAR -> restrictKeys t1 r2
+  EQL -> bin p1 (restrictKeys l1 l2) (restrictKeys r1 r2)
+  NOM -> Nil
 restrictKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
     let px1 = unPrefix p1
         minbit = bitmapOf (px1 .&. (px1-1))
@@ -1396,7 +1368,7 @@ mergeWithKey' :: (Prefix -> IntMap c -> IntMap c -> IntMap c)
               -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey' bin' f g1 g2 = go
   where
-    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
       ABL -> bin' p1 (go l1 t2) (g1 r1)
       ABR -> bin' p1 (g1 l1) (go r1 t2)
       BAL -> bin' p2 (go t1 l2) (g2 r2)
@@ -2084,7 +2056,7 @@ mergeA
         merge1 (Tip k1 x1)   = mergeTips k1 x1 k2 x2
         merge1 Nil           = subsingletonBy g2k k2 x2
 
-    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
       ABL -> binA p1 (go l1 t2) (g1t r1)
       ABR -> binA p1 (g1t l1) (go r1 t2)
       BAL -> binA p2 (go t1 l2) (g2t r2)
@@ -2364,7 +2336,7 @@ isProperSubmapOfBy predicate t1 t2
       _  -> False
 
 submapCmp :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Ordering
-submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+submapCmp predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> GT
   ABR -> GT
   BAL -> submapCmp predicate t1 l2
@@ -2412,7 +2384,7 @@ isSubmapOf m1 m2
   > isSubmapOfBy (==) (fromList [(1,1),(2,2)]) (fromList [(1,1)])
 -}
 isSubmapOfBy :: (a -> b -> Bool) -> IntMap a -> IntMap b -> Bool
-isSubmapOfBy predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case mapMapBranch p1 p2 of
+isSubmapOfBy predicate t1@(Bin p1 l1 r1) (Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> False
   ABR -> False
   BAL -> isSubmapOfBy predicate t1 l2
@@ -3101,8 +3073,7 @@ keysSet Nil = IntSet.Nil
 keysSet (Tip kx _) = IntSet.singleton kx
 keysSet (Bin p l r)
   | unPrefix p .&. IntSet.suffixBitMask == 0
-  , px <- unPrefix p, m <- px .&. (-px)
-  = IntSet.Bin (px `xor` m) m (keysSet l) (keysSet r)
+  = IntSet.Bin p (keysSet l) (keysSet r)
   | otherwise
   = IntSet.Tip (unPrefix p .&. IntSet.prefixBitMask) (computeBm (computeBm 0 l) r)
   where computeBm !acc (Bin _ l' r') = computeBm (computeBm acc l') r'
@@ -3117,7 +3088,7 @@ keysSet (Bin p l r)
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p m l r) = Bin (Prefix (p .|. m)) (fromSet f l) (fromSet f r)
+fromSet f (IntSet.Bin p l r) = Bin p (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where
     -- This is slightly complicated, as we to convert the dense
@@ -3539,134 +3510,6 @@ binCheckRight :: Prefix -> IntMap a -> IntMap a -> IntMap a
 binCheckRight _ l Nil = l
 binCheckRight p l r   = Bin p l r
 {-# INLINE binCheckRight #-}
-
-{--------------------------------------------------------------------
-  Branching
---------------------------------------------------------------------}
-
--- | A @MapMapBranch@ is returned by 'mapMapBranch' to indicate how two @Bin@s
--- relate to each other.
---
--- Consider that @A@ and @B@ are the @Bin@s whose @Prefix@es are given to
--- @mapMapBranch@ as the first and second arguments respectively.
-data MapMapBranch
-  = ABL  -- ^ A contains B in the left child
-  | ABR  -- ^ A contains B in the right child
-  | BAL  -- ^ B contains A in the left child
-  | BAR  -- ^ B contains A in the right child
-  | EQL  -- ^ A and B have equal prefixes
-  | NOM  -- ^ A and B have prefixes that do not match
-
--- | Calculates how two @Bin@s relate to each other by comparing their
--- @Prefix@es.
-
--- Notes:
--- * pw .|. (pw-1) sets every bit below the mask bit to 1. This is the greatest
---   key the Bin can have.
--- * pw .&. (pw-1) sets the mask bit and every bit below it to 0. This is the
---   smallest key the Bin can have.
---
--- First, we compare the prefixes to each other. Then we compare a prefix
--- against the greatest/smallest keys the other prefix's Bin could have. This is
--- enough to determine how the two Bins relate to each other. The conditions can
--- be stated as:
---
--- * If pw1 from Bin A is less than pw2 from Bin B, and pw2 is <= the greatest
---   key of Bin A, then Bin A contains Bin B in its right child.
--- * ...and so on
-
-mapMapBranch :: Prefix -> Prefix -> MapMapBranch
-mapMapBranch p1 p2 = case compare pw1 pw2 of
-  LT | pw2 <= greatest pw1 -> ABR
-     | smallest pw2 <= pw1 -> BAL
-     | otherwise           -> NOM
-  GT | pw1 <= greatest pw2 -> BAR
-     | smallest pw1 <= pw2 -> ABL
-     | otherwise           -> NOM
-  EQ                       -> EQL
-  where
-    pw1 = natFromInt (unPrefix p1)
-    pw2 = natFromInt (unPrefix p2)
-    greatest pw = pw .|. (pw-1)
-    smallest pw = pw .&. (pw-1)
-{-# INLINE mapMapBranch #-}
-
-{--------------------------------------------------------------------
-  Endian independent bit twiddling
---------------------------------------------------------------------}
-
--- | Does the key @i@ differ from the prefix @p@ before getting to
--- the switching bit @m@?
-nomatchMask :: Int -> Int -> Int -> Bool
-nomatchMask i p m
-  = (mask i m) /= p
-{-# INLINE nomatchMask #-}
-
--- | Whether the @Int@ does not start with the given @Prefix@.
---
--- An @Int@ starts with a @Prefix@ if it shares the high bits with the internal
--- @Int@ value of the @Prefix@ up to the mask bit.
---
--- @nomatch@ is usually used to determine whether a key belongs in a @Bin@,
--- since all keys in a @Bin@ share a @Prefix@.
-
--- See also: Note [IntMap structure and invariants]
-nomatch :: Int -> Prefix -> Bool
-nomatch i p = (i `xor` px) .&. prefixMask /= 0
-  where
-    px = unPrefix p
-    prefixMask = px `xor` (-px)
-{-# INLINE nomatch #-}
-
--- | Whether the @Int@ is to the left of the split created by a @Bin@ with this
--- @Prefix@.
---
--- This does not imply that the @Int@ belongs in this @Bin@. That fact is
--- usually determined first using @nomatch@.
-left :: Int -> Prefix -> Bool
-left i p = natFromInt i < natFromInt (unPrefix p)
-{-# INLINE left #-}
-
--- | Whether this @Prefix@ splits a @Bin@ at the sign bit.
---
--- This can only be True at the top level.
--- If it is true, the left child contains non-negative keys and the right child
--- contains negative keys.
-signBranch :: Prefix -> Bool
-signBranch p = unPrefix p == (minBound :: Int)
-{-# INLINE signBranch #-}
-
--- | The prefix of key @i@ up to (but not including) the switching
--- bit @m@.
-mask :: Key -> Int -> Int
-mask i m
-  = maskW (natFromInt i) (natFromInt m)
-{-# INLINE mask #-}
-
-
-{--------------------------------------------------------------------
-  Big endian operations
---------------------------------------------------------------------}
-
--- | The prefix of key @i@ up to (but not including) the switching
--- bit @m@.
-maskW :: Nat -> Nat -> Int
-maskW i m
-  = intFromNat (i .&. ((-m) `xor` m))
-{-# INLINE maskW #-}
-
--- | Whether the left prefix is shorter than the prefix length indicated by the
--- right mask.
-shorterMask :: Prefix -> Int -> Ordering
-shorterMask p1 m2 = natFromInt m2 `compare` natFromInt (px1 .&. (-px1))
-  where px1 = unPrefix p1
-{-# INLINE shorterMask #-}
-
--- | The first switching bit where the two prefixes disagree.
-branchMask :: Int -> Int -> Int
-branchMask p1 p2
-  = intFromNat (highestBitMask (natFromInt p1 `xor` natFromInt p2))
-{-# INLINE branchMask #-}
 
 {--------------------------------------------------------------------
   Utilities

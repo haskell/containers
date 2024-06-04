@@ -2,6 +2,8 @@
 module LookupGE_IntMap where
 
 import Prelude hiding (null)
+import Data.IntSet.Internal.IntTreeCommons
+  (Key, Prefix(..), nomatch, signBranch, left)
 import Data.IntMap.Internal
 
 lookupGE1 :: Key -> IntMap a -> Maybe (Key,a)
