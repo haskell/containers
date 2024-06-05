@@ -76,7 +76,8 @@ import Data.Sequence.Internal
         foldWithIndexNode)
 import Utils.Containers.Internal.State (State(..), execState)
 -- | \( O(n \log n) \).  'sort' sorts the specified 'Seq' by the natural
--- ordering of its elements.  The sort is stable.  If stability is not
+-- ordering of its elements.  The sort is stable, meaning the order of equal
+-- elements is preserved.  If stability is not
 -- required, 'unstableSort' can be slightly faster.
 --
 -- @since 0.3.0
@@ -84,7 +85,8 @@ sort :: Ord a => Seq a -> Seq a
 sort = sortBy compare
 
 -- | \( O(n \log n) \).  'sortBy' sorts the specified 'Seq' according to the
--- specified comparator.  The sort is stable.  If stability is not required,
+-- specified comparator.  The sort is stable, meaning the order of equal
+-- elements is preserved.  If stability is not required,
 -- 'unstableSortBy' can be slightly faster.
 --
 -- @since 0.3.0
@@ -96,11 +98,11 @@ sortBy cmp (Seq xs) =
         (buildIQ cmp (\s (Elem x) -> IQ s x IQNil) 0 xs)
 
 -- | \( O(n \log n) \). 'sortOn' sorts the specified 'Seq' by comparing
--- the results of a key function applied to each element. @'sortOn' f@ is
+-- the results of a key function applied to each element. The sort is stable,
+-- meaning the order of equal elements is preserved. @'sortOn' f@ is
 -- equivalent to @'sortBy' ('compare' ``Data.Function.on`` f)@, but has the
 -- performance advantage of only evaluating @f@ once for each element in the
--- input list. This is called the decorate-sort-undecorate paradigm, or
--- Schwartzian transform.
+-- input 'Seq'.
 --
 -- An example of using 'sortOn' might be to sort a 'Seq' of strings
 -- according to their length:
@@ -151,8 +153,7 @@ unstableSortBy cmp (Seq xs) =
 -- comparing the results of a key function applied to each element.
 -- @'unstableSortOn' f@ is equivalent to @'unstableSortBy' ('compare' ``Data.Function.on`` f)@,
 -- but has the performance advantage of only evaluating @f@ once for each
--- element in the input list. This is called the
--- decorate-sort-undecorate paradigm, or Schwartzian transform.
+-- element in the input 'Seq'.
 --
 -- An example of using 'unstableSortOn' might be to sort a 'Seq' of strings
 -- according to their length:
