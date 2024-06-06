@@ -74,6 +74,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
+                   , testProperty "prop_symmetricDifference" prop_symmetricDifference
                    , testProperty "prop_disjoint" prop_disjoint
                    , testProperty "prop_size" prop_size
                    , testProperty "prop_lookupMax" prop_lookupMax
@@ -486,6 +487,16 @@ prop_IntValid = forValidUnitTree $ \t1 ->
 prop_Int :: [Int] -> [Int] -> Bool
 prop_Int xs ys = toAscList (intersection (fromList xs) (fromList ys))
                  == List.sort (nub ((List.intersect) (xs)  (ys)))
+
+prop_symmetricDifference :: Set Int -> Set Int -> Property
+prop_symmetricDifference xs ys =
+  valid zs .&&.
+  toAscList zs ===
+  List.sort (List.filter (`notElem` xs') ys' ++ List.filter (`notElem` ys') xs')
+  where
+    zs = symmetricDifference xs ys
+    xs' = toAscList xs
+    ys' = toAscList ys
 
 prop_disjoint :: Set Int -> Set Int -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
