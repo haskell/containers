@@ -142,6 +142,9 @@ module Data.IntMap.Lazy (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 

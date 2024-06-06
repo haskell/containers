@@ -125,6 +125,9 @@ module Data.IntMap.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Compose
     , compose
 
@@ -1303,6 +1306,49 @@ intersectionWith f m1 m2
 intersectionWithKey :: (Key -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWithKey f m1 m2
   = mergeWithKey' bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 (f k1 x1 x2)) (const Nil) (const Nil) m1 m2
+
+{--------------------------------------------------------------------
+  Symmetric difference
+--------------------------------------------------------------------}
+
+-- | \(O(n+m)\). The symmetric difference of two maps.
+--
+-- The result contains entries whose keys appear in exactly one of the two maps.
+--
+-- @
+-- symmetricDifference
+--   (fromList [(0,\'q\'),(2,\'b\'),(4,\'w\'),(6,\'o\')])
+--   (fromList [(0,\'e\'),(3,\'r\'),(6,\'t\'),(9,\'s\')])
+-- ==
+-- fromList [(2,\'b\'),(3,\'r\'),(4,\'w\'),(9,\'s\')]
+-- @
+--
+-- @since FIXME
+symmetricDifference :: IntMap a -> IntMap a -> IntMap a
+symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
+  case treeTreeBranch p1 p2 of
+    ABL -> bin p1 (symmetricDifference l1 t2) r1
+    ABR -> bin p1 l1 (symmetricDifference r1 t2)
+    BAL -> bin p2 (symmetricDifference t1 l2) r2
+    BAR -> bin p2 l2 (symmetricDifference t1 r2)
+    EQL -> bin p1 (symmetricDifference l1 l2) (symmetricDifference r1 r2)
+    NOM -> link (unPrefix p1) t1 (unPrefix p2) t2
+symmetricDifference t1@(Bin _ _ _) t2@(Tip k2 _) = symDiffTip t2 k2 t1
+symmetricDifference t1@(Bin _ _ _) Nil = t1
+symmetricDifference t1@(Tip k1 _) t2 = symDiffTip t1 k1 t2
+symmetricDifference Nil t2 = t2
+
+symDiffTip :: IntMap a -> Int -> IntMap a -> IntMap a
+symDiffTip !t1 !k1 = go
+  where
+    go t2@(Bin p2 l2 r2)
+      | nomatch k1 p2 = linkKey k1 t1 p2 t2
+      | left k1 p2 = bin p2 (go l2) r2
+      | otherwise = bin p2 l2 (go r2)
+    go t2@(Tip k2 _)
+      | k1 == k2 = Nil
+      | otherwise = link k1 t1 k2 t2
+    go Nil = t1
 
 {--------------------------------------------------------------------
   MergeWithKey

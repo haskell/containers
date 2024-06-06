@@ -108,6 +108,7 @@ module Data.IntSet (
             , difference
             , (\\)
             , intersection
+            , symmetricDifference
 
             -- * Filter
             , IS.filter

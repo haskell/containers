@@ -125,6 +125,7 @@ module Data.IntSet.Internal (
     , unions
     , difference
     , intersection
+    , symmetricDifference
 
     -- * Filter
     , filter
@@ -655,6 +656,45 @@ intersection (Tip kx1 bm1) t2 = intersectBM t2
         intersectBM Nil = Nil
 
 intersection Nil _ = Nil
+
+{--------------------------------------------------------------------
+  Symmetric difference
+--------------------------------------------------------------------}
+
+-- | \(O(n+m)\). The symmetric difference of two sets.
+--
+-- The result contains elements that appear in exactly one of the two sets.
+--
+-- @
+-- symmetricDifference (fromList [0,2,4,6]) (fromList [0,3,6,9]) == fromList [2,3,4,9]
+-- @
+--
+-- @since FIXME
+symmetricDifference :: IntSet -> IntSet -> IntSet
+symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
+  case treeTreeBranch p1 p2 of
+    ABL -> bin p1 (symmetricDifference l1 t2) r1
+    ABR -> bin p1 l1 (symmetricDifference r1 t2)
+    BAL -> bin p2 (symmetricDifference t1 l2) r2
+    BAR -> bin p2 l2 (symmetricDifference t1 r2)
+    EQL -> bin p1 (symmetricDifference l1 l2) (symmetricDifference r1 r2)
+    NOM -> link (unPrefix p1) t1 (unPrefix p2) t2
+symmetricDifference t1@(Bin _ _ _) t2@(Tip kx2 bm2) = symDiffTip t2 kx2 bm2 t1
+symmetricDifference t1@(Bin _ _ _) Nil = t1
+symmetricDifference t1@(Tip kx1 bm1) t2 = symDiffTip t1 kx1 bm1 t2
+symmetricDifference Nil t2 = t2
+
+symDiffTip :: IntSet -> Int -> BitMap -> IntSet -> IntSet
+symDiffTip !t1 !kx1 !bm1 = go
+  where
+    go t2@(Bin p2 l2 r2)
+      | nomatch kx1 p2 = linkKey kx1 t1 p2 t2
+      | left kx1 p2 = bin p2 (go l2) r2
+      | otherwise = bin p2 l2 (go r2)
+    go t2@(Tip kx2 bm2)
+      | kx1 == kx2 = tip kx1 (bm1 `xor` bm2)
+      | otherwise = link kx1 t1 kx2 t2
+    go Nil = t1
 
 {--------------------------------------------------------------------
   Subset

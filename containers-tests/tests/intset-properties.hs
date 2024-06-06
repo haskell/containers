@@ -42,6 +42,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_union" prop_union
                    , testProperty "prop_difference" prop_difference
                    , testProperty "prop_intersection" prop_intersection
+                   , testProperty "prop_symmetricDifference" prop_symmetricDifference
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
@@ -263,6 +264,17 @@ prop_intersection xs ys =
     t ->
       valid t .&&.
       toAscList t === (toAscList xs `List.intersect` toAscList ys)
+
+prop_symmetricDifference :: IntSet -> IntSet -> Property
+prop_symmetricDifference xs ys =
+  case symmetricDifference xs ys of
+    t ->
+      valid t .&&.
+      toAscList t ===
+      List.sort (List.filter (`notElem` xs') ys' ++ List.filter (`notElem` ys') xs')
+    where
+      xs' = toAscList xs
+      ys' = toAscList ys
 
 prop_disjoint :: IntSet -> IntSet -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)

@@ -161,6 +161,9 @@ module Data.IntMap.Strict (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 

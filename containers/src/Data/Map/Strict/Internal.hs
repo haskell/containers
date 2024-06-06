@@ -142,6 +142,9 @@ module Data.Map.Strict.Internal
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 
@@ -409,6 +412,7 @@ import Data.Map.Internal
   , splitAt
   , splitLookup
   , splitRoot
+  , symmetricDifference
   , take
   , takeWhileAntitone
   , toList

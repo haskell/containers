@@ -178,6 +178,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "symmetricDifference"  prop_symmetricDifference
          , testProperty "disjoint"             prop_disjoint
          , testProperty "compose"              prop_compose
          , testProperty "differenceMerge"   prop_differenceMerge
@@ -1167,6 +1168,17 @@ prop_intersectionWithKeyModel xs ys
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
+
+prop_symmetricDifference :: IMap -> IMap -> Property
+prop_symmetricDifference m1 m2 =
+  valid m3 .&&.
+  toAscList m3 ===
+  List.sort (   List.filter ((`notElem` fmap fst kys) . fst) kxs
+             ++ List.filter ((`notElem` fmap fst kxs) . fst) kys)
+  where
+    m3 = symmetricDifference m1 m2
+    kxs = toAscList m1
+    kys = toAscList m2
 
 prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)

@@ -111,6 +111,7 @@ module Data.Set (
             , difference
             , (\\)
             , intersection
+            , symmetricDifference
             , cartesianProduct
             , disjointUnion
 

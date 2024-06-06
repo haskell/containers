@@ -156,6 +156,7 @@ module Data.Set.Internal (
             , difference
             , intersection
             , intersections
+            , symmetricDifference
             , cartesianProduct
             , disjointUnion
             , Intersection(..)
@@ -898,6 +899,34 @@ newtype Intersection a = Intersection { getIntersection :: Set a }
 instance (Ord a) => Semigroup (Intersection a) where
     (Intersection a) <> (Intersection b) = Intersection $ intersection a b
     stimes = stimesIdempotent
+
+{--------------------------------------------------------------------
+  Symmetric difference
+--------------------------------------------------------------------}
+
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- The symmetric difference of two sets.
+--
+-- The result contains elements that appear in exactly one of the two sets.
+--
+-- @
+-- symmetricDifference (fromList [0,2,4,6]) (fromList [0,3,6,9]) == fromList [2,3,4,9]
+-- @
+--
+-- @since FIXME
+symmetricDifference :: Ord a => Set a -> Set a -> Set a
+symmetricDifference Tip t2 = t2
+symmetricDifference t1 Tip = t1
+symmetricDifference (Bin _ x l1 r1) t2
+  | found = merge l1l2 r1r2
+  | otherwise = link x l1l2 r1r2
+  where
+    !(l2, found, r2) = splitMember x t2
+    !l1l2 = symmetricDifference l1 l2
+    !r1r2 = symmetricDifference r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE symmetricDifference #-}
+#endif
 
 {--------------------------------------------------------------------
   Filter and partition
