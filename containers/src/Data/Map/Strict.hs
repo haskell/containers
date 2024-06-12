@@ -235,6 +235,7 @@ module Data.Map.Strict
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
