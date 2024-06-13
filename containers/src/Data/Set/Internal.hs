@@ -1137,9 +1137,9 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
 -- | \(O(n)\). Build a set from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: Eq a => [a] -> Set a
-fromAscList xs = fromDistinctAscList (combineEq xs)
+fromAscList = fromDistinctAscList . combineEq
 #if __GLASGOW_HASKELL__
-{-# INLINABLE fromAscList #-}
+{-# INLINE fromAscList #-}  -- INLINE for fusion
 #endif
 
 -- | \(O(n)\). Build a set from a descending list in linear time.
@@ -1147,16 +1147,12 @@ fromAscList xs = fromDistinctAscList (combineEq xs)
 --
 -- @since 0.5.8
 fromDescList :: Eq a => [a] -> Set a
-fromDescList xs = fromDistinctDescList (combineEq xs)
+fromDescList = fromDistinctDescList . combineEq
 #if __GLASGOW_HASKELL__
-{-# INLINABLE fromDescList #-}
+{-# INLINE fromDescList #-}  -- INLINE for fusion
 #endif
 
 -- [combineEq xs] combines equal elements with [const] in an ordered list [xs]
---
--- TODO: combineEq allocates an intermediate list. It *should* be better to
--- make fromAscListBy and fromDescListBy the fundamental operations, and to
--- implement the rest using those.
 combineEq :: Eq a => [a] -> [a]
 combineEq [] = []
 combineEq (x : xs) = combineEq' x xs
@@ -1165,6 +1161,32 @@ combineEq (x : xs) = combineEq' x xs
     combineEq' z (y:ys)
       | z == y = combineEq' z ys
       | otherwise = z : combineEq' y ys
+
+#ifdef __GLASGOW_HASKELL__
+{-# INLINE[0] combineEq #-}
+
+combineEqFB :: Eq a => [a] -> [a]
+combineEqFB xs =
+  build $ \c n ->
+    let g y k = GHCExts.oneShot $ \mz -> case mz of
+          Nothing -> k (Just y)
+          Just z
+            | z == y    -> k (Just z)
+            | otherwise -> z `c` k (Just y)
+        h Nothing  = n
+        h (Just z) = z `c` n
+    in Foldable.foldr g h xs Nothing
+{-# INLINE combineEqFB #-}
+
+-- Rules: Replace with a fusion friendly version that is a good consumer and
+-- good producer.
+-- combineEq is only used by from{Asc,Desc}List which fuse with
+-- fromDistinct{Asc,Desc}List, so there is no point in having a rewrite-back
+-- rule.
+{-# RULES
+"Data.Set.combineEq" combineEq = combineEqFB
+  #-}
+#endif
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
