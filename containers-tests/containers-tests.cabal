@@ -114,6 +114,8 @@ library
     Utils.Containers.Internal.BitQueue
     Utils.Containers.Internal.BitUtil
     Utils.Containers.Internal.StrictPair
+    Utils.Containers.Internal.UnboxedMaybe
+    Utils.Containers.Internal.UnboxedSolo
   if impl(ghc >= 8.6.0)
     exposed-modules:
       Utils.NoThunks
