@@ -93,6 +93,8 @@ module Data.Map.Lazy (
     , singleton
     , fromSet
     , fromArgSet
+    , unsafeFromSet
+    , unsafeFromSetA
 
     -- ** From Unordered Lists
     , fromList
@@ -209,6 +211,8 @@ module Data.Map.Lazy (
     , assocs
     , keysSet
     , argSet
+    , unsafeSet
+    , unsafeSetA
 
     -- ** Lists
     , toList
