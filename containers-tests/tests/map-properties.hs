@@ -28,6 +28,8 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -184,9 +186,13 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "mergeA effects"       prop_mergeA_effects
-         , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromAscList"          prop_fromAscList
+         , testProperty "fromAscListWith"      prop_fromAscListWith
+         , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
          , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
-         , testProperty "fromDescList"         prop_rev_ordered
+         , testProperty "fromDescList"         prop_fromDescList
+         , testProperty "fromDescListWith"     prop_fromDescListWith
+         , testProperty "fromDescListWithKey"  prop_fromDescListWithKey
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -1258,17 +1264,24 @@ instance Arbitrary WhenMatchedSpec where
 
 ----------------------------------------------------------------
 
-prop_ordered :: Property
-prop_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
+-- fromAscListWith, fromAscListWithKey, fromDescListWith, fromDescListWithKey
+-- all effectively perform a left fold over adjacent elements in the input list
+-- using some function as long as the keys are equal.
+--
+-- The property tests for these functions compare the result against the
+-- sequence we would get if we used NE.groupBy instead. We use Magma to check
+-- the fold direction (left, not right) and the order of arguments to the fold
+-- function (new then old).
 
-prop_rev_ordered :: Property
-prop_rev_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromDescList (reverse xs) == fromList xs
+data Magma a
+  = Inj a
+  | Magma a :* Magma a
+  deriving (Eq, Show)
+
+groupByK :: Eq k => [(k, a)] -> [(k, NonEmpty a)]
+groupByK =
+    List.map (\ys -> (fst (NE.head ys), NE.map snd ys)) .
+    NE.groupBy ((==) `on` fst)
 
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
@@ -1276,13 +1289,52 @@ prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
-prop_fromDistinctDescList :: [(Int, A)] -> Property
-prop_fromDistinctDescList xs =
+-- For a list with keys in decreasing order (downSortedKxs), the sequence we get from fromDescList
+-- should be the same as the reverse of the sequence we get if we group by the key and take the last
+-- key-value pair in each group.
+prop_fromDescList :: [(Int, A)] -> Property
+prop_fromDescList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === reverse nubLastDownSortedXs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    nubLastDownSortedXs = [(k, NE.last xs) | (k,xs) <- groupByK downSortedKxs]
+    t = fromDescList downSortedKxs
+
+-- For a list with keys in decreasing order (downSortedKxs), the sequence we get from
+-- fromDescListWith f should be the same as the reverse of the sequence we get if we group by the
+-- key and fold all the values for a key with f. fromDescListWith applies f as `f newv oldv`.
+prop_fromDescListWith :: [(Int, A)] -> Property
+prop_fromDescListWith kys =
+    valid t .&&.
+    toList t === reverse foldedDownSortedXs
+  where
+    kxs = [(k, Inj y) | (k,y) <- kys]
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    foldedDownSortedXs = [(k, Foldable.foldl1 (flip (:*)) xs) | (k,xs) <- groupByK downSortedKxs]
+    t = fromDescListWith (:*) downSortedKxs
+
+-- For a list with keys in decreasing order (downSortedKxs), the sequence we get from
+-- fromDescListWithKey f should be the same as the reverse of the sequence we get if we group by the
+-- key and fold all the values for a key with f. fromDescListWith applies f as `f key newv oldv`.
+prop_fromDescListWithKey :: [(Int, A)] -> Property
+prop_fromDescListWithKey kys =
+    valid t .&&.
+    toList t === reverse foldedDownSortedXs
+  where
+    kxs = [(k, Inj (Left y)) | (k,y) <- kys]
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    foldedDownSortedXs = [ (k, Foldable.foldl1 (\acc (Inj (Left x)) -> Inj (Right (k,x)) :* acc) xs)
+                         | (k,xs) <- groupByK downSortedKxs ]
+    t = fromDescListWithKey (\k (Inj (Left x)) acc -> Inj (Right (k,x)) :* acc) downSortedKxs
+
+prop_fromDistinctDescList :: [(Int, A)] -> Property
+prop_fromDistinctDescList kxs =
+    valid t .&&.
+    toList t === reverse nubDownSortedKxs
+  where
+    nubDownSortedKxs = [(k, NE.head xs) | (k,xs) <- groupByK (List.sortBy (comparing (Down . fst)) kxs)]
+    t = fromDistinctDescList nubDownSortedKxs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1295,13 +1347,52 @@ prop_fromList xs
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
 
-prop_fromDistinctAscList :: [(Int, A)] -> Property
-prop_fromDistinctAscList xs =
+-- For a list with keys in increasing order (sortedKxs), the sequence we get from fromAscList
+-- should be the same as the sequence we get if we group by the key and take the last key-value pair
+-- in each group.
+prop_fromAscList :: [(Int, A)] -> Property
+prop_fromAscList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === nubLastSortedXs
   where
-    t = fromDistinctAscList nub_sort_xs
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    sortedKxs = List.sortBy (comparing fst) kxs
+    nubLastSortedXs = [(k, NE.last xs) | (k,xs) <- groupByK sortedKxs]
+    t = fromAscList sortedKxs
+
+-- For a list with keys in increasing order (sortedKxs), the sequence we get from fromAscListWith f
+-- should be the same as the the sequence we get if we group by the key and fold all the values for
+-- a key with f. fromAscListWith applies f as `f newv oldv`.
+prop_fromAscListWith :: [(Int, A)] -> Property
+prop_fromAscListWith kys =
+    valid t .&&.
+    toList t === foldedSortedKxs
+  where
+    kxs = [(k, Inj y) | (k,y) <- kys]
+    sortedKxs = List.sortBy (comparing fst) kxs
+    foldedSortedKxs = [(k, Foldable.foldl1 (flip (:*)) x) | (k,x) <- groupByK sortedKxs]
+    t = fromAscListWith (:*) sortedKxs
+
+-- For a list with keys in increasing order (sortedKxs), the sequence we get from
+-- fromAscListWithKey f should be the same as the the sequence we get if we group by the key and
+-- fold all the values for a key with f. fromAscListWithKey applies f as `f key newv oldv`.
+prop_fromAscListWithKey :: [(Int, A)] -> Property
+prop_fromAscListWithKey kys =
+    valid t .&&.
+    toList t === foldedSortedKxs
+  where
+    kxs = [(k, Inj (Left y)) | (k,y) <- kys]
+    sortedKxs = List.sortBy (comparing fst) kxs
+    foldedSortedKxs = [ (k, Foldable.foldl1 (\acc (Inj (Left x)) -> Inj (Right (k,x)) :* acc) xs)
+                      | (k,xs) <- groupByK sortedKxs ]
+    t = fromAscListWithKey (\k (Inj (Left x)) acc -> Inj (Right (k,x)) :* acc) sortedKxs
+
+prop_fromDistinctAscList :: [(Int, A)] -> Property
+prop_fromDistinctAscList kxs =
+    valid t .&&.
+    toList t === nubSortedKxs
+  where
+    nubSortedKxs = [(k, NE.head xs) | (k,xs) <- groupByK (List.sortBy (comparing fst) kxs)]
+    t = fromDistinctAscList nubSortedKxs
 
 ----------------------------------------------------------------
 
