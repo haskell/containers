@@ -211,6 +211,7 @@ module Data.IntMap.Strict.Internal (
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
@@ -284,6 +285,7 @@ import Data.IntMap.Internal
   , empty
   , assocs
   , filter
+  , filterKeys
   , filterWithKey
   , findMin
   , findMax
