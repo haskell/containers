@@ -89,6 +89,7 @@ module Data.Graph (
 
     -- ** Conversion
     , flattenSCC
+    , flattenSCC1
     , flattenSCCs
 
     -- * Trees
