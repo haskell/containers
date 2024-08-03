@@ -89,6 +89,7 @@ module Data.Graph (
 
     -- ** Conversion
     , flattenSCC
+    , flattenSCC1
     , flattenSCCs
 
     -- * Trees
@@ -246,9 +247,20 @@ flattenSCCs :: [SCC a] -> [a]
 flattenSCCs = concatMap flattenSCC
 
 -- | The vertices of a strongly connected component.
+--
+-- @flattenSCC = 'Data.List.NonEmpty.toList' . 'flattenSCC1'@.
+--
+-- This function is retained for backward compatibility,
+-- 'flattenSCC1' has the more precise type.
 flattenSCC :: SCC vertex -> [vertex]
-flattenSCC (AcyclicSCC v) = [v]
-flattenSCC (NECyclicSCC vs) = NE.toList vs
+flattenSCC = NE.toList . flattenSCC1
+
+-- | The vertices of a strongly connected component.
+--
+-- @since 0.7.1
+flattenSCC1 :: SCC vertex -> NonEmpty vertex
+flattenSCC1 (AcyclicSCC v) = v :| []
+flattenSCC1 (NECyclicSCC vs) = vs
 
 -- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
 -- reverse topologically sorted.

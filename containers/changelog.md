@@ -9,6 +9,12 @@
   `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
   ignored for an empty map or set. (Soumik Sarkar)
 
+## Unreleased with `@since` annotation for 0.7.1:
+
+### Additions
+
+* Add `Data.Graph.flattenSCC1`. (Andreas Abel)
+
 ## 0.7
 
 ### Breaking changes
@@ -327,13 +333,13 @@ modules.
 
 * Rewrite the `IsString` instance head for sequences, improving compatibility
   with the list instance and also improving type inference. We used to have
-  
+
   ```haskell
   instance IsString (Seq Char)
   ```
-  
+
   Now we commit more eagerly with
-  
+
   ```haskell
   instance a ~ Char => IsString (Seq a)
   ```
@@ -407,7 +413,7 @@ modules.
 * Fix completely incorrect implementations of `Data.IntMap.restrictKeys` and
   `Data.IntMap.withoutKeys`. Make the tests for these actually run. (Thanks
   to Tom Smalley for reporting this.)
-  
+
 * Fix a minor bug in the `Show1` instance of `Data.Tree`. This produced valid
   output, but with fewer parentheses than `Show`. (Thanks, Ryan Scott.)
 
@@ -462,7 +468,7 @@ performance improvements overall.
     before 7.0.
 
   * Integrate benchmarks with Cabal. (Thanks, Gabriel Gonzalez!)
-  
+
   * Make Cabal report required extensions properly, and stop using
     default extensions. Note that we do *not* report extensions conditionally enabled
     based on GHC version, as doing so would lead to a maintenance nightmare
@@ -512,7 +518,7 @@ performance improvements overall.
     it returned a lazy pair.
 
   * Fix completely erroneous definition of `length` for `Data.Sequence.ViewR`.
-  
+
   * Make `Data.Map.Strict.traverseWithKey` force result values before
     installing them in the new map.
 
