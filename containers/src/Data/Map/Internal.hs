@@ -186,6 +186,9 @@ module Data.Map.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 
@@ -2063,6 +2066,38 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     !r1r2 = intersectionWithKey f r1 r2
 #if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
+#endif
+
+{--------------------------------------------------------------------
+  Symmetric difference
+--------------------------------------------------------------------}
+
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- The symmetric difference of two maps.
+--
+-- The result contains entries whose keys appear in exactly one of the two maps.
+--
+-- @
+-- symmetricDifference
+--   (fromList [(0,\'q\'),(2,\'b\'),(4,\'w\'),(6,\'o\')])
+--   (fromList [(0,\'e\'),(3,\'r\'),(6,\'t\'),(9,\'s\')])
+-- ==
+-- fromList [(2,\'b\'),(3,\'r\'),(4,\'w\'),(9,\'s\')]
+-- @
+--
+-- @since FIXME
+symmetricDifference :: Ord k => Map k a -> Map k a -> Map k a
+symmetricDifference Tip t2 = t2
+symmetricDifference t1 Tip = t1
+symmetricDifference (Bin _ k x l1 r1) t2
+  | found = link2 l1l2 r1r2
+  | otherwise = link k x l1l2 r1r2
+  where
+    !(l2, found, r2) = splitMember k t2
+    !l1l2 = symmetricDifference l1 l2
+    !r1r2 = symmetricDifference r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE symmetricDifference #-}
 #endif
 
 {--------------------------------------------------------------------

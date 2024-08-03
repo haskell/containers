@@ -180,6 +180,9 @@ module Data.Map.Strict
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 

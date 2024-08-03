@@ -161,6 +161,9 @@ module Data.IntMap.Strict.Internal (
     , intersectionWith
     , intersectionWithKey
 
+    -- ** Symmetric difference
+    , symmetricDifference
+
     -- ** Disjoint
     , disjoint
 
@@ -339,6 +342,7 @@ import Data.IntMap.Internal
   , split
   , splitLookup
   , splitRoot
+  , symmetricDifference
   , toAscList
   , toDescList
   , toList
