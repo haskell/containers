@@ -1,8 +1,12 @@
+{-# LANGUAGE CPP #-}
 module Utils.Containers.Internal.EqOrdUtil
   ( EqM(..)
   , OrdM(..)
   ) where
 
+#if !MIN_VERSION_base(4,11,0)
+import Data.Semigroup (Semigroup(..))
+#endif
 import Utils.Containers.Internal.StrictPair
 
 newtype EqM a = EqM { runEqM :: a -> StrictPair Bool a }
@@ -14,6 +18,9 @@ instance Semigroup (EqM a) where
 
 instance Monoid (EqM a) where
   mempty = EqM (True :*:)
+#if !MIN_VERSION_base(4,11,0)
+  mappend = (<>)
+#endif
 
 newtype OrdM a = OrdM { runOrdM :: a -> StrictPair Ordering a }
 
@@ -26,3 +33,6 @@ instance Semigroup (OrdM a) where
 
 instance Monoid (OrdM a) where
   mempty = OrdM (EQ :*:)
+#if !MIN_VERSION_base(4,11,0)
+  mappend = (<>)
+#endif
