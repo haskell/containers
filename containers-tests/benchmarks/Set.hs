@@ -55,6 +55,8 @@ main = do
         , bench "member.powerSet (16)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..16]))
         , bench "member.powerSet (17)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..17]))
         , bench "member.powerSet (18)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..18]))
+        , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
+        , bench "compare" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
         ]
   where
     bound = 2^12
