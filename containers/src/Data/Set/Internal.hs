@@ -1267,6 +1267,18 @@ foldl'Stack f = go
   Iterator
 --------------------------------------------------------------------}
 
+-- Note [Iterator]
+-- ~~~~~~~~~~~~~~~
+-- This is an efficient way to consume a Set one element at a time.
+-- Alternately, this may be done by toAscList. toAscList when consumed via
+-- List.foldr will rewrite to Set.foldr (thanks to rewrite rules), which is
+-- quite efficient. However, sometimes that is not possible, such as in the
+-- second arg of '==' or 'compare', where manifesting the list cons cells
+-- is unavoidable and makes things slower.
+--
+-- Concretely, compare on Set Int using toAscList takes ~21% more time compared
+-- to using Iterator, on GHC 9.6.3.
+
 newtype Iterator a = Iterator (Stack a)
 
 iterDown :: Set a -> Stack a -> Stack a

@@ -4092,6 +4092,8 @@ deleteFindMax t = case maxViewWithKey t of
   Iterator
 --------------------------------------------------------------------}
 
+-- See Note [Iterator] in Data.Set.Internal
+
 newtype Iterator k a = Iterator (Stack k a)
 
 iterDown :: Map k a -> Stack k a -> Stack k a
