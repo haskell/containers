@@ -33,7 +33,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
-import Test.QuickCheck.Poly (A, B)
+import Test.QuickCheck.Poly (A, B, OrdA)
 import Control.Arrow (first)
 
 default (Int)
@@ -250,6 +250,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "splitAt"              prop_splitAt
          , testProperty "lookupMin"            prop_lookupMin
          , testProperty "lookupMax"            prop_lookupMax
+         , testProperty "eq"                   prop_eq
+         , testProperty "compare"              prop_compare
          ]
 
 {--------------------------------------------------------------------
@@ -1636,3 +1638,9 @@ prop_fromArgSet :: [(Int, Int)] -> Bool
 prop_fromArgSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs
+
+prop_eq :: Map Int A -> Map Int A -> Property
+prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)
+
+prop_compare :: Map Int OrdA -> Map Int OrdA -> Property
+prop_compare m1 m2 = compare m1 m2 === compare (toList m1) (toList m2)

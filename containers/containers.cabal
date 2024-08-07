@@ -80,6 +80,7 @@ Library
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.Coercions
+        Utils.Containers.Internal.EqOrdUtil
     if impl(ghc)
       other-modules:
         Utils.Containers.Internal.TypeError
