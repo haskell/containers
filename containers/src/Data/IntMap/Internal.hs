@@ -781,6 +781,8 @@ disjoint t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
 -- 'compose' that forced the values of the output 'IntMap'. This version does
 -- not force these values.
 --
+-- __Note:__ See note at 'Data.Map.compose', keeping in mind \( \log(m) \) is \( O(\min(m,W)) \), but not the other way around.
+--
 -- @since 0.6.3.1
 compose :: IntMap c -> IntMap Int -> IntMap c
 compose bc !ab
