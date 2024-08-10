@@ -7,13 +7,13 @@ import Data.Map.Merge.Strict
 import Data.Map.Lazy as Data.Map
 import Data.Map.Merge.Lazy
 #endif
-import Data.Map.Internal (Map (..), link2, link, bin)
+import Data.Map.Internal (Map, link2, link)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
-import Control.Monad (liftM4, (<=<))
+import Control.Monad ((<=<))
 import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
@@ -36,7 +36,8 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, OrdA)
-import Control.Arrow (first)
+
+import Utils.ArbitrarySetMap (mkArbMap)
 
 default (Int)
 
@@ -305,7 +306,7 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
         let shift = (sz * (gapRange) + 1) `quot` 2
             start = middle - shift
-        t <- evalStateT (mkArb step sz) start
+        t <- evalStateT (mkArbMap step sz) start
         if valid t then pure t else error "Test generated invalid tree!")
     where
       step = do
@@ -314,39 +315,6 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         let i' = i + diff
         put i'
         pure (fromInt i')
-
-class Monad m => MonadGen m where
-  liftGen :: Gen a -> m a
-instance MonadGen Gen where
-  liftGen = id
-instance MonadGen m => MonadGen (StateT s m) where
-  liftGen = lift . liftGen
-
--- | Given an action that produces successively larger keys and
--- a size, produce a map of arbitrary shape with exactly that size.
-mkArb :: (MonadGen m, Arbitrary v) => m k -> Int -> m (Map k v)
-mkArb step n
-  | n <= 0 = return Tip
-  | n == 1 = do
-     k <- step
-     v <- liftGen arbitrary
-     return (singleton k v)
-  | n == 2 = do
-     dir <- liftGen arbitrary
-     p <- step
-     q <- step
-     vOuter <- liftGen arbitrary
-     vInner <- liftGen arbitrary
-     if dir
-       then return (Bin 2 q vOuter (singleton p vInner) Tip)
-       else return (Bin 2 p vOuter Tip (singleton q vInner))
-  | otherwise = do
-      -- This assumes a balance factor of delta = 3
-      let upper = (3*(n - 1)) `quot` 4
-      let lower = (n + 2) `quot` 4
-      ln <- liftGen $ choose (lower, upper)
-      let rn = n - ln - 1
-      liftM4 (\lt x v rt -> Bin n x v lt rt) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.

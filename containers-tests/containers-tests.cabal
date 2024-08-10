@@ -270,6 +270,9 @@ test-suite map-lazy-properties
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
 
+  other-modules:
+    Utils.ArbitrarySetMap
+
   ghc-options:      -O2
   other-extensions:
     BangPatterns
@@ -282,6 +285,9 @@ test-suite map-strict-properties
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
+
+  other-modules:
+    Utils.ArbitrarySetMap
 
   ghc-options:      -O2
   other-extensions:
@@ -305,6 +311,9 @@ test-suite set-properties
   hs-source-dirs:   tests
   main-is:          set-properties.hs
   type:             exitcode-stdio-1.0
+
+  other-modules:
+    Utils.ArbitrarySetMap
 
   ghc-options:      -O2
   other-extensions:
@@ -404,7 +413,8 @@ test-suite map-strictness-properties
     CPP
 
   other-modules:
-    Utils.IsUnit
+    Utils.ArbitrarySetMap
+    Utils.Strictness
 
   if impl(ghc >= 8.6)
     build-depends:

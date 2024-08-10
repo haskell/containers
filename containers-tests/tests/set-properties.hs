@@ -2,7 +2,6 @@
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
-import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
@@ -12,7 +11,6 @@ import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
-import Control.Monad (liftM, liftM3)
 import Data.Functor.Identity
 import Data.Foldable (all)
 import Data.Ord (Down(..), comparing)
@@ -20,6 +18,7 @@ import Control.Applicative (liftA2)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
+import Utils.ArbitrarySetMap (mkArbSet, setFromList)
 #if __GLASGOW_HASKELL__ >= 806
 import Utils.NoThunks (whnfHasNoThunks)
 #endif
@@ -230,7 +229,7 @@ instance IsInt a => Arbitrary (Set a) where
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
         let shift = (sz * (gapRange) + 1) `quot` 2
             start = middle - shift
-        t <- evalStateT (mkArb step sz) start
+        t <- evalStateT (mkArbSet step sz) start
         if valid t then pure t else error "Test generated invalid tree!")
     where
       step = do
@@ -239,47 +238,6 @@ instance IsInt a => Arbitrary (Set a) where
         let i' = i + diff
         put i'
         pure (fromInt i')
-
-class Monad m => MonadGen m where
-  liftGen :: Gen a -> m a
-instance MonadGen Gen where
-  liftGen = id
-instance MonadGen m => MonadGen (StateT s m) where
-  liftGen = lift . liftGen
-
--- | Given an action that produces successively larger elements and
--- a size, produce a set of arbitrary shape with exactly that size.
-mkArb :: MonadGen m => m a -> Int -> m (Set a)
-mkArb step n
-  | n <= 0 = return Tip
-  | n == 1 = singleton `liftM` step
-  | n == 2 = do
-     dir <- liftGen arbitrary
-     p <- step
-     q <- step
-     if dir
-       then return (Bin 2 q (singleton p) Tip)
-       else return (Bin 2 p Tip (singleton q))
-  | otherwise = do
-      -- This assumes a balance factor of delta = 3
-      let upper = (3*(n - 1)) `quot` 4
-      let lower = (n + 2) `quot` 4
-      ln <- liftGen $ choose (lower, upper)
-      let rn = n - ln - 1
-      liftM3 (\lt x rt -> Bin n x lt rt) (mkArb step ln) step (mkArb step rn)
-
--- | Given a strictly increasing list of elements, produce an arbitrarily
--- shaped set with exactly those elements.
-setFromList :: [a] -> Gen (Set a)
-setFromList xs = flip evalStateT xs $ mkArb step (length xs)
-  where
-    step = do
-      xxs <- get
-      case xxs of
-        x : xs -> do
-          put xs
-          pure x
-        [] -> error "setFromList"
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
