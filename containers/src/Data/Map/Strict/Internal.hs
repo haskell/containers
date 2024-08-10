@@ -386,6 +386,7 @@ import Data.Map.Internal
   , keysSet
   , link
   , lookup
+  , findWithDefault
   , lookupGE
   , lookupGT
   , lookupIndex
@@ -472,32 +473,6 @@ import qualified Data.Foldable as Foldable
 -- While we *could* do so, we would only get sharing under fairly
 -- narrow conditions and at a relatively high cost. It does not seem
 -- worth the price.
-
-{--------------------------------------------------------------------
-  Query
---------------------------------------------------------------------}
-
--- | \(O(\log n)\). The expression @('findWithDefault' def k map)@ returns
--- the value at key @k@ or returns default value @def@
--- when the key is not in the map.
---
--- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
--- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
-
--- See Map.Internal.Note: Local 'go' functions and capturing
-findWithDefault :: Ord k => a -> k -> Map k a -> a
-findWithDefault def k = k `seq` go
-  where
-    go Tip = def
-    go (Bin _ kx x l r) = case compare k kx of
-      LT -> go l
-      GT -> go r
-      EQ -> x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE findWithDefault #-}
-#else
-{-# INLINE findWithDefault #-}
-#endif
 
 {--------------------------------------------------------------------
   Construction
