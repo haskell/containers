@@ -1203,15 +1203,18 @@ fromMonoListWithKey distinct f = go
 
     -- `addAll'` collects all keys equal to `kx` into a single value,
     -- and then proceeds with `addAll`.
-    addAll' !kx vx []
-        = Tip kx $! vx
-    addAll' !kx vx ((ky,vy) : zs)
+    --
+    -- We want to have the same strictness as fromListWithKey, which is achieved
+    -- with the bang on vx.
+    addAll' !kx !vx []
+        = Tip kx vx
+    addAll' !kx !vx ((ky,vy) : zs)
         | Nondistinct <- distinct, kx == ky
-        = let !v = f kx vy vx in addAll' ky v zs
-        -- inlined: | otherwise = addAll kx (Tip kx $! vx) (ky : zs)
+        = addAll' ky (f kx vy vx) zs
+        -- inlined: | otherwise = addAll kx (Tip kx vx) (ky : zs)
         | m <- branchMask kx ky
         , Inserted ty zs' <- addMany' m ky vy zs
-        = addAll kx (linkWithMask m ky ty kx (Tip kx $! vx)) zs'
+        = addAll kx (linkWithMask m ky ty kx (Tip kx vx)) zs'
 
     -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
     -- `addAll` consumes the rest of the list, adding to the tree `tx`
@@ -1223,17 +1226,20 @@ fromMonoListWithKey distinct f = go
         = addAll kx (linkWithMask m ky ty kx tx) zs'
 
     -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    addMany' !_m !kx vx []
-        = Inserted (Tip kx $! vx) []
-    addMany' !m !kx vx zs0@((ky,vy) : zs)
+    --
+    -- We want to have the same strictness as fromListWithKey, which is achieved
+    -- with the bang on vx.
+    addMany' !_m !kx !vx []
+        = Inserted (Tip kx vx) []
+    addMany' !m !kx !vx zs0@((ky,vy) : zs)
         | Nondistinct <- distinct, kx == ky
-        = let !v = f kx vy vx in addMany' m ky v zs
-        -- inlined: | otherwise = addMany m kx (Tip kx $! vx) (ky : zs)
+        = addMany' m ky (f kx vy vx) zs
+        -- inlined: | otherwise = addMany m kx (Tip kx vx) (ky : zs)
         | mask kx m /= mask ky m
-        = Inserted (Tip kx $! vx) zs0
+        = Inserted (Tip kx vx) zs0
         | mxy <- branchMask kx ky
         , Inserted ty zs' <- addMany' mxy ky vy zs
-        = addMany m kx (linkWithMask mxy ky ty kx (Tip kx $! vx)) zs'
+        = addMany m kx (linkWithMask mxy ky ty kx (Tip kx vx)) zs'
 
     -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
     addMany !_m !_kx tx []

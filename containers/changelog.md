@@ -9,6 +9,22 @@
   `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
   ignored for an empty map or set. (Soumik Sarkar)
 
+* The following functions have been updated to match the strictness of their
+  `fromList` counterparts:
+
+  * `Data.Map.Strict.fromAscList`
+  * `Data.Map.Strict.fromAscListWith`
+  * `Data.Map.Strict.fromAscListWithKey`
+  * `Data.Map.Strict.fromDescList`
+  * `Data.Map.Strict.fromDescListWith`
+  * `Data.Map.Strict.fromDescListWithKey`
+  * `Data.IntMap.Strict.fromAscList`
+  * `Data.IntMap.Strict.fromAscListWith`
+  * `Data.IntMap.Strict.fromAscListWithKey`
+
+  Previously they were lazier and did not force the first value in runs of at
+  least 2 entries with equal keys. (Soumik Sarkar)
+
 ### Bug fixes
 
 * `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
