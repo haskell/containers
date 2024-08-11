@@ -316,6 +316,7 @@ import Data.IntMap.Internal
   , isSubmapOf
   , isSubmapOfBy
   , lookup
+  , findWithDefault
   , lookupLE
   , lookupGE
   , lookupLT
@@ -357,28 +358,6 @@ import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil
 import Utils.Containers.Internal.StrictPair
 import qualified Data.Foldable as Foldable
-
-{--------------------------------------------------------------------
-  Query
---------------------------------------------------------------------}
-
--- | \(O(\min(n,W))\). The expression @('findWithDefault' def k map)@
--- returns the value at key @k@ or returns @def@ when the key is not an
--- element of the map.
---
--- > findWithDefault 'x' 1 (fromList [(5,'a'), (3,'b')]) == 'x'
--- > findWithDefault 'x' 5 (fromList [(5,'a'), (3,'b')]) == 'a'
-
--- See IntMap.Internal.Note: Local 'go' functions and capturing]
-findWithDefault :: a -> Key -> IntMap a -> a
-findWithDefault def !k = go
-  where
-    go (Bin p l r) | nomatch k p = def
-                   | left k p  = go l
-                   | otherwise = go r
-    go (Tip kx x) | k == kx   = x
-                  | otherwise = def
-    go Nil = def
 
 {--------------------------------------------------------------------
   Construction
