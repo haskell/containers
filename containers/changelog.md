@@ -14,6 +14,11 @@
 * `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
   to WHNF. (Soumik Sarkar)
 
+* Fix an issue where `Data.Map.mergeWithKey`, `Data.Map.Strict.mergeWithKey`,
+  `Data.IntMap.mergeWithKey`, `Data.IntMap.Strict.mergeWithKey` could call the
+  provided `only2` function with empty maps, contrary to documentation.
+  (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
