@@ -241,6 +241,7 @@ module Data.Map.Strict
     , filterWithKey
     , restrictKeys
     , withoutKeys
+    , partitionKeys
     , partition
     , partitionWithKey
 
