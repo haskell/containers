@@ -1446,6 +1446,8 @@ mergeWithKey' bin' f g1 g2 = go
           | otherwise = maybe_link k1 (g1 t1) k2 (g2 t2)
         merge0 t1 _  Nil = g1 t1
 
+    go Nil Nil = Nil
+
     go Nil t2 = g2 t2
 
     maybe_link _ Nil _ t2 = t2

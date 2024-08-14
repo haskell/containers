@@ -1240,6 +1240,7 @@ mergeWithKey :: Ord k
              -> Map k a -> Map k b -> Map k c
 mergeWithKey f g1 g2 = go
   where
+    go Tip Tip = Tip
     go Tip t2 = g2 t2
     go t1 Tip = g1 t1
     go (Bin _ kx x l1 r1) t2 =
