@@ -9,6 +9,11 @@
   `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
   ignored for an empty map or set. (Soumik Sarkar)
 
+### Bug fixes
+
+* `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
+  to WHNF. (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions

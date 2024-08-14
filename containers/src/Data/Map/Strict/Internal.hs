@@ -1250,7 +1250,7 @@ mergeWithKey f g1 g2 = go
                      _ -> error "mergeWithKey: Given function only1 does not fulfill required conditions (see documentation)"
         Just x2 -> case f kx x x2 of
                      Nothing -> link2 l' r'
-                     Just x' -> link kx x' l' r'
+                     Just !x' -> link kx x' l' r'
       where
         (l2, found, r2) = splitLookup kx t2
         l' = go l1 l2
