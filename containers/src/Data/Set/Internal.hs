@@ -1207,60 +1207,50 @@ combineEq (x : xs) = combineEq' x xs
 -- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
 
--- For some reason, when 'singleton' is used in fromDistinctAscList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctAscList = ascLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = fromDistinctAscList_linkTop (Bin 1 x Tip Tip) stk
-    next (State1 l stk) x = State0 (Push x l stk)
+    next :: Stack a -> a -> Stack a
+    next (Push x Tip stk) !y = ascLinkTop stk 1 (singleton x) y
+    next stk !x = Push x Tip stk
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
-fromDistinctAscList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-fromDistinctAscList_linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
-  | rsz == lsz = fromDistinctAscList_linkTop (bin x l r) stk
-fromDistinctAscList_linkTop l stk = State1 l stk
-{-# INLINABLE fromDistinctAscList_linkTop #-}
+ascLinkTop :: Stack a -> Int -> Set a -> a -> Stack a
+ascLinkTop (Push x l@(Bin lsz _ _ _) stk) !rsz r y
+  | lsz == rsz = ascLinkTop stk sz (Bin sz x l r) y
+  where
+    sz = lsz + rsz + 1
+ascLinkTop stk !_ r y = Push y r stk
 
-fromDistinctAscList_linkAll :: FromDistinctMonoState a -> Set a
-fromDistinctAscList_linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
-fromDistinctAscList_linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
-{-# INLINABLE fromDistinctAscList_linkAll #-}
+ascLinkAll :: Stack a -> Set a
+ascLinkAll stk = foldl'Stack (\r x l -> link x l r) Tip stk
+{-# INLINABLE ascLinkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
 --
 -- @since 0.5.8
 
--- For some reason, when 'singleton' is used in fromDistinctDescList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation]
 fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = fromDistinctDescList_linkTop (Bin 1 x Tip Tip) stk
-    next (State1 r stk) x = State0 (Push x r stk)
+    next :: Stack a -> a -> Stack a
+    next (Push y Tip stk) !x = descLinkTop x 1 (singleton y) stk
+    next stk !y = Push y Tip stk
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
 
-fromDistinctDescList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-fromDistinctDescList_linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
-  | lsz == rsz = fromDistinctDescList_linkTop (bin x l r) stk
-fromDistinctDescList_linkTop r stk = State1 r stk
-{-# INLINABLE fromDistinctDescList_linkTop #-}
+descLinkTop :: a -> Int -> Set a -> Stack a -> Stack a
+descLinkTop x !lsz l (Push y r@(Bin rsz _ _ _) stk)
+  | lsz == rsz = descLinkTop x sz (Bin sz y l r) stk
+  where
+    sz = lsz + rsz + 1
+descLinkTop y !_ r stk = Push y r stk
 
-fromDistinctDescList_linkAll :: FromDistinctMonoState a -> Set a
-fromDistinctDescList_linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
-fromDistinctDescList_linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
-{-# INLINABLE fromDistinctDescList_linkAll #-}
-
-data FromDistinctMonoState a
-  = State0 !(Stack a)
-  | State1 !(Set a) !(Stack a)
+descLinkAll :: Stack a -> Set a
+descLinkAll stk = foldl'Stack (\l x r -> link x l r) Tip stk
+{-# INLINABLE descLinkAll #-}
 
 data Stack a = Push !a !(Set a) !(Stack a) | Nada
 
@@ -2121,24 +2111,29 @@ validsize t
 -- fromDistinctAscList is implemented by building up perfectly balanced trees
 -- while we consume elements from the list one by one. A stack of
 -- (root, perfectly balanced left branch) pairs is maintained, in increasing
--- order of size from top to bottom.
+-- order of size from top to bottom. The stack reflects the binary
+-- representation of the total number of elements in it, with every level having
+-- a power of 2 number of elements.
 --
--- When we get an element from the list, we attempt to link it as the right
--- branch with the top (root, perfect left branch) of the stack to create a new
--- perfect tree. We can only do this if the left branch has size 1. If we link
--- it, we get a perfect tree of size 3. We repeat this process, merging with the
--- top of the stack as long as the sizes match. When we can't link any more, the
--- perfect tree we built so far is a potential left branch. The next element
--- we find becomes the root, and we push this new (root, left branch) on the
--- stack.
+-- When we get an element from the list, we check the (root, left branch) at the
+-- top of the stack.
+-- If the tree there is not empty, we push the element with an empty left child
+-- on the stack.
+-- If the tree is empty, the root is packed into a singleton tree to act as a
+-- right branch for trees higher up the stack. It is linked with left branches
+-- in the stack, but only when they have equal size. This preserves the
+-- perfectly balanced property. When there is a size mismatch, the tree is
+-- too small to link. It is pushed on the stack as a left branch with the new
+-- element as root, awaiting a right branch which will make it large enough to
+-- be linked further.
 --
 -- When we are out of elements, we link the (root, left branch)s in the stack
 -- top to bottom to get the final tree.
 --
 -- How long does this take? We do O(1) work per element excluding the links.
 -- Over n elements, we build trees with at most n nodes total, and each link is
--- done in O(1) using `bin`. The final linking of the stack is done in O(log n)
--- using `link`  (proof below). The total time is thus O(n).
+-- done in O(1) using `Bin`. The final linking of the stack is done in O(log n)
+-- using `link` (proof below). The total time is thus O(n).
 --
 -- Additionally, the implemention is written using foldl' over the input list,
 -- which makes it participate as a good consumer in list fusion.

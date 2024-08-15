@@ -331,11 +331,10 @@ import Data.Map.Internal
   , filterAMissing
   , merge
   , mergeA
-  , fromDistinctAscList_linkTop
-  , fromDistinctAscList_linkAll
-  , fromDistinctDescList_linkTop
-  , fromDistinctDescList_linkAll
-  , FromDistinctMonoState (..)
+  , ascLinkTop
+  , ascLinkAll
+  , descLinkTop
+  , descLinkAll
   , Stack (..)
   , (!)
   , (!?)
@@ -1733,16 +1732,13 @@ fromDescListWithKey f xs0 = fromDistinctDescList xs1
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a"), (5,"b")]) == False
 
--- For some reason, when 'singleton' is used in fromDistinctAscList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctAscList = ascLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
-    next (State0 stk) (!kx, !x) = fromDistinctAscList_linkTop (Bin 1 kx x Tip Tip) stk
-    next (State1 l stk) (!kx, !x) = State0 (Push kx x l stk)
+    next :: Stack k a -> (k, a) -> Stack k a
+    next (Push kx x Tip stk) (!ky, !y) = ascLinkTop stk 1 (singleton kx x) ky y
+    next stk (!kx, !x) = Push kx x Tip stk
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
@@ -1752,14 +1748,11 @@ fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0
 -- > valid (fromDistinctDescList [(5,"a"), (3,"b")])          == True
 -- > valid (fromDistinctDescList [(5,"a"), (3,"b"), (3,"a")]) == False
 
--- For some reason, when 'singleton' is used in fromDistinctDescList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctDescList :: [(k,a)] -> Map k a
-fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState k a -> (k,a) -> FromDistinctMonoState k a
-    next (State0 stk) (!kx, !x) = fromDistinctDescList_linkTop (Bin 1 kx x Tip Tip) stk
-    next (State1 r stk) (!kx, !x) = State0 (Push kx x r stk)
+    next :: Stack k a -> (k, a) -> Stack k a
+    next (Push ky y Tip stk) (!kx, !x) = descLinkTop kx x 1 (singleton ky y) stk
+    next stk (!ky, !y) = Push ky y Tip stk
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
