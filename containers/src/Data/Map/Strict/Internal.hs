@@ -1678,20 +1678,20 @@ fromDescListWith f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
-fromAscListWithKey f xs
-  = fromDistinctAscList (combineEq f xs)
+fromAscListWithKey f xs0 = fromDistinctAscList xs1
   where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq _ xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
+    xs1 = case xs0 of
+      []   -> []
+      [x]  -> [x]
+      x:xs -> combineEq x xs
 
-  combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
-    | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
-    | otherwise = z:combineEq' x xs'
+    -- We want to have the same strictness as fromListWithKey, which is achieved
+    -- with the bang on yy.
+    combineEq y@(ky, !yy) xs = case xs of
+      [] -> [y]
+      x@(kx, xx) : xs'
+        | kx == ky -> combineEq (kx, f kx xx yy) xs'
+        | otherwise -> y : combineEq x xs'
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromAscListWithKey #-}
 #endif
@@ -1708,20 +1708,20 @@ fromAscListWithKey f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromDescListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
-fromDescListWithKey f xs
-  = fromDistinctDescList (combineEq f xs)
+fromDescListWithKey f xs0 = fromDistinctDescList xs1
   where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq _ xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
+    xs1 = case xs0 of
+      []   -> []
+      [x]  -> [x]
+      x:xs -> combineEq x xs
 
-  combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
-    | kx==kz    = let yy = f kx xx zz in yy `seq` combineEq' (kx,yy) xs'
-    | otherwise = z:combineEq' x xs'
+    -- We want to have the same strictness as fromListWithKey, which is achieved
+    -- with the bang on yy.
+    combineEq y@(ky, !yy) xs = case xs of
+      [] -> [y]
+      x@(kx, xx) : xs'
+        | kx == ky -> combineEq (kx, f kx xx yy) xs'
+        | otherwise -> y : combineEq x xs'
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromDescListWithKey #-}
 #endif
