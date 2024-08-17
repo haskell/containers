@@ -153,6 +153,8 @@ module Data.IntSet.Internal (
     , fold
 
     -- * Min\/Max
+    , lookupMin
+    , lookupMax
     , findMin
     , findMax
     , deleteMin
@@ -1044,29 +1046,49 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 deleteFindMax :: IntSet -> (Key, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
+lookupMinSure :: IntSet -> Key
+lookupMinSure (Tip kx bm) = kx + lowestBitSet bm
+lookupMinSure (Bin _ l _) = lookupMinSure l
+lookupMinSure Nil         = error "lookupMin Nil"
 
--- | \(O(\min(n,W))\). The minimal element of the set.
+-- | \(O(\min(n,W))\). The minimal element of the set. Returns 'Nothing' if the
+-- set is empty.
+--
+-- @since FIXME
+lookupMin :: IntSet -> Maybe Key
+lookupMin Nil         = Nothing
+lookupMin (Tip kx bm) = Just $! kx + lowestBitSet bm
+lookupMin (Bin p l r) = Just $! lookupMinSure (if signBranch p then r else l)
+{-# INLINE lookupMin #-} -- See Note [Inline lookupMin] in Data.Set.Internal
+
+-- | \(O(\min(n,W))\). The minimal element of the set. Calls 'error' if the set
+-- is empty.
 findMin :: IntSet -> Key
-findMin Nil = error "findMin: empty set has no minimal element"
-findMin (Tip kx bm) = kx + lowestBitSet bm
-findMin (Bin p l r)
-  | signBranch p = find r
-  | otherwise = find l
-    where find (Tip kx bm) = kx + lowestBitSet bm
-          find (Bin _ l' _) = find l'
-          find Nil = error "findMin Nil"
+findMin t
+  | Just r <- lookupMin t = r
+  | otherwise = error "findMin: empty set has no minimal element"
 
--- | \(O(\min(n,W))\). The maximal element of a set.
+lookupMaxSure :: IntSet -> Key
+lookupMaxSure (Tip kx bm) = kx + highestBitSet bm
+lookupMaxSure (Bin _ _ r) = lookupMaxSure r
+lookupMaxSure Nil         = error "lookupMax Nil"
+
+-- | \(O(\min(n,W))\). The maximal element of the set. Returns 'Nothing' if the
+-- set is empty.
+--
+-- @since FIXME
+lookupMax :: IntSet -> Maybe Key
+lookupMax Nil         = Nothing
+lookupMax (Tip kx bm) = Just $! kx + highestBitSet bm
+lookupMax (Bin p l r) = Just $! lookupMaxSure (if signBranch p then l else r)
+{-# INLINE lookupMax #-} -- See Note [Inline lookupMin] in Data.Set.Internal
+
+-- | \(O(\min(n,W))\). The maximal element of the set. Calls 'error' if the set
+-- is empty.
 findMax :: IntSet -> Key
-findMax Nil = error "findMax: empty set has no maximal element"
-findMax (Tip kx bm) = kx + highestBitSet bm
-findMax (Bin p l r)
-  | signBranch p = find l
-  | otherwise = find r
-    where find (Tip kx bm) = kx + highestBitSet bm
-          find (Bin _ _ r') = find r'
-          find Nil = error "findMax Nil"
-
+findMax t
+  | Just r <- lookupMax t = r
+  | otherwise = error "findMax: empty set has no maximal element"
 
 -- | \(O(\min(n,W))\). Delete the minimal element. Returns an empty set if the set is empty.
 --

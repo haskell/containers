@@ -136,6 +136,8 @@ module Data.IntSet (
             , fold
 
             -- * Min\/Max
+            , lookupMin
+            , lookupMax
             , findMin
             , findMax
             , deleteMin

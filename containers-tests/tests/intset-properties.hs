@@ -5,6 +5,7 @@ import Data.Word (Word)
 import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.Maybe (listToMaybe)
 import Data.Monoid (mempty)
 import qualified Data.Set as Set
 import IntSetValidity (valid)
@@ -55,6 +56,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
                    , testProperty "prop_disjoint" prop_disjoint
                    , testProperty "prop_size" prop_size
+                   , testProperty "prop_lookupMin" prop_lookupMin
+                   , testProperty "prop_lookupMax" prop_lookupMax
                    , testProperty "prop_findMax" prop_findMax
                    , testProperty "prop_findMin" prop_findMin
                    , testProperty "prop_ord" prop_ord
@@ -341,6 +344,12 @@ prop_size :: IntSet -> Property
 prop_size s = sz === foldl' (\i _ -> i + 1) (0 :: Int) s .&&.
               sz === List.length (toList s)
   where sz = size s
+
+prop_lookupMin :: IntSet -> Property
+prop_lookupMin s = lookupMin s === listToMaybe (toAscList s)
+
+prop_lookupMax :: IntSet -> Property
+prop_lookupMax s = lookupMax s === listToMaybe (toDescList s)
 
 prop_findMax :: IntSet -> Property
 prop_findMax s = not (null s) ==> findMax s == maximum (toList s)

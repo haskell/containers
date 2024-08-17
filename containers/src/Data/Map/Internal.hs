@@ -1627,8 +1627,26 @@ deleteAt !i t =
   Minimal, Maximal
 --------------------------------------------------------------------}
 
-lookupMinSure :: k -> a -> Map k a -> (k, a)
-lookupMinSure k a Tip = (k, a)
+-- The KeyValue type is used when returning a key-value pair and helps GHC keep
+-- track of the fact that key is in WHNF.
+--
+-- As an example, for a use case like
+--
+-- fmap (\(k,_) -> <strict use of k>) (lookupMin m)
+--
+-- on a non-empty map, GHC can decide to evaluate the usage of k if it is cheap
+-- and put the result in the Just, instead of making a thunk for it.
+-- If GHC does not know that k is in WHNF, it could be bottom, and so GHC must
+-- always return Just with a thunk inside.
+
+data KeyValue k a = KeyValue !k a
+
+kvToTuple :: KeyValue k a -> (k, a)
+kvToTuple (KeyValue k a) = (k, a)
+{-# INLINE kvToTuple #-}
+
+lookupMinSure :: k -> a -> Map k a -> KeyValue k a
+lookupMinSure !k a Tip = KeyValue k a
 lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
 
 -- | \(O(\log n)\). The minimal key of the map. Returns 'Nothing' if the map is empty.
@@ -1640,7 +1658,8 @@ lookupMinSure _ _ (Bin _ k a l _) = lookupMinSure k a l
 
 lookupMin :: Map k a -> Maybe (k,a)
 lookupMin Tip = Nothing
-lookupMin (Bin _ k x l _) = Just $! lookupMinSure k x l
+lookupMin (Bin _ k x l _) = Just $! kvToTuple (lookupMinSure k x l)
+{-# INLINE lookupMin #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\log n)\). The minimal key of the map. Calls 'error' if the map is empty.
 --
@@ -1652,8 +1671,8 @@ findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Map.findMin: empty map has no minimal element"
 
-lookupMaxSure :: k -> a -> Map k a -> (k, a)
-lookupMaxSure k a Tip = (k, a)
+lookupMaxSure :: k -> a -> Map k a -> KeyValue k a
+lookupMaxSure !k a Tip = KeyValue k a
 lookupMaxSure _ _ (Bin _ k a _ r) = lookupMaxSure k a r
 
 -- | \(O(\log n)\). The maximal key of the map. Returns 'Nothing' if the map is empty.
@@ -1665,7 +1684,8 @@ lookupMaxSure _ _ (Bin _ k a _ r) = lookupMaxSure k a r
 
 lookupMax :: Map k a -> Maybe (k, a)
 lookupMax Tip = Nothing
-lookupMax (Bin _ k x _ r) = Just $! lookupMaxSure k x r
+lookupMax (Bin _ k x _ r) = Just $! kvToTuple (lookupMaxSure k x r)
+{-# INLINE lookupMax #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\log n)\). The maximal key of the map. Calls 'error' if the map is empty.
 --
