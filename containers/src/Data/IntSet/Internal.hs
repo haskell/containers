@@ -1410,8 +1410,7 @@ data Inserted = Inserted !IntSet ![Key]
   Eq
 --------------------------------------------------------------------}
 instance Eq IntSet where
-  t1 == t2  = equal t1 t2
-  t1 /= t2  = nequal t1 t2
+  (==) = equal
 
 equal :: IntSet -> IntSet -> Bool
 equal (Bin p1 l1 r1) (Bin p2 l2 r2)
@@ -1420,14 +1419,6 @@ equal (Tip kx1 bm1) (Tip kx2 bm2)
   = kx1 == kx2 && bm1 == bm2
 equal Nil Nil = True
 equal _   _   = False
-
-nequal :: IntSet -> IntSet -> Bool
-nequal (Bin p1 l1 r1) (Bin p2 l2 r2)
-  = (p1 /= p2) || (nequal l1 l2) || (nequal r1 r2)
-nequal (Tip kx1 bm1) (Tip kx2 bm2)
-  = kx1 /= kx2 || bm1 /= bm2
-nequal Nil Nil = False
-nequal _   _   = True
 
 {--------------------------------------------------------------------
   Ord
