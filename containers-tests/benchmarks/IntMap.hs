@@ -53,6 +53,7 @@ main = do
         , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
         , bench "split" $ whnf (M.split key_mid) m
         , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
+        , bench "eq" $ whnf (\m' -> m' == m') m
         ]
   where
     elems = elems_hits

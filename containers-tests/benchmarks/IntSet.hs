@@ -56,6 +56,7 @@ main = do
         , bench "split:sparse" $ whnf (IS.split elem_sparse_mid) s_sparse
         , bench "splitMember:dense" $ whnf (IS.splitMember elem_mid) s
         , bench "splitMember:sparse" $ whnf (IS.splitMember elem_sparse_mid) s_sparse
+        , bench "eq" $ whnf (\s' -> s' == s') s
         ]
   where
     bound = 2^12

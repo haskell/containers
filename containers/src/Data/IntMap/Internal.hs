@@ -3415,8 +3415,7 @@ data Distinct = Distinct | Nondistinct
   Eq
 --------------------------------------------------------------------}
 instance Eq a => Eq (IntMap a) where
-  t1 == t2  = equal t1 t2
-  t1 /= t2  = nequal t1 t2
+  (==) = equal
 
 equal :: Eq a => IntMap a -> IntMap a -> Bool
 equal (Bin p1 l1 r1) (Bin p2 l2 r2)
@@ -3425,14 +3424,7 @@ equal (Tip kx x) (Tip ky y)
   = (kx == ky) && (x==y)
 equal Nil Nil = True
 equal _   _   = False
-
-nequal :: Eq a => IntMap a -> IntMap a -> Bool
-nequal (Bin p1 l1 r1) (Bin p2 l2 r2)
-  = (p1 /= p2) || (nequal l1 l2) || (nequal r1 r2)
-nequal (Tip kx x) (Tip ky y)
-  = (kx /= ky) || (x/=y)
-nequal Nil Nil = False
-nequal _   _   = True
+{-# INLINABLE equal #-}
 
 -- | @since 0.5.9
 instance Eq1 IntMap where
