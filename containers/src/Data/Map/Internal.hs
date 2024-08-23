@@ -2154,7 +2154,7 @@ disjoint (Bin _ k _ l r) t
 -- the other, by using the values of the former as keys for lookups
 -- in the latter.
 --
--- Complexity: \( O (n * \log(m)) \), where \(m\) is the size of the first argument
+-- Complexity: \( O (n \log m) \), where \(m\) is the size of the first argument
 --
 -- > compose (fromList [('a', "A"), ('b', "B")]) (fromList [(1,'a'),(2,'b'),(3,'z')]) = fromList [(1,"A"),(2,"B")]
 --
@@ -2165,6 +2165,22 @@ disjoint (Bin _ k _ l r) t
 -- __Note:__ Prior to v0.6.4, "Data.Map.Strict" exposed a version of
 -- 'compose' that forced the values of the output 'Map'. This version does not
 -- force these values.
+--
+-- ==== __Note on complexity__
+--
+-- This function is asymptotically optimal. Given @n :: Map a b, m :: Map b c@,
+-- the composition essentially maps each @a@ in @n@ to @Maybe c@, since the
+-- composed lookup yields either one of the @c@ in @m@ or @Nothing@. The number
+-- of possible such mappings is \((|m| + 1) ^ {|n|}\).
+-- We now follow a similar reasoning to the one for
+-- [sorting](https://en.wikipedia.org/wiki/Comparison_sort#Number_of_comparisons_required_to_sort_a_list).
+-- To distinguish between \(x\) possible values, we need
+-- \( \lceil \log_2 x \rceil \) bits. Thus, we have a lower bound of
+-- \(\log_2 \left((|m| + 1) ^{|n|} \right) = |n| \cdot \log_2 (|m| + 1)\) bits.
+-- @Map@ lookups are comparison-based, and each comparison gives us at most
+-- one bit of information: in the worst case we'll always be left with at least
+-- half of the remaining possible values, meaning we need at least as many
+-- comparisons as we need bits.
 --
 -- @since 0.6.3.1
 compose :: Ord b => Map b c -> Map a b -> Map a c
