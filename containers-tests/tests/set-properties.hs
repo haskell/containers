@@ -110,6 +110,8 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "strict foldr"         prop_strictFoldr'
                    , testProperty "strict foldl"         prop_strictFoldl'
 #endif
+                   , testProperty "eq" prop_eq
+                   , testProperty "compare" prop_compare
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -730,3 +732,9 @@ prop_strictFoldr' m = whnfHasNoThunks (foldr' (:) [] m)
 prop_strictFoldl' :: Set Int -> Property
 prop_strictFoldl' m = whnfHasNoThunks (foldl' (flip (:)) [] m)
 #endif
+
+prop_eq :: Set Int -> Set Int -> Property
+prop_eq s1 s2 = (s1 == s2) === (toList s1 == toList s2)
+
+prop_compare :: Set Int -> Set Int -> Property
+prop_compare s1 s2 = compare s1 s2 === compare (toList s1) (toList s2)

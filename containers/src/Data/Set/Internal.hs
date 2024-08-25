@@ -252,6 +252,7 @@ import Control.DeepSeq (NFData(rnf))
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
+import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
@@ -1272,19 +1273,90 @@ foldl'Stack f = go
 {-# INLINE foldl'Stack #-}
 
 {--------------------------------------------------------------------
-  Eq converts the set to a list. In a lazy setting, this
-  actually seems one of the faster methods to compare two trees
-  and it is certainly the simplest :-)
+  Iterator
 --------------------------------------------------------------------}
+
+-- Note [Iterator]
+-- ~~~~~~~~~~~~~~~
+-- Iteration, using a Stack as an iterator, is an efficient way to consume a Set
+-- one element at a time. Alternately, this may be done by toAscList. toAscList
+-- when consumed via List.foldr will rewrite to Set.foldr (thanks to rewrite
+-- rules), which is quite efficient. However, sometimes that is not possible,
+-- such as in the second arg of '==' or 'compare', where manifesting the list
+-- cons cells is unavoidable and makes things slower.
+--
+-- Concretely, compare on Set Int using toAscList takes ~21% more time compared
+-- to using Iterator, on GHC 9.6.3.
+--
+-- The heart of this implementation is the `iterDown` function. It walks down
+-- the left spine of the tree, pushing the value and right child on the stack,
+-- until a Tip is reached. The next value is now at the top of the stack. To get
+-- to the value after that, `iterDown` is called again with the right child and
+-- the remaining stack.
+
+iterDown :: Set a -> Stack a -> Stack a
+iterDown (Bin _ x l r) stk = iterDown l (Push x r stk)
+iterDown Tip stk = stk
+
+-- Create an iterator from a Set, starting at the smallest element.
+iterator :: Set a -> Stack a
+iterator s = iterDown s Nada
+
+-- Get the next element and the remaining iterator.
+iterNext :: Stack a -> Maybe (StrictPair a (Stack a))
+iterNext (Push x r stk) = Just $! x :*: iterDown r stk
+iterNext Nada = Nothing
+{-# INLINE iterNext #-}
+
+-- Whether there are no more elements in the iterator.
+iterNull :: Stack a -> Bool
+iterNull (Push _ _ _) = False
+iterNull Nada = True
+
+{--------------------------------------------------------------------
+  Eq
+--------------------------------------------------------------------}
+
 instance Eq a => Eq (Set a) where
-  t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
+  s1 == s2 = liftEq (==) s1 s2
+  {-# INLINABLE (==) #-}
+
+-- | @since 0.5.9
+instance Eq1 Set where
+  liftEq eq s1 s2 = size s1 == size s2 && sameSizeLiftEq eq s1 s2
+  {-# INLINE liftEq #-}
+
+-- Assumes the sets are of equal size to skip the final check.
+sameSizeLiftEq :: (a -> b -> Bool) -> Set a -> Set b -> Bool
+sameSizeLiftEq eq s1 s2 =
+  case runEqM (foldMap f s1) (iterator s2) of e :*: _ -> e
+  where
+    f x = EqM $ \it -> case iterNext it of
+      Nothing -> False :*: it
+      Just (y :*: it') -> eq x y :*: it'
+{-# INLINE sameSizeLiftEq #-}
 
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
 instance Ord a => Ord (Set a) where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
+  compare s1 s2 = liftCmp compare s1 s2
+  {-# INLINABLE compare #-}
+
+-- | @since 0.5.9
+instance Ord1 Set where
+  liftCompare = liftCmp
+  {-# INLINE liftCompare #-}
+
+liftCmp :: (a -> b -> Ordering) -> Set a -> Set b -> Ordering
+liftCmp cmp s1 s2 = case runOrdM (foldMap f s1) (iterator s2) of
+  o :*: it -> o <> if iterNull it then EQ else LT
+  where
+    f x = OrdM $ \it -> case iterNext it of
+      Nothing -> GT :*: it
+      Just (y :*: it') -> cmp x y :*: it'
+{-# INLINE liftCmp #-}
 
 {--------------------------------------------------------------------
   Show
@@ -1292,16 +1364,6 @@ instance Ord a => Ord (Set a) where
 instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
-
--- | @since 0.5.9
-instance Eq1 Set where
-    liftEq eq m n =
-        size m == size n && liftEq eq (toList m) (toList n)
-
--- | @since 0.5.9
-instance Ord1 Set where
-    liftCompare cmp m n =
-        liftCompare cmp (toList m) (toList n)
 
 -- | @since 0.5.9
 instance Show1 Set where

@@ -401,6 +401,7 @@ import Utils.Containers.Internal.PtrEquality (ptrEq)
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.StrictMaybe
 import Utils.Containers.Internal.BitQueue
+import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 #ifdef DEFINE_ALTERF_FALLBACK
 import Utils.Containers.Internal.BitUtil (wordSize)
 #endif
@@ -4119,6 +4120,31 @@ deleteFindMax t = case maxViewWithKey t of
   Just res -> res
 
 {--------------------------------------------------------------------
+  Iterator
+--------------------------------------------------------------------}
+
+-- See Note [Iterator] in Data.Set.Internal
+
+iterDown :: Map k a -> Stack k a -> Stack k a
+iterDown (Bin _ kx x l r) stk = iterDown l (Push kx x r stk)
+iterDown Tip stk = stk
+
+-- Create an iterator from a Map, starting at the smallest key.
+iterator :: Map k a -> Stack k a
+iterator m = iterDown m Nada
+
+-- Get the next key-value and the remaining iterator.
+iterNext :: Stack k a -> Maybe (StrictPair (KeyValue k a) (Stack k a))
+iterNext (Push kx x r stk) = Just $! KeyValue kx x :*: iterDown r stk
+iterNext Nada = Nothing
+{-# INLINE iterNext #-}
+
+-- Whether there are no more key-values in the iterator.
+iterNull :: Stack k a -> Bool
+iterNull (Push _ _ _ _) = False
+iterNull Nada = True
+
+{--------------------------------------------------------------------
   [balance l x r] balances two trees with value x.
   The sizes of the trees should balance after decreasing the
   size of one of them. (a rotation).
@@ -4284,41 +4310,69 @@ bin k x l r
 
 
 {--------------------------------------------------------------------
-  Eq converts the tree to a list. In a lazy setting, this
-  actually seems one of the faster methods to compare two trees
-  and it is certainly the simplest :-)
+  Eq
 --------------------------------------------------------------------}
+
 instance (Eq k,Eq a) => Eq (Map k a) where
-  t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
+  m1 == m2 = liftEq2 (==) (==) m1 m2
+  {-# INLINABLE (==) #-}
+
+-- | @since 0.5.9
+instance Eq k => Eq1 (Map k) where
+  liftEq = liftEq2 (==)
+  {-# INLINE liftEq #-}
+
+-- | @since 0.5.9
+instance Eq2 Map where
+  liftEq2 keq eq m1 m2 = size m1 == size m2 && sameSizeLiftEq2 keq eq m1 m2
+  {-# INLINE liftEq2 #-}
+
+-- Assumes the maps are of equal size to skip the final check
+sameSizeLiftEq2
+  :: (ka -> kb -> Bool) -> (a -> b -> Bool) -> Map ka a -> Map kb b -> Bool
+sameSizeLiftEq2 keq eq m1 m2 =
+  case runEqM (foldMapWithKey f m1) (iterator m2) of e :*: _ -> e
+  where
+    f kx x = EqM $ \it -> case iterNext it of
+      Nothing -> False :*: it
+      Just (KeyValue ky y :*: it') -> (keq kx ky && eq x y) :*: it'
+{-# INLINE sameSizeLiftEq2 #-}
 
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
 instance (Ord k, Ord v) => Ord (Map k v) where
-    compare m1 m2 = compare (toAscList m1) (toAscList m2)
+  compare m1 m2 = liftCmp2 compare compare m1 m2
+  {-# INLINABLE compare #-}
+
+-- | @since 0.5.9
+instance Ord k => Ord1 (Map k) where
+  liftCompare = liftCmp2 compare
+  {-# INLINE liftCompare #-}
+
+-- | @since 0.5.9
+instance Ord2 Map where
+  liftCompare2 = liftCmp2
+  {-# INLINE liftCompare2 #-}
+
+liftCmp2
+  :: (ka -> kb -> Ordering)
+  -> (a -> b -> Ordering)
+  -> Map ka a
+  -> Map kb b
+  -> Ordering
+liftCmp2 kcmp cmp m1 m2 = case runOrdM (foldMapWithKey f m1) (iterator m2) of
+  o :*: it -> o <> if iterNull it then EQ else LT
+  where
+    f kx x = OrdM $ \it -> case iterNext it of
+      Nothing -> GT :*: it
+      Just (KeyValue ky y :*: it') -> (kcmp kx ky <> cmp x y) :*: it'
+{-# INLINE liftCmp2 #-}
 
 {--------------------------------------------------------------------
   Lifted instances
 --------------------------------------------------------------------}
-
--- | @since 0.5.9
-instance Eq2 Map where
-    liftEq2 eqk eqv m n =
-        size m == size n && liftEq (liftEq2 eqk eqv) (toList m) (toList n)
-
--- | @since 0.5.9
-instance Eq k => Eq1 (Map k) where
-    liftEq = liftEq2 (==)
-
--- | @since 0.5.9
-instance Ord2 Map where
-    liftCompare2 cmpk cmpv m n =
-        liftCompare (liftCompare2 cmpk cmpv) (toList m) (toList n)
-
--- | @since 0.5.9
-instance Ord k => Ord1 (Map k) where
-    liftCompare = liftCompare2 compare
 
 -- | @since 0.5.9
 instance Show2 Map where

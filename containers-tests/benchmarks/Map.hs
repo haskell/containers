@@ -95,6 +95,8 @@ main = do
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+        , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
+        , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
         ]
   where
     bound = 2^12
