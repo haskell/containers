@@ -562,10 +562,8 @@ prop_sort :: Seq OrdA -> Bool
 prop_sort xs =
     toList' (sort xs) ~= Data.List.sort (toList xs)
 
-data UnstableOrd = UnstableOrd
-    { ordKey :: OrdA
-    , _ignored :: A
-    } deriving (Show)
+data UnstableOrd = UnstableOrd OrdA A
+    deriving (Show)
 
 instance Eq UnstableOrd where
     x == y = compare x y == EQ
