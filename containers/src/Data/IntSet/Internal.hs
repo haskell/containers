@@ -367,7 +367,7 @@ size :: IntSet -> Int
 size = go 0
   where
     go !acc (Bin _ l r) = go (go acc l) r
-    go acc (Tip _ bm) = acc + bitcount 0 bm
+    go acc (Tip _ bm) = acc + popCount bm
     go acc Nil = acc
 
 -- | \(O(\min(n,W))\). Is the value a member of the set?
