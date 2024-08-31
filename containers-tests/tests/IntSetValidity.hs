@@ -7,7 +7,6 @@ import Data.IntSet.Internal
 import Data.List (intercalate)
 import Numeric (showHex)
 import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
-import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
   Assertions
