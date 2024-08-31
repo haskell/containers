@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE Safe #-}
+#ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE Trustworthy #-}
 #endif
 
 #include "containers.h"
@@ -28,22 +29,20 @@
 -- closely.
 
 module Utils.Containers.Internal.BitUtil
-    ( highestBitMask
-    , shiftLL
+    ( shiftLL
     , shiftRL
     , wordSize
+    , iShiftRL
     ) where
 
-import Data.Bits (unsafeShiftL, unsafeShiftR
-    , countLeadingZeros, finiteBitSize
-    )
-
--- | Return a word where only the highest bit is set.
-highestBitMask :: Word -> Word
-highestBitMask w = shiftLL 1 (wordSize - 1 - countLeadingZeros w)
-{-# INLINE highestBitMask #-}
+import Data.Bits (unsafeShiftL, unsafeShiftR, finiteBitSize)
+#ifdef __GLASGOW_HASKELL__
+import GHC.Exts (Int(..), uncheckedIShiftRL#)
+#endif
 
 -- Right and left logical shifts.
+--
+-- Precondition for defined behavior: 0 <= shift amount < wordSize
 shiftRL, shiftLL :: Word -> Int -> Word
 shiftRL = unsafeShiftR
 shiftLL = unsafeShiftL
@@ -51,3 +50,13 @@ shiftLL = unsafeShiftL
 {-# INLINE wordSize #-}
 wordSize :: Int
 wordSize = finiteBitSize (0 :: Word)
+
+-- Right logical shift.
+--
+-- Precondition for defined behavior: 0 <= shift amount < wordSize
+iShiftRL :: Int -> Int -> Int
+#ifdef __GLASGOW_HASKELL__
+iShiftRL (I# x#) (I# sh#) = I# (uncheckedIShiftRL# x# sh#)
+#else
+iShiftRL x sh = fromIntegral (unsafeShiftR (fromIntegral x :: Word) sh)
+#endif

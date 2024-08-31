@@ -263,12 +263,7 @@ module Data.IntMap.Internal (
     , showTree
     , showTreeWith
 
-    -- * Internal types
-    , Nat
-
     -- * Utility
-    , natFromInt
-    , intFromNat
     , link
     , linkKey
     , linkWithMask
@@ -313,8 +308,9 @@ import Data.IntSet.Internal.IntTreeCommons
   , branchMask
   , TreeTreeBranch(..)
   , treeTreeBranch
+  , i2w
   )
-import Utils.Containers.Internal.BitUtil
+import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL)
 import Utils.Containers.Internal.StrictPair
 
 #ifdef __GLASGOW_HASKELL__
@@ -333,17 +329,6 @@ import Text.Read
 #endif
 import qualified Control.Category as Category
 
-
--- A "Nat" is a natural machine word (an unsigned Int)
-type Nat = Word
-
-natFromInt :: Key -> Nat
-natFromInt = fromIntegral
-{-# INLINE natFromInt #-}
-
-intFromNat :: Nat -> Key
-intFromNat = fromIntegral
-{-# INLINE intFromNat #-}
 
 {--------------------------------------------------------------------
   Types
@@ -2146,7 +2131,7 @@ mergeA
         -> Int -> f (IntMap a)
         -> f (IntMap a)
     linkA k1 t1 k2 t2
-      | natFromInt k1 < natFromInt k2 = binA p t1 t2
+      | i2w k1 < i2w k2 = binA p t1 t2
       | otherwise = binA p t2 t1
       where
         m = branchMask k1 k2
@@ -3178,7 +3163,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
     -- and we construct the IntMap from that half.
     buildTree g !prefix !bmask bits = case bits of
       0 -> Tip prefix (g prefix)
-      _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
+      _ -> case bits `iShiftRL` 1 of
         bits2
           | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
               buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
@@ -3552,7 +3537,7 @@ link k1 t1 k2 t2 = linkWithMask (branchMask k1 k2) k1 t1 k2 t2
 -- `linkWithMask` is useful when the `branchMask` has already been computed
 linkWithMask :: Int -> Key -> IntMap a -> Key -> IntMap a -> IntMap a
 linkWithMask m k1 t1 k2 t2
-  | natFromInt k1 < natFromInt k2 = Bin p t1 t2
+  | i2w k1 < i2w k2 = Bin p t1 t2
   | otherwise = Bin p t2 t1
   where
     p = Prefix (mask k1 m .|. m)
