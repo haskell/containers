@@ -345,8 +345,7 @@ mkArb step n
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
 data OddEq a = OddEq a Bool deriving (Show)
-getOddEq :: OddEq a -> (a, Bool)
-getOddEq (OddEq a b) = (a, b)
+
 instance Arbitrary a => Arbitrary (OddEq a) where
   arbitrary = OddEq <$> arbitrary <*> arbitrary
 instance Eq a => Eq (OddEq a) where

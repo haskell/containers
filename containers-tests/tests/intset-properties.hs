@@ -67,6 +67,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_foldL" prop_foldL
                    , testProperty "prop_foldL'" prop_foldL'
                    , testProperty "prop_map" prop_map
+                   , testProperty "prop_mapMonotonicId" prop_mapMonotonicId
+                   , testProperty "prop_mapMonotonicLinear" prop_mapMonotonicLinear
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
@@ -389,9 +391,13 @@ prop_mapMonotonicId :: IntSet -> Property
 prop_mapMonotonicId s = mapMonotonic id s === map id s
 
 prop_mapMonotonicLinear :: Positive Int -> Int -> IntSet -> Property
-prop_mapMonotonicLinear (Positive a) b s = mapMonotonic f s === map f s
+prop_mapMonotonicLinear (Positive a) b s =
+  all ok (toList s) ==>
+    mapMonotonic f s === map f s
   where
     f x = a*x + b
+    limit = (maxBound - b) `div` a
+    ok x = x /= minBound && abs x <= limit -- must not overflow
 
 prop_maxView :: IntSet -> Bool
 prop_maxView s = case maxView s of
