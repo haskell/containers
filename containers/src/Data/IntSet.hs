@@ -17,7 +17,8 @@
 --
 -- = Finite Int Sets
 --
--- The @'IntSet'@ type represents a set of elements of type @Int@.
+-- The @'IntSet'@ type represents a set of elements of type @Int@. An @IntSet@
+-- is strict in its elements.
 --
 -- For a walkthrough of the most commonly used functions see their
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
@@ -61,9 +62,6 @@
 -----------------------------------------------------------------------------
 
 module Data.IntSet (
-            -- * Strictness properties
-            -- $strictness
-
             -- * Set type
 #if !defined(TESTING)
               IntSet          -- instance Eq,Show
@@ -162,13 +160,3 @@ module Data.IntSet (
 
 import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntSet.Internal as IS
-
--- $strictness
---
--- This module satisfies the following strictness property:
---
--- * Key arguments are evaluated to WHNF
---
--- Here are some examples that illustrate the property:
---
--- > delete undefined s  ==  undefined
