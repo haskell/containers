@@ -396,8 +396,10 @@ prop_mapMonotonicLinear (Positive a) b s =
     mapMonotonic f s === map f s
   where
     f x = a*x + b
-    limit = (maxBound - b) `div` a
-    ok x = x /= minBound && abs x <= limit -- must not overflow
+    ok x =  -- must not overflow
+      fromIntegral (minBound :: Int) <= y && y <= fromIntegral (maxBound :: Int)
+      where
+        y = fromIntegral a * fromIntegral x + fromIntegral b :: Integer
 
 prop_maxView :: IntSet -> Bool
 prop_maxView s = case maxView s of
