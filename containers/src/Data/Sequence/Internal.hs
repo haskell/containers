@@ -908,10 +908,12 @@ instance Alternative Seq where
     (<|>) = (><)
 
 instance Eq a => Eq (Seq a) where
-    xs == ys = length xs == length ys && toList xs == toList ys
+  xs == ys = liftEq (==) xs ys
+  {-# INLINABLE (==) #-}
 
 instance Ord a => Ord (Seq a) where
-    compare xs ys = compare (toList xs) (toList ys)
+  compare xs ys = liftCompare compare xs ys
+  {-# INLINABLE compare #-}
 
 #ifdef TESTING
 instance Show a => Show (Seq a) where
@@ -929,11 +931,49 @@ instance Show1 Seq where
 
 -- | @since 0.5.9
 instance Eq1 Seq where
-    liftEq eq xs ys = length xs == length ys && liftEq eq (toList xs) (toList ys)
+  liftEq eq xs ys =
+    sameSize xs ys && sameSizeLiftEqLists eq (toList xs) (toList ys)
+  {-# INLINE liftEq #-}
 
 -- | @since 0.5.9
 instance Ord1 Seq where
-    liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
+  liftCompare f xs ys = liftCmpLists f (toList xs) (toList ys)
+  {-# INLINE liftCompare #-}
+
+-- Note [Eq and Ord]
+-- ~~~~~~~~~~~~~~~~~
+-- Eq and Ord for Seq are implemented by converting to lists, which turns out
+-- to be quite efficient.
+-- However, we define our own functions to work with lists because the relevant
+-- list functions in base have performance issues (liftEq and liftCompare are
+-- recursive and cannot inline, (==) and compare are not INLINABLE and cannot
+-- specialize).
+
+-- Same as `length xs == length ys` but uses the structure invariants to skip
+-- unnecessary cases.
+sameSize :: Seq a -> Seq b -> Bool
+sameSize (Seq t1) (Seq t2) = case (t1, t2) of
+  (EmptyT, EmptyT) -> True
+  (Single _, Single _) -> True
+  (Deep v1 _ _ _, Deep v2 _ _ _) -> v1 == v2
+  _ -> False
+
+-- Assumes the lists are of equal size to skip some cases.
+sameSizeLiftEqLists :: (a -> b -> Bool) -> [a] -> [b] -> Bool
+sameSizeLiftEqLists eq = go
+  where
+    go (x:xs) (y:ys) = eq x y && go xs ys
+    go _ _ = True
+{-# INLINE sameSizeLiftEqLists #-}
+
+liftCmpLists :: (a -> b -> Ordering) -> [a] -> [b] -> Ordering
+liftCmpLists cmp = go
+  where
+    go [] [] = EQ
+    go [] (_:_) = LT
+    go (_:_) [] = GT
+    go (x:xs) (y:ys) = cmp x y <> go xs ys
+{-# INLINE liftCmpLists #-}
 
 instance Read a => Read (Seq a) where
 #ifdef __GLASGOW_HASKELL__
