@@ -216,13 +216,6 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
              ]
 
-apply2 :: Fun (a, b) c -> a -> b -> c
-apply2 f a b = apply f (a, b)
-
-apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
-apply3 f a b c = apply f (a, b, c)
-
-
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}

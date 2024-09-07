@@ -40,6 +40,9 @@ common deps
     , deepseq  >=1.2     && <1.6
     , template-haskell
 
+common warnings
+  ghc-options: -Werror=unused-top-binds
+
 common test-deps
   import: deps
   build-depends:
@@ -140,7 +143,7 @@ library
 -----------------------------
 
 benchmark intmap-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -148,7 +151,7 @@ benchmark intmap-benchmarks
   ghc-options:    -O2
 
 benchmark intset-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -156,7 +159,7 @@ benchmark intset-benchmarks
   ghc-options:    -O2
 
 benchmark map-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -164,7 +167,7 @@ benchmark map-benchmarks
   ghc-options:    -O2
 
 benchmark tree-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -172,7 +175,7 @@ benchmark tree-benchmarks
   ghc-options:    -O2
 
 benchmark sequence-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -183,7 +186,7 @@ benchmark sequence-benchmarks
     , transformers
 
 benchmark set-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -191,7 +194,7 @@ benchmark set-benchmarks
   ghc-options:    -O2
 
 benchmark graph-benchmarks
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks
@@ -201,7 +204,7 @@ benchmark graph-benchmarks
       random            >=0       && <1.2
 
 benchmark set-operations-intmap
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
@@ -210,7 +213,7 @@ benchmark set-operations-intmap
   ghc-options:    -O2
 
 benchmark set-operations-intset
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
@@ -219,7 +222,7 @@ benchmark set-operations-intset
   ghc-options:    -O2
 
 benchmark set-operations-map
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
@@ -228,7 +231,7 @@ benchmark set-operations-map
   ghc-options:    -O2
 
 benchmark set-operations-set
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
@@ -237,7 +240,7 @@ benchmark set-operations-set
   ghc-options:    -O2
 
 benchmark lookupge-intmap
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
@@ -246,7 +249,7 @@ benchmark lookupge-intmap
   build-depends:  containers-tests
 
 benchmark lookupge-map
-  import: benchmark-deps
+  import: benchmark-deps, warnings
   default-language: Haskell2010
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/LookupGE
@@ -263,7 +266,7 @@ benchmark lookupge-map
 -- plus the testing stuff.
 
 test-suite map-lazy-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
@@ -275,7 +278,7 @@ test-suite map-lazy-properties
     CPP
 
 test-suite map-strict-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-properties.hs
@@ -288,7 +291,7 @@ test-suite map-strict-properties
     CPP
 
 test-suite bitqueue-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          bitqueue-properties.hs
@@ -299,7 +302,7 @@ test-suite bitqueue-properties
     CPP
 
 test-suite set-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          set-properties.hs
@@ -317,7 +320,7 @@ test-suite set-properties
       Utils.NoThunks
 
 test-suite intmap-lazy-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
@@ -330,7 +333,7 @@ test-suite intmap-lazy-properties
     CPP
 
 test-suite intmap-strict-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
@@ -344,7 +347,7 @@ test-suite intmap-strict-properties
     CPP
 
 test-suite intset-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-properties.hs
@@ -357,7 +360,7 @@ test-suite intset-properties
     CPP
 
 test-suite seq-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          seq-properties.hs
@@ -369,7 +372,7 @@ test-suite seq-properties
     CPP
 
 test-suite tree-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          tree-properties.hs
@@ -381,7 +384,7 @@ test-suite tree-properties
     CPP
 
 test-suite graph-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          graph-properties.hs
@@ -389,7 +392,7 @@ test-suite graph-properties
   ghc-options:      -O2
 
 test-suite map-strictness-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          map-strictness.hs
@@ -412,7 +415,7 @@ test-suite map-strictness-properties
       Utils.NoThunks
 
 test-suite intmap-strictness-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intmap-strictness.hs
@@ -436,7 +439,7 @@ test-suite intmap-strictness-properties
       Utils.NoThunks
 
 test-suite intset-strictness-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs:   tests
   main-is:          intset-strictness.hs
@@ -457,7 +460,7 @@ test-suite intset-strictness-properties
       Utils.NoThunks
 
 test-suite listutils-properties
-  import: test-deps
+  import: test-deps, warnings
   default-language: Haskell2010
   hs-source-dirs: tests
   main-is:        listutils-properties.hs
