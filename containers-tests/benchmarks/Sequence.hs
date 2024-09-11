@@ -4,7 +4,7 @@ import Control.Applicative
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
-import Test.Tasty.Bench (bench, bgroup, defaultMain, nf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, nf, whnf)
 import Data.Foldable (foldl', foldr')
 import qualified Data.Sequence as S
 import qualified Data.Foldable
@@ -174,6 +174,16 @@ main = do
             , bench "1000"  $ nf (S.unstableSortOn id) rs1000
             , bench "10000" $ nf (S.unstableSortOn id) rs10000]
          ]
+      , bgroup "eq"
+        [ bench "100/100" $ whnf (\s' -> s' == s') s100
+        , bench "10000/10000" $  whnf (\s' -> s' == s') s10000
+        ]
+      , bgroup "compare"
+        [ bench "100/100" $ whnf (uncurry compare) (s100, s100)
+        , bench "10000/10000" $  whnf (uncurry compare) (s10000, s10000)
+        , bench "100/10000" $  whnf (uncurry compare) (s100, s10000)
+        , bench "10000/100" $  whnf (uncurry compare) (s10000, s100)
+        ]
       ]
 
 {-
