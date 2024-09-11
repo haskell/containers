@@ -253,6 +253,7 @@ module Data.Map.Strict.Internal
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
@@ -361,6 +362,7 @@ import Data.Map.Internal
   , drop
   , dropWhileAntitone
   , filter
+  , filterKeys
   , filterWithKey
   , findIndex
   , findMax

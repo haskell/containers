@@ -222,6 +222,7 @@ module Data.Map.Lazy (
 
     -- * Filter
     , filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
