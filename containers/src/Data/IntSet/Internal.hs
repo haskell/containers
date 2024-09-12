@@ -1641,54 +1641,11 @@ takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 {-# INLINE foldr'Bits #-}
 {-# INLINE takeWhileAntitoneBits #-}
 
-#if defined(__GLASGOW_HASKELL__) && (WORD_SIZE_IN_BITS==32 || WORD_SIZE_IN_BITS==64)
-indexOfTheOnlyBit :: Nat -> Int
-{-# INLINE indexOfTheOnlyBit #-}
-#if WORD_SIZE_IN_BITS==64
-indexOfTheOnlyBit bitmask = countTrailingZeros bitmask
+#if defined(__GLASGOW_HASKELL__)
 
 lowestBitSet x = countTrailingZeros x
 
 highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
-
-#else
-{----------------------------------------------------------------------
-  For lowestBitSet we use wordsize-dependant implementation based on
-  multiplication and DeBrujn indeces, which was proposed by Edward Kmett
-  <http://haskell.org/pipermail/libraries/2011-September/016749.html>
-
-  The core of this implementation is fast indexOfTheOnlyBit,
-  which is given a Nat with exactly one bit set, and returns
-  its index.
-
-  Lot of effort was put in these implementations, please benchmark carefully
-  before changing this code.
-----------------------------------------------------------------------}
-
-indexOfTheOnlyBit bitmask =
-  fromIntegral (GHC.Int.I8# (lsbArray `GHC.Exts.indexInt8OffAddr#` unboxInt (intFromNat ((bitmask * magic) `shiftRL` offset))))
-  where unboxInt (GHC.Exts.I# i) = i
-#if WORD_SIZE_IN_BITS==32
-        magic = 0x077CB531
-        offset = 27
-        !lsbArray = "\0\1\28\2\29\14\24\3\30\22\20\15\25\17\4\8\31\27\13\23\21\19\16\7\26\12\18\6\11\5\10\9"#
-#else
-        magic = 0x07EDD5E59A4E28C2
-        offset = 58
-        !lsbArray = "\63\0\58\1\59\47\53\2\60\39\48\27\54\33\42\3\61\51\37\40\49\18\28\20\55\30\34\11\43\14\22\4\62\57\46\52\38\26\32\41\50\36\17\19\29\10\13\21\56\45\25\31\35\16\9\12\44\24\15\8\23\7\6\5"#
-#endif
--- The lsbArray gets inlined to every call site of indexOfTheOnlyBit.
--- That cannot be easily avoided, as GHC forbids top-level Addr# literal.
--- One could go around that by supplying getLsbArray :: () -> Addr# marked
--- as NOINLINE. But the code size of calling it and processing the result
--- is 48B on 32-bit and 56B on 64-bit architectures -- so the 32B and 64B array
--- is actually improvement on 32-bit and only a 8B size increase on 64-bit.
-
-lowestBitSet x = indexOfTheOnlyBit (lowestBitMask x)
-
-highestBitSet x = indexOfTheOnlyBit (highestBitMask x)
-
-#endif
 
 lowestBitMask :: Nat -> Nat
 lowestBitMask x = x .&. negate x
@@ -1716,26 +1673,26 @@ foldlBits prefix f z bitmap = go bitmap z
         go bm acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
           where
             !bitmask = lowestBitMask bm
-            !bi = indexOfTheOnlyBit bitmask
+            !bi = countTrailingZeros bitmask
 
 foldl'Bits prefix f z bitmap = go bitmap z
   where go 0 acc = acc
         go bm !acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
           where !bitmask = lowestBitMask bm
-                !bi = indexOfTheOnlyBit bitmask
+                !bi = countTrailingZeros bitmask
 
 foldrBits prefix f z bitmap = go (revNat bitmap) z
   where go 0 acc = acc
         go bm acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
           where !bitmask = lowestBitMask bm
-                !bi = indexOfTheOnlyBit bitmask
+                !bi = countTrailingZeros bitmask
 
 
 foldr'Bits prefix f z bitmap = go (revNat bitmap) z
   where go 0 acc = acc
         go bm !acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
           where !bitmask = lowestBitMask bm
-                !bi = indexOfTheOnlyBit bitmask
+                !bi = countTrailingZeros bitmask
 
 takeWhileAntitoneBits prefix predicate bitmap =
   -- Binary search for the first index where the predicate returns false, but skip a predicate
