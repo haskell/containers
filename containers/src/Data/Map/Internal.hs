@@ -3464,7 +3464,8 @@ keysSet (Bin sz kx _ l r) = Set.Bin sz kx (keysSet l) (keysSet r)
 --
 -- > argSet (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [Arg 3 "b",Arg 5 "a"]
 -- > argSet empty == Data.Set.empty
-
+--
+-- @since 0.6.6
 argSet :: Map k a -> Set.Set (Arg k a)
 argSet Tip = Set.Tip
 argSet (Bin sz kx x l r) = Set.Bin sz (Arg kx x) (argSet l) (argSet r)
@@ -3483,7 +3484,8 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 --
 -- > fromArgSet (Data.Set.fromList [Arg 3 "aaa", Arg 5 "aaaaa"]) == fromList [(5,"aaaaa"), (3,"aaa")]
 -- > fromArgSet Data.Set.empty == empty
-
+--
+-- @since 0.6.6
 fromArgSet :: Set.Set (Arg k a) -> Map k a
 fromArgSet Set.Tip = Tip
 fromArgSet (Set.Bin sz (Arg x v) l r) = Bin sz x v (fromArgSet l) (fromArgSet r)
