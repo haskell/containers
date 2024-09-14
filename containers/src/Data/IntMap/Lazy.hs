@@ -59,7 +59,7 @@
 --    * Chris Okasaki and Andy Gill,
 --      \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
---      <https://ittc.ku.edu/~andygill/papers/IntMap98.pdf>.
+--      <https://web.archive.org/web/20150417234429/https://ittc.ku.edu/~andygill/papers/IntMap98.pdf>.
 --
 --    * D.R. Morrison,
 --      \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
