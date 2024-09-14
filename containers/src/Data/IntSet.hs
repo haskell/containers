@@ -106,7 +106,11 @@ module Data.IntSet (
             , difference
             , (\\)
             , intersection
+#if MIN_VERSION_base(4,18,0)
+            , intersections
+#endif
             , symmetricDifference
+            , Intersection(..)
 
             -- * Filter
             , IS.filter

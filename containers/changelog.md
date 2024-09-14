@@ -39,6 +39,9 @@
 
 * Add `lookupMin` and `lookupMax` for `Data.IntSet`. (Soumik Sarkar)
 
+* Add `Intersection` and `intersections` for `Data.Set` and `Data.IntSet`.
+  (Reed Mullanix, Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
