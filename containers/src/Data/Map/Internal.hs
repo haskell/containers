@@ -7,8 +7,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-#endif
 #define USE_MAGIC_PROXY 1
+#endif
 
 #ifdef USE_MAGIC_PROXY
 {-# LANGUAGE MagicHash #-}
@@ -379,7 +379,9 @@ module Data.Map.Internal (
 
 import Data.Functor.Identity (Identity (..))
 import Control.Applicative (liftA3)
+#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Classes
+#endif
 import Data.Semigroup (stimesIdempotentMonoid)
 import Data.Semigroup (Arg(..), Semigroup(stimes))
 #if !(MIN_VERSION_base(4,11,0))
@@ -389,7 +391,9 @@ import Control.Applicative (Const (..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
+#ifdef __GLASGOW_HASKELL__
 import Data.Bifoldable
+#endif
 import Utils.Containers.Internal.Prelude hiding
   (lookup, map, filter, foldr, foldl, foldl', null, splitAt, take, drop)
 import Prelude ()
@@ -419,7 +423,6 @@ import Data.Data
 import qualified Control.Category as Category
 import Data.Coerce
 #endif
-
 
 {--------------------------------------------------------------------
   Operators
@@ -2205,6 +2208,7 @@ instance (Applicative f, Monad f) => Functor (WhenMissing f k x) where
   fmap = mapWhenMissing
   {-# INLINE fmap #-}
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance (Applicative f, Monad f)
          => Category.Category (WhenMissing f k) where
@@ -2216,6 +2220,7 @@ instance (Applicative f, Monad f)
            Just q -> missingKey f k q
   {-# INLINE id #-}
   {-# INLINE (.) #-}
+#endif
 
 -- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
 --
@@ -2340,6 +2345,7 @@ instance Functor f => Functor (WhenMatched f k x y) where
   fmap = mapWhenMatched
   {-# INLINE fmap #-}
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance (Monad f, Applicative f) => Category.Category (WhenMatched f k x) where
   id = zipWithMatched (\_ _ y -> y)
@@ -2351,6 +2357,7 @@ instance (Monad f, Applicative f) => Category.Category (WhenMatched f k x) where
                 Just r -> runWhenMatched f k x r
   {-# INLINE id #-}
   {-# INLINE (.) #-}
+#endif
 
 -- | Equivalent to @ ReaderT k (ReaderT x (ReaderT y (MaybeT f))) @
 --
@@ -4303,6 +4310,7 @@ bin k x l r
   Eq
 --------------------------------------------------------------------}
 
+#ifdef __GLASGOW_HASKELL__
 instance (Eq k,Eq a) => Eq (Map k a) where
   m1 == m2 = liftEq2 (==) (==) m1 m2
   {-# INLINABLE (==) #-}
@@ -4327,11 +4335,16 @@ sameSizeLiftEq2 keq eq m1 m2 =
       Nothing -> False :*: it
       Just (KeyValue ky y :*: it') -> (keq kx ky && eq x y) :*: it'
 {-# INLINE sameSizeLiftEq2 #-}
+#else
+instance (Eq k,Eq a) => Eq (Map k a) where
+  t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
+#endif
 
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
+#ifdef __GLASGOW_HASKELL__
 instance (Ord k, Ord v) => Ord (Map k v) where
   compare m1 m2 = liftCmp2 compare compare m1 m2
   {-# INLINABLE compare #-}
@@ -4359,11 +4372,16 @@ liftCmp2 kcmp cmp m1 m2 = case runOrdM (foldMapWithKey f m1) (iterator m2) of
       Nothing -> GT :*: it
       Just (KeyValue ky y :*: it') -> (kcmp kx ky <> cmp x y) :*: it'
 {-# INLINE liftCmp2 #-}
+#else
+instance (Ord k, Ord v) => Ord (Map k v) where
+    compare m1 m2 = compare (toAscList m1) (toAscList m2)
+#endif
 
 {--------------------------------------------------------------------
   Lifted instances
 --------------------------------------------------------------------}
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Show2 Map where
     liftShowsPrec2 spk slk spv slv d m =
@@ -4383,6 +4401,7 @@ instance (Ord k, Read k) => Read1 (Map k) where
       where
         rp' = liftReadsPrec rp rl
         rl' = liftReadList rp rl
+#endif
 
 {--------------------------------------------------------------------
   Functor
@@ -4448,6 +4467,7 @@ instance Foldable.Foldable (Map k) where
   product = foldl' (*) 1
   {-# INLINABLE product #-}
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.3.1
 instance Bifoldable Map where
   bifold = go
@@ -4468,6 +4488,7 @@ instance Bifoldable Map where
           go (Bin 1 k v _ _) = f k `mappend` g v
           go (Bin _ k v l r) = go l `mappend` (f k `mappend` (g v `mappend` go r))
   {-# INLINE bifoldMap #-}
+#endif
 
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()

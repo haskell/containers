@@ -73,16 +73,20 @@ import Language.Haskell.TH ()
 
 import Control.Monad.Zip (MonadZip (..))
 
+#ifdef __GLASGOW_HASKELL__
 import Data.Coerce
 
 import Data.Functor.Classes
+#endif
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
 #endif
 
 #if MIN_VERSION_base(4,18,0)
+#ifdef __GLASGOW_HASKELL__
 import qualified Data.Foldable1 as Foldable1
+#endif
 import Data.List.NonEmpty (NonEmpty(..))
 #endif
 
@@ -109,6 +113,7 @@ data Tree a = Node {
 -- reasons.
 type Forest a = [Tree a]
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Eq1 Tree where
   liftEq eq = leq
@@ -143,6 +148,7 @@ instance Read1 Tree where
       (fr, s9) <- liftReadList rd rdl s8
       ("}", s10) <- lex s9
       pure (Node a fr, s10)
+#endif
 
 instance Functor Tree where
     fmap = fmapTree
@@ -233,7 +239,7 @@ instance Foldable Tree where
     product = foldlMap1' id (*)
     {-# INLINABLE product #-}
 
-#if MIN_VERSION_base(4,18,0)
+#if MIN_VERSION_base(4,18,0) && defined(__GLASGOW_HASKELL__)
 -- | Folds in preorder
 --
 -- @since 0.6.7

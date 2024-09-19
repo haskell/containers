@@ -245,7 +245,9 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Data.Semigroup (Semigroup((<>)))
 #endif
 import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
+#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Classes
+#endif
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
@@ -291,10 +293,10 @@ type Size     = Int
 
 #ifdef __GLASGOW_HASKELL__
 type role Set nominal
-#endif
 
 -- | @since 0.6.6
 deriving instance Lift a => Lift (Set a)
+#endif
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
@@ -1307,6 +1309,7 @@ iterNull Nada = True
   Eq
 --------------------------------------------------------------------}
 
+#ifdef __GLASGOW_HASKELL__
 instance Eq a => Eq (Set a) where
   s1 == s2 = liftEq (==) s1 s2
   {-# INLINABLE (==) #-}
@@ -1325,11 +1328,16 @@ sameSizeLiftEq eq s1 s2 =
       Nothing -> False :*: it
       Just (y :*: it') -> eq x y :*: it'
 {-# INLINE sameSizeLiftEq #-}
+#else
+instance Eq a => Eq (Set a) where
+  t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
+#endif
 
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
+#ifdef __GLASGOW_HASKELL__
 instance Ord a => Ord (Set a) where
   compare s1 s2 = liftCmp compare s1 s2
   {-# INLINABLE compare #-}
@@ -1347,6 +1355,10 @@ liftCmp cmp s1 s2 = case runOrdM (foldMap f s1) (iterator s2) of
       Nothing -> GT :*: it
       Just (y :*: it') -> cmp x y :*: it'
 {-# INLINE liftCmp #-}
+#else
+instance Ord a => Ord (Set a) where
+    compare s1 s2 = compare (toAscList s1) (toAscList s2)
+#endif
 
 {--------------------------------------------------------------------
   Show
@@ -1355,10 +1367,12 @@ instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Show1 Set where
     liftShowsPrec sp sl d m =
         showsUnaryWith (liftShowsPrec sp sl) "fromList" d (toList m)
+#endif
 
 {--------------------------------------------------------------------
   Read

@@ -6,6 +6,9 @@
 -- | Strict 'Maybe'
 
 module Utils.Containers.Internal.StrictMaybe (MaybeS (..), maybeS, toMaybe, toMaybeS) where
+#ifdef __MHS__
+import Data.Foldable
+#endif
 
 data MaybeS a = NothingS | JustS !a
 

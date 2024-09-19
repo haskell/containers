@@ -1641,15 +1641,15 @@ takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 {-# INLINE foldr'Bits #-}
 {-# INLINE takeWhileAntitoneBits #-}
 
+lowestBitMask :: Nat -> Nat
+lowestBitMask x = x .&. negate x
+{-# INLINE lowestBitMask #-}
+
 #if defined(__GLASGOW_HASKELL__)
 
 lowestBitSet x = countTrailingZeros x
 
 highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
-
-lowestBitMask :: Nat -> Nat
-lowestBitMask x = x .&. negate x
-{-# INLINE lowestBitMask #-}
 
 -- Reverse the order of bits in the Nat.
 revNat :: Nat -> Nat
