@@ -330,8 +330,8 @@ import Text.Read
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
-import qualified Control.Category as Category
 #endif
+import qualified Control.Category as Category
 
 
 -- A "Nat" is a natural machine word (an unsigned Int)
@@ -1483,7 +1483,6 @@ instance (Applicative f, Monad f) => Functor (WhenMissing f x) where
   {-# INLINE fmap #-}
 
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
   where
@@ -1496,7 +1495,6 @@ instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
           Just q  -> missingKey f k q
     {-# INLINE id #-}
     {-# INLINE (.) #-}
-#endif
 
 
 -- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
@@ -1645,7 +1643,6 @@ instance Functor f => Functor (WhenMatched f x y) where
   {-# INLINE fmap #-}
 
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
   where
@@ -1658,7 +1655,6 @@ instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
           Just r  -> runWhenMatched f k x r
     {-# INLINE id #-}
     {-# INLINE (.) #-}
-#endif
 
 
 -- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@

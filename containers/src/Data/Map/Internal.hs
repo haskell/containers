@@ -420,9 +420,9 @@ import GHC.Exts (Proxy#, proxy# )
 import qualified GHC.Exts as GHCExts
 import Text.Read hiding (lift)
 import Data.Data
-import qualified Control.Category as Category
 import Data.Coerce
 #endif
+import qualified Control.Category as Category
 
 {--------------------------------------------------------------------
   Operators
@@ -2208,7 +2208,6 @@ instance (Applicative f, Monad f) => Functor (WhenMissing f k x) where
   fmap = mapWhenMissing
   {-# INLINE fmap #-}
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance (Applicative f, Monad f)
          => Category.Category (WhenMissing f k) where
@@ -2220,7 +2219,6 @@ instance (Applicative f, Monad f)
            Just q -> missingKey f k q
   {-# INLINE id #-}
   {-# INLINE (.) #-}
-#endif
 
 -- | Equivalent to @ ReaderT k (ReaderT x (MaybeT f)) @.
 --
