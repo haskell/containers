@@ -6,7 +6,7 @@
 #define HASKELL_CONTAINERS_H
 
 /*
- * On GHC, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
+ * On GHC and MicroHs, include MachDeps.h to get WORD_SIZE_IN_BITS macro.
  */
 #if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 #include "MachDeps.h"
