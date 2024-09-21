@@ -41,12 +41,15 @@
 -- (much) faster on insertions and deletions when compared to a generic
 -- size-balanced map implementation (see "Data.Map").
 --
---    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
+--    * Chris Okasaki and Andy Gill,
+--      \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
---      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
+--      <https://web.archive.org/web/20150417234429/https://ittc.ku.edu/~andygill/papers/IntMap98.pdf>.
 --
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
---      Journal of the ACM, 15(4), October 1968, pages 514-534.
+--    * D.R. Morrison,
+--      \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
+--      Journal of the ACM, 15(4), October 1968, pages 514-534,
+--      <https://doi.org/10.1145/321479.321481>.
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
