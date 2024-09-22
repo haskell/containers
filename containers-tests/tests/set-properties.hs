@@ -16,6 +16,11 @@ import Control.Monad (liftM, liftM3)
 import Data.Functor.Identity
 import Data.Foldable (all)
 import Control.Applicative (liftA2)
+#if MIN_VERSION_base(4,18,0)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
+import qualified Data.Foldable1 as Foldable1
+#endif
 
 #if __GLASGOW_HASKELL__ >= 806
 import Utils.NoThunks (whnfHasNoThunks)
@@ -112,6 +117,10 @@ main = defaultMain $ testGroup "set-properties"
 #endif
                    , testProperty "eq" prop_eq
                    , testProperty "compare" prop_compare
+#if MIN_VERSION_base(4,18,0)
+                   , testProperty "intersections" prop_intersections
+                   , testProperty "intersections_lazy" prop_intersections_lazy
+#endif
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -738,3 +747,18 @@ prop_eq s1 s2 = (s1 == s2) === (toList s1 == toList s2)
 
 prop_compare :: Set Int -> Set Int -> Property
 prop_compare s1 s2 = compare s1 s2 === compare (toList s1) (toList s2)
+
+#if MIN_VERSION_base(4,18,0)
+prop_intersections :: (Set Int, [Set Int]) -> Property
+prop_intersections (s, ss) =
+  intersections ss' === Foldable1.foldl1' intersection ss'
+  where
+    ss' = s :| ss -- Work around missing Arbitrary NonEmpty instance
+
+prop_intersections_lazy :: [Set Int] -> Property
+prop_intersections_lazy ss = intersections ss' === empty
+  where
+    ss' = NE.fromList $ ss ++ [empty] ++ undefined
+                            -- ^ result will certainly be empty at this point,
+                            --   so the rest of the list should not be demanded.
+#endif

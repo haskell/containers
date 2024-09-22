@@ -117,9 +117,13 @@ module Data.Set (
             , difference
             , (\\)
             , intersection
+#if MIN_VERSION_base(4,18,0)
+            , intersections
+#endif
             , symmetricDifference
             , cartesianProduct
             , disjointUnion
+            , Intersection(..)
 
             -- * Filter
             , S.filter
