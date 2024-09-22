@@ -292,9 +292,7 @@ import Data.Semigroup (Semigroup(stimes))
 import Data.Semigroup (Semigroup((<>)))
 #endif
 import Data.Semigroup (stimesIdempotentMonoid)
-#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Classes
-#endif
 
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
@@ -326,11 +324,11 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex,
 import qualified Data.Data as Data
 import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
-import Text.Read
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 #endif
+import Text.Read
 import qualified Control.Category as Category
 
 
@@ -2071,7 +2069,7 @@ merge g1 g2 f m1 m2 =
 --
 -- @since 0.5.9
 mergeA
-  :: forall f a b c . (Applicative f)
+  :: (Applicative f)
   => WhenMissing f a c -- ^ What to do with keys in @m1@ but not @m2@
   -> WhenMissing f b c -- ^ What to do with keys in @m2@ but not @m1@
   -> WhenMatched f a b c -- ^ What to do with keys in both @m1@ and @m2@
@@ -2116,7 +2114,7 @@ mergeA
       EQL -> binA p1 (go l1 l2) (go r1 r2)
       NOM -> linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
 
-    subsingletonBy :: forall a' . (Key -> a' -> f (Maybe c)) -> Key -> a' -> f (IntMap c)
+    subsingletonBy :: (Key -> a -> f (Maybe c)) -> Key -> a -> f (IntMap c)
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
 
@@ -2138,10 +2136,10 @@ mergeA
     -- | A variant of 'link_' which makes sure to execute side-effects
     -- in the right order.
     linkA
-        :: forall a' . Applicative f
-        => Int -> f (IntMap a')
-        -> Int -> f (IntMap a')
-        -> f (IntMap a')
+        :: Applicative f
+        => Int -> f (IntMap a)
+        -> Int -> f (IntMap a)
+        -> f (IntMap a)
     linkA k1 t1 k2 t2
       | natFromInt k1 < natFromInt k2 = binA p t1 t2
       | otherwise = binA p t2 t1
@@ -2153,11 +2151,11 @@ mergeA
     -- A variant of 'bin' that ensures that effects for negative keys are executed
     -- first.
     binA
-        :: forall a' . Applicative f
+        :: Applicative f
         => Prefix
-        -> f (IntMap a')
-        -> f (IntMap a')
-        -> f (IntMap a')
+        -> f (IntMap a)
+        -> f (IntMap a)
+        -> f (IntMap a)
     binA p a b
       | signBranch p = liftA2 (flip (bin p)) b a
       | otherwise = liftA2 (bin p) a b
@@ -3449,7 +3447,6 @@ equal Nil Nil = True
 equal _   _   = False
 {-# INLINABLE equal #-}
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Eq1 IntMap where
   liftEq eq (Bin p1 l1 r1) (Bin p2 l2 r2)
@@ -3458,7 +3455,6 @@ instance Eq1 IntMap where
     = (kx == ky) && (eq x y)
   liftEq _eq Nil Nil = True
   liftEq _eq _   _   = False
-#endif
 
 {--------------------------------------------------------------------
   Ord
@@ -3467,12 +3463,10 @@ instance Eq1 IntMap where
 instance Ord a => Ord (IntMap a) where
     compare m1 m2 = compare (toList m1) (toList m2)
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Ord1 IntMap where
   liftCompare cmp m n =
     liftCompare (liftCompare cmp) (toList m) (toList n)
-#endif
 
 {--------------------------------------------------------------------
   Functor
@@ -3495,7 +3489,6 @@ instance Show a => Show (IntMap a) where
   showsPrec d m   = showParen (d > 10) $
     showString "fromList " . shows (toList m)
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Show1 IntMap where
     liftShowsPrec sp sl d m =
@@ -3503,13 +3496,12 @@ instance Show1 IntMap where
       where
         sp' = liftShowsPrec sp sl
         sl' = liftShowList sp sl
-#endif
 
 {--------------------------------------------------------------------
   Read
 --------------------------------------------------------------------}
 instance (Read e) => Read (IntMap e) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
@@ -3523,7 +3515,6 @@ instance (Read e) => Read (IntMap e) where
     return (fromList xs,t)
 #endif
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Read1 IntMap where
     liftReadsPrec rp rl = readsData $
@@ -3531,7 +3522,6 @@ instance Read1 IntMap where
       where
         rp' = liftReadsPrec rp rl
         rl' = liftReadList rp rl
-#endif
 
 {--------------------------------------------------------------------
   Helpers

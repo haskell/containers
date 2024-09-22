@@ -115,7 +115,7 @@ import Data.Tree (Tree(Node), Forest)
 
 -- std interfaces
 import Data.Foldable as F
-#if MIN_VERSION_base(4,18,0) && defined(__GLASGOW_HASKELL__)
+#if MIN_VERSION_base(4,18,0)
 import qualified Data.Foldable1 as F1
 #endif
 import Control.DeepSeq (NFData(rnf))
@@ -130,9 +130,7 @@ import qualified Data.Array as UA
 import qualified Data.List as L
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Classes
-#endif
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
 #endif
@@ -196,7 +194,6 @@ instance Lift vertex => Lift (SCC vertex) where
 
 #endif
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Eq1 SCC where
   liftEq eq (AcyclicSCC v1) (AcyclicSCC v2) = eq v1 v2
@@ -210,8 +207,9 @@ instance Show1 SCC where
 instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
-    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC <>
-    readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC
+#ifdef __GLASGOW_HASKELL__
+    <> readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
 #endif
 
 -- | @since 0.5.9
@@ -219,7 +217,7 @@ instance F.Foldable SCC where
   foldr c n (AcyclicSCC v) = c v n
   foldr c n (NECyclicSCC vs) = foldr c n vs
 
-#if MIN_VERSION_base(4,18,0) && defined(__GLASGOW_HASKELL__)
+#if MIN_VERSION_base(4,18,0)
 -- | @since 0.7.0
 instance F1.Foldable1 SCC where
   foldMap1 f (AcyclicSCC v) = f v
