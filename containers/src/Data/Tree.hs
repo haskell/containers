@@ -75,9 +75,8 @@ import Control.Monad.Zip (MonadZip (..))
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
-
-import Data.Functor.Classes
 #endif
+import Data.Functor.Classes
 
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup (..))
@@ -113,7 +112,6 @@ data Tree a = Node {
 -- reasons.
 type Forest a = [Tree a]
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Eq1 Tree where
   liftEq eq = leq
@@ -148,7 +146,6 @@ instance Read1 Tree where
       (fr, s9) <- liftReadList rd rdl s8
       ("}", s10) <- lex s9
       pure (Node a fr, s10)
-#endif
 
 instance Functor Tree where
     fmap = fmapTree

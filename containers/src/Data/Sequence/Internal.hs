@@ -216,12 +216,12 @@ import Data.Foldable (foldr', toList)
 import qualified Data.Foldable as F
 
 import qualified Data.Semigroup as Semigroup
+import Data.Functor.Classes
 import Data.Traversable
 
--- GHC specific stuff
-import Data.Functor.Classes
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
+-- GHC specific stuff
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts (build)
 import Data.Data
@@ -908,6 +908,14 @@ instance Alternative Seq where
     empty = empty
     (<|>) = (><)
 
+instance Eq a => Eq (Seq a) where
+  xs == ys = liftEq (==) xs ys
+  {-# INLINABLE (==) #-}
+
+instance Ord a => Ord (Seq a) where
+  compare xs ys = liftCompare compare xs ys
+  {-# INLINABLE compare #-}
+
 #ifdef TESTING
 instance Show a => Show (Seq a) where
     showsPrec p (Seq x) = showsPrec p x
@@ -916,14 +924,6 @@ instance Show a => Show (Seq a) where
     showsPrec p xs = showParen (p > 10) $
         showString "fromList " . shows (toList xs)
 #endif
-
-instance Eq a => Eq (Seq a) where
-  xs == ys = liftEq (==) xs ys
-  {-# INLINABLE (==) #-}
-
-instance Ord a => Ord (Seq a) where
-  compare xs ys = liftCompare compare xs ys
-  {-# INLINABLE compare #-}
 
 -- | @since 0.5.9
 instance Show1 Seq where
@@ -3095,12 +3095,12 @@ delDigit f i (Four a b c d)
 -- | A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
-mapWithIndex :: forall a b . (Int -> a -> b) -> Seq a -> Seq b
+mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)) 0 xs'
  where
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> FingerTree b #-}
   {-# SPECIALIZE mapWithIndexTree :: (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> FingerTree b #-}
-  mapWithIndexTree :: forall a' b' . Sized a' => (Int -> a' -> b') -> Int -> FingerTree a' -> FingerTree b'
+  mapWithIndexTree :: Sized a => (Int -> a -> b) -> Int -> FingerTree a -> FingerTree b
   mapWithIndexTree _ !_s EmptyT = EmptyT
   mapWithIndexTree f s (Single xs) = Single $ f s xs
   mapWithIndexTree f s (Deep n pr m sf) =
@@ -3114,7 +3114,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
 
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
   {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
-  mapWithIndexDigit :: forall a' b' . Sized a' => (Int -> a' -> b') -> Int -> Digit a' -> Digit b'
+  mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
   mapWithIndexDigit f !s (One a) = One (f s a)
   mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
     where
@@ -3133,7 +3133,7 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
 
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
-  mapWithIndexNode :: forall a' b' . Sized a' => (Int -> a' -> b') -> Int -> Node a' -> Node b'
+  mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
   mapWithIndexNode f s (Node2 ns a b) = Node2 ns (f s a) (f sPsa b)
     where
       !sPsa = s + size a
@@ -3201,7 +3201,7 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
 -- GHC does not specialize until *all* instances are determined.
 -- Although the Sized instance is known at compile time, the Monoid
 -- instance generally is not.
-  foldMapWithIndexTreeE :: forall m a . Monoid m => (Int -> Elem a -> m) -> Int -> FingerTree (Elem a) -> m
+  foldMapWithIndexTreeE :: Monoid m => (Int -> Elem a -> m) -> Int -> FingerTree (Elem a) -> m
   foldMapWithIndexTreeE _ !_s EmptyT = mempty
   foldMapWithIndexTreeE f s (Single xs) = f s xs
   foldMapWithIndexTreeE f s (Deep _ pr m sf) =
@@ -3212,7 +3212,7 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
 
-  foldMapWithIndexTreeN :: forall m a . Monoid m => (Int -> Node a -> m) -> Int -> FingerTree (Node a) -> m
+  foldMapWithIndexTreeN :: Monoid m => (Int -> Node a -> m) -> Int -> FingerTree (Node a) -> m
   foldMapWithIndexTreeN _ !_s EmptyT = mempty
   foldMapWithIndexTreeN f s (Single xs) = f s xs
   foldMapWithIndexTreeN f s (Deep _ pr m sf) =
@@ -3250,7 +3250,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 -- GHC does not specialize until *all* instances are determined.
 -- Although the Sized instance is known at compile time, the Applicative
 -- instance generally is not.
-  traverseWithIndexTreeE :: forall f a b . Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
+  traverseWithIndexTreeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> FingerTree (Elem a) -> f (FingerTree b)
   traverseWithIndexTreeE _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeE f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeE f s (Deep n pr m sf) =
@@ -3262,7 +3262,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
 
-  traverseWithIndexTreeN :: forall f a b . Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
+  traverseWithIndexTreeN :: Applicative f => (Int -> Node a -> f b) -> Int -> FingerTree (Node a) -> f (FingerTree b)
   traverseWithIndexTreeN _ !_s EmptyT = pure EmptyT
   traverseWithIndexTreeN f s (Single xs) = Single <$> f s xs
   traverseWithIndexTreeN f s (Deep n pr m sf) =
@@ -3274,14 +3274,14 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
 
-  traverseWithIndexDigitE :: forall f a b . Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
+  traverseWithIndexDigitE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Digit (Elem a) -> f (Digit b)
   traverseWithIndexDigitE f i t = traverseWithIndexDigit f i t
 
-  traverseWithIndexDigitN :: forall f a b . Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
+  traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
   traverseWithIndexDigitN f i t = traverseWithIndexDigit f i t
 
   {-# INLINE traverseWithIndexDigit #-}
-  traverseWithIndexDigit :: forall f a b . (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
+  traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
   traverseWithIndexDigit f !s (One a) = One <$> f s a
   traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
     where
@@ -3298,14 +3298,14 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsab = sPsa + size b
       !sPsabc = sPsab + size c
 
-  traverseWithIndexNodeE :: forall f a b . Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
+  traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
   traverseWithIndexNodeE f i t = traverseWithIndexNode f i t
 
-  traverseWithIndexNodeN :: forall f a b . Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
+  traverseWithIndexNodeN :: Applicative f => (Int -> Node a -> f b) -> Int -> Node (Node a) -> f (Node b)
   traverseWithIndexNodeN f i t = traverseWithIndexNode f i t
 
   {-# INLINE traverseWithIndexNode #-}
-  traverseWithIndexNode :: forall f a b . (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Node a -> f (Node b)
+  traverseWithIndexNode :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Node a -> f (Node b)
   traverseWithIndexNode f !s (Node2 ns a b) = liftA2 (Node2 ns) (f s a) (f sPsa b)
     where
       !sPsa = s + size a
@@ -3361,7 +3361,7 @@ fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with neg
                    | len == 0 = empty
                    | otherwise = Seq $ create (lift_elem f) 1 0 len
   where
-    create :: forall a . (Int -> a) -> Int -> Int -> Int -> FingerTree a
+    create :: (Int -> a) -> Int -> Int -> Int -> FingerTree a
     create b{-tree_builder-} !s{-tree_size-} !i{-start_index-} trees = case trees of
        1 -> Single $ b i
        2 -> Deep (2*s) (One (b i)) EmptyT (One (b (i+s)))
@@ -4387,8 +4387,7 @@ fromList = Seq . mkTree . map_elem
               !sub1 = Deep (9*s + size r1 + size sub) d1 sub r1
           in cont b $! Deep (3*s + size r2 + size sub1) d2 sub1 r2
 
-    getNodesC :: forall a b .
-                 Int
+    getNodesC :: Int
               -> Node a
               -> a
               -> ListFinal a b
@@ -4423,7 +4422,7 @@ fromList = Seq . mkTree . map_elem
             !n3 = Node3 s x4 x5 x6
             !n10 = Node3 (3*s) n1 n2 n3
 
-    map_elem :: forall a . [a] -> [Elem a]
+    map_elem :: [a] -> [Elem a]
 #ifdef __GLASGOW_HASKELL__
     map_elem xs = coerce xs
 #else
