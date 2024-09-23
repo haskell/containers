@@ -155,7 +155,9 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
+#if MIN_VERSION_base(4,18,0)
             , intersections
+#endif
             , symmetricDifference
             , cartesianProduct
             , disjointUnion
@@ -240,7 +242,6 @@ import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 import Data.Semigroup (Semigroup(stimes))
-import Data.List.NonEmpty (NonEmpty(..))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
@@ -249,6 +250,10 @@ import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.Foldable1 as Foldable1
+import Data.List.NonEmpty (NonEmpty(..))
+#endif
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -896,21 +901,37 @@ intersection t1@(Bin _ x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
--- | The intersection of a series of sets. Intersections are performed left-to-right.
-intersections :: Ord a => NonEmpty (Set a) -> Set a
-intersections (s0 :| ss) = List.foldr go id ss s0
-    where
-      go s r acc
-          | null acc = empty
-          | otherwise = r (intersection acc s)
+#if MIN_VERSION_base(4,18,0)
+-- | The intersection of a series of sets. Intersections are performed
+-- left-to-right.
+--
+-- @since FIXME
+intersections :: (Foldable1.Foldable1 f, Ord a) => f (Set a) -> Set a
+intersections ss = case Foldable1.toNonEmpty ss of
+  s0 :| ss'
+    | null s0 -> empty
+    | otherwise -> List.foldr go id ss' s0
+  where
+    go s r acc
+      | null acc' = empty
+      | otherwise = r acc'
+      where
+        acc' = intersection acc s
+{-# INLINABLE intersections #-}
+#endif
 
--- | Sets form a 'Semigroup' under 'intersection'.
+-- | @Set@s form a 'Semigroup' under 'intersection'.
+--
+-- @since FIXME
 newtype Intersection a = Intersection { getIntersection :: Set a }
     deriving (Show, Eq, Ord)
 
 instance (Ord a) => Semigroup (Intersection a) where
     (Intersection a) <> (Intersection b) = Intersection $ intersection a b
+    {-# INLINABLE (<>) #-}
+
     stimes = stimesIdempotent
+    {-# INLINABLE stimes #-}
 
 {--------------------------------------------------------------------
   Symmetric difference

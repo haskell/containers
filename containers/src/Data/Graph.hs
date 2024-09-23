@@ -36,8 +36,11 @@
 --
 -- The implementation is based on
 --
---   * /Structuring Depth-First Search Algorithms in Haskell/,
---     by David King and John Launchbury, <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526>
+--   * David King and John Launchbury,
+--     \"/Structuring Depth-First Search Algorithms in Haskell/\",
+--     Proceedings of the 22nd ACM SIGPLAN-SIGACT Symposium on Principles of
+--     Programming Languages, 344-354, 1995,
+--     <https://doi.org/10.1145/199448.199530>.
 --
 -----------------------------------------------------------------------------
 

@@ -125,7 +125,11 @@ module Data.IntSet.Internal (
     , unions
     , difference
     , intersection
+#if MIN_VERSION_base(4,18,0)
+    , intersections
+#endif
     , symmetricDifference
+    , Intersection(..)
 
     -- * Filter
     , filter
@@ -192,11 +196,15 @@ import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
 import Data.Maybe (fromMaybe)
-import Data.Semigroup (Semigroup(stimes))
+import Data.Semigroup
+  (Semigroup(stimes), stimesIdempotent, stimesIdempotentMonoid)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
-import Data.Semigroup (stimesIdempotentMonoid)
+#if MIN_VERSION_base(4,18,0)
+import qualified Data.Foldable1 as Foldable1
+import Data.List.NonEmpty (NonEmpty(..))
+#endif
 import Utils.Containers.Internal.Prelude hiding
   (filter, foldr, foldl, foldl', null, map)
 import Prelude ()
@@ -658,6 +666,40 @@ intersection (Tip kx1 bm1) t2 = intersectBM t2
         intersectBM Nil = Nil
 
 intersection Nil _ = Nil
+
+#if MIN_VERSION_base(4,18,0)
+-- | The intersection of a series of sets. Intersections are performed
+-- left-to-right.
+--
+-- @since FIXME
+intersections :: Foldable1.Foldable1 f => f IntSet -> IntSet
+intersections ss = case Foldable1.toNonEmpty ss of
+  s0 :| ss'
+    | null s0 -> empty
+    | otherwise -> List.foldr go id ss' s0
+  where
+    go s r acc
+      | null acc' = empty
+      | otherwise = r acc'
+      where
+        acc' = intersection acc s
+{-# INLINABLE intersections #-}
+#endif
+
+-- | @IntSet@s form a 'Semigroup' under 'intersection'.
+--
+-- A @Monoid@ instance is not defined because it would be impractical to
+-- construct @mempty@, the @IntSet@ containing all @Int@s.
+--
+-- @since FIXME
+newtype Intersection = Intersection { getIntersection :: IntSet }
+  deriving (Show, Eq, Ord)
+
+instance Semigroup Intersection where
+  Intersection s1 <> Intersection s2 = Intersection (intersection s1 s2)
+
+  stimes = stimesIdempotent
+  {-# INLINABLE stimes #-}
 
 {--------------------------------------------------------------------
   Symmetric difference

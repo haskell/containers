@@ -41,6 +41,9 @@
 
 * Add `lookupMin` and `lookupMax` for `Data.IntSet`. (Soumik Sarkar)
 
+* Add `Intersection` and `intersections` for `Data.Set` and `Data.IntSet`.
+  (Reed Mullanix, Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
@@ -56,6 +59,8 @@
     but a bundled pattern synonym for backward compatibility.
   * `NECyclicSCC (NonEmpty v)` is a new constructor, maintaining an invariant
     that a set of mutually reachable vertices is non-empty.
+
+## 0.6.8
 
 ### Additions
 
@@ -131,16 +136,40 @@
 
 ## 0.6.6
 
-* Drop support for GHC versions before 8.0.2.
-
-* Bump Cabal version for tests, and use `common` clauses to reduce
-  duplication.
-
-### New instances
+### Additions
 
 * Add `Lift` instances for use with Template Haskell. Specifically:
   `Seq`, `ViewL`, and `ViewR` (in `Data.Sequence`), `Map`, `Set`,
-  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`).
+  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`). (David Feuer)
+
+* Add `argSet` and `fromArgSet` for `Data.Map`. (jwaldmann)
+
+### Performance improvements
+
+* Remove short-circuiting from certain `IntMap` functions to improve
+  performance for successful lookups. (Callan McGill)
+
+### Other changes
+
+* Drop support for GHC versions before 8.0.2. (David Feuer)
+
+* Various documentation improvements. (Will Hawkins, Eric Lindblad, konsumlamm,
+  Joseph C. Sible)
+
+### Miscellaneous/internal
+
+* Bump Cabal version for tests, and use `common` clauses to reduce
+  duplication. (David Feuer)
+
+* Migrate from test-framework to tasty. (Bodigrim)
+
+* Migrate from gauge to tasty-bench. (Bodigrim)
+
+* Enable `TypeOperators` to address a future GHC requirement.
+  (Vladislav Zavialov)
+
+* Work around an issue with unboxed arrays on big-endian systems.
+  (Peter Trommler)
 
 ## 0.6.5.1
 
