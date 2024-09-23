@@ -219,11 +219,11 @@ import qualified Data.Semigroup as Semigroup
 import Data.Traversable
 
 -- GHC specific stuff
-#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Classes
-import GHC.Exts (build)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
+#ifdef __GLASGOW_HASKELL__
+import GHC.Exts (build)
 import Data.Data
 import Data.String (IsString(..))
 import qualified Language.Haskell.TH.Syntax as TH
@@ -917,7 +917,6 @@ instance Show a => Show (Seq a) where
         showString "fromList " . shows (toList xs)
 #endif
 
-#ifdef __GLASGOW_HASKELL__
 instance Eq a => Eq (Seq a) where
   xs == ys = liftEq (==) xs ys
   {-# INLINABLE (==) #-}
@@ -941,14 +940,6 @@ instance Eq1 Seq where
 instance Ord1 Seq where
   liftCompare f xs ys = liftCmpLists f (toList xs) (toList ys)
   {-# INLINE liftCompare #-}
-#else
-instance Eq a => Eq (Seq a) where
-    xs == ys = length xs == length ys && F.toList xs == F.toList ys
-
-instance Ord a => Ord (Seq a) where
-    compare xs ys = compare (F.toList xs) (F.toList ys)
-
-#endif
 
 -- Note [Eq and Ord]
 -- ~~~~~~~~~~~~~~~~~
@@ -986,7 +977,7 @@ liftCmpLists cmp = go
 {-# INLINE liftCmpLists #-}
 
 instance Read a => Read (Seq a) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
     readPrec = parens $ prec 10 $ do
         Ident "fromList" <- lexP
         xs <- readPrec
@@ -1000,7 +991,6 @@ instance Read a => Read (Seq a) where
         return (fromList xs,t)
 #endif
 
-#if __GLASGOW_HASKELL__
 -- | @since 0.5.9
 instance Read1 Seq where
   liftReadsPrec _rp readLst p = readParen (p > 10) $ \r -> do
@@ -1011,7 +1001,6 @@ instance Read1 Seq where
 instance Monoid (Seq a) where
     mempty = empty
     mappend = (Semigroup.<>)
-#endif
 
 -- | @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
