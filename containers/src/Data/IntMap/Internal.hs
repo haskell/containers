@@ -2114,7 +2114,7 @@ mergeA
       EQL -> binA p1 (go l1 l2) (go r1 r2)
       NOM -> linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
 
-    subsingletonBy :: (Key -> a -> f (Maybe c)) -> Key -> a -> f (IntMap c)
+    subsingletonBy :: Functor f => (Key -> a -> f (Maybe c)) -> Key -> a -> f (IntMap c)
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
 
