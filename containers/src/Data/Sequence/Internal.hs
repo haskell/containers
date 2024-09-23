@@ -219,9 +219,11 @@ import qualified Data.Semigroup as Semigroup
 import Data.Functor.Classes
 import Data.Traversable
 
+-- GHC specific stuff
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
--- GHC specific stuff
+#endif
 #ifdef __GLASGOW_HASKELL__
 import GHC.Exts (build)
 import Data.Data

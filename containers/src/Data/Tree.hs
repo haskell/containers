@@ -83,9 +83,7 @@ import Data.Semigroup (Semigroup (..))
 #endif
 
 #if MIN_VERSION_base(4,18,0)
-#ifdef __GLASGOW_HASKELL__
 import qualified Data.Foldable1 as Foldable1
-#endif
 import Data.List.NonEmpty (NonEmpty(..))
 #endif
 
@@ -236,7 +234,7 @@ instance Foldable Tree where
     product = foldlMap1' id (*)
     {-# INLINABLE product #-}
 
-#if MIN_VERSION_base(4,18,0) && defined(__GLASGOW_HASKELL__)
+#if MIN_VERSION_base(4,18,0) && (defined(__GLASGOW_HASKELL__) || defined(__MHS__))
 -- | Folds in preorder
 --
 -- @since 0.6.7

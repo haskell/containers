@@ -1347,6 +1347,7 @@ sameSizeLiftEq eq s1 s2 =
     f x = EqM $ \it -> case iterNext it of
       Nothing -> False :*: it
       Just (y :*: it') -> eq x y :*: it'
+{-# INLINE sameSizeLiftEq #-}
 
 {--------------------------------------------------------------------
   Ord
