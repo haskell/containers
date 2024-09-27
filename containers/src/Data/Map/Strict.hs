@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
@@ -296,10 +295,6 @@ module Data.Map.Strict
     , maxViewWithKey
 
     -- * Debugging
-#ifdef __GLASGOW_HASKELL__
-    , showTree
-    , showTreeWith
-#endif
     , valid
     ) where
 

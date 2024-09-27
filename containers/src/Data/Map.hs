@@ -3,10 +3,6 @@
 {-# LANGUAGE Safe #-}
 #endif
 
-#ifdef __GLASGOW_HASKELL__
-{-# LANGUAGE DataKinds, FlexibleContexts, MonoLocalBinds #-}
-#endif
-
 #include "containers.h"
 
 -----------------------------------------------------------------------------
@@ -18,17 +14,13 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- /Note:/ You should use "Data.Map.Strict" instead of this module if:
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys but lazy
+-- in its values.
 --
--- * You will eventually need all the values stored.
+-- This module re-exports the value lazy "Data.Map.Lazy" API.
 --
--- * The stored values don't represent large virtual data structures
--- to be lazily computed.
---
--- An efficient implementation of ordered maps from keys to values
--- (dictionaries).
---
--- These modules are intended to be imported qualified, to avoid name
+-- This module is intended to be imported qualified, to avoid name
 -- clashes with Prelude functions, e.g.
 --
 -- >  import qualified Data.Map as Map
@@ -70,48 +62,6 @@
 
 module Data.Map
     ( module Data.Map.Lazy
-#ifdef __GLASGOW_HASKELL__
-    , insertWith'
-    , insertWithKey'
-    , insertLookupWithKey'
-    , fold
-    , foldWithKey
-#endif
     ) where
 
 import Data.Map.Lazy
-
-#ifdef __GLASGOW_HASKELL__
-import Utils.Containers.Internal.TypeError
-
--- | This function is being removed and is no longer usable.
--- Use 'Data.Map.Strict.insertWith'.
-insertWith' :: Whoops "Data.Map.insertWith' is gone. Use Data.Map.Strict.insertWith."
-            => (a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWith' _ _ _ _ = undefined
-
--- | This function is being removed and is no longer usable.
--- Use 'Data.Map.Strict.insertWithKey'.
-insertWithKey' :: Whoops "Data.Map.insertWithKey' is gone. Use Data.Map.Strict.insertWithKey."
-               => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
-insertWithKey' _ _ _ _ = undefined
-
--- | This function is being removed and is no longer usable.
--- Use 'Data.Map.Strict.insertLookupWithKey'.
-insertLookupWithKey' :: Whoops "Data.Map.insertLookupWithKey' is gone. Use Data.Map.Strict.insertLookupWithKey."
-                     => (k -> a -> a -> a) -> k -> a -> Map k a
-                     -> (Maybe a, Map k a)
-insertLookupWithKey' _ _ _ _ = undefined
-
--- | This function is being removed and is no longer usable.
--- Use 'Data.Map.Strict.foldr'.
-fold :: Whoops "Data.Map.fold is gone. Use foldr."
-     => (a -> b -> b) -> b -> Map k a -> b
-fold _ _ _ = undefined
-
--- | This function is being removed and is no longer usable.
--- Use 'foldrWithKey'.
-foldWithKey :: Whoops "Data.Map.foldWithKey is gone. Use foldrWithKey."
-            => (k -> a -> b -> b) -> b -> Map k a -> b
-foldWithKey _ _ _ = undefined
-#endif
