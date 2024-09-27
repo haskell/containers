@@ -7,7 +7,6 @@ module Utils.Containers.Internal.Prelude
   , Foldable (..)
 #ifdef __MHS__
   , Traversable(..)
-  , NonEmpty
   , any, concatMap
 #endif
   )

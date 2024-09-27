@@ -233,6 +233,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 import Language.Haskell.TH ()
 import GHC.Generics (Generic, Generic1)
 
+-- Array stuff, with GHC.Arr on GHC
 import qualified GHC.Arr
 import Data.Coerce
 import qualified GHC.Exts
@@ -240,7 +241,6 @@ import qualified GHC.Exts
 import qualified Data.List
 #endif
 
--- Array stuff, with GHC.Arr on GHC
 import Data.Array (Ix, Array)
 import qualified Data.Array
 

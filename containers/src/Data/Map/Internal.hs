@@ -417,7 +417,9 @@ import qualified GHC.Exts as GHCExts
 import Data.Data
 import Data.Coerce
 #endif
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read hiding (lift)
+#endif
 import qualified Control.Category as Category
 
 {--------------------------------------------------------------------

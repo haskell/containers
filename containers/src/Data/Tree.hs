@@ -234,7 +234,7 @@ instance Foldable Tree where
     product = foldlMap1' id (*)
     {-# INLINABLE product #-}
 
-#if MIN_VERSION_base(4,18,0) && (defined(__GLASGOW_HASKELL__) || defined(__MHS__))
+#if MIN_VERSION_base(4,18,0)
 -- | Folds in preorder
 --
 -- @since 0.6.7

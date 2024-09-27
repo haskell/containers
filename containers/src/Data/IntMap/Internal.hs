@@ -328,7 +328,9 @@ import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 #endif
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read
+#endif
 import qualified Control.Category as Category
 
 
