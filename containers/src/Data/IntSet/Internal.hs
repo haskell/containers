@@ -150,6 +150,7 @@ module Data.IntSet.Internal (
     -- * Folds
     , foldr
     , foldl
+    , foldMap
     -- ** Strict folds
     , foldr'
     , foldl'
@@ -206,7 +207,7 @@ import qualified Data.Foldable1 as Foldable1
 import Data.List.NonEmpty (NonEmpty(..))
 #endif
 import Utils.Containers.Internal.Prelude hiding
-  (filter, foldr, foldl, foldl', null, map)
+  (filter, foldr, foldl, foldl', foldMap, null, map)
 import Prelude ()
 
 import Utils.Containers.Internal.BitUtil
@@ -1250,6 +1251,20 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
 
+-- | \(O(n))\). Map the elements in the set to a monoid and combine with @(<>)@.
+foldMap :: Monoid a => (Key -> a) -> IntSet -> a
+foldMap f = \t ->  -- Use lambda t to be inlinable with one argument only.
+  case t of
+    Bin p l r
+      | signBranch p -> go r <> go l  -- handle negative numbers
+      | otherwise -> go l <> go r
+    _ -> go t
+  where
+    go (Bin _ l r) = go l <> go r
+    go (Tip kx bm) = foldMapBits kx f bm
+    go Nil = mempty
+{-# INLINE foldMap #-}
+
 {--------------------------------------------------------------------
   List variations
 --------------------------------------------------------------------}
@@ -1673,6 +1688,7 @@ foldlBits :: Int -> (a -> Int -> a) -> a -> Nat -> a
 foldl'Bits :: Int -> (a -> Int -> a) -> a -> Nat -> a
 foldrBits :: Int -> (Int -> a -> a) -> a -> Nat -> a
 foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
+foldMapBits :: Semigroup a => Int -> (Int -> a) -> Nat -> a
 takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 
 {-# INLINE lowestBitSet #-}
@@ -1681,6 +1697,7 @@ takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 {-# INLINE foldl'Bits #-}
 {-# INLINE foldrBits #-}
 {-# INLINE foldr'Bits #-}
+{-# INLINE foldMapBits #-}
 {-# INLINE takeWhileAntitoneBits #-}
 
 #if defined(__GLASGOW_HASKELL__)
@@ -1735,6 +1752,16 @@ foldr'Bits prefix f z bitmap = go (revNat bitmap) z
         go bm !acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
           where !bitmask = lowestBitMask bm
                 !bi = countTrailingZeros bitmask
+
+foldMapBits prefix f bitmap = go (prefix + bi0) (bitmap `xor` bitmask0)
+  where
+    bitmask0 = lowestBitMask bitmap
+    bi0 = countTrailingZeros bitmask0
+    go !x 0 = f x
+    go !x bm = f x <> go (prefix + bi) (bm `xor` bitmask)
+      where
+        bitmask = lowestBitMask bm
+        bi = countTrailingZeros bitmask
 
 takeWhileAntitoneBits prefix predicate bitmap =
   -- Binary search for the first index where the predicate returns false, but skip a predicate
@@ -1807,6 +1834,15 @@ foldr'Bits prefix f z bm = let lb = lowestBitSet bm
         go !_ 0 = z
         go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
+
+foldMapBits prefix f bm = go x0 (x0 + 1) ((bm `shiftRL` lb) `shiftRL` 1)
+  where
+    lb = lowestBitSet bm
+    x0 = prefix + lb
+    go !x !_ 0 = f x
+    go !x !bi n
+      | n `testBit` 0 = f x <> go bi (bi + 1) (n `shiftRL` 1)
+      | otherwise = go x (bi + 1) (n `shiftRL` 1)
 
 takeWhileAntitoneBits prefix predicate = foldl'Bits prefix f 0 -- Does not use antitone property
   where

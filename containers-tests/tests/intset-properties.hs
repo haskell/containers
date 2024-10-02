@@ -14,7 +14,7 @@ import qualified Data.Foldable1 as Foldable1
 #endif
 import qualified Data.Set as Set
 import IntSetValidity (valid)
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', foldMap)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck hiding ((.&.))
@@ -71,6 +71,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_foldR'" prop_foldR'
                    , testProperty "prop_foldL" prop_foldL
                    , testProperty "prop_foldL'" prop_foldL'
+                   , testProperty "prop_foldMap" prop_foldMap
                    , testProperty "prop_map" prop_map
                    , testProperty "prop_mapMonotonicId" prop_mapMonotonicId
                    , testProperty "prop_mapMonotonicLinear" prop_mapMonotonicLinear
@@ -385,6 +386,9 @@ prop_foldL s = foldl (flip (:)) [] s == List.foldl (flip (:)) [] (toList s)
 
 prop_foldL' :: IntSet -> Bool
 prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
+
+prop_foldMap :: IntSet -> Property
+prop_foldMap s = foldMap (:[]) s === toList s
 
 prop_map :: IntSet -> Bool
 prop_map s = map id s == s

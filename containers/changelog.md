@@ -42,6 +42,8 @@
 * Add `Intersection` and `intersections` for `Data.Set` and `Data.IntSet`.
   (Reed Mullanix, Soumik Sarkar)
 
+* Add `foldMap` for `Data.IntSet`. (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
