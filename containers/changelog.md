@@ -140,7 +140,7 @@
   `Seq`, `ViewL`, and `ViewR` (in `Data.Sequence`), `Map`, `Set`,
   `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`). (David Feuer)
 
-* Add `argSet` and `fromArgSet` for `Data.Map`. (jwaldmann)
+* Add `argSet` and `fromArgSet` for `Data.Map`. (Joseph C. Sible)
 
 ### Performance improvements
 
