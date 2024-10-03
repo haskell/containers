@@ -1180,10 +1180,9 @@ mapMonotonic f = fromDistinctAscList . List.map f . toAscList
   Fold
 --------------------------------------------------------------------}
 -- | \(O(n)\). Fold the elements in the set using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
+-- binary operator.
 --
--- /Please note that fold will be deprecated in the future and removed./
+{-# DEPRECATED fold "Use Data.IntSet.foldr instead" #-}
 fold :: (Key -> b -> b) -> b -> IntSet -> b
 fold = foldr
 {-# INLINE fold #-}
