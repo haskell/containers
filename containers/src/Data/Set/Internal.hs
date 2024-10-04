@@ -1027,10 +1027,9 @@ mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f 
   Fold
 --------------------------------------------------------------------}
 -- | \(O(n)\). Fold the elements in the set using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
+-- binary operator.
 --
--- /Please note that fold will be deprecated in the future and removed./
+{-# DEPRECATED fold "Use Data.Set.foldr instead" #-}
 fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
 {-# INLINE fold #-}
