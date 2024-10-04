@@ -18,7 +18,8 @@ main = do
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
-        , bench "map" $ whnf (S.map (+ 1)) s
+        , bench "map:asc" $ whnf (S.map (+ 1)) s
+        , bench "map:desc" $ whnf (S.map (negate . (+ 1))) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
         , bench "fold" $ whnf (S.fold (:) []) s
@@ -31,8 +32,10 @@ main = do
         , bench "union" $ whnf (S.union s_even) s_odd
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
-        , bench "fromList" $ whnf S.fromList elems
-        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
+        , bench "fromList-asc" $ whnf S.fromList elems
+        , bench "fromList-asc:fusion" $ whnf (\n -> S.fromList [1..n]) bound
+        , bench "fromList-desc" $ whnf S.fromList elems_rev
+        , bench "fromList-desc:fusion" $ whnf (\n -> S.fromList [n,n-1..1]) bound
         , bench "fromAscList" $ whnf S.fromAscList elems
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
