@@ -7,8 +7,8 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-#endif
 #define USE_MAGIC_PROXY 1
+#endif
 
 #ifdef USE_MAGIC_PROXY
 {-# LANGUAGE MagicHash #-}
@@ -414,12 +414,13 @@ import Language.Haskell.TH ()
 import GHC.Exts (Proxy#, proxy# )
 #  endif
 import qualified GHC.Exts as GHCExts
-import Text.Read hiding (lift)
 import Data.Data
-import qualified Control.Category as Category
 import Data.Coerce
 #endif
-
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
+import Text.Read hiding (lift)
+#endif
+import qualified Control.Category as Category
 
 {--------------------------------------------------------------------
   Operators
@@ -4479,7 +4480,7 @@ instance (NFData k, NFData a) => NFData (Map k a) where
   Read
 --------------------------------------------------------------------}
 instance (Ord k, Read k, Read e) => Read (Map k e) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec

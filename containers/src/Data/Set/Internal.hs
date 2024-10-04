@@ -259,11 +259,13 @@ import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
+import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
+                 , lexP, readListPrecDefault )
+#endif
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
 import qualified GHC.Exts as GHCExts
-import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
-                 , lexP, readListPrecDefault )
 import Data.Data
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
@@ -296,10 +298,10 @@ type Size     = Int
 
 #ifdef __GLASGOW_HASKELL__
 type role Set nominal
-#endif
 
 -- | @since 0.6.6
 deriving instance Lift a => Lift (Set a)
+#endif
 
 instance Ord a => Monoid (Set a) where
     mempty  = empty
@@ -1385,7 +1387,7 @@ instance Show1 Set where
   Read
 --------------------------------------------------------------------}
 instance (Read a, Ord a) => Read (Set a) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec

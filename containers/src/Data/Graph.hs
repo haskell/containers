@@ -210,8 +210,10 @@ instance Show1 SCC where
 instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
-    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC <>
-    readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC
+#ifdef __GLASGOW_HASKELL__
+    <> readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+#endif
 
 -- | @since 0.5.9
 instance F.Foldable SCC where

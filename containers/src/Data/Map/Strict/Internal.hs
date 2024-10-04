@@ -342,7 +342,9 @@ import Data.Map.Internal
   , argSet
   , assocs
   , atKeyImpl
+#ifdef __GLASGOW_HASKELL__
   , atKeyPlain
+#endif
   , balance
   , balanceL
   , balanceR

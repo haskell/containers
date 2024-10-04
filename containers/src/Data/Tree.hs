@@ -73,8 +73,9 @@ import Language.Haskell.TH ()
 
 import Control.Monad.Zip (MonadZip (..))
 
+#ifdef __GLASGOW_HASKELL__
 import Data.Coerce
-
+#endif
 import Data.Functor.Classes
 
 #if !MIN_VERSION_base(4,11,0)

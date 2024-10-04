@@ -27,6 +27,8 @@
 
 ### Bug fixes
 
+* Make the package compile with MicroHs. (Lennart Augustsson)
+
 * `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
   to WHNF. (Soumik Sarkar)
 

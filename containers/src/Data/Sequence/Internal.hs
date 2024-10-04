@@ -220,28 +220,31 @@ import Data.Functor.Classes
 import Data.Traversable
 
 -- GHC specific stuff
-#ifdef __GLASGOW_HASKELL__
-import GHC.Exts (build)
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
+#endif
+#ifdef __GLASGOW_HASKELL__
+import GHC.Exts (build)
 import Data.Data
 import Data.String (IsString(..))
 import qualified Language.Haskell.TH.Syntax as TH
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 import GHC.Generics (Generic, Generic1)
-#endif
 
 -- Array stuff, with GHC.Arr on GHC
-import Data.Array (Ix, Array)
-import qualified Data.Array
-#ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
-#endif
-
-import Utils.Containers.Internal.Coercions ((.#), (.^#))
 import Data.Coerce
 import qualified GHC.Exts
+#else
+import qualified Data.List
+#endif
+
+import Data.Array (Ix, Array)
+import qualified Data.Array
+
+import Utils.Containers.Internal.Coercions ((.#), (.^#))
 
 import Data.Functor.Identity (Identity(..))
 
@@ -976,7 +979,7 @@ liftCmpLists cmp = go
 {-# INLINE liftCmpLists #-}
 
 instance Read a => Read (Seq a) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
     readPrec = parens $ prec 10 $ do
         Ident "fromList" <- lexP
         xs <- readPrec
@@ -4260,7 +4263,7 @@ fromList        :: [a] -> Seq a
 -- it gets a bit hard to read.
 fromList = Seq . mkTree . map_elem
   where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
     mkTree :: forall a' . [Elem a'] -> FingerTree (Elem a')
 #else
     mkTree :: [Elem a] -> FingerTree (Elem a)
@@ -4308,7 +4311,7 @@ fromList = Seq . mkTree . map_elem
       where
         d2 = Three x1 x2 x3
         d1 = Three (Node3 3 x4 x5 x6) (Node3 3 x7 x8 x9) (Node3 3 y0 y1 y2)
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
         cont :: (Digit (Node (Elem a')), Digit (Elem a')) -> FingerTree (Node (Node (Elem a'))) -> FingerTree (Elem a')
 #endif
         cont (!r1, !r2) !sub =
@@ -4335,7 +4338,7 @@ fromList = Seq . mkTree . map_elem
             !n10 = Node3 (3*s) n1 n2 n3
 
     mkTreeC ::
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
                forall a b c .
 #endif
                (b -> FingerTree (Node a) -> c)
@@ -4377,7 +4380,7 @@ fromList = Seq . mkTree . map_elem
     mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LCons y6 xs)))))))))))))))) =
       mkTreeC cont2 (9*s) (getNodesC (3*s) (Node3 (3*s) y3 y4 y5) y6 xs)
       where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
         cont2 :: (b, Digit (Node (Node a)), Digit (Node a)) -> FingerTree (Node (Node (Node a))) -> c
 #endif
         cont2 (b, r1, r2) !sub =

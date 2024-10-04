@@ -324,10 +324,12 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex,
 import qualified Data.Data as Data
 import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
-import Text.Read
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#endif
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
+import Text.Read
 #endif
 import qualified Control.Category as Category
 
@@ -395,8 +397,10 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 type IntSetPrefix = Int
 type IntSetBitMap = Word
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.6
 deriving instance Lift a => Lift (IntMap a)
+#endif
 
 bitmapOf :: Int -> IntSetBitMap
 bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
@@ -2112,6 +2116,7 @@ mergeA
       EQL -> binA p1 (go l1 l2) (go r1 r2)
       NOM -> linkA (unPrefix p1) (g1t t1) (unPrefix p2) (g2t t2)
 
+    subsingletonBy :: Functor f => (Key -> a -> f (Maybe c)) -> Key -> a -> f (IntMap c)
     subsingletonBy gk k x = maybe Nil (Tip k) <$> gk k x
     {-# INLINE subsingletonBy #-}
 
@@ -3498,7 +3503,7 @@ instance Show1 IntMap where
   Read
 --------------------------------------------------------------------}
 instance (Read e) => Read (IntMap e) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
