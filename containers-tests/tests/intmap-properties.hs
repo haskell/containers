@@ -1,11 +1,11 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.IntMap.Strict as Data.IntMap hiding (showTree)
+import Data.IntMap.Strict as Data.IntMap
 import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Strict
 #else
-import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
+import Data.IntMap.Lazy as Data.IntMap
 import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif

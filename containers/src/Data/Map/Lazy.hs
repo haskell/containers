@@ -279,14 +279,9 @@ module Data.Map.Lazy (
     , maxViewWithKey
 
     -- * Debugging
-#ifdef __GLASGOW_HASKELL__
-    , showTree
-    , showTreeWith
-#endif
     , valid
     ) where
 
 import Data.Map.Internal
-import Data.Map.Internal.DeprecatedShowTree (showTree, showTreeWith)
 import Data.Map.Internal.Debug (valid)
 import Prelude ()

@@ -86,7 +86,5 @@ Library
     if impl(ghc)
       other-modules:
         Utils.Containers.Internal.TypeError
-        Data.Map.Internal.DeprecatedShowTree
-        Data.IntMap.Internal.DeprecatedDebug
 
     include-dirs: include

@@ -1,10 +1,10 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.Map.Strict as Data.Map hiding (showTree, showTreeWith)
+import Data.Map.Strict as Data.Map
 import Data.Map.Merge.Strict
 #else
-import Data.Map.Lazy as Data.Map hiding (showTree, showTreeWith)
+import Data.Map.Lazy as Data.Map
 import Data.Map.Merge.Lazy
 #endif
 import Data.Map.Internal (Map (..), link2, link, bin)

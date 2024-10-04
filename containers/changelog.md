@@ -25,6 +25,9 @@
   Previously they were lazier and did not force the first value in runs of at
   least 2 entries with equal keys. (Soumik Sarkar)
 
+* Various deprecated functions, whose definitions currently cause type errors,
+  have been removed. (Soumik Sarkar)
+
 ### Bug fixes
 
 * Make the package compile with MicroHs. (Lennart Augustsson)
