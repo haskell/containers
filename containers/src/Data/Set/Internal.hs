@@ -303,12 +303,15 @@ type role Set nominal
 deriving instance Lift a => Lift (Set a)
 #endif
 
+-- | @mempty@ = 'empty'
 instance Ord a => Monoid (Set a) where
     mempty  = empty
     mconcat = unions
     mappend = (<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = 'union'
+--
+-- @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
