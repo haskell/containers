@@ -20,8 +20,9 @@ main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
-    evaluate $ rnf [m, m_even, m_odd]
-    evaluate $ rnf elems_rev
+        m_sparse = M.filter (\v -> v `mod` 15 == 0) m_even
+    evaluate $ rnf [m, m_even, m_odd, m_sparse]
+    evaluate $ rnf [elems_rev, elems_alts]
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -35,6 +36,7 @@ main = do
         , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
+        , bench "insert alternate" $ whnf (ins elems_alts) m_even
         , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
         , bench "alterF insert present" $ whnf (atIns elems_even) m_even
         , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
@@ -84,6 +86,9 @@ main = do
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys) m
         , bench "union" $ whnf (M.union m_even) m_odd
+        , bench "union_identical" $ whnf (M.union m_even) m_even
+        , bench "union_sparse" $ whnf (M.union m_even) m_sparse
+        , bench "union_into_sparse" $ whnf (M.union m_sparse) m_even
         , bench "difference" $ whnf (M.difference m) m_even
         , bench "intersection" $ whnf (M.intersection m) m_even
         , bench "split" $ whnf (M.split (bound `div` 2)) m
@@ -102,6 +107,7 @@ main = do
     bound = 2^12
     elems = zip keys values
     elems_even = zip evens evens
+    elems_alts = zip evens odds
     elems_odd = zip odds odds
     elems_rev = reverse elems
     keys = [1..bound]
