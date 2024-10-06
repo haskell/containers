@@ -440,12 +440,15 @@ infixl 9 !?,\\{-This comment teaches CPP correct behaviour -}
   Types
 --------------------------------------------------------------------}
 
+-- | @mempty@ = 'empty'
 instance Monoid (IntMap a) where
     mempty  = empty
     mconcat = unions
     mappend = (<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = 'union'
+--
+-- @since 0.5.7
 instance Semigroup (IntMap a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid

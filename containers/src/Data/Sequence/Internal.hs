@@ -1000,11 +1000,14 @@ instance Read1 Seq where
     (xs,t) <- readLst s
     pure (fromList xs, t)
 
+-- | @mempty@ = 'empty'
 instance Monoid (Seq a) where
     mempty = empty
     mappend = (Semigroup.<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = '(><)'
+--
+-- @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
     stimes = cycleNTimes . fromIntegral
