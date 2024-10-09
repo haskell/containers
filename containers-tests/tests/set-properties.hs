@@ -753,5 +753,5 @@ prop_intersections_lazy :: [Set Int] -> Property
 prop_intersections_lazy ss = intersections ss' === empty
   where
     ss' = NE.fromList $ ss ++ [empty] ++ undefined
-                            -- ^ result will certainly be empty at this point,
-                            --   so the rest of the list should not be demanded.
+                           --- ^ result will certainly be empty at this point,
+                           --    so the rest of the list should not be demanded.
