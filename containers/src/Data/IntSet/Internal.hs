@@ -326,12 +326,15 @@ type BitMap = Word
 deriving instance Lift IntSet
 #endif
 
+-- | @mempty@ = 'empty'
 instance Monoid IntSet where
     mempty  = empty
     mconcat = unions
     mappend = (<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = 'union'
+--
+-- @since 0.5.7
 instance Semigroup IntSet where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
