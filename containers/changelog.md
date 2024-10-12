@@ -28,6 +28,10 @@
 * Various deprecated functions, whose definitions currently cause type errors,
   have been removed. (Soumik Sarkar)
 
+* `Data.Set.fold` and `Data.IntSet.fold` have long been documented as
+  deprecated and are now marked as such. They will be removed in a future
+  release.
+
 ### Bug fixes
 
 * Make the package compile with MicroHs. (Lennart Augustsson)

@@ -21,7 +21,6 @@ main = do
         , bench "map" $ whnf (S.map (+ 1)) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
-        , bench "fold" $ whnf (S.fold (:) []) s
         , bench "delete" $ whnf (del elems) s
         , bench "findMin" $ whnf S.findMin s
         , bench "findMax" $ whnf S.findMax s
