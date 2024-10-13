@@ -7,7 +7,7 @@ import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (foldl')
-import Data.Monoid (Sum(..))
+import Data.Monoid (Sum(..), All(..))
 import qualified Data.IntSet as IS
 -- benchmarks for "instance Ord IntSet"
 -- uses IntSet as keys of maps, and elements of sets
@@ -56,6 +56,8 @@ main = do
         , bench "splitMember:dense" $ whnf (IS.splitMember elem_mid) s
         , bench "splitMember:sparse" $ whnf (IS.splitMember elem_sparse_mid) s_sparse
         , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
+        , bench "foldMap:dense" $ whnf (IS.foldMap (All . (>0))) s
+        , bench "foldMap:sparse" $ whnf (IS.foldMap (All . (>0))) s_sparse
         ]
   where
     bound = 2^12

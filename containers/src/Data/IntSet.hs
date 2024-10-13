@@ -134,6 +134,7 @@ module Data.IntSet (
             -- * Folds
             , IS.foldr
             , IS.foldl
+            , IS.foldMap
             -- ** Strict folds
             , IS.foldr'
             , IS.foldl'
