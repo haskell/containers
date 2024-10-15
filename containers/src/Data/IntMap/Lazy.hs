@@ -198,6 +198,7 @@ module Data.IntMap.Lazy (
 
     -- * Filter
     , IM.filter
+    , filterKeys
     , filterWithKey
     , restrictKeys
     , withoutKeys
