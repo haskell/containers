@@ -155,9 +155,7 @@ module Data.Set.Internal (
             , unions
             , difference
             , intersection
-#if MIN_VERSION_base(4,18,0)
             , intersections
-#endif
             , symmetricDifference
             , cartesianProduct
             , disjointUnion
@@ -250,10 +248,7 @@ import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
-#if MIN_VERSION_base(4,18,0)
-import qualified Data.Foldable1 as Foldable1
 import Data.List.NonEmpty (NonEmpty(..))
-#endif
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -904,16 +899,14 @@ intersection t1@(Bin _ x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
-#if MIN_VERSION_base(4,18,0)
 -- | The intersection of a series of sets. Intersections are performed
 -- left-to-right.
 --
 -- @since FIXME
-intersections :: (Foldable1.Foldable1 f, Ord a) => f (Set a) -> Set a
-intersections ss = case Foldable1.toNonEmpty ss of
-  s0 :| ss'
-    | null s0 -> empty
-    | otherwise -> List.foldr go id ss' s0
+intersections :: Ord a => NonEmpty (Set a) -> Set a
+intersections (s0 :| ss)
+  | null s0 = empty
+  | otherwise = List.foldr go id ss s0
   where
     go s r acc
       | null acc' = empty
@@ -921,7 +914,6 @@ intersections ss = case Foldable1.toNonEmpty ss of
       where
         acc' = intersection acc s
 {-# INLINABLE intersections #-}
-#endif
 
 -- | @Set@s form a 'Semigroup' under 'intersection'.
 --

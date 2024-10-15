@@ -125,9 +125,7 @@ module Data.IntSet.Internal (
     , unions
     , difference
     , intersection
-#if MIN_VERSION_base(4,18,0)
     , intersections
-#endif
     , symmetricDifference
     , Intersection(..)
 
@@ -196,15 +194,12 @@ import Control.Applicative (Const(..))
 import Control.DeepSeq (NFData(rnf))
 import Data.Bits
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
 import Data.Semigroup
   (Semigroup(stimes), stimesIdempotent, stimesIdempotentMonoid)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
-#endif
-#if MIN_VERSION_base(4,18,0)
-import qualified Data.Foldable1 as Foldable1
-import Data.List.NonEmpty (NonEmpty(..))
 #endif
 import Utils.Containers.Internal.Prelude hiding
   (filter, foldr, foldl, foldl', foldMap, null, map)
@@ -671,16 +666,14 @@ intersection (Tip kx1 bm1) t2 = intersectBM t2
 
 intersection Nil _ = Nil
 
-#if MIN_VERSION_base(4,18,0)
 -- | The intersection of a series of sets. Intersections are performed
 -- left-to-right.
 --
 -- @since FIXME
-intersections :: Foldable1.Foldable1 f => f IntSet -> IntSet
-intersections ss = case Foldable1.toNonEmpty ss of
-  s0 :| ss'
-    | null s0 -> empty
-    | otherwise -> List.foldr go id ss' s0
+intersections :: NonEmpty IntSet -> IntSet
+intersections (s0 :| ss)
+  | null s0 = empty
+  | otherwise = List.foldr go id ss s0
   where
     go s r acc
       | null acc' = empty
@@ -688,7 +681,6 @@ intersections ss = case Foldable1.toNonEmpty ss of
       where
         acc' = intersection acc s
 {-# INLINABLE intersections #-}
-#endif
 
 -- | @IntSet@s form a 'Semigroup' under 'intersection'.
 --
