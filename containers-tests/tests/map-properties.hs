@@ -193,6 +193,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "toDescList"           prop_descList
          , testProperty "toAscList+toDescList" prop_ascDescList
          , testProperty "fromList"             prop_fromList
+         , testProperty "fromListWith"         prop_fromListWith
+         , testProperty "fromListWithKey"      prop_fromListWithKey
          , testProperty "alter"                prop_alter
          , testProperty "alterF/alter"         prop_alterF_alter
          , testProperty "alterF/alter/noRULES" prop_alterF_alter_noRULES
@@ -219,7 +221,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "partition"            prop_partition
          , testProperty "map"                  prop_map
          , testProperty "fmap"                 prop_fmap
-         , testProperty "mapkeys"              prop_mapkeys
+         , testProperty "mapKeys"              prop_mapKeys
+         , testProperty "mapKeysWith"          prop_mapKeysWith
          , testProperty "split"                prop_splitModel
          , testProperty "fold"                 prop_fold
          , testProperty "foldMap"              prop_foldMap
@@ -1316,6 +1319,16 @@ prop_fromDistinctAscList xs =
     t = fromDistinctAscList nub_sort_xs
     nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
 
+prop_fromListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromListWith f kxs =
+  fromListWith (apply2 f) kxs ===
+  List.foldl' (\m (kx, x) -> insertWith (apply2 f) kx x m) empty kxs
+
+prop_fromListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromListWithKey f kxs =
+  fromListWithKey (apply3 f) kxs ===
+  List.foldl' (\m (kx, x) -> insertWithKey (apply3 f) kx x m) empty kxs
+
 ----------------------------------------------------------------
 
 prop_alter :: UMap -> Int -> Bool
@@ -1509,11 +1522,15 @@ prop_fmap f ys = length ys > 0 ==>
       m  = fromList xs
   in  fmap (apply f) m == fromList [ (a, (apply f) b) | (a,b) <- xs ]
 
-prop_mapkeys :: Fun Int Int -> [(Int, Int)] -> Property
-prop_mapkeys f ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  mapKeys (apply f) m == (fromList $ List.nubBy ((==) `on` fst) $ reverse [ (apply f a, b) | (a,b) <- sort xs])
+prop_mapKeys :: Fun Int Int -> Map Int A -> Property
+prop_mapKeys f m =
+  mapKeys (apply f) m ===
+  fromList (fmap (\(kx,x) -> (apply f kx, x)) (toList m))
+
+prop_mapKeysWith :: Fun (A, A) A -> Fun Int Int -> Map Int A -> Property
+prop_mapKeysWith f g m =
+  mapKeysWith (apply2 f) (apply g) m ===
+  fromListWith (apply2 f) (fmap (\(kx,x) -> (apply g kx, x)) (toList m))
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>

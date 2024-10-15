@@ -332,6 +332,9 @@ import Data.Map.Internal
   , descLinkTop
   , descLinkAll
   , Stack (..)
+  , MapBuilder(..)
+  , emptyB
+  , finishB
   , (!)
   , (!?)
   , (\\)
@@ -373,7 +376,6 @@ import Data.Map.Internal
   , foldrWithKey
   , foldrWithKey'
   , glue
-  , insertMax
   , intersection
   , isProperSubmapOf
   , isProperSubmapOfBy
@@ -428,7 +430,6 @@ import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
 import Utils.Containers.Internal.StrictPair
 
-import Data.Bits (shiftL, shiftR)
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
 #endif
@@ -1446,7 +1447,8 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 -- Also see the performance note on 'fromListWith'.
 
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
-mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysWith c f =
+  finishB . foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB
 #if __GLASGOW_HASKELL__
 {-# INLINABLE mapKeysWith #-}
 #endif
@@ -1487,46 +1489,9 @@ fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromA
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
--- For some reason, when 'singleton' is used in fromList or in
--- create, it is not inlined, so we inline it manually.
 fromList :: Ord k => [(k,a)] -> Map k a
-fromList [] = Tip
-fromList [(kx, x)] = x `seq` Bin 1 kx x Tip Tip
-fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0 x0 Tip Tip) xs0
-                           | otherwise = x0 `seq` go (1::Int) (Bin 1 kx0 x0 Tip Tip) xs0
-  where
-    not_ordered _ [] = False
-    not_ordered kx ((ky,_) : _) = kx >= ky
-    {-# INLINE not_ordered #-}
-
-    fromList' t0 xs = Foldable.foldl' ins t0 xs
-      where ins t (k,x) = insert k x t
-
-    go !_ t [] = t
-    go _ t [(kx, x)] = x `seq` insertMax kx x t
-    go s l xs@((kx, x) : xss) | not_ordered kx xss = fromList' l xs
-                              | otherwise = case create s xss of
-                                  (r, ys, []) -> x `seq` go (s `shiftL` 1) (link kx x l r) ys
-                                  (r, _,  ys) -> x `seq` fromList' (link kx x l r) ys
-
-    -- The create is returning a triple (tree, xs, ys). Both xs and ys
-    -- represent not yet processed elements and only one of them can be nonempty.
-    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
-    -- and must be inserted using fromList'. Otherwise the keys have been
-    -- ordered so far.
-    create !_ [] = (Tip, [], [])
-    create s xs@(xp : xss)
-      | s == 1 = case xp of (kx, x) | not_ordered kx xss -> x `seq` (Bin 1 kx x Tip Tip, [], xss)
-                                    | otherwise -> x `seq` (Bin 1 kx x Tip Tip, xss, [])
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_, [], _) -> res
-                      (l, [(ky, y)], zs) -> y `seq` (insertMax ky y l, [], zs)
-                      (l, ys@((ky, y):yss), _) | not_ordered ky yss -> (l, [], ys)
-                                               | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> y `seq` (link ky y l r, zs, ws)
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromList #-}
-#endif
+fromList xs = finishB (Foldable.foldl' (\b (kx, x) -> insertB kx x b) emptyB xs)
+{-# INLINE fromList #-} -- INLINE for fusion
 
 -- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -1565,11 +1530,9 @@ fromList ((kx0, x0) : xs0) | not_ordered kx0 xs0 = x0 `seq` fromList' (Bin 1 kx0
 -- > fromListWith (++) $ reverse $ map (\(k, v) -> (k, [v])) someListOfTuples
 
 fromListWith :: Ord k => (a -> a -> a) -> [(k,a)] -> Map k a
-fromListWith f xs
-  = fromListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromListWith #-}
-#endif
+fromListWith f xs =
+  finishB (Foldable.foldl' (\b (kx, x) -> insertWithB f kx x b) emptyB xs)
+{-# INLINE fromListWith #-}  -- INLINE for fusion
 
 -- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
@@ -1580,13 +1543,9 @@ fromListWith f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
-fromListWithKey f xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x) = insertWithKey f k x t
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromListWithKey #-}
-#endif
+fromListWithKey f xs =
+  finishB (Foldable.foldl' (\b (kx, x) -> insertWithB (f kx) kx x b) emptyB xs)
+{-# INLINE fromListWithKey #-}  -- INLINE for fusion
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1751,3 +1710,40 @@ fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
     next (Push ky y Tip stk) (!kx, !x) = descLinkTop kx x 1 (singleton ky y) stk
     next stk (!ky, !y) = Push ky y Tip stk
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
+
+{--------------------------------------------------------------------
+  MapBuilder
+--------------------------------------------------------------------}
+
+-- Insert a key and value. Replaces the old value if one already exists for
+-- the key. Strict in the value.
+insertB :: Ord k => k -> a -> MapBuilder k a -> MapBuilder k a
+insertB !ky !y b = case b of
+  BAsc stk -> case stk of
+    Push kx x l stk' -> case compare ky kx of
+      LT -> BMap (insert ky y (ascLinkAll stk))
+      EQ -> BAsc (Push ky y l stk')
+      GT -> case l of
+        Tip -> BAsc (ascLinkTop stk' 1 (singleton kx x) ky y)
+        Bin{} -> BAsc (Push ky y Tip stk)
+    Nada -> BAsc (Push ky y Tip Nada)
+  BMap m -> BMap (insert ky y m)
+{-# INLINE insertB #-}
+
+-- Insert a key and value. The new value is combined with the old value if one
+-- already exists for the key. Strict in the inserted value.
+insertWithB
+  :: Ord k => (a -> a -> a) -> k -> a -> MapBuilder k a -> MapBuilder k a
+insertWithB f !ky y b = case b of
+  BAsc stk -> case stk of
+    Push kx x l stk' -> case compare ky kx of
+      LT -> BMap (insertWith f ky y (ascLinkAll stk))
+      EQ -> BAsc (push ky (f y x) l stk')
+      GT -> case l of
+        Tip -> BAsc (ascLinkTop stk' 1 (singleton kx x) ky y)
+        Bin{} -> BAsc (push ky y Tip stk)
+    Nada -> BAsc (push ky y Tip Nada)
+  BMap m -> BMap (insertWith f ky y m)
+  where
+    push kx !x = Push kx x
+{-# INLINE insertWithB #-}
