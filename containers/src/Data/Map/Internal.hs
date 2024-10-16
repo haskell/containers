@@ -299,6 +299,7 @@ module Data.Map.Internal (
 
     , restrictKeys
     , withoutKeys
+    , partitionKeys
     , partition
     , partitionWithKey
 
@@ -398,6 +399,7 @@ import qualified Data.Set.Internal as Set
 import Data.Set.Internal (Set)
 import Utils.Containers.Internal.PtrEquality (ptrEq)
 import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.StrictTriple
 import Utils.Containers.Internal.StrictMaybe
 import Utils.Containers.Internal.BitQueue
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
@@ -1964,6 +1966,51 @@ withoutKeys m (Set.Bin _ k ls rs) = case splitMember k m of
        !rm' = withoutKeys rm rs
 #if __GLASGOW_HASKELL__
 {-# INLINABLE withoutKeys #-}
+#endif
+
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Partition the map according to a set.
+-- The first map contains the input 'Map' restricted to those keys found in the 'Set',
+-- the second map contains the input 'Map' without all keys in the 'Set'.
+-- This is more efficient than using 'restrictKeys' and 'withoutKeys' together.
+--
+-- @
+-- m \`partitionKeys\` s = (m ``restrictKeys`` s, m ``withoutKeys`` s)
+-- @
+partitionKeys :: Ord k => Map k a -> Set k -> (Map k a, Map k a)
+partitionKeys xs ys =
+  case partitionKeysWorker xs ys of
+    xs' :*: ys' -> (xs', ys')
+#if __GLASGOW_HASKELL__
+{-# INLINABLE partitionKeys #-}
+#endif
+
+partitionKeysWorker :: Ord k => Map k a -> Set k -> StrictPair (Map k a) (Map k a)
+partitionKeysWorker Tip                 _           = Tip :*: Tip
+partitionKeysWorker m                   Set.Tip     = Tip :*: m
+partitionKeysWorker m@(Bin _ k x lm rm) s@Set.Bin{} =
+  case b of
+    True  -> with :*: without
+      where
+        with    =
+          if lmWith `ptrEq` lm && rmWith `ptrEq` rm
+          then m
+          else link k x lmWith rmWith
+        without =
+          link2 lmWithout rmWithout
+    False -> with :*: without
+      where
+        with    = link2 lmWith rmWith
+        without =
+          if lmWithout `ptrEq` lm && rmWithout `ptrEq` rm
+          then m
+          else link k x lmWithout rmWithout
+    where
+      !(lmWith :*: lmWithout) = partitionKeysWorker lm ls'
+      !(rmWith :*: rmWithout) = partitionKeysWorker rm rs'
+
+      !(!ls', b, !rs') = Set.splitMember k s
+#if __GLASGOW_HASKELL__
+{-# INLINABLE partitionKeysWorker #-}
 #endif
 
 -- | \(O(n+m)\). Difference with a combining function.
@@ -4003,8 +4050,6 @@ splitMember k0 m = case go k0 m of
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif
-
-data StrictTriple a b c = StrictTriple !a !b !c
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.

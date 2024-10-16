@@ -83,6 +83,7 @@ Library
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.Coercions
         Utils.Containers.Internal.EqOrdUtil
+        Utils.Containers.Internal.StrictTriple
     if impl(ghc)
       other-modules:
         Utils.Containers.Internal.TypeError

@@ -20,8 +20,10 @@ main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
+        m_odd_keys = M.keysSet m_odd
     evaluate $ rnf [m, m_even, m_odd]
     evaluate $ rnf elems_rev
+    evaluate $ rnf m_odd_keys
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -95,8 +97,13 @@ main = do
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
+
+        , bench "restrictKeys" $ whnf (M.restrictKeys m) m_odd_keys
+        , bench "withoutKeys" $ whnf (M.withoutKeys m) m_odd_keys
+        , bench "partitionKeys" $ whnf (M.partitionKeys m) m_odd_keys
         ]
   where
     bound = 2^12
