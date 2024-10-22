@@ -58,7 +58,7 @@ common benchmark-deps
   build-depends:
       containers-tests
     , deepseq           >=1.1.0.0 && <1.6
-    , tasty-bench       >=0.3.1   && <0.4
+    , tasty-bench       >=0.3.1   && <0.5
 
   -- Flags recommended by tasty-bench
   if impl(ghc >= 8.6)

@@ -1866,10 +1866,29 @@ ratio = 2
 -- balanceL only checks whether the left subtree is too big,
 -- balanceR only checks whether the right subtree is too big.
 
+-- Note [Inlining balance]
+-- ~~~~~~~~~~~~~~~~~~~~~~~
+-- Benchmarks show that we benefit from inlining balanceL and balanceR, but
+-- we don't want to cause code bloat from inlining these large functions.
+-- As a compromise, we inline only one case: that of two Bins already balanced
+-- with respect to each other.
+--
+-- This is the most common case for typical scenarios. For instance, for n
+-- inserts there may be O(n log n) calls to balanceL/balanceR but at most O(n)
+-- of them actually require rebalancing. So, inlining this common case provides
+-- most of the potential benefits of inlining the full function.
+
 -- balanceL is called when left subtree might have been inserted to or when
 -- right subtree might have been deleted from.
 balanceL :: a -> Set a -> Set a -> Set a
-balanceL x l r = case r of
+balanceL x l r = case (l, r) of
+  (Bin ls _ _ _, Bin rs _ _ _)
+    | ls <= delta*rs -> Bin (1+ls+rs) x l r
+  _ -> balanceL_ x l r
+{-# INLINE balanceL #-} -- See Note [Inlining balance]
+
+balanceL_ :: a -> Set a -> Set a -> Set a
+balanceL_ x l r = case r of
   Tip -> case l of
            Tip -> Bin 1 x Tip Tip
            (Bin _ _ Tip Tip) -> Bin 2 x l Tip
@@ -1882,19 +1901,24 @@ balanceL x l r = case r of
   (Bin rs _ _ _) -> case l of
            Tip -> Bin (1+rs) x Tip r
 
-           (Bin ls lx ll lr)
-              | ls > delta*rs  -> case (ll, lr) of
+           (Bin ls lx ll lr) -> case (ll, lr) of
                    (Bin lls _ _ _, Bin lrs lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lx ll (Bin (1+rs+lrs) x lr r)
                      | otherwise -> Bin (1+ls+rs) lrx (Bin (1+lls+size lrl) lx ll lrl) (Bin (1+rs+size lrr) x lrr r)
-                   (_, _) -> error "Failure in Data.Set.balanceL"
-              | otherwise -> Bin (1+ls+rs) x l r
-{-# NOINLINE balanceL #-}
+                   (_, _) -> error "Failure in Data.Set.balanceL_"
+{-# NOINLINE balanceL_ #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
 balanceR :: a -> Set a -> Set a -> Set a
-balanceR x l r = case l of
+balanceR x l r = case (l, r) of
+  (Bin ls _ _ _, Bin rs _ _ _)
+    | rs <= delta*ls -> Bin (1+ls+rs) x l r
+  _ -> balanceR_ x l r
+{-# INLINE balanceR #-} -- See Note [Inlining balance]
+
+balanceR_ :: a -> Set a -> Set a -> Set a
+balanceR_ x l r = case l of
   Tip -> case r of
            Tip -> Bin 1 x Tip Tip
            (Bin _ _ Tip Tip) -> Bin 2 x Tip r
@@ -1907,14 +1931,12 @@ balanceR x l r = case l of
   (Bin ls _ _ _) -> case r of
            Tip -> Bin (1+ls) x l Tip
 
-           (Bin rs rx rl rr)
-              | rs > delta*ls  -> case (rl, rr) of
+           (Bin rs rx rl rr) -> case (rl, rr) of
                    (Bin rls rlx rll rlr, Bin rrs _ _ _)
                      | rls < ratio*rrs -> Bin (1+ls+rs) rx (Bin (1+ls+rls) x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlx (Bin (1+ls+size rll) x l rll) (Bin (1+rrs+size rlr) rx rlr rr)
-                   (_, _) -> error "Failure in Data.Set.balanceR"
-              | otherwise -> Bin (1+ls+rs) x l r
-{-# NOINLINE balanceR #-}
+                   (_, _) -> error "Failure in Data.Set.balanceR_"
+{-# NOINLINE balanceR_ #-}
 
 {--------------------------------------------------------------------
   The bin constructor maintains the size of the tree

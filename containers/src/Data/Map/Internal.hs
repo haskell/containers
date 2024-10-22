@@ -4190,7 +4190,14 @@ ratio = 2
 -- It is only written in such a way that every node is pattern-matched only once.
 
 balance :: k -> a -> Map k a -> Map k a -> Map k a
-balance k x l r = case l of
+balance k x l r = case (l, r) of
+  (Bin ls _ _ _ _, Bin rs _ _ _ _)
+    | rs <= delta*ls && ls <= delta*rs -> Bin (1+ls+rs) k x l r
+  _ -> balance_ k x l r
+{-# INLINE balance #-} -- See Note [Inlining balance] in Data.Set.Internal
+
+balance_ :: k -> a -> Map k a -> Map k a -> Map k a
+balance_ k x l r = case l of
   Tip -> case r of
            Tip -> Bin 1 k x Tip Tip
            (Bin _ _ _ Tip Tip) -> Bin 2 k x Tip r
@@ -4214,13 +4221,12 @@ balance k x l r = case l of
                      | rls < ratio*rrs -> Bin (1+ls+rs) rk rx (Bin (1+ls+rls) k x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlk rlx (Bin (1+ls+size rll) k x l rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
                    (_, _) -> error "Failure in Data.Map.balance"
-              | ls > delta*rs  -> case (ll, lr) of
+              | {- ls > delta*rs -} otherwise -> case (ll, lr) of
                    (Bin lls _ _ _ _, Bin lrs lrk lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
                      | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
                    (_, _) -> error "Failure in Data.Map.balance"
-              | otherwise -> Bin (1+ls+rs) k x l r
-{-# NOINLINE balance #-}
+{-# NOINLINE balance_ #-}
 
 -- Functions balanceL and balanceR are specialised versions of balance.
 -- balanceL only checks whether the left subtree is too big,
@@ -4229,7 +4235,14 @@ balance k x l r = case l of
 -- balanceL is called when left subtree might have been inserted to or when
 -- right subtree might have been deleted from.
 balanceL :: k -> a -> Map k a -> Map k a -> Map k a
-balanceL k x l r = case r of
+balanceL k x l r = case (l, r) of
+  (Bin ls _ _ _ _, Bin rs _ _ _ _)
+    | ls <= delta*rs -> Bin (1+ls+rs) k x l r
+  _ -> balanceL_ k x l r
+{-# INLINE balanceL #-} -- See Note [Inlining balance] in Data.Set.Internal
+
+balanceL_ :: k -> a -> Map k a -> Map k a -> Map k a
+balanceL_ k x l r = case r of
   Tip -> case l of
            Tip -> Bin 1 k x Tip Tip
            (Bin _ _ _ Tip Tip) -> Bin 2 k x l Tip
@@ -4242,19 +4255,24 @@ balanceL k x l r = case r of
   (Bin rs _ _ _ _) -> case l of
            Tip -> Bin (1+rs) k x Tip r
 
-           (Bin ls lk lx ll lr)
-              | ls > delta*rs  -> case (ll, lr) of
+           (Bin ls lk lx ll lr) -> case (ll, lr) of
                    (Bin lls _ _ _ _, Bin lrs lrk lrx lrl lrr)
                      | lrs < ratio*lls -> Bin (1+ls+rs) lk lx ll (Bin (1+rs+lrs) k x lr r)
                      | otherwise -> Bin (1+ls+rs) lrk lrx (Bin (1+lls+size lrl) lk lx ll lrl) (Bin (1+rs+size lrr) k x lrr r)
-                   (_, _) -> error "Failure in Data.Map.balanceL"
-              | otherwise -> Bin (1+ls+rs) k x l r
-{-# NOINLINE balanceL #-}
+                   (_, _) -> error "Failure in Data.Map.balanceL_"
+{-# NOINLINE balanceL_ #-}
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
 balanceR :: k -> a -> Map k a -> Map k a -> Map k a
-balanceR k x l r = case l of
+balanceR k x l r = case (l, r) of
+  (Bin ls _ _ _ _, Bin rs _ _ _ _)
+    | rs <= delta*ls -> Bin (1+ls+rs) k x l r
+  _ -> balanceR_ k x l r
+{-# INLINE balanceR #-} -- See Note [Inlining balance] in Data.Set.Internal
+
+balanceR_ :: k -> a -> Map k a -> Map k a -> Map k a
+balanceR_ k x l r = case l of
   Tip -> case r of
            Tip -> Bin 1 k x Tip Tip
            (Bin _ _ _ Tip Tip) -> Bin 2 k x Tip r
@@ -4267,14 +4285,12 @@ balanceR k x l r = case l of
   (Bin ls _ _ _ _) -> case r of
            Tip -> Bin (1+ls) k x l Tip
 
-           (Bin rs rk rx rl rr)
-              | rs > delta*ls  -> case (rl, rr) of
+           (Bin rs rk rx rl rr) -> case (rl, rr) of
                    (Bin rls rlk rlx rll rlr, Bin rrs _ _ _ _)
                      | rls < ratio*rrs -> Bin (1+ls+rs) rk rx (Bin (1+ls+rls) k x l rl) rr
                      | otherwise -> Bin (1+ls+rs) rlk rlx (Bin (1+ls+size rll) k x l rll) (Bin (1+rrs+size rlr) rk rx rlr rr)
-                   (_, _) -> error "Failure in Data.Map.balanceR"
-              | otherwise -> Bin (1+ls+rs) k x l r
-{-# NOINLINE balanceR #-}
+                   (_, _) -> error "Failure in Data.Map.balanceR_"
+{-# NOINLINE balanceR_ #-}
 
 
 {--------------------------------------------------------------------
