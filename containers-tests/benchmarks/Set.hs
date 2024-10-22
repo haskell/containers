@@ -7,6 +7,8 @@ import Control.Exception (evaluate)
 import Test.Tasty.Bench (bench, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.Set as S
+import System.Random (mkStdGen)
+import Utils.Random (shuffle)
 
 main = do
     let s = S.fromAscList elems :: S.Set Int
@@ -14,14 +16,16 @@ main = do
         s_odd = S.fromAscList elems_odd :: S.Set Int
         strings_s = S.fromList strings
     evaluate $ rnf [s, s_even, s_odd]
-    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
+    evaluate $ rnf [elems_rev, elems_asc, elems_desc, elems_random]
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
+        , bench "insert random" $ whnf (ins elems_random) S.empty
         , bench "map" $ whnf (S.map (+ 1)) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
         , bench "delete" $ whnf (del elems) s
+        , bench "delete random" $ whnf (del elems_random) s
         , bench "findMin" $ whnf S.findMin s
         , bench "findMax" $ whnf S.findMax s
         , bench "deleteMin" $ whnf S.deleteMin s
@@ -65,6 +69,8 @@ main = do
     elems_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
     elems_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
     strings = map show elems
+    stdGen = mkStdGen 42
+    elems_random = shuffle stdGen elems
 
 member :: [Int] -> S.Set Int -> Int
 member xs s = foldl' (\n x -> if S.member x s then n + 1 else n) 0 xs

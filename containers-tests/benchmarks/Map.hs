@@ -15,13 +15,16 @@ import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
 import Prelude hiding (lookup)
+import System.Random (mkStdGen)
+import Utils.Random (shuffle)
 
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
     evaluate $ rnf [m, m_even, m_odd]
-    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
+    evaluate $ rnf [elems_rev, elems_asc, elems_desc, elems_random]
+    evaluate $ rnf keys_random
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -33,12 +36,16 @@ main = do
         , bench "alterF lookup present" $ whnf (atLookup evens) m_even
         , bench "alterF no rules lookup absent" $ whnf (atLookupNoRules evens) m_odd
         , bench "alterF no rules lookup present" $ whnf (atLookupNoRules evens) m_even
+        , bench "insert" $ whnf (ins elems) M.empty
+        , bench "insert random" $ whnf (ins elems_random) M.empty
         , bench "insert absent" $ whnf (ins elems_even) m_odd
         , bench "insert present" $ whnf (ins elems_even) m_even
         , bench "alterF insert absent" $ whnf (atIns elems_even) m_odd
         , bench "alterF insert present" $ whnf (atIns elems_even) m_even
         , bench "alterF no rules insert absent" $ whnf (atInsNoRules elems_even) m_odd
         , bench "alterF no rules insert present" $ whnf (atInsNoRules elems_even) m_even
+        , bench "delete" $ whnf (del keys) m
+        , bench "delete random" $ whnf (del keys_random) m
         , bench "delete absent" $ whnf (del evens) m_odd
         , bench "delete present" $ whnf (del evens) m
         , bench "alterF delete absent" $ whnf (atDel evens) m_odd
@@ -117,6 +124,9 @@ main = do
     evens = [2,4..bound]
     odds = [1,3..bound]
     values = [1..bound]
+    stdGen = mkStdGen 42
+    elems_random = shuffle stdGen elems
+    keys_random = map fst elems_random
     sumkv k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
 
