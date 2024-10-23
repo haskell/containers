@@ -14,7 +14,7 @@ main = do
         s_odd = S.fromAscList elems_odd :: S.Set Int
         strings_s = S.fromList strings
     evaluate $ rnf [s, s_even, s_odd]
-    evaluate $ rnf elems_rev
+    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
@@ -31,10 +31,11 @@ main = do
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
         , bench "fromList" $ whnf S.fromList elems
-        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
-        , bench "fromAscList" $ whnf S.fromAscList elems
+        , bench "fromList-desc" $ whnf S.fromList elems_desc
+        , bench "fromAscList" $ whnf S.fromAscList elems_asc
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
+        , bench "fromDescList" $ whnf S.fromDescList elems_desc
         , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
@@ -63,6 +64,8 @@ main = do
     elems_even = [2,4..bound]
     elems_odd = [1,3..bound]
     elems_rev = reverse elems
+    elems_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
+    elems_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
     strings = map show elems
 
 member :: [Int] -> S.Set Int -> Int

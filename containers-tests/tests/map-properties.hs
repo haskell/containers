@@ -28,6 +28,8 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -185,9 +187,13 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "mergeA effects"       prop_mergeA_effects
-         , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromAscList"          prop_fromAscList
+         , testProperty "fromAscListWith"      prop_fromAscListWith
+         , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
          , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
-         , testProperty "fromDescList"         prop_rev_ordered
+         , testProperty "fromDescList"         prop_fromDescList
+         , testProperty "fromDescListWith"     prop_fromDescListWith
+         , testProperty "fromDescListWithKey"  prop_fromDescListWithKey
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -1271,31 +1277,46 @@ instance Arbitrary WhenMatchedSpec where
 
 ----------------------------------------------------------------
 
-prop_ordered :: Property
-prop_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
-
-prop_rev_ordered :: Property
-prop_rev_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromDescList (reverse xs) == fromList xs
-
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
-prop_fromDistinctDescList :: [(Int, A)] -> Property
-prop_fromDistinctDescList xs =
+prop_fromDescList :: [(Int, A)] -> Property
+prop_fromDescList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    t === fromList kxs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescList downSortedKxs
+
+prop_fromDescListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromDescListWith f kxs =
+    valid t .&&.
+    t === fromListWith (apply2 f) downSortedKxs
+  where
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescListWith (apply2 f) downSortedKxs
+
+prop_fromDescListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromDescListWithKey f kxs =
+    valid t .&&.
+    t === fromListWithKey (apply3 f) downSortedKxs
+  where
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescListWithKey (apply3 f) downSortedKxs
+
+prop_fromDistinctDescList :: [(Int, A)] -> Property
+prop_fromDistinctDescList kxs =
+    valid t .&&.
+    toList t === reverse nubDownSortedKxs
+  where
+    nubDownSortedKxs =
+      List.map NE.head $
+      NE.groupBy ((==) `on` fst) $
+      List.sortBy (comparing (Down . fst)) kxs
+    t = fromDistinctDescList nubDownSortedKxs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1308,13 +1329,40 @@ prop_fromList xs
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
 
-prop_fromDistinctAscList :: [(Int, A)] -> Property
-prop_fromDistinctAscList xs =
+prop_fromAscList :: [(Int, A)] -> Property
+prop_fromAscList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    t === fromList sortedKxs
   where
-    t = fromDistinctAscList nub_sort_xs
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscList sortedKxs
+
+prop_fromAscListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromAscListWith f kxs =
+    valid t .&&.
+    t === fromListWith (apply2 f) sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscListWith (apply2 f) sortedKxs
+
+prop_fromAscListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromAscListWithKey f kxs =
+    valid t .&&.
+    t === fromListWithKey (apply3 f) sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscListWithKey (apply3 f) sortedKxs
+
+prop_fromDistinctAscList :: [(Int, A)] -> Property
+prop_fromDistinctAscList kxs =
+    valid t .&&.
+    toList t === nubSortedKxs
+  where
+    nubSortedKxs =
+      List.map NE.head $
+      NE.groupBy ((==) `on` fst) $
+      List.sortBy (comparing fst) kxs
+    t = fromDistinctAscList nubSortedKxs
 
 ----------------------------------------------------------------
 
