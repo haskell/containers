@@ -7,11 +7,8 @@ import Data.List (nub,sort)
 import qualified Data.List as List
 import Data.Maybe (listToMaybe)
 import Data.Monoid (mempty)
-#if MIN_VERSION_base(4,18,0)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
-import qualified Data.Foldable1 as Foldable1
-#endif
 import qualified Data.Set as Set
 import IntSetValidity (valid)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', foldMap)
@@ -88,10 +85,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_bitcount" prop_bitcount
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
-#if MIN_VERSION_base(4,18,0)
                    , testProperty "intersections" prop_intersections
                    , testProperty "intersections_lazy" prop_intersections_lazy
-#endif
                    ]
 
 ----------------------------------------------------------------
@@ -514,17 +509,15 @@ prop_alterF_const f k s =
         getConst (alterF     (Const . applyFun f) k s        )
     === getConst (Set.alterF (Const . applyFun f) k (toSet s))
 
-#if MIN_VERSION_base(4,18,0)
 prop_intersections :: (IntSet, [IntSet]) -> Property
 prop_intersections (s, ss) =
-  intersections ss' === Foldable1.foldl1' intersection ss'
+  intersections ss' === List.foldl' intersection s ss
   where
     ss' = s :| ss -- Work around missing Arbitrary NonEmpty instance
 
 prop_intersections_lazy :: [IntSet] -> Property
 prop_intersections_lazy ss = intersections ss' === empty
   where
-    ss' = NE.fromList $ ss ++ [empty] ++ undefined
-                            -- ^ result will certainly be empty at this point,
-                            --   so the rest of the list should not be demanded.
-#endif
+    ss' = NE.fromList $ ss ++ [empty] ++ error "too strict"
+                           --- ^ result will certainly be empty at this point,
+                           --    so the rest of the list should not be demanded.
