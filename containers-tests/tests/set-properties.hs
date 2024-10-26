@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 import qualified Data.IntSet as IntSet
-import Data.List (nub,sort)
+import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
 import Data.Monoid (mempty)
 import Data.Maybe
@@ -15,6 +15,7 @@ import Control.Monad.Trans.Class
 import Control.Monad (liftM, liftM3)
 import Data.Functor.Identity
 import Data.Foldable (all)
+import Data.Ord (Down(..), comparing)
 import Control.Applicative (liftA2)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
@@ -69,8 +70,9 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
+                   , testProperty "prop_fromAscList" prop_fromAscList
                    , testProperty "prop_fromDistinctAscList" prop_fromDistinctAscList
-                   , testProperty "prop_fromListDesc" prop_fromListDesc
+                   , testProperty "prop_fromDescList" prop_fromDescList
                    , testProperty "prop_fromDistinctDescList" prop_fromDistinctDescList
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
@@ -532,35 +534,43 @@ prop_AscDescList xs = toAscList s == reverse (toDescList s)
 
 prop_fromList :: [Int] -> Property
 prop_fromList xs =
-           t === fromAscList sort_xs .&&.
+           valid t .&&.
            t === List.foldr insert empty xs
   where t = fromList xs
-        sort_xs = sort xs
+
+prop_fromAscList :: [Int] -> Property
+prop_fromAscList xs =
+    valid t .&&.
+    toList t === nubSortedXs
+  where
+    sortedXs = sort xs
+    nubSortedXs = List.map NE.head $ NE.group sortedXs
+    t = fromAscList sortedXs
 
 prop_fromDistinctAscList :: [Int] -> Property
 prop_fromDistinctAscList xs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === nubSortedXs
   where
-    t = fromDistinctAscList nub_sort_xs
-    nub_sort_xs = List.map List.head $ List.group $ sort xs
+    nubSortedXs = List.map NE.head $ NE.group $ sort xs
+    t = fromDistinctAscList nubSortedXs
 
-prop_fromListDesc :: [Int] -> Property
-prop_fromListDesc xs =
-           t === fromDescList sort_xs .&&.
-           t === fromDistinctDescList nub_sort_xs .&&.
-           t === List.foldr insert empty xs
-  where t = fromList xs
-        sort_xs = reverse (sort xs)
-        nub_sort_xs = List.map List.head $ List.group sort_xs
+prop_fromDescList :: [Int] -> Property
+prop_fromDescList xs =
+    valid t .&&.
+    toList t === reverse nubDownSortedXs
+  where
+    downSortedXs = sortBy (comparing Down) xs
+    nubDownSortedXs = List.map NE.head $ NE.group downSortedXs
+    t = fromDescList downSortedXs
 
 prop_fromDistinctDescList :: [Int] -> Property
 prop_fromDistinctDescList xs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === reverse nubDownSortedXs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.group $ sort xs
+    nubDownSortedXs = List.map NE.head $ NE.group $ sortBy (comparing Down) xs
+    t = fromDistinctDescList nubDownSortedXs
 
 {--------------------------------------------------------------------
   Set operations are like IntSet operations
