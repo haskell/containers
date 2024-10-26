@@ -53,6 +53,11 @@
 
 * Add `foldMap` for `Data.IntSet`. (Soumik Sarkar)
 
+### Performance improvements
+
+* For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
+  do not perform a copy. (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
