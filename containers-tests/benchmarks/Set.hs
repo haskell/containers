@@ -48,12 +48,10 @@ main = do
         , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
         , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
         , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
-        , bench "powerSet (19)" $ whnf S.powerSet (S.fromList[1..19])
-        , bench "powerSet (20)" $ whnf S.powerSet (S.fromList[1..20])
-        , bench "powerSet (21)" $ whnf S.powerSet (S.fromList[1..21])
-        , bench "member.powerSet (16)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..16]))
-        , bench "member.powerSet (17)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..17]))
-        , bench "member.powerSet (18)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..18]))
+        , bench "powerSet (15)" $ whnf S.powerSet (S.fromList[1..15])
+        , bench "powerSet (16)" $ whnf S.powerSet (S.fromList[1..16])
+        , bench "member.powerSet (14)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..14]))
+        , bench "member.powerSet (15)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..15]))
         , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
         , bench "compare" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
         ]
