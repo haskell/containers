@@ -220,11 +220,16 @@ instance F.Foldable SCC where
   foldr c n (AcyclicSCC v) = c v n
   foldr c n (NECyclicSCC vs) = foldr c n vs
 
+  toList = flattenSCC
+
 #if MIN_VERSION_base(4,18,0)
 -- | @since 0.7.0
 instance F1.Foldable1 SCC where
   foldMap1 f (AcyclicSCC v) = f v
   foldMap1 f (NECyclicSCC vs) = F1.foldMap1 f vs
+
+  toNonEmpty = flattenSCC1
+
   -- TODO define more methods
 #endif
 
@@ -258,7 +263,9 @@ flattenSCCs = concatMap flattenSCC
 -- This function is retained for backward compatibility,
 -- 'flattenSCC1' has the more precise type.
 flattenSCC :: SCC vertex -> [vertex]
-flattenSCC = NE.toList . flattenSCC1
+flattenSCC (AcyclicSCC v) = [v]
+flattenSCC (NECyclicSCC (v :| vs)) = v : vs
+-- Note: Best to avoid NE.toList, it is too lazy.
 
 -- | The vertices of a strongly connected component.
 --
