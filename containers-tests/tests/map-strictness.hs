@@ -33,6 +33,7 @@ import qualified Data.Set as Set
 import Data.Containers.ListUtils (nubOrd)
 
 import Utils.ArbitrarySetMap (setFromList, mapFromKeysList)
+import Utils.MergeFunc (WhenMatchedFunc(..), WhenMissingFunc(..))
 import Utils.Strictness
   (Bot(..), Func, Func2, Func3, applyFunc, applyFunc2, applyFunc3)
 
@@ -836,14 +837,14 @@ prop_lazyUpdateMin fun m = isNotBottomProp (L.updateMin (Just . f) m)
     f = coerce (applyFunc fun)
 
 prop_strictUpdateMinWithKey :: Func2 OrdA A (Bot A) -> Map OrdA A -> Property
-prop_strictUpdateMinWithKey fun m = not (M.null m) ==>
+prop_strictUpdateMinWithKey fun m =
   isBottom (M.updateMinWithKey (\k x -> Just (f k x)) m) ===
-  isBottom (uncurry f (M.findMin m))
+  maybe False (isBottom . uncurry f) (M.lookupMin m)
   where
     f = coerce (applyFunc2 fun)
 
 prop_lazyUpdateMinWithKey :: Func2 OrdA A (Bot A) -> Map OrdA A -> Property
-prop_lazyUpdateMinWithKey fun m = not (L.null m) ==>
+prop_lazyUpdateMinWithKey fun m =
   isNotBottomProp (L.updateMinWithKey (\k x -> Just (f k x)) m)
   where
     f = coerce (applyFunc2 fun)
@@ -861,14 +862,14 @@ prop_lazyUpdateMax fun m = isNotBottomProp (L.updateMax (Just . f) m)
     f = coerce (applyFunc fun)
 
 prop_strictUpdateMaxWithKey :: Func2 OrdA A (Bot A) -> Map OrdA A -> Property
-prop_strictUpdateMaxWithKey fun m = not (M.null m) ==>
+prop_strictUpdateMaxWithKey fun m =
   isBottom (M.updateMaxWithKey (\k x -> Just (f k x)) m) ===
-  isBottom (uncurry f (M.findMax m))
+  maybe False (isBottom . uncurry f) (M.lookupMax m)
   where
     f = coerce (applyFunc2 fun)
 
 prop_lazyUpdateMaxWithKey :: Func2 OrdA A (Bot A) -> Map OrdA A -> Property
-prop_lazyUpdateMaxWithKey fun m = not (M.null m) ==>
+prop_lazyUpdateMaxWithKey fun m =
   isNotBottomProp (L.updateMaxWithKey (\k x -> Just (f k x)) m)
   where
     f = coerce (applyFunc2 fun)
@@ -1155,38 +1156,6 @@ uniqOn f = map NE.head . NE.groupBy ((==) `on` f)
   Merge stuff
 --------------------------------------------------------------------}
 
--- k: key, x: left map value, y: right map value, z: result map value,
--- a,b: fmaps over the result value. a and b are independent variables to allow
--- for coercions involving Bot. See prop_strictMerge for an example.
-data WhenMatchedFunc k x y z a b
-  = MaybeMatchedFunc (Func3 k x y (Maybe b))
-  | FmapMaybeMatchedFunc (Func a b) (Func3 k x y (Maybe z))
-  | MatchedFunc (Func3 k x y b)
-  | FmapMatchedFunc (Func a b) (Func3 k x y z)
-  deriving Show
-
-instance
-  ( CoArbitrary k, Function k
-  , CoArbitrary x, Function x
-  , CoArbitrary y, Function y
-  , Arbitrary z
-  , CoArbitrary a, Function a, Arbitrary a
-  , Arbitrary b
-  ) => Arbitrary (WhenMatchedFunc k x y z a b) where
-  arbitrary = oneof
-    [ MaybeMatchedFunc <$> arbitrary
-    , FmapMaybeMatchedFunc <$> arbitrary <*> arbitrary
-    , MatchedFunc <$> arbitrary
-    , FmapMatchedFunc <$> arbitrary <*> arbitrary
-    ]
-  shrink wmf = case wmf of
-    MaybeMatchedFunc fun -> MaybeMatchedFunc <$> shrink fun
-    FmapMaybeMatchedFunc fun2 fun1 ->
-      uncurry FmapMaybeMatchedFunc <$> shrink (fun2, fun1)
-    MatchedFunc fun -> MatchedFunc <$> shrink fun
-    FmapMatchedFunc fun2 fun1 ->
-      uncurry FmapMatchedFunc <$> shrink (fun2, fun1)
-
 toStrictWhenMatched
   :: WhenMatchedFunc k x y z z z2 -> WhenMatched Identity k x y z2
 toStrictWhenMatched wmf = case wmf of
@@ -1248,37 +1217,6 @@ whenMatchedApplyStrict wmf = case wmf of
     \k x y -> Just $
       applyFunc fun2 $! -- Strict in the intermediate result
       applyFunc3 fun1 k x y
-
--- k: key, x: map value, y: result map value, a,b: fmaps over the result value.
--- a and b are independent variables to allow for coercions involving Bot. See
--- prop_strictMerge for an example.
-data WhenMissingFunc k x y a b
-  = MapMaybeMissingFunc (Func2 k x (Maybe b))
-  | FmapMapMaybeMissingFunc (Func a b) (Func2 k x (Maybe a))
-  | MapMissingFunc (Func2 k x b)
-  | FmapMapMissingFunc (Func a b) (Func2 k x a)
-  deriving Show
-
-instance
-  ( CoArbitrary k, Function k
-  , CoArbitrary x, Function x
-  , Arbitrary y
-  , CoArbitrary a, Function a, Arbitrary a
-  , Arbitrary b
-  ) => Arbitrary (WhenMissingFunc k x y a b) where
-  arbitrary = oneof
-    [ MapMaybeMissingFunc <$> arbitrary
-    , FmapMapMaybeMissingFunc <$> arbitrary <*> arbitrary
-    , MapMissingFunc <$> arbitrary
-    , FmapMapMissingFunc <$> arbitrary <*> arbitrary
-    ]
-  shrink wmf = case wmf of
-    MapMaybeMissingFunc fun -> MapMaybeMissingFunc <$> shrink fun
-    FmapMapMaybeMissingFunc fun2 fun1 ->
-      uncurry FmapMapMaybeMissingFunc <$> shrink (fun2, fun1)
-    MapMissingFunc fun -> MapMissingFunc <$> shrink fun
-    FmapMapMissingFunc fun2 fun1 ->
-      uncurry FmapMapMissingFunc <$> shrink (fun2, fun1)
 
 toStrictWhenMissing :: WhenMissingFunc k x y y y2 -> WhenMissing Identity k x y2
 toStrictWhenMissing wmf = case wmf of
