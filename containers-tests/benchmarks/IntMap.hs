@@ -3,12 +3,14 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Test.Tasty.Bench (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
 import Data.Maybe (fromMaybe)
 import Prelude hiding (lookup)
+
+import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
 
 main = do
     let m     = M.fromAscList elems_hits   :: M.IntMap Int
@@ -36,9 +38,6 @@ main = do
         , bench "insertLookupWithKey update" $ whnf (insLookupWithKey elems) m
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ whnf (ins elems) m
-        , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
-        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
         , bench "delete" $ whnf (del keys) m
         , bench "update" $ whnf (upd keys) m
         , bench "updateLookupWithKey" $ whnf (upd' keys) m
@@ -54,6 +53,9 @@ main = do
         , bench "split" $ whnf (M.split key_mid) m
         , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
+        , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
+        , bgroup "folds with key" $
+            foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m
         ]
   where
     elems = elems_hits

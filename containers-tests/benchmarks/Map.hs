@@ -5,7 +5,7 @@ module Main where
 import Control.Applicative (Const(Const, getConst), pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Test.Tasty.Bench (bench, defaultMain, whnf, nf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, whnf, nf)
 import Data.Functor.Identity (Identity(..))
 import Data.List (foldl')
 import qualified Data.Map as M
@@ -15,6 +15,8 @@ import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
 import Prelude hiding (lookup)
+
+import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
 
 main = do
     let m = M.fromAscList elems :: M.Map Int Int
@@ -70,10 +72,6 @@ main = do
         , bench "insertLookupWithKey' absent" $ whnf (insLookupWithKey' elems_even) m_odd
         , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
-        , bench "foldlWithKey" $ whnf (ins elems) m
-        , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sumkv 0) m
-        , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
-        , bench "foldrWithKey'" $ whnf (M.foldrWithKey' consPair []) m
         , bench "update absent" $ whnf (upd Just evens) m_odd
         , bench "update present" $ whnf (upd Just evens) m_even
         , bench "update delete" $ whnf (upd (const Nothing) evens) m
@@ -102,6 +100,9 @@ main = do
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
+        , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
+        , bgroup "folds with key" $
+            foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m
         ]
   where
     bound = 2^12

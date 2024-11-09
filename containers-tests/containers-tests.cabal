@@ -148,6 +148,12 @@ benchmark intmap-benchmarks
   main-is:        IntMap.hs
   ghc-options:    -O2
 
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
+
 benchmark intset-benchmarks
   import: benchmark-deps, warnings
   default-language: Haskell2010
@@ -155,6 +161,12 @@ benchmark intset-benchmarks
   hs-source-dirs: benchmarks
   main-is:        IntSet.hs
   ghc-options:    -O2
+
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
 
 benchmark map-benchmarks
   import: benchmark-deps, warnings
@@ -164,6 +176,12 @@ benchmark map-benchmarks
   main-is:        Map.hs
   ghc-options:    -O2
 
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
+
 benchmark tree-benchmarks
   import: benchmark-deps, warnings
   default-language: Haskell2010
@@ -171,6 +189,12 @@ benchmark tree-benchmarks
   hs-source-dirs: benchmarks
   main-is:        Tree.hs
   ghc-options:    -O2
+
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
 
 benchmark sequence-benchmarks
   import: benchmark-deps, warnings
@@ -183,6 +207,12 @@ benchmark sequence-benchmarks
       random            >=0       && <1.2
     , transformers
 
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
+
 benchmark set-benchmarks
   import: benchmark-deps, warnings
   default-language: Haskell2010
@@ -190,6 +220,12 @@ benchmark set-benchmarks
   hs-source-dirs: benchmarks
   main-is:        Set.hs
   ghc-options:    -O2
+
+  other-modules:
+    Utils.Fold
+
+  build-depends:
+    transformers
 
 benchmark graph-benchmarks
   import: benchmark-deps, warnings
