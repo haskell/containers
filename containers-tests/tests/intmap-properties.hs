@@ -1079,6 +1079,9 @@ test_updateMin = do
     updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "Xb"), (5, "a")]
     updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
+    updateMin (\ a -> Just ("X" ++ a)) (empty :: SMap) @?= empty
+    updateMin (\ _ -> Nothing)         (empty :: SMap) @?= empty
+
 test_updateMax :: Assertion
 test_updateMax = do
     updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "Xa")]
@@ -1086,6 +1089,9 @@ test_updateMax = do
 
     updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "Xa")]
     updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+
+    updateMax (\ a -> Just ("X" ++ a)) (empty :: SMap) @?= empty
+    updateMax (\ _ -> Nothing)         (empty :: SMap) @?= empty
 
 test_updateMinWithKey :: Assertion
 test_updateMinWithKey = do
@@ -1095,6 +1101,9 @@ test_updateMinWithKey = do
     updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"-3:b"), (5,"a")]
     updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
+    updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (empty :: SMap) @?= empty
+    updateMinWithKey (\ _ _ -> Nothing)                     (empty :: SMap) @?= empty
+
 test_updateMaxWithKey :: Assertion
 test_updateMaxWithKey = do
     updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3,"b"), (5,"5:a")]
@@ -1102,6 +1111,9 @@ test_updateMaxWithKey = do
 
     updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"b"), (5,"5:a")]
     updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+
+    updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (empty :: SMap) @?= empty
+    updateMaxWithKey (\ _ _ -> Nothing)                     (empty :: SMap) @?= empty
 
 test_minView :: Assertion
 test_minView = do

@@ -771,7 +771,7 @@ updateMinWithKey f t =
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil
-    go _ Nil = error "updateMinWithKey Nil"
+    go _ Nil = Nil
 
 -- | \(O(\log n)\). Update the value at the maximal key.
 --
@@ -787,7 +787,7 @@ updateMaxWithKey f t =
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil
-    go _ Nil = error "updateMaxWithKey Nil"
+    go _ Nil = Nil
 
 -- | \(O(\log n)\). Update the value at the maximal key.
 --
