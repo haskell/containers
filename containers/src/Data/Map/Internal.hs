@@ -2966,6 +2966,9 @@ filter p m
 
 filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
+filterWithKey p t@(Bin 1 kx x _ _)
+  | p kx x    = t
+  | otherwise = Tip
 filterWithKey p t@(Bin _ kx x l r)
   | p kx x    = if pl `ptrEq` l && pr `ptrEq` r
                 then t
@@ -2978,6 +2981,8 @@ filterWithKey p t@(Bin _ kx x l r)
 -- predicate.
 filterWithKeyA :: Applicative f => (k -> a -> f Bool) -> Map k a -> f (Map k a)
 filterWithKeyA _ Tip = pure Tip
+filterWithKeyA p t@(Bin 1 kx x _ _) =
+  fmap (bool Tip t) (p kx x)
 filterWithKeyA p t@(Bin _ kx x l r) =
   liftA3 combine (filterWithKeyA p l) (p kx x) (filterWithKeyA p r)
   where

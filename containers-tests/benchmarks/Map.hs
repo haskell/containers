@@ -27,6 +27,8 @@ main = do
         , bench "lookup present" $ whnf (lookup evens) m_even
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "map really" $ nf (M.map (+ 2)) m
+        , bench "filter" $ whnf (M.filter even) m
+        , bench "filter really" $ nf (M.filter even) m
         , bench "<$" $ whnf ((1 :: Int) <$) m
         , bench "<$ really" $ nf ((2 :: Int) <$) m
         , bench "alterF lookup absent" $ whnf (atLookup evens) m_odd
