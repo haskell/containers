@@ -83,7 +83,7 @@
 -- [Note: Using INLINABLE]
 -- ~~~~~~~~~~~~~~~~~~~~~~~
 -- It is crucial to the performance that the functions specialize on the Ord
--- type when possible. GHC 7.0 and higher does this by itself when it sees th
+-- type when possible. GHC 7.0 and higher does this by itself when it sees the
 -- unfolding of a function -- that is why all public functions are marked
 -- INLINABLE (that exposes the unfolding).
 
@@ -116,7 +116,7 @@
 -- floats out of its enclosing function and then it heap-allocates the
 -- dictionary and the argument. Maybe it floats out too late and strictness
 -- analyzer cannot see that these could be passed on stack.
---
+
 
 -- [Note: Order of constructors]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,6 +126,22 @@
 -- of first constructor results in the forward jump not taken.
 -- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
 -- improves the benchmark by up to 10% on x86.
+
+
+-- [Note: Matching on Leafy Nodes]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- In a balanced tree, at least two-thirds of Tip constructors are siblings
+-- of another Tip constructor. The parents of these cases can be quickly
+-- identified as the size value packed into their Bin constructors will equal
+-- 1. By specializing recursive functions which visit the whole tree to
+-- recognize this scenario, we can elide unnecessary function calls that would
+-- go on to match these Tip constructors but otherwise perform no useful work.
+-- This optimization can lead to performance improvements of approximately
+-- 30% to 35% for foldMap and foldl', and around 20% for mapMaybe.
+--
+-- Alternatives, like matching on the Tip constructors directly, or also
+-- trying to optimise cases where only one side a Tip are slower in practice.
+
 
 module Data.Map.Internal (
     -- * Map type
