@@ -70,13 +70,9 @@ library
   default-language: Haskell2010
   -- this is important for testing; may it affect benchmarks?
   cpp-options:      -DTESTING
-  if impl(ghc >= 8.6)
-    build-depends:
-        nothunks
-      , QuickCheck
 
   include-dirs:     include
-  hs-source-dirs:   src, tests
+  hs-source-dirs:   src
 
   ghc-options:      -O2 -Wall
   if impl(ghc >= 8.6)
@@ -117,9 +113,6 @@ library
     Utils.Containers.Internal.BitQueue
     Utils.Containers.Internal.BitUtil
     Utils.Containers.Internal.StrictPair
-  if impl(ghc >= 8.6.0)
-    exposed-modules:
-      Utils.NoThunks
 
   other-modules:
     Utils.Containers.Internal.Prelude
