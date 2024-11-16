@@ -205,7 +205,7 @@ import Utils.Containers.Internal.Prelude hiding
   (filter, foldr, foldl, foldl', foldMap, null, map)
 import Prelude ()
 
-import Utils.Containers.Internal.BitUtil
+import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
 import Utils.Containers.Internal.StrictPair
 import Data.IntSet.Internal.IntTreeCommons
   ( Key
@@ -217,6 +217,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , branchMask
   , TreeTreeBranch(..)
   , treeTreeBranch
+  , i2w
   )
 
 #if __GLASGOW_HASKELL__
@@ -239,17 +240,6 @@ import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity(..))
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
-
--- A "Nat" is a natural machine word (an unsigned Int)
-type Nat = Word
-
-natFromInt :: Int -> Nat
-natFromInt i = fromIntegral i
-{-# INLINE natFromInt #-}
-
-intFromNat :: Nat -> Int
-intFromNat w = fromIntegral w
-{-# INLINE intFromNat #-}
 
 {--------------------------------------------------------------------
   Operators
@@ -1388,10 +1378,10 @@ fromRange (lx,rx)
       | m < suffixBitMask = Tip p (complement 0)
       | otherwise         = Bin (Prefix (p .|. m)) (goFull p (shr1 m)) (goFull (p .|. m) (shr1 m))
     lbm :: Int -> Int
-    lbm p = intFromNat (lowestBitMask (natFromInt p))
+    lbm p = p .&. negate p -- lowest bit mask
     {-# INLINE lbm #-}
     shr1 :: Int -> Int
-    shr1 m = intFromNat (natFromInt m `shiftRL` 1)
+    shr1 m = m `iShiftRL` 1
     {-# INLINE shr1 #-}
 
 -- | \(O(n)\). Build a set from an ascending list of elements.
@@ -1621,7 +1611,7 @@ link k1 t1 k2 t2 = linkWithMask (branchMask k1 k2) k1 t1 k2 t2
 -- `linkWithMask` is useful when the `branchMask` has already been computed
 linkWithMask :: Int -> Key -> IntSet -> Key -> IntSet -> IntSet
 linkWithMask m k1 t1 k2 t2
-  | natFromInt k1 < natFromInt k2 = Bin p t1 t2
+  | i2w k1 < i2w k2 = Bin p t1 t2
   | otherwise = Bin p t2 t1
   where
     p = Prefix (mask k1 m .|. m)
@@ -1685,18 +1675,18 @@ bitmapOf x = bitmapOfSuffix (suffixOf x)
   The signatures of methods in question are placed after this comment.
 ----------------------------------------------------------------------}
 
-lowestBitSet :: Nat -> Int
-highestBitSet :: Nat -> Int
-foldlBits :: Int -> (a -> Int -> a) -> a -> Nat -> a
-foldl'Bits :: Int -> (a -> Int -> a) -> a -> Nat -> a
-foldrBits :: Int -> (Int -> a -> a) -> a -> Nat -> a
-foldr'Bits :: Int -> (Int -> a -> a) -> a -> Nat -> a
+lowestBitSet :: Word -> Int
+highestBitSet :: Word -> Int
+foldlBits :: Int -> (a -> Int -> a) -> a -> Word -> a
+foldl'Bits :: Int -> (a -> Int -> a) -> a -> Word -> a
+foldrBits :: Int -> (Int -> a -> a) -> a -> Word -> a
+foldr'Bits :: Int -> (Int -> a -> a) -> a -> Word -> a
 #if MIN_VERSION_base(4,11,0)
-foldMapBits :: Semigroup a => Int -> (Int -> a) -> Nat -> a
+foldMapBits :: Semigroup a => Int -> (Int -> a) -> Word -> a
 #else
-foldMapBits :: Monoid a => Int -> (Int -> a) -> Nat -> a
+foldMapBits :: Monoid a => Int -> (Int -> a) -> Word -> a
 #endif
-takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
+takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Word -> Word
 
 {-# INLINE lowestBitSet #-}
 {-# INLINE highestBitSet #-}
@@ -1707,26 +1697,26 @@ takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Nat -> Nat
 {-# INLINE foldMapBits #-}
 {-# INLINE takeWhileAntitoneBits #-}
 
-lowestBitMask :: Nat -> Nat
+#if defined(__GLASGOW_HASKELL__)
+
+lowestBitMask :: Word -> Word
 lowestBitMask x = x .&. negate x
 {-# INLINE lowestBitMask #-}
-
-#if defined(__GLASGOW_HASKELL__)
 
 lowestBitSet x = countTrailingZeros x
 
 highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
 
--- Reverse the order of bits in the Nat.
-revNat :: Nat -> Nat
+-- Reverse the order of bits in the Word.
+revWord :: Word -> Word
 #if WORD_SIZE_IN_BITS==32
-revNat x1 = case ((x1 `shiftRL` 1) .&. 0x55555555) .|. ((x1 .&. 0x55555555) `shiftLL` 1) of
+revWord x1 = case ((x1 `shiftRL` 1) .&. 0x55555555) .|. ((x1 .&. 0x55555555) `shiftLL` 1) of
               x2 -> case ((x2 `shiftRL` 2) .&. 0x33333333) .|. ((x2 .&. 0x33333333) `shiftLL` 2) of
                  x3 -> case ((x3 `shiftRL` 4) .&. 0x0F0F0F0F) .|. ((x3 .&. 0x0F0F0F0F) `shiftLL` 4) of
                    x4 -> case ((x4 `shiftRL` 8) .&. 0x00FF00FF) .|. ((x4 .&. 0x00FF00FF) `shiftLL` 8) of
                      x5 -> ( x5 `shiftRL` 16             ) .|. ( x5               `shiftLL` 16);
 #else
-revNat x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x5555555555555555) `shiftLL` 1) of
+revWord x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x5555555555555555) `shiftLL` 1) of
               x2 -> case ((x2 `shiftRL` 2) .&. 0x3333333333333333) .|. ((x2 .&. 0x3333333333333333) `shiftLL` 2) of
                  x3 -> case ((x3 `shiftRL` 4) .&. 0x0F0F0F0F0F0F0F0F) .|. ((x3 .&. 0x0F0F0F0F0F0F0F0F) `shiftLL` 4) of
                    x4 -> case ((x4 `shiftRL` 8) .&. 0x00FF00FF00FF00FF) .|. ((x4 .&. 0x00FF00FF00FF00FF) `shiftLL` 8) of
@@ -1747,14 +1737,14 @@ foldl'Bits prefix f z bitmap = go bitmap z
           where !bitmask = lowestBitMask bm
                 !bi = countTrailingZeros bitmask
 
-foldrBits prefix f z bitmap = go (revNat bitmap) z
+foldrBits prefix f z bitmap = go (revWord bitmap) z
   where go 0 acc = acc
         go bm acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
           where !bitmask = lowestBitMask bm
                 !bi = countTrailingZeros bitmask
 
 
-foldr'Bits prefix f z bitmap = go (revNat bitmap) z
+foldr'Bits prefix f z bitmap = go (revWord bitmap) z
   where go 0 acc = acc
         go bm !acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
           where !bitmask = lowestBitMask bm

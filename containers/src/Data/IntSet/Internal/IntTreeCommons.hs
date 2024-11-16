@@ -35,10 +35,11 @@ module Data.IntSet.Internal.IntTreeCommons
   , treeTreeBranch
   , mask
   , branchMask
+  , i2w
   ) where
 
-import Data.Bits (Bits(..))
-import Utils.Containers.Internal.BitUtil (highestBitMask)
+import Data.Bits (Bits(..), countLeadingZeros)
+import Utils.Containers.Internal.BitUtil (wordSize)
 
 #ifdef __GLASGOW_HASKELL__
 import Language.Haskell.TH.Syntax (Lift)
@@ -149,17 +150,16 @@ mask i m = i .&. ((-m) `xor` m)
 {-# INLINE mask #-}
 
 -- | The first switching bit where the two prefixes disagree.
+--
+-- Precondition for defined behavior: p1 /= p2
 branchMask :: Int -> Int -> Int
-branchMask p1 p2 = w2i (highestBitMask (i2w (p1 `xor` p2)))
+branchMask p1 p2 =
+  unsafeShiftL 1 (wordSize - 1 - countLeadingZeros (p1 `xor` p2))
 {-# INLINE branchMask #-}
 
 i2w :: Int -> Word
 i2w = fromIntegral
 {-# INLINE i2w #-}
-
-w2i :: Word -> Int
-w2i = fromIntegral
-{-# INLINE w2i #-}
 
 {--------------------------------------------------------------------
   Notes

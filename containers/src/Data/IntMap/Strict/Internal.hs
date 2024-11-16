@@ -266,8 +266,6 @@ import Data.IntSet.Internal.IntTreeCommons
   (Key, Prefix(..), nomatch, left, signBranch, mask, branchMask)
 import Data.IntMap.Internal
   ( IntMap (..)
-  , natFromInt
-  , intFromNat
   , bin
   , binCheckLeft
   , binCheckRight
@@ -346,7 +344,7 @@ import Data.IntMap.Internal
   , withoutKeys
   )
 import qualified Data.IntSet.Internal as IntSet
-import Utils.Containers.Internal.BitUtil
+import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
 import Utils.Containers.Internal.StrictPair
 import qualified Data.Foldable as Foldable
 
@@ -1056,7 +1054,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
         -- one of them is nonempty and we construct the IntMap from that half.
         buildTree g !prefix !bmask bits = case bits of
           0 -> Tip prefix $! g prefix
-          _ -> case intFromNat ((natFromInt bits) `shiftRL` 1) of
+          _ -> case bits `iShiftRL` 1 of
                  bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
                            buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
                        | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
