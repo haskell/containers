@@ -5,5 +5,7 @@ packages:
 tests: True
 benchmarks: True
 
+constraints: nothunks -bytestring -text -vector
+
 -- package containers-tests
 --   ghc-options: -Werror
