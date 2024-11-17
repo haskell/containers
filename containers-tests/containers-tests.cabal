@@ -414,6 +414,7 @@ test-suite map-strictness-properties
 
   other-modules:
     Utils.ArbitrarySetMap
+    Utils.MergeFunc
     Utils.Strictness
 
   if impl(ghc >= 8.6)
@@ -439,6 +440,8 @@ test-suite intmap-strictness-properties
 
   other-modules:
     Utils.IsUnit
+    Utils.MergeFunc
+    Utils.Strictness
 
   if impl(ghc >= 8.6)
     build-depends:
