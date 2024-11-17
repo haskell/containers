@@ -22,7 +22,7 @@ import Data.Foldable (foldMap)
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
-import qualified Prelude (map)
+import qualified Prelude (map, filter)
 
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -180,6 +180,9 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "deleteMin"            prop_deleteMinModel
              , testProperty "deleteMax"            prop_deleteMaxModel
              , testProperty "filter"               prop_filter
+             , testProperty "filterWithKey"        prop_filterWithKey
+             , testProperty "filterKeys"           prop_filterKeys
+             , testProperty "filterKeysFidelity"   prop_filterKeysFidelity
              , testProperty "partition"            prop_partition
              , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
              , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -1469,6 +1472,24 @@ prop_filter p ys = length ys > 0 ==>
       m  = filter (apply p) (fromList xs)
   in  valid m .&&.
       m === fromList (List.filter (apply p . snd) xs)
+
+prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+prop_filterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (apply2 fun) m
+
+prop_filterKeys :: Fun Int Bool -> IMap -> Property
+prop_filterKeys fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun . fst) (toList m)
+  where
+    m' = filterKeys (apply fun) m
+
+prop_filterKeysFidelity :: Fun Int Bool -> IMap -> Property
+prop_filterKeysFidelity p m = fwk === fk
+  where
+    fwk = filterWithKey (\k _ -> apply p k) m
+    fk = filterKeys (apply p) m
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>

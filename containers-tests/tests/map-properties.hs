@@ -115,6 +115,7 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "fromDistinctAscList" test_fromDistinctAscList
          , testCase "fromDistinctDescList" test_fromDistinctDescList
          , testCase "filter" test_filter
+         , testCase "filterKeys" test_filterKeys
          , testCase "filterWithKey" test_filterWithKey
          , testCase "partition" test_partition
          , testCase "partitionWithKey" test_partitionWithKey
