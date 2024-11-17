@@ -32,11 +32,9 @@ import qualified Data.IntMap.Merge.Lazy as LMerge
 import Data.Containers.ListUtils
 
 import Utils.MergeFunc (WhenMatchedFunc(..), WhenMissingFunc(..))
+import Utils.NubSorted (NubSortedOnFst(..))
 import Utils.Strictness
   (Bot(..), Func, Func2, Func3, applyFunc, applyFunc2, applyFunc3)
-#if __GLASGOW_HASKELL__ >= 806
-import Utils.NoThunks
-#endif
 
 instance Arbitrary v => Arbitrary (IntMap v) where
     arbitrary = M.fromList `fmap` arbitrary
@@ -56,7 +54,7 @@ apply3 f a b c = apply f (a, b, c)
   Construction property tests
 --------------------------------------------------------------------}
 
--- See Note [Test overview] in map-strictness.hs
+-- See Note [Overview of construction tests] in map-strictness.hs
 
 -- See Note [Testing with lazy functions] in map-strictness.hs
 
@@ -879,15 +877,91 @@ pFromAscListStrict ks
   where
     elems = [(k, v) | k <- nubInt ks, v <- [undefined, undefined, ()]]
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldr' :: IntMap Int -> Property
-pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
-#endif
+{--------------------------------------------------------------------
+  Folds
+--------------------------------------------------------------------}
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldl' :: IntMap Int -> Property
-pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
-#endif
+-- See Note [Testing strictness of folds] in map-strictness.hs
+
+prop_foldrWithKey
+  :: NubSortedOnFst Key (Bot A) -> Func3 Key A B (Bot B) -> Bot B -> Property
+prop_foldrWithKey kvs fun (Bot z) =
+  isBottom (M.foldrWithKey f z m) ===
+  isBottom (F.foldr (uncurry f) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldr
+  :: NubSortedOnFst Key (Bot A) -> Func2 A B (Bot B) -> Bot B -> Property
+prop_foldr kvs fun (Bot z) =
+  isBottom (M.foldr f z m) ===
+  isBottom (F.foldr (f . snd) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldlWithKey
+  :: NubSortedOnFst Key (Bot A) -> Func3 B Key A (Bot B) -> Bot B -> Property
+prop_foldlWithKey kvs fun (Bot z) =
+  isBottom (M.foldlWithKey f z m) ===
+  isBottom (F.foldl (\z' (k,x) -> f z' k x) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldl
+  :: NubSortedOnFst Key (Bot A) -> Func2 B A (Bot B) -> Bot B -> Property
+prop_foldl kvs fun (Bot z) =
+  isBottom (M.foldl f z m) ===
+  isBottom (F.foldl (\z' (_,x) -> f z' x) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldrWithKey'
+  :: NubSortedOnFst Key (Bot A) -> Func3 Key A B (Bot B) -> Bot B -> Property
+prop_foldrWithKey' kvs fun (Bot z) =
+  isBottom (M.foldrWithKey' f z m) ===
+  isBottom (z `seq` F.foldr' (uncurry f) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldr'
+  :: NubSortedOnFst Key (Bot A) -> Func2 A B (Bot B) -> Bot B -> Property
+prop_foldr' kvs fun (Bot z) =
+  isBottom (M.foldr' f z m) ===
+  isBottom (z `seq` F.foldr' (f . snd) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldlWithKey'
+  :: NubSortedOnFst Key (Bot A) -> Func3 B Key A (Bot B) -> Bot B -> Property
+prop_foldlWithKey' kvs fun (Bot z) =
+  isBottom (M.foldlWithKey' f z m) ===
+  isBottom (F.foldl' (\z' (k,x) -> f z' k x) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldl'
+  :: NubSortedOnFst Key (Bot A) -> Func2 B A (Bot B) -> Bot B -> Property
+prop_foldl' kvs fun (Bot z) =
+  isBottom (M.foldl' f z m) ===
+  isBottom (F.foldl' (\z' (_,x) -> f z' x) z kvs')
+  where
+    kvs' = coerce kvs :: [(Key, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
 
 ------------------------------------------------------------------------
 -- * Test list
@@ -918,10 +992,14 @@ tests =
         pInsertLookupWithKeyValueStrict
       , testProperty "fromAscList is somewhat value-lazy" pFromAscListLazy
       , testProperty "fromAscList is somewhat value-strict" pFromAscListStrict
-#if __GLASGOW_HASKELL__ >= 806
-      , testProperty "strict foldr'" pStrictFoldr'
-      , testProperty "strict foldl'" pStrictFoldl'
-#endif
+      , testProperty "foldrWithKey" prop_foldrWithKey
+      , testProperty "foldr" prop_foldr
+      , testProperty "foldlWithKey" prop_foldlWithKey
+      , testProperty "foldl" prop_foldl
+      , testProperty "foldrWithKey'" prop_foldrWithKey'
+      , testProperty "foldr'" prop_foldr'
+      , testProperty "foldlWithKey'" prop_foldlWithKey'
+      , testProperty "foldl'" prop_foldl'
       ]
     , testGroup "Construction"
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton

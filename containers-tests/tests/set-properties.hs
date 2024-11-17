@@ -19,9 +19,6 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
 import Utils.ArbitrarySetMap (mkArbSet, setFromList)
-#if __GLASGOW_HASKELL__ >= 806
-import Utils.NoThunks (whnfHasNoThunks)
-#endif
 
 main :: IO ()
 main = defaultMain $ testGroup "set-properties"
@@ -109,10 +106,6 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "powerSet"             prop_powerSet
                    , testProperty "cartesianProduct"     prop_cartesianProduct
                    , testProperty "disjointUnion"        prop_disjointUnion
-#if __GLASGOW_HASKELL__ >= 806
-                   , testProperty "strict foldr"         prop_strictFoldr'
-                   , testProperty "strict foldl"         prop_strictFoldl'
-#endif
                    , testProperty "eq" prop_eq
                    , testProperty "compare" prop_compare
                    , testProperty "intersections" prop_intersections
@@ -694,16 +687,6 @@ prop_disjointUnion xs ys =
 isLeft :: Either a b -> Bool
 isLeft (Left _) = True
 isLeft _ = False
-
-#if __GLASGOW_HASKELL__ >= 806
-prop_strictFoldr' :: Set Int -> Property
-prop_strictFoldr' m = whnfHasNoThunks (foldr' (:) [] m)
-#endif
-
-#if __GLASGOW_HASKELL__ >= 806
-prop_strictFoldl' :: Set Int -> Property
-prop_strictFoldl' m = whnfHasNoThunks (foldl' (flip (:)) [] m)
-#endif
 
 prop_eq :: Set Int -> Set Int -> Property
 prop_eq s1 s2 = (s1 == s2) === (toList s1 == toList s2)
