@@ -3073,6 +3073,9 @@ partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
 partitionWithKey p0 t0 = toPair $ go p0 t0
   where
     go _ Tip = (Tip :*: Tip)
+    go p t@(Bin 1 kx x _ _)
+      | p kx x    = t :*: Tip
+      | otherwise = Tip :*: t
     go p t@(Bin _ kx x l r)
       | p kx x    = (if l1 `ptrEq` l && r1 `ptrEq` r
                      then t
