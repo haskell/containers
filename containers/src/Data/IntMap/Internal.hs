@@ -2583,6 +2583,12 @@ filter p m
 --
 -- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 -- > filterKeys (> 4) == filterWithKey (\k _ -> k > 4)
+--
+-- @
+-- filterKeys p = 'filterWithKey' (\k _ -> p k)
+-- @
+--
+-- @since FIXME
 
 filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
 filterKeys predicate = filterWithKey (\k _ -> predicate k)
