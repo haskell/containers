@@ -1,8 +1,7 @@
 {-# LANGUAGE CPP #-}
 import qualified Data.IntSet as IntSet
-import Data.List (nub,sort)
+import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
-import Data.Monoid (mempty)
 import Data.Maybe
 import Data.Set
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
@@ -12,11 +11,14 @@ import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
-import Control.Monad (liftM, liftM3)
 import Data.Functor.Identity
 import Data.Foldable (all)
+import Data.Ord (Down(..), comparing)
 import Control.Applicative (liftA2)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 
+import Utils.ArbitrarySetMap (mkArbSet, setFromList)
 #if __GLASGOW_HASKELL__ >= 806
 import Utils.NoThunks (whnfHasNoThunks)
 #endif
@@ -67,13 +69,15 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
+                   , testProperty "prop_fromAscList" prop_fromAscList
                    , testProperty "prop_fromDistinctAscList" prop_fromDistinctAscList
-                   , testProperty "prop_fromListDesc" prop_fromListDesc
+                   , testProperty "prop_fromDescList" prop_fromDescList
                    , testProperty "prop_fromDistinctDescList" prop_fromDistinctDescList
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
+                   , testProperty "prop_symmetricDifference" prop_symmetricDifference
                    , testProperty "prop_disjoint" prop_disjoint
                    , testProperty "prop_size" prop_size
                    , testProperty "prop_lookupMax" prop_lookupMax
@@ -109,6 +113,10 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "strict foldr"         prop_strictFoldr'
                    , testProperty "strict foldl"         prop_strictFoldl'
 #endif
+                   , testProperty "eq" prop_eq
+                   , testProperty "compare" prop_compare
+                   , testProperty "intersections" prop_intersections
+                   , testProperty "intersections_lazy" prop_intersections_lazy
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -221,7 +229,7 @@ instance IsInt a => Arbitrary (Set a) where
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
         let shift = (sz * (gapRange) + 1) `quot` 2
             start = middle - shift
-        t <- evalStateT (mkArb step sz) start
+        t <- evalStateT (mkArbSet step sz) start
         if valid t then pure t else error "Test generated invalid tree!")
     where
       step = do
@@ -230,47 +238,6 @@ instance IsInt a => Arbitrary (Set a) where
         let i' = i + diff
         put i'
         pure (fromInt i')
-
-class Monad m => MonadGen m where
-  liftGen :: Gen a -> m a
-instance MonadGen Gen where
-  liftGen = id
-instance MonadGen m => MonadGen (StateT s m) where
-  liftGen = lift . liftGen
-
--- | Given an action that produces successively larger elements and
--- a size, produce a set of arbitrary shape with exactly that size.
-mkArb :: MonadGen m => m a -> Int -> m (Set a)
-mkArb step n
-  | n <= 0 = return Tip
-  | n == 1 = singleton `liftM` step
-  | n == 2 = do
-     dir <- liftGen arbitrary
-     p <- step
-     q <- step
-     if dir
-       then return (Bin 2 q (singleton p) Tip)
-       else return (Bin 2 p Tip (singleton q))
-  | otherwise = do
-      -- This assumes a balance factor of delta = 3
-      let upper = (3*(n - 1)) `quot` 4
-      let lower = (n + 2) `quot` 4
-      ln <- liftGen $ choose (lower, upper)
-      let rn = n - ln - 1
-      liftM3 (\lt x rt -> Bin n x lt rt) (mkArb step ln) step (mkArb step rn)
-
--- | Given a strictly increasing list of elements, produce an arbitrarily
--- shaped set with exactly those elements.
-setFromList :: [a] -> Gen (Set a)
-setFromList xs = flip evalStateT xs $ mkArb step (length xs)
-  where
-    step = do
-      xxs <- get
-      case xxs of
-        x : xs -> do
-          put xs
-          pure x
-        [] -> error "setFromList"
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
@@ -487,6 +454,16 @@ prop_Int :: [Int] -> [Int] -> Bool
 prop_Int xs ys = toAscList (intersection (fromList xs) (fromList ys))
                  == List.sort (nub ((List.intersect) (xs)  (ys)))
 
+prop_symmetricDifference :: Set Int -> Set Int -> Property
+prop_symmetricDifference xs ys =
+  valid zs .&&.
+  toAscList zs ===
+  List.sort (List.filter (`notElem` xs') ys' ++ List.filter (`notElem` ys') xs')
+  where
+    zs = symmetricDifference xs ys
+    xs' = toAscList xs
+    ys' = toAscList ys
+
 prop_disjoint :: Set Int -> Set Int -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
 
@@ -515,35 +492,43 @@ prop_AscDescList xs = toAscList s == reverse (toDescList s)
 
 prop_fromList :: [Int] -> Property
 prop_fromList xs =
-           t === fromAscList sort_xs .&&.
+           valid t .&&.
            t === List.foldr insert empty xs
   where t = fromList xs
-        sort_xs = sort xs
+
+prop_fromAscList :: [Int] -> Property
+prop_fromAscList xs =
+    valid t .&&.
+    toList t === nubSortedXs
+  where
+    sortedXs = sort xs
+    nubSortedXs = List.map NE.head $ NE.group sortedXs
+    t = fromAscList sortedXs
 
 prop_fromDistinctAscList :: [Int] -> Property
 prop_fromDistinctAscList xs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === nubSortedXs
   where
-    t = fromDistinctAscList nub_sort_xs
-    nub_sort_xs = List.map List.head $ List.group $ sort xs
+    nubSortedXs = List.map NE.head $ NE.group $ sort xs
+    t = fromDistinctAscList nubSortedXs
 
-prop_fromListDesc :: [Int] -> Property
-prop_fromListDesc xs =
-           t === fromDescList sort_xs .&&.
-           t === fromDistinctDescList nub_sort_xs .&&.
-           t === List.foldr insert empty xs
-  where t = fromList xs
-        sort_xs = reverse (sort xs)
-        nub_sort_xs = List.map List.head $ List.group sort_xs
+prop_fromDescList :: [Int] -> Property
+prop_fromDescList xs =
+    valid t .&&.
+    toList t === reverse nubDownSortedXs
+  where
+    downSortedXs = sortBy (comparing Down) xs
+    nubDownSortedXs = List.map NE.head $ NE.group downSortedXs
+    t = fromDescList downSortedXs
 
 prop_fromDistinctDescList :: [Int] -> Property
 prop_fromDistinctDescList xs =
     valid t .&&.
-    toList t === nub_sort_xs
+    toList t === reverse nubDownSortedXs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.group $ sort xs
+    nubDownSortedXs = List.map NE.head $ NE.group $ sortBy (comparing Down) xs
+    t = fromDistinctDescList nubDownSortedXs
 
 {--------------------------------------------------------------------
   Set operations are like IntSet operations
@@ -719,3 +704,22 @@ prop_strictFoldr' m = whnfHasNoThunks (foldr' (:) [] m)
 prop_strictFoldl' :: Set Int -> Property
 prop_strictFoldl' m = whnfHasNoThunks (foldl' (flip (:)) [] m)
 #endif
+
+prop_eq :: Set Int -> Set Int -> Property
+prop_eq s1 s2 = (s1 == s2) === (toList s1 == toList s2)
+
+prop_compare :: Set Int -> Set Int -> Property
+prop_compare s1 s2 = compare s1 s2 === compare (toList s1) (toList s2)
+
+prop_intersections :: (Set Int, [Set Int]) -> Property
+prop_intersections (s, ss) =
+  intersections ss' === List.foldl' intersection s ss
+  where
+    ss' = s :| ss -- Work around missing Arbitrary NonEmpty instance
+
+prop_intersections_lazy :: [Set Int] -> Property
+prop_intersections_lazy ss = intersections ss' === empty
+  where
+    ss' = NE.fromList $ ss ++ [empty] ++ error "too strict"
+                           --- ^ result will certainly be empty at this point,
+                           --    so the rest of the list should not be demanded.

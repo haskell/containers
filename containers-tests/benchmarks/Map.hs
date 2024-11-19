@@ -21,7 +21,7 @@ main = do
         m_even = M.fromAscList elems_even :: M.Map Int Int
         m_odd = M.fromAscList elems_odd :: M.Map Int Int
     evaluate $ rnf [m, m_even, m_odd]
-    evaluate $ rnf elems_rev
+    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -71,7 +71,7 @@ main = do
         , bench "insertLookupWithKey' present" $ whnf (insLookupWithKey' elems_even) m_even
         , bench "mapWithKey" $ whnf (M.mapWithKey (+)) m
         , bench "foldlWithKey" $ whnf (ins elems) m
-        , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sum 0) m
+        , bench "foldlWithKey'" $ whnf (M.foldlWithKey' sumkv 0) m
         , bench "foldrWithKey" $ whnf (M.foldrWithKey consPair []) m
         , bench "foldrWithKey'" $ whnf (M.foldrWithKey' consPair []) m
         , bench "update absent" $ whnf (upd Just evens) m_odd
@@ -88,13 +88,20 @@ main = do
         , bench "intersection" $ whnf (M.intersection m) m_even
         , bench "split" $ whnf (M.split (bound `div` 2)) m
         , bench "fromList" $ whnf M.fromList elems
-        , bench "fromList-desc" $ whnf M.fromList (reverse elems)
-        , bench "fromAscList" $ whnf M.fromAscList elems
+        , bench "fromList-desc" $ whnf M.fromList elems_desc
+        , bench "fromAscList" $ whnf M.fromAscList elems_asc
+        , bench "fromAscListWithKey" $
+            whnf (M.fromAscListWithKey sumkv) elems_asc
+        , bench "fromDescList" $ whnf M.fromDescList elems_desc
+        , bench "fromDescListWithKey" $
+            whnf (M.fromDescListWithKey sumkv) elems_desc
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> M.fromDistinctAscList [(i,i) | i <- [1..n]]) bound
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+        , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
+        , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
         ]
   where
     bound = 2^12
@@ -102,11 +109,15 @@ main = do
     elems_even = zip evens evens
     elems_odd = zip odds odds
     elems_rev = reverse elems
+    keys_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
+    elems_asc = zip keys_asc values
+    keys_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
+    elems_desc = zip keys_desc values
     keys = [1..bound]
     evens = [2,4..bound]
     odds = [1,3..bound]
     values = [1..bound]
-    sum k v1 v2 = k + v1 + v2
+    sumkv k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
 
 add3 :: Int -> Int -> Int -> Int

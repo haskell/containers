@@ -36,8 +36,11 @@
 --
 -- The implementation is based on
 --
---   * /Structuring Depth-First Search Algorithms in Haskell/,
---     by David King and John Launchbury, <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.52.6526>
+--   * David King and John Launchbury,
+--     \"/Structuring Depth-First Search Algorithms in Haskell/\",
+--     Proceedings of the 22nd ACM SIGPLAN-SIGACT Symposium on Principles of
+--     Programming Languages, 344-354, 1995,
+--     <https://doi.org/10.1145/199448.199530>.
 --
 -----------------------------------------------------------------------------
 
@@ -89,6 +92,7 @@ module Data.Graph (
 
     -- ** Conversion
     , flattenSCC
+    , flattenSCC1
     , flattenSCCs
 
     -- * Trees
@@ -163,6 +167,7 @@ data SCC vertex
            , Read -- ^ @since 0.5.9
            )
 
+#ifdef __GLASGOW_HASKELL__
 -- | Partial pattern synonym for backward compatibility with @containers < 0.7@.
 pattern CyclicSCC :: [vertex] -> SCC vertex
 pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
@@ -171,7 +176,6 @@ pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
 
 {-# COMPLETE AcyclicSCC, CyclicSCC #-}
 
-#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
 
@@ -206,19 +210,26 @@ instance Show1 SCC where
 instance Read1 SCC where
   liftReadsPrec rp rl = readsData $
     readsUnaryWith rp "AcyclicSCC" AcyclicSCC <>
-    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC <>
-    readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+    readsUnaryWith (liftReadsPrec rp rl) "NECyclicSCC" NECyclicSCC
+#ifdef __GLASGOW_HASKELL__
+    <> readsUnaryWith (const rl) "CyclicSCC" CyclicSCC
+#endif
 
 -- | @since 0.5.9
 instance F.Foldable SCC where
   foldr c n (AcyclicSCC v) = c v n
   foldr c n (NECyclicSCC vs) = foldr c n vs
 
+  toList = flattenSCC
+
 #if MIN_VERSION_base(4,18,0)
 -- | @since 0.7.0
 instance F1.Foldable1 SCC where
   foldMap1 f (AcyclicSCC v) = f v
   foldMap1 f (NECyclicSCC vs) = F1.foldMap1 f vs
+
+  toNonEmpty = flattenSCC1
+
   -- TODO define more methods
 #endif
 
@@ -246,9 +257,22 @@ flattenSCCs :: [SCC a] -> [a]
 flattenSCCs = concatMap flattenSCC
 
 -- | The vertices of a strongly connected component.
+--
+-- @flattenSCC = 'Data.List.NonEmpty.toList' . 'flattenSCC1'@.
+--
+-- This function is retained for backward compatibility,
+-- 'flattenSCC1' has the more precise type.
 flattenSCC :: SCC vertex -> [vertex]
 flattenSCC (AcyclicSCC v) = [v]
-flattenSCC (NECyclicSCC vs) = NE.toList vs
+flattenSCC (NECyclicSCC (v :| vs)) = v : vs
+-- Note: Best to avoid NE.toList, it is too lazy.
+
+-- | The vertices of a strongly connected component.
+--
+-- @since 0.7.1
+flattenSCC1 :: SCC vertex -> NonEmpty vertex
+flattenSCC1 (AcyclicSCC v) = v :| []
+flattenSCC1 (NECyclicSCC vs) = vs
 
 -- | \(O((V+E) \log V)\). The strongly connected components of a directed graph,
 -- reverse topologically sorted.

@@ -1,15 +1,104 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## ???
+## Next release
 
-* Breaking changes to `Data.Graph.SCC v`:
+### Breaking changes
+
+* `Data.IntMap.Lazy.split`, `Data.IntMap.Strict.split`,
+  `Data.IntMap.Lazy.splitLookup`, `Data.IntMap.Strict.splitLookup` and
+  `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
+  ignored for an empty map or set. (Soumik Sarkar)
+
+* The following functions have been updated to match the strictness of their
+  `fromList` counterparts:
+
+  * `Data.Map.Strict.fromAscList`
+  * `Data.Map.Strict.fromAscListWith`
+  * `Data.Map.Strict.fromAscListWithKey`
+  * `Data.Map.Strict.fromDescList`
+  * `Data.Map.Strict.fromDescListWith`
+  * `Data.Map.Strict.fromDescListWithKey`
+  * `Data.IntMap.Strict.fromAscList`
+  * `Data.IntMap.Strict.fromAscListWith`
+  * `Data.IntMap.Strict.fromAscListWithKey`
+
+  Previously they were lazier and did not force the first value in runs of at
+  least 2 entries with equal keys. (Soumik Sarkar)
+
+* Various deprecated functions, whose definitions currently cause type errors,
+  have been removed. (Soumik Sarkar)
+
+* `Data.Set.fold` and `Data.IntSet.fold` have long been documented as
+  deprecated and are now marked as such. They will be removed in a future
+  release.
+
+### Bug fixes
+
+* Make the package compile with MicroHs. (Lennart Augustsson)
+
+* `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
+  to WHNF. (Soumik Sarkar)
+
+* Fix an issue where `Data.Map.mergeWithKey`, `Data.Map.Strict.mergeWithKey`,
+  `Data.IntMap.mergeWithKey`, `Data.IntMap.Strict.mergeWithKey` could call the
+  provided `only2` function with empty maps, contrary to documentation.
+  (Soumik Sarkar)
+
+### Additions
+
+* Add `lookupMin` and `lookupMax` for `Data.IntSet`. (Soumik Sarkar)
+
+* Add `Intersection` and `intersections` for `Data.Set` and `Data.IntSet`.
+  (Reed Mullanix, Soumik Sarkar)
+
+* Add `foldMap` for `Data.IntSet`. (Soumik Sarkar)
+
+### Performance improvements
+
+* For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
+  do not perform a copy. (Soumik Sarkar)
+
+## Unreleased with `@since` annotation for 0.7.1:
+
+### Additions
+
+* Add `Data.Graph.flattenSCC1`. (Andreas Abel)
+
+## 0.7
+
+### Breaking changes
+
+* Breaking changes to `Data.Graph.SCC v` (bodʲɪˈɡrʲim):
   * `CyclicSCC [v]` is now not a constructor,
     but a bundled pattern synonym for backward compatibility.
   * `NECyclicSCC (NonEmpty v)` is a new constructor, maintaining an invariant
     that a set of mutually reachable vertices is non-empty.
 
+## 0.6.8
+
+### Additions
+
+* Add `Data.IntSet.fromRange`. (Soumik Sarkar)
+
+### Improvements
+
+* Speed up conversion from monotonic lists to `Set`s and
+  `Map`s. (Soumik Sarkar)
+
+### Documentation and other
+
+* Add, improve, and correct documentation. (Niklas Hambüchen, Soumik Sarkar,
+  tomjaguarpaw, Alice Rixte, Tom Smeding)
+
+### Other/internal
+
 * Remove the `stack.yaml` file. It was extremely stale, and its utility was a
   bit dubious in a GHC boot package. Closes #938.
+
+* Add a bunch of new tests and benchmarks. (Soumik Sarkar)
+
+* Future-proof test suite against export of `foldl'` from `Prelude`.
+  (Teo Camarasu)
 
 ## 0.6.7
 
@@ -61,16 +150,40 @@
 
 ## 0.6.6
 
-* Drop support for GHC versions before 8.0.2.
-
-* Bump Cabal version for tests, and use `common` clauses to reduce
-  duplication.
-
-### New instances
+### Additions
 
 * Add `Lift` instances for use with Template Haskell. Specifically:
   `Seq`, `ViewL`, and `ViewR` (in `Data.Sequence`), `Map`, `Set`,
-  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`).
+  `IntMap`, `IntSet`, `Tree`, and `SCC` (in `Data.Graph`). (David Feuer)
+
+* Add `argSet` and `fromArgSet` for `Data.Map`. (Joseph C. Sible)
+
+### Performance improvements
+
+* Remove short-circuiting from certain `IntMap` functions to improve
+  performance for successful lookups. (Callan McGill)
+
+### Other changes
+
+* Drop support for GHC versions before 8.0.2. (David Feuer)
+
+* Various documentation improvements. (Will Hawkins, Eric Lindblad, konsumlamm,
+  Joseph C. Sible)
+
+### Miscellaneous/internal
+
+* Bump Cabal version for tests, and use `common` clauses to reduce
+  duplication. (David Feuer)
+
+* Migrate from test-framework to tasty. (Bodigrim)
+
+* Migrate from gauge to tasty-bench. (Bodigrim)
+
+* Enable `TypeOperators` to address a future GHC requirement.
+  (Vladislav Zavialov)
+
+* Work around an issue with unboxed arrays on big-endian systems.
+  (Peter Trommler)
 
 ## 0.6.5.1
 
@@ -295,13 +408,13 @@ modules.
 
 * Rewrite the `IsString` instance head for sequences, improving compatibility
   with the list instance and also improving type inference. We used to have
-  
+
   ```haskell
   instance IsString (Seq Char)
   ```
-  
+
   Now we commit more eagerly with
-  
+
   ```haskell
   instance a ~ Char => IsString (Seq a)
   ```
@@ -375,7 +488,7 @@ modules.
 * Fix completely incorrect implementations of `Data.IntMap.restrictKeys` and
   `Data.IntMap.withoutKeys`. Make the tests for these actually run. (Thanks
   to Tom Smalley for reporting this.)
-  
+
 * Fix a minor bug in the `Show1` instance of `Data.Tree`. This produced valid
   output, but with fewer parentheses than `Show`. (Thanks, Ryan Scott.)
 
@@ -430,7 +543,7 @@ performance improvements overall.
     before 7.0.
 
   * Integrate benchmarks with Cabal. (Thanks, Gabriel Gonzalez!)
-  
+
   * Make Cabal report required extensions properly, and stop using
     default extensions. Note that we do *not* report extensions conditionally enabled
     based on GHC version, as doing so would lead to a maintenance nightmare
@@ -480,7 +593,7 @@ performance improvements overall.
     it returned a lazy pair.
 
   * Fix completely erroneous definition of `length` for `Data.Sequence.ViewR`.
-  
+
   * Make `Data.Map.Strict.traverseWithKey` force result values before
     installing them in the new map.
 

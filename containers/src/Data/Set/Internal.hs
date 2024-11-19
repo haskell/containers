@@ -156,6 +156,7 @@ module Data.Set.Internal (
             , difference
             , intersection
             , intersections
+            , symmetricDifference
             , cartesianProduct
             , disjointUnion
             , Intersection(..)
@@ -239,7 +240,6 @@ import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
 import Data.Semigroup (Semigroup(stimes))
-import Data.List.NonEmpty (NonEmpty(..))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
 #endif
@@ -248,15 +248,19 @@ import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf))
+import Data.List.NonEmpty (NonEmpty(..))
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
+import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
+import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
+                 , lexP, readListPrecDefault )
+#endif
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
 import qualified GHC.Exts as GHCExts
-import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
-                 , lexP, readListPrecDefault )
 import Data.Data
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
@@ -269,7 +273,7 @@ import Language.Haskell.TH ()
 --------------------------------------------------------------------}
 infixl 9 \\ --
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). See 'difference'.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 #if __GLASGOW_HASKELL__
@@ -289,17 +293,20 @@ type Size     = Int
 
 #ifdef __GLASGOW_HASKELL__
 type role Set nominal
-#endif
 
 -- | @since 0.6.6
 deriving instance Lift a => Lift (Set a)
+#endif
 
+-- | @mempty@ = 'empty'
 instance Ord a => Monoid (Set a) where
     mempty  = empty
     mconcat = unions
     mappend = (<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = 'union'
+--
+-- @since 0.5.7
 instance Ord a => Semigroup (Set a) where
     (<>)    = union
     stimes  = stimesIdempotentMonoid
@@ -654,7 +661,7 @@ alteredSet x0 s0 = go x0 s0
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
 -- @(s1 \`isProperSubsetOf\` s2)@ indicates whether @s1@ is a
 -- proper subset of @s2@.
 --
@@ -669,7 +676,7 @@ isProperSubsetOf s1 s2
 #endif
 
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\).
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
 --
 -- @
@@ -724,7 +731,7 @@ isSubsetOfX (Bin _ x l r) t
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Check whether two sets are disjoint
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Check whether two sets are disjoint
 -- (i.e., their intersection is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
@@ -753,23 +760,29 @@ disjoint (Bin _ x l r) t
   Minimal, Maximal
 --------------------------------------------------------------------}
 
--- We perform call-pattern specialization manually on lookupMin
--- and lookupMax. Otherwise, GHC doesn't seem to do it, which is
--- unfortunate if, for example, someone uses findMin or findMax.
+-- Note [Inline lookupMin]
+-- ~~~~~~~~~~~~~~~~~~~~~~~
+-- The core of lookupMin is implemented as lookupMinSure, a recursive function
+-- that does not involve Maybes. lookupMin wraps the result of lookupMinSure in
+-- a Just. We inline lookupMin so that GHC optimizations can eliminate the Maybe
+-- if it is matched on at the call site.
 
 lookupMinSure :: a -> Set a -> a
 lookupMinSure x Tip = x
 lookupMinSure _ (Bin _ x l _) = lookupMinSure x l
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMin :: Set a -> Maybe a
 lookupMin Tip = Nothing
 lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
+{-# INLINE lookupMin #-} -- See Note [Inline lookupMin]
 
--- | \(O(\log n)\). The minimal element of a set.
+-- | \(O(\log n)\). The minimal element of the set. Calls 'error' if the set is
+-- empty.
 findMin :: Set a -> a
 findMin t
   | Just r <- lookupMin t = r
@@ -779,15 +792,18 @@ lookupMaxSure :: a -> Set a -> a
 lookupMaxSure x Tip = x
 lookupMaxSure _ (Bin _ x _ r) = lookupMaxSure x r
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Returns 'Nothing' if the set
+-- is empty.
 --
 -- @since 0.5.9
 
 lookupMax :: Set a -> Maybe a
 lookupMax Tip = Nothing
 lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
+{-# INLINE lookupMax #-} -- See Note [Inline lookupMin]
 
--- | \(O(\log n)\). The maximal element of a set.
+-- | \(O(\log n)\). The maximal element of the set. Calls 'error' if the set is
+-- empty.
 findMax :: Set a -> a
 findMax t
   | Just r <- lookupMax t = r
@@ -815,7 +831,7 @@ unions = Foldable.foldl' union empty
 {-# INLINABLE unions #-}
 #endif
 
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). The union of two sets, preferring the first set when
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
 union t1 Tip  = t1
@@ -835,7 +851,7 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). Difference of two sets.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Difference of two sets.
 --
 -- Return elements of the first set not existing in the second set.
 --
@@ -856,7 +872,7 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n+1}{m+1}\bigr)\bigr), \; m \leq n\). The intersection of two sets.
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The intersection of two sets.
 -- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
@@ -883,21 +899,62 @@ intersection t1@(Bin _ x l1 r1) t2
 {-# INLINABLE intersection #-}
 #endif
 
--- | The intersection of a series of sets. Intersections are performed left-to-right.
+-- | The intersection of a series of sets. Intersections are performed
+-- left-to-right.
+--
+-- @since FIXME
 intersections :: Ord a => NonEmpty (Set a) -> Set a
-intersections (s0 :| ss) = List.foldr go id ss s0
-    where
-      go s r acc
-          | null acc = empty
-          | otherwise = r (intersection acc s)
+intersections (s0 :| ss)
+  | null s0 = empty
+  | otherwise = List.foldr go id ss s0
+  where
+    go s r acc
+      | null acc' = empty
+      | otherwise = r acc'
+      where
+        acc' = intersection acc s
+{-# INLINABLE intersections #-}
 
--- | Sets form a 'Semigroup' under 'intersection'.
+-- | @Set@s form a 'Semigroup' under 'intersection'.
+--
+-- @since FIXME
 newtype Intersection a = Intersection { getIntersection :: Set a }
     deriving (Show, Eq, Ord)
 
 instance (Ord a) => Semigroup (Intersection a) where
     (Intersection a) <> (Intersection b) = Intersection $ intersection a b
+    {-# INLINABLE (<>) #-}
+
     stimes = stimesIdempotent
+    {-# INLINABLE stimes #-}
+
+{--------------------------------------------------------------------
+  Symmetric difference
+--------------------------------------------------------------------}
+
+-- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- The symmetric difference of two sets.
+--
+-- The result contains elements that appear in exactly one of the two sets.
+--
+-- @
+-- symmetricDifference (fromList [0,2,4,6]) (fromList [0,3,6,9]) == fromList [2,3,4,9]
+-- @
+--
+-- @since FIXME
+symmetricDifference :: Ord a => Set a -> Set a -> Set a
+symmetricDifference Tip t2 = t2
+symmetricDifference t1 Tip = t1
+symmetricDifference (Bin _ x l1 r1) t2
+  | found = merge l1l2 r1r2
+  | otherwise = link x l1l2 r1r2
+  where
+    !(l2, found, r2) = splitMember x t2
+    !l1l2 = symmetricDifference l1 l2
+    !r1r2 = symmetricDifference r1 r2
+#if __GLASGOW_HASKELL__
+{-# INLINABLE symmetricDifference #-}
+#endif
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -965,10 +1022,9 @@ mapMonotonic f (Bin sz x l r) = Bin sz (f x) (mapMonotonic f l) (mapMonotonic f 
   Fold
 --------------------------------------------------------------------}
 -- | \(O(n)\). Fold the elements in the set using the given right-associative
--- binary operator. This function is an equivalent of 'foldr' and is present
--- for compatibility only.
+-- binary operator.
 --
--- /Please note that fold will be deprecated in the future and removed./
+{-# DEPRECATED fold "Use Data.Set.foldr instead" #-}
 fold :: (a -> b -> b) -> b -> Set a -> b
 fold = foldr
 {-# INLINE fold #-}
@@ -1169,60 +1225,50 @@ combineEq (x : xs) = combineEq' x xs
 -- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
 
--- For some reason, when 'singleton' is used in fromDistinctAscList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList = fromDistinctAscList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctAscList = ascLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = fromDistinctAscList_linkTop (Bin 1 x Tip Tip) stk
-    next (State1 l stk) x = State0 (Push x l stk)
+    next :: Stack a -> a -> Stack a
+    next (Push x Tip stk) !y = ascLinkTop stk 1 (singleton x) y
+    next stk !x = Push x Tip stk
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
-fromDistinctAscList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-fromDistinctAscList_linkTop r@(Bin rsz _ _ _) (Push x l@(Bin lsz _ _ _) stk)
-  | rsz == lsz = fromDistinctAscList_linkTop (bin x l r) stk
-fromDistinctAscList_linkTop l stk = State1 l stk
-{-# INLINABLE fromDistinctAscList_linkTop #-}
+ascLinkTop :: Stack a -> Int -> Set a -> a -> Stack a
+ascLinkTop (Push x l@(Bin lsz _ _ _) stk) !rsz r y
+  | lsz == rsz = ascLinkTop stk sz (Bin sz x l r) y
+  where
+    sz = lsz + rsz + 1
+ascLinkTop stk !_ r y = Push y r stk
 
-fromDistinctAscList_linkAll :: FromDistinctMonoState a -> Set a
-fromDistinctAscList_linkAll (State0 stk)    = foldl'Stack (\r x l -> link x l r) Tip stk
-fromDistinctAscList_linkAll (State1 r0 stk) = foldl'Stack (\r x l -> link x l r) r0 stk
-{-# INLINABLE fromDistinctAscList_linkAll #-}
+ascLinkAll :: Stack a -> Set a
+ascLinkAll stk = foldl'Stack (\r x l -> link x l r) Tip stk
+{-# INLINABLE ascLinkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
 -- /The precondition (input list is strictly descending) is not checked./
 --
 -- @since 0.5.8
 
--- For some reason, when 'singleton' is used in fromDistinctDescList or in
--- create, it is not inlined, so we inline it manually.
-
 -- See Note [fromDistinctAscList implementation]
 fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList = fromDistinctDescList_linkAll . Foldable.foldl' next (State0 Nada)
+fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
   where
-    next :: FromDistinctMonoState a -> a -> FromDistinctMonoState a
-    next (State0 stk) !x = fromDistinctDescList_linkTop (Bin 1 x Tip Tip) stk
-    next (State1 r stk) x = State0 (Push x r stk)
+    next :: Stack a -> a -> Stack a
+    next (Push y Tip stk) !x = descLinkTop x 1 (singleton y) stk
+    next stk !y = Push y Tip stk
 {-# INLINE fromDistinctDescList #-}  -- INLINE for fusion
 
-fromDistinctDescList_linkTop :: Set a -> Stack a -> FromDistinctMonoState a
-fromDistinctDescList_linkTop l@(Bin lsz _ _ _) (Push x r@(Bin rsz _ _ _) stk)
-  | lsz == rsz = fromDistinctDescList_linkTop (bin x l r) stk
-fromDistinctDescList_linkTop r stk = State1 r stk
-{-# INLINABLE fromDistinctDescList_linkTop #-}
+descLinkTop :: a -> Int -> Set a -> Stack a -> Stack a
+descLinkTop x !lsz l (Push y r@(Bin rsz _ _ _) stk)
+  | lsz == rsz = descLinkTop x sz (Bin sz y l r) stk
+  where
+    sz = lsz + rsz + 1
+descLinkTop y !_ r stk = Push y r stk
 
-fromDistinctDescList_linkAll :: FromDistinctMonoState a -> Set a
-fromDistinctDescList_linkAll (State0 stk)    = foldl'Stack (\l x r -> link x l r) Tip stk
-fromDistinctDescList_linkAll (State1 l0 stk) = foldl'Stack (\l x r -> link x l r) l0 stk
-{-# INLINABLE fromDistinctDescList_linkAll #-}
-
-data FromDistinctMonoState a
-  = State0 !(Stack a)
-  | State1 !(Set a) !(Stack a)
+descLinkAll :: Stack a -> Set a
+descLinkAll stk = foldl'Stack (\l x r -> link x l r) Tip stk
+{-# INLINABLE descLinkAll #-}
 
 data Stack a = Push !a !(Set a) !(Stack a) | Nada
 
@@ -1234,19 +1280,90 @@ foldl'Stack f = go
 {-# INLINE foldl'Stack #-}
 
 {--------------------------------------------------------------------
-  Eq converts the set to a list. In a lazy setting, this
-  actually seems one of the faster methods to compare two trees
-  and it is certainly the simplest :-)
+  Iterator
 --------------------------------------------------------------------}
+
+-- Note [Iterator]
+-- ~~~~~~~~~~~~~~~
+-- Iteration, using a Stack as an iterator, is an efficient way to consume a Set
+-- one element at a time. Alternately, this may be done by toAscList. toAscList
+-- when consumed via List.foldr will rewrite to Set.foldr (thanks to rewrite
+-- rules), which is quite efficient. However, sometimes that is not possible,
+-- such as in the second arg of '==' or 'compare', where manifesting the list
+-- cons cells is unavoidable and makes things slower.
+--
+-- Concretely, compare on Set Int using toAscList takes ~21% more time compared
+-- to using Iterator, on GHC 9.6.3.
+--
+-- The heart of this implementation is the `iterDown` function. It walks down
+-- the left spine of the tree, pushing the value and right child on the stack,
+-- until a Tip is reached. The next value is now at the top of the stack. To get
+-- to the value after that, `iterDown` is called again with the right child and
+-- the remaining stack.
+
+iterDown :: Set a -> Stack a -> Stack a
+iterDown (Bin _ x l r) stk = iterDown l (Push x r stk)
+iterDown Tip stk = stk
+
+-- Create an iterator from a Set, starting at the smallest element.
+iterator :: Set a -> Stack a
+iterator s = iterDown s Nada
+
+-- Get the next element and the remaining iterator.
+iterNext :: Stack a -> Maybe (StrictPair a (Stack a))
+iterNext (Push x r stk) = Just $! x :*: iterDown r stk
+iterNext Nada = Nothing
+{-# INLINE iterNext #-}
+
+-- Whether there are no more elements in the iterator.
+iterNull :: Stack a -> Bool
+iterNull (Push _ _ _) = False
+iterNull Nada = True
+
+{--------------------------------------------------------------------
+  Eq
+--------------------------------------------------------------------}
+
 instance Eq a => Eq (Set a) where
-  t1 == t2  = (size t1 == size t2) && (toAscList t1 == toAscList t2)
+  s1 == s2 = liftEq (==) s1 s2
+  {-# INLINABLE (==) #-}
+
+-- | @since 0.5.9
+instance Eq1 Set where
+  liftEq eq s1 s2 = size s1 == size s2 && sameSizeLiftEq eq s1 s2
+  {-# INLINE liftEq #-}
+
+-- Assumes the sets are of equal size to skip the final check.
+sameSizeLiftEq :: (a -> b -> Bool) -> Set a -> Set b -> Bool
+sameSizeLiftEq eq s1 s2 =
+  case runEqM (foldMap f s1) (iterator s2) of e :*: _ -> e
+  where
+    f x = EqM $ \it -> case iterNext it of
+      Nothing -> False :*: it
+      Just (y :*: it') -> eq x y :*: it'
+{-# INLINE sameSizeLiftEq #-}
 
 {--------------------------------------------------------------------
   Ord
 --------------------------------------------------------------------}
 
 instance Ord a => Ord (Set a) where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
+  compare s1 s2 = liftCmp compare s1 s2
+  {-# INLINABLE compare #-}
+
+-- | @since 0.5.9
+instance Ord1 Set where
+  liftCompare = liftCmp
+  {-# INLINE liftCompare #-}
+
+liftCmp :: (a -> b -> Ordering) -> Set a -> Set b -> Ordering
+liftCmp cmp s1 s2 = case runOrdM (foldMap f s1) (iterator s2) of
+  o :*: it -> o <> if iterNull it then EQ else LT
+  where
+    f x = OrdM $ \it -> case iterNext it of
+      Nothing -> GT :*: it
+      Just (y :*: it') -> cmp x y :*: it'
+{-# INLINE liftCmp #-}
 
 {--------------------------------------------------------------------
   Show
@@ -1254,16 +1371,6 @@ instance Ord a => Ord (Set a) where
 instance Show a => Show (Set a) where
   showsPrec p xs = showParen (p > 10) $
     showString "fromList " . shows (toList xs)
-
--- | @since 0.5.9
-instance Eq1 Set where
-    liftEq eq m n =
-        size m == size n && liftEq eq (toList m) (toList n)
-
--- | @since 0.5.9
-instance Ord1 Set where
-    liftCompare cmp m n =
-        liftCompare cmp (toList m) (toList n)
 
 -- | @since 0.5.9
 instance Show1 Set where
@@ -1274,7 +1381,7 @@ instance Show1 Set where
   Read
 --------------------------------------------------------------------}
 instance (Read a, Ord a) => Read (Set a) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
   readPrec = parens $ prec 10 $ do
     Ident "fromList" <- lexP
     xs <- readPrec
@@ -2083,24 +2190,29 @@ validsize t
 -- fromDistinctAscList is implemented by building up perfectly balanced trees
 -- while we consume elements from the list one by one. A stack of
 -- (root, perfectly balanced left branch) pairs is maintained, in increasing
--- order of size from top to bottom.
+-- order of size from top to bottom. The stack reflects the binary
+-- representation of the total number of elements in it, with every level having
+-- a power of 2 number of elements.
 --
--- When we get an element from the list, we attempt to link it as the right
--- branch with the top (root, perfect left branch) of the stack to create a new
--- perfect tree. We can only do this if the left branch has size 1. If we link
--- it, we get a perfect tree of size 3. We repeat this process, merging with the
--- top of the stack as long as the sizes match. When we can't link any more, the
--- perfect tree we built so far is a potential left branch. The next element
--- we find becomes the root, and we push this new (root, left branch) on the
--- stack.
+-- When we get an element from the list, we check the (root, left branch) at the
+-- top of the stack.
+-- If the tree there is not empty, we push the element with an empty left child
+-- on the stack.
+-- If the tree is empty, the root is packed into a singleton tree to act as a
+-- right branch for trees higher up the stack. It is linked with left branches
+-- in the stack, but only when they have equal size. This preserves the
+-- perfectly balanced property. When there is a size mismatch, the tree is
+-- too small to link. It is pushed on the stack as a left branch with the new
+-- element as root, awaiting a right branch which will make it large enough to
+-- be linked further.
 --
 -- When we are out of elements, we link the (root, left branch)s in the stack
 -- top to bottom to get the final tree.
 --
 -- How long does this take? We do O(1) work per element excluding the links.
 -- Over n elements, we build trees with at most n nodes total, and each link is
--- done in O(1) using `bin`. The final linking of the stack is done in O(log n)
--- using `link`  (proof below). The total time is thus O(n).
+-- done in O(1) using `Bin`. The final linking of the stack is done in O(log n)
+-- using `link` (proof below). The total time is thus O(n).
 --
 -- Additionally, the implemention is written using foldl' over the input list,
 -- which makes it participate as a good consumer in list fusion.

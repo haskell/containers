@@ -1,5 +1,4 @@
 {-# LANGUAGE CPP #-}
-{-# LANGUAGE BangPatterns #-}
 #if defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Safe #-}
 #endif
@@ -80,19 +79,25 @@
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
 --
---    * Stephen Adams, \"/Efficient sets: a balancing act/\",
---     Journal of Functional Programming 3(4):553-562, October 1993,
---     <http://www.swiss.ai.mit.edu/~adams/BB/>.
+--    * Stephen Adams, \"/Efficient sets—a balancing act/\",
+--      Journal of Functional Programming 3(4):553-562, October 1993,
+--      <https://doi.org/10.1017/S0956796800000885>,
+--      <https://groups.csail.mit.edu/mac/users/adams/BB/index.html>.
 --    * J. Nievergelt and E.M. Reingold,
 --      \"/Binary search trees of bounded balance/\",
 --      SIAM journal of computing 2(1), March 1973.
+--      <https://doi.org/10.1137/0202005>.
+--    * Yoichi Hirai and Kazuhiko Yamamoto,
+--      \"/Balancing weight-balanced trees/\",
+--      Journal of Functional Programming 21(3):287-307, 2011,
+--      <https://doi.org/10.1017/S0956796811000104>
 --
 --  Bounds for 'union', 'intersection', and 'difference' are as given
 --  by
 --
 --    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
---      \"/Just Join for Parallel Ordered Sets/\",
---      <https://arxiv.org/abs/1602.02120v3>.
+--      \"/Parallel Ordered Sets Using Join/\",
+--      <https://arxiv.org/abs/1602.02120v4>.
 --
 --
 -----------------------------------------------------------------------------
@@ -179,6 +184,9 @@ module Data.Map.Strict
     , intersection
     , intersectionWith
     , intersectionWithKey
+
+    -- ** Symmetric difference
+    , symmetricDifference
 
     -- ** Disjoint
     , disjoint
@@ -288,10 +296,6 @@ module Data.Map.Strict
     , maxViewWithKey
 
     -- * Debugging
-#ifdef __GLASGOW_HASKELL__
-    , showTree
-    , showTreeWith
-#endif
     , valid
     ) where
 

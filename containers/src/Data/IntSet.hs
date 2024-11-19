@@ -17,7 +17,8 @@
 --
 -- = Finite Int Sets
 --
--- The @'IntSet'@ type represents a set of elements of type @Int@.
+-- The @'IntSet'@ type represents a set of elements of type @Int@. An @IntSet@
+-- is strict in its elements.
 --
 -- For a walkthrough of the most commonly used functions see their
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
@@ -45,12 +46,15 @@
 -- (much) faster on insertions and deletions when compared to a generic
 -- size-balanced set implementation (see "Data.Set").
 --
---    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
+--    * Chris Okasaki and Andy Gill,
+--      \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
---      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
+--      <https://web.archive.org/web/20150417234429/https://ittc.ku.edu/~andygill/papers/IntMap98.pdf>.
 --
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
---      Journal of the ACM, 15(4), October 1968, pages 514-534.
+--    * D.R. Morrison,
+--      \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
+--      Journal of the ACM, 15(4), October 1968, pages 514-534,
+--      <https://doi.org/10.1145/321479.321481>.
 --
 -- Additionally, this implementation places bitmaps in the leaves of the tree.
 -- Their size is the natural size of a machine word (32 or 64 bits) and greatly
@@ -61,9 +65,6 @@
 -----------------------------------------------------------------------------
 
 module Data.IntSet (
-            -- * Strictness properties
-            -- $strictness
-
             -- * Set type
 #if !defined(TESTING)
               IntSet          -- instance Eq,Show
@@ -76,6 +77,7 @@ module Data.IntSet (
             , empty
             , singleton
             , fromList
+            , fromRange
             , fromAscList
             , fromDistinctAscList
 
@@ -107,6 +109,9 @@ module Data.IntSet (
             , difference
             , (\\)
             , intersection
+            , intersections
+            , symmetricDifference
+            , Intersection(..)
 
             -- * Filter
             , IS.filter
@@ -127,6 +132,7 @@ module Data.IntSet (
             -- * Folds
             , IS.foldr
             , IS.foldl
+            , IS.foldMap
             -- ** Strict folds
             , IS.foldr'
             , IS.foldl'
@@ -134,6 +140,8 @@ module Data.IntSet (
             , fold
 
             -- * Min\/Max
+            , lookupMin
+            , lookupMax
             , findMin
             , findMax
             , deleteMin
@@ -154,21 +162,7 @@ module Data.IntSet (
             -- * Debugging
             , showTree
             , showTreeWith
-
-#if defined(TESTING)
-            -- * Internals
-            , match
-#endif
             ) where
 
+import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntSet.Internal as IS
-
--- $strictness
---
--- This module satisfies the following strictness property:
---
--- * Key arguments are evaluated to WHNF
---
--- Here are some examples that illustrate the property:
---
--- > delete undefined s  ==  undefined

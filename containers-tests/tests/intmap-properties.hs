@@ -1,16 +1,17 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.IntMap.Strict as Data.IntMap hiding (showTree)
+import Data.IntMap.Strict as Data.IntMap
 import Data.IntMap.Strict.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Strict
 #else
-import Data.IntMap.Lazy as Data.IntMap hiding (showTree)
+import Data.IntMap.Lazy as Data.IntMap
 import Data.IntMap.Internal (traverseMaybeWithKey)
 import Data.IntMap.Merge.Lazy
 #endif
 import Data.IntMap.Internal.Debug (showTree)
-import IntMapValidity (valid)
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
+import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
 import Control.Monad ((<=<))
@@ -135,6 +136,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
              , testProperty "valid"                prop_valid
+             , testProperty "hasPrefix"            prop_hasPrefix
              , testProperty "empty valid"          prop_emptyValid
              , testProperty "insert to singleton"  prop_singleton
              , testProperty "insert then lookup"   prop_insertLookup
@@ -149,6 +151,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "intersection model"   prop_intersectionModel
              , testProperty "intersectionWith model" prop_intersectionWithModel
              , testProperty "intersectionWithKey model" prop_intersectionWithKeyModel
+             , testProperty "symmetricDifference"  prop_symmetricDifference
              , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
              , testProperty "merge valid"          prop_merge_valid
              , testProperty "mergeA effects"       prop_mergeA_effects
@@ -212,26 +215,32 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "traverseMaybeWithKey identity"         prop_traverseMaybeWithKey_identity
              , testProperty "traverseMaybeWithKey->mapMaybeWithKey" prop_traverseMaybeWithKey_degrade_to_mapMaybeWithKey
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
+             , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
+             , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
              ]
-
-apply2 :: Fun (a, b) c -> a -> b -> c
-apply2 f a b = apply f (a, b)
-
-apply3 :: Fun (a, b, c) d -> a -> b -> c -> d
-apply3 f a b c = apply f (a, b, c)
-
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = fmap fromList arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = fromList <$> listOf ((,) <$> kgen <*> arbitrary)
+  shrink = fmap fromList . shrink . toAscList
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
 instance Arbitrary a => Arbitrary (NonEmptyIntMap a) where
-  arbitrary = fmap (NonEmptyIntMap . fromList . getNonEmpty) arbitrary
+  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+    where
+      go kgen = NonEmptyIntMap . fromList <$> listOf1 ((,) <$> kgen <*> arbitrary)
+  shrink =
+    fmap (NonEmptyIntMap . fromList) .
+    List.filter (not . List.null) .
+    shrink .
+    toAscList .
+    getNonEmptyIntMap
 
 
 ------------------------------------------------------------------------
@@ -1007,6 +1016,9 @@ test_isProperSubmapOfBy = do
     isProperSubmapOfBy (==) (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
     isProperSubmapOfBy (<)  (fromList [(-1,1)])       (fromList [(-1,1),(2,2)]) @?= False
 
+    -- See Github #1007
+    isProperSubmapOfBy (==) (fromList [(-3,1),(-1,1)]) (fromList [(-3,1),(-1,1),(0,1)]) @?= True
+
 test_isProperSubmapOf :: Assertion
 test_isProperSubmapOf = do
     isProperSubmapOf (fromList [(1,1)]) (fromList [(1,1),(2,2)]) @?= True
@@ -1016,6 +1028,9 @@ test_isProperSubmapOf = do
     isProperSubmapOf (fromList [(-1,1)]) (fromList [(-1,1),(2,2)]) @?= True
     isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1),(2,2)]) @?= False
     isProperSubmapOf (fromList [(-1,1),(2,2)]) (fromList [(-1,1)]) @?= False
+
+    -- See Github #1007
+    isProperSubmapOf (fromList [(-3,1),(-1,1)]) (fromList [(-3,1),(-1,1),(0,1)]) @?= True
 
 ----------------------------------------------------------------
 -- Min/Max
@@ -1072,6 +1087,9 @@ test_updateMin = do
     updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "Xb"), (5, "a")]
     updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
+    updateMin (\ a -> Just ("X" ++ a)) (empty :: SMap) @?= empty
+    updateMin (\ _ -> Nothing)         (empty :: SMap) @?= empty
+
 test_updateMax :: Assertion
 test_updateMax = do
     updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3, "b"), (5, "Xa")]
@@ -1079,6 +1097,9 @@ test_updateMax = do
 
     updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3, "b"), (5, "Xa")]
     updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+
+    updateMax (\ a -> Just ("X" ++ a)) (empty :: SMap) @?= empty
+    updateMax (\ _ -> Nothing)         (empty :: SMap) @?= empty
 
 test_updateMinWithKey :: Assertion
 test_updateMinWithKey = do
@@ -1088,6 +1109,9 @@ test_updateMinWithKey = do
     updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"-3:b"), (5,"a")]
     updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
+    updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (empty :: SMap) @?= empty
+    updateMinWithKey (\ _ _ -> Nothing)                     (empty :: SMap) @?= empty
+
 test_updateMaxWithKey :: Assertion
 test_updateMaxWithKey = do
     updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) @?= fromList [(3,"b"), (5,"5:a")]
@@ -1095,6 +1119,9 @@ test_updateMaxWithKey = do
 
     updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (-3,"b")]) @?= fromList [(-3,"b"), (5,"5:a")]
     updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (-3,"b")]) @?= singleton (-3) "b"
+
+    updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (empty :: SMap) @?= empty
+    updateMaxWithKey (\ _ _ -> Nothing)                     (empty :: SMap) @?= empty
 
 test_minView :: Assertion
 test_minView = do
@@ -1157,6 +1184,10 @@ forValidUnitTree f = forValid f
 
 prop_valid :: Property
 prop_valid = forValidUnitTree $ \t -> valid t
+
+prop_hasPrefix :: Int -> NonZero Int -> Property
+prop_hasPrefix i (NonZero p) =
+  hasPrefix i (Prefix p) === hasPrefixSimple i (Prefix p)
 
 ----------------------------------------------------------------
 -- QuickCheck
@@ -1240,6 +1271,17 @@ prop_intersectionWithKeyModel xs ys
     where xs' = List.nubBy ((==) `on` fst) xs
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
+
+prop_symmetricDifference :: IMap -> IMap -> Property
+prop_symmetricDifference m1 m2 =
+  valid m3 .&&.
+  toAscList m3 ===
+  List.sort (   List.filter ((`notElem` fmap fst kys) . fst) kxs
+             ++ List.filter ((`notElem` fmap fst kxs) . fst) kys)
+  where
+    m3 = symmetricDifference m1 m2
+    kxs = toAscList m1
+    kys = toAscList m2
 
 prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
@@ -1661,3 +1703,21 @@ prop_traverseMaybeWithKey_degrade_to_traverseWithKey fun mp =
         -- so this also checks the order of traversing is the same.
   where f k v = (show k, applyFun2 fun k v)
         g k v = fmap Just $ f k v
+
+prop_isProperSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isProperSubmapOfBy f m1 m2 =
+  isProperSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1 && size m1 < size m2)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)
+
+prop_isSubmapOfBy :: Fun (A, A) Bool -> IntMap A -> IntMap A -> Property
+prop_isSubmapOfBy f m1 m2 =
+  isSubmapOfBy (applyFun2 f) m1 m2 ===
+  (length xs == size m1)
+  where
+    xs = List.intersectBy
+           (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
+           (assocs m1) (assocs m2)

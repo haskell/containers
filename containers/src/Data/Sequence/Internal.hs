@@ -220,28 +220,31 @@ import Data.Functor.Classes
 import Data.Traversable
 
 -- GHC specific stuff
-#ifdef __GLASGOW_HASKELL__
-import GHC.Exts (build)
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read (Lexeme(Ident), lexP, parens, prec,
     readPrec, readListPrec, readListPrecDefault)
+#endif
+#ifdef __GLASGOW_HASKELL__
+import GHC.Exts (build)
 import Data.Data
 import Data.String (IsString(..))
 import qualified Language.Haskell.TH.Syntax as TH
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 import GHC.Generics (Generic, Generic1)
-#endif
 
 -- Array stuff, with GHC.Arr on GHC
-import Data.Array (Ix, Array)
-import qualified Data.Array
-#ifdef __GLASGOW_HASKELL__
 import qualified GHC.Arr
-#endif
-
-import Utils.Containers.Internal.Coercions ((.#), (.^#))
 import Data.Coerce
 import qualified GHC.Exts
+#else
+import qualified Data.List
+#endif
+
+import Data.Array (Ix, Array)
+import qualified Data.Array
+
+import Utils.Containers.Internal.Coercions ((.#), (.^#))
 
 import Data.Functor.Identity (Identity(..))
 
@@ -908,10 +911,12 @@ instance Alternative Seq where
     (<|>) = (><)
 
 instance Eq a => Eq (Seq a) where
-    xs == ys = length xs == length ys && toList xs == toList ys
+  xs == ys = liftEq (==) xs ys
+  {-# INLINABLE (==) #-}
 
 instance Ord a => Ord (Seq a) where
-    compare xs ys = compare (toList xs) (toList ys)
+  compare xs ys = liftCompare compare xs ys
+  {-# INLINABLE compare #-}
 
 #ifdef TESTING
 instance Show a => Show (Seq a) where
@@ -929,14 +934,52 @@ instance Show1 Seq where
 
 -- | @since 0.5.9
 instance Eq1 Seq where
-    liftEq eq xs ys = length xs == length ys && liftEq eq (toList xs) (toList ys)
+  liftEq eq xs ys =
+    sameSize xs ys && sameSizeLiftEqLists eq (toList xs) (toList ys)
+  {-# INLINE liftEq #-}
 
 -- | @since 0.5.9
 instance Ord1 Seq where
-    liftCompare cmp xs ys = liftCompare cmp (toList xs) (toList ys)
+  liftCompare f xs ys = liftCmpLists f (toList xs) (toList ys)
+  {-# INLINE liftCompare #-}
+
+-- Note [Eq and Ord]
+-- ~~~~~~~~~~~~~~~~~
+-- Eq and Ord for Seq are implemented by converting to lists, which turns out
+-- to be quite efficient.
+-- However, we define our own functions to work with lists because the relevant
+-- list functions in base have performance issues (liftEq and liftCompare are
+-- recursive and cannot inline, (==) and compare are not INLINABLE and cannot
+-- specialize).
+
+-- Same as `length xs == length ys` but uses the structure invariants to skip
+-- unnecessary cases.
+sameSize :: Seq a -> Seq b -> Bool
+sameSize (Seq t1) (Seq t2) = case (t1, t2) of
+  (EmptyT, EmptyT) -> True
+  (Single _, Single _) -> True
+  (Deep v1 _ _ _, Deep v2 _ _ _) -> v1 == v2
+  _ -> False
+
+-- Assumes the lists are of equal size to skip some cases.
+sameSizeLiftEqLists :: (a -> b -> Bool) -> [a] -> [b] -> Bool
+sameSizeLiftEqLists eq = go
+  where
+    go (x:xs) (y:ys) = eq x y && go xs ys
+    go _ _ = True
+{-# INLINE sameSizeLiftEqLists #-}
+
+liftCmpLists :: (a -> b -> Ordering) -> [a] -> [b] -> Ordering
+liftCmpLists cmp = go
+  where
+    go [] [] = EQ
+    go [] (_:_) = LT
+    go (_:_) [] = GT
+    go (x:xs) (y:ys) = cmp x y <> go xs ys
+{-# INLINE liftCmpLists #-}
 
 instance Read a => Read (Seq a) where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
     readPrec = parens $ prec 10 $ do
         Ident "fromList" <- lexP
         xs <- readPrec
@@ -957,11 +1000,14 @@ instance Read1 Seq where
     (xs,t) <- readLst s
     pure (fromList xs, t)
 
+-- | @mempty@ = 'empty'
 instance Monoid (Seq a) where
     mempty = empty
     mappend = (Semigroup.<>)
 
--- | @since 0.5.7
+-- | @(<>)@ = '(><)'
+--
+-- @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
     stimes = cycleNTimes . fromIntegral
@@ -4220,7 +4266,7 @@ fromList        :: [a] -> Seq a
 -- it gets a bit hard to read.
 fromList = Seq . mkTree . map_elem
   where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
     mkTree :: forall a' . [Elem a'] -> FingerTree (Elem a')
 #else
     mkTree :: [Elem a] -> FingerTree (Elem a)
@@ -4268,7 +4314,7 @@ fromList = Seq . mkTree . map_elem
       where
         d2 = Three x1 x2 x3
         d1 = Three (Node3 3 x4 x5 x6) (Node3 3 x7 x8 x9) (Node3 3 y0 y1 y2)
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
         cont :: (Digit (Node (Elem a')), Digit (Elem a')) -> FingerTree (Node (Node (Elem a'))) -> FingerTree (Elem a')
 #endif
         cont (!r1, !r2) !sub =
@@ -4295,7 +4341,7 @@ fromList = Seq . mkTree . map_elem
             !n10 = Node3 (3*s) n1 n2 n3
 
     mkTreeC ::
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
                forall a b c .
 #endif
                (b -> FingerTree (Node a) -> c)
@@ -4337,7 +4383,7 @@ fromList = Seq . mkTree . map_elem
     mkTreeC cont s (LCons x1 (LCons x2 (LCons x3 (LCons x4 (LCons x5 (LCons x6 (LCons x7 (LCons x8 (LCons x9 (LCons y0 (LCons y1 (LCons y2 (LCons y3 (LCons y4 (LCons y5 (LCons y6 xs)))))))))))))))) =
       mkTreeC cont2 (9*s) (getNodesC (3*s) (Node3 (3*s) y3 y4 y5) y6 xs)
       where
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
         cont2 :: (b, Digit (Node (Node a)), Digit (Node a)) -> FingerTree (Node (Node (Node a))) -> c
 #endif
         cont2 (b, r1, r2) !sub =

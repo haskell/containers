@@ -1,9 +1,15 @@
-module IntMapValidity (valid) where
+module IntMapValidity
+  ( valid
+  , hasPrefix
+  , hasPrefixSimple
+  ) where
 
-import Data.Bits (xor, (.&.))
+import Data.Bits (finiteBitSize, testBit, xor, (.&.))
+import Data.List (intercalate, elemIndex)
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
 import Data.IntMap.Internal
+import Numeric (showHex)
 import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
-import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
   Assertions
@@ -12,8 +18,7 @@ import Utils.Containers.Internal.BitUtil (bitcount)
 valid :: IntMap a -> Property
 valid t =
   counterexample "nilNeverChildOfBin" (nilNeverChildOfBin t) .&&.
-  counterexample "commonPrefix" (commonPrefix t) .&&.
-  counterexample "maskRespected" (maskRespected t)
+  counterexample "prefixesOk" (prefixesOk t)
 
 -- Invariant: Nil is never found as a child of Bin.
 nilNeverChildOfBin :: IntMap a  -> Bool
@@ -21,45 +26,53 @@ nilNeverChildOfBin t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    Bin _ _ l r -> noNilInSet l && noNilInSet r
+    Bin _ l r -> noNilInSet l && noNilInSet r
   where
     noNilInSet t' =
       case t' of
         Nil -> False
         Tip _ _ -> True
-        Bin _ _ l' r' -> noNilInSet l' && noNilInSet r'
+        Bin _ l' r' -> noNilInSet l' && noNilInSet r'
 
--- Invariant: The Mask is a power of 2. It is the largest bit position at which
---            two keys of the map differ.
-maskPowerOfTwo :: IntMap a -> Bool
-maskPowerOfTwo t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    Bin _ m l r ->
-      bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+-- Invariants:
+-- * All keys in a Bin start with the Bin's shared prefix.
+-- * All keys in the Bin's left child have the Prefix's mask bit unset.
+-- * All keys in the Bin's right child have the Prefix's mask bit set.
+prefixesOk :: IntMap a -> Property
+prefixesOk t = case t of
+  Nil -> property ()
+  Tip _ _ -> property ()
+  Bin p l r -> currentOk .&&. prefixesOk l .&&. prefixesOk r
+    where
+      px = unPrefix p
+      m = px .&. (-px)
+      keysl = keys l
+      keysr = keys r
+      debugStr = concat
+        [ "px=" ++ showIntHex px
+        , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
+        , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
+        ]
+      currentOk = counterexample debugStr $
+        counterexample "mask bit absent" (px /= 0) .&&.
+        counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
+        counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
+        counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
--- Invariant: Prefix is the common high-order bits that all elements share to
---            the left of the Mask bit.
-commonPrefix :: IntMap a -> Bool
-commonPrefix t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    b@(Bin p _ l r) -> all (sharedPrefix p) (keys b) && commonPrefix l && commonPrefix r
+hasPrefix :: Int -> Prefix -> Bool
+hasPrefix i p = not (nomatch i p)
+
+-- We test that hasPrefix behaves the same as hasPrefixSimple.
+hasPrefixSimple :: Int -> Prefix -> Bool
+hasPrefixSimple k p = case elemIndex True pbits of
+  Nothing -> error "no mask bit" -- should not happen
+  Just i -> drop (i+1) kbits == drop (i+1) pbits
   where
-    sharedPrefix :: Prefix -> Int -> Bool
-    sharedPrefix p a = p == p .&. a
+    kbits = toBits k
+    pbits = toBits (unPrefix p)
 
--- Invariant: In Bin prefix mask left right, left consists of the elements that
---            don't have the mask bit set; right is all the elements that do.
-maskRespected :: IntMap a -> Bool
-maskRespected t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    Bin _ binMask l r ->
-      all (\x -> zero x binMask) (keys l) &&
-      all (\x -> not (zero x binMask)) (keys r) &&
-      maskRespected l &&
-      maskRespected r
+    -- Bits from lowest to highest.
+    toBits x = fmap (testBit x) [0 .. finiteBitSize (0 :: Int) - 1]
+
+showIntHex :: Int -> String
+showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""

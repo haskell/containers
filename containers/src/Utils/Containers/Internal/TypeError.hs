@@ -8,6 +8,7 @@
 -- | Unsatisfiable constraints for functions being removed.
 
 module Utils.Containers.Internal.TypeError where
+#ifdef __GLASGOW_HASKELL__
 import GHC.TypeLits
 
 -- | The constraint @Whoops s@ is unsatisfiable for every 'Symbol' @s@.  Trying
@@ -42,3 +43,7 @@ instance TypeError ('Text a) => Whoops a
 -- reducing the constraint because it knows someone could (theoretically)
 -- define an overlapping instance of Whoops. It doesn't commit to
 -- the polymorphic one until it has to, at the call site.
+
+#else
+class Whoops (a :: Symbol)
+#endif

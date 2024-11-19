@@ -14,14 +14,13 @@ main = do
         s_odd = S.fromAscList elems_odd :: S.Set Int
         strings_s = S.fromList strings
     evaluate $ rnf [s, s_even, s_odd]
-    evaluate $ rnf elems_rev
+    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
         , bench "map" $ whnf (S.map (+ 1)) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
-        , bench "fold" $ whnf (S.fold (:) []) s
         , bench "delete" $ whnf (del elems) s
         , bench "findMin" $ whnf S.findMin s
         , bench "findMax" $ whnf S.findMax s
@@ -32,10 +31,11 @@ main = do
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
         , bench "fromList" $ whnf S.fromList elems
-        , bench "fromList-desc" $ whnf S.fromList (reverse elems)
-        , bench "fromAscList" $ whnf S.fromAscList elems
+        , bench "fromList-desc" $ whnf S.fromList elems_desc
+        , bench "fromAscList" $ whnf S.fromAscList elems_asc
         , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
+        , bench "fromDescList" $ whnf S.fromDescList elems_desc
         , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_rev
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
@@ -49,12 +49,12 @@ main = do
         , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
         , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
         , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
-        , bench "powerSet (19)" $ whnf S.powerSet (S.fromList[1..19])
-        , bench "powerSet (20)" $ whnf S.powerSet (S.fromList[1..20])
-        , bench "powerSet (21)" $ whnf S.powerSet (S.fromList[1..21])
-        , bench "member.powerSet (16)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..16]))
-        , bench "member.powerSet (17)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..17]))
-        , bench "member.powerSet (18)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..18]))
+        , bench "powerSet (15)" $ whnf S.powerSet (S.fromList[1..15])
+        , bench "powerSet (16)" $ whnf S.powerSet (S.fromList[1..16])
+        , bench "member.powerSet (14)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..14]))
+        , bench "member.powerSet (15)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..15]))
+        , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
+        , bench "compare" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
         ]
   where
     bound = 2^12
@@ -62,6 +62,8 @@ main = do
     elems_even = [2,4..bound]
     elems_odd = [1,3..bound]
     elems_rev = reverse elems
+    elems_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
+    elems_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
     strings = map show elems
 
 member :: [Int] -> S.Set Int -> Int

@@ -1,19 +1,19 @@
 {-# LANGUAGE CPP #-}
 
 #ifdef STRICT
-import Data.Map.Strict as Data.Map hiding (showTree, showTreeWith)
+import Data.Map.Strict as Data.Map
 import Data.Map.Merge.Strict
 #else
-import Data.Map.Lazy as Data.Map hiding (showTree, showTreeWith)
+import Data.Map.Lazy as Data.Map
 import Data.Map.Merge.Lazy
 #endif
-import Data.Map.Internal (Map (..), link2, link, bin)
+import Data.Map.Internal (Map, link2, link)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>))
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
-import Control.Monad (liftM4, (<=<))
+import Control.Monad ((<=<))
 import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
@@ -28,13 +28,16 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
-import Test.QuickCheck.Poly (A, B)
-import Control.Arrow (first)
+import Test.QuickCheck.Poly (A, B, OrdA)
+
+import Utils.ArbitrarySetMap (mkArbMap)
 
 default (Int)
 
@@ -179,15 +182,20 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "intersectionWithModel" prop_intersectionWithModel
          , testProperty "intersectionWithKey"  prop_intersectionWithKey
          , testProperty "intersectionWithKeyModel" prop_intersectionWithKeyModel
+         , testProperty "symmetricDifference"  prop_symmetricDifference
          , testProperty "disjoint"             prop_disjoint
          , testProperty "compose"              prop_compose
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
          , testProperty "mergeA effects"       prop_mergeA_effects
-         , testProperty "fromAscList"          prop_ordered
+         , testProperty "fromAscList"          prop_fromAscList
+         , testProperty "fromAscListWith"      prop_fromAscListWith
+         , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
          , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
-         , testProperty "fromDescList"         prop_rev_ordered
+         , testProperty "fromDescList"         prop_fromDescList
+         , testProperty "fromDescListWith"     prop_fromDescListWith
+         , testProperty "fromDescListWithKey"  prop_fromDescListWithKey
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -252,6 +260,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "splitAt"              prop_splitAt
          , testProperty "lookupMin"            prop_lookupMin
          , testProperty "lookupMax"            prop_lookupMax
+         , testProperty "eq"                   prop_eq
+         , testProperty "compare"              prop_compare
          ]
 
 {--------------------------------------------------------------------
@@ -299,7 +309,7 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
         let shift = (sz * (gapRange) + 1) `quot` 2
             start = middle - shift
-        t <- evalStateT (mkArb step sz) start
+        t <- evalStateT (mkArbMap step sz) start
         if valid t then pure t else error "Test generated invalid tree!")
     where
       step = do
@@ -309,44 +319,10 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         put i'
         pure (fromInt i')
 
-class Monad m => MonadGen m where
-  liftGen :: Gen a -> m a
-instance MonadGen Gen where
-  liftGen = id
-instance MonadGen m => MonadGen (StateT s m) where
-  liftGen = lift . liftGen
-
--- | Given an action that produces successively larger keys and
--- a size, produce a map of arbitrary shape with exactly that size.
-mkArb :: (MonadGen m, Arbitrary v) => m k -> Int -> m (Map k v)
-mkArb step n
-  | n <= 0 = return Tip
-  | n == 1 = do
-     k <- step
-     v <- liftGen arbitrary
-     return (singleton k v)
-  | n == 2 = do
-     dir <- liftGen arbitrary
-     p <- step
-     q <- step
-     vOuter <- liftGen arbitrary
-     vInner <- liftGen arbitrary
-     if dir
-       then return (Bin 2 q vOuter (singleton p vInner) Tip)
-       else return (Bin 2 p vOuter Tip (singleton q vInner))
-  | otherwise = do
-      -- This assumes a balance factor of delta = 3
-      let upper = (3*(n - 1)) `quot` 4
-      let lower = (n + 2) `quot` 4
-      ln <- liftGen $ choose (lower, upper)
-      let rn = n - ln - 1
-      liftM4 (\lt x v rt -> Bin n x v lt rt) (mkArb step ln) step (liftGen arbitrary) (mkArb step rn)
-
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
 data OddEq a = OddEq a Bool deriving (Show)
-getOddEq :: OddEq a -> (a, Bool)
-getOddEq (OddEq a b) = (a, b)
+
 instance Arbitrary a => Arbitrary (OddEq a) where
   arbitrary = OddEq <$> arbitrary <*> arbitrary
 instance Eq a => Eq (OddEq a) where
@@ -1174,6 +1150,17 @@ prop_intersectionWithKeyModel xs ys
           ys' = List.nubBy ((==) `on` fst) ys
           f k l r = k + 2 * l + 3 * r
 
+prop_symmetricDifference :: IMap -> IMap -> Property
+prop_symmetricDifference m1 m2 =
+  valid m3 .&&.
+  toAscList m3 ===
+  List.sort (   List.filter ((`notElem` fmap fst kys) . fst) kxs
+             ++ List.filter ((`notElem` fmap fst kxs) . fst) kys)
+  where
+    m3 = symmetricDifference m1 m2
+    kxs = toAscList m1
+    kys = toAscList m2
+
 prop_disjoint :: UMap -> UMap -> Property
 prop_disjoint m1 m2 = disjoint m1 m2 === null (intersection m1 m2)
 
@@ -1218,27 +1205,51 @@ prop_mergeWithKeyModel xs ys
 -- This uses the instance
 --     Monoid a => Applicative ((,) a)
 -- to test that effects are sequenced in ascending key order.
-prop_mergeA_effects :: UMap -> UMap -> Property
-prop_mergeA_effects xs ys
+prop_mergeA_effects :: WhenMissingSpec -> WhenMissingSpec -> WhenMatchedSpec -> UMap -> UMap -> Property
+prop_mergeA_effects onlyLeft onlyRight both xs ys
   = effects === sort effects
   where
-    (effects, _m) = mergeA whenMissing whenMissing whenMatched xs ys
-    whenMissing = traverseMissing (\k _ -> ([k], ()))
-    whenMatched = zipWithAMatched (\k _ _ -> ([k], ()))
+    (effects, _m) = mergeA (whenMissing onlyLeft) (whenMissing onlyRight) (whenMatched both) xs ys
+    whenMissing spec = case spec of
+      DropMissing -> dropMissing
+      PreserveMissing -> preserveMissing
+      FilterMissing -> filterMissing (\_ _ -> False)
+      FilterAMissing -> filterAMissing (\k _ -> ([k], False))
+      MapMissing -> mapMissing (\_ _ -> ())
+      TraverseMissing -> traverseMissing (\k _ -> ([k], ()))
+      MapMaybeMissing -> mapMaybeMissing (\_ _ -> Nothing)
+      TraverseMaybeMissing -> traverseMaybeMissing (\k _ -> ([k], Nothing))
+    whenMatched spec = case spec of
+      ZipWithMatched -> zipWithMatched (\_ _ _ -> ())
+      ZipWithAMatched -> zipWithAMatched (\k _ _ -> ([k], ()))
+      ZipWithMaybeMatched -> zipWithMaybeMatched (\_ _ _ -> Nothing)
+      ZipWithMaybeAMatched -> zipWithMaybeAMatched (\k _ _ -> ([k], Nothing))
+
+data WhenMissingSpec
+  = DropMissing
+  | PreserveMissing
+  | FilterMissing
+  | FilterAMissing
+  | MapMissing
+  | TraverseMissing
+  | MapMaybeMissing
+  | TraverseMaybeMissing
+  deriving (Bounded, Enum, Show)
+
+instance Arbitrary WhenMissingSpec where
+  arbitrary = arbitraryBoundedEnum
+
+data WhenMatchedSpec
+  = ZipWithMatched
+  | ZipWithAMatched
+  | ZipWithMaybeMatched
+  | ZipWithMaybeAMatched
+  deriving (Bounded, Enum, Show)
+
+instance Arbitrary WhenMatchedSpec where
+  arbitrary = arbitraryBoundedEnum
 
 ----------------------------------------------------------------
-
-prop_ordered :: Property
-prop_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromAscList xs == fromList xs
-
-prop_rev_ordered :: Property
-prop_rev_ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = [(x,()) | x <- [0..n::Int]]
-    in fromDescList (reverse xs) == fromList xs
 
 prop_list :: [Int] -> Bool
 prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- xs])])
@@ -1246,13 +1257,40 @@ prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
-prop_fromDistinctDescList :: [(Int, A)] -> Property
-prop_fromDistinctDescList xs =
+prop_fromDescList :: [(Int, A)] -> Property
+prop_fromDescList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    t === fromList kxs
   where
-    t = fromDistinctDescList (reverse nub_sort_xs)
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescList downSortedKxs
+
+prop_fromDescListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromDescListWith f kxs =
+    valid t .&&.
+    t === fromListWith (apply2 f) downSortedKxs
+  where
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescListWith (apply2 f) downSortedKxs
+
+prop_fromDescListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromDescListWithKey f kxs =
+    valid t .&&.
+    t === fromListWithKey (apply3 f) downSortedKxs
+  where
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescListWithKey (apply3 f) downSortedKxs
+
+prop_fromDistinctDescList :: [(Int, A)] -> Property
+prop_fromDistinctDescList kxs =
+    valid t .&&.
+    toList t === reverse nubDownSortedKxs
+  where
+    nubDownSortedKxs =
+      List.map NE.head $
+      NE.groupBy ((==) `on` fst) $
+      List.sortBy (comparing (Down . fst)) kxs
+    t = fromDistinctDescList nubDownSortedKxs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1265,13 +1303,40 @@ prop_fromList xs
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
 
-prop_fromDistinctAscList :: [(Int, A)] -> Property
-prop_fromDistinctAscList xs =
+prop_fromAscList :: [(Int, A)] -> Property
+prop_fromAscList kxs =
     valid t .&&.
-    toList t === nub_sort_xs
+    t === fromList sortedKxs
   where
-    t = fromDistinctAscList nub_sort_xs
-    nub_sort_xs = List.map List.head $ List.groupBy ((==) `on` fst) $ List.sortBy (comparing fst) xs
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscList sortedKxs
+
+prop_fromAscListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromAscListWith f kxs =
+    valid t .&&.
+    t === fromListWith (apply2 f) sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscListWith (apply2 f) sortedKxs
+
+prop_fromAscListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromAscListWithKey f kxs =
+    valid t .&&.
+    t === fromListWithKey (apply3 f) sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscListWithKey (apply3 f) sortedKxs
+
+prop_fromDistinctAscList :: [(Int, A)] -> Property
+prop_fromDistinctAscList kxs =
+    valid t .&&.
+    toList t === nubSortedKxs
+  where
+    nubSortedKxs =
+      List.map NE.head $
+      NE.groupBy ((==) `on` fst) $
+      List.sortBy (comparing fst) kxs
+    t = fromDistinctAscList nubSortedKxs
 
 ----------------------------------------------------------------
 
@@ -1606,3 +1671,9 @@ prop_fromArgSet :: [(Int, Int)] -> Bool
 prop_fromArgSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs
+
+prop_eq :: Map Int A -> Map Int A -> Property
+prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)
+
+prop_compare :: Map Int OrdA -> Map Int OrdA -> Property
+prop_compare m1 m2 = compare m1 m2 === compare (toList m1) (toList m2)

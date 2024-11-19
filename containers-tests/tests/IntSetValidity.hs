@@ -2,9 +2,11 @@
 module IntSetValidity (valid) where
 
 import Data.Bits (xor, (.&.))
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
 import Data.IntSet.Internal
+import Data.List (intercalate)
+import Numeric (showHex)
 import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
-import Utils.Containers.Internal.BitUtil (bitcount)
 
 {--------------------------------------------------------------------
   Assertions
@@ -13,9 +15,7 @@ import Utils.Containers.Internal.BitUtil (bitcount)
 valid :: IntSet -> Property
 valid t =
   counterexample "nilNeverChildOfBin" (nilNeverChildOfBin t) .&&.
-  counterexample "maskPowerOfTwo" (maskPowerOfTwo t) .&&.
-  counterexample "commonPrefix" (commonPrefix t) .&&.
-  counterexample "markRespected" (maskRespected t) .&&.
+  counterexample "prefixesOk" (prefixesOk t) .&&.
   counterexample "tipsValid" (tipsValid t)
 
 -- Invariant: Nil is never found as a child of Bin.
@@ -24,48 +24,41 @@ nilNeverChildOfBin t =
   case t of
     Nil -> True
     Tip _ _ -> True
-    Bin _ _ l r -> noNilInSet l && noNilInSet r
+    Bin _ l r -> noNilInSet l && noNilInSet r
   where
     noNilInSet t' =
       case t' of
         Nil -> False
         Tip _ _ -> True
-        Bin _ _ l' r' -> noNilInSet l' && noNilInSet r'
+        Bin _ l' r' -> noNilInSet l' && noNilInSet r'
 
--- Invariant: The Mask is a power of 2.  It is the largest bit position at which
---            two elements of the set differ.
-maskPowerOfTwo :: IntSet -> Bool
-maskPowerOfTwo t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    Bin _ m l r ->
-      bitcount 0 (fromIntegral m) == 1 && maskPowerOfTwo l && maskPowerOfTwo r
+-- Invariants:
+-- * All keys in a Bin start with the Bin's shared prefix.
+-- * All keys in the Bin's left child have the Prefix's mask bit unset.
+-- * All keys in the Bin's right child have the Prefix's mask bit set.
+prefixesOk :: IntSet -> Property
+prefixesOk t = case t of
+  Nil -> property ()
+  Tip _ _ -> property ()
+  Bin p l r -> currentOk .&&. prefixesOk l .&&. prefixesOk r
+    where
+      px = unPrefix p
+      m = px .&. (-px)
+      keysl = elems l
+      keysr = elems r
+      debugStr = concat
+        [ "px=" ++ showIntHex px
+        , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
+        , ", keysr=[" ++ intercalate "," (fmap showIntHex keysr) ++ "]"
+        ]
+      currentOk = counterexample debugStr $
+        counterexample "mask bit absent" (px /= 0) .&&.
+        counterexample "prefix not shared" (all (`hasPrefix` p) (keysl ++ keysr)) .&&.
+        counterexample "left child, mask found set" (all (\x -> x .&. m == 0) keysl) .&&.
+        counterexample "right child, mask found unset" (all (\x -> x .&. m /= 0) keysr)
 
--- Invariant: Prefix is the common high-order bits that all elements share to
---            the left of the Mask bit.
-commonPrefix :: IntSet -> Bool
-commonPrefix t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    b@(Bin p _ l r) -> all (sharedPrefix p) (elems b) && commonPrefix l && commonPrefix r
-  where
-    sharedPrefix :: Prefix -> Int -> Bool
-    sharedPrefix p a = p == p .&. a
-
--- Invariant: In Bin prefix mask left right, left consists of the elements that
---            don't have the mask bit set; right is all the elements that do.
-maskRespected :: IntSet -> Bool
-maskRespected t =
-  case t of
-    Nil -> True
-    Tip _ _ -> True
-    Bin _ binMask l r ->
-      all (\x -> zero x binMask) (elems l) &&
-      all (\x -> not (zero x binMask)) (elems r) &&
-      maskRespected l &&
-      maskRespected r
+hasPrefix :: Int -> Prefix -> Bool
+hasPrefix i p = not (nomatch i p)
 
 -- Invariant: The Prefix is zero for the last 5 (on 32 bit arches) or 6 bits
 --            (on 64 bit arches). The values of the set represented by a tip
@@ -76,10 +69,10 @@ tipsValid :: IntSet -> Bool
 tipsValid t =
   case t of
     Nil -> True
-    tip@(Tip p b) -> validTipPrefix p
-    Bin _ _ l r -> tipsValid l && tipsValid r
+    tip@(Tip p b) -> validTipPrefix p && b /= 0
+    Bin _ l r -> tipsValid l && tipsValid r
 
-validTipPrefix :: Prefix -> Bool
+validTipPrefix :: Int -> Bool
 #if WORD_SIZE_IN_BITS==32
 -- Last 5 bits of the prefix must be zero for 32 bit arches.
 validTipPrefix p = (0x0000001F .&. p) == 0
@@ -87,3 +80,6 @@ validTipPrefix p = (0x0000001F .&. p) == 0
 -- Last 6 bits of the prefix must be zero for 64 bit arches.
 validTipPrefix p = (0x000000000000003F .&. p) == 0
 #endif
+
+showIntHex :: Int -> String
+showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""

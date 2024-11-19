@@ -5,10 +5,13 @@ import Data.Word (Word)
 import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.Maybe (listToMaybe)
 import Data.Monoid (mempty)
+import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import IntSetValidity (valid)
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', foldMap)
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck hiding ((.&.))
@@ -20,6 +23,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testCase "lookupLE" test_lookupLE
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
+                   , testCase "isProperSubsetOf" test_isProperSubsetOf
                    , testProperty "prop_Valid" prop_Valid
                    , testProperty "prop_EmptyValid" prop_EmptyValid
                    , testProperty "prop_SingletonValid" prop_SingletonValid
@@ -38,22 +42,24 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
                    , testProperty "prop_UnionComm" prop_UnionComm
-                   , testProperty "prop_Diff" prop_Diff
-                   , testProperty "prop_Int" prop_Int
+                   , testProperty "prop_union" prop_union
+                   , testProperty "prop_difference" prop_difference
+                   , testProperty "prop_intersection" prop_intersection
+                   , testProperty "prop_symmetricDifference" prop_symmetricDifference
                    , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
                    , testProperty "prop_fromList" prop_fromList
-                   , testProperty "prop_MaskPow2" prop_MaskPow2
-                   , testProperty "prop_Prefix" prop_Prefix
-                   , testProperty "prop_LeftRight" prop_LeftRight
+                   , testProperty "prop_fromRange" prop_fromRange
                    , testProperty "prop_isProperSubsetOf" prop_isProperSubsetOf
                    , testProperty "prop_isProperSubsetOf2" prop_isProperSubsetOf2
                    , testProperty "prop_isSubsetOf" prop_isSubsetOf
                    , testProperty "prop_isSubsetOf2" prop_isSubsetOf2
                    , testProperty "prop_disjoint" prop_disjoint
                    , testProperty "prop_size" prop_size
+                   , testProperty "prop_lookupMin" prop_lookupMin
+                   , testProperty "prop_lookupMax" prop_lookupMax
                    , testProperty "prop_findMax" prop_findMax
                    , testProperty "prop_findMin" prop_findMin
                    , testProperty "prop_ord" prop_ord
@@ -62,7 +68,10 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_foldR'" prop_foldR'
                    , testProperty "prop_foldL" prop_foldL
                    , testProperty "prop_foldL'" prop_foldL'
+                   , testProperty "prop_foldMap" prop_foldMap
                    , testProperty "prop_map" prop_map
+                   , testProperty "prop_mapMonotonicId" prop_mapMonotonicId
+                   , testProperty "prop_mapMonotonicLinear" prop_mapMonotonicLinear
                    , testProperty "prop_maxView" prop_maxView
                    , testProperty "prop_minView" prop_minView
                    , testProperty "prop_split" prop_split
@@ -76,6 +85,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_bitcount" prop_bitcount
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
+                   , testProperty "intersections" prop_intersections
+                   , testProperty "intersections_lazy" prop_intersections_lazy
                    ]
 
 ----------------------------------------------------------------
@@ -108,13 +119,25 @@ test_split :: Assertion
 test_split = do
    split 3 (fromList [1..5]) @?= (fromList [1,2], fromList [4,5])
 
+test_isProperSubsetOf :: Assertion
+test_isProperSubsetOf = do
+    isProperSubsetOf (fromList [1]) (fromList [1,2]) @?= True
+    isProperSubsetOf (fromList [1,2]) (fromList [1,2]) @?= False
+    isProperSubsetOf (fromList [1,2]) (fromList [1]) @?= False
+
+    isProperSubsetOf (fromList [-1]) (fromList [-1,2]) @?= True
+    isProperSubsetOf (fromList [-1,2]) (fromList [-1,2]) @?= False
+    isProperSubsetOf (fromList [-1,2]) (fromList [-1]) @?= False
+
+    -- See Github #1007
+    isProperSubsetOf (fromList [-65,-1]) (fromList [-65,-1,0]) @?= True
+
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 instance Arbitrary IntSet where
-  arbitrary = do{ xs <- arbitrary
-                ; return (fromList xs)
-                }
+  arbitrary = fromList <$> oneof [arbitrary, fmap (fmap getLarge) arbitrary]
+  shrink = fmap fromList . shrink . toAscList
 
 {--------------------------------------------------------------------
   Valid IntMaps
@@ -231,19 +254,37 @@ prop_UnionComm :: IntSet -> IntSet -> Bool
 prop_UnionComm t1 t2
   = (union t1 t2 == union t2 t1)
 
-prop_Diff :: [Int] -> [Int] -> Property
-prop_Diff xs ys =
-  case difference (fromList xs) (fromList ys) of
+prop_union :: IntSet -> IntSet -> Property
+prop_union xs ys =
+  case union xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort ((List.\\) (nub xs)  (nub ys))
+      toAscList t === List.nub (List.sort (toAscList xs ++ toAscList ys))
 
-prop_Int :: [Int] -> [Int] -> Property
-prop_Int xs ys =
-  case intersection (fromList xs) (fromList ys) of
+prop_difference :: IntSet -> IntSet -> Property
+prop_difference xs ys =
+  case difference xs ys of
     t ->
       valid t .&&.
-      toAscList t === List.sort (nub ((List.intersect) (xs)  (ys)))
+      toAscList t === (toAscList xs List.\\ toAscList ys)
+
+prop_intersection :: IntSet -> IntSet -> Property
+prop_intersection xs ys =
+  case intersection xs ys of
+    t ->
+      valid t .&&.
+      toAscList t === (toAscList xs `List.intersect` toAscList ys)
+
+prop_symmetricDifference :: IntSet -> IntSet -> Property
+prop_symmetricDifference xs ys =
+  case symmetricDifference xs ys of
+    t ->
+      valid t .&&.
+      toAscList t ===
+      List.sort (List.filter (`notElem` xs') ys' ++ List.filter (`notElem` ys') xs')
+    where
+      xs' = toAscList xs
+      ys' = toAscList ys
 
 prop_disjoint :: IntSet -> IntSet -> Bool
 prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
@@ -277,27 +318,11 @@ prop_fromList xs
   where sort_xs = sort xs
         nub_sort_xs = List.map List.head $ List.group sort_xs
 
-{--------------------------------------------------------------------
-  Bin invariants
---------------------------------------------------------------------}
-powersOf2 :: IntSet
-powersOf2 = fromList [2^i | i <- [0..63]]
-
--- Check the invariant that the mask is a power of 2.
-prop_MaskPow2 :: IntSet -> Bool
-prop_MaskPow2 (Bin _ msk left right) = member msk powersOf2 && prop_MaskPow2 left && prop_MaskPow2 right
-prop_MaskPow2 _ = True
-
--- Check that the prefix satisfies its invariant.
-prop_Prefix :: IntSet -> Bool
-prop_Prefix s@(Bin prefix msk left right) = all (\elem -> match elem prefix msk) (toList s) && prop_Prefix left && prop_Prefix right
-prop_Prefix _ = True
-
--- Check that the left elements don't have the mask bit set, and the right
--- ones do.
-prop_LeftRight :: IntSet -> Bool
-prop_LeftRight (Bin _ msk left right) = and [x .&. msk == 0 | x <- toList left] && and [x .&. msk == msk | x <- toList right]
-prop_LeftRight _ = True
+prop_fromRange :: Property
+prop_fromRange = forAll (scale (*100) arbitrary) go
+  where
+    go (l,h) = valid t .&&. t === fromAscList [l..h]
+      where t = fromRange (l,h)
 
 {--------------------------------------------------------------------
   IntSet operations are like Set operations
@@ -327,6 +352,12 @@ prop_size s = sz === foldl' (\i _ -> i + 1) (0 :: Int) s .&&.
               sz === List.length (toList s)
   where sz = size s
 
+prop_lookupMin :: IntSet -> Property
+prop_lookupMin s = lookupMin s === listToMaybe (toAscList s)
+
+prop_lookupMax :: IntSet -> Property
+prop_lookupMax s = lookupMax s === listToMaybe (toDescList s)
+
 prop_findMax :: IntSet -> Property
 prop_findMax s = not (null s) ==> findMax s == maximum (toList s)
 
@@ -351,6 +382,9 @@ prop_foldL s = foldl (flip (:)) [] s == List.foldl (flip (:)) [] (toList s)
 prop_foldL' :: IntSet -> Bool
 prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
 
+prop_foldMap :: IntSet -> Property
+prop_foldMap s = foldMap (:[]) s === toList s
+
 prop_map :: IntSet -> Bool
 prop_map s = map id s == s
 
@@ -365,9 +399,15 @@ prop_mapMonotonicId :: IntSet -> Property
 prop_mapMonotonicId s = mapMonotonic id s === map id s
 
 prop_mapMonotonicLinear :: Positive Int -> Int -> IntSet -> Property
-prop_mapMonotonicLinear (Positive a) b s = mapMonotonic f s === map f s
+prop_mapMonotonicLinear (Positive a) b s =
+  all ok (toList s) ==>
+    mapMonotonic f s === map f s
   where
     f x = a*x + b
+    ok x =  -- must not overflow
+      fromIntegral (minBound :: Int) <= y && y <= fromIntegral (maxBound :: Int)
+      where
+        y = fromIntegral a * fromIntegral x + fromIntegral b :: Integer
 
 prop_maxView :: IntSet -> Bool
 prop_maxView s = case maxView s of
@@ -468,3 +508,16 @@ prop_alterF_const
 prop_alterF_const f k s =
         getConst (alterF     (Const . applyFun f) k s        )
     === getConst (Set.alterF (Const . applyFun f) k (toSet s))
+
+prop_intersections :: (IntSet, [IntSet]) -> Property
+prop_intersections (s, ss) =
+  intersections ss' === List.foldl' intersection s ss
+  where
+    ss' = s :| ss -- Work around missing Arbitrary NonEmpty instance
+
+prop_intersections_lazy :: [IntSet] -> Property
+prop_intersections_lazy ss = intersections ss' === empty
+  where
+    ss' = NE.fromList $ ss ++ [empty] ++ error "too strict"
+                           --- ^ result will certainly be empty at this point,
+                           --    so the rest of the list should not be demanded.
