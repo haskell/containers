@@ -224,8 +224,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "deleteMin"            prop_deleteMinModel
          , testProperty "deleteMax"            prop_deleteMaxModel
          , testProperty "filter"               prop_filter
-         , testProperty "filterWithKey"        prop_filterWithKey
          , testProperty "filterKeys"           prop_filterKeys
+         , testProperty "filterWithKey"        prop_filterWithKey
          , testProperty "partition"            prop_partition
          , testProperty "map"                  prop_map
          , testProperty "fmap"                 prop_fmap
@@ -1469,17 +1469,17 @@ prop_filter p ys = length ys > 0 ==>
       m  = fromList xs
   in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
 
-prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
-prop_filterWithKey fun m =
-  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
-  where
-    m' = filterWithKey (apply2 fun) m
-
 prop_filterKeys :: Fun Int Bool -> IMap -> Property
 prop_filterKeys fun m =
   valid m' .&&. toList m' === Prelude.filter (apply fun . fst) (toList m)
   where
     m' = filterKeys (apply fun) m
+
+prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+prop_filterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (apply2 fun) m
 
 prop_take :: Int -> Map Int Int -> Property
 prop_take n xs = valid taken .&&.
