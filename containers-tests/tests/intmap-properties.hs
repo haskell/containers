@@ -1524,7 +1524,7 @@ prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
 prop_filterWithKey fun m =
   valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
   where
-    m' = filterWithKey (apply2 fun) m
+    m' = filterWithKey (applyFun2 fun) m
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>

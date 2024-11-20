@@ -2641,11 +2641,11 @@ filter p m
 
 -- | \(O(n)\). Filter all keys that satisfy some predicate.
 --
--- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
+-- @
+-- filterKeys p = 'filterWithKey' (\\k _ -> p k)
+-- @
 --
--- @
--- filterKeys p = 'filterWithKey' (\k _ -> p k)
--- @
+-- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 --
 -- @since FIXME
 
