@@ -41,6 +41,8 @@ Library
        build-depends: template-haskell
     hs-source-dirs: src
     ghc-options: -O2 -Wall -fwarn-incomplete-uni-patterns -fwarn-incomplete-record-updates
+    if impl(ghc >= 9.4)
+        ghc-options:    -fworker-wrapper-cbv
 
     other-extensions: CPP, BangPatterns
 
