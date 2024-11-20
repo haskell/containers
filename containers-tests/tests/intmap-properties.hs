@@ -1514,17 +1514,17 @@ prop_filter p ys = length ys > 0 ==>
   in  valid m .&&.
       m === fromList (List.filter (apply p . snd) xs)
 
-prop_filterKeys :: Fun Int Bool -> [(Int, Int)] -> Property
-prop_filterKeys p ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  filterKeys (apply p) m == fromList (List.filter (apply p . fst) xs)
+prop_filterKeys :: Fun Int Bool -> IMap -> Property
+prop_filterKeys fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun . fst) (toList m)
+  where
+    m' = filterKeys (apply fun) m
 
-prop_filterWithKey :: Fun (Int, Int) Bool -> [(Int, Int)] -> Property
-prop_filterWithKey p ys = length ys > 0 ==>
-  let xs = List.nubBy ((==) `on` fst) ys
-      m  = fromList xs
-  in  filterWithKey (\k v -> apply p (k, v)) m == fromList (List.filter (\(k, v) -> apply p (k, v)) xs)
+prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+prop_filterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (apply2 fun) m
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>
