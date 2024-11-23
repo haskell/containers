@@ -23,7 +23,7 @@ import Data.Foldable (foldMap)
 import Data.Function
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
-import qualified Prelude (map)
+import qualified Prelude (map, filter)
 
 import Data.List (nub,sort)
 import qualified Data.List as List
@@ -103,7 +103,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "fromAscListWithKey" test_fromAscListWithKey
              , testCase "fromDistinctAscList" test_fromDistinctAscList
              , testCase "filter" test_filter
-             , testCase "filterWithKey" test_filteWithKey
+             , testCase "filterKeys" test_filterKeys
+             , testCase "filterWithKey" test_filterWithKey
              , testCase "partition" test_partition
              , testCase "partitionWithKey" test_partitionWithKey
              , testCase "mapMaybe" test_mapMaybe
@@ -182,6 +183,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "deleteMin"            prop_deleteMinModel
              , testProperty "deleteMax"            prop_deleteMaxModel
              , testProperty "filter"               prop_filter
+             , testProperty "filterKeys"           prop_filterKeys
+             , testProperty "filterWithKey"        prop_filterWithKey
              , testProperty "partition"            prop_partition
              , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
              , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -867,8 +870,13 @@ test_filter = do
     filter (> "x") (fromList [(5,"a"), (-3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (-3,"b")]) @?= empty
 
-test_filteWithKey :: Assertion
-test_filteWithKey = do
+test_filterKeys :: Assertion
+test_filterKeys = do
+    filterKeys (> 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
+    filterKeys (> 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
+
+test_filterWithKey :: Assertion
+test_filterWithKey = do
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "a"
     filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (-3,"b")]) @?= singleton 5 "a"
 
@@ -1505,6 +1513,18 @@ prop_filter p ys = length ys > 0 ==>
       m  = filter (apply p) (fromList xs)
   in  valid m .&&.
       m === fromList (List.filter (apply p . snd) xs)
+
+prop_filterKeys :: Fun Int Bool -> IMap -> Property
+prop_filterKeys fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun . fst) (toList m)
+  where
+    m' = filterKeys (apply fun) m
+
+prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+prop_filterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (applyFun2 fun) m
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>

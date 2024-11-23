@@ -118,7 +118,8 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "fromDistinctAscList" test_fromDistinctAscList
          , testCase "fromDistinctDescList" test_fromDistinctDescList
          , testCase "filter" test_filter
-         , testCase "filterWithKey" test_filteWithKey
+         , testCase "filterKeys" test_filterKeys
+         , testCase "filterWithKey" test_filterWithKey
          , testCase "partition" test_partition
          , testCase "partitionWithKey" test_partitionWithKey
          , testCase "mapMaybe" test_mapMaybe
@@ -223,6 +224,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "deleteMin"            prop_deleteMinModel
          , testProperty "deleteMax"            prop_deleteMaxModel
          , testProperty "filter"               prop_filter
+         , testProperty "filterKeys"           prop_filterKeys
+         , testProperty "filterWithKey"        prop_filterWithKey
          , testProperty "partition"            prop_partition
          , testProperty "map"                  prop_map
          , testProperty "fmap"                 prop_fmap
@@ -796,8 +799,11 @@ test_filter = do
     filter (> "x") (fromList [(5,"a"), (3,"b")]) @?= empty
     filter (< "a") (fromList [(5,"a"), (3,"b")]) @?= empty
 
-test_filteWithKey :: Assertion
-test_filteWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+test_filterKeys :: Assertion
+test_filterKeys = filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
+
+test_filterWithKey :: Assertion
+test_filterWithKey = filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "a"
 
 test_partition :: Assertion
 test_partition = do
@@ -1462,6 +1468,18 @@ prop_filter p ys = length ys > 0 ==>
   let xs = List.nubBy ((==) `on` fst) ys
       m  = fromList xs
   in  filter (apply p) m == fromList (List.filter (apply p . snd) xs)
+
+prop_filterKeys :: Fun Int Bool -> IMap -> Property
+prop_filterKeys fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun . fst) (toList m)
+  where
+    m' = filterKeys (apply fun) m
+
+prop_filterWithKey :: Fun (Int, Int) Bool -> IMap -> Property
+prop_filterWithKey fun m =
+  valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
+  where
+    m' = filterWithKey (apply2 fun) m
 
 prop_take :: Int -> Map Int Int -> Property
 prop_take n xs = valid taken .&&.
