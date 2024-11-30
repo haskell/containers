@@ -81,7 +81,6 @@ Library
         Utils.Containers.Internal.State
         Utils.Containers.Internal.StrictMaybe
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.Coercions
         Utils.Containers.Internal.EqOrdUtil
     if impl(ghc)
       other-modules:

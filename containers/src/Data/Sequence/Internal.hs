@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
 {-# LANGUAGE Trustworthy #-}
@@ -244,8 +245,6 @@ import qualified Data.List
 import Data.Array (Ix, Array)
 import qualified Data.Array
 
-import Utils.Containers.Internal.Coercions ((.#), (.^#))
-
 import Data.Functor.Identity (Identity(..))
 
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
@@ -395,33 +394,45 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
  #-}
 #endif
 
-getSeq :: Seq a -> FingerTree (Elem a)
-getSeq (Seq xs) = xs
-
 instance Foldable Seq where
-    foldMap f = foldMap (f .# getElem) .# getSeq
-    foldr f z = foldr (f .# getElem) z .# getSeq
-    foldl f z = foldl (f .^# getElem) z .# getSeq
+#ifdef __GLASGOW_HASKELL__
+    foldMap :: forall m a. Monoid m => (a -> m) -> Seq a -> m
+    foldMap = coerce (foldMap :: (Elem a -> m) -> FingerTree (Elem a) -> m)
 
-#if __GLASGOW_HASKELL__
-    {-# INLINABLE foldMap #-}
-    {-# INLINABLE foldr #-}
-    {-# INLINABLE foldl #-}
-#endif
+    foldr :: forall a b. (a -> b -> b) -> b -> Seq a -> b
+    foldr = coerce (foldr :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
 
-    foldr' f z = foldr' (f .# getElem) z .# getSeq
-    foldl' f z = foldl' (f .^# getElem) z .# getSeq
+    foldl :: forall b a. (b -> a -> b) -> b -> Seq a -> b
+    foldl = coerce (foldl :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
 
-#if __GLASGOW_HASKELL__
-    {-# INLINABLE foldr' #-}
-    {-# INLINABLE foldl' #-}
-#endif
+    foldr' :: forall a b. (a -> b -> b) -> b -> Seq a -> b
+    foldr' = coerce (foldr' :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
+
+    foldl' :: forall b a. (b -> a -> b) -> b -> Seq a -> b
+    foldl' = coerce (foldl' :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
+
+    foldr1 :: forall a. (a -> a -> a) -> Seq a -> a
+    foldr1 = coerce (foldr1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+
+    foldl1 :: forall a. (a -> a -> a) -> Seq a -> a
+    foldl1 = coerce (foldl1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+#else
+    foldMap f (Seq xs) = foldMap (f . getElem) xs
+
+    foldr f z (Seq xs) = foldr (f . getElem) z xs
+
+    foldl f z (Seq xs) = foldl (\z' x -> f z' (getElem x)) z xs
+
+    foldr' f z (Seq xs) = foldr' (f . getElem) z xs
+
+    foldl' f z (Seq xs) = foldl' (\z' x -> f z' (getElem x)) z xs
 
     foldr1 f (Seq xs) = getElem (foldr1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
 
     foldl1 f (Seq xs) = getElem (foldl1 f' xs)
       where f' (Elem x) (Elem y) = Elem (f x y)
+#endif
 
     length = length
     {-# INLINE length #-}
