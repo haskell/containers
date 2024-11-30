@@ -11,6 +11,8 @@ import qualified Data.Foldable
 import Data.Traversable (traverse, sequenceA)
 import System.Random (mkStdGen, randoms)
 
+import Utils.Fold (foldBenchmarks)
+
 main = do
     let s10 = S.fromList [1..10] :: S.Seq Int
         s100 = S.fromList [1..100] :: S.Seq Int
@@ -52,18 +54,6 @@ main = do
          , bench "100" $ nf (S.partition even) s100
          , bench "1000" $ nf (S.partition even) s1000
          , bench "10000" $ nf (S.partition even) s10000
-         ]
-      , bgroup "foldl'"
-         [ bench "10" $ nf (foldl' (+) 0) s10
-         , bench "100" $ nf (foldl' (+) 0) s100
-         , bench "1000" $ nf (foldl' (+) 0) s1000
-         , bench "10000" $ nf (foldl' (+) 0) s10000
-         ]
-      , bgroup "foldr'"
-         [ bench "10" $ nf (foldr' (+) 0) s10
-         , bench "100" $ nf (foldr' (+) 0) s100
-         , bench "1000" $ nf (foldr' (+) 0) s1000
-         , bench "10000" $ nf (foldr' (+) 0) s10000
          ]
       , bgroup "update"
          [ bench "10" $ nf (updatePoints r10 10) s10
@@ -184,6 +174,8 @@ main = do
         , bench "100/10000" $  whnf (uncurry compare) (s100, s10000)
         , bench "10000/100" $  whnf (uncurry compare) (s10000, s100)
         ]
+      , bgroup "folds 10" $ foldBenchmarks foldr foldl foldr' foldl' foldMap s10
+      , bgroup "folds 10000" $ foldBenchmarks foldr foldl foldr' foldl' foldMap s10000
       ]
 
 {-

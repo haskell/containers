@@ -4,9 +4,11 @@ module Main where
 
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
-import Test.Tasty.Bench (bench, defaultMain, whnf)
+import Test.Tasty.Bench (bench, bgroup, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.Set as S
+
+import Utils.Fold (foldBenchmarks)
 
 main = do
     let s = S.fromAscList elems :: S.Set Int
@@ -55,6 +57,7 @@ main = do
         , bench "member.powerSet (15)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..15]))
         , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
         , bench "compare" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
+        , bgroup "folds" $ foldBenchmarks S.foldr S.foldl S.foldr' S.foldl' foldMap s
         ]
   where
     bound = 2^12

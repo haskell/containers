@@ -4,7 +4,7 @@ module Main where
 import Control.DeepSeq (NFData, rnf)
 import Control.Exception (evaluate)
 import Data.Coerce (coerce)
-import Data.Foldable (fold, foldl', toList)
+import qualified Data.Foldable as F
 import Data.Monoid (All(..))
 #if MIN_VERSION_base(4,18,0)
 import Data.Monoid (Sum(..))
@@ -13,20 +13,20 @@ import qualified Data.Foldable1 as Foldable1
 import Test.Tasty.Bench (Benchmark, Benchmarkable, bench, bgroup, defaultMain, whnf, nf)
 import qualified Data.Tree as T
 
+import Utils.Fold (foldBenchmarks)
+
 main :: IO ()
 main = do
   evaluate $ rnf ts `seq` rnf tsBool
   defaultMain
     [ bgroup "Foldable"
-      [ bgroup "fold" $ forTs tsBool $ whnf fold . (coerce :: T.Tree Bool -> T.Tree All)
-      , bgroup "foldMap" $ forTs tsBool $ whnf (foldMap All)
-      , bgroup "foldr_1" $ forTs tsBool $ whnf (foldr (&&) True)
-      , bgroup "foldr_2" $ forTs ts $ whnf (length . foldr (:) [])
-      , bgroup "foldr_3" $ forTs ts $ whnf (\t -> foldr (\x k acc -> if acc < 0 then acc else k $! acc + x) id t 0)
-      , bgroup "foldl'" $ forTs ts $ whnf (foldl' (+) 0)
+      [ bgroup "folds"
+        [ bgroup label $ foldBenchmarks foldr foldl F.foldr' F.foldl' foldMap t
+        | Tree label t <- ts
+        ]
       , bgroup "foldr1" $ forTs tsBool $ whnf (foldr1 (&&))
       , bgroup "foldl1" $ forTs ts $ whnf (foldl1 (+))
-      , bgroup "toList" $ forTs ts $ nf toList
+      , bgroup "toList" $ forTs ts $ nf F.toList
       , bgroup "elem" $ forTs ts $ whnf (elem 0)
       , bgroup "maximum" $ forTs ts $ whnf maximum
       , bgroup "sum" $ forTs ts $ whnf sum
