@@ -30,22 +30,18 @@ import Data.Map.Merge.Lazy (WhenMatched, WhenMissing)
 import qualified Data.Map.Merge.Lazy as LMerge
 import Data.Set (Set)
 import qualified Data.Set as Set
-import Data.Containers.ListUtils (nubOrd)
 
 import Utils.ArbitrarySetMap (setFromList, mapFromKeysList)
+import Utils.NubSorted (NubSorted(..), NubSortedOnFst(..))
 import Utils.MergeFunc (WhenMatchedFunc(..), WhenMissingFunc(..))
 import Utils.Strictness
   (Bot(..), Func, Func2, Func3, applyFunc, applyFunc2, applyFunc3)
 
-#if __GLASGOW_HASKELL__ >= 806
-import Utils.NoThunks
-#endif
-
 instance (Arbitrary k, Arbitrary v, Ord k) =>
          Arbitrary (Map k v) where
   arbitrary = do
-    Sorted xs <- arbitrary
-    m <- mapFromKeysList (nubOrd xs)
+    NubSorted xs <- arbitrary
+    m <- mapFromKeysList xs
 
     -- Force the values to WHNF. Should use liftRnf2 when that's available.
     let !_ = foldr seq () m
@@ -54,8 +50,8 @@ instance (Arbitrary k, Arbitrary v, Ord k) =>
 
 instance (Arbitrary a, Ord a) => Arbitrary (Set a) where
   arbitrary = do
-    Sorted xs <- arbitrary
-    setFromList (nubOrd xs)
+    NubSorted xs <- arbitrary
+    setFromList xs
 
 apply2 :: Fun (a, b) c -> a -> b -> c
 apply2 f a b = apply f (a, b)
@@ -67,8 +63,8 @@ apply3 f a b c = apply f (a, b, c)
   Construction property tests
 --------------------------------------------------------------------}
 
--- Note [Test overview]
--- ~~~~~~~~~~~~~~~~~~~~
+-- Note [Overview of construction tests]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 --
 -- The purpose of these property tests is to ensure that
 --
@@ -1011,25 +1007,102 @@ pInsertLookupWithKeyValueStrict f k v m
                      not (isBottom $ M.insertLookupWithKey (const3 1) k bottom m)
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldr' :: Map Int Int -> Property
-pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
-#endif
+{--------------------------------------------------------------------
+  Folds
+--------------------------------------------------------------------}
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldl' :: Map Int Int -> Property
-pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
-#endif
+-- Note [Testing strictness of folds]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- We test the strictness of left and right folds against the corresponding
+-- folds on lists. Note that foldr' on lists is not strict in the starting
+-- value (GHC #25508), so we force the starting value to match the strictness
+-- of Map.foldr' and Map.foldrWithKey'.
+--
+-- Caveats: A definition passing a strictness test does not mean it is "proper",
+-- for lack of a better term. Strictness is only one aspect of a proper
+-- definition, which is expected to have other properties such as lazy folds
+-- being short-circuiting or strict folds being space-efficient.
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldrWithKey' :: Map Int Int -> Property
-pStrictFoldrWithKey' m = whnfHasNoThunks (M.foldrWithKey' (\_ a as -> a : as) [] m)
-#endif
+prop_foldrWithKey
+  :: NubSortedOnFst OrdA (Bot A) -> Func3 OrdA A B (Bot B) -> Bot B -> Property
+prop_foldrWithKey (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldrWithKey f z m) ===
+  isBottom (F.foldr (uncurry f) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
 
-#if __GLASGOW_HASKELL__ >= 806
-pStrictFoldlWithKey' :: Map Int Int -> Property
-pStrictFoldlWithKey' m = whnfHasNoThunks (M.foldlWithKey' (\as _ a -> a : as) [] m)
-#endif
+prop_foldr
+  :: NubSortedOnFst OrdA (Bot A) -> Func2 A B (Bot B) -> Bot B -> Property
+prop_foldr kvs fun (Bot z) =
+  isBottom (M.foldr f z m) ===
+  isBottom (F.foldr (f . snd) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldlWithKey
+  :: NubSortedOnFst OrdA (Bot A) -> Func3 B OrdA A (Bot B) -> Bot B -> Property
+prop_foldlWithKey (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldlWithKey f z m) ===
+  isBottom (F.foldl (\z' (k,x) -> f z' k x) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldl
+  :: NubSortedOnFst OrdA (Bot A) -> Func2 B A (Bot B) -> Bot B -> Property
+prop_foldl (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldl f z m) ===
+  isBottom (F.foldl (\z' (_,x) -> f z' x) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldrWithKey'
+  :: NubSortedOnFst OrdA (Bot A) -> Func3 OrdA A B (Bot B) -> Bot B -> Property
+prop_foldrWithKey' (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldrWithKey' f z m) ===
+  isBottom (z `seq` F.foldr' (uncurry f) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldr'
+  :: NubSortedOnFst OrdA (Bot A) -> Func2 A B (Bot B) -> Bot B -> Property
+prop_foldr' kvs fun (Bot z) =
+  isBottom (M.foldr' f z m) ===
+  isBottom (z `seq` F.foldr' (f . snd) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
+
+prop_foldlWithKey'
+  :: NubSortedOnFst OrdA (Bot A) -> Func3 B OrdA A (Bot B) -> Bot B -> Property
+prop_foldlWithKey' (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldlWithKey' f z m) ===
+  isBottom (F.foldl' (\z' (k,x) -> f z' k x) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc3 fun)
+
+prop_foldl'
+  :: NubSortedOnFst OrdA (Bot A) -> Func2 B A (Bot B) -> Bot B -> Property
+prop_foldl' (NubSortedOnFst kvs) fun (Bot z) =
+  isBottom (M.foldl' f z m) ===
+  isBottom (F.foldl' (\z' (_,x) -> f z' x) z kvs')
+  where
+    kvs' = coerce kvs :: [(OrdA, A)]
+    m = L.fromList kvs'
+    f = coerce (applyFunc2 fun)
 
 ------------------------------------------------------------------------
 -- * Test list
@@ -1057,12 +1130,14 @@ tests =
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
-#if __GLASGOW_HASKELL__ >= 806
-      , testProperty "strict foldr'" pStrictFoldr'
-      , testProperty "strict foldl'" pStrictFoldl'
-      , testProperty "strict foldrWithKey'" pStrictFoldrWithKey'
-      , testProperty "strict foldlWithKey'" pStrictFoldlWithKey'
-#endif
+      , testProperty "foldrWithKey" prop_foldrWithKey
+      , testProperty "foldr" prop_foldr
+      , testProperty "foldlWithKey" prop_foldlWithKey
+      , testProperty "foldl" prop_foldl
+      , testProperty "foldrWithKey'" prop_foldrWithKey'
+      , testProperty "foldr'" prop_foldr'
+      , testProperty "foldlWithKey'" prop_foldlWithKey'
+      , testProperty "foldl'" prop_foldl'
       ]
     , testGroup "Construction"
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton

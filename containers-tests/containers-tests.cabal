@@ -70,13 +70,9 @@ library
   default-language: Haskell2010
   -- this is important for testing; may it affect benchmarks?
   cpp-options:      -DTESTING
-  if impl(ghc >= 8.6)
-    build-depends:
-        nothunks
-      , QuickCheck
 
   include-dirs:     include
-  hs-source-dirs:   src, tests
+  hs-source-dirs:   src
 
   ghc-options:      -O2 -Wall
   if impl(ghc >= 8.6)
@@ -117,9 +113,6 @@ library
     Utils.Containers.Internal.BitQueue
     Utils.Containers.Internal.BitUtil
     Utils.Containers.Internal.StrictPair
-  if impl(ghc >= 8.6.0)
-    exposed-modules:
-      Utils.NoThunks
 
   other-modules:
     Utils.Containers.Internal.Prelude
@@ -356,12 +349,6 @@ test-suite set-properties
     BangPatterns
     CPP
 
-  if impl(ghc >= 8.6)
-    build-depends:
-      nothunks
-    other-modules:
-      Utils.NoThunks
-
 test-suite intmap-lazy-properties
   import: test-deps, warnings
   default-language: Haskell2010
@@ -451,13 +438,8 @@ test-suite map-strictness-properties
   other-modules:
     Utils.ArbitrarySetMap
     Utils.MergeFunc
+    Utils.NubSorted
     Utils.Strictness
-
-  if impl(ghc >= 8.6)
-    build-depends:
-      nothunks
-    other-modules:
-      Utils.NoThunks
 
 test-suite intmap-strictness-properties
   import: test-deps, warnings
@@ -475,15 +457,29 @@ test-suite intmap-strictness-properties
   ghc-options:      -Wall
 
   other-modules:
-    Utils.IsUnit
     Utils.MergeFunc
+    Utils.NubSorted
     Utils.Strictness
 
-  if impl(ghc >= 8.6)
-    build-depends:
-      nothunks
-    other-modules:
-      Utils.NoThunks
+test-suite set-strictness-properties
+  import: test-deps, warnings
+  default-language: Haskell2010
+  hs-source-dirs:   tests
+  main-is:          set-strictness.hs
+  type:             exitcode-stdio-1.0
+  other-extensions:
+    BangPatterns
+    CPP
+
+  build-depends:
+      ChasingBottoms
+
+  ghc-options:      -Wall
+
+  other-modules:
+    Utils.ArbitrarySetMap
+    Utils.NubSorted
+    Utils.Strictness
 
 test-suite intset-strictness-properties
   import: test-deps, warnings
@@ -500,11 +496,9 @@ test-suite intset-strictness-properties
 
   ghc-options:      -Wall
 
-  if impl(ghc >= 8.6)
-    build-depends:
-      nothunks
-    other-modules:
-      Utils.NoThunks
+  other-modules:
+    Utils.NubSorted
+    Utils.Strictness
 
 test-suite listutils-properties
   import: test-deps, warnings
