@@ -395,11 +395,16 @@ test-suite seq-properties
   hs-source-dirs:   tests
   main-is:          seq-properties.hs
   type:             exitcode-stdio-1.0
+  build-depends:
+      ChasingBottoms
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
+
+  other-modules:
+      Utils.Strictness
 
 test-suite tree-properties
   import: test-deps, warnings

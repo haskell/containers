@@ -1147,16 +1147,16 @@ instance Foldable FingerTree where
         foldlNodeN f z t = foldl f z t
     {-# INLINE foldl #-}
 
-    foldr' _ z' EmptyT = z'
-    foldr' f' z' (Single x') = f' x' z'
-    foldr' f' z' (Deep _ pr' m' sf') =
+    foldr' _  !z' EmptyT = z'
+    foldr' f' !z' (Single x') = f' x' z'
+    foldr' f' !z' (Deep _ pr' m' sf') =
         (foldrDigit' f' $! (foldrTree' (foldrNode' f') $! (foldrDigit' f' z') sf') m') pr'
       where
         foldrTree' :: (Node a -> b -> b) -> b -> FingerTree (Node a) -> b
-        foldrTree' _ z EmptyT = z
-        foldrTree' f z (Single x) = f x $! z
-        foldrTree' f z (Deep _ pr m sf) =
-            (foldr' f $! (foldrTree' (foldrNodeN' f) $! (foldr' f $! z) sf) m) pr
+        foldrTree' _ !z EmptyT = z
+        foldrTree' f !z (Single x) = f x z
+        foldrTree' f !z (Deep _ pr m sf) =
+            (foldr' f $! (foldrTree' (foldrNodeN' f) $! foldr' f z sf) m) pr
 
         foldrDigit' :: (a -> b -> b) -> b -> Digit a -> b
         foldrDigit' f z t = foldr' f z t
@@ -1168,17 +1168,17 @@ instance Foldable FingerTree where
         foldrNodeN' f t z = foldr' f z t
     {-# INLINE foldr' #-}
 
-    foldl' _ z' EmptyT = z'
-    foldl' f' z' (Single x') = f' z' x'
-    foldl' f' z' (Deep _ pr' m' sf') =
+    foldl' _  !z' EmptyT = z'
+    foldl' f' !z' (Single x') = f' z' x'
+    foldl' f' !z' (Deep _ pr' m' sf') =
         (foldlDigit' f' $!
          (foldlTree' (foldlNode' f') $! (foldlDigit' f' z') pr') m')
             sf'
       where
         foldlTree' :: (b -> Node a -> b) -> b -> FingerTree (Node a) -> b
-        foldlTree' _ z EmptyT = z
-        foldlTree' f z (Single xs) = f z xs
-        foldlTree' f z (Deep _ pr m sf) =
+        foldlTree' _ !z EmptyT = z
+        foldlTree' f !z (Single xs) = f z xs
+        foldlTree' f !z (Deep _ pr m sf) =
             (foldl' f $! (foldlTree' (foldl' f) $! foldl' f z pr) m) sf
 
         foldlDigit' :: (b -> a -> b) -> b -> Digit a -> b
@@ -1276,16 +1276,16 @@ instance Foldable Digit where
     foldl f z (Four a b c d) = (((z `f` a) `f` b) `f` c) `f` d
     {-# INLINE foldl #-}
 
-    foldr' f z (One a) = f a z
-    foldr' f z (Two a b) = f a $! f b z
-    foldr' f z (Three a b c) = f a $! f b $! f c z
-    foldr' f z (Four a b c d) = f a $! f b $! f c $! f d z
+    foldr' f !z (One a) = f a z
+    foldr' f !z (Two a b) = f a $! f b z
+    foldr' f !z (Three a b c) = f a $! f b $! f c z
+    foldr' f !z (Four a b c d) = f a $! f b $! f c $! f d z
     {-# INLINE foldr' #-}
 
-    foldl' f z (One a) = f z a
-    foldl' f z (Two a b) = (f $! f z a) b
-    foldl' f z (Three a b c) = (f $! (f $! f z a) b) c
-    foldl' f z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
+    foldl' f !z (One a) = f z a
+    foldl' f !z (Two a b) = (f $! f z a) b
+    foldl' f !z (Three a b c) = (f $! (f $! f z a) b) c
+    foldl' f !z (Four a b c d) = (f $! (f $! (f $! f z a) b) c) d
     {-# INLINE foldl' #-}
 
     foldr1 _ (One a) = a
@@ -1374,12 +1374,12 @@ instance Foldable Node where
     foldl f z (Node3 _ a b c) = ((z `f` a) `f` b) `f` c
     {-# INLINE foldl #-}
 
-    foldr' f z (Node2 _ a b) = f a $! f b z
-    foldr' f z (Node3 _ a b c) = f a $! f b $! f c z
+    foldr' f !z (Node2 _ a b) = f a $! f b z
+    foldr' f !z (Node3 _ a b c) = f a $! f b $! f c z
     {-# INLINE foldr' #-}
 
-    foldl' f z (Node2 _ a b) = (f $! f z a) b
-    foldl' f z (Node3 _ a b c) = (f $! (f $! f z a) b) c
+    foldl' f !z (Node2 _ a b) = (f $! f z a) b
+    foldl' f !z (Node3 _ a b c) = (f $! (f $! f z a) b) c
     {-# INLINE foldl' #-}
 
 instance Functor Node where
