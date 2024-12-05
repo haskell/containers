@@ -21,6 +21,7 @@ import Control.Applicative (Applicative(..), liftA2)
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
+import Data.Coerce (coerce)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
 import Data.Maybe
@@ -43,8 +44,10 @@ import Control.Monad.Zip (MonadZip (..))
 import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
 import Test.Tasty.HUnit
+import Test.ChasingBottoms.IsBottom (isBottom)
 import qualified Language.Haskell.TH.Syntax as TH
 
+import Utils.Strictness (Bot(..), Func2, applyFunc2)
 
 main :: IO ()
 main = defaultMain $ testGroup "seq-properties"
@@ -56,11 +59,9 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "(<$)" prop_constmap
        , testProperty "foldr" prop_foldr
        , testProperty "foldr'" prop_foldr'
-       , testProperty "lazy foldr'" prop_lazyfoldr'
        , testProperty "foldr1" prop_foldr1
        , testProperty "foldl" prop_foldl
        , testProperty "foldl'" prop_foldl'
-       , testProperty "lazy foldl'" prop_lazyfoldl'
        , testProperty "foldl1" prop_foldl1
        , testProperty "(==)" prop_equals
        , testProperty "compare" prop_compare
@@ -156,6 +157,12 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
        , testProperty "stimes" prop_stimes
+       , testGroup "strictness"
+         [ testProperty "foldr" prop_strictness_foldr
+         , testProperty "foldl" prop_strictness_foldl
+         , testProperty "foldr'" prop_strictness_foldr'
+         , testProperty "foldl'" prop_strictness_foldl'
+         ]
        ]
 
 ------------------------------------------------------------------------
@@ -310,16 +317,6 @@ prop_foldr' xs =
     f = (:)
     z = []
 
-prop_lazyfoldr' :: Seq () -> Property
-prop_lazyfoldr' xs =
-    not (null xs) ==>
-    foldr'
-        (\e _ ->
-              e)
-        (error "Data.Sequence.foldr': should be lazy in initial accumulator")
-        xs ===
-    ()
-
 prop_foldr1 :: Seq Int -> Property
 prop_foldr1 xs =
     not (null xs) ==> foldr1 f xs == Data.List.foldr1 f (toList xs)
@@ -338,16 +335,6 @@ prop_foldl' xs =
   where
     f = flip (:)
     z = []
-
-prop_lazyfoldl' :: Seq () -> Property
-prop_lazyfoldl' xs =
-    not (null xs) ==>
-    foldl'
-        (\_ e ->
-              e)
-        (error "Data.Sequence.foldl': should be lazy in initial accumulator")
-        xs ===
-    ()
 
 prop_foldl1 :: Seq Int -> Property
 prop_foldl1 xs =
@@ -902,6 +889,42 @@ test_mfix = toList resS === resL
 
     resL :: [Int]
     resL = fmap ($ 12) $ mfix (\f -> [facty f, facty (+1), facty (+2)])
+
+-- * Strictness tests
+
+-- See Note [Testing strictness of folds] in map-strictness.hs
+
+prop_strictness_foldr :: [A] -> Func2 A B (Bot B) -> Bot B -> Property
+prop_strictness_foldr xs fun (Bot z) =
+  isBottom (foldr f z s) ===
+  isBottom (foldr f z xs)
+  where
+    s = fromList xs
+    f = coerce (applyFunc2 fun) :: A -> B -> B
+
+prop_strictness_foldl :: [A] -> Func2 B A (Bot B) -> Bot B -> Property
+prop_strictness_foldl (xs) fun (Bot z) =
+  isBottom (foldl f z s) ===
+  isBottom (foldl f z xs)
+  where
+    s = fromList xs
+    f = coerce (applyFunc2 fun) :: B -> A -> B
+
+prop_strictness_foldr' :: [A] -> Func2 A B (Bot B) -> Bot B -> Property
+prop_strictness_foldr' xs fun (Bot z) =
+  isBottom (foldr' f z s) ===
+  isBottom (z `seq` foldr' f z xs)
+  where
+    s = fromList xs
+    f = coerce (applyFunc2 fun) :: A -> B -> B
+
+prop_strictness_foldl' :: [A] -> Func2 B A (Bot B) -> Bot B -> Property
+prop_strictness_foldl' xs fun (Bot z) =
+  isBottom (foldl' f z s) ===
+  isBottom (foldl' f z xs)
+  where
+    s = fromList xs
+    f = coerce (applyFunc2 fun) :: B -> A -> B
 
 -- Simple test monad
 
