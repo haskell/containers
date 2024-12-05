@@ -116,7 +116,6 @@ library
 
   other-modules:
     Utils.Containers.Internal.Prelude
-    Utils.Containers.Internal.Coercions
     Utils.Containers.Internal.PtrEquality
     Utils.Containers.Internal.State
     Utils.Containers.Internal.StrictMaybe
