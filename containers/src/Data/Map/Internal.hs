@@ -270,6 +270,10 @@ module Data.Map.Internal (
     , argSet
     , fromSet
     , fromArgSet
+    , unsafeSet
+    , unsafeSetA
+    , unsafeFromSet
+    , unsafeFromSetA
 
     -- ** Lists
     , toList
@@ -3503,6 +3507,58 @@ fromSet f (Set.Bin sz x l r) = Bin sz x (f x) (fromSet f l) (fromSet f r)
 fromArgSet :: Set.Set (Arg k a) -> Map k a
 fromArgSet Set.Tip = Tip
 fromArgSet (Set.Bin sz (Arg x v) l r) = Bin sz x v (fromArgSet l) (fromArgSet r)
+
+-- | \(O(n)\). Build a set from the elements in a map and a function which for each
+-- element computes its value. The function must preserve the relative ordering
+-- of the keys. /The precondition is not checked./
+--
+-- > unsafeSet id (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [(3,"b"),(5,"a")]
+-- > unsafeSet undefined empty == Data.Set.empty
+
+unsafeSet :: (k -> a -> b) -> Map k a -> Set.Set b
+unsafeSet f = go
+  where
+    go Tip = Set.Tip
+    go (Bin sz kx x l r) = Set.Bin sz (f kx x) (go l) (go r)
+
+-- | \(O(n)\). Build a set from the elements in a map and a function which for each
+-- element computes its value inside an 'Applicative'. The function must preserve
+-- the relative ordering of the keys. /The precondition is not checked./
+--
+-- > unsafeSetA Identity (fromList [(5,"a"), (3,"b")]) == Data.Set.fromList [(3,"b"),(5,"a")]
+-- > unsafeSetA undefined empty == Identity (Data.Set.empty)
+
+unsafeSetA :: Applicative t => (k -> a -> t b) -> Map k a -> t (Set.Set b)
+unsafeSetA f = go
+  where
+    go Tip = pure Set.Tip
+    go (Bin sz kx x l r) = liftA3 (Set.Bin sz) (f kx x) (go l) (go r)
+
+-- | \(O(n)\). Build a map from a set of elements and a function which for each
+-- element computes its key and value. The function must preserve the relative
+-- ordering of the elements. /The precondition is not checked./
+--
+-- > unsafeFromSet id (Data.Set.fromList [(3,"aaa"), (5,"aaaaa")]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > unsafeFromSet undefined Data.Set.empty == empty
+
+unsafeFromSet :: (b -> (k, a)) -> Set.Set b -> Map k a
+unsafeFromSet f = go
+  where
+    go Set.Tip = Tip
+    go (Set.Bin sz x l r) = uncurry (Bin sz) (f x) (go l) (go r)
+
+-- | \(O(n)\). Build a map from a set of elements and a function which for each
+-- element computes its key and value inside an 'Applicative'. The function must
+-- preserve the relative ordering of the elements. /The precondition is not checked./
+--
+-- > unsafeFromSetA Identity (Data.Set.fromList [(3,"aaa"), (5,"aaaaa")]) == Identity (fromList [(5,"aaaaa"), (3,"aaa")])
+-- > unsafeFromSetA undefined Data.Set.empty == Identity empty
+
+unsafeFromSetA :: Applicative t => (b -> t (k, a)) -> Set.Set b -> t (Map k a)
+unsafeFromSetA f = go
+  where
+    go Set.Tip = pure Tip
+    go (Set.Bin sz x l r) = liftA3 (uncurry (Bin sz)) (f x) (go l) (go r)
 
 {--------------------------------------------------------------------
   Lists

@@ -232,6 +232,10 @@ module Data.Map.Strict.Internal
     , argSet
     , fromSet
     , fromArgSet
+    , unsafeSet
+    , unsafeSetA
+    , unsafeFromSet
+    , unsafeFromSetA
 
     -- ** Lists
     , toList
@@ -420,6 +424,8 @@ import Data.Map.Internal
   , toDescList
   , union
   , unions
+  , unsafeSet
+  , unsafeSetA
   , withoutKeys )
 
 import Data.Map.Internal.Debug (valid)
@@ -1475,6 +1481,33 @@ fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l)
 fromArgSet :: Set.Set (Arg k a) -> Map k a
 fromArgSet Set.Tip = Tip
 fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromArgSet r)
+
+-- | \(O(n)\). Build a map from a set of elements and a function which for each
+-- element computes its key and value. The function must preserve the relative
+-- ordering of the elements. /The precondition is not checked./
+--
+-- > unsafeFromSet id (Data.Set.fromList [(3,"aaa"), (5,"aaaaa")]) == fromList [(5,"aaaaa"), (3,"aaa")]
+-- > unsafeFromSet undefined Data.Set.empty == empty
+
+unsafeFromSet :: (b -> (k, a)) -> Set.Set b -> Map k a
+unsafeFromSet f = go
+  where
+    go Set.Tip = Tip
+    go (Set.Bin sz x l r) = case f x of
+      (k,!v) -> Bin sz k v (go l) (go r)
+
+-- | \(O(n)\). Build a map from a set of elements and a function which for each
+-- element computes its key and value inside an 'Applicative'. The function must
+-- preserve the relative ordering of the elements. /The precondition is not checked./
+--
+-- > unsafeFromSetA Identity (Data.Set.fromList [(3,"aaa"), (5,"aaaaa")]) == Identity (fromList [(5,"aaaaa"), (3,"aaa")])
+-- > unsafeFromSetA undefined Data.Set.empty == Identity empty
+
+unsafeFromSetA :: Applicative t => (b -> t (k, a)) -> Set.Set b -> t (Map k a)
+unsafeFromSetA f = go
+  where
+    go Set.Tip = pure Tip
+    go (Set.Bin sz x l r) = liftA3 (\(k,!v) -> Bin sz k v) (f x) (go l) (go r)
 
 {--------------------------------------------------------------------
   Lists
