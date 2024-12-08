@@ -17,13 +17,15 @@ import Data.Coerce
 import Prelude hiding (lookup)
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
+import Utils.Random (shuffle)
 
 main = do
-    let m = M.fromAscList elems :: M.Map Int Int
-        m_even = M.fromAscList elems_even :: M.Map Int Int
-        m_odd = M.fromAscList elems_odd :: M.Map Int Int
+    let m = M.fromList elems :: M.Map Int Int
+        m_even = M.fromList elems_even :: M.Map Int Int
+        m_odd = M.fromList elems_odd :: M.Map Int Int
     evaluate $ rnf [m, m_even, m_odd]
-    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
+    evaluate $ rnf
+      [elems_distinct_asc, elems_distinct_desc, elems_asc, elems_desc]
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -80,7 +82,7 @@ main = do
         , bench "updateLookupWithKey delete" $ whnf (upd' (const Nothing) evens) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
-        , bench "lookupIndex" $ whnf (lookupIndex keys) m
+        , bench "lookupIndex" $ whnf (lookupIndex keys_distinct_asc) m
         , bench "union" $ whnf (M.union m_even) m_odd
         , bench "difference" $ whnf (M.difference m) m_even
         , bench "intersection" $ whnf (M.intersection m) m_even
@@ -93,9 +95,9 @@ main = do
         , bench "fromDescList" $ whnf M.fromDescList elems_desc
         , bench "fromDescListWithKey" $
             whnf (M.fromDescListWithKey sumkv) elems_desc
-        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems_distinct_asc
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> M.fromDistinctAscList [(i,i) | i <- [1..n]]) bound
-        , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_rev
+        , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_distinct_desc
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
@@ -106,17 +108,18 @@ main = do
         ]
   where
     bound = 2^12
-    elems = zip keys values
+    elems = shuffle elems_distinct_asc
     elems_even = zip evens evens
     elems_odd = zip odds odds
-    elems_rev = reverse elems
+    elems_distinct_asc = zip keys_distinct_asc values
+    elems_distinct_desc = reverse elems_distinct_asc
     keys_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
     elems_asc = zip keys_asc values
     keys_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
     elems_desc = zip keys_desc values
-    keys = [1..bound]
-    evens = [2,4..bound]
-    odds = [1,3..bound]
+    keys_distinct_asc = [1..bound]
+    evens = shuffle [2,4..bound]
+    odds = shuffle [1,3..bound]
     values = [1..bound]
     sumkv k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
