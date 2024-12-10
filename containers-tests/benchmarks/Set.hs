@@ -9,14 +9,16 @@ import Data.List (foldl')
 import qualified Data.Set as S
 
 import Utils.Fold (foldBenchmarks)
+import Utils.Random (shuffle)
 
 main = do
-    let s = S.fromAscList elems :: S.Set Int
-        s_even = S.fromAscList elems_even :: S.Set Int
-        s_odd = S.fromAscList elems_odd :: S.Set Int
+    let s = S.fromList elems :: S.Set Int
+        s_even = S.fromList elems_even :: S.Set Int
+        s_odd = S.fromList elems_odd :: S.Set Int
         strings_s = S.fromList strings
     evaluate $ rnf [s, s_even, s_odd]
-    evaluate $ rnf [elems_rev, elems_asc, elems_desc]
+    evaluate $ rnf
+      [elems_distinct_asc, elems_distinct_desc, elems_asc, elems_desc]
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
@@ -35,10 +37,10 @@ main = do
         , bench "fromList" $ whnf S.fromList elems
         , bench "fromList-desc" $ whnf S.fromList elems_desc
         , bench "fromAscList" $ whnf S.fromAscList elems_asc
-        , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems
+        , bench "fromDistinctAscList" $ whnf S.fromDistinctAscList elems_distinct_asc
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> S.fromDistinctAscList [1..n]) bound
         , bench "fromDescList" $ whnf S.fromDescList elems_desc
-        , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_rev
+        , bench "fromDistinctDescList" $ whnf S.fromDistinctDescList elems_distinct_desc
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
         , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
@@ -61,10 +63,11 @@ main = do
         ]
   where
     bound = 2^12
-    elems = [1..bound]
-    elems_even = [2,4..bound]
-    elems_odd = [1,3..bound]
-    elems_rev = reverse elems
+    elems_distinct_asc = [1..bound]
+    elems_distinct_desc = reverse elems_distinct_asc
+    elems = shuffle elems_distinct_asc
+    elems_even = shuffle [2,4..bound]
+    elems_odd = shuffle [1,3..bound]
     elems_asc = map (`div` 2) [1..bound] -- [0,1,1,2,2..]
     elems_desc = map (`div` 2) [bound,bound-1..1] -- [..2,2,1,1,0]
     strings = map show elems
