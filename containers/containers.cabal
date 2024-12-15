@@ -70,6 +70,7 @@ Library
         Data.Graph
         Data.Sequence
         Data.Sequence.Internal
+        Data.Sequence.Internal.Depth
         Data.Sequence.Internal.Sorting
         Data.Tree
         Utils.Containers.Internal.BitUtil
