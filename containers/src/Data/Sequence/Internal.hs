@@ -1,3 +1,4 @@
+{- OPTIONS_GHC -ddump-simpl #-}
 {-# LANGUAGE CPP #-}
 #include "containers.h"
 {-# LANGUAGE BangPatterns #-}
@@ -7,6 +8,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
@@ -177,6 +179,7 @@ module Data.Sequence.Internal (
     node2,
     node3,
 #endif
+    bongo
     ) where
 
 import Utils.Containers.Internal.Prelude hiding (
@@ -194,7 +197,7 @@ import Control.Applicative ((<$>), (<**>),  Alternative,
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Control.Monad (MonadPlus(..))
-import Data.Monoid (Monoid(..))
+import Data.Monoid (Monoid(..), Endo(..), Dual(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
 import Data.Foldable (foldr', toList)
@@ -234,6 +237,7 @@ import Data.Functor.Identity (Identity(..))
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
 import Control.Monad.Fix (MonadFix (..), fix)
+import Data.Sequence.Internal.Depth (Depth_ (..), Depth2_ (..))
 
 default ()
 
@@ -378,16 +382,38 @@ fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
  #-}
 #endif
 
+--type Depth = Depth_ Elem Node
+type Depth = Depth_ Node
+type Depth2 = Depth2_ Node
+
 instance Foldable Seq where
 #ifdef __GLASGOW_HASKELL__
     foldMap :: forall m a. Monoid m => (a -> m) -> Seq a -> m
-    foldMap = coerce (foldMap :: (Elem a -> m) -> FingerTree (Elem a) -> m)
+    foldMap f (Seq t0) = foldMapFT Bottom t0
+      where
+        foldMapBlob :: Depth (Elem a) t -> t -> m
+        foldMapBlob Bottom (Elem a) = f a
+        foldMapBlob (Deeper w) (Node2 _ x y) = foldMapBlob w x <> foldMapBlob w y
+        foldMapBlob (Deeper w) (Node3 _ x y z) = foldMapBlob w x <> foldMapBlob w y <> foldMapBlob w z
+
+        foldMapFT :: Depth (Elem a) t -> FingerTree t -> m
+        foldMapFT !_ EmptyT = mempty
+        foldMapFT w (Single t) = foldMapBlob w t
+        foldMapFT w (Deep _ pr m sf) =
+          foldMap (foldMapBlob w) pr
+          <> foldMapFT (Deeper w) m
+          <> foldMap (foldMapBlob w) sf
 
     foldr :: forall a b. (a -> b -> b) -> b -> Seq a -> b
-    foldr = coerce (foldr :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
+    -- We define this explicitly so we can inline the foldMap. And we don't
+    -- define it as a coercion of the FingerTree version because we want users
+    -- to have the option of (effectively) inlining it explicitly.
+    foldr f z t = appEndo (GHC.Exts.inline foldMap (coerce f) t) z
 
     foldl :: forall b a. (b -> a -> b) -> b -> Seq a -> b
-    foldl = coerce (foldl :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
+    -- Should we define this by hand to associate optimally? Or is GHC
+    -- clever enough to do that for us?
+    foldl f z t = appEndo (getDual (GHC.Exts.inline foldMap (Dual . Endo . flip f) t)) z
 
     foldr' :: forall a b. (a -> b -> b) -> b -> Seq a -> b
     foldr' = coerce (foldr' :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
@@ -426,7 +452,37 @@ instance Foldable Seq where
 instance Traversable Seq where
 #if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
-#endif
+    traverse :: forall f a b. Applicative f => (a -> f b) -> Seq a -> f (Seq b)
+    traverse f (Seq t0) = Seq <$> traverseFT Bottom2 t0
+      where
+        traverseFT :: Depth2 (Elem a) t (Elem b) u -> FingerTree t -> f (FingerTree u)
+        traverseFT !_ EmptyT = pure EmptyT
+        traverseFT w (Single t) = Single <$> traverseBlob w t
+        traverseFT w (Deep s pr m sf) = liftA3 (Deep s)
+          (traverse (traverseBlob w) pr)
+          (traverseFT (Deeper2 w) m)
+          (traverse (traverseBlob w) sf)
+
+        -- Traverse a 2-3 tree, given its height.
+        traverseBlob :: Depth2 (Elem a) t (Elem b) u -> t -> f u
+        traverseBlob Bottom2 (Elem a) = Elem <$> f a
+
+        -- We have a special case here to avoid needing to `fmap Elem` over
+        -- each of the leaves, in case that's not free in the relevant functor.
+        -- We still end up using extra fmaps for the very first level of the
+        -- FingerTree and the Seq constructor. While we *could* avoid that,
+        -- doing so requires a good bit of extra code to save *at most* nine
+        -- fmap applications for the sequence. It would also save on Depth
+        -- comparisons, but I doubt that matters very much.
+        traverseBlob (Deeper2 Bottom2) (Node2 s (Elem x) (Elem y))
+          = liftA2 (\x' y' -> Node2 s (Elem x') (Elem y')) (f x) (f y)
+        traverseBlob (Deeper2 Bottom2) (Node3 s (Elem x) (Elem y) (Elem z))
+          = liftA3 (\x' y' z' -> Node3 s (Elem x') (Elem y') (Elem z'))
+              (f x) (f y) (f z)
+
+        traverseBlob (Deeper2 w) (Node2 s x y) = liftA2 (Node2 s) (traverseBlob w x) (traverseBlob w y)
+        traverseBlob (Deeper2 w) (Node3 s x y z) = liftA3 (Node3 s) (traverseBlob w x) (traverseBlob w y) (traverseBlob w z)
+#else
     traverse _ (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
@@ -498,6 +554,7 @@ instance Traversable Seq where
             :: Applicative f
             => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
         traverseNodeN f t = traverse f t
+#endif
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
@@ -1067,7 +1124,33 @@ instance Sized a => Sized (FingerTree a) where
     size (Single x)         = size x
     size (Deep v _ _ _)     = v
 
+-- We don't fold FingerTrees directly, but instead coerce them to
+-- Seqs and fold those. This seems backwards! Why do it? We certainly
+-- *could* fold FingerTrees directly, but we'd need a slightly different
+-- version of the Depth GADT to do so. While that's not a big deal,
+-- it is a bit annoying. Note: we need the current version of Depth
+-- to deal with the Sized issues for indexed folds.
 instance Foldable FingerTree where
+#ifdef __GLASGOW_HASKELL__
+    foldMap :: forall m a. Monoid m => (a -> m) -> FingerTree a -> m
+    foldMap f = foldMapFT Bottom
+      where
+        foldMapBlob :: Depth a t -> t -> m
+        foldMapBlob Bottom a = f a
+        foldMapBlob (Deeper w) (Node2 _ x y) = foldMapBlob w x <> foldMapBlob w y
+        foldMapBlob (Deeper w) (Node3 _ x y z) = foldMapBlob w x <> foldMapBlob w y <> foldMapBlob w z
+      
+        foldMapFT :: Depth a t -> FingerTree t -> m
+        foldMapFT !_ EmptyT = mempty
+        foldMapFT w (Single t) = foldMapBlob w t
+        foldMapFT w (Deep _ pr m sf) =
+          foldMap (foldMapBlob w) pr
+          <> foldMapFT (Deeper w) m
+          <> foldMap (foldMapBlob w) sf
+
+--    foldMap = coerce (foldMap :: (a -> m) -> Seq a -> m)
+    {-# INLINABLE foldMap #-}
+#else
     foldMap _ EmptyT = mempty
     foldMap f' (Single x') = f' x'
     foldMap f' (Deep _ pr' m' sf') =
@@ -1094,8 +1177,6 @@ instance Foldable FingerTree where
 
         foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
         foldMapNodeN f t = foldNode (<>) f t
-#if __GLASGOW_HASKELL__
-    {-# INLINABLE foldMap #-}
 #endif
 
     foldr _ z' EmptyT = z'
@@ -1265,7 +1346,7 @@ foldDigit _     f (One a) = f a
 foldDigit (<+>) f (Two a b) = f a <+> f b
 foldDigit (<+>) f (Three a b c) = f a <+> f b <+> f c
 foldDigit (<+>) f (Four a b c d) = f a <+> f b <+> f c <+> f d
-{-# INLINE foldDigit #-}
+{-# INLINABLE foldDigit #-}
 
 instance Foldable Digit where
     foldMap = foldDigit mappend
@@ -3234,15 +3315,56 @@ foldWithIndexNode (<+>) f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
 -- element in the sequence.
 --
 -- @since 0.5.8
-foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
+foldMapWithIndex :: forall m a. Monoid m => (Int -> a -> m) -> Seq a -> m
+#ifdef __GLASGOW_HASKELL__
+foldMapWithIndex f (Seq t) = foldMapWithIndexFT Bottom 0 t
+  where
+    foldMapWithIndexFT :: Depth (Elem a) t -> Int -> FingerTree t -> m
+    foldMapWithIndexFT !_ !_ EmptyT = mempty
+    foldMapWithIndexFT d s (Single xs) = foldMapWithIndexBlob d s xs
+    foldMapWithIndexFT d s (Deep _ pr m sf) = case depthSized d of { Sizzy ->
+      foldWithIndexDigit (<>) (foldMapWithIndexBlob d) s pr <>
+      foldMapWithIndexFT (Deeper d) sPspr m <>
+      foldWithIndexDigit (<>) (foldMapWithIndexBlob d) sPsprm sf
+        where
+          !sPspr = s + size pr
+          !sPsprm = sPspr + size m
+      }
+
+    foldMapWithIndexBlob :: Depth (Elem a) t -> Int -> t -> m
+    foldMapWithIndexBlob Bottom k (Elem a) = f k a
+    foldMapWithIndexBlob (Deeper yop) k (Node2 _s t1 t2) =
+      foldMapWithIndexBlob yop k t1 <>
+      foldMapWithIndexBlob yop (k + sizeBlob yop t1) t2
+    foldMapWithIndexBlob (Deeper yop) k (Node3 _s t1 t2 t3) =
+      foldMapWithIndexBlob yop k t1 <>
+      foldMapWithIndexBlob yop (k + st1) t2 <>
+      foldMapWithIndexBlob yop (k + st1t2) t3
+      where
+        st1 = sizeBlob yop t1
+        st1t2 = st1 + sizeBlob yop t2
+{-# INLINABLE foldMapWithIndex #-}
+
+data Sizzy a where
+  Sizzy :: Sized a => Sizzy a
+
+depthSized :: Depth (Elem a) t -> Sizzy t
+depthSized Bottom = Sizzy
+depthSized (Deeper _) = Sizzy
+
+sizeBlob :: Depth (Elem a) t -> t -> Int
+sizeBlob Bottom = size
+sizeBlob (Deeper _) = size
+
+#else
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
  where
   lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
-#ifdef __GLASGOW_HASKELL__
+#  ifdef __GLASGOW_HASKELL__
   lift_elem g = coerce g
-#else
+#  else
   lift_elem g = \s (Elem a) -> g s a
-#endif
+#  endif
   {-# INLINE lift_elem #-}
 -- We have to specialize these functions by hand, unfortunately, because
 -- GHC does not specialize until *all* instances are determined.
@@ -3281,9 +3403,6 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
 
   foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
   foldMapWithIndexNodeN f i t = foldWithIndexNode (<>) f i t
-
-#if __GLASGOW_HASKELL__
-{-# INLINABLE foldMapWithIndex #-}
 #endif
 
 -- | 'traverseWithIndex' is a version of 'traverse' that also offers
@@ -5036,3 +5155,7 @@ fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
+
+{-# NOINLINE bongo #-}
+bongo :: Seq [a] -> [a]
+bongo xs = GHC.Exts.inline foldMap id xs
