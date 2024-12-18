@@ -64,10 +64,10 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_findMin" prop_findMin
                    , testProperty "prop_ord" prop_ord
                    , testProperty "prop_readShow" prop_readShow
-                   , testProperty "prop_foldR" prop_foldR
-                   , testProperty "prop_foldR'" prop_foldR'
-                   , testProperty "prop_foldL" prop_foldL
-                   , testProperty "prop_foldL'" prop_foldL'
+                   , testProperty "prop_foldr" prop_foldr
+                   , testProperty "prop_foldr'" prop_foldr'
+                   , testProperty "prop_foldl" prop_foldl
+                   , testProperty "prop_foldl'" prop_foldl'
                    , testProperty "prop_foldMap" prop_foldMap
                    , testProperty "prop_map" prop_map
                    , testProperty "prop_mapMonotonicId" prop_mapMonotonicId
@@ -370,17 +370,17 @@ prop_ord s1 s2 = s1 `compare` s2 == toList s1 `compare` toList s2
 prop_readShow :: IntSet -> Bool
 prop_readShow s = s == read (show s)
 
-prop_foldR :: IntSet -> Bool
-prop_foldR s = foldr (:) [] s == toList s
+prop_foldr :: IntSet -> Property
+prop_foldr s = foldr (:) [] s === toList s
 
-prop_foldR' :: IntSet -> Bool
-prop_foldR' s = foldr' (:) [] s == toList s
+prop_foldr' :: IntSet -> Property
+prop_foldr' s = foldr' (:) [] s === toList s
 
-prop_foldL :: IntSet -> Bool
-prop_foldL s = foldl (flip (:)) [] s == List.foldl (flip (:)) [] (toList s)
+prop_foldl :: IntSet -> Property
+prop_foldl s = foldl (flip (:)) [] s === toDescList s
 
-prop_foldL' :: IntSet -> Bool
-prop_foldL' s = foldl' (flip (:)) [] s == List.foldl' (flip (:)) [] (toList s)
+prop_foldl' :: IntSet -> Property
+prop_foldl' s = foldl' (flip (:)) [] s === toDescList s
 
 prop_foldMap :: IntSet -> Property
 prop_foldMap s = foldMap (:[]) s === toList s
