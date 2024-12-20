@@ -239,11 +239,7 @@ import Prelude ()
 import Control.Applicative (Const(..))
 import qualified Data.List as List
 import Data.Bits (shiftL, shiftR)
-import Data.Semigroup (Semigroup(stimes))
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup (Semigroup((<>)))
-#endif
-import Data.Semigroup (stimesIdempotentMonoid, stimesIdempotent)
+import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
@@ -265,6 +261,7 @@ import Data.Data
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+import Data.Coerce (coerce)
 #endif
 
 
@@ -927,6 +924,14 @@ instance (Ord a) => Semigroup (Intersection a) where
 
     stimes = stimesIdempotent
     {-# INLINABLE stimes #-}
+
+    sconcat =
+#ifdef __GLASGOW_HASKELL__
+      coerce intersections
+#else
+      Intersection . intersections . fmap getIntersection
+#endif
+    {-# INLINABLE sconcat #-}
 
 {--------------------------------------------------------------------
   Symmetric difference

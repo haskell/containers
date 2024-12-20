@@ -196,11 +196,7 @@ import Data.Bits
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import Data.Maybe (fromMaybe)
-import Data.Semigroup
-  (Semigroup(stimes), stimesIdempotent, stimesIdempotentMonoid)
-#if !(MIN_VERSION_base(4,11,0))
-import Data.Semigroup (Semigroup((<>)))
-#endif
+import Data.Semigroup (Semigroup(..), stimesIdempotent, stimesIdempotentMonoid)
 import Utils.Containers.Internal.Prelude hiding
   (filter, foldr, foldl, foldl', foldMap, null, map)
 import Prelude ()
@@ -224,6 +220,7 @@ import Data.IntSet.Internal.IntTreeCommons
 import Data.Data (Data(..), Constr, mkConstr, constrIndex, DataType, mkDataType)
 import qualified Data.Data
 import Text.Read
+import Data.Coerce (coerce)
 #endif
 
 #if __GLASGOW_HASKELL__
@@ -686,6 +683,13 @@ instance Semigroup Intersection where
 
   stimes = stimesIdempotent
   {-# INLINABLE stimes #-}
+
+  sconcat =
+#ifdef __GLASGOW_HASKELL__
+    coerce intersections
+#else
+    Intersection . intersections . fmap getIntersection
+#endif
 
 {--------------------------------------------------------------------
   Symmetric difference
