@@ -106,6 +106,7 @@ library
     Data.Map.Strict.Internal
     Data.Sequence
     Data.Sequence.Internal
+    Data.Sequence.Internal.Depth
     Data.Sequence.Internal.Sorting
     Data.Set
     Data.Set.Internal
@@ -123,6 +124,7 @@ library
 
   if impl(ghc)
     other-modules:
+      Data.Sequence.Internal.Depth
       Utils.Containers.Internal.TypeError
 
   if impl(ghc >= 8.6)
