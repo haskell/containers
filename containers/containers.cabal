@@ -70,7 +70,6 @@ Library
         Data.Graph
         Data.Sequence
         Data.Sequence.Internal
-        Data.Sequence.Internal.Depth
         Data.Sequence.Internal.Sorting
         Data.Tree
         Utils.Containers.Internal.BitUtil
@@ -85,6 +84,7 @@ Library
         Utils.Containers.Internal.EqOrdUtil
     if impl(ghc)
       other-modules:
+        Data.Sequence.Internal.Depth
         Utils.Containers.Internal.TypeError
 
     include-dirs: include
