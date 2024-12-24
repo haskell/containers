@@ -372,19 +372,39 @@ instance Functor Seq where
     x <$ s = replicate (length s) x
 #endif
 
-fmapSeq :: (a -> b) -> Seq a -> Seq b
-fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 #ifdef __GLASGOW_HASKELL__
+fmapSeq :: forall a b. (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq t0) = Seq (fmapFT Bottom2 t0)
+  where
+    fmapBlob :: Depth2 (Elem a) t (Elem b) u -> t -> u
+    fmapBlob Bottom2 (Elem a) = Elem (f a)
+    fmapBlob (Deeper2 w) (Node2 s x y) = Node2 s (fmapBlob w x) (fmapBlob w y)
+    fmapBlob (Deeper2 w) (Node3 s x y z) = Node3 s (fmapBlob w x) (fmapBlob w y) (fmapBlob w z)
+
+    fmapFT :: Depth2 (Elem a) t (Elem b) u -> FingerTree t -> FingerTree u
+    fmapFT !_ EmptyT = EmptyT
+    fmapFT w (Single t) = Single (fmapBlob w t)
+    fmapFT w (Deep s pr m sf) =
+      Deep s
+        (fmap (fmapBlob w) pr)
+        (fmapFT (Deeper2 w) m)
+        (fmap (fmapBlob w) sf)
+
 {-# NOINLINE [1] fmapSeq #-}
 {-# RULES
 "fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
+
+#else
+fmapSeq :: (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 #endif
 
---type Depth = Depth_ Elem Node
+#ifdef __GLASGOW_HASKELL__
 type Depth = Depth_ Node
 type Depth2 = Depth2_ Node
+#endif
 
 instance Foldable Seq where
 #ifdef __GLASGOW_HASKELL__
@@ -407,25 +427,32 @@ instance Foldable Seq where
     foldr :: forall a b. (a -> b -> b) -> b -> Seq a -> b
     -- We define this explicitly so we can inline the foldMap. And we don't
     -- define it as a coercion of the FingerTree version because we want users
-    -- to have the option of (effectively) inlining it explicitly.
+    -- to have the option of (effectively) inlining it explicitly. Should we
+    -- define this by hand to associate optimally? Or is GHC clever enough to
+    -- do that for us?
     foldr f z t = appEndo (GHC.Exts.inline foldMap (coerce f) t) z
 
     foldl :: forall b a. (b -> a -> b) -> b -> Seq a -> b
-    -- Should we define this by hand to associate optimally? Or is GHC
-    -- clever enough to do that for us?
     foldl f z t = appEndo (getDual (GHC.Exts.inline foldMap (Dual . Endo . flip f) t)) z
 
     foldr' :: forall a b. (a -> b -> b) -> b -> Seq a -> b
-    foldr' = coerce (foldr' :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
+    foldr' f z0 = \ xs ->
+        GHC.Exts.inline foldl (\ (k::b->b) (x::a) -> GHC.Exts.oneShot (\ (z::b) -> z `seq` k (f x z)))
+              (id::b->b) xs z0
 
     foldl' :: forall b a. (b -> a -> b) -> b -> Seq a -> b
-    foldl' = coerce (foldl' :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
+    foldl' f z0 = \ xs ->
+        GHC.Exts.inline foldr (\ (x::a) (k::b->b) -> GHC.Exts.oneShot (\ (z::b) -> z `seq` k (f z x)))
+              (id::b->b) xs z0
 
     foldr1 :: forall a. (a -> a -> a) -> Seq a -> a
-    foldr1 = coerce (foldr1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+    foldr1 _f Empty = error "foldr1: empty sequence"
+    foldr1 f  (xs :|> x) = foldr f x xs
 
     foldl1 :: forall a. (a -> a -> a) -> Seq a -> a
-    foldl1 = coerce (foldl1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+    foldl1 _f Empty = error "foldl1: empty sequence"
+    foldl1 f  (x :<| xs) = foldl f x xs
+
 #else
     foldMap f (Seq xs) = foldMap (f . getElem) xs
 
@@ -1124,33 +1151,7 @@ instance Sized a => Sized (FingerTree a) where
     size (Single x)         = size x
     size (Deep v _ _ _)     = v
 
--- We don't fold FingerTrees directly, but instead coerce them to
--- Seqs and fold those. This seems backwards! Why do it? We certainly
--- *could* fold FingerTrees directly, but we'd need a slightly different
--- version of the Depth GADT to do so. While that's not a big deal,
--- it is a bit annoying. Note: we need the current version of Depth
--- to deal with the Sized issues for indexed folds.
 instance Foldable FingerTree where
-#ifdef __GLASGOW_HASKELL__
-    foldMap :: forall m a. Monoid m => (a -> m) -> FingerTree a -> m
-    foldMap f = foldMapFT Bottom
-      where
-        foldMapBlob :: Depth a t -> t -> m
-        foldMapBlob Bottom a = f a
-        foldMapBlob (Deeper w) (Node2 _ x y) = foldMapBlob w x <> foldMapBlob w y
-        foldMapBlob (Deeper w) (Node3 _ x y z) = foldMapBlob w x <> foldMapBlob w y <> foldMapBlob w z
-      
-        foldMapFT :: Depth a t -> FingerTree t -> m
-        foldMapFT !_ EmptyT = mempty
-        foldMapFT w (Single t) = foldMapBlob w t
-        foldMapFT w (Deep _ pr m sf) =
-          foldMap (foldMapBlob w) pr
-          <> foldMapFT (Deeper w) m
-          <> foldMap (foldMapBlob w) sf
-
---    foldMap = coerce (foldMap :: (a -> m) -> Seq a -> m)
-    {-# INLINABLE foldMap #-}
-#else
     foldMap _ EmptyT = mempty
     foldMap f' (Single x') = f' x'
     foldMap f' (Deep _ pr' m' sf') =
@@ -1177,7 +1178,10 @@ instance Foldable FingerTree where
 
         foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
         foldMapNodeN f t = foldNode (<>) f t
+#if __GLASGOW_HASKELL__
+    {-# INLINABLE foldMap #-}
 #endif
+
 
     foldr _ z' EmptyT = z'
     foldr f' z' (Single x') = x' `f'` z'
@@ -3223,6 +3227,49 @@ delDigit f i (Four a b c d)
 -- | A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
+#ifdef __GLASGOW_HASKELL__
+mapWithIndex :: forall a b. (Int -> a -> b) -> Seq a -> Seq b
+mapWithIndex f (Seq t) = Seq $ mapWithIndexFT Bottom2 0 t
+  where
+    mapWithIndexFT :: Depth2 (Elem a) t (Elem b) u -> Int -> FingerTree t -> FingerTree u
+    mapWithIndexFT !_ !_ EmptyT = EmptyT
+    mapWithIndexFT d s (Single xs) = Single $ mapWithIndexBlob d s xs
+    mapWithIndexFT d s (Deep s' pr m sf) = case depthSized2 d of { Sizzy ->
+      Deep s'
+        (mapWithIndexDigit (mapWithIndexBlob d) s pr)
+        (mapWithIndexFT (Deeper2 d) sPspr m)
+        (mapWithIndexDigit (mapWithIndexBlob d) sPsprm sf)
+          where
+            !sPspr = s + size pr
+            !sPsprm = sPspr + size m
+      }
+
+    mapWithIndexBlob :: Depth2 (Elem a) t (Elem b) u -> Int -> t -> u
+    mapWithIndexBlob Bottom2 k (Elem a) = Elem (f k a)
+    mapWithIndexBlob (Deeper2 yop) k (Node2 s t1 t2) =
+      Node2 s
+        (mapWithIndexBlob yop k t1)
+        (mapWithIndexBlob yop (k + sizeBlob2 yop t1) t2)
+    mapWithIndexBlob (Deeper2 yop) k (Node3 s t1 t2 t3) =
+      Node3 s
+        (mapWithIndexBlob yop k t1)
+        (mapWithIndexBlob yop (k + st1) t2)
+        (mapWithIndexBlob yop (k + st1t2) t3)
+      where
+        st1 = sizeBlob2 yop t1
+        st1t2 = st1 + sizeBlob2 yop t2
+
+{-# NOINLINE [1] mapWithIndex #-}
+
+{-# RULES
+"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f k (g k a)) xs
+"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
+  mapWithIndex (\k a -> f k (g a)) xs
+"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f (g k a)) xs
+ #-}
+#else
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)) 0 xs'
  where
@@ -3240,25 +3287,6 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
 
-  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
-  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
-  mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
-  mapWithIndexDigit f !s (One a) = One (f s a)
-  mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
-    where
-      !sPsa = s + size a
-  mapWithIndexDigit f s (Three a b c) =
-                                      Three (f s a) (f sPsa b) (f sPsab c)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  mapWithIndexDigit f s (Four a b c d) =
-                          Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
-
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
   mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
@@ -3270,18 +3298,27 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
-
-#ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] mapWithIndex #-}
-{-# RULES
-"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
-  mapWithIndex (\k a -> f k (g k a)) xs
-"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
-  mapWithIndex (\k a -> f k (g a)) xs
-"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
-  mapWithIndex (\k a -> f (g k a)) xs
- #-}
 #endif
+
+{-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem a -> b) -> Int -> Digit (Elem a) -> Digit b #-}
+{-# SPECIALIZE mapWithIndexDigit :: (Int -> Node a -> b) -> Int -> Digit (Node a) -> Digit b #-}
+mapWithIndexDigit :: Sized x => (Int -> x -> y) -> Int -> Digit x -> Digit y
+mapWithIndexDigit f !s (One a) = One (f s a)
+mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
+  where
+    !sPsa = s + size a
+mapWithIndexDigit f s (Three a b c) =
+                                    Three (f s a) (f sPsa b) (f sPsab c)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+mapWithIndexDigit f s (Four a b c d) =
+                        Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
 
 {-# INLINE foldWithIndexDigit #-}
 foldWithIndexDigit :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
@@ -3352,9 +3389,17 @@ depthSized :: Depth (Elem a) t -> Sizzy t
 depthSized Bottom = Sizzy
 depthSized (Deeper _) = Sizzy
 
+depthSized2 :: Depth2 (Elem a) t (Elem b) u -> Sizzy t
+depthSized2 Bottom2 = Sizzy
+depthSized2 (Deeper2 _) = Sizzy
+
 sizeBlob :: Depth (Elem a) t -> t -> Int
 sizeBlob Bottom = size
 sizeBlob (Deeper _) = size
+
+sizeBlob2 :: Depth2 (Elem a) t (Elem b) u -> t -> Int
+sizeBlob2 Bottom2 = size
+sizeBlob2 (Deeper2 _) = size
 
 #else
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'

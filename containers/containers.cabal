@@ -75,7 +75,6 @@ Library
         Data.Graph
         Data.Sequence
         Data.Sequence.Internal
-        Data.Sequence.Internal.Depth
         Data.Sequence.Internal.Sorting
         Data.Tree
 
@@ -87,6 +86,7 @@ Library
         Utils.Containers.Internal.EqOrdUtil
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
+        Data.Sequence.Internal.Depth
         Utils.Containers.Internal.StrictPair
 
     include-dirs: include

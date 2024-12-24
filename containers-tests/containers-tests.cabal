@@ -122,6 +122,7 @@ library
     Utils.Containers.Internal.StrictMaybe
     Utils.Containers.Internal.EqOrdUtil
 
+      Data.Sequence.Internal.Depth
   if impl(ghc >= 8.6)
     ghc-options: -Werror
 
