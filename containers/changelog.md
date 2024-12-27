@@ -58,6 +58,8 @@
 * For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
   do not perform a copy. (Soumik Sarkar)
 
+* Improved performance for `Data.Intset`'s `foldr`, `foldl'`, `foldl`, `foldr'`.
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
