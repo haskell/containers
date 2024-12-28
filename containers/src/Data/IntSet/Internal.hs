@@ -1724,9 +1724,10 @@ foldlBits prefix f z0 bitmap = go z0 $! revWord bitmap
   where
     -- Note: We pass the z as a static argument because it helps GHC with demand
     -- analysis. See GHC #25578 for details.
-    go z !bm = f (if bm' == 0 then z else go z bm') (prefix .|. bi)
+    go z !bm = f (if bm' == 0 then z else go z bm') x
       where
         bi = WORD_SIZE_IN_BITS - 1 - countTrailingZeros bm
+        !x = prefix .|. bi
         bm' = bm .&. (bm-1)
 
 foldl'Bits prefix f z0 bitmap = go z0 bitmap
@@ -1734,16 +1735,18 @@ foldl'Bits prefix f z0 bitmap = go z0 bitmap
     go !z !bm = if bm' == 0 then z' else go z' bm'
       where
         bi = countTrailingZeros bm
-        !z' = f z (prefix .|. bi)
+        !x = prefix .|. bi
+        !z' = f z x
         bm' = bm .&. (bm-1)
 
 foldrBits prefix f z0 bitmap = go bitmap z0
   where
     -- Note: We pass the z as a static argument because it helps GHC with demand
     -- analysis. See GHC #25578 for details.
-    go !bm z = f (prefix .|. bi) (if bm' == 0 then z else go bm' z)
+    go !bm z = f x (if bm' == 0 then z else go bm' z)
       where
         bi = countTrailingZeros bm
+        !x = prefix .|. bi
         bm' = bm .&. (bm-1)
 
 foldr'Bits prefix f z0 bitmap = (go $! revWord bitmap) z0
@@ -1751,7 +1754,8 @@ foldr'Bits prefix f z0 bitmap = (go $! revWord bitmap) z0
     go !bm !z = if bm' == 0 then z' else go bm' z'
       where
         bi = WORD_SIZE_IN_BITS - 1 - countTrailingZeros bm
-        !z' = f (prefix .|. bi) z
+        !x = prefix .|. bi
+        !z' = f x z
         bm' = bm .&. (bm-1)
 
 foldMapBits prefix f bitmap = go bitmap
@@ -1765,7 +1769,7 @@ foldMapBits prefix f bitmap = go bitmap
 #endif
       where
         bi = countTrailingZeros bm
-        x = prefix .|. bi
+        !x = prefix .|. bi
         bm' = bm .&. (bm-1)
 
 takeWhileAntitoneBits prefix predicate bitmap =
