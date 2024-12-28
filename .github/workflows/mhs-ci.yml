@@ -30,3 +30,4 @@ jobs:
       run: |
         cd mhs
         MHSCPPHS=./bin/cpphs ./bin/mhs -Pcontainers-test -ocontainers-test.pkg -i../cont/containers/src -XCPP -I../cont/containers/include Data.Containers.ListUtils Data.IntMap Data.IntMap.Lazy Data.IntMap.Strict Data.IntMap.Strict.Internal Data.IntMap.Internal Data.IntMap.Internal.Debug Data.IntMap.Merge.Lazy Data.IntMap.Merge.Strict Data.IntSet.Internal Data.IntSet.Internal.IntTreeCommons Data.IntSet Data.Map Data.Map.Lazy Data.Map.Merge.Lazy Data.Map.Strict.Internal Data.Map.Strict Data.Map.Merge.Strict Data.Map.Internal Data.Map.Internal.Debug Data.Set.Internal Data.Set Data.Graph Data.Sequence Data.Sequence.Internal Data.Sequence.Internal.Sorting Data.Tree Utils.Containers.Internal.BitUtil Utils.Containers.Internal.BitQueue Utils.Containers.Internal.StrictPair
+
