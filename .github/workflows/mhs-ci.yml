@@ -28,7 +28,6 @@ jobs:
         make minstall
     - name: compile and install containers package
       run: |
-      run: |
         PATH="$HOME/.mcabal/bin:$PATH"
         cd cont
         mcabal install
