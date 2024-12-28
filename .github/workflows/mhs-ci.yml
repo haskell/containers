@@ -29,7 +29,7 @@ jobs:
     - name: compile and install containers package
       run: |
         PATH="$HOME/.mcabal/bin:$PATH"
-        cd cont
+        cd cont/containers
         mcabal install
     - name: cleanup
       run: |
