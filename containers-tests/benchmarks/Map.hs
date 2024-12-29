@@ -90,11 +90,19 @@ main = do
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromList-desc" $ whnf M.fromList elems_desc
         , bench "fromAscList" $ whnf M.fromAscList elems_asc
+        , bench "fromAscList:fusion" $
+            whnf (\n -> M.fromAscList [(i `div` 2, i) | i <- [1..n]]) bound
         , bench "fromAscListWithKey" $
             whnf (M.fromAscListWithKey sumkv) elems_asc
+        , bench "fromAscListWithKey:fusion" $
+            whnf (\n -> M.fromAscListWithKey sumkv [(i `div` 2, i) | i <- [1..n]]) bound
         , bench "fromDescList" $ whnf M.fromDescList elems_desc
+        , bench "fromDescList:fusion" $
+            whnf (\n -> M.fromDescList [(i `div` 2, i) | i <- [n,n-1..1]]) bound
         , bench "fromDescListWithKey" $
             whnf (M.fromDescListWithKey sumkv) elems_desc
+        , bench "fromDescListWithKey:fusion" $
+            whnf (\n -> M.fromDescListWithKey sumkv [(i `div` 2, i) | i <- [n,n-1..1]]) bound
         , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems_distinct_asc
         , bench "fromDistinctAscList:fusion" $ whnf (\n -> M.fromDistinctAscList [(i,i) | i <- [1..n]]) bound
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_distinct_desc
