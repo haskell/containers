@@ -111,6 +111,12 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "compare" prop_compare
                    , testProperty "intersections" prop_intersections
                    , testProperty "intersections_lazy" prop_intersections_lazy
+                   , testProperty "deleteMin" prop_deleteMin
+                   , testProperty "deleteMax" prop_deleteMax
+                   , testProperty "findIndex" prop_findIndex
+                   , testProperty "lookupIndex" prop_lookupIndex
+                   , testProperty "elemAt" prop_elemAt
+                   , testProperty "deleteAt" prop_deleteAt
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -298,31 +304,17 @@ prop_NotMember xs n =
   let m  = fromList xs
   in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
 
-test_LookupSomething :: (Int -> Set Int -> Maybe Int) -> (Int -> Int -> Bool) -> [Int] -> Bool
-test_LookupSomething lookup' cmp xs =
-  let odd_sorted_xs = filter_odd $ nub $ sort xs
-      t = fromList odd_sorted_xs
-      test x = case List.filter (`cmp` x) odd_sorted_xs of
-                 []             -> lookup' x t == Nothing
-                 cs | 0 `cmp` 1 -> lookup' x t == Just (last cs) -- we want largest such element
-                    | otherwise -> lookup' x t == Just (head cs) -- we want smallest such element
-  in all test xs
+prop_LookupLT :: Int -> Set Int -> Property
+prop_LookupLT x xs = lookupLT x xs === List.find (<x) (toDescList xs)
 
-  where filter_odd [] = []
-        filter_odd [_] = []
-        filter_odd (_ : o : xs) = o : filter_odd xs
+prop_LookupGT :: Int -> Set Int -> Property
+prop_LookupGT x xs = lookupGT x xs === List.find (>x) (toList xs)
 
-prop_LookupLT :: [Int] -> Bool
-prop_LookupLT = test_LookupSomething lookupLT (<)
+prop_LookupLE :: Int -> Set Int -> Property
+prop_LookupLE x xs = lookupLE x xs === List.find (<=x) (toDescList xs)
 
-prop_LookupGT :: [Int] -> Bool
-prop_LookupGT = test_LookupSomething lookupGT (>)
-
-prop_LookupLE :: [Int] -> Bool
-prop_LookupLE = test_LookupSomething lookupLE (<=)
-
-prop_LookupGE :: [Int] -> Bool
-prop_LookupGE = test_LookupSomething lookupGE (>=)
+prop_LookupGE :: Int -> Set Int -> Property
+prop_LookupGE x xs = lookupGE x xs === List.find (>=x) (toList xs)
 
 prop_InsertValid :: Int -> Property
 prop_InsertValid k = forValidUnitTree $ \t -> valid (insert k t)
@@ -707,3 +699,27 @@ prop_intersections_lazy ss = intersections ss' === empty
     ss' = NE.fromList $ ss ++ [empty] ++ error "too strict"
                            --- ^ result will certainly be empty at this point,
                            --    so the rest of the list should not be demanded.
+
+prop_deleteMin :: Set Int -> Property
+prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList s)
+
+prop_deleteMax :: Set Int -> Property
+prop_deleteMax s = toList (deleteMax s) === if null s then [] else init (toList s)
+
+prop_findIndex :: Int -> Set Int -> Property
+prop_findIndex x s = x `member` s ==>
+  Just (findIndex x s) === List.findIndex (==x) (toList s)
+
+prop_lookupIndex :: Int -> Set Int -> Property
+prop_lookupIndex x s = lookupIndex x s === List.findIndex (==x) (toList s)
+
+prop_elemAt :: Int -> Set Int -> Property
+prop_elemAt i s = 0 <= i && i < size s ==>
+  elemAt i s === toList s !! i
+
+prop_deleteAt :: Int -> Set Int -> Property
+prop_deleteAt i s = 0 <= i && i < size s ==>
+  valid s' .&&.
+  toList s' === [x | (j, x) <- zip [0..] (toList s), i /= j]
+  where
+    s' = deleteAt i s

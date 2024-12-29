@@ -15,6 +15,8 @@ import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
 import Control.Monad ((<=<))
+import qualified Data.Either as Either
+import qualified Data.Foldable as Foldable
 import Data.Monoid
 import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
@@ -217,6 +219,32 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
              , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
+             , testProperty "insertWith"           prop_insertWith
+             , testProperty "insertWithKey"        prop_insertWithKey
+             , testProperty "insertLookupWithKey"  prop_insertLookupWithKey
+             , testProperty "adjust"               prop_adjust
+             , testProperty "adjustWithKey"        prop_adjustWithKey
+             , testProperty "update"               prop_update
+             , testProperty "updateWithKey"        prop_updateWithKey
+             , testProperty "updateLookupWithKey"  prop_updateLookupWithKey
+             , testProperty "differenceWith"       prop_differenceWith
+             , testProperty "differenceWithKey"    prop_differenceWithKey
+             , testProperty "partitionWithKey"     prop_partitionWithKey
+             , testProperty "updateMin"            prop_updateMin
+             , testProperty "updateMax"            prop_updateMax
+             , testProperty "updateMinWithKey"     prop_updateMinWithKey
+             , testProperty "updateMaxWithKey"     prop_updateMaxWithKey
+             , testProperty "minViewWithKey"       prop_minViewWithKey
+             , testProperty "maxViewWithKey"       prop_maxViewWithKey
+             , testProperty "minView"              prop_minView
+             , testProperty "maxView"              prop_maxView
+             , testProperty "mapEither"            prop_mapEither
+             , testProperty "mapEitherWithKey"     prop_mapEitherWithKey
+             , testProperty "mapAccum"             prop_mapAccum
+             , testProperty "mapAccumWithKey"      prop_mapAccumWithKey
+             , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
+             , testProperty "mapKeysWith"          prop_mapKeysWith
+             , testProperty "mapKeysMonotonic"     prop_mapKeysMonotonic
              ]
 
 {--------------------------------------------------------------------
@@ -1457,31 +1485,17 @@ prop_findWithDefault xs n x =
       m = fromList xs'
   in all (\k -> findWithDefault x k m == maybe x id (List.lookup k xs')) (n : List.map fst xs')
 
-test_lookupSomething :: (Int -> IntMap Int -> Maybe (Int, Int)) -> (Int -> Int -> Bool) -> [(Int, Int)] -> Bool
-test_lookupSomething lookup' cmp xs =
-  let odd_sorted_xs = filter_odd $ sort $ List.nubBy ((==) `on` fst) xs
-      t = fromList odd_sorted_xs
-      test k = case List.filter ((`cmp` k) . fst) odd_sorted_xs of
-                 []             -> lookup' k t == Nothing
-                 cs | 0 `cmp` 1 -> lookup' k t == Just (last cs) -- we want largest such element
-                    | otherwise -> lookup' k t == Just (head cs) -- we want smallest such element
-  in all test (List.map fst xs)
+prop_lookupLT :: Int -> IntMap A -> Bool
+prop_lookupLT k m = lookupLT k m == List.find ((<k) . fst) (toDescList m)
 
-  where filter_odd [] = []
-        filter_odd [_] = []
-        filter_odd (_ : o : xs) = o : filter_odd xs
+prop_lookupGT :: Int -> IntMap A -> Bool
+prop_lookupGT k m = lookupGT k m == List.find ((>k) . fst) (toList m)
 
-prop_lookupLT :: [(Int, Int)] -> Bool
-prop_lookupLT = test_lookupSomething lookupLT (<)
+prop_lookupLE :: Int -> IntMap A -> Bool
+prop_lookupLE k m = lookupLE k m == List.find ((<=k) . fst) (toDescList m)
 
-prop_lookupGT :: [(Int, Int)] -> Bool
-prop_lookupGT = test_lookupSomething lookupGT (>)
-
-prop_lookupLE :: [(Int, Int)] -> Bool
-prop_lookupLE = test_lookupSomething lookupLE (<=)
-
-prop_lookupGE :: [(Int, Int)] -> Bool
-prop_lookupGE = test_lookupSomething lookupGE (>=)
+prop_lookupGE :: Int -> IntMap A -> Bool
+prop_lookupGE k m = lookupGE k m == List.find ((>=k) . fst) (toList m)
 
 prop_lookupMin :: IntMap Int -> Property
 prop_lookupMin im = lookupMin im === listToMaybe (toAscList im)
@@ -1721,3 +1735,232 @@ prop_isSubmapOfBy f m1 m2 =
     xs = List.intersectBy
            (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
            (assocs m1) (assocs m2)
+
+prop_insertWith :: Fun (A, A) A -> Int -> A -> IntMap A -> Property
+prop_insertWith f k x m = valid m' .&&. toList m' === kxs'
+  where
+    m' = insertWith (applyFun2 f) k x m
+    kxs = toList m
+    kxs' = if k `List.elem` (fmap fst kxs)
+           then let g (k',x') = (k', if k == k' then applyFun2 f x x' else x')
+                in fmap g kxs
+           else List.insertBy (comparing fst) (k,x) kxs
+
+prop_insertWithKey :: Fun (Int, A, A) A -> Int -> A -> IntMap A -> Property
+prop_insertWithKey f k x m = valid m' .&&. toList m' === kxs'
+  where
+    m' = insertWithKey (applyFun3 f) k x m
+    kxs = toList m
+    kxs' = if k `List.elem` (fmap fst kxs)
+           then let g (k',x') = (k', if k == k' then applyFun3 f k x x' else x')
+                in fmap g kxs
+           else List.insertBy (comparing fst) (k,x) kxs
+
+prop_insertLookupWithKey
+  :: Fun (Int, A, A) A -> Int -> A -> IntMap A -> Property
+prop_insertLookupWithKey f k x m =
+  valid m' .&&.
+  r === (lookup k m, insertWith (applyFun3 f k) k x m)
+  where
+    r@(_, m') = insertLookupWithKey (applyFun3 f) k x m
+
+prop_adjust :: Fun A A -> Int -> IntMap A -> Property
+prop_adjust f k m =
+  valid m' .&&.
+  m' === maybe m (\x -> insert k (applyFun f x) m) (lookup k m)
+  where
+    m' = adjust (applyFun f) k m
+
+prop_adjustWithKey :: Fun (Int, A) A -> Int -> IntMap A -> Property
+prop_adjustWithKey f k m =
+  valid m' .&&.
+  m' === maybe m (\x -> insert k (applyFun2 f k x) m) (lookup k m)
+  where
+    m' = adjustWithKey (applyFun2 f) k m
+
+prop_update :: Fun A (Maybe A) -> Int -> IntMap A -> Property
+prop_update f k m = valid m' .&&. m' === m''
+  where
+    m' = update (applyFun f) k m
+    m'' = case lookup k m of
+      Nothing -> m
+      Just x -> case applyFun f x of
+        Nothing -> delete k m
+        Just x' -> insert k x' m
+
+prop_updateWithKey :: Fun (Int, A) (Maybe A) -> Int -> IntMap A -> Property
+prop_updateWithKey f k m = valid m' .&&. m' === m''
+  where
+    m' = updateWithKey (applyFun2 f) k m
+    m'' = case lookup k m of
+      Nothing -> m
+      Just x -> case applyFun2 f k x of
+        Nothing -> delete k m
+        Just x' -> insert k x' m
+
+prop_updateLookupWithKey
+  :: Fun (Int, A) (Maybe A) -> Int -> IntMap A -> Property
+prop_updateLookupWithKey f k m = valid m' .&&. r === (lookup k m, m'')
+  where
+    r@(_, m') = updateLookupWithKey (applyFun2 f) k m
+    m'' = updateWithKey (applyFun2 f) k m
+
+prop_differenceWith
+  :: Fun (A, B) (Maybe A) -> IntMap A -> IntMap B -> Property
+prop_differenceWith f m1 m2 =
+  valid m' .&&.
+  toList m' === Maybe.mapMaybe f' kxs
+  where
+    m' = differenceWith (applyFun2 f) m1 m2
+    kxs = toList m1
+    kys = toList m2
+    f' (k,x) = case List.lookup k kys of
+      Nothing -> Just (k,x)
+      Just y -> (,) k <$> applyFun2 f x y
+
+prop_differenceWithKey
+  :: Fun (Int, A, B) (Maybe A) -> IntMap A -> IntMap B -> Property
+prop_differenceWithKey f m1 m2 =
+  valid m' .&&.
+  toList m' === Maybe.mapMaybe f' kxs
+  where
+    m' = differenceWithKey (applyFun3 f) m1 m2
+    kxs = toList m1
+    kys = toList m2
+    f' (k,x) = case List.lookup k kys of
+      Nothing -> Just (k,x)
+      Just y -> (,) k <$> applyFun3 f k x y
+
+prop_partitionWithKey :: Fun (Int, A) Bool -> IntMap A -> Property
+prop_partitionWithKey f m =
+  valid m1 .&&.
+  valid m2 .&&.
+  (toList m1, toList m2) === List.partition (applyFun f) (toList m)
+  where
+    (m1, m2) = partitionWithKey (applyFun2 f) m
+
+prop_updateMin :: Fun A (Maybe A) -> IntMap A -> Property
+prop_updateMin f m =
+  valid m' .&&.
+  toList m' === case toList m of
+    [] -> []
+    (k,x):xs -> Foldable.toList ((,) k <$> applyFun f x) ++ xs
+  where
+    m' = updateMin (applyFun f) m
+
+prop_updateMax :: Fun A (Maybe A) -> IntMap A -> Property
+prop_updateMax f m =
+  valid m' .&&.
+  toDescList m' === case toDescList m of
+    [] -> []
+    (k,x):xs -> Foldable.toList ((,) k <$> applyFun f x) ++ xs
+  where
+    m' = updateMax (applyFun f) m
+
+prop_updateMinWithKey :: Fun (Int, A) (Maybe A) -> IntMap A -> Property
+prop_updateMinWithKey f m =
+  valid m' .&&.
+  toList m' === case toList m of
+    [] -> []
+    (k,x):xs -> Foldable.toList ((,) k <$> applyFun2 f k x) ++ xs
+  where
+    m' = updateMinWithKey (applyFun2 f) m
+
+prop_updateMaxWithKey :: Fun (Int, A) (Maybe A) -> IntMap A -> Property
+prop_updateMaxWithKey f m =
+  valid m' .&&.
+  toDescList m' === case toDescList m of
+    [] -> []
+    (k,x):xs -> Foldable.toList ((,) k <$> applyFun2 f k x) ++ xs
+  where
+    m' = updateMaxWithKey (applyFun2 f) m
+
+prop_minViewWithKey :: IntMap A -> Property
+prop_minViewWithKey m = case minViewWithKey m of
+  Nothing -> property $ null m
+  Just ((k,x),m') -> valid m .&&. toList m === (k,x) : toList m'
+
+prop_maxViewWithKey :: IntMap A -> Property
+prop_maxViewWithKey m = case maxViewWithKey m of
+  Nothing -> property $ null m
+  Just ((k,x),m') -> valid m .&&. toDescList m === (k,x) : toDescList m'
+
+prop_minView :: IntMap A -> Property
+prop_minView m = case minView m of
+  Nothing -> property $ null m
+  Just (x,m') | ~(_,x'):xs' <- toList m ->
+    valid m' .&&. x == x' .&&. toList m' === xs'
+
+prop_maxView :: IntMap A -> Property
+prop_maxView m = case maxView m of
+  Nothing -> property $ null m
+  Just (x,m') | ~(_,x'):xs' <- toDescList m ->
+    valid m' .&&. x == x' .&&. toDescList m' === xs'
+
+prop_mapEither :: Fun A (Either B C) -> IntMap A -> Property
+prop_mapEither f m =
+  valid m1 .&&.
+  valid m2 .&&.
+  (toList m1, toList m2) === Either.partitionEithers (List.map f' (toList m))
+  where
+    (m1, m2) = mapEither (applyFun f) m
+    f' (k,x) = case applyFun f x of
+      Left y -> Left (k,y)
+      Right z -> Right (k,z)
+
+prop_mapEitherWithKey :: Fun (Int, A) (Either B C) -> IntMap A -> Property
+prop_mapEitherWithKey f m =
+  valid m1 .&&.
+  valid m2 .&&.
+  (toList m1, toList m2) === Either.partitionEithers (List.map f' (toList m))
+  where
+    (m1, m2) = mapEitherWithKey (applyFun2 f) m
+    f' (k,x) = case applyFun2 f k x of
+      Left y -> Left (k,y)
+      Right z -> Right (k,z)
+
+prop_mapAccum :: Fun (A, B) (A, C) -> A -> IntMap B -> Property
+prop_mapAccum f z0 m =
+  valid m' .&&.
+  (z, toList m') === List.mapAccumL f' z0 (toList m)
+  where
+    (z, m') = mapAccum (applyFun2 f) z0 m
+    f' z' (k,x) = (,) k <$> applyFun2 f z' x
+
+prop_mapAccumWithKey :: Fun (A, Int, B) (A, C) -> A -> IntMap B -> Property
+prop_mapAccumWithKey f z0 m =
+  valid m' .&&.
+  (z, toList m') === List.mapAccumL f' z0 (toList m)
+  where
+    (z, m') = mapAccumWithKey (applyFun3 f) z0 m
+    f' z' (k,x) = (,) k <$> applyFun3 f z' k x
+
+prop_mapAccumRWithKey :: Fun (A, Int, B) (A, C) -> A -> IntMap B -> Property
+prop_mapAccumRWithKey f z0 m =
+  valid m' .&&.
+  (z, toList m') === List.mapAccumR f' z0 (toList m)
+  where
+    (z, m') = mapAccumRWithKey (applyFun3 f) z0 m
+    f' z' (k,x) = (,) k <$> applyFun3 f z' k x
+
+prop_mapKeysWith :: Fun (A, A) A -> Fun Int Int -> IntMap A -> Property
+prop_mapKeysWith f g m =
+  valid m' .&&.
+  toList m' ===
+    toList (fromListWith (applyFun2 f) [(applyFun g k, x) | (k,x) <- toList m])
+  where
+    m' = mapKeysWith (applyFun2 f) (applyFun g) m
+
+prop_mapKeysMonotonic :: Positive Int -> Int -> IntMap A -> Property
+prop_mapKeysMonotonic (Positive a) b m =
+  all ok (keys m) ==>
+    valid m' .&&.
+    toList m' == [(f k, x) | (k,x) <- toList m]
+  where
+    m' = mapKeysMonotonic f m
+    f x = x * a + b
+    ok x =  -- must not overflow
+      fromIntegral (minBound :: Int) <= y && y <= fromIntegral (maxBound :: Int)
+      where
+        y = fromIntegral a * fromIntegral x + fromIntegral b :: Integer
+---
