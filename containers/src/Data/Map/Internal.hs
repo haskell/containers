@@ -3702,23 +3702,8 @@ foldlFB = foldlWithKey
 -- > valid (fromAscList [(5,"a"), (3,"b"), (5,"b")]) == False
 
 fromAscList :: Eq k => [(k,a)] -> Map k a
-fromAscList xs
-  = fromDistinctAscList (combineEq xs)
-  where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
-
-  combineEq' z [] = [z]
-  combineEq' z@(kz,_) (x@(kx,xx):xs')
-    | kx==kz    = combineEq' (kx,xx) xs'
-    | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromAscList #-}
-#endif
+fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
+{-# INLINE fromAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time.
 -- /The precondition (input list is descending) is not checked./
@@ -3731,22 +3716,8 @@ fromAscList xs
 -- @since 0.5.8
 
 fromDescList :: Eq k => [(k,a)] -> Map k a
-fromDescList xs = fromDistinctDescList (combineEq xs)
-  where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
-
-  combineEq' z [] = [z]
-  combineEq' z@(kz,_) (x@(kx,xx):xs')
-    | kx==kz    = combineEq' (kx,xx) xs'
-    | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromDescList #-}
-#endif
+fromDescList xs = fromDescListWithKey (\_ x _ -> x) xs
+{-# INLINE fromDescList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from an ascending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is ascending) is not checked./
@@ -3758,9 +3729,7 @@ fromDescList xs = fromDistinctDescList (combineEq xs)
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
   = fromAscListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromAscListWith #-}
-#endif
+{-# INLINE fromAscListWith #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time with a combining function for equal keys.
 -- /The precondition (input list is descending) is not checked./
@@ -3776,9 +3745,7 @@ fromAscListWith f xs
 fromDescListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromDescListWith f xs
   = fromDescListWithKey (\_ x y -> f x y) xs
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromDescListWith #-}
-#endif
+{-# INLINE fromDescListWith #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
@@ -3792,23 +3759,15 @@ fromDescListWith f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
-fromAscListWithKey f xs
-  = fromDistinctAscList (combineEq f xs)
+fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next Nada xs)
   where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq _ xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
-
-  combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
-    | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
-    | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromAscListWithKey #-}
-#endif
+    next stk (!ky, y) = case stk of
+      Push kx x l stk'
+        | ky == kx -> Push ky (f ky y x) l stk'
+        | Tip <- l -> ascLinkTop stk' 1 (singleton kx x) ky y
+        | otherwise -> Push ky y Tip stk
+      Nada -> Push ky y Tip stk
+{-# INLINE fromAscListWithKey #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time with a
 -- combining function for equal keys.
@@ -3822,23 +3781,15 @@ fromAscListWithKey f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromDescListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
-fromDescListWithKey f xs
-  = fromDistinctDescList (combineEq f xs)
+fromDescListWithKey f xs = descLinkAll (Foldable.foldl' next Nada xs)
   where
-  -- [combineEq f xs] combines equal elements with function [f] in an ordered list [xs]
-  combineEq _ xs'
-    = case xs' of
-        []     -> []
-        [x]    -> [x]
-        (x:xx) -> combineEq' x xx
-
-  combineEq' z [] = [z]
-  combineEq' z@(kz,zz) (x@(kx,xx):xs')
-    | kx==kz    = let yy = f kx xx zz in combineEq' (kx,yy) xs'
-    | otherwise = z:combineEq' x xs'
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromDescListWithKey #-}
-#endif
+    next stk (!ky, y) = case stk of
+      Push kx x r stk'
+        | ky == kx -> Push ky (f ky y x) r stk'
+        | Tip <- r -> descLinkTop ky y 1 (singleton kx x) stk'
+        | otherwise -> Push ky y Tip stk
+      Nada -> Push ky y Tip stk
+{-# INLINE fromDescListWithKey #-}  -- INLINE for fusion
 
 
 -- | \(O(n)\). Build a map from an ascending list of distinct elements in linear time.
@@ -3850,7 +3801,7 @@ fromDescListWithKey f xs
 
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctAscList :: [(k,a)] -> Map k a
-fromDistinctAscList = ascLinkAll . Foldable.foldl' next Nada
+fromDistinctAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
   where
     next :: Stack k a -> (k, a) -> Stack k a
     next (Push kx x Tip stk) (!ky, y) = ascLinkTop stk 1 (singleton kx x) ky y
@@ -3879,7 +3830,7 @@ ascLinkAll stk = foldl'Stack (\r kx x l -> link kx x l r) Tip stk
 
 -- See Note [fromDistinctAscList implementation] in Data.Set.Internal.
 fromDistinctDescList :: [(k,a)] -> Map k a
-fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
+fromDistinctDescList xs = descLinkAll (Foldable.foldl' next Nada xs)
   where
     next :: Stack k a -> (k, a) -> Stack k a
     next (Push ky y Tip stk) (!kx, x) = descLinkTop kx x 1 (singleton ky y) stk
