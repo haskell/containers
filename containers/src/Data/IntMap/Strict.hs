@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Trustworthy #-}
 #endif
 
@@ -88,11 +88,7 @@
 
 module Data.IntMap.Strict (
     -- * Map type
-#if !defined(TESTING)
     IntMap, Key          -- instance Eq,Show
-#else
-    IntMap(..), Key          -- instance Eq,Show
-#endif
 
     -- * Construction
     , empty

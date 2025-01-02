@@ -1,10 +1,8 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
-{-# LANGUAGE Trustworthy #-}
-#endif
 #ifdef __GLASGOW_HASKELL__
+{-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE RoleAnnotations #-}
 {-# LANGUAGE StandaloneDeriving #-}

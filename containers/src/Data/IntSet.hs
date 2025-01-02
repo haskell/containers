@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -66,11 +66,7 @@
 
 module Data.IntSet (
             -- * Set type
-#if !defined(TESTING)
               IntSet          -- instance Eq,Show
-#else
-              IntSet(..)      -- instance Eq,Show
-#endif
             , Key
 
             -- * Construction

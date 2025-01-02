@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -72,11 +72,7 @@
 
 module Data.Set (
             -- * Set type
-#if !defined(TESTING)
               Set          -- instance Eq,Ord,Show,Read,Data
-#else
-              Set(..)
-#endif
 
             -- * Construction
             , empty
@@ -179,14 +175,6 @@ module Data.Set (
             , showTree
             , showTreeWith
             , valid
-
-#if defined(TESTING)
-            -- Internals (for testing)
-            , bin
-            , balanced
-            , link
-            , merge
-#endif
             ) where
 
 import Data.Set.Internal as S
