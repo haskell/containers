@@ -37,7 +37,7 @@ foldBenchmarks foldr foldl foldr' foldl' foldMap xs =
   , bench "foldr_traverseSum" $ whnf foldr_traverseSum xs
 
     -- foldl
-  , bench "foldl_skip" $ whnf foldl_elem xs
+  , bench "foldl_elem" $ whnf foldl_elem xs
   , bench "foldl_cpsSum" $ whnf foldl_cpsSum xs
   , bench "foldl_cpsOneShotSum" $ whnf foldl_cpsOneShotSum xs
   , bench "foldl_traverseSum" $ whnf foldl_traverseSum xs

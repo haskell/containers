@@ -1703,10 +1703,6 @@ takeWhileAntitoneBits :: Int -> (Int -> Bool) -> Word -> Word
 
 #if defined(__GLASGOW_HASKELL__)
 
-lowestBitMask :: Word -> Word
-lowestBitMask x = x .&. negate x
-{-# INLINE lowestBitMask #-}
-
 lowestBitSet x = countTrailingZeros x
 
 highestBitSet x = WORD_SIZE_IN_BITS - 1 - countLeadingZeros x
@@ -1728,45 +1724,57 @@ revWord x1 = case ((x1 `shiftRL` 1) .&. 0x5555555555555555) .|. ((x1 .&. 0x55555
                        x6 -> ( x6 `shiftRL` 32             ) .|. ( x6               `shiftLL` 32);
 #endif
 
-foldlBits prefix f z bitmap = go bitmap z
-  where go 0 acc = acc
-        go bm acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
-          where
-            !bitmask = lowestBitMask bm
-            !bi = countTrailingZeros bitmask
-
-foldl'Bits prefix f z bitmap = go bitmap z
-  where go 0 acc = acc
-        go bm !acc = go (bm `xor` bitmask) ((f acc) $! (prefix+bi))
-          where !bitmask = lowestBitMask bm
-                !bi = countTrailingZeros bitmask
-
-foldrBits prefix f z bitmap = go (revWord bitmap) z
-  where go 0 acc = acc
-        go bm acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
-          where !bitmask = lowestBitMask bm
-                !bi = countTrailingZeros bitmask
-
-
-foldr'Bits prefix f z bitmap = go (revWord bitmap) z
-  where go 0 acc = acc
-        go bm !acc = go (bm `xor` bitmask) ((f $! (prefix+(WORD_SIZE_IN_BITS-1)-bi)) acc)
-          where !bitmask = lowestBitMask bm
-                !bi = countTrailingZeros bitmask
-
-foldMapBits prefix f bitmap = go (prefix + bi0) (bitmap `xor` bitmask0)
+foldlBits prefix f z0 bitmap = go z0 $! revWord bitmap
   where
-    bitmask0 = lowestBitMask bitmap
-    bi0 = countTrailingZeros bitmask0
-    go !x 0 = f x
+    -- Note: We pass the z as a static argument because it helps GHC with demand
+    -- analysis. See GHC #25578 for details.
+    go z !bm = f (if bm' == 0 then z else go z bm') x
+      where
+        bi = WORD_SIZE_IN_BITS - 1 - countTrailingZeros bm
+        !x = prefix .|. bi
+        bm' = bm .&. (bm-1)
+
+foldl'Bits prefix f z0 bitmap = go z0 bitmap
+  where
+    go !z !bm = if bm' == 0 then z' else go z' bm'
+      where
+        bi = countTrailingZeros bm
+        !x = prefix .|. bi
+        !z' = f z x
+        bm' = bm .&. (bm-1)
+
+foldrBits prefix f z0 bitmap = go bitmap z0
+  where
+    -- Note: We pass the z as a static argument because it helps GHC with demand
+    -- analysis. See GHC #25578 for details.
+    go !bm z = f x (if bm' == 0 then z else go bm' z)
+      where
+        bi = countTrailingZeros bm
+        !x = prefix .|. bi
+        bm' = bm .&. (bm-1)
+
+foldr'Bits prefix f z0 bitmap = (go $! revWord bitmap) z0
+  where
+    go !bm !z = if bm' == 0 then z' else go bm' z'
+      where
+        bi = WORD_SIZE_IN_BITS - 1 - countTrailingZeros bm
+        !x = prefix .|. bi
+        !z' = f x z
+        bm' = bm .&. (bm-1)
+
+foldMapBits prefix f bitmap = go bitmap
+  where
+    go !bm = if bm' == 0
+             then f x
 #if MIN_VERSION_base(4,11,0)
-    go !x bm = f x <> go (prefix + bi) (bm `xor` bitmask)
+             else f x <> go bm'
 #else
-    go !x bm = f x `mappend` go (prefix + bi) (bm `xor` bitmask)
+             else f x `mappend` go bm'
 #endif
       where
-        bitmask = lowestBitMask bm
-        bi = countTrailingZeros bitmask
+        bi = countTrailingZeros bm
+        !x = prefix .|. bi
+        bm' = bm .&. (bm-1)
 
 takeWhileAntitoneBits prefix predicate bitmap =
   -- Binary search for the first index where the predicate returns false, but skip a predicate
