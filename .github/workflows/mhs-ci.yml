@@ -15,18 +15,23 @@ jobs:
       with:
         path: cont
     - name: checkout mhs repo
-      uses: actions/checkout@v4
-      with:
-        repository: augustss/MicroHs
-        ref: stable-1
-        path: mhs
-    - name: make mhs
+      # workaround for `act`: https://github.com/nektos/act/issues/678#issuecomment-1693751996
+      run: git clone https://github.com/augustss/MicroHs.git --branch stable-5 mhs
+#      uses: actions/checkout@v4
+#      with:
+#        repository: augustss/MicroHs
+#        ref: stable-4
+#        path: mhs
+    - name: make and install mhs
       run: |
         cd mhs
-        make
-# It's pretty ugly with the list of modules here, but I don't know a nice way of getting it from the cabal file.
-# I'll make it nicer with mcabal later.
-    - name: compile containers package
+        make minstall
+    - name: compile and install containers package
       run: |
-        cd mhs
-        MHSCPPHS=./bin/cpphs ./bin/mhs -Pcontainers-test -ocontainers-test.pkg -i../cont/containers/src -XCPP -I../cont/containers/include Data.Containers.ListUtils Data.IntMap Data.IntMap.Lazy Data.IntMap.Strict Data.IntMap.Strict.Internal Data.IntMap.Internal Data.IntMap.Internal.Debug Data.IntMap.Merge.Lazy Data.IntMap.Merge.Strict Data.IntSet.Internal Data.IntSet.Internal.IntTreeCommons Data.IntSet Data.Map Data.Map.Lazy Data.Map.Merge.Lazy Data.Map.Strict.Internal Data.Map.Strict Data.Map.Merge.Strict Data.Map.Internal Data.Map.Internal.Debug Data.Set.Internal Data.Set Data.Graph Data.Sequence Data.Sequence.Internal Data.Sequence.Internal.Sorting Data.Tree Utils.Containers.Internal.BitUtil Utils.Containers.Internal.BitQueue Utils.Containers.Internal.StrictPair
+        PATH="$HOME/.mcabal/bin:$PATH"
+        cd cont/containers
+        mcabal install
+    - name: cleanup
+      run: |
+        rm -rf $HOME/.mcabal
+

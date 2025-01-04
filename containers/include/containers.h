@@ -12,7 +12,7 @@
 #include "MachDeps.h"
 #endif
 
-#ifdef __GLASGOW_HASKELL__
+#if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 #define DEFINE_PATTERN_SYNONYMS 1
 #endif
 
