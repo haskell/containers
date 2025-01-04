@@ -212,6 +212,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
+  , Order(..)
   )
 
 #if __GLASGOW_HASKELL__
@@ -1486,8 +1487,112 @@ equal _   _   = False
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
-    -- tentative implementation. See if more efficient exists.
+  compare = compareIntSets
+
+compareIntSets :: IntSet -> IntSet -> Ordering
+compareIntSets = go0
+  where
+    go0 t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+      ABL | signBranch p1 -> LT
+          | otherwise -> case go l1 t2 of
+              Less -> LT
+              _ -> GT
+      ABR | signBranch p1 -> case go r1 t2 of
+              Less -> LT
+              _ -> GT
+          | otherwise -> LT
+      BAL | signBranch p2 -> GT
+          | otherwise -> case go t1 l2 of
+              Greater -> GT
+              _ -> LT
+      BAR | signBranch p2 -> case go t1 r2 of
+              Greater -> GT
+              _ -> LT
+          | otherwise -> GT
+      EQL ->
+        let !(l1', r1', l2', r2') = if signBranch p1
+                                    then (r1, l1, r2, l2)
+                                    else (l1, r1, l2, r2)
+        in case go l1' l2' of
+             Less -> LT
+             Prefix' -> GT
+             Equals -> case go r1' r2' of
+               Less -> LT
+               Prefix' -> LT
+               Equals -> EQ
+               FlipPrefix -> GT
+               Greater -> GT
+             FlipPrefix -> LT
+             Greater -> GT
+      NOM -> compare (unPrefix p1) (unPrefix p2)
+    go0 (Bin p1 l1 r1) (Tip k2 bm2) =
+      case leftmostTipSure (if signBranch p1 then r1 else l1) of
+        k1 :*: bm1 -> case orderTips k1 bm1 k2 bm2 of
+          Less -> LT
+          _ -> GT
+    go0 (Tip k1 bm1) (Bin p2 l2 r2) =
+      case leftmostTipSure (if signBranch p2 then r2 else l2) of
+        k2 :*: bm2 -> case orderTips k1 bm1 k2 bm2 of
+          Greater -> GT
+          _ -> LT
+    go0 (Tip k1 bm1) (Tip k2 bm2) = case orderTips k1 bm1 k2 bm2 of
+      Less -> LT
+      Prefix' -> LT
+      Equals -> EQ
+      FlipPrefix -> GT
+      Greater -> GT
+    go0 Nil Nil = EQ
+    go0 Nil _ = LT
+    go0 _ Nil = GT
+
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+      ABL -> case go l1 t2 of
+        Prefix' -> Greater
+        Equals -> FlipPrefix
+        o -> o
+      ABR -> Less
+      BAL -> case go t1 l2 of
+        Equals -> Prefix'
+        FlipPrefix -> Less
+        o -> o
+      BAR -> Greater
+      EQL -> case go l1 l2 of
+        Prefix' -> Greater
+        Equals -> go r1 r2
+        FlipPrefix -> Less
+        o -> o
+      NOM -> if unPrefix p1 < unPrefix p2 then Less else Greater
+    go (Bin _ l1 _) (Tip k2 bm2) = case leftmostTipSure l1 of
+      k1 :*: bm1 -> case orderTips k1 bm1 k2 bm2 of
+        Prefix' -> Greater
+        Equals -> FlipPrefix
+        o -> o
+    go (Tip k1 bm1) (Bin _ l2 _) = case leftmostTipSure l2 of
+      k2 :*: bm2 -> case orderTips k1 bm1 k2 bm2 of
+        Equals -> Prefix'
+        FlipPrefix -> Less
+        o -> o
+    go (Tip k1 bm1) (Tip k2 bm2) = orderTips k1 bm1 k2 bm2
+    go _ _ = error "compareIntSets.go: Nil"
+
+leftmostTipSure :: IntSet -> StrictPair Int BitMap
+leftmostTipSure (Bin _ l _) = leftmostTipSure l
+leftmostTipSure (Tip k bm) = k :*: bm
+leftmostTipSure Nil = error "leftmostTipSure: Nil"
+
+orderTips :: Int -> BitMap -> Int -> BitMap -> Order
+orderTips k1 bm1 k2 bm2 = case compare k1 k2 of
+  LT -> Less
+  EQ | bm1 == bm2 -> Equals
+     | otherwise ->
+         let diff = bm1 `xor` bm2
+             lowestDiff = diff .&. negate diff
+             highMask = negate lowestDiff
+         in if bm1 .&. lowestDiff == 0
+            then (if bm1 .&. highMask == 0 then Prefix' else Greater)
+            else (if bm2 .&. highMask == 0 then FlipPrefix else Less)
+  GT -> Greater
+{-# INLINE orderTips #-}
 
 {--------------------------------------------------------------------
   Show
