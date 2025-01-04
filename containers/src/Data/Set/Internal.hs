@@ -1198,41 +1198,37 @@ fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
 -- | \(O(n)\). Build a set from an ascending list in linear time.
 -- /The precondition (input list is ascending) is not checked./
 fromAscList :: Eq a => [a] -> Set a
-fromAscList xs = fromDistinctAscList (combineEq xs)
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromAscList #-}
-#endif
+fromAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
+  where
+    next stk !y = case stk of
+      Push x l stk'
+        | y == x -> Push y l stk'
+        | Tip <- l -> ascLinkTop stk' 1 (singleton x) y
+        | otherwise -> Push y Tip stk
+      Nada -> Push y Tip stk
+{-# INLINE fromAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from a descending list in linear time.
 -- /The precondition (input list is descending) is not checked./
 --
 -- @since 0.5.8
 fromDescList :: Eq a => [a] -> Set a
-fromDescList xs = fromDistinctDescList (combineEq xs)
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromDescList #-}
-#endif
-
--- [combineEq xs] combines equal elements with [const] in an ordered list [xs]
---
--- TODO: combineEq allocates an intermediate list. It *should* be better to
--- make fromAscListBy and fromDescListBy the fundamental operations, and to
--- implement the rest using those.
-combineEq :: Eq a => [a] -> [a]
-combineEq [] = []
-combineEq (x : xs) = combineEq' x xs
+fromDescList xs = descLinkAll (Foldable.foldl' next Nada xs)
   where
-    combineEq' z [] = [z]
-    combineEq' z (y:ys)
-      | z == y = combineEq' z ys
-      | otherwise = z : combineEq' y ys
+    next stk !y = case stk of
+      Push x r stk'
+        | y == x -> Push y r stk'
+        | Tip <- r -> descLinkTop y 1 (singleton x) stk'
+        | otherwise -> Push y Tip stk
+      Nada -> Push y Tip stk
+{-# INLINE fromDescList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
 -- /The precondition (input list is strictly ascending) is not checked./
 
 -- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
-fromDistinctAscList = ascLinkAll . Foldable.foldl' next Nada
+fromDistinctAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
   where
     next :: Stack a -> a -> Stack a
     next (Push x Tip stk) !y = ascLinkTop stk 1 (singleton x) y
@@ -1257,7 +1253,7 @@ ascLinkAll stk = foldl'Stack (\r x l -> link x l r) Tip stk
 
 -- See Note [fromDistinctAscList implementation]
 fromDistinctDescList :: [a] -> Set a
-fromDistinctDescList = descLinkAll . Foldable.foldl' next Nada
+fromDistinctDescList xs = descLinkAll (Foldable.foldl' next Nada xs)
   where
     next :: Stack a -> a -> Stack a
     next (Push y Tip stk) !x = descLinkTop x 1 (singleton y) stk

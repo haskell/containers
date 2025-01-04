@@ -60,6 +60,9 @@
 
 * Improved performance for `Data.Intset`'s `foldr`, `foldl'`, `foldl`, `foldr'`.
 
+* Improved performance for `Data.Set` and `Data.Map`'s `fromAscList*` and
+  `fromDescList*` functions.
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
