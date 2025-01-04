@@ -58,6 +58,8 @@ main = do
         , bench "splitMember:dense" $ whnf (IS.splitMember elem_mid) s
         , bench "splitMember:sparse" $ whnf (IS.splitMember elem_sparse_mid) s_sparse
         , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
+        , bench "compare:dense" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
+        , bench "compare:sparse" $ whnf (\s' -> compare s' s') s_sparse -- worst case, compares everything
         , bgroup "folds:dense" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s
         , bgroup "folds:sparse" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s_sparse
         ]
