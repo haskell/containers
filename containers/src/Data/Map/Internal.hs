@@ -387,7 +387,7 @@ import Data.Semigroup (Arg(..), Semigroup(stimes))
 import Data.Semigroup (Semigroup((<>)))
 #endif
 import Control.Applicative (Const (..))
-import Control.DeepSeq (NFData(rnf))
+import Control.DeepSeq (NFData(rnf),NFData1(liftRnf),NFData2(liftRnf2))
 import Data.Bits (shiftL, shiftR)
 import qualified Data.Foldable as Foldable
 import Data.Bifoldable
@@ -4439,6 +4439,20 @@ instance Bifoldable Map where
 instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
     rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
+
+-- | @since 0.7.1
+instance NFData k => NFData1 (Map k) where
+  liftRnf rnfx = go
+    where
+    go Tip              = ()
+    go (Bin _ kx x l r) = rnf kx `seq` rnfx x `seq` go l `seq` go r
+
+-- | @since 0.7.1
+instance NFData2 Map where
+  liftRnf2 rnfkx rnfx = go
+    where
+    go Tip              = ()
+    go (Bin _ kx x l r) = rnfkx kx `seq` rnfx x `seq` go l `seq` go r
 
 {--------------------------------------------------------------------
   Read

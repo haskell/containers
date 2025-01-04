@@ -121,7 +121,7 @@ import Data.Foldable as F
 #if MIN_VERSION_base(4,18,0)
 import qualified Data.Foldable1 as F1
 #endif
-import Control.DeepSeq (NFData(rnf))
+import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.Maybe
 import Data.Array
 #if USE_UNBOXED_ARRAYS
@@ -244,6 +244,11 @@ instance Traversable SCC where
 instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
     rnf (NECyclicSCC vs) = rnf vs
+
+-- | @since 0.7.1
+instance NFData1 SCC where
+    liftRnf rnfx (AcyclicSCC v)   = rnfx v
+    liftRnf rnfx (NECyclicSCC vs) = liftRnf rnfx vs
 
 -- | @since 0.5.4
 instance Functor SCC where

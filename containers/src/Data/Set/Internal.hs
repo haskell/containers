@@ -243,7 +243,7 @@ import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
-import Control.DeepSeq (NFData(rnf))
+import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
 
 import Utils.Containers.Internal.StrictPair
@@ -1403,6 +1403,13 @@ instance (Read a, Ord a) => Read (Set a) where
 instance NFData a => NFData (Set a) where
     rnf Tip           = ()
     rnf (Bin _ y l r) = rnf y `seq` rnf l `seq` rnf r
+
+-- | @since 0.7.1
+instance NFData1 Set where
+    liftRnf rnfx = go
+      where
+      go Tip           = ()
+      go (Bin _ y l r) = rnfx y `seq` go l `seq` go r
 
 {--------------------------------------------------------------------
   Split

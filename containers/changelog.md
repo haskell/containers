@@ -69,6 +69,9 @@
 
 * Add `Data.Graph.flattenSCC1`. (Andreas Abel)
 
+* `NFData1`, `NFData2` instances for `SCC`, `IntMap`, `Map`, `Sequence`, `Set`,
+  `Tree` and relevant internal dependencies (David Beacham)
+
 ## 0.7
 
 ### Breaking changes
