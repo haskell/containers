@@ -88,7 +88,24 @@ main = do
         , bench "intersection" $ whnf (M.intersection m) m_even
         , bench "split" $ whnf (M.split (bound `div` 2)) m
         , bench "fromList" $ whnf M.fromList elems
-        , bench "fromList-desc" $ whnf M.fromList elems_desc
+        , bench "fromList-distinctAsc" $ whnf M.fromList elems_distinct_asc
+        , bench "fromList-distinctAsc:fusion" $
+            whnf (\n -> M.fromList [(i,i) | i <- [1..n]]) bound
+        , bench "fromList-distinctDesc" $ whnf M.fromList elems_distinct_desc
+        , bench "fromList-distinctDesc:fusion" $
+            whnf (\n -> M.fromList [(i,i) | i <- [n,n-1..1]]) bound
+        , bench "fromListWith-asc" $ whnf (M.fromListWith (+)) elems_asc
+        , bench "fromListWith-asc:fusion" $
+            whnf (\n -> M.fromListWith (+) [(i `div` 2, i) | i <- [1..n]]) bound
+        , bench "fromListWith-desc" $ whnf (M.fromListWith (+)) elems_desc
+        , bench "fromListWith-desc:fusion" $
+            whnf (\n -> M.fromListWith (+) [(i `div` 2, i) | i <- [n,n-1..1]]) bound
+        , bench "fromListWithKey-asc" $ whnf (M.fromListWithKey sumkv) elems_asc
+        , bench "fromListWithKey-asc:fusion" $
+            whnf (\n -> M.fromListWithKey sumkv [(i `div` 2, i) | i <- [1..n]]) bound
+        , bench "fromListWithKey-desc" $ whnf (M.fromListWithKey sumkv) elems_desc
+        , bench "fromListWithKey-desc:fusion" $
+            whnf (\n -> M.fromListWithKey sumkv [(i `div` 2, i) | i <- [n,n-1..1]]) bound
         , bench "fromAscList" $ whnf M.fromAscList elems_asc
         , bench "fromAscList:fusion" $
             whnf (\n -> M.fromAscList [(i `div` 2, i) | i <- [1..n]]) bound
@@ -113,6 +130,10 @@ main = do
         , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
         , bgroup "folds with key" $
             foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m
+        , bench "mapKeys:asc" $ whnf (M.mapKeys (+1)) m
+        , bench "mapKeys:desc" $ whnf (M.mapKeys (negate . (+1))) m
+        , bench "mapKeysWith:asc" $ whnf (M.mapKeysWith (+) (`div` 2)) m
+        , bench "mapKeysWith:desc" $ whnf (M.mapKeysWith (+) (negate . (`div` 2))) m
         ]
   where
     bound = 2^12

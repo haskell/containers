@@ -22,7 +22,8 @@ main = do
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
-        , bench "map" $ whnf (S.map (+ 1)) s
+        , bench "map:asc" $ whnf (S.map (+ 1)) s
+        , bench "map:desc" $ whnf (S.map (negate . (+ 1))) s
         , bench "filter" $ whnf (S.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (S.partition ((== 0) . (`mod` 2))) s
         , bench "delete" $ whnf (del elems) s
@@ -35,7 +36,10 @@ main = do
         , bench "difference" $ whnf (S.difference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
         , bench "fromList" $ whnf S.fromList elems
-        , bench "fromList-desc" $ whnf S.fromList elems_desc
+        , bench "fromList-distinctAsc" $ whnf S.fromList elems_distinct_asc
+        , bench "fromList-distinctAsc:fusion" $ whnf (\n -> S.fromList [1..n]) bound
+        , bench "fromList-distinctDesc" $ whnf S.fromList elems_distinct_desc
+        , bench "fromList-distinctDesc:fusion" $ whnf (\n -> S.fromList [n,n-1..1]) bound
         , bench "fromAscList" $ whnf S.fromAscList elems_asc
         , bench "fromAscList:fusion" $
             whnf (\n -> S.fromAscList [i `div` 2 | i <- [1..n]]) bound

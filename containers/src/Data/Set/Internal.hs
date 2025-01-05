@@ -238,7 +238,6 @@ import Utils.Containers.Internal.Prelude hiding
 import Prelude ()
 import Control.Applicative (Const(..))
 import qualified Data.List as List
-import Data.Bits (shiftL, shiftR)
 import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity)
@@ -1000,11 +999,13 @@ partition p0 t0 = toPair $ go p0 t0
 -- | \(O(n \log n)\).
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
 --
+-- If `f` is monotonically non-decreasing, this function takes \(O(n)\) time.
+--
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
 map :: Ord b => (a->b) -> Set a -> Set b
-map f = fromList . List.map f . toList
+map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE map #-}
 #endif
@@ -1146,48 +1147,11 @@ foldlFB = foldl
 
 -- | \(O(n \log n)\). Create a set from a list of elements.
 --
--- If the elements are ordered, a linear-time implementation is used.
-
--- For some reason, when 'singleton' is used in fromList or in
--- create, it is not inlined, so we inline it manually.
+-- If the elements are in non-decreasing order, this function takes \(O(n)\)
+-- time.
 fromList :: Ord a => [a] -> Set a
-fromList [] = Tip
-fromList [x] = Bin 1 x Tip Tip
-fromList (x0 : xs0) | not_ordered x0 xs0 = fromList' (Bin 1 x0 Tip Tip) xs0
-                    | otherwise = go (1::Int) (Bin 1 x0 Tip Tip) xs0
-  where
-    not_ordered _ [] = False
-    not_ordered x (y : _) = x >= y
-    {-# INLINE not_ordered #-}
-
-    fromList' t0 xs = Foldable.foldl' ins t0 xs
-      where ins t x = insert x t
-
-    go !_ t [] = t
-    go _ t [x] = insertMax x t
-    go s l xs@(x : xss) | not_ordered x xss = fromList' l xs
-                        | otherwise = case create s xss of
-                            (r, ys, []) -> go (s `shiftL` 1) (link x l r) ys
-                            (r, _,  ys) -> fromList' (link x l r) ys
-
-    -- The create is returning a triple (tree, xs, ys). Both xs and ys
-    -- represent not yet processed elements and only one of them can be nonempty.
-    -- If ys is nonempty, the keys in ys are not ordered with respect to tree
-    -- and must be inserted using fromList'. Otherwise the keys have been
-    -- ordered so far.
-    create !_ [] = (Tip, [], [])
-    create s xs@(x : xss)
-      | s == 1 = if not_ordered x xss then (Bin 1 x Tip Tip, [], xss)
-                                      else (Bin 1 x Tip Tip, xss, [])
-      | otherwise = case create (s `shiftR` 1) xs of
-                      res@(_, [], _) -> res
-                      (l, [y], zs) -> (insertMax y l, [], zs)
-                      (l, ys@(y:yss), _) | not_ordered y yss -> (l, [], ys)
-                                         | otherwise -> case create (s `shiftR` 1) yss of
-                                                   (r, zs, ws) -> (link y l r, zs, ws)
-#if __GLASGOW_HASKELL__
-{-# INLINABLE fromList #-}
-#endif
+fromList xs = finishB (Foldable.foldl' (flip insertB) emptyB xs)
+{-# INLINE fromList #-}  -- INLINE for fusion
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1665,6 +1629,55 @@ spanAntitone p0 m = toPair (go p0 m)
       | p x = let u :*: v = go p r in link x l u :*: v
       | otherwise = let u :*: v = go p l in u :*: link x v r
 
+{--------------------------------------------------------------------
+  SetBuilder
+--------------------------------------------------------------------}
+
+-- Note [SetBuilder]
+-- ~~~~~~~~~~~~~~~~~
+-- SetBuilder serves as an accumulator for element-by-element construction of
+-- a Set. It can be used in folds to construct sets. This plays nicely with list
+-- fusion if the structure folded over is a list, as in fromList and friends.
+--
+-- As long as the elements are in non-decreasing order, insertB accumulates them
+-- in a Stack, just as fromDistinctAscList does. On encountering an element out
+-- of order, it builds a Set from the Stack and switches to using insert for all
+-- future elements. This gives us construction in O(n) if the elements are
+-- already sorted. If not, the worst case remains O(n log n).
+--
+-- More complicated implementations are possible, such as repeatedly
+-- accumulating runs of increasing elements in Stacks (not just once) and
+-- union-ing with an accumulated Set, but this makes the worst case somewhat
+-- slower (~10%).
+
+data SetBuilder a
+  = BAsc !(Stack a)
+  | BSet !(Set a)
+
+-- Empty builder.
+emptyB :: SetBuilder a
+emptyB = BAsc Nada
+
+-- Insert an element. Replaces the old element if an equal element already
+-- exists.
+insertB :: Ord a => a -> SetBuilder a -> SetBuilder a
+insertB !y b = case b of
+  BAsc stk -> case stk of
+    Push x l stk' -> case compare y x of
+      LT -> BSet (insert y (ascLinkAll stk))
+      EQ -> BAsc (Push y l stk')
+      GT -> case l of
+        Tip -> BAsc (ascLinkTop stk' 1 (singleton x) y)
+        Bin{} -> BAsc (Push y Tip stk)
+    Nada -> BAsc (Push y Tip Nada)
+  BSet m -> BSet (insert y m)
+{-# INLINE insertB #-}
+
+-- Finalize the builder into a Set.
+finishB :: SetBuilder a -> Set a
+finishB (BAsc stk) = ascLinkAll stk
+finishB (BSet s) = s
+{-# INLINABLE finishB #-}
 
 {--------------------------------------------------------------------
   Utility functions that maintain the balance properties of the tree.
