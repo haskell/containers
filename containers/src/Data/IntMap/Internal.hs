@@ -986,7 +986,7 @@ updateWithKey f k t@(Tip ky y)
 updateWithKey _ _ Nil = Nil
 
 -- | \(O(\min(n,W))\). Look up and update.
--- The function returns original value, if it is updated.
+-- This function returns the original value, if it is updated.
 -- This is different behavior than 'Data.Map.updateLookupWithKey'.
 -- Returns the original key value if the map entry is deleted.
 --
