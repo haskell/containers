@@ -63,6 +63,9 @@
 * Improved performance for `Data.Set` and `Data.Map`'s `fromAscList*` and
   `fromDescList*` functions.
 
+* Improved performance for `Data.Set`'s `fromList`, `map` and `Data.Map`'s
+  `fromList`, `fromListWith`, `fromListWithKey`, `mapKeys`, `mapKeysWith`.
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
