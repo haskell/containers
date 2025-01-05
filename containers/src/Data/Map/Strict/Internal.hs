@@ -1439,6 +1439,8 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 -- | \(O(n \log n)\).
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
 --
+-- If `f` is monotonically non-decreasing, this function takes \(O(n)\) time.
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
 -- combined using @c@. The value at the greater of the two original keys
@@ -1486,7 +1488,7 @@ fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromA
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
--- If the keys of the list are ordered, a linear-time implementation is used.
+-- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
@@ -1498,6 +1500,8 @@ fromList xs =
 {-# INLINE fromList #-} -- INLINE for fusion
 
 -- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+--
+-- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"x"), (5,"c")] == fromList [(3, "x"), (5, "cba")]
 -- > fromListWith (++) [] == empty
@@ -1539,6 +1543,8 @@ fromListWith f xs =
 {-# INLINE fromListWith #-}  -- INLINE for fusion
 
 -- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
+--
+-- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
 -- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
