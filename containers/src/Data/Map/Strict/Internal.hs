@@ -739,7 +739,7 @@ updateWithKey = go
 {-# INLINE updateWithKey #-}
 #endif
 
--- | \(O(\log n)\). Lookup and update. See also 'updateWithKey'.
+-- | \(O(\log n)\). Look up and update. See also 'updateWithKey'.
 -- The function returns changed value, if it is updated.
 -- Returns the original key value if the map entry is deleted.
 --

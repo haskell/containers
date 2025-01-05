@@ -1477,7 +1477,7 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | \(O(\log n)\). Lookup the /index/ of an element, which is its zero-based index in
+-- | \(O(\log n)\). Look up the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
 -- including, the 'size' of the set.
 --

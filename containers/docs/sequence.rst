@@ -48,7 +48,7 @@ The following GHCi session shows some of the basic sequence functionality::
     > 3
 
 
-    -- Lookup an element at a certain index (since version 0.4.8).
+    -- Look up an element at a certain index (since version 0.4.8).
     Seq.lookup 2 nums
     > Just 3
 

@@ -534,7 +534,7 @@ updateWithKey f !k t =
       | otherwise     -> t
     Nil -> Nil
 
--- | \(O(\min(n,W))\). Lookup and update.
+-- | \(O(\min(n,W))\). Look up and update.
 -- The function returns original value, if it is updated.
 -- This is different behavior than 'Data.Map.updateLookupWithKey'.
 -- Returns the original key value if the map entry is deleted.
