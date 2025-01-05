@@ -1008,15 +1008,17 @@ map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
 {-# INLINABLE map #-}
 #endif
 
--- | \(O(n)\). The
---
+-- | \(O(n)\).
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
--- /The precondition is not checked./
 -- Semi-formally, we have:
 --
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
+--
+-- __Warning__: This function should be used only if @f@ is monotonically
+-- strictly increasing. This precondition is not checked. Use 'map' if the
+-- precondition may not hold.
 
 mapMonotonic :: (a->b) -> Set a -> Set b
 mapMonotonic _ Tip = Tip
@@ -1158,7 +1160,10 @@ fromList xs = finishB (Foldable.foldl' (flip insertB) emptyB xs)
     fromAscList xs == fromList xs
 --------------------------------------------------------------------}
 -- | \(O(n)\). Build a set from an ascending list in linear time.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- non-decreasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
 fromAscList :: Eq a => [a] -> Set a
 fromAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
   where
@@ -1171,7 +1176,10 @@ fromAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
 {-# INLINE fromAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from a descending list in linear time.
--- /The precondition (input list is descending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- non-increasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
 --
 -- @since 0.5.8
 fromDescList :: Eq a => [a] -> Set a
@@ -1186,7 +1194,10 @@ fromDescList xs = descLinkAll (Foldable.foldl' next Nada xs)
 {-# INLINE fromDescList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements in linear time.
--- /The precondition (input list is strictly ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- strictly increasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 
 -- See Note [fromDistinctAscList implementation]
 fromDistinctAscList :: [a] -> Set a
@@ -1209,7 +1220,10 @@ ascLinkAll stk = foldl'Stack (\r x l -> link x l r) Tip stk
 {-# INLINABLE ascLinkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
--- /The precondition (input list is strictly descending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- strictly decreasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 --
 -- @since 0.5.8
 

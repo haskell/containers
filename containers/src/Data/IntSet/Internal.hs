@@ -1150,12 +1150,15 @@ map f = fromList . List.map f . toList
 -- | \(O(n)\). The
 --
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
--- /The precondition is not checked./
 -- Semi-formally, we have:
 --
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls]
 -- >                     ==> mapMonotonic f s == map f s
 -- >     where ls = toList s
+--
+-- __Warning__: This function should be used only if @f@ is monotonically
+-- strictly increasing. This precondition is not checked. Use 'map' if the
+-- precondition may not hold.
 --
 -- @since 0.6.3.1
 
@@ -1387,13 +1390,19 @@ fromRange (lx,rx)
     {-# INLINE shr1 #-}
 
 -- | \(O(n)\). Build a set from an ascending list of elements.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- non-decreasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
 fromAscList :: [Key] -> IntSet
 fromAscList = fromMonoList
 {-# NOINLINE fromAscList #-}
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements.
--- /The precondition (input list is strictly ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the elements are in
+-- strictly increasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 fromDistinctAscList :: [Key] -> IntSet
 fromDistinctAscList = fromAscList
 {-# INLINE fromDistinctAscList #-}
