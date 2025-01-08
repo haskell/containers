@@ -3496,56 +3496,19 @@ instance Ord1 IntMap where
   liftCompare = liftCmp
 
 liftCmp :: (a -> b -> Ordering) -> IntMap a -> IntMap b -> Ordering
-liftCmp cmp = go0
+liftCmp cmp m1 m2 = case (splitSign m1, splitSign m2) of
+  ((l1, r1), (l2, r2)) -> case go l1 l2 of
+    Less -> LT
+    Prefix' -> if null r1 then LT else GT
+    Equals -> case go r1 r2 of
+      Less -> LT
+      Prefix' -> LT
+      Equals -> EQ
+      FlipPrefix -> GT
+      Greater -> GT
+    FlipPrefix -> if null r2 then GT else LT
+    Greater -> GT
   where
-    go0 t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
-      ABL | signBranch p1 -> LT
-          | otherwise -> case go l1 t2 of
-              Less -> LT
-              _ -> GT
-      ABR | signBranch p1 -> case go r1 t2 of
-              Less -> LT
-              _ -> GT
-          | otherwise -> LT
-      BAL | signBranch p2 -> GT
-          | otherwise -> case go t1 l2 of
-              Greater -> GT
-              _ -> LT
-      BAR | signBranch p2 -> case go t1 r2 of
-              Greater -> GT
-              _ -> LT
-          | otherwise -> GT
-      EQL ->
-        let !(l1', r1', l2', r2') = if signBranch p1
-                                    then (r1, l1, r2, l2)
-                                    else (l1, r1, l2, r2)
-        in case go l1' l2' of
-             Less -> LT
-             Prefix' -> GT
-             Equals -> case go r1' r2' of
-               Less -> LT
-               Prefix' -> LT
-               Equals -> EQ
-               FlipPrefix -> GT
-               Greater -> GT
-             FlipPrefix -> LT
-             Greater -> GT
-      NOM -> compare (unPrefix p1) (unPrefix p2)
-    go0 (Bin p1 l1 r1) (Tip k2 x2) =
-      case lookupMinSure (if signBranch p1 then r1 else l1) of
-        KeyValue k1 x1 -> case compare k1 k2 <> cmp x1 x2 of
-          EQ -> GT
-          o -> o
-    go0 (Tip k1 x1) (Bin p2 l2 r2) =
-      case lookupMinSure (if signBranch p2 then r2 else l2) of
-        KeyValue k2 x2 -> case compare k1 k2 <> cmp x1 x2 of
-          EQ -> LT
-          o -> o
-    go0 (Tip k1 x1) (Tip k2 x2) = compare k1 k2 <> cmp x1 x2
-    go0 Nil Nil = EQ
-    go0 Nil _ = LT
-    go0 _ Nil = GT
-
     go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
       ABL -> case go l1 t2 of
         Prefix' -> Greater
@@ -3577,8 +3540,22 @@ liftCmp cmp = go0
       LT -> Less
       EQ -> Equals
       GT -> Greater
-    go _ _ = error "liftCmp.go: Nil"
+    go Nil Nil = Equals
+    go Nil _ = Prefix'
+    go _ Nil = FlipPrefix
 {-# INLINE liftCmp #-}
+
+-- Split into negative and non-negative
+splitSign :: IntMap a -> (IntMap a, IntMap a)
+splitSign t@(Bin p l r)
+  | signBranch p = (r, l)
+  | unPrefix p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign t@(Tip k _)
+  | k < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
+{-# INLINE splitSign #-}
 
 {--------------------------------------------------------------------
   Functor
