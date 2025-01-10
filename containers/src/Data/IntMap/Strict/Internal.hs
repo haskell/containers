@@ -86,11 +86,7 @@
 
 module Data.IntMap.Strict.Internal (
     -- * Map type
-#if !defined(TESTING)
     IntMap, Key          -- instance Eq,Show
-#else
-    IntMap(..), Key          -- instance Eq,Show
-#endif
 
     -- * Construction
     , empty

@@ -7,8 +7,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
-#endif
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
 {-# LANGUAGE Trustworthy #-}
 #endif
 

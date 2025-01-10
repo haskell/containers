@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Safe #-}
 #endif
 
@@ -70,11 +70,7 @@
 
 module Data.IntMap.Lazy (
     -- * Map type
-#if !defined(TESTING)
     IntMap, Key          -- instance Eq,Show
-#else
-    IntMap(..), Key          -- instance Eq,Show
-#endif
 
     -- * Construction
     , empty

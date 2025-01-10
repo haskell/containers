@@ -4,6 +4,7 @@ import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
 import Data.Maybe
 import Data.Set
+import Data.Set.Internal (link, merge)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
 import Test.Tasty
 import Test.Tasty.HUnit

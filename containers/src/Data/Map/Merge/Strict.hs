@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-#if defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Safe #-}
 #endif
 

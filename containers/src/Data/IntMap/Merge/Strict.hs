@@ -1,6 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-#if !defined(TESTING) && defined(__GLASGOW_HASKELL__)
+#ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Trustworthy #-}
 #endif
 
