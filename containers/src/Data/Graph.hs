@@ -1,18 +1,19 @@
 {-# LANGUAGE CPP #-}
+#include "containers.h"
 {-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
+#endif
+#ifdef DEFINE_PATTERN_SYNONYMS
+{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
 #endif
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
@@ -81,7 +82,7 @@ module Data.Graph (
 
     -- * Strongly Connected Components
     , SCC(..
-#ifdef __GLASGOW_HASKELL__
+#ifdef DEFINE_PATTERN_SYNONYMS
       , CyclicSCC
 #endif
       )
@@ -167,7 +168,7 @@ data SCC vertex
            , Read -- ^ @since 0.5.9
            )
 
-#ifdef __GLASGOW_HASKELL__
+#ifdef DEFINE_PATTERN_SYNONYMS
 -- | Partial pattern synonym for backward compatibility with @containers < 0.7@.
 pattern CyclicSCC :: [vertex] -> SCC vertex
 pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
@@ -175,7 +176,9 @@ pattern CyclicSCC xs <- NECyclicSCC (NE.toList -> xs) where
   CyclicSCC (x : xs) = NECyclicSCC (x :| xs)
 
 {-# COMPLETE AcyclicSCC, CyclicSCC #-}
+#endif
 
+#ifdef __GLASGOW_HASKELL__
 -- | @since 0.5.9
 deriving instance Data vertex => Data (SCC vertex)
 
