@@ -66,6 +66,10 @@
 * Improved performance for `Data.Set`'s `fromList`, `map` and `Data.Map`'s
   `fromList`, `fromListWith`, `fromListWithKey`, `mapKeys`, `mapKeysWith`.
 
+* Improved performance for many `Set` and `Map` modification operations,
+  including `insert` and `delete`, by inlining part of the balancing
+  routine. (Soumik Sarkar)
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
