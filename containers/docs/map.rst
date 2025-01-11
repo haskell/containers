@@ -250,8 +250,8 @@ value) pairs in the map ``m`` in *descending* key order.
 Querying
 ^^^^^^^^
 
-Lookup an entry in the map (lookup)
-"""""""""""""""""""""""""""""""""""
+Look up an entry in the map (lookup)
+""""""""""""""""""""""""""""""""""""
 
 ::
 

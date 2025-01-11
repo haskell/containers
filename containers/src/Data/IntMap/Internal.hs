@@ -592,7 +592,7 @@ member !k = go
 notMember :: Key -> IntMap a -> Bool
 notMember k m = not $ member k m
 
--- | \(O(\min(n,W))\). Lookup the value at a key in the map. See also 'Data.Map.lookup'.
+-- | \(O(\min(n,W))\). Look up the value at a key in the map. See also 'Data.Map.lookup'.
 
 -- See Note: Local 'go' functions and capturing
 lookup :: Key -> IntMap a -> Maybe a
@@ -983,8 +983,8 @@ updateWithKey f k t@(Tip ky y)
   | otherwise     = t
 updateWithKey _ _ Nil = Nil
 
--- | \(O(\min(n,W))\). Lookup and update.
--- The function returns original value, if it is updated.
+-- | \(O(\min(n,W))\). Look up and update.
+-- This function returns the original value, if it is updated.
 -- This is different behavior than 'Data.Map.updateLookupWithKey'.
 -- Returns the original key value if the map entry is deleted.
 --

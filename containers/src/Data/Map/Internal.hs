@@ -548,7 +548,7 @@ size (Bin sz _ _ _ _) = sz
 {-# INLINE size #-}
 
 
--- | \(O(\log n)\). Lookup the value at a key in the map.
+-- | \(O(\log n)\). Look up the value at a key in the map.
 --
 -- The function will return the corresponding value as @('Just' value)@,
 -- or 'Nothing' if the key isn't in the map.
@@ -1118,8 +1118,8 @@ updateWithKey = go
 {-# INLINE updateWithKey #-}
 #endif
 
--- | \(O(\log n)\). Lookup and update. See also 'updateWithKey'.
--- The function returns changed value, if it is updated.
+-- | \(O(\log n)\). Look up and update. See also 'updateWithKey'.
+-- This function returns the changed value, if it is updated.
 -- Returns the original key value if the map entry is deleted.
 --
 -- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
@@ -1473,7 +1473,7 @@ findIndex = go 0
 {-# INLINABLE findIndex #-}
 #endif
 
--- | \(O(\log n)\). Lookup the /index/ of a key, which is its zero-based index in
+-- | \(O(\log n)\). Look up the /index/ of a key, which is its zero-based index in
 -- the sequence sorted by keys. The index is a number from /0/ up to, but not
 -- including, the 'size' of the map.
 --

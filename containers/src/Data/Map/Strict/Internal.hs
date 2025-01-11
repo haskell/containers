@@ -741,8 +741,8 @@ updateWithKey = go
 {-# INLINE updateWithKey #-}
 #endif
 
--- | \(O(\log n)\). Lookup and update. See also 'updateWithKey'.
--- The function returns changed value, if it is updated.
+-- | \(O(\log n)\). Look up and update. See also 'updateWithKey'.
+-- This function returns the changed value, if it is updated.
 -- Returns the original key value if the map entry is deleted.
 --
 -- > let f k x = if x == "a" then Just ((show k) ++ ":new a") else Nothing
