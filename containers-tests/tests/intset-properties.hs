@@ -82,7 +82,6 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "takeWhileAntitone" prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone" prop_dropWhileAntitone
                    , testProperty "spanAntitone" prop_spanAntitone
-                   , testProperty "prop_bitcount" prop_bitcount
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
                    , testProperty "intersections" prop_intersections
@@ -472,14 +471,6 @@ prop_spanAntitone x ys =
       valid r .&&.
       l === fromList (List.filter (<x) ys) .&&.
       r === fromList (List.filter (>=x) ys)
-
-prop_bitcount :: Int -> Word -> Bool
-prop_bitcount a w = bitcount_orig a w == bitcount_new a w
-  where
-    bitcount_orig a0 x0 = go a0 x0
-      where go a 0 = a
-            go a x = go (a + 1) (x .&. (x-1))
-    bitcount_new a x = a + popCount x
 
 prop_alterF_list
     :: Fun Bool [Bool]
