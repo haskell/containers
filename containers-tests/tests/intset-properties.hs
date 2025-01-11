@@ -87,6 +87,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_alterF_const" prop_alterF_const
                    , testProperty "intersections" prop_intersections
                    , testProperty "intersections_lazy" prop_intersections_lazy
+                   , testProperty "insert" prop_insert
+                   , testProperty "delete" prop_delete
                    , testProperty "deleteMin" prop_deleteMin
                    , testProperty "deleteMax" prop_deleteMax
                    ]
@@ -510,9 +512,21 @@ prop_intersections_lazy ss = intersections ss' === empty
                            --- ^ result will certainly be empty at this point,
                            --    so the rest of the list should not be demanded.
 
+prop_insert :: Int -> IntSet -> Property
+prop_insert x s =
+  valid s' .&&.
+  toList s' === (if x `List.elem` xs then xs else List.insert x xs)
+  where
+    s' = insert x s
+    xs = toList s
+
+prop_delete :: Int -> IntSet -> Property
+prop_delete x s = valid s' .&&. toList s' === toList s List.\\ [x]
+  where
+    s' = delete x s
+
 prop_deleteMin :: IntSet -> Property
 prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList s)
 
 prop_deleteMax :: IntSet -> Property
 prop_deleteMax s = toList (deleteMax s) === if null s then [] else init (toList s)
-

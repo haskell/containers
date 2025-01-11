@@ -156,7 +156,6 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "valid" test_valid
          , testProperty "valid"                prop_valid
          , testProperty "insert to singleton"  prop_singleton
-         , testProperty "insert"               prop_insert
          , testProperty "insert then lookup"   prop_insertLookup
          , testProperty "insert then delete"   prop_insertDelete
          , testProperty "insert then delete2"  prop_insertDelete2
@@ -267,6 +266,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "lookupMax"            prop_lookupMax
          , testProperty "eq"                   prop_eq
          , testProperty "compare"              prop_compare
+         , testProperty "insert"               prop_insert
+         , testProperty "delete"               prop_delete
          , testProperty "insertWith"           prop_insertWith
          , testProperty "insertWithKey"        prop_insertWithKey
          , testProperty "insertLookupWithKey"  prop_insertLookupWithKey
@@ -1066,9 +1067,6 @@ prop_valid t = valid t
 prop_singleton :: Int -> Int -> Bool
 prop_singleton k x = insert k x empty == singleton k x
 
-prop_insert :: Int -> UMap -> Bool
-prop_insert k t = valid $ insert k () t
-
 prop_insertLookup :: Int -> UMap -> Bool
 prop_insertLookup k t = lookup k (insert k () t) /= Nothing
 
@@ -1721,6 +1719,21 @@ prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)
 
 prop_compare :: Map Int OrdA -> Map Int OrdA -> Property
 prop_compare m1 m2 = compare m1 m2 === compare (toList m1) (toList m2)
+
+prop_insert :: Int -> A -> Map Int A -> Property
+prop_insert k x m = valid m' .&&. toList m' === kxs'
+  where
+    m' = insert k x m
+    kxs = toList m
+    kxs' = List.insertBy (comparing fst) (k,x) $
+           maybe kxs (\y -> kxs List.\\ [(k,y)]) (List.lookup k kxs)
+
+prop_delete :: Int -> Map Int A -> Property
+prop_delete k m = valid m' .&&. toList m' === kxs'
+  where
+    m' = delete k m
+    kxs = toList m
+    kxs' = maybe kxs (\v -> kxs List.\\ [(k,v)]) (List.lookup k kxs)
 
 prop_insertWith :: Fun (A, A) A -> Int -> A -> Map Int A -> Property
 prop_insertWith f k x m = valid m' .&&. toList m' === kxs'

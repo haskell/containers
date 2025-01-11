@@ -219,6 +219,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "traverseMaybeWithKey->traverseWithKey" prop_traverseMaybeWithKey_degrade_to_traverseWithKey
              , testProperty "isProperSubmapOfBy"   prop_isProperSubmapOfBy
              , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
+             , testProperty "insert"               prop_insert
+             , testProperty "delete"               prop_delete
              , testProperty "insertWith"           prop_insertWith
              , testProperty "insertWithKey"        prop_insertWithKey
              , testProperty "insertLookupWithKey"  prop_insertLookupWithKey
@@ -1736,6 +1738,21 @@ prop_isSubmapOfBy f m1 m2 =
            (\(k1,x1) (k2,x2) -> k1 == k2 && applyFun2 f x1 x2)
            (assocs m1) (assocs m2)
 
+prop_insert :: Int -> A -> IntMap A -> Property
+prop_insert k x m = valid m' .&&. toList m' === kxs'
+  where
+    m' = insert k x m
+    kxs = toList m
+    kxs' = List.insertBy (comparing fst) (k,x) $
+           maybe kxs (\y -> kxs List.\\ [(k,y)]) (List.lookup k kxs)
+
+prop_delete :: Int -> IntMap A -> Property
+prop_delete k m = valid m' .&&. toList m' === kxs'
+  where
+    m' = delete k m
+    kxs = toList m
+    kxs' = maybe kxs (\v -> kxs List.\\ [(k,v)]) (List.lookup k kxs)
+
 prop_insertWith :: Fun (A, A) A -> Int -> A -> IntMap A -> Property
 prop_insertWith f k x m = valid m' .&&. toList m' === kxs'
   where
@@ -1963,4 +1980,3 @@ prop_mapKeysMonotonic (Positive a) b m =
       fromIntegral (minBound :: Int) <= y && y <= fromIntegral (maxBound :: Int)
       where
         y = fromIntegral a * fromIntegral x + fromIntegral b :: Integer
----
