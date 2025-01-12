@@ -234,6 +234,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "fmap"                 prop_fmap
          , testProperty "mapKeys"              prop_mapKeys
          , testProperty "mapKeysWith"          prop_mapKeysWith
+         , testProperty "mapKeysMonotonic"     prop_mapKeysMonotonic
          , testProperty "split"                prop_splitModel
          , testProperty "fold"                 prop_fold
          , testProperty "foldMap"              prop_foldMap
@@ -305,8 +306,6 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mapAccum"             prop_mapAccum
          , testProperty "mapAccumWithKey"      prop_mapAccumWithKey
          , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
-         , testProperty "mapKeysWith"          prop_mapKeysWith
-         , testProperty "mapKeysMonotonic"     prop_mapKeysMonotonic
          ]
 
 {--------------------------------------------------------------------
@@ -1583,13 +1582,25 @@ prop_fmap f ys = length ys > 0 ==>
 
 prop_mapKeys :: Fun Int Int -> Map Int A -> Property
 prop_mapKeys f m =
-  mapKeys (applyFun f) m ===
-  fromList (fmap (\(kx,x) -> (applyFun f kx, x)) (toList m))
+  valid m' .&&.
+  m' === fromList [(applyFun f k, x) | (k,x) <- toList m]
+  where
+    m' = mapKeys (applyFun f) m
 
 prop_mapKeysWith :: Fun (A, A) A -> Fun Int Int -> Map Int A -> Property
 prop_mapKeysWith f g m =
-  mapKeysWith (applyFun2 f) (applyFun g) m ===
-  fromListWith (applyFun2 f) (fmap (\(kx,x) -> (applyFun g kx, x)) (toList m))
+  valid m' .&&.
+  m' === fromListWith (applyFun2 f) [(applyFun g k, x) | (k,x) <- toList m]
+  where
+    m' = mapKeysWith (applyFun2 f) (applyFun g) m
+
+prop_mapKeysMonotonic :: Positive Integer -> Integer -> Map Int A -> Property
+prop_mapKeysMonotonic (Positive p) q m =
+  valid m' .&&.
+  toList m' == [(f k, x) | (k,x) <- toList m]
+  where
+    m' = mapKeysMonotonic f m
+    f x = fromIntegral x * p + q
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>
@@ -2036,19 +2047,3 @@ prop_mapAccumRWithKey f z0 m =
   where
     (z, m') = mapAccumRWithKey (applyFun3 f) z0 m
     f' z' (k,x) = (,) k <$> applyFun3 f z' k x
-
-prop_mapKeysWith :: Fun (A, A) A -> Fun Int Int -> Map Int A -> Property
-prop_mapKeysWith f g m =
-  valid m' .&&.
-  toList m' ===
-    toList (fromListWith (applyFun2 f) [(applyFun g k, x) | (k,x) <- toList m])
-  where
-    m' = mapKeysWith (applyFun2 f) (applyFun g) m
-
-prop_mapKeysMonotonic :: Positive Integer -> Integer -> Map Int A -> Property
-prop_mapKeysMonotonic (Positive p) q m =
-  valid m' .&&.
-  toList m' == [(f k, x) | (k,x) <- toList m]
-  where
-    m' = mapKeysMonotonic f m
-    f x = fromIntegral x * p + q
