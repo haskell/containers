@@ -87,8 +87,6 @@ module Data.Sequence.Internal (
 #else
     Seq (..),
 #endif
-    State(..),
-    execState,
     foldDigit,
     foldNode,
     foldWithIndexDigit,
