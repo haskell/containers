@@ -4058,8 +4058,8 @@ glue :: Map k a -> Map k a -> Map k a
 glue Tip r = r
 glue l Tip = l
 glue l@(Bin sl kl xl ll lr) r@(Bin sr kr xr rl rr)
-  | sl > sr = let !(MaxView km m l') = maxViewSure kl xl ll lr in balanceR km m l' r
-  | otherwise = let !(MinView km m r') = minViewSure kr xr rl rr in balanceL km m l r'
+  | sl > sr = let !(MaxView km m l') = maxViewSure kl xl ll lr in Bin (sl+sr) km m l' r
+  | otherwise = let !(MinView km m r') = minViewSure kr xr rl rr in Bin (sl+sr) km m l r'
 
 data MinView k a = MinView !k a !(Map k a)
 data MaxView k a = MaxView !k a !(Map k a)

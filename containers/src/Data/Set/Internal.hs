@@ -1744,8 +1744,8 @@ glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
 glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
-  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in balanceR m l' r
-  | otherwise = let !(m :*: r') = minViewSure xr rl rr in balanceL m l r'
+  | sl > sr = let !(m :*: l') = maxViewSure xl ll lr in Bin (sl+sr) m l' r
+  | otherwise = let !(m :*: r') = minViewSure xr rl rr in Bin (sl+sr) m l r'
 
 -- | \(O(\log n)\). Delete and find the minimal element.
 --
