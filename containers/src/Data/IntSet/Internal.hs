@@ -1521,12 +1521,12 @@ compareIntSets s1 s2 = case (splitSign s1, splitSign s2) of
         o -> o
       NOM -> if unPrefix p1 < unPrefix p2 then Less else Greater
     go (Bin _ l1 _) (Tip k2 bm2) = case leftmostTipSure l1 of
-      k1 :*: bm1 -> case orderTips k1 bm1 k2 bm2 of
+      Tip' k1 bm1 -> case orderTips k1 bm1 k2 bm2 of
         Prefix' -> Greater
         Equals -> FlipPrefix
         o -> o
     go (Tip k1 bm1) (Bin _ l2 _) = case leftmostTipSure l2 of
-      k2 :*: bm2 -> case orderTips k1 bm1 k2 bm2 of
+      Tip' k2 bm2 -> case orderTips k1 bm1 k2 bm2 of
         Equals -> Prefix'
         FlipPrefix -> Less
         o -> o
@@ -1535,9 +1535,15 @@ compareIntSets s1 s2 = case (splitSign s1, splitSign s2) of
     go Nil _ = Prefix'
     go _ Nil = FlipPrefix
 
-leftmostTipSure :: IntSet -> StrictPair Int BitMap
+-- This type allows GHC to return unboxed ints from leftmostTipSure, as
+-- $wleftmostTipSure :: IntSet -> (# Int#, Word# #)
+-- On a modern enough GHC (>=9.4) this is unnecessary, we could use StrictPair
+-- instead and get the same Core.
+data Tip' = Tip' {-# UNPACK #-} !Int {-# UNPACK #-} !BitMap
+
+leftmostTipSure :: IntSet -> Tip'
 leftmostTipSure (Bin _ l _) = leftmostTipSure l
-leftmostTipSure (Tip k bm) = k :*: bm
+leftmostTipSure (Tip k bm) = Tip' k bm
 leftmostTipSure Nil = error "leftmostTipSure: Nil"
 
 orderTips :: Int -> BitMap -> Int -> BitMap -> Order
