@@ -521,7 +521,6 @@ instance NFData1 Seq where
     liftRnf rnfx (Seq xs) = liftRnf (liftRnf rnfx) xs
 
 instance Monad Seq where
-    return = pure
     xs >>= f = foldl' add empty xs
       where add ys x = ys >< f x
     (>>) = (*>)

@@ -587,8 +587,6 @@ newtype SetM s a = SetM { runSetM :: STArray  s Vertex Bool -> ST s a }
 #endif
 
 instance Monad (SetM s) where
-    return = pure
-    {-# INLINE return #-}
     SetM v >>= f = SetM $ \s -> do { x <- v s; runSetM (f x) s }
     {-# INLINE (>>=) #-}
 
@@ -621,7 +619,6 @@ include v     = SetM $ \ m -> writeArray m v True
 newtype SetM s a = SetM { runSetM :: IntSet -> (a, IntSet) }
 
 instance Monad (SetM s) where
-    return x     = SetM $ \s -> (x, s)
     SetM v >>= f = SetM $ \s -> case v s of (x, s') -> runSetM (f x) s'
 
 instance Functor (SetM s) where
