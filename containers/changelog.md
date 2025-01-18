@@ -70,6 +70,8 @@
   including `insert` and `delete`, by inlining part of the balancing
   routine. (Soumik Sarkar)
 
+* Improved performance for `IntSet` and `IntMap`'s `Ord` instances.
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
