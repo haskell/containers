@@ -71,6 +71,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "(|>)" prop_snoc
        , testProperty "(><)" prop_append
        , testProperty "fromList" prop_fromList
+       , testProperty "fromList_long" prop_fromList_long
        , testProperty "fromFunction" prop_fromFunction
        , testProperty "fromArray" prop_fromArray
        , testProperty "replicate" prop_replicate
@@ -110,6 +111,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "index" prop_index
        , testProperty "(!?)" prop_safeIndex
        , testProperty "adjust" prop_adjust
+       , testProperty "adjust'" prop_adjust'
        , testProperty "insertAt" prop_insertAt
        , testProperty "deleteAt" prop_deleteAt
        , testProperty "update" prop_update
@@ -157,6 +159,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
        , testProperty "stimes" prop_stimes
+       , testProperty "traverse" prop_traverse
        , testGroup "strictness"
          [ testProperty "foldr" prop_strictness_foldr
          , testProperty "foldl" prop_strictness_foldl
@@ -378,6 +381,13 @@ prop_append xs ys =
 prop_fromList :: [A] -> Bool
 prop_fromList xs =
     toList' (fromList xs) ~= xs
+
+-- QuickCheck does not generate long lists by default (the current limit seems
+-- to be 99), so we set the generator to use the max list length we want.
+prop_fromList_long :: Property
+prop_fromList_long = forAllShrink (resize 10000 arbitrary) shrink $ \xs ->
+  let ys = fromList (xs :: [Bool])
+  in valid ys .&&. toList ys === xs
 
 prop_fromFunction :: [A] -> Bool
 prop_fromFunction xs =
@@ -630,6 +640,11 @@ prop_deleteAt xs =
 prop_adjust :: Int -> Int -> Seq Int -> Bool
 prop_adjust n i xs =
     toList' (adjust f i xs) ~= adjustList f i (toList xs)
+  where f = (+n)
+
+prop_adjust' :: Int -> Int -> Seq Int -> Bool
+prop_adjust' n i xs =
+    toList' (adjust' f i xs) ~= adjustList f i (toList xs)
   where f = (+n)
 
 prop_update :: Int -> A -> Seq A -> Bool
@@ -889,6 +904,14 @@ test_mfix = toList resS === resL
 
     resL :: [Int]
     resL = fmap ($ 12) $ mfix (\f -> [facty f, facty (+1), facty (+2)])
+
+prop_traverse :: Fun A B -> Seq A -> Property
+prop_traverse f xs =
+  valid xs' .&&.
+  toList xs' === fmap (applyFun f) (toList xs) .&&.
+  ys === toList xs
+  where
+    (ys, xs') = traverse (\x -> ([x], applyFun f x)) xs
 
 -- * Strictness tests
 
