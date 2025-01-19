@@ -82,11 +82,14 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "takeWhileAntitone" prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone" prop_dropWhileAntitone
                    , testProperty "spanAntitone" prop_spanAntitone
-                   , testProperty "prop_bitcount" prop_bitcount
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
                    , testProperty "intersections" prop_intersections
                    , testProperty "intersections_lazy" prop_intersections_lazy
+                   , testProperty "insert" prop_insert
+                   , testProperty "delete" prop_delete
+                   , testProperty "deleteMin" prop_deleteMin
+                   , testProperty "deleteMax" prop_deleteMax
                    ]
 
 ----------------------------------------------------------------
@@ -198,31 +201,17 @@ prop_NotMember xs n =
   let m  = fromList xs
   in all (\k -> k `notMember` m == (k `notElem` xs)) (n : xs)
 
-test_LookupSomething :: (Int -> IntSet -> Maybe Int) -> (Int -> Int -> Bool) -> [Int] -> Bool
-test_LookupSomething lookup' cmp xs =
-  let odd_sorted_xs = filter_odd $ nub $ sort xs
-      t = fromList odd_sorted_xs
-      test x = case List.filter (`cmp` x) odd_sorted_xs of
-                 []             -> lookup' x t == Nothing
-                 cs | 0 `cmp` 1 -> lookup' x t == Just (last cs) -- we want largest such element
-                    | otherwise -> lookup' x t == Just (head cs) -- we want smallest such element
-  in all test xs
+prop_LookupLT :: Int -> IntSet -> Property
+prop_LookupLT x xs = lookupLT x xs === List.find (<x) (toDescList xs)
 
-  where filter_odd [] = []
-        filter_odd [_] = []
-        filter_odd (_ : o : xs) = o : filter_odd xs
+prop_LookupGT :: Int -> IntSet -> Property
+prop_LookupGT x xs = lookupGT x xs === List.find (>x) (toList xs)
 
-prop_LookupLT :: [Int] -> Bool
-prop_LookupLT = test_LookupSomething lookupLT (<)
+prop_LookupLE :: Int -> IntSet -> Property
+prop_LookupLE x xs = lookupLE x xs === List.find (<=x) (toDescList xs)
 
-prop_LookupGT :: [Int] -> Bool
-prop_LookupGT = test_LookupSomething lookupGT (>)
-
-prop_LookupLE :: [Int] -> Bool
-prop_LookupLE = test_LookupSomething lookupLE (<=)
-
-prop_LookupGE :: [Int] -> Bool
-prop_LookupGE = test_LookupSomething lookupGE (>=)
+prop_LookupGE :: Int -> IntSet -> Property
+prop_LookupGE x xs = lookupGE x xs === List.find (>=x) (toList xs)
 
 prop_InsertDelete :: Int -> IntSet -> Property
 prop_InsertDelete k t
@@ -483,14 +472,6 @@ prop_spanAntitone x ys =
       l === fromList (List.filter (<x) ys) .&&.
       r === fromList (List.filter (>=x) ys)
 
-prop_bitcount :: Int -> Word -> Bool
-prop_bitcount a w = bitcount_orig a w == bitcount_new a w
-  where
-    bitcount_orig a0 x0 = go a0 x0
-      where go a 0 = a
-            go a x = go (a + 1) (x .&. (x-1))
-    bitcount_new a x = a + popCount x
-
 prop_alterF_list
     :: Fun Bool [Bool]
     -> Int
@@ -521,3 +502,22 @@ prop_intersections_lazy ss = intersections ss' === empty
     ss' = NE.fromList $ ss ++ [empty] ++ error "too strict"
                            --- ^ result will certainly be empty at this point,
                            --    so the rest of the list should not be demanded.
+
+prop_insert :: Int -> IntSet -> Property
+prop_insert x s =
+  valid s' .&&.
+  toList s' === (if x `List.elem` xs then xs else List.insert x xs)
+  where
+    s' = insert x s
+    xs = toList s
+
+prop_delete :: Int -> IntSet -> Property
+prop_delete x s = valid s' .&&. toList s' === toList s List.\\ [x]
+  where
+    s' = delete x s
+
+prop_deleteMin :: IntSet -> Property
+prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList s)
+
+prop_deleteMax :: IntSet -> Property
+prop_deleteMax s = toList (deleteMax s) === if null s then [] else init (toList s)
