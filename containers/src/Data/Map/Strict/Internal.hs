@@ -1199,7 +1199,7 @@ forceMaybe m@(Just !_) = m
 
 -- | \(O(n+m)\). An unsafe universal combining function.
 --
--- WARNING: This function can produce corrupt maps and its results
+-- __Warning__: This function can produce corrupt maps and its results
 -- may depend on the internal structures of its inputs. Users should
 -- prefer 'Data.Map.Merge.Strict.merge' or
 -- 'Data.Map.Merge.Strict.mergeA'.

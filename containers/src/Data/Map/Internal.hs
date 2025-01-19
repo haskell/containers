@@ -2784,7 +2784,7 @@ mergeA
 
 -- | \(O(n+m)\). An unsafe general combining function.
 --
--- WARNING: This function can produce corrupt maps and its results
+-- __Warning__: This function can produce corrupt maps and its results
 -- may depend on the internal structures of its inputs. Users should
 -- prefer 'merge' or 'mergeA'.
 --

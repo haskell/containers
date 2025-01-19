@@ -1358,7 +1358,7 @@ symDiffTip !t1 !k1 = go
 -- efficiency (with exception of 'union', 'difference' and 'intersection',
 -- where sharing of some nodes is lost with 'mergeWithKey').
 --
--- Please make sure you know what is going on when using 'mergeWithKey',
+-- __Warning__: Please make sure you know what is going on when using 'mergeWithKey',
 -- otherwise you can be surprised by unexpected code growth or even
 -- corruption of the data structure.
 --
