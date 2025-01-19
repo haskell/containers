@@ -16,9 +16,7 @@ instance Functor (State s) where
     fmap = liftA
 
 instance Monad (State s) where
-    {-# INLINE return #-}
     {-# INLINE (>>=) #-}
-    return = pure
     m >>= k = State $ \ s -> case runState m s of
         (s', x) -> runState (k x) s'
 

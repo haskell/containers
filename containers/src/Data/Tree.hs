@@ -171,7 +171,6 @@ instance Applicative Tree where
         Node y (tys ++ map (*> ty) txs)
 
 instance Monad Tree where
-    return = pure
     Node x ts >>= f = case f x of
         Node x' ts' -> Node x' (ts' ++ map (>>= f) ts)
 
