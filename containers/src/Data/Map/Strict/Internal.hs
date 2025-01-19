@@ -1199,7 +1199,7 @@ forceMaybe m@(Just !_) = m
 
 -- | \(O(n+m)\). An unsafe universal combining function.
 --
--- WARNING: This function can produce corrupt maps and its results
+-- __Warning__: This function can produce corrupt maps and its results
 -- may depend on the internal structures of its inputs. Users should
 -- prefer 'Data.Map.Merge.Strict.merge' or
 -- 'Data.Map.Merge.Strict.mergeA'.
@@ -1570,7 +1570,10 @@ fromListWithKey f xs =
 --------------------------------------------------------------------}
 
 -- | \(O(n)\). Build a map from an ascending list in linear time.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
 --
 -- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
@@ -1582,7 +1585,10 @@ fromAscList xs
 {-# INLINE fromAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time.
--- /The precondition (input list is descending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
 --
 -- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3, "b"), (5, "a")]
 -- > fromDescList [(5,"a"), (5,"b"), (3,"a")] == fromList [(3, "b"), (5, "b")]
@@ -1594,7 +1600,10 @@ fromDescList xs
 {-# INLINE fromDescList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from an ascending list in linear time with a combining function for equal keys.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListWith' if
+-- the precondition may not hold.
 --
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 -- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
@@ -1608,7 +1617,10 @@ fromAscListWith f xs
 {-# INLINE fromAscListWith #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time with a combining function for equal keys.
--- /The precondition (input list is descending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromListWith' if
+-- the precondition may not hold.
 --
 -- > fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "ba")]
 -- > valid (fromDescListWith (++) [(5,"a"), (5,"b"), (3,"b")]) == True
@@ -1623,7 +1635,10 @@ fromDescListWith f xs
 
 -- | \(O(n)\). Build a map from an ascending list in linear time with a
 -- combining function for equal keys.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListWithKey'
+-- if the precondition may not hold.
 --
 -- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
 -- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
@@ -1646,7 +1661,10 @@ fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next Nada xs)
 
 -- | \(O(n)\). Build a map from a descending list in linear time with a
 -- combining function for equal keys.
--- /The precondition (input list is descending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromListWithKey'
+-- if the precondition may not hold.
 --
 -- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
 -- > fromDescListWithKey f [(5,"a"), (5,"b"), (5,"b"), (3,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
@@ -1668,7 +1686,10 @@ fromDescListWithKey f xs = descLinkAll (Foldable.foldl' next Nada xs)
 {-# INLINE fromDescListWithKey #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from an ascending list of distinct elements in linear time.
--- /The precondition is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- strictly increasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 -- > valid (fromDistinctAscList [(3,"b"), (5,"a")])          == True
@@ -1684,7 +1705,10 @@ fromDistinctAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
 {-# INLINE fromDistinctAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
--- /The precondition is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- strictly decreasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 --
 -- > fromDistinctDescList [(5,"a"), (3,"b")] == fromList [(3, "b"), (5, "a")]
 -- > valid (fromDistinctDescList [(5,"a"), (3,"b")])          == True

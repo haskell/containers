@@ -1358,7 +1358,7 @@ symDiffTip !t1 !k1 = go
 -- efficiency (with exception of 'union', 'difference' and 'intersection',
 -- where sharing of some nodes is lost with 'mergeWithKey').
 --
--- Please make sure you know what is going on when using 'mergeWithKey',
+-- __Warning__: Please make sure you know what is going on when using 'mergeWithKey',
 -- otherwise you can be surprised by unexpected code growth or even
 -- corruption of the data structure.
 --
@@ -2616,7 +2616,6 @@ mapKeysWith c f
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
 -- is strictly monotonic.
 -- That is, for any values @x@ and @y@, if @x@ < @y@ then @f x@ < @f y@.
--- /The precondition is not checked./
 -- Semi-formally, we have:
 --
 -- > and [x < y ==> f x < f y | x <- ls, y <- ls]
@@ -2625,6 +2624,10 @@ mapKeysWith c f
 --
 -- This means that @f@ maps distinct original keys to distinct resulting keys.
 -- This function has slightly better performance than 'mapKeys'.
+--
+-- __Warning__: This function should be used only if @f@ is monotonically
+-- strictly increasing. This precondition is not checked. Use 'mapKeys' if the
+-- precondition may not hold.
 --
 -- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
 
@@ -3336,6 +3339,10 @@ fromListWithKey f xs
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
 --
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
+--
 -- > fromAscList [(3,"b"), (5,"a")]          == fromList [(3, "b"), (5, "a")]
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
@@ -3345,7 +3352,10 @@ fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListWith' if
+-- the precondition may not hold.
 --
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 --
@@ -3357,7 +3367,10 @@ fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
--- /The precondition (input list is ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListWithKey'
+-- if the precondition may not hold.
 --
 -- > let f key new_value old_value = (show key) ++ ":" ++ new_value ++ "|" ++ old_value
 -- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "5:b|a")]
@@ -3370,7 +3383,10 @@ fromAscListWithKey f = fromMonoListWithKey Nondistinct f
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
--- /The precondition (input list is strictly ascending) is not checked./
+--
+-- __Warning__: This function should be used only if the keys are in
+-- strictly increasing order. This precondition is not checked. Use 'fromList'
+-- if the precondition may not hold.
 --
 -- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
 
