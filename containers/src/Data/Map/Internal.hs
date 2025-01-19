@@ -3713,7 +3713,6 @@ fromAscListWith f xs
 {-# INLINE fromAscListWith #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a descending list in linear time with a combining function for equal keys.
--- /The precondition (input list is descending) is not checked./
 --
 -- __Warning__: This function should be used only if the keys are in
 -- non-increasing order. This precondition is not checked. Use 'fromListWith' if
