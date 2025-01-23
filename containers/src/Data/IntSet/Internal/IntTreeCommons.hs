@@ -164,11 +164,11 @@ i2w = fromIntegral
 
 -- Used to compare IntSets and IntMaps
 data Order
-  = Less       -- holds for [0,3,4] [0,3,5,1]
-  | Prefix'    -- holds for [0,3,4] [0,3,4,5]
-  | Equals     -- holds for [0,3,4] [0,3,4]
-  | FlipPrefix -- holds for [0,3,4] [0,3]
-  | Greater    -- holds for [0,3,4] [0,2,5]
+  = A_LT_B     -- holds for [0,3,4] [0,3,5,1]
+  | A_Prefix_B -- holds for [0,3,4] [0,3,4,5]
+  | A_EQ_B     -- holds for [0,3,4] [0,3,4]
+  | B_Prefix_A -- holds for [0,3,4] [0,3]
+  | A_GT_B     -- holds for [0,3,4] [0,2,5]
 
 {--------------------------------------------------------------------
   Notes

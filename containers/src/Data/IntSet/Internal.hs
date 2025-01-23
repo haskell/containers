@@ -1492,48 +1492,48 @@ instance Ord IntSet where
 compareIntSets :: IntSet -> IntSet -> Ordering
 compareIntSets s1 s2 = case (splitSign s1, splitSign s2) of
   ((l1, r1), (l2, r2)) -> case go l1 l2 of
-    Less -> LT
-    Prefix' -> if null r1 then LT else GT
-    Equals -> case go r1 r2 of
-      Less -> LT
-      Prefix' -> LT
-      Equals -> EQ
-      FlipPrefix -> GT
-      Greater -> GT
-    FlipPrefix -> if null r2 then GT else LT
-    Greater -> GT
+    A_LT_B -> LT
+    A_Prefix_B -> if null r1 then LT else GT
+    A_EQ_B -> case go r1 r2 of
+      A_LT_B -> LT
+      A_Prefix_B -> LT
+      A_EQ_B -> EQ
+      B_Prefix_A -> GT
+      A_GT_B -> GT
+    B_Prefix_A -> if null r2 then GT else LT
+    A_GT_B -> GT
   where
     go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
       ABL -> case go l1 t2 of
-        Prefix' -> Greater
-        Equals -> FlipPrefix
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> B_Prefix_A
         o -> o
-      ABR -> Less
+      ABR -> A_LT_B
       BAL -> case go t1 l2 of
-        Equals -> Prefix'
-        FlipPrefix -> Less
+        A_EQ_B -> A_Prefix_B
+        B_Prefix_A -> A_LT_B
         o -> o
-      BAR -> Greater
+      BAR -> A_GT_B
       EQL -> case go l1 l2 of
-        Prefix' -> Greater
-        Equals -> go r1 r2
-        FlipPrefix -> Less
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> go r1 r2
+        B_Prefix_A -> A_LT_B
         o -> o
-      NOM -> if unPrefix p1 < unPrefix p2 then Less else Greater
+      NOM -> if unPrefix p1 < unPrefix p2 then A_LT_B else A_GT_B
     go (Bin _ l1 _) (Tip k2 bm2) = case leftmostTipSure l1 of
       Tip' k1 bm1 -> case orderTips k1 bm1 k2 bm2 of
-        Prefix' -> Greater
-        Equals -> FlipPrefix
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> B_Prefix_A
         o -> o
     go (Tip k1 bm1) (Bin _ l2 _) = case leftmostTipSure l2 of
       Tip' k2 bm2 -> case orderTips k1 bm1 k2 bm2 of
-        Equals -> Prefix'
-        FlipPrefix -> Less
+        A_EQ_B -> A_Prefix_B
+        B_Prefix_A -> A_LT_B
         o -> o
     go (Tip k1 bm1) (Tip k2 bm2) = orderTips k1 bm1 k2 bm2
-    go Nil Nil = Equals
-    go Nil _ = Prefix'
-    go _ Nil = FlipPrefix
+    go Nil Nil = A_EQ_B
+    go Nil _ = A_Prefix_B
+    go _ Nil = B_Prefix_A
 
 -- This type allows GHC to return unboxed ints from leftmostTipSure, as
 -- $wleftmostTipSure :: IntSet -> (# Int#, Word# #)
@@ -1548,16 +1548,16 @@ leftmostTipSure Nil = error "leftmostTipSure: Nil"
 
 orderTips :: Int -> BitMap -> Int -> BitMap -> Order
 orderTips k1 bm1 k2 bm2 = case compare k1 k2 of
-  LT -> Less
-  EQ | bm1 == bm2 -> Equals
+  LT -> A_LT_B
+  EQ | bm1 == bm2 -> A_EQ_B
      | otherwise ->
          let diff = bm1 `xor` bm2
              lowestDiff = diff .&. negate diff
              highMask = negate lowestDiff
          in if bm1 .&. lowestDiff == 0
-            then (if bm1 .&. highMask == 0 then Prefix' else Greater)
-            else (if bm2 .&. highMask == 0 then FlipPrefix else Less)
-  GT -> Greater
+            then (if bm1 .&. highMask == 0 then A_Prefix_B else A_GT_B)
+            else (if bm2 .&. highMask == 0 then B_Prefix_A else A_LT_B)
+  GT -> A_GT_B
 {-# INLINE orderTips #-}
 
 -- Split into negative and non-negative
