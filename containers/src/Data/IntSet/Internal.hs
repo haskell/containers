@@ -1552,8 +1552,8 @@ orderTips k1 bm1 k2 bm2 = case compare k1 k2 of
   EQ | bm1 == bm2 -> A_EQ_B
      | otherwise ->
          -- To lexicographically compare the elements of two BitMaps,
-         -- * Find the lowest bit where they differ.
-         -- * For the BitMap with this bit 0, check if all higher bits are also
+         -- - Find the lowest bit where they differ.
+         -- - For the BitMap with this bit 0, check if all higher bits are also
          --   0. If yes it is a prefix, otherwise it is greater.
          let diff = bm1 `xor` bm2
              lowestDiff = diff .&. negate diff
