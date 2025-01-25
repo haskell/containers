@@ -31,7 +31,7 @@ tested-with:
 
 source-repository head
   type:     git
-  location: http://github.com/haskell/containers.git
+  location: https://github.com/haskell/containers
 
 common deps
   build-depends:
