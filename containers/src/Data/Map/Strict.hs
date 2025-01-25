@@ -54,7 +54,7 @@
 --
 -- == Detailed performance information
 --
--- The amortized running time is given for each operation, with \(n\) referring to
+-- The running time is given for each operation, with \(n\) referring to
 -- the number of entries in the map.
 --
 -- Benchmarks comparing "Data.Map.Strict" with other dictionary implementations
