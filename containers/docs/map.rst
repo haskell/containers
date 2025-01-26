@@ -77,7 +77,7 @@ The following GHCi session shows some of the basic map functionality::
     > fromList [(1,"one"),(2,"two"),(3,"new three"),(4,"newer four")]
 
 .. TIP:: You can use the `OverloadedLists
-	 <https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/overloaded_lists.html>`_
+     <https://downloads.haskell.org/ghc/latest/docs/users_guide/exts/overloaded_lists.html>`_
      extension so you don't need to write ``fromList [1, 2, 3]`` everywhere;
      instead you can just write ``[1, 2, 3]`` and if the function is
      expecting a map it will be converted automatically! The code here
