@@ -1,2 +1,2 @@
 def setup(app):
-    app.add_stylesheet('css/hs-theme.css')
+    app.add_css_file('css/hs-theme.css')
