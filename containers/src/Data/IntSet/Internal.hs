@@ -212,6 +212,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
+  , Order(..)
   )
 
 #if __GLASGOW_HASKELL__
@@ -1486,8 +1487,94 @@ equal _   _   = False
 --------------------------------------------------------------------}
 
 instance Ord IntSet where
-    compare s1 s2 = compare (toAscList s1) (toAscList s2)
-    -- tentative implementation. See if more efficient exists.
+  compare = compareIntSets
+
+compareIntSets :: IntSet -> IntSet -> Ordering
+compareIntSets s1 s2 = case (splitSign s1, splitSign s2) of
+  ((l1, r1), (l2, r2)) -> case go l1 l2 of
+    A_LT_B -> LT
+    A_Prefix_B -> if null r1 then LT else GT
+    A_EQ_B -> case go r1 r2 of
+      A_LT_B -> LT
+      A_Prefix_B -> LT
+      A_EQ_B -> EQ
+      B_Prefix_A -> GT
+      A_GT_B -> GT
+    B_Prefix_A -> if null r2 then GT else LT
+    A_GT_B -> GT
+  where
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+      ABL -> case go l1 t2 of
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> B_Prefix_A
+        o -> o
+      ABR -> A_LT_B
+      BAL -> case go t1 l2 of
+        A_EQ_B -> A_Prefix_B
+        B_Prefix_A -> A_LT_B
+        o -> o
+      BAR -> A_GT_B
+      EQL -> case go l1 l2 of
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> go r1 r2
+        B_Prefix_A -> A_LT_B
+        o -> o
+      NOM -> if unPrefix p1 < unPrefix p2 then A_LT_B else A_GT_B
+    go (Bin _ l1 _) (Tip k2 bm2) = case leftmostTipSure l1 of
+      Tip' k1 bm1 -> case orderTips k1 bm1 k2 bm2 of
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> B_Prefix_A
+        o -> o
+    go (Tip k1 bm1) (Bin _ l2 _) = case leftmostTipSure l2 of
+      Tip' k2 bm2 -> case orderTips k1 bm1 k2 bm2 of
+        A_EQ_B -> A_Prefix_B
+        B_Prefix_A -> A_LT_B
+        o -> o
+    go (Tip k1 bm1) (Tip k2 bm2) = orderTips k1 bm1 k2 bm2
+    go Nil Nil = A_EQ_B
+    go Nil _ = A_Prefix_B
+    go _ Nil = B_Prefix_A
+
+-- This type allows GHC to return unboxed ints from leftmostTipSure, as
+-- $wleftmostTipSure :: IntSet -> (# Int#, Word# #)
+-- On a modern enough GHC (>=9.4) this is unnecessary, we could use StrictPair
+-- instead and get the same Core.
+data Tip' = Tip' {-# UNPACK #-} !Int {-# UNPACK #-} !BitMap
+
+leftmostTipSure :: IntSet -> Tip'
+leftmostTipSure (Bin _ l _) = leftmostTipSure l
+leftmostTipSure (Tip k bm) = Tip' k bm
+leftmostTipSure Nil = error "leftmostTipSure: Nil"
+
+orderTips :: Int -> BitMap -> Int -> BitMap -> Order
+orderTips k1 bm1 k2 bm2 = case compare k1 k2 of
+  LT -> A_LT_B
+  EQ | bm1 == bm2 -> A_EQ_B
+     | otherwise ->
+         -- To lexicographically compare the elements of two BitMaps,
+         -- - Find the lowest bit where they differ.
+         -- - For the BitMap with this bit 0, check if all higher bits are also
+         --   0. If yes it is a prefix, otherwise it is greater.
+         let diff = bm1 `xor` bm2
+             lowestDiff = diff .&. negate diff
+             highMask = negate lowestDiff
+         in if bm1 .&. lowestDiff == 0
+            then (if bm1 .&. highMask == 0 then A_Prefix_B else A_GT_B)
+            else (if bm2 .&. highMask == 0 then B_Prefix_A else A_LT_B)
+  GT -> A_GT_B
+{-# INLINE orderTips #-}
+
+-- Split into negative and non-negative
+splitSign :: IntSet -> (IntSet, IntSet)
+splitSign t@(Bin p l r)
+  | signBranch p = (r, l)
+  | unPrefix p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign t@(Tip k _)
+  | k < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
+{-# INLINE splitSign #-}
 
 {--------------------------------------------------------------------
   Show

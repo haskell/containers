@@ -53,6 +53,7 @@ main = do
         , bench "split" $ whnf (M.split key_mid) m
         , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
+        , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
         , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
         , bgroup "folds with key" $
             foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m

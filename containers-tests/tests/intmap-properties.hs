@@ -34,7 +34,7 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
-import Test.QuickCheck.Poly (A, B, C)
+import Test.QuickCheck.Poly (A, B, C, OrdA)
 
 default (Int)
 
@@ -247,6 +247,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
              , testProperty "mapKeysWith"          prop_mapKeysWith
              , testProperty "mapKeysMonotonic"     prop_mapKeysMonotonic
+             , testProperty "compare"              prop_compare
              ]
 
 {--------------------------------------------------------------------
@@ -1980,3 +1981,6 @@ prop_mapKeysMonotonic (Positive a) b m =
       fromIntegral (minBound :: Int) <= y && y <= fromIntegral (maxBound :: Int)
       where
         y = fromIntegral a * fromIntegral x + fromIntegral b :: Integer
+
+prop_compare :: IntMap OrdA -> IntMap OrdA -> Property
+prop_compare m1 m2 = compare m1 m2 === compare (toList m1) (toList m2)

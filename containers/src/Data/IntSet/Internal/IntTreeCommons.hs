@@ -36,6 +36,7 @@ module Data.IntSet.Internal.IntTreeCommons
   , mask
   , branchMask
   , i2w
+  , Order(..)
   ) where
 
 import Data.Bits (Bits(..), countLeadingZeros)
@@ -160,6 +161,14 @@ branchMask p1 p2 =
 i2w :: Int -> Word
 i2w = fromIntegral
 {-# INLINE i2w #-}
+
+-- Used to compare IntSets and IntMaps
+data Order
+  = A_LT_B     -- holds for [0,3,4] [0,3,5,1]
+  | A_Prefix_B -- holds for [0,3,4] [0,3,4,5]
+  | A_EQ_B     -- holds for [0,3,4] [0,3,4]
+  | B_Prefix_A -- holds for [0,3,4] [0,3]
+  | A_GT_B     -- holds for [0,3,4] [0,2,5]
 
 {--------------------------------------------------------------------
   Notes

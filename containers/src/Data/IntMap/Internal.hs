@@ -308,6 +308,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
+  , Order(..)
   )
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL)
 import Utils.Containers.Internal.StrictPair
@@ -3487,12 +3488,74 @@ instance Eq1 IntMap where
 --------------------------------------------------------------------}
 
 instance Ord a => Ord (IntMap a) where
-    compare m1 m2 = compare (toList m1) (toList m2)
+  compare m1 m2 = liftCmp compare m1 m2
+  {-# INLINABLE compare #-}
 
 -- | @since 0.5.9
 instance Ord1 IntMap where
-  liftCompare cmp m n =
-    liftCompare (liftCompare cmp) (toList m) (toList n)
+  liftCompare = liftCmp
+
+liftCmp :: (a -> b -> Ordering) -> IntMap a -> IntMap b -> Ordering
+liftCmp cmp m1 m2 = case (splitSign m1, splitSign m2) of
+  ((l1, r1), (l2, r2)) -> case go l1 l2 of
+    A_LT_B -> LT
+    A_Prefix_B -> if null r1 then LT else GT
+    A_EQ_B -> case go r1 r2 of
+      A_LT_B -> LT
+      A_Prefix_B -> LT
+      A_EQ_B -> EQ
+      B_Prefix_A -> GT
+      A_GT_B -> GT
+    B_Prefix_A -> if null r2 then GT else LT
+    A_GT_B -> GT
+  where
+    go t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+      ABL -> case go l1 t2 of
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> B_Prefix_A
+        o -> o
+      ABR -> A_LT_B
+      BAL -> case go t1 l2 of
+        A_EQ_B -> A_Prefix_B
+        B_Prefix_A -> A_LT_B
+        o -> o
+      BAR -> A_GT_B
+      EQL -> case go l1 l2 of
+        A_Prefix_B -> A_GT_B
+        A_EQ_B -> go r1 r2
+        B_Prefix_A -> A_LT_B
+        o -> o
+      NOM -> if unPrefix p1 < unPrefix p2 then A_LT_B else A_GT_B
+    go (Bin _ l1 _) (Tip k2 x2) = case lookupMinSure l1 of
+      KeyValue k1 x1 -> case compare k1 k2 <> cmp x1 x2 of
+        LT -> A_LT_B
+        EQ -> B_Prefix_A
+        GT -> A_GT_B
+    go (Tip k1 x1) (Bin _ l2 _) = case lookupMinSure l2 of
+      KeyValue k2 x2 -> case compare k1 k2 <> cmp x1 x2 of
+        LT -> A_LT_B
+        EQ -> A_Prefix_B
+        GT -> A_GT_B
+    go (Tip k1 x1) (Tip k2 x2) = case compare k1 k2 <> cmp x1 x2 of
+      LT -> A_LT_B
+      EQ -> A_EQ_B
+      GT -> A_GT_B
+    go Nil Nil = A_EQ_B
+    go Nil _ = A_Prefix_B
+    go _ Nil = B_Prefix_A
+{-# INLINE liftCmp #-}
+
+-- Split into negative and non-negative
+splitSign :: IntMap a -> (IntMap a, IntMap a)
+splitSign t@(Bin p l r)
+  | signBranch p = (r, l)
+  | unPrefix p < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign t@(Tip k _)
+  | k < 0 = (t, Nil)
+  | otherwise = (Nil, t)
+splitSign Nil = (Nil, Nil)
+{-# INLINE splitSign #-}
 
 {--------------------------------------------------------------------
   Functor
