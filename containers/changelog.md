@@ -70,6 +70,12 @@
   including `insert` and `delete`, by inlining part of the balancing
   routine. (Soumik Sarkar)
 
+### Miscellaneous/internal
+
+* Internal modules `Utils.Containers.Internal.BitUtil`,
+  `Utils.Containers.Internal.BitQueue`, `Utils.Containers.Internal.StrictPair`
+  are no longer exposed.
+
 ## Unreleased with `@since` annotation for 0.7.1:
 
 ### Additions
