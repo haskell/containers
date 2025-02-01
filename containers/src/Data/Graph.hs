@@ -2,7 +2,6 @@
 #include "containers.h"
 {-# LANGUAGE BangPatterns #-}
 #if __GLASGOW_HASKELL__
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
@@ -13,6 +12,9 @@
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE ViewPatterns #-}
+#endif
+#ifdef USE_ST_MONAD
+{-# LANGUAGE RankNTypes #-}
 #endif
 
 -----------------------------------------------------------------------------
@@ -561,9 +563,8 @@ dff g         = dfs g (vertices g)
 -- bundling together the functions generate, prune, and chop for efficiency
 -- reasons.
 dfs :: Graph -> [Vertex] -> [Tree Vertex]
-dfs g vs0 = run (bounds g) $ go vs0
-  where
-    go :: [Vertex] -> SetM s [Tree Vertex]
+dfs !g vs0 = run (bounds g) $ \contains include ->
+  let
     go [] = pure []
     go (v:vs) = do
       visited <- contains v
@@ -574,71 +575,54 @@ dfs g vs0 = run (bounds g) $ go vs0
         as <- go (g!v)
         bs <- go vs
         pure $ Node v as : bs
+  in go vs0
 
--- A monad holding a set of vertices visited so far.
 #if USE_ST_MONAD
 
 -- Use the ST monad if available, for constant-time primitives.
 
+newArrayBool
+  :: Bounds
 #if USE_UNBOXED_ARRAYS
-newtype SetM s a = SetM { runSetM :: STUArray s Vertex Bool -> ST s a }
+  -> ST s (STUArray s Vertex Bool)
 #else
-newtype SetM s a = SetM { runSetM :: STArray  s Vertex Bool -> ST s a }
+  -> ST s (STArray s Vertex Bool)
 #endif
+newArrayBool bnds = newArray bnds False
 
-instance Monad (SetM s) where
-    SetM v >>= f = SetM $ \s -> do { x <- v s; runSetM (f x) s }
-    {-# INLINE (>>=) #-}
-
-instance Functor (SetM s) where
-    f `fmap` SetM v = SetM $ \s -> f `fmap` v s
-    {-# INLINE fmap #-}
-
-instance Applicative (SetM s) where
-    pure x = SetM $ const (return x)
-    {-# INLINE pure #-}
-    SetM f <*> SetM v = SetM $ \s -> f s >>= (`fmap` v s)
-    -- We could also use the following definition
-    --   SetM f <*> SetM v = SetM $ \s -> f s <*> v s
-    -- but Applicative (ST s) instance is present only in GHC 7.2+
-    {-# INLINE (<*>) #-}
-
-run          :: Bounds -> (forall s. SetM s a) -> a
-run bnds act  = runST (newArray bnds False >>= runSetM act)
-
-contains     :: Vertex -> SetM s Bool
-contains v    = SetM $ \ m -> readArray m v
-
-include      :: Vertex -> SetM s ()
-include v     = SetM $ \ m -> writeArray m v True
+run
+  :: Bounds
+  -> (forall s. (Vertex -> ST s Bool) -> (Vertex -> ST s ()) -> ST s a)
+  -> a
+run bnds f = runST $ do
+  m <- newArrayBool bnds
+  f (readArray m) (\v -> writeArray m v True)
+{-# INLINE run #-}
 
 #else /* !USE_ST_MONAD */
 
 -- Portable implementation using IntSet.
 
-newtype SetM s a = SetM { runSetM :: IntSet -> (a, IntSet) }
+newtype SetM a = SetM { runSetM :: IntSet -> (a, IntSet) }
 
-instance Monad (SetM s) where
+instance Monad SetM where
     SetM v >>= f = SetM $ \s -> case v s of (x, s') -> runSetM (f x) s'
 
-instance Functor (SetM s) where
+instance Functor SetM where
     f `fmap` SetM v = SetM $ \s -> case v s of (x, s') -> (f x, s')
     {-# INLINE fmap #-}
 
-instance Applicative (SetM s) where
+instance Applicative SetM where
     pure x = SetM $ \s -> (x, s)
     {-# INLINE pure #-}
     SetM f <*> SetM v = SetM $ \s -> case f s of (k, s') -> case v s' of (x, s'') -> (k x, s'')
     {-# INLINE (<*>) #-}
 
-run          :: Bounds -> SetM s a -> a
-run _ act     = fst (runSetM act Set.empty)
-
-contains     :: Vertex -> SetM s Bool
-contains v    = SetM $ \ m -> (Set.member v m, m)
-
-include      :: Vertex -> SetM s ()
-include v     = SetM $ \ m -> ((), Set.insert v m)
+run :: Bounds -> ((Vertex -> SetM Bool) -> (Vertex -> SetM ()) -> SetM a) -> a
+run _ f = fst (runSetM (f contains include) Set.empty)
+  where
+    contains v = SetM $ \m -> (Set.member v m, m)
+    include v = SetM $ \m -> ((), Set.insert v m)
 
 #endif /* !USE_ST_MONAD */
 
