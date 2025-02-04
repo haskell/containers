@@ -86,6 +86,7 @@ Library
         Utils.Containers.Internal.EqOrdUtil
     if impl(ghc)
       other-modules:
+        Data.Sequence.Internal.Depth
         Utils.Containers.Internal.TypeError
 
     include-dirs: include
