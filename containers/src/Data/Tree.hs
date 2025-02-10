@@ -397,7 +397,7 @@ levels t =
         takeWhile (not . null) $
         iterate (concatMap subForest) [t]
 
--- | Fold a tree into a "summary" value in depth-first order.
+-- | Fold a tree into a "summary" value.
 --
 -- For each node in the tree, apply @f@ to the @rootLabel@ and the result
 -- of applying @f@ to each @subForest@.
@@ -432,13 +432,14 @@ foldTree :: (a -> [b] -> b) -> Tree a -> b
 foldTree f = go where
     go (Node x ts) = f x (map go ts)
 
--- | Build a (possibly infinite) tree from a seed value in breadth-first order.
+-- | Build a (possibly infinite) tree from a seed value.
 --
 -- @unfoldTree f b@ constructs a tree by starting with the tree
 -- @Node { rootLabel=b, subForest=[] }@ and repeatedly applying @f@ to each
 -- 'rootLabel' value in the tree's leaves to generate its 'subForest'.
 --
--- For a monadic version see 'unfoldTreeM_BF'.
+-- For a monadic version, see 'unfoldTreeM' (depth-first) and
+-- 'unfoldTreeM_BF' (breadth-first).
 --
 -- ==== __Examples__
 --
@@ -469,12 +470,12 @@ foldTree f = go where
 unfoldTree :: (b -> (a, [b])) -> b -> Tree a
 unfoldTree f b = let (a, bs) = f b in Node a (unfoldForest f bs)
 
--- | Build a (possibly infinite) forest from a list of seed values in
--- breadth-first order.
+-- | Build a (possibly infinite) forest from a list of seed values.
 --
 -- @unfoldForest f seeds@ invokes 'unfoldTree' on each seed value.
 --
--- For a monadic version see 'unfoldForestM_BF'.
+-- For a monadic version, see 'unfoldForestM' (depth-first) and
+-- 'unfoldForestM_BF' (breadth-first).
 --
 unfoldForest :: (b -> (a, [b])) -> [b] -> [Tree a]
 unfoldForest f = map (unfoldTree f)
@@ -486,7 +487,7 @@ unfoldTreeM f b = do
     ts <- unfoldForestM f bs
     return (Node a ts)
 
--- | Monadic forest builder, in depth-first order
+-- | Monadic forest builder, in depth-first order.
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
 
@@ -504,7 +505,7 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
         x :< _ -> x
         EmptyL -> error "unfoldTreeM_BF"
 
--- | Monadic forest builder, in breadth-first order
+-- | Monadic forest builder, in breadth-first order.
 --
 -- See 'unfoldForest' for more info.
 --
