@@ -52,7 +52,7 @@ The following GHCi session shows some of the basic sequence functionality::
     Seq.lookup 2 nums
     > Just 3
 
-    -- Or the unsafe version, you MUST check length beforehand (note arguments are in reverse order).
+    -- Or the unsafe version, you MUST check length beforehand (notice arguments in reverse order).
     Seq.index nums 2
     > 3
 
