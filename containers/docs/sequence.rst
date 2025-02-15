@@ -36,8 +36,8 @@ The following GHCi session shows some of the basic sequence functionality::
 
 
     -- Put two sequences together.
-    (Seq.fromList [-2, -1]) >< nums
-    > fromList [-2,-1,0,1,2]
+    (Seq.fromList [-3, -2, -1, 0]) >< nums
+    > fromList [-3,-2,-1,0,1,2,3]
 
 
     -- Check if a sequence is empty and check the length.
@@ -52,17 +52,17 @@ The following GHCi session shows some of the basic sequence functionality::
     Seq.lookup 2 nums
     > Just 3
 
-    -- Or the unsafe version, you MUST check length beforehand.
-    Seq.index 2 nums
+    -- Or the unsafe version, you MUST check length beforehand (notice arguments in reverse order).
+    Seq.index nums 2
     > 3
 
 
     -- Map a function over a sequence (can use fmap or the infix function <$>).
     fmap show nums
-    > fromList ["0","1","2"]
+    > fromList ["1","2","3"]
 
     show <$> nums
-    > fromList ["0","1","2"]
+    > fromList ["1","2","3"]
 
 
     -- Fold a sequence into a summary value.
