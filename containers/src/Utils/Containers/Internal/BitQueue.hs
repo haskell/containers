@@ -86,15 +86,17 @@ snocQB bq b = case shiftQBR1 bq of
 -- off.
 {-# INLINE buildQ #-}
 buildQ :: BitQueueB -> BitQueue
-buildQ (BQB hi 0) = BQ (BQB 0 lo') where
-  zeros = countTrailingZeros hi
-  lo' = ((hi `shiftRL` 1) .|. (1 `shiftLL` (wordSize - 1))) `shiftRL` zeros
-buildQ (BQB hi lo) = BQ (BQB hi' lo') where
-  zeros = countTrailingZeros lo
-  lo1 = (lo `shiftRL` 1) .|. (hi `shiftLL` (wordSize - 1))
-  hi1 = (hi `shiftRL` 1) .|. (1 `shiftLL` (wordSize - 1))
-  lo' = (lo1 `shiftRL` zeros) .|. (hi1 `shiftLL` (wordSize - zeros))
-  hi' = hi1 `shiftRL` zeros
+buildQ (BQB hi lo) = BQ result where
+    zeros = if lo == 0 
+            then wordSize + countTrailingZeros hi
+            else countTrailingZeros lo    
+    lo1 = (lo `shiftRL` 1) .|. (hi `shiftLL` (wordSize - 1))
+    hi1 = (hi `shiftRL` 1) .|. (1 `shiftLL` (wordSize - 1))
+    result = if zeros >= wordSize 
+            then BQB 0 ((hi1 `shiftRL` (zeros - wordSize)))
+            else BQB (hi1 `shiftRL` zeros) 
+                    ((lo1 `shiftRL` zeros) .|. 
+                     (hi1 `shiftLL` (wordSize - zeros)))
 
 -- Test if the queue is empty, which occurs when there's
 -- nothing left but a guard bit in the least significant
