@@ -50,18 +50,21 @@
 -- (much) faster on insertions and deletions when compared to a generic
 -- size-balanced set implementation (see "Data.Set").
 --
---    * Chris Okasaki and Andy Gill,  \"/Fast Mergeable Integer Maps/\",
+--    * Chris Okasaki and Andy Gill,
+--      \"/Fast Mergeable Integer Maps/\",
 --      Workshop on ML, September 1998, pages 77-86,
---      <http://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.37.5452>
+--      <https://web.archive.org/web/20150417234429/https://ittc.ku.edu/~andygill/papers/IntMap98.pdf>.
 --
---    * D.R. Morrison, \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
---      Journal of the ACM, 15(4), October 1968, pages 514-534.
+--    * D.R. Morrison,
+--      \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
+--      Journal of the ACM, 15(4), October 1968, pages 514-534,
+--      <https://doi.org/10.1145/321479.321481>.
 --
 -- Additionally, this implementation places bitmaps in the leaves of the tree.
 -- Their size is the natural size of a machine word (32 or 64 bits) and greatly
--- reduce memory footprint and execution times for dense sets, e.g. sets where
--- it is likely that many values lie close to each other. The asymptotics are
--- not affected by this optimization.
+-- reduces the memory footprint and execution times for dense sets, e.g. sets
+-- where it is likely that many values lie close to each other. The asymptotics
+-- are not affected by this optimization.
 --
 -- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
