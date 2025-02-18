@@ -633,10 +633,10 @@ pathsFromRoot (Node x0 ts0) = Node (x0 :| []) (map (go (singletonBQ x0)) ts0)
 -- An implementation of Chris Okasaki's banker's queue.
 -- Invariant: length front >= length rear
 data BQ a = BQ
-  a -- ^ head
-  {-# UNPACK #-} !Word -- ^ length front + length rear
-  [a] -- ^ front
-  ![a] -- ^ rear (reversed)
+  a -- head
+  {-# UNPACK #-} !Word -- length front + length rear
+  [a] -- front
+  ![a] -- rear (reversed)
 
 singletonBQ :: a -> BQ a
 singletonBQ x = BQ x 0 [] []
