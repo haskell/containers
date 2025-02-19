@@ -45,6 +45,34 @@ main = do
       , bgroup "foldlMap1" $ forTs ts $ whnf (Foldable1.foldlMap1 id (+))
       ]
 #endif
+    , bgroup "PostOrder"
+      [ bgroup "Foldable"
+        [ bgroup "folds"
+          [ bgroup label $
+              foldBenchmarks foldr foldl F.foldr' F.foldl' foldMap (T.PostOrder t)
+          | Tree label t <- ts
+          ]
+        , bgroup "foldr1" $ forPostOrders tsBool $ whnf (foldr1 (&&))
+        , bgroup "foldl1" $ forPostOrders ts $ whnf (foldl1 (+))
+        , bgroup "toList" $ forPostOrders ts $ nf F.toList
+        , bgroup "elem" $ forPostOrders ts $ whnf (elem 0)
+        , bgroup "maximum" $ forPostOrders ts $ whnf maximum
+        , bgroup "sum" $ forPostOrders ts $ whnf sum
+        ]
+#if MIN_VERSION_base(4,18,0)
+      , bgroup "Foldable1"
+        [ bgroup "fold1" $ forPostOrders tsBool $ whnf Foldable1.fold1 . (coerce :: T.PostOrder Bool -> T.PostOrder All)
+        , bgroup "foldMap1" $ forPostOrders tsBool $ whnf (Foldable1.foldMap1 All)
+        , bgroup "foldMap1'" $ forPostOrders ts $ whnf (Foldable1.foldMap1' Sum)
+        , bgroup "toNonEmpty" $ forPostOrders ts $ nf Foldable1.toNonEmpty
+        , bgroup "maximum" $ forPostOrders ts $ whnf Foldable1.maximum
+        , bgroup "foldrMap1_1" $ forPostOrders tsBool $ whnf (Foldable1.foldrMap1 id (&&))
+        , bgroup "foldrMap1_2" $ forPostOrders ts $ whnf (length . Foldable1.foldrMap1 (:[]) (:))
+        , bgroup "foldlMap1'" $ forPostOrders ts $ whnf (Foldable1.foldlMap1' id (+))
+        , bgroup "foldlMap1" $ forPostOrders ts $ whnf (Foldable1.foldlMap1 id (+))
+        ]
+#endif
+      ]
     ]
   where
     ts = [binaryTree, lineTree] <*> [1000, 1000000]
@@ -52,6 +80,9 @@ main = do
 
 forTs :: [Tree a] -> (T.Tree a -> Benchmarkable) -> [Benchmark]
 forTs ts f = [bench label (f t) | Tree label t <- ts]
+
+forPostOrders :: [Tree a] -> (T.PostOrder a -> Benchmarkable) -> [Benchmark]
+forPostOrders ts f = forTs ts (f . T.PostOrder)
 
 data Tree a = Tree
   { getLabel :: String
