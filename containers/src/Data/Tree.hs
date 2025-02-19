@@ -549,7 +549,18 @@ unfoldForestQ f aQ = case viewl aQ of
 --
 -- ==== __Examples__
 --
--- >>> leaves (Node 1 [Node 2 [Node 4 [], Node 5 []], Node 3 [Node 6 []]])
+-- >>> :{
+-- leaves $
+--   Node 1
+--     [ Node 2
+--         [ Node 4 []
+--         , Node 5 []
+--         ]
+--     , Node 3
+--         [ Node 6 []
+--         ]
+--     ]
+-- :}
 -- [4,5,6]
 -- >>> leaves (Node "root" [])
 -- ["root"]
@@ -575,7 +586,18 @@ leaves t =
 --
 -- ==== __Examples__
 --
--- >>> edges (Node 1 [Node 2 [Node 4 [], Node 5 []], Node 3 [Node 6 []]])
+-- >>> :{
+-- edges $
+--   Node 1
+--     [ Node 2
+--         [ Node 4 []
+--         , Node 5 []
+--         ]
+--     , Node 3
+--         [ Node 6 []
+--         ]
+--     ]
+-- :}
 -- [(1,2),(2,4),(2,5),(1,3),(3,6)]
 -- >>> edges (Node "root" [])
 -- []
@@ -597,7 +619,13 @@ edges (Node x0 ts0) =
 --
 -- ==== __Examples__
 --
--- >>> pathsToRoot (Node 1 [Node 2 [], Node 3 []])
+-- >>> :{
+-- pathsToRoot $
+--   Node 1
+--     [ Node 2 []
+--     , Node 3 []
+--     ]
+-- :}
 -- Node {rootLabel = 1 :| [], subForest = [Node {rootLabel = 2 :| [1], subForest = []},Node {rootLabel = 3 :| [1], subForest = []}]}
 -- >>> pathsToRoot (Node "root" [])
 -- Node {rootLabel = "root" :| [], subForest = []}
@@ -615,7 +643,13 @@ pathsToRoot = go []
 --
 -- ==== __Examples__
 --
--- >>> pathsFromRoot (Node 1 [Node 2 [], Node 3 []])
+-- >>> :{
+-- pathsFromRoot $
+--   Node 1
+--     [ Node 2 []
+--     , Node 3 []
+--     ]
+-- :}
 -- Node {rootLabel = 1 :| [], subForest = [Node {rootLabel = 1 :| [2], subForest = []},Node {rootLabel = 1 :| [3], subForest = []}]}
 -- >>> pathsFromRoot (Node "root" [])
 -- Node {rootLabel = "root" :| [], subForest = []}
