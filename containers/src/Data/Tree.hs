@@ -643,12 +643,12 @@ singletonBQ x = BQ x 0 [] []
 
 snocBQ :: BQ a -> a -> BQ a
 snocBQ (BQ x0 n f r) x
-  | doReverse = BQ x0 (n + 1) (f ++ reverse (x:r)) []
-  | otherwise = BQ x0 (n + 1) f (x:r)
+  | doReverse = BQ x0 (n+1) (f ++ reverse (x:r)) []
+  | otherwise = BQ x0 (n+1) f (x:r)
   where
-    doReverse = n /= 1 && n .&. (n-1) == 0
+    doReverse = (n+2) .&. (n+1) == 0
     -- We reverse whenever the length of r would exceed that of f.
-    -- This happens at n = 0 and every power of 2 above 1.
+    -- This happens every time n+2 is a power of 2.
 
 toNonEmptyBQ :: BQ a -> NonEmpty a
 toNonEmptyBQ (BQ x0 _ f r) = case r of
