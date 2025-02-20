@@ -240,7 +240,8 @@ infixl 9 \\{-This comment teaches CPP correct behaviour -}
 {--------------------------------------------------------------------
   Operators
 --------------------------------------------------------------------}
--- | \(O(n+m)\). See 'difference'.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- See 'difference'.
 (\\) :: IntSet -> IntSet -> IntSet
 m1 \\ m2 = difference m1 m2
 
@@ -576,7 +577,8 @@ unions xs
   = Foldable.foldl' union empty xs
 
 
--- | \(O(n+m)\). The union of two sets.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The union of two sets.
 union :: IntSet -> IntSet -> IntSet
 union t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> Bin p1 (union l1 t2) r1
@@ -594,7 +596,8 @@ union Nil t = t
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Difference between two sets.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference between two sets.
 difference :: IntSet -> IntSet -> IntSet
 difference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> bin p1 (difference l1 t2) r1
@@ -622,7 +625,8 @@ difference Nil _     = Nil
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O(n+m)\). The intersection of two sets.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The intersection of two sets.
 intersection :: IntSet -> IntSet -> IntSet
 intersection t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> intersection l1 t2
@@ -694,7 +698,8 @@ instance Semigroup Intersection where
   Symmetric difference
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). The symmetric difference of two sets.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The symmetric difference of two sets.
 --
 -- The result contains elements that appear in exactly one of the two sets.
 --
@@ -732,7 +737,8 @@ symDiffTip !t1 !kx1 !bm1 = go
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Is this a proper subset? (ie. a subset but not equal).
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Is this a proper subset? (ie. a subset but not equal).
 isProperSubsetOf :: IntSet -> IntSet -> Bool
 isProperSubsetOf t1 t2
   = case subsetCmp t1 t2 of
@@ -768,7 +774,8 @@ subsetCmp (Tip _ _) Nil = GT -- disjoint
 subsetCmp Nil Nil = EQ
 subsetCmp Nil _   = LT
 
--- | \(O(n+m)\). Is this a subset?
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Is this a subset?
 -- @(s1 \`isSubsetOf\` s2)@ tells whether @s1@ is a subset of @s2@.
 
 isSubsetOf :: IntSet -> IntSet -> Bool
@@ -792,7 +799,8 @@ isSubsetOf Nil _         = True
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Check whether two sets are disjoint (i.e. their intersection
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Check whether two sets are disjoint (i.e. their intersection
 --   is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
