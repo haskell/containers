@@ -631,7 +631,8 @@ unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
   = Foldable.foldl' (unionWith f) empty ts
 
--- | \(O(n+m)\). The union with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 --
@@ -641,7 +642,8 @@ unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). The union with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -656,7 +658,8 @@ unionWithKey f m1 m2
   Difference
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). Difference with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference with a combining function.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
@@ -666,7 +669,8 @@ differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). Difference with a combining function. When two equal keys are
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference).
 -- If it returns (@'Just' y@), the element is updated with a new value @y@.
@@ -683,7 +687,8 @@ differenceWithKey f m1 m2
   Intersection
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). The intersection with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -691,7 +696,8 @@ intersectionWith :: (a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). The intersection with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -704,7 +710,8 @@ intersectionWithKey f m1 m2
   MergeWithKey
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). A high-performance universal combining function. Using
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- A high-performance universal combining function. Using
 -- 'mergeWithKey', all combining functions can be defined without any loss of
 -- efficiency (with exception of 'union', 'difference' and 'intersection',
 -- where sharing of some nodes is lost with 'mergeWithKey').
