@@ -75,10 +75,10 @@
 --
 -- == Performance information
 --
--- Operation comments contain the operation time complexity in the Big-O
--- notation <http://en.wikipedia.org/wiki/Big_O_notation>, with \(n\) referring
--- to the number of entries in the map and \(W\) referring to the number of bits
--- in an 'Int' (32 or 64).
+-- Operation comments contain the operation time complexity in
+-- [big-O notation](http://en.wikipedia.org/wiki/Big_O_notation), with \(n\)
+-- referring to the number of entries in the map and \(W\) referring to the
+-- number of bits in an 'Int' (32 or 64).
 --
 -- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
