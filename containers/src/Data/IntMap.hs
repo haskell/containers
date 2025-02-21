@@ -25,6 +25,9 @@
 -- >  import Data.IntMap (IntMap)
 -- >  import qualified Data.IntMap as IntMap
 --
+--
+-- == Implementation
+--
 -- The implementation is based on /big-endian patricia trees/.  This data
 -- structure performs especially well on binary operations like 'union'
 -- and 'intersection'. Additionally, benchmarks show that it is also
@@ -40,6 +43,9 @@
 --      \"/PATRICIA -- Practical Algorithm To Retrieve Information Coded In Alphanumeric/\",
 --      Journal of the ACM, 15(4), October 1968, pages 514-534,
 --      <https://doi.org/10.1145/321479.321481>.
+--
+--
+-- == Performance information
 --
 -- Operation comments contain the operation time complexity in
 -- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.

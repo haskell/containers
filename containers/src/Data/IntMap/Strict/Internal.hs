@@ -15,8 +15,20 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
+-- = WARNING
 --
--- = Finite Int Maps (strict interface)
+-- This module is considered __internal__.
+--
+-- The Package Versioning Policy __does not apply__.
+--
+-- The contents of this module may change __in any way whatsoever__
+-- and __without any warning__ between minor versions of this package.
+--
+-- Authors importing this module are expected to track development
+-- closely.
+--
+--
+-- = Description
 --
 -- The @'IntMap' v@ type represents a finite map (sometimes called a dictionary)
 -- from key of type @Int@ to values of type @v@.
@@ -44,16 +56,6 @@
 -- Note that the implementation is generally /left-biased/. Functions that take
 -- two maps as arguments and combine them, such as `union` and `intersection`,
 -- prefer the values in the first argument to those in the second.
---
---
--- == Detailed performance information
---
--- The running time is given for each operation, with \(n\) referring to
--- the number of entries in the map and \(W\) referring to the number of bits in
--- an 'Int' (32 or 64).
---
--- Benchmarks comparing "Data.IntMap.Strict" with other dictionary
--- implementations can be found at https://github.com/haskell-perf/dictionaries.
 --
 --
 -- == Warning
