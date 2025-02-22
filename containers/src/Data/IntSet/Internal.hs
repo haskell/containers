@@ -92,6 +92,7 @@
 module Data.IntSet.Internal (
     -- * Set type
       IntSet(..) -- instance Eq,Show
+    , Key
     , BitMap
 
     -- * Operators
