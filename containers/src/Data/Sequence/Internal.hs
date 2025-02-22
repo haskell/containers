@@ -62,9 +62,9 @@
 -- as described in section 4.2 of
 --
 --    * Ralf Hinze and Ross Paterson,
---      \"Finger trees: a simple general-purpose data structure\",
---      /Journal of Functional Programming/ 16:2 (2006) pp 197-217.
---      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>
+--      \"/Finger trees: a simple general-purpose data structure/\",
+--      Journal of Functional Programming 16:2 (2006) pp 197-217.
+--      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>.
 --
 -- /Note/: Many of these operations have the same names as similar
 -- operations on lists in the "Prelude". The ambiguity may be resolved
