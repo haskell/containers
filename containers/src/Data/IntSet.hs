@@ -160,5 +160,4 @@ module Data.IntSet (
             , showTreeWith
             ) where
 
-import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntSet.Internal as IS
