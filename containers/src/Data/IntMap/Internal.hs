@@ -3832,26 +3832,30 @@ withEmpty bars = "   ":bars
 -- Note [IntMap merge complexity]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 -- The merge algorithm (used for union, intersection, etc.) is adopted from
--- Okasaki-Gill who give the complexity as O(m+n). This is correct, since we
--- visit all constructors in both maps in the worst case, but we can try to find
--- a tighter bound.
+-- Okasaki-Gill who give the complexity as O(m+n), where m and n are the sizes
+-- of the two input maps. This is correct, since we visit all constructors in
+-- both maps in the worst case, but we can try to find a tighter bound.
 --
--- Consider that m<=n. With that, O(m+n) is the same as O(n), and we have one
--- upper bound, the size of the larger map.
+-- Consider that m<=n, i.e. m is the size of the smaller map and n is the size
+-- of the larger. It does not matter which map is the first argument.
 --
--- Now consider the smaller map. For this map, we will visit some constructors,
--- plus all the Bins of the larger map that lie in our way.
+-- Now we have O(n) as one upper bound for our complexity, since O(n) is the
+-- same as O(m+n) for m<=n.
+--
+-- Next, consider the smaller map. For this map, we will visit some
+-- constructors, plus all the Bins of the larger map that lie in our way.
 -- For the former, the worst case is that we visit all constructors, which is
 -- O(m).
--- For the latter, the worst case is that we hit Bins at every point possible.
--- This happens when for every key in the smaller map, the path to that key's
--- Tip in the larger map has a full length of W, with a Bin at every power of
--- 2. We want the total number of such Bins, counting each Bin once even if it
--- is shared between paths. From the root to a depth of lg(m), O(m) Bins are
--- unavoidably shared, beyond which the paths may be disjoint. This gives us a
--- total of O(m + m (W - lg m)) = O(m log (2^W / m)).
--- The total number of Bins is also bounded by O(n), but we already have that as
--- a bound.
+-- For the latter, the worst case is that we encounter Bins at every point
+-- possible. This happens when for every key in the smaller map, the path to
+-- that key's Tip in the larger map has a full length of W, with a Bin at every
+-- bit position. To maximize the total number of Bins, the paths should be as
+-- disjoint as possible. But even if the paths are spread out, at least O(m)
+-- Bins are unavoidably shared, which extend up to a depth of lg(m) from the
+-- root. Beyond this, the paths may be disjoint. This gives us a total of
+-- O(m + m (W - lg m)) = O(m log (2^W / m)).
+-- The number of Bins we encounter is also bounded by the total number of Bins,
+-- which is n-1, but we already have O(n) as an upper bound.
 --
 -- Combining our bounds, we have the final complexity as
 -- O(min(n, m log (2^W / m))).
