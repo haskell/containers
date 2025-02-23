@@ -28,21 +28,14 @@
 -- Authors importing this module are expected to track development
 -- closely.
 --
--- = Description
 --
--- An efficient implementation of ordered maps from keys to values
--- (dictionaries).
+-- = Finite Maps (strict interface internals)
 --
--- API of this module is strict in both the keys and the values.
--- If you need value-lazy maps, use "Data.Map.Lazy" instead.
--- The 'Map' type is shared between the lazy and strict modules,
--- meaning that the same 'Map' value can be passed to functions in
--- both modules (although that is rarely needed).
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@.
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
 --
--- >  import qualified Data.Map.Strict as Map
+-- == Implementation
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -67,29 +60,12 @@
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
---
--- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
---
--- Operation comments contain the operation time complexity in
--- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
---
--- Be aware that the 'Functor', 'Traversable' and 'Data.Data.Data' instances
--- are the same as for the "Data.Map.Lazy" module, so if they are used
--- on strict maps, the resulting maps will be lazy.
 -----------------------------------------------------------------------------
 
 -- See the notes at the beginning of Data.Map.Internal.
 
 module Data.Map.Strict.Internal
     (
-    -- * Strictness properties
-    -- $strictness
-
     -- * Map type
     Map(..)          -- instance Eq,Show,Read
     , L.Size
@@ -448,24 +424,6 @@ import Data.Functor.Identity (Identity (..))
 #endif
 
 import qualified Data.Foldable as Foldable
-
--- $strictness
---
--- This module satisfies the following strictness properties:
---
--- 1. Key arguments are evaluated to WHNF;
---
--- 2. Keys and values are evaluated to WHNF before they are stored in
---    the map.
---
--- Here's an example illustrating the first property:
---
--- > delete undefined m  ==  undefined
---
--- Here are some examples that illustrate the second property:
---
--- > map (\ v -> undefined) m  ==  undefined      -- m is not empty
--- > mapKeys (\ k -> undefined) m  ==  undefined  -- m is not empty
 
 -- [Note: Pointer equality for sharing]
 --

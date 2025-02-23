@@ -43,22 +43,14 @@
 -- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
 --
 -- This module is intended to be imported qualified, to avoid name clashes with
--- Prelude functions:
+-- Prelude functions, e.g.
 --
+-- > import Data.Map.Strict (Map)
 -- > import qualified Data.Map.Strict as Map
 --
 -- Note that the implementation is generally /left-biased/. Functions that take
 -- two maps as arguments and combine them, such as `union` and `intersection`,
 -- prefer the values in the first argument to those in the second.
---
---
--- == Detailed performance information
---
--- The running time is given for each operation, with \(n\) referring to
--- the number of entries in the map.
---
--- Benchmarks comparing "Data.Map.Strict" with other dictionary implementations
--- can be found at https://github.com/haskell-perf/dictionaries.
 --
 --
 -- == Warning
@@ -99,6 +91,21 @@
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
 --
+--
+-- == Performance information
+--
+-- The time complexity is given for each operation in
+-- [big-O notation](http://en.wikipedia.org/wiki/Big_O_notation), with \(n\)
+-- referring to the number of entries in the map.
+--
+-- Operations like 'lookup', 'insert', and 'delete' take \(O(\log n)\) time.
+--
+-- Binary set operations like 'union' and 'intersection' take
+-- \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr)\) time, where \(m\) and \(n\)
+-- are the sizes of the smaller and larger input maps respectively.
+--
+-- Benchmarks comparing "Data.Map.Strict" with other dictionary implementations
+-- can be found at https://github.com/haskell-perf/dictionaries.
 --
 -----------------------------------------------------------------------------
 

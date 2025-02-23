@@ -33,15 +33,15 @@
 -- Authors importing this module are expected to track development
 -- closely.
 --
--- = Description
 --
--- An efficient implementation of sets.
+-- = Finite Sets (internals)
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- The @'Set' e@ type represents a set of elements of type @e@. Most operations
+-- require that @e@ be an instance of the 'Ord' class. A 'Set' is strict in its
+-- elements.
 --
--- >  import Data.Set (Set)
--- >  import qualified Data.Set as Set
+--
+-- == Implementation
 --
 -- The implementation of 'Set' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -66,15 +66,6 @@
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.  Of course, left-biasing can only be observed
--- when equality is an equivalence relation instead of structural
--- equality.
---
--- /Warning/: The size of the set must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, the
--- behavior of the set is completely undefined.
 --
 -- @since 0.5.9
 -----------------------------------------------------------------------------

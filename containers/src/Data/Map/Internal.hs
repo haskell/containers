@@ -43,15 +43,15 @@
 -- Authors importing this module are expected to track development
 -- closely.
 --
--- = Description
 --
--- An efficient implementation of maps from keys to values (dictionaries).
+-- = Finite Maps (lazy interface internals)
 --
--- Since many function names (but not the type name) clash with
--- "Prelude" names, this module is usually imported @qualified@, e.g.
+-- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys
+-- but lazy in its values.
 --
--- >  import Data.Map (Map)
--- >  import qualified Data.Map as Map
+--
+-- == Implementation
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -76,12 +76,6 @@
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
---
--- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
 --
 -- @since 0.5.9
 -----------------------------------------------------------------------------

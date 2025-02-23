@@ -47,16 +47,13 @@
 -- Authors importing this module are expected to track development
 -- closely.
 --
--- = Description
 --
--- General purpose finite sequences.
--- Apart from being finite and having strict operations, sequences
--- also differ from lists in supporting a wider variety of operations
--- efficiently.
+-- = Finite sequences (internals)
 --
--- An amortized running time is given for each operation, with \( n \) referring
--- to the length of the sequence and \( i \) being the integral index used by
--- some operations. These bounds hold even in a persistent (shared) setting.
+-- The @'Seq' a@ type represents a finite sequence of values of type @a@.
+--
+--
+-- == Implementation
 --
 -- The implementation uses 2-3 finger trees annotated with sizes,
 -- as described in section 4.2 of
@@ -65,17 +62,6 @@
 --      \"/Finger trees: a simple general-purpose data structure/\",
 --      Journal of Functional Programming 16:2 (2006) pp 197-217.
 --      <http://staff.city.ac.uk/~ross/papers/FingerTree.html>.
---
--- /Note/: Many of these operations have the same names as similar
--- operations on lists in the "Prelude". The ambiguity may be resolved
--- using either qualification or the @hiding@ clause.
---
--- /Warning/: The size of a 'Seq' must not exceed @maxBound::Int@.  Violation
--- of this condition is not detected and if the size limit is exceeded, the
--- behaviour of the sequence is undefined.  This is unlikely to occur in most
--- applications, but some care may be required when using '><', '<*>', '*>', or
--- '>>', particularly repeatedly and particularly in combination with
--- 'replicate' or 'fromFunction'.
 --
 -- @since 0.5.9
 -----------------------------------------------------------------------------

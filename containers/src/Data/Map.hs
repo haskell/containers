@@ -14,16 +14,50 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
+--
+-- = Finite Maps (lazy interface)
+--
+-- This module re-exports the value lazy "Data.Map.Lazy" API.
+--
 -- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
 -- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys but lazy
 -- in its values.
 --
--- This module re-exports the value lazy "Data.Map.Lazy" API.
+-- The functions in "Data.Map.Strict" are careful to force values before
+-- installing them in a 'Map'. This is usually more efficient in cases where
+-- laziness is not essential. The functions in this module do not do so.
 --
--- This module is intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- When deciding if this is the correct data structure to use, consider:
 --
--- >  import qualified Data.Map as Map
+-- * If you are using 'Prelude.Int' keys, you will get much better performance for most
+-- operations using "Data.IntMap.Lazy".
+--
+-- * If you don't care about ordering, consider using @Data.HashMap.Lazy@ from the
+-- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
+-- package instead.
+--
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
+--
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions, e.g.
+--
+-- > import Data.Map (Map)
+-- > import qualified Data.Map as Map
+--
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
+--
+--
+-- == Warning
+--
+-- The size of a 'Map' must not exceed @'Prelude.maxBound' :: 'Prelude.Int'@.
+-- Violation of this condition is not detected and if the size limit is exceeded,
+-- its behaviour is undefined.
+--
+--
+-- == Implementation
 --
 -- The implementation of 'Map' is based on /size balanced/ binary trees (or
 -- trees of /bounded balance/) as described by:
@@ -48,16 +82,19 @@
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
 --
--- Note that the implementation is /left-biased/ -- the elements of a
--- first argument are always preferred to the second, for example in
--- 'union' or 'insert'.
 --
--- /Warning/: The size of the map must not exceed @maxBound::Int@. Violation of
--- this condition is not detected and if the size limit is exceeded, its
--- behaviour is undefined.
+-- == Performance information
 --
--- Operation comments contain the operation time complexity in
--- the Big-O notation (<http://en.wikipedia.org/wiki/Big_O_notation>).
+-- The time complexity is given for each operation in
+-- [big-O notation](http://en.wikipedia.org/wiki/Big_O_notation), with \(n\)
+-- referring to the number of entries in the map.
+--
+-- Operations like 'lookup', 'insert', and 'delete' take \(O(\log n)\) time.
+--
+-- Binary set operations like 'union' and 'intersection' take
+-- \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr)\) time, where \(m\) and \(n\)
+-- are the sizes of the smaller and larger input maps respectively.
+--
 -----------------------------------------------------------------------------
 
 module Data.Map

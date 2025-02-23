@@ -14,16 +14,30 @@
 -- Maintainer  :  libraries@haskell.org
 -- Portability :  portable
 --
--- The @'IntMap' v@ type represents a finite map (sometimes called a dictionary)
--- from key of type @Int@ to values of type @v@.
+--
+-- = Finite Int Maps (lazy interface)
 --
 -- This module re-exports the value lazy "Data.IntMap.Lazy" API.
 --
--- This module is intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
+-- The @'IntMap' v@ type represents a finite map (sometimes called a dictionary)
+-- from keys of type @Int@ to values of type @v@.
 --
--- >  import Data.IntMap (IntMap)
--- >  import qualified Data.IntMap as IntMap
+-- The functions in "Data.IntMap.Strict" are careful to force values before
+-- installing them in an 'IntMap'. This is usually more efficient in cases where
+-- laziness is not essential. The functions in this module do not do so.
+--
+-- For a walkthrough of the most commonly used functions see the
+-- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
+--
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions, e.g.
+--
+-- > import Data.IntMap.Lazy (IntMap)
+-- > import qualified Data.IntMap.Lazy as IntMap
+--
+-- Note that the implementation is generally /left-biased/. Functions that take
+-- two maps as arguments and combine them, such as `union` and `intersection`,
+-- prefer the values in the first argument to those in the second.
 --
 --
 -- == Implementation
@@ -52,11 +66,11 @@
 -- referring to the number of entries in the map and \(W\) referring to the
 -- number of bits in an 'Int' (32 or 64).
 --
--- Many operations have a worst-case complexity of \(O(\min(n,W))\).
--- This means that the operation can become linear in the number of
--- elements with a maximum of \(W\) -- the number of bits in an 'Int'
--- (32 or 64). These peculiar asymptotics are determined by the depth
--- of the Patricia trees:
+-- Operations like 'lookup', 'insert', and 'delete' have a worst-case
+-- complexity of \(O(\min(n,W))\). This means that the operation can become
+-- linear in the number of elements with a maximum of \(W\) -- the number of
+-- bits in an 'Int' (32 or 64). These peculiar asymptotics are determined by the
+-- depth of the Patricia trees:
 --
 -- * even for an extremely unbalanced tree, the depth cannot be larger than
 --   the number of elements \(n\),
@@ -73,6 +87,10 @@
 -- in which case the complexity is proportional to \(\log n\), capped by \(W\).
 -- The worst scenario are exponentially growing keys \(1,2,4,\ldots,2^n\),
 -- for which complexity grows as fast as \(n\) but again is capped by \(W\).
+--
+-- Binary set operations like 'union' and 'intersection' take
+-- \(O(\min(n, m \log \frac{2^W}{m}))\) time, where \(m\) and \(n\)
+-- are the sizes of the smaller and larger input maps respectively.
 --
 -----------------------------------------------------------------------------
 
