@@ -3476,12 +3476,13 @@ equal _   _   = False
 
 -- | @since 0.5.9
 instance Eq1 IntMap where
-  liftEq eq (Bin p1 l1 r1) (Bin p2 l2 r2)
-    = (p1 == p2) && (liftEq eq l1 l2) && (liftEq eq r1 r2)
-  liftEq eq (Tip kx x) (Tip ky y)
-    = (kx == ky) && (eq x y)
-  liftEq _eq Nil Nil = True
-  liftEq _eq _   _   = False
+  liftEq eq = go
+    where
+      go (Bin p1 l1 r1) (Bin p2 l2 r2) = p1 == p2 && go l1 l2 && go r1 r2
+      go (Tip kx x) (Tip ky y) = kx == ky && eq x y
+      go Nil Nil = True
+      go _   _   = False
+  {-# INLINE liftEq #-}
 
 {--------------------------------------------------------------------
   Ord
