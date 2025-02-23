@@ -44,6 +44,9 @@
 -- >  import Data.IntSet (IntSet)
 -- >  import qualified Data.IntSet as IntSet
 --
+--
+-- == Implementation
+--
 -- The implementation is based on /big-endian patricia trees/.  This data
 -- structure performs especially well on binary operations like 'union'
 -- and 'intersection'.  However, my benchmarks show that it is also
@@ -65,11 +68,6 @@
 -- reduces the memory footprint and execution times for dense sets, e.g. sets
 -- where it is likely that many values lie close to each other. The asymptotics
 -- are not affected by this optimization.
---
--- Many operations have a worst-case complexity of \(O(\min(n,W))\).
--- This means that the operation can become linear in the number of
--- elements with a maximum of \(W\) -- the number of bits in an 'Int'
--- (32 or 64).
 --
 -- @since 0.5.9
 -----------------------------------------------------------------------------

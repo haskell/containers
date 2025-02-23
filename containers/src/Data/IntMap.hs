@@ -25,6 +25,9 @@
 -- >  import Data.IntMap (IntMap)
 -- >  import qualified Data.IntMap as IntMap
 --
+--
+-- == Implementation
+--
 -- The implementation is based on /big-endian patricia trees/.  This data
 -- structure performs especially well on binary operations like 'union'
 -- and 'intersection'. Additionally, benchmarks show that it is also
@@ -41,8 +44,13 @@
 --      Journal of the ACM, 15(4), October 1968, pages 514-534,
 --      <https://doi.org/10.1145/321479.321481>.
 --
+--
+-- == Performance information
+--
 -- Operation comments contain the operation time complexity in
--- the Big-O notation <http://en.wikipedia.org/wiki/Big_O_notation>.
+-- [big-O notation](http://en.wikipedia.org/wiki/Big_O_notation), with \(n\)
+-- referring to the number of entries in the map and \(W\) referring to the
+-- number of bits in an 'Int' (32 or 64).
 --
 -- Many operations have a worst-case complexity of \(O(\min(n,W))\).
 -- This means that the operation can become linear in the number of
