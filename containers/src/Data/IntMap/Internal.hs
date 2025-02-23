@@ -740,7 +740,8 @@ unsafeFindMax (Bin _ _ r) = unsafeFindMax r
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Check whether the key sets of two maps are disjoint
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Check whether the key sets of two maps are disjoint
 -- (i.e. their 'intersection' is empty).
 --
 -- > disjoint (fromList [(2,'a')]) (fromList [(1,()), (3,())])   == True
@@ -1091,7 +1092,8 @@ unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
   = Foldable.foldl' (unionWith f) empty ts
 
--- | \(O(n+m)\). The (left-biased) union of two maps.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The (left-biased) union of two maps.
 -- It prefers the first map when duplicate keys are encountered,
 -- i.e. (@'union' == 'unionWith' 'const'@).
 --
@@ -1101,7 +1103,8 @@ union :: IntMap a -> IntMap a -> IntMap a
 union m1 m2
   = mergeWithKey' Bin const id id m1 m2
 
--- | \(O(n+m)\). The union with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The union with a combining function.
 --
 -- > unionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "aA"), (7, "C")]
 --
@@ -1111,7 +1114,8 @@ unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
 unionWith f m1 m2
   = unionWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). The union with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The union with a combining function.
 --
 -- > let f key left_value right_value = (show key) ++ ":" ++ left_value ++ "|" ++ right_value
 -- > unionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == fromList [(3, "b"), (5, "5:a|A"), (7, "C")]
@@ -1125,7 +1129,8 @@ unionWithKey f m1 m2
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Difference between two maps (based on keys).
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference between two maps (based on keys).
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
@@ -1133,7 +1138,8 @@ difference :: IntMap a -> IntMap b -> IntMap a
 difference m1 m2
   = mergeWithKey (\_ _ _ -> Nothing) id (const Nil) m1 m2
 
--- | \(O(n+m)\). Difference with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference with a combining function.
 --
 -- > let f al ar = if al == "b" then Just (al ++ ":" ++ ar) else Nothing
 -- > differenceWith f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (3, "B"), (7, "C")])
@@ -1143,7 +1149,8 @@ differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWith f m1 m2
   = differenceWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). Difference with a combining function. When two equal keys are
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
 -- If it returns 'Nothing', the element is discarded (proper set difference).
 -- If it returns (@'Just' y@), the element is updated with a new value @y@.
@@ -1157,8 +1164,8 @@ differenceWithKey f m1 m2
   = mergeWithKey f id (const Nil) m1 m2
 
 
--- TODO(wrengr): re-verify that asymptotic bound
--- | \(O(n+m)\). Remove all the keys in a given set from a map.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Remove all the keys in a given set from a map.
 --
 -- @
 -- m \`withoutKeys\` s = 'filterWithKey' (\\k _ -> k ``IntSet.notMember`` s) m
@@ -1221,7 +1228,8 @@ withoutBM _ Nil = Nil
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O(n+m)\). The (left-biased) intersection of two maps (based on keys).
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The (left-biased) intersection of two maps (based on keys).
 --
 -- > intersection (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "a"
 
@@ -1230,8 +1238,8 @@ intersection m1 m2
   = mergeWithKey' bin const (const Nil) (const Nil) m1 m2
 
 
--- TODO(wrengr): re-verify that asymptotic bound
--- | \(O(n+m)\). The restriction of a map to the keys in a set.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The restriction of a map to the keys in a set.
 --
 -- @
 -- m \`restrictKeys\` s = 'filterWithKey' (\\k _ -> k ``IntSet.member`` s) m
@@ -1291,7 +1299,8 @@ restrictBM bm t@(Tip k _)
 restrictBM _ Nil = Nil
 
 
--- | \(O(n+m)\). The intersection with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The intersection with a combining function.
 --
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
@@ -1299,7 +1308,8 @@ intersectionWith :: (a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWith f m1 m2
   = intersectionWithKey (\_ x y -> f x y) m1 m2
 
--- | \(O(n+m)\). The intersection with a combining function.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The intersection with a combining function.
 --
 -- > let f k al ar = (show k) ++ ":" ++ al ++ "|" ++ ar
 -- > intersectionWithKey f (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "5:a|A"
@@ -1312,7 +1322,8 @@ intersectionWithKey f m1 m2
   Symmetric difference
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). The symmetric difference of two maps.
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- The symmetric difference of two maps.
 --
 -- The result contains entries whose keys appear in exactly one of the two maps.
 --
@@ -1355,7 +1366,8 @@ symDiffTip !t1 !k1 = go
   MergeWithKey
 --------------------------------------------------------------------}
 
--- | \(O(n+m)\). A high-performance universal combining function. Using
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- A high-performance universal combining function. Using
 -- 'mergeWithKey', all combining functions can be defined without any loss of
 -- efficiency (with exception of 'union', 'difference' and 'intersection',
 -- where sharing of some nodes is lost with 'mergeWithKey').
@@ -1391,6 +1403,7 @@ symDiffTip !t1 !k1 = go
 -- @only2@ are 'id' and @'const' 'empty'@, but for example @'map' f@ or
 -- @'filterWithKey' f@ could be used for any @f@.
 
+-- See Note [IntMap merge complexity]
 mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap b -> IntMap c)
              -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
@@ -2375,13 +2388,15 @@ deleteMax = maybe Nil snd . maxView
 {--------------------------------------------------------------------
   Submap
 --------------------------------------------------------------------}
--- | \(O(n+m)\). Is this a proper submap? (ie. a submap but not equal).
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Is this a proper submap? (ie. a submap but not equal).
 -- Defined as (@'isProperSubmapOf' = 'isProperSubmapOfBy' (==)@).
 isProperSubmapOf :: Eq a => IntMap a -> IntMap a -> Bool
 isProperSubmapOf m1 m2
   = isProperSubmapOfBy (==) m1 m2
 
-{- | \(O(n+m)\). Is this a proper submap? (ie. a submap but not equal).
+{- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+ Is this a proper submap? (ie. a submap but not equal).
  The expression (@'isProperSubmapOfBy' f m1 m2@) returns 'True' when
  @keys m1@ and @keys m2@ are not equal,
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
@@ -2432,13 +2447,14 @@ submapCmp predicate (Tip k x) t
 submapCmp _    Nil Nil = EQ
 submapCmp _    Nil _   = LT
 
--- | \(O(n+m)\). Is this a submap?
+-- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
+-- Is this a submap?
 -- Defined as (@'isSubmapOf' = 'isSubmapOfBy' (==)@).
 isSubmapOf :: Eq a => IntMap a -> IntMap a -> Bool
 isSubmapOf m1 m2
   = isSubmapOfBy (==) m1 m2
 
-{- | \(O(n+m)\).
+{- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
  The expression (@'isSubmapOfBy' f m1 m2@) returns 'True' if
  all keys in @m1@ are in @m2@, and when @f@ returns 'True' when
  applied to their respective values. For example, the following
@@ -3812,3 +3828,39 @@ withEmpty bars = "   ":bars
 -- right child. We have the same three cases for a Bin. However, the bitwise
 -- operations we use to determine the case is naturally different due to the
 -- difference in representation.
+
+-- Note [IntMap merge complexity]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- The merge algorithm (used for union, intersection, etc.) is adopted from
+-- Okasaki-Gill who give the complexity as O(m+n), where m and n are the sizes
+-- of the two input maps. This is correct, since we visit all constructors in
+-- both maps in the worst case, but we can try to find a tighter bound.
+--
+-- Consider that m<=n, i.e. m is the size of the smaller map and n is the size
+-- of the larger. It does not matter which map is the first argument.
+--
+-- Now we have O(n) as one upper bound for our complexity, since O(n) is the
+-- same as O(m+n) for m<=n.
+--
+-- Next, consider the smaller map. For this map, we will visit some
+-- constructors, plus all the Bins of the larger map that lie in our way.
+-- For the former, the worst case is that we visit all constructors, which is
+-- O(m).
+-- For the latter, the worst case is that we encounter Bins at every point
+-- possible. This happens when for every key in the smaller map, the path to
+-- that key's Tip in the larger map has a full length of W, with a Bin at every
+-- bit position. To maximize the total number of Bins, the paths should be as
+-- disjoint as possible. But even if the paths are spread out, at least O(m)
+-- Bins are unavoidably shared, which extend up to a depth of lg(m) from the
+-- root. Beyond this, the paths may be disjoint. This gives us a total of
+-- O(m + m (W - lg m)) = O(m log (2^W / m)).
+-- The number of Bins we encounter is also bounded by the total number of Bins,
+-- which is n-1, but we already have O(n) as an upper bound.
+--
+-- Combining our bounds, we have the final complexity as
+-- O(min(n, m log (2^W / m))).
+--
+-- Note that
+-- * This is similar to the Map merge complexity, which is O(m log (n/m)).
+-- * When m is a small constant the term simplifies to O(min(n, W)), which is
+--   just the complexity we expect for single operations like insert and delete.
