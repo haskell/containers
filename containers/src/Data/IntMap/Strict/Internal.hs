@@ -581,7 +581,7 @@ alter f !k t =
                            Just !x -> Tip k x
                            Nothing -> Nil
 
--- | \(O(\log n)\). The expression (@'alterF' f k map@) alters the value @x@ at
+-- | \(O(\min(n,W))\). The expression (@'alterF' f k map@) alters the value @x@ at
 -- @k@, or absence thereof.  'alterF' can be used to inspect, insert, delete,
 -- or update a value in an 'IntMap'.  In short : @'lookup' k \<$\> 'alterF' f k m = f
 -- ('lookup' k m)@.
@@ -753,7 +753,7 @@ mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
   Min\/Max
 --------------------------------------------------------------------}
 
--- | \(O(\log n)\). Update the value at the minimal key.
+-- | \(O(\min(n,W))\). Update the value at the minimal key.
 --
 -- > updateMinWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"3:b"), (5,"a")]
 -- > updateMinWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
@@ -769,7 +769,7 @@ updateMinWithKey f t =
                         Nothing -> Nil
     go _ Nil = Nil
 
--- | \(O(\log n)\). Update the value at the maximal key.
+-- | \(O(\min(n,W))\). Update the value at the maximal key.
 --
 -- > updateMaxWithKey (\ k a -> Just ((show k) ++ ":" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3,"b"), (5,"5:a")]
 -- > updateMaxWithKey (\ _ _ -> Nothing)                     (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -785,7 +785,7 @@ updateMaxWithKey f t =
                         Nothing -> Nil
     go _ Nil = Nil
 
--- | \(O(\log n)\). Update the value at the maximal key.
+-- | \(O(\min(n,W))\). Update the value at the maximal key.
 --
 -- > updateMax (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "Xa")]
 -- > updateMax (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -793,7 +793,7 @@ updateMaxWithKey f t =
 updateMax :: (a -> Maybe a) -> IntMap a -> IntMap a
 updateMax f = updateMaxWithKey (const f)
 
--- | \(O(\log n)\). Update the value at the minimal key.
+-- | \(O(\min(n,W))\). Update the value at the minimal key.
 --
 -- > updateMin (\ a -> Just ("X" ++ a)) (fromList [(5,"a"), (3,"b")]) == fromList [(3, "Xb"), (5, "a")]
 -- > updateMin (\ _ -> Nothing)         (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
@@ -955,7 +955,7 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
           Tip k x     -> let !(a',!x') = f a k x in (a' :*: Tip k x')
           Nil         -> (a :*: Nil)
 
--- | \(O(n \log n)\).
+-- | \(O(n \min(n,W))\).
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
 --
 -- The size of the result may be smaller if @f@ maps two or more distinct
