@@ -260,5 +260,4 @@ module Data.IntMap.Lazy (
     , maxViewWithKey
     ) where
 
-import Data.IntSet.Internal.IntTreeCommons (Key)
 import Data.IntMap.Internal as IM

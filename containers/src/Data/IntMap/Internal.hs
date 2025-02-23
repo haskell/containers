@@ -67,6 +67,7 @@
 module Data.IntMap.Internal (
     -- * Map type
       IntMap(..)          -- instance Eq,Show
+    , Key
 
     -- * Operators
     , (!), (!?), (\\)
