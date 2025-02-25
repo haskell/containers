@@ -23,17 +23,17 @@
 -- For a walkthrough of the most commonly used functions see the
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
 --
+-- This module is intended to be imported qualified, to avoid name clashes with
+-- Prelude functions, e.g.
+--
+-- >  import Data.Set (Set)
+-- >  import qualified Data.Set as Set
+--
 -- Note that the implementation is generally /left-biased/. Functions that take
 -- two sets as arguments and combine them, such as `union` and `intersection`,
 -- prefer the entries in the first argument to those in the second. Of course,
 -- this bias can only be observed when equality is an equivalence relation
 -- instead of structural equality.
---
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
---
--- >  import Data.Set (Set)
--- >  import qualified Data.Set as Set
 --
 --
 -- == Warning
@@ -67,6 +67,19 @@
 --    * Guy Blelloch, Daniel Ferizovic, and Yihan Sun,
 --      \"/Parallel Ordered Sets Using Join/\",
 --      <https://arxiv.org/abs/1602.02120v4>.
+--
+--
+-- == Performance information
+--
+-- The time complexity is given for each operation in
+-- [big-O notation](http://en.wikipedia.org/wiki/Big_O_notation), with \(n\)
+-- referring to the number of entries in the set.
+--
+-- Operations like 'member', 'insert', and 'delete' take \(O(\log n)\) time.
+--
+-- Binary set operations like 'union' and 'intersection' take
+-- \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr)\) time, where \(m\) and \(n\)
+-- are the sizes of the smaller and larger input sets respectively.
 --
 -----------------------------------------------------------------------------
 

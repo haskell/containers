@@ -34,22 +34,18 @@
 -- Authors importing this module are expected to track development
 -- closely.
 --
--- = Description
 --
--- An efficient implementation of integer sets.
+-- = Finite Int Sets (internals)
 --
--- These modules are intended to be imported qualified, to avoid name
--- clashes with Prelude functions, e.g.
---
--- >  import Data.IntSet (IntSet)
--- >  import qualified Data.IntSet as IntSet
+-- The @'IntSet'@ type represents a set of elements of type @Int@. An @IntSet@
+-- is strict in its elements.
 --
 --
 -- == Implementation
 --
 -- The implementation is based on /big-endian patricia trees/.  This data
 -- structure performs especially well on binary operations like 'union'
--- and 'intersection'.  However, my benchmarks show that it is also
+-- and 'intersection'. Additionally, benchmarks show that it is also
 -- (much) faster on insertions and deletions when compared to a generic
 -- size-balanced set implementation (see "Data.Set").
 --

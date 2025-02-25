@@ -28,7 +28,7 @@
 -- <https://haskell-containers.readthedocs.io/en/latest/map.html maps introduction>.
 --
 -- This module is intended to be imported qualified, to avoid name clashes with
--- Prelude functions:
+-- Prelude functions, e.g.
 --
 -- > import Data.IntMap.Lazy (IntMap)
 -- > import qualified Data.IntMap.Lazy as IntMap
@@ -64,11 +64,11 @@
 -- referring to the number of entries in the map and \(W\) referring to the
 -- number of bits in an 'Int' (32 or 64).
 --
--- Many operations have a worst-case complexity of \(O(\min(n,W))\).
--- This means that the operation can become linear in the number of
--- elements with a maximum of \(W\) -- the number of bits in an 'Int'
--- (32 or 64). These peculiar asymptotics are determined by the depth
--- of the Patricia trees:
+-- Operations like 'lookup', 'insert', and 'delete' have a worst-case
+-- complexity of \(O(\min(n,W))\). This means that the operation can become
+-- linear in the number of elements with a maximum of \(W\) -- the number of
+-- bits in an 'Int' (32 or 64). These peculiar asymptotics are determined by the
+-- depth of the Patricia trees:
 --
 -- * even for an extremely unbalanced tree, the depth cannot be larger than
 --   the number of elements \(n\),
@@ -85,6 +85,10 @@
 -- in which case the complexity is proportional to \(\log n\), capped by \(W\).
 -- The worst scenario are exponentially growing keys \(1,2,4,\ldots,2^n\),
 -- for which complexity grows as fast as \(n\) but again is capped by \(W\).
+--
+-- Binary set operations like 'union' and 'intersection' take
+-- \(O(\min(n, m \log \frac{2^W}{m}))\) time, where \(m\) and \(n\)
+-- are the sizes of the smaller and larger input maps respectively.
 --
 -- Benchmarks comparing "Data.IntMap.Lazy" with other dictionary
 -- implementations can be found at https://github.com/haskell-perf/dictionaries.
