@@ -53,6 +53,9 @@
 
 * Add `foldMap` for `Data.IntSet`. (Soumik Sarkar)
 
+* Add `leaves`, `edges`, `pathsToRoot`, `pathsFromRoot`, `PostOrder` to
+  `Data.Tree`. (Soumik Sarkar)
+
 ### Performance improvements
 
 * For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now

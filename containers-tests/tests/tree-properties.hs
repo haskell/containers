@@ -12,13 +12,13 @@ import Test.QuickCheck.Poly (A, B, C, OrdA)
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
 import Data.Foldable (fold, foldl', toList)
+import Data.List.NonEmpty (NonEmpty (..))
+import qualified Data.List.NonEmpty as NE
 import Data.Traversable (foldMapDefault)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup ((<>)))
 #endif
 #if MIN_VERSION_base(4,18,0)
-import Data.List.NonEmpty (NonEmpty (..))
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Foldable1 as Foldable1
 #endif
 
@@ -45,6 +45,7 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "minimum"                  prop_minimum
          , testProperty "sum"                      prop_sum
          , testProperty "product"                  prop_product
+         , testProperty "traverse"                 prop_traverse
 #if MIN_VERSION_base(4,18,0)
          , testProperty "foldMap1_structure"       prop_foldMap1_structure
          , testProperty "toNonEmpty"               prop_toNonEmpty
@@ -54,6 +55,32 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "foldlMap1'"               prop_foldlMap1'
          , testProperty "foldlMap1"                prop_foldlMap1
 #endif
+         , testProperty "leaves"                   prop_leaves
+         , testProperty "edges"                    prop_edges
+         , testProperty "pathsToRoot"              prop_pathsToRoot
+         , testProperty "pathsFromRoot"            prop_pathsFromRoot
+         , testGroup "PostOrder"
+           [ testCase "foldr"                      test_PostOrder_foldr
+           , testProperty "toList"                 prop_PostOrder_toList
+           , testProperty "foldMap"                prop_PostOrder_foldMap
+           , testProperty "foldMap_structure"      prop_PostOrder_foldMap_structure
+           , testProperty "foldl'"                 prop_PostOrder_foldl'
+           , testProperty "foldr1"                 prop_PostOrder_foldr1
+           , testProperty "foldl1"                 prop_PostOrder_foldl1
+           , testProperty "foldr_infinite"         prop_PostOrder_foldr_infinite
+           , testProperty "maximum"                prop_PostOrder_maximum
+           , testProperty "minimum"                prop_PostOrder_minimum
+           , testProperty "sum"                    prop_PostOrder_sum
+           , testProperty "product"                prop_PostOrder_product
+           , testProperty "traverse"               prop_PostOrder_traverse
+#if MIN_VERSION_base(4,18,0)
+           , testProperty "foldMap1_structure"     prop_PostOrder_foldMap1_structure
+           , testProperty "toNonEmpty"             prop_PostOrder_toNonEmpty
+           , testProperty "foldrMap1"              prop_PostOrder_foldrMap1
+           , testProperty "foldlMap1'"             prop_PostOrder_foldlMap1'
+           , testProperty "foldlMap1"              prop_PostOrder_foldlMap1
+#endif
+           ]
          ]
 
 {--------------------------------------------------------------------
@@ -83,6 +110,10 @@ instance Arbitrary a => Arbitrary (Tree a) where
 #if defined(__GLASGOW_HASKELL__)
   shrink = genericShrink
 #endif
+
+instance Arbitrary a => Arbitrary (PostOrder a) where
+  arbitrary = PostOrder <$> arbitrary
+  shrink = map PostOrder . shrink . unPostOrder
 
 ----------------------------------------------------------------
 -- Utilities
@@ -121,6 +152,12 @@ test_foldr = do
   foldr (:) [] (Node 1 []) @?= [1]
   foldr (:) [] (Node 1 [Node 2 [Node 3 []]]) @?= [1..3]
   foldr (:) [] (Node 1 [Node 2 [Node 3 [], Node 4 []], Node 5 [Node 6 [], Node 7 []]]) @?= [1..7]
+
+test_PostOrder_foldr :: Assertion
+test_PostOrder_foldr = do
+  foldr (:) [] (PostOrder (Node 1 [])) @?= [1]
+  foldr (:) [] (PostOrder (Node 1 [Node 2 [Node 3 []]])) @?= [3,2,1]
+  foldr (:) [] (PostOrder (Node 1 [Node 2 [Node 3 [], Node 4 []], Node 5 [Node 6 [], Node 7 []]])) @?= [3,4,2,6,7,5,1]
 
 ----------------------------------------------------------------
 -- QuickCheck
@@ -176,7 +213,7 @@ prop_foldMap t =
   foldMap (:[]) t === toList t .&&.
   foldMap (:[]) t === foldMapDefault (:[]) t
 
--- We use UnitalMagma with foldMap to test that the structure of the fold
+-- Note: We use UnitalMagma with foldMap to test that the structure of the fold
 -- follows that of the tree. This is desirable here because we can be more
 -- efficient/lazy with some monoids, such as Data.Monoid.Last, compared
 -- to a foldr-based foldMap.
@@ -212,9 +249,14 @@ prop_sum t = sum t === sum (toList t)
 prop_product :: Tree OrdA -> Property
 prop_product t = product t === product (toList t)
 
+prop_traverse :: Fun A B -> Tree A -> Property
+prop_traverse f t = xs === toList t .&&. t' === fmap (applyFun f) t
+  where
+    (xs, t') = traverse (\x -> ([x], applyFun f x)) t
+
 #if MIN_VERSION_base(4,18,0)
--- We use Magma with foldMap1 to test that the structure of the fold follows
--- that of the tree. This is desirable here because we can be more
+-- Note: We use Magma with foldMap1 to test that the structure of the fold
+-- follows that of the tree. This is desirable here because we can be more
 -- efficient/lazy with some semigroups, such as Data.Semigroup.Last, compared
 -- to a foldrMap1-based foldMap1.
 prop_foldMap1_structure :: Tree A -> Property
@@ -254,6 +296,111 @@ prop_foldlMap1' t =
 prop_foldlMap1 :: Tree A -> Property
 prop_foldlMap1 t =
     Foldable1.foldlMap1 Inj f t === Foldable1.foldlMap1 Inj f (Foldable1.toNonEmpty t)
+  where
+    f z x = z :* Inj x
+#endif
+
+prop_leaves :: Tree A -> Property
+prop_leaves t = leaves t === foldTree f t []
+  where
+    f x [] = (x:)
+    f _ ks = foldr (.) id ks
+
+prop_edges :: Tree A -> Property
+prop_edges t = edges t === foldTree f t Nothing []
+  where
+    f x ks mp es =
+      maybe [] (\p -> [(p, x)]) mp ++
+      foldr (\k -> k (Just x)) es ks
+
+prop_pathsToRoot :: Tree A -> Property
+prop_pathsToRoot t = pathsToRoot t === foldTree f t []
+  where
+    f x ks ps = Node (x :| ps) (map ($ (x:ps)) ks)
+
+prop_pathsFromRoot :: Tree A -> Property
+prop_pathsFromRoot t = pathsFromRoot t === foldTree f t []
+  where
+    f x ks ps = Node (NE.reverse (x :| ps)) (map ($ (x:ps)) ks)
+
+prop_PostOrder_toList :: PostOrder A -> Property
+prop_PostOrder_toList t = toList t === foldr (:) [] t
+
+prop_PostOrder_foldMap :: PostOrder A -> Property
+prop_PostOrder_foldMap t =
+  foldMap (:[]) t === toList t .&&.
+  foldMap (:[]) t === foldMapDefault (:[]) t
+
+-- See note on prop_foldMap_structure.
+prop_PostOrder_foldMap_structure :: PostOrder A -> Property
+prop_PostOrder_foldMap_structure t =
+  foldMap UInj t === foldTree (\x ys -> fold ys <> UInj x) (unPostOrder t)
+
+prop_PostOrder_foldl' :: PostOrder A -> Property
+prop_PostOrder_foldl' t = foldl' (flip (:)) [] t === reverse (toList t)
+
+prop_PostOrder_foldr1 :: PostOrder A -> Property
+prop_PostOrder_foldr1 t =
+  foldr1 (:*) (fmap Inj t) === foldr1 (:*) (map Inj (toList t))
+
+prop_PostOrder_foldl1 :: PostOrder A -> Property
+prop_PostOrder_foldl1 t =
+  foldl1 (:*) (fmap Inj t) === foldl1 (:*) (map Inj (toList t))
+
+prop_PostOrder_foldr_infinite :: NonNegative Int -> Property
+prop_PostOrder_foldr_infinite (NonNegative n) =
+    forAllShow genInf (const "<possibly infinite tree>") $
+        \t -> length (take n (foldr (:) [] t)) <= n
+  where
+    genInf = Node () <$> oneof [listOf genInf, infiniteListOf genInf]
+
+prop_PostOrder_maximum :: PostOrder OrdA -> Property
+prop_PostOrder_maximum t = maximum t === maximum (toList t)
+
+prop_PostOrder_minimum :: PostOrder OrdA -> Property
+prop_PostOrder_minimum t = minimum t === minimum (toList t)
+
+prop_PostOrder_sum :: PostOrder OrdA -> Property
+prop_PostOrder_sum t = sum t === sum (toList t)
+
+prop_PostOrder_product :: PostOrder OrdA -> Property
+prop_PostOrder_product t = product t === product (toList t)
+
+prop_PostOrder_traverse :: Fun A B -> PostOrder A -> Property
+prop_PostOrder_traverse f t = xs === toList t .&&. t' === fmap (applyFun f) t
+  where
+    (xs, t') = traverse (\x -> ([x], applyFun f x)) t
+
+#if MIN_VERSION_base(4,18,0)
+-- See note on prop_foldMap1_structure.
+prop_PostOrder_foldMap1_structure :: PostOrder A -> Property
+prop_PostOrder_foldMap1_structure t =
+  Foldable1.foldMap1 Inj t === foldTree f (unPostOrder t)
+  where
+    f x [] = Inj x
+    f x (y:ys) = Foldable1.fold1 (y :| ys) <> Inj x
+
+prop_PostOrder_toNonEmpty :: PostOrder A -> Property
+prop_PostOrder_toNonEmpty t = Foldable1.toNonEmpty t === NE.fromList (toList t)
+
+prop_PostOrder_foldrMap1 :: PostOrder A -> Property
+prop_PostOrder_foldrMap1 t =
+    Foldable1.foldrMap1 Inj f t ===
+    Foldable1.foldrMap1 Inj f (Foldable1.toNonEmpty t)
+  where
+    f x z = Inj x :* z
+
+prop_PostOrder_foldlMap1' :: PostOrder A -> Property
+prop_PostOrder_foldlMap1' t =
+    Foldable1.foldlMap1' Inj f t ===
+    Foldable1.foldlMap1' Inj f (Foldable1.toNonEmpty t)
+  where
+    f z x = z :* Inj x
+
+prop_PostOrder_foldlMap1 :: PostOrder A -> Property
+prop_PostOrder_foldlMap1 t =
+    Foldable1.foldlMap1 Inj f t ===
+    Foldable1.foldlMap1 Inj f (Foldable1.toNonEmpty t)
   where
     f z x = z :* Inj x
 #endif
