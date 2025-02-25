@@ -28,7 +28,6 @@ main :: IO ()
 main = defaultMain $ testGroup "tree-properties"
          [
            testCase     "foldr"                    test_foldr
-         , testCase "PostOrder_foldr"              test_PostOrder_foldr
          , testProperty "monad_id1"                prop_monad_id1
          , testProperty "monad_id2"                prop_monad_id2
          , testProperty "monad_assoc"              prop_monad_assoc
@@ -61,7 +60,8 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "pathsToRoot"              prop_pathsToRoot
          , testProperty "pathsFromRoot"            prop_pathsFromRoot
          , testGroup "PostOrder"
-           [ testProperty "toList"                 prop_PostOrder_toList
+           [ testCase "foldr"                      test_PostOrder_foldr
+           , testProperty "toList"                 prop_PostOrder_toList
            , testProperty "foldMap"                prop_PostOrder_foldMap
            , testProperty "foldMap_structure"      prop_PostOrder_foldMap_structure
            , testProperty "foldl'"                 prop_PostOrder_foldl'
