@@ -1,9 +1,14 @@
 packages:
   containers/
   containers-tests/
+-- Tip: Remove containers from the above list when making changes locally.
+-- This avoids recompiling some dependencies (that depend on containers) when
+-- you test or benchmark your changes.
 
 tests: True
 benchmarks: True
 
--- package containers-tests
---   ghc-options: -Werror
+-- Disregard bounds on containers for all packages.
+-- This allows test dependencies to build (and hopefully work) on CI, even if
+-- the latest containers version is not yet marked as supported in their bounds.
+allow-newer: all:containers

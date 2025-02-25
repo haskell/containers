@@ -1,6 +1,6 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## Next release
+## 0.8  *March 2025*
 
 ### Breaking changes
 
@@ -8,87 +8,203 @@
   `Data.IntMap.Lazy.splitLookup`, `Data.IntMap.Strict.splitLookup` and
   `Data.IntSet.splitMember` are now strict in the key. Previously, the key was
   ignored for an empty map or set. (Soumik Sarkar)
+  ([#982](https://github.com/haskell/containers/pull/982),
+  [#983](https://github.com/haskell/containers/pull/983))
 
-* The following functions have been updated to match the strictness of their
+* These functions have been updated to match the strictness of their
   `fromList` counterparts:
 
-  * `Data.Map.Strict.fromAscList`
-  * `Data.Map.Strict.fromAscListWith`
-  * `Data.Map.Strict.fromAscListWithKey`
-  * `Data.Map.Strict.fromDescList`
-  * `Data.Map.Strict.fromDescListWith`
-  * `Data.Map.Strict.fromDescListWithKey`
-  * `Data.IntMap.Strict.fromAscList`
-  * `Data.IntMap.Strict.fromAscListWith`
-  * `Data.IntMap.Strict.fromAscListWithKey`
+  * `Data.Map.Strict`: `fromAscList`, `fromAscListWith`, `fromAscListWithKey`
+    `fromDescList`, `fromDescListWith`, `fromDescListWithKey`
+  * `Data.IntMap.Strict`: `fromAscList`, `fromAscListWith`, `fromAscListWithKey`
 
   Previously they were lazier and did not force the first value in runs of at
   least 2 entries with equal keys. (Soumik Sarkar)
-
-* Various deprecated functions, whose definitions currently cause type errors,
-  have been removed. (Soumik Sarkar)
+  ([#1023](https://github.com/haskell/containers/pull/1023))
 
 * `Data.Set.fold` and `Data.IntSet.fold` have long been documented as
   deprecated and are now marked as such. They will be removed in a future
-  release.
+  release. (Soumik Sarkar)
+  ([#1049](https://github.com/haskell/containers/pull/1049))
+
+* For `Data.IntMap.{Lazy,Strict}`, `updateMin`, `updateMax`, `updateMinWithKey`,
+  `updateMaxWithKey` now return an empty map for an input empty map instead of
+  calling `error`. This matches the behavior of `Data.Map`. (Kushagra Gupta)
+  ([#1065](https://github.com/haskell/containers/pull/1065))
+
+* `foldl'` and `foldr'` for `Seq` are now strict in the initial value. This
+  matches the behavior of the default implementations and of the other
+  structures in the library. (Soumik Sarkar)
+  ([#1077](https://github.com/haskell/containers/pull/1077))
+
+* Various deprecated functions, whose definitions currently cause type errors,
+  have been removed. (Soumik Sarkar)
+  ([#1046](https://github.com/haskell/containers/pull/1046))
 
 ### Bug fixes
 
 * Make the package compile with MicroHs. (Lennart Augustsson)
+  ([#1043](https://github.com/haskell/containers/pull/1043),
+  [#1081](https://github.com/haskell/containers/pull/1081))
+
+* Fix a strictness bug in `Data.Map.Strict.fromDistinctAscList` and
+  `Data.Map.Strict.fromDistinctDescList` where all values were not forced.
+  This bug affects versions 0.6.8 and 0.7. (Neil Mayhew)
+  ([#996](https://github.com/haskell/containers/pull/996))
+
+* Fix a bug in `Data.IntMap`'s `isProperSubmapOfBy` where it could incorrectly
+  return `False`. (Soumik Sarkar)
+  ([#1008](https://github.com/haskell/containers/pull/1008))
+
+* Make `Data.Map.Merge.{Lazy,Strict}.filterAMissing` sequence effects in the
+  correct order. (j6carey)
+  ([#1005](https://github.com/haskell/containers/pull/1005))
 
 * `Data.Map.Strict.mergeWithKey` now forces the result of the combining function
   to WHNF. (Soumik Sarkar)
+  ([#1024](https://github.com/haskell/containers/pull/1024))
 
 * Fix an issue where `Data.Map.mergeWithKey`, `Data.Map.Strict.mergeWithKey`,
   `Data.IntMap.mergeWithKey`, `Data.IntMap.Strict.mergeWithKey` could call the
   provided `only2` function with empty maps, contrary to documentation.
-  (Soumik Sarkar)
+  (Soumik Sarkar) ([#1025](https://github.com/haskell/containers/pull/1025))
 
 ### Additions
 
+* Add `Data.Graph.flattenSCC1`. (Andreas Abel)
+  ([#987](https://github.com/haskell/containers/pull/987))
+
+* Add `symmetricDifference` for `Set`, `Map`, `IntSet`, `IntMap`.
+  (Soumik Sarkar) ([#1009](https://github.com/haskell/containers/pull/1009))
+
 * Add `lookupMin` and `lookupMax` for `Data.IntSet`. (Soumik Sarkar)
+  ([#976](https://github.com/haskell/containers/pull/976))
 
 * Add `Intersection` and `intersections` for `Data.Set` and `Data.IntSet`.
   (Reed Mullanix, Soumik Sarkar)
+  ([#756](https://github.com/haskell/containers/pull/756),
+  [#1040](https://github.com/haskell/containers/pull/1040),
+  [#1052](https://github.com/haskell/containers/pull/1052),
+  [#1080](https://github.com/haskell/containers/pull/1080))
 
 * Add `foldMap` for `Data.IntSet`. (Soumik Sarkar)
+  ([#1048](https://github.com/haskell/containers/pull/1048))
+
+* Add `filterKeys` for `Data.Map` and `Data.IntMap`. (flip111)
+  ([#972](https://github.com/haskell/containers/pull/972))
+
+* `NFData1`, `NFData2` instances for `SCC`, `IntMap`, `Map`, `Sequence`, `Set`,
+  `Tree` and relevant internal dependencies (David Beacham)
+  ([#992](https://github.com/haskell/containers/pull/992))
 
 * Add `leaves`, `edges`, `pathsToRoot`, `pathsFromRoot`, `PostOrder` to
   `Data.Tree`. (Soumik Sarkar)
+  ([#1109](https://github.com/haskell/containers/pull/1109))
 
 ### Performance improvements
 
+* The internal representations of `IntMap` and `IntSet` have been changed
+  to be a little more memory efficient. (Soumik Sarkar)
+  ([#995](https://github.com/haskell/containers/pull/995),
+  [#998](https://github.com/haskell/containers/pull/998))
+
+* Improved performance for `Data.Map`'s `minViewSure` and `maxViewSure`.
+  (Soumik Sarkar) ([#1001](https://github.com/haskell/containers/pull/1001))
+
 * For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
   do not perform a copy. (Soumik Sarkar)
+  ([#1057](https://github.com/haskell/containers/pull/1057))
 
 * Improved performance for `Data.Intset`'s `foldr`, `foldl'`, `foldl`, `foldr'`.
+  (Soumik Sarkar) ([#1079](https://github.com/haskell/containers/pull/1079))
 
 * Improved performance for `Data.Set` and `Data.Map`'s `fromAscList*` and
-  `fromDescList*` functions.
+  `fromDescList*` functions. (Soumik Sarkar)
+  ([#1083](https://github.com/haskell/containers/pull/1083))
 
 * Improved performance for `Data.Set`'s `fromList`, `map` and `Data.Map`'s
   `fromList`, `fromListWith`, `fromListWithKey`, `mapKeys`, `mapKeysWith`.
+  (Soumik Sarkar) ([#1042](https://github.com/haskell/containers/pull/1042))
 
 * Improved performance for many `Set` and `Map` modification operations,
   including `insert` and `delete`, by inlining part of the balancing
   routine. (Soumik Sarkar)
+  ([#1056](https://github.com/haskell/containers/pull/1056))
 
-* Improved performance for `IntSet` and `IntMap`'s `Ord` instances.
+* Improved performance for `Eq` and `Ord` instances of `Set`, `Map`, `IntSet`,
+  `IntMap`, `Seq`. (Soumik Sarkar)
+  ([#1028](https://github.com/haskell/containers/pull/1028),
+  [#1017](https://github.com/haskell/containers/pull/1017),
+  [#1035](https://github.com/haskell/containers/pull/1035),
+  [#1086](https://github.com/haskell/containers/pull/1086),
+  [#1112](https://github.com/haskell/containers/pull/1112))
+
+### Documentation
+
+* Add and improve documentation (Bodigrim, konsumlamm, Toni Dietze, alexfmpe,
+  Soumik Sarkar, Jonathan Knowles, Xavier Góngora, Xia Li-yao, eyelash)
+  ([#957](https://github.com/haskell/containers/pull/957),
+  [#1006](https://github.com/haskell/containers/pull/1006),
+  [#877](https://github.com/haskell/containers/pull/877),
+  [#960](https://github.com/haskell/containers/pull/960),
+  [#1033](https://github.com/haskell/containers/pull/1033),
+  [#1041](https://github.com/haskell/containers/pull/1041),
+  [#1039](https://github.com/haskell/containers/pull/1039),
+  [#1050](https://github.com/haskell/containers/pull/1050),
+  [#1088](https://github.com/haskell/containers/pull/1088),
+  [#1087](https://github.com/haskell/containers/pull/1087),
+  [#1098](https://github.com/haskell/containers/pull/1098),
+  [#1106](https://github.com/haskell/containers/pull/1106),
+  [#1104](https://github.com/haskell/containers/pull/1104),
+  [#1105](https://github.com/haskell/containers/pull/1105),
+  [#1111](https://github.com/haskell/containers/pull/1111),
+  [#1110](https://github.com/haskell/containers/pull/1110),
+  [#1114](https://github.com/haskell/containers/pull/1114),
+  [#1115](https://github.com/haskell/containers/pull/1115))
 
 ### Miscellaneous/internal
 
 * Internal modules `Utils.Containers.Internal.BitUtil`,
   `Utils.Containers.Internal.BitQueue`, `Utils.Containers.Internal.StrictPair`
-  are no longer exposed.
+  are no longer exposed. (Soumik Sarkar)
+  ([#1101](https://github.com/haskell/containers/pull/1101))
 
-## Unreleased with `@since` annotation for 0.7.1:
+* Test and CI maintenance. (Andreas Abel, Soumik Sarkar)
+  ([#986](https://github.com/haskell/containers/pull/986),
+  [#1015](https://github.com/haskell/containers/pull/1015),
+  [#1030](https://github.com/haskell/containers/pull/1030),
+  [#1055](https://github.com/haskell/containers/pull/1055),
+  [#1067](https://github.com/haskell/containers/pull/1067))
 
-### Additions
+* Internal cleanups and improvements. (Soumik Sarkar, alexfmpe)
+  ([#1000](https://github.com/haskell/containers/pull/1000),
+  [#959](https://github.com/haskell/containers/pull/959),
+  [#1020](https://github.com/haskell/containers/pull/1020),
+  [#1029](https://github.com/haskell/containers/pull/1029),
+  [#1031](https://github.com/haskell/containers/pull/1031),
+  [#1037](https://github.com/haskell/containers/pull/1037),
+  [#1058](https://github.com/haskell/containers/pull/1058),
+  [#1076](https://github.com/haskell/containers/pull/1076),
+  [#1084](https://github.com/haskell/containers/pull/1084),
+  [#1085](https://github.com/haskell/containers/pull/1085),
+  [#1093](https://github.com/haskell/containers/pull/1093),
+  [#1094](https://github.com/haskell/containers/pull/1094),
+  [#1095](https://github.com/haskell/containers/pull/1095),
+  [#1097](https://github.com/haskell/containers/pull/1097),
+  [#1103](https://github.com/haskell/containers/pull/1103))
 
-* Add `Data.Graph.flattenSCC1`. (Andreas Abel)
+* Add new tests and benchmarks (Soumik Sarkar)
+  ([#962](https://github.com/haskell/containers/pull/962),
+  [#1021](https://github.com/haskell/containers/pull/1021),
+  [#1063](https://github.com/haskell/containers/pull/1063),
+  [#1068](https://github.com/haskell/containers/pull/1068),
+  [#1071](https://github.com/haskell/containers/pull/1071),
+  [#1075](https://github.com/haskell/containers/pull/1075),
+  [#1082](https://github.com/haskell/containers/pull/1082))
 
-* `NFData1`, `NFData2` instances for `SCC`, `IntMap`, `Map`, `Sequence`, `Set`,
-  `Tree` and relevant internal dependencies (David Beacham)
+* Fix the Read the Docs tutorial (Soumik Sarkar)
+  ([#1091](https://github.com/haskell/containers/pull/1091),
+  [#1099](https://github.com/haskell/containers/pull/1099))
 
 ## 0.7
 

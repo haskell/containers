@@ -657,7 +657,7 @@ intersection Nil _ = Nil
 -- | The intersection of a series of sets. Intersections are performed
 -- left-to-right.
 --
--- @since FIXME
+-- @since 0.8
 intersections :: NonEmpty IntSet -> IntSet
 intersections (s0 :| ss)
   | null s0 = empty
@@ -675,7 +675,7 @@ intersections (s0 :| ss)
 -- A @Monoid@ instance is not defined because it would be impractical to
 -- construct @mempty@, the @IntSet@ containing all @Int@s.
 --
--- @since FIXME
+-- @since 0.8
 newtype Intersection = Intersection { getIntersection :: IntSet }
   deriving (Show, Eq, Ord)
 
@@ -705,7 +705,7 @@ instance Semigroup Intersection where
 -- symmetricDifference (fromList [0,2,4,6]) (fromList [0,3,6,9]) == fromList [2,3,4,9]
 -- @
 --
--- @since FIXME
+-- @since 0.8
 symmetricDifference :: IntSet -> IntSet -> IntSet
 symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
   case treeTreeBranch p1 p2 of
@@ -1091,7 +1091,7 @@ lookupMinSure Nil         = error "lookupMin Nil"
 -- | \(O(\min(n,W))\). The minimal element of the set. Returns 'Nothing' if the
 -- set is empty.
 --
--- @since FIXME
+-- @since 0.8
 lookupMin :: IntSet -> Maybe Key
 lookupMin Nil         = Nothing
 lookupMin (Tip kx bm) = Just $! kx + lowestBitSet bm
@@ -1113,7 +1113,7 @@ lookupMaxSure Nil         = error "lookupMax Nil"
 -- | \(O(\min(n,W))\). The maximal element of the set. Returns 'Nothing' if the
 -- set is empty.
 --
--- @since FIXME
+-- @since 0.8
 lookupMax :: IntSet -> Maybe Key
 lookupMax Nil         = Nothing
 lookupMax (Tip kx bm) = Just $! kx + highestBitSet bm
@@ -1247,7 +1247,9 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
 
--- | \(O(n))\). Map the elements in the set to a monoid and combine with @(<>)@.
+-- | \(O(n)\). Map the elements in the set to a monoid and combine with @(<>)@.
+--
+-- @since 0.8
 foldMap :: Monoid a => (Key -> a) -> IntSet -> a
 foldMap f = \t ->  -- Use lambda t to be inlinable with one argument only.
   case t of

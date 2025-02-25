@@ -250,7 +250,7 @@ instance NFData a => NFData (SCC a) where
     rnf (AcyclicSCC v) = rnf v
     rnf (NECyclicSCC vs) = rnf vs
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 SCC where
     liftRnf rnfx (AcyclicSCC v)   = rnfx v
     liftRnf rnfx (NECyclicSCC vs) = liftRnf rnfx vs
@@ -279,7 +279,7 @@ flattenSCC (NECyclicSCC (v :| vs)) = v : vs
 
 -- | The vertices of a strongly connected component.
 --
--- @since 0.7.1
+-- @since 0.8
 flattenSCC1 :: SCC vertex -> NonEmpty vertex
 flattenSCC1 (AcyclicSCC v) = v :| []
 flattenSCC1 (NECyclicSCC vs) = vs

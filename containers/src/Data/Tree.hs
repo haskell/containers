@@ -309,7 +309,7 @@ foldlMap1 f g =  -- Use a lambda to allow inlining with two arguments
 instance NFData a => NFData (Tree a) where
     rnf (Node x ts) = rnf x `seq` rnf ts
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Tree where
     liftRnf rnfx = go
       where
@@ -565,7 +565,7 @@ unfoldForestQ f aQ = case viewl aQ of
 -- >>> leaves (Node "root" [])
 -- ["root"]
 --
--- @since FIXME
+-- @since 0.8
 leaves :: Tree a -> [a]
 #ifdef __GLASGOW_HASKELL__
 leaves t = GHC.Exts.build $ \cons nil ->
@@ -602,7 +602,7 @@ leaves t =
 -- >>> edges (Node "root" [])
 -- []
 --
--- @since FIXME
+-- @since 0.8
 edges :: Tree a -> [(a, a)]
 #ifdef __GLASGOW_HASKELL__
 edges (Node x0 ts0) = GHC.Exts.build $ \cons nil ->
@@ -630,7 +630,7 @@ edges (Node x0 ts0) =
 -- >>> pathsToRoot (Node "root" [])
 -- Node {rootLabel = "root" :| [], subForest = []}
 --
--- @since FIXME
+-- @since 0.8
 pathsToRoot :: Tree a -> Tree (NonEmpty a)
 pathsToRoot = go []
   where
@@ -654,7 +654,7 @@ pathsToRoot = go []
 -- >>> pathsFromRoot (Node "root" [])
 -- Node {rootLabel = "root" :| [], subForest = []}
 --
--- @since FIXME
+-- @since 0.8
 
 -- See Note [pathsFromRoot implementation]
 pathsFromRoot :: Tree a -> Tree (NonEmpty a)
@@ -691,7 +691,7 @@ toNonEmptyBQ (BQ x0 _ f r) = case r of
 
 -- | A newtype over 'Tree' that folds and traverses in post-order.
 --
--- @since FIXME
+-- @since 0.8
 newtype PostOrder a = PostOrder { unPostOrder :: Tree a }
 #ifdef __GLASGOW_HASKELL__
   deriving (Eq, Ord, Read, Show, Data, Generic, Generic1, Lift)

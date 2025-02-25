@@ -893,7 +893,7 @@ intersection t1@(Bin _ x l1 r1) t2
 -- | The intersection of a series of sets. Intersections are performed
 -- left-to-right.
 --
--- @since FIXME
+-- @since 0.8
 intersections :: Ord a => NonEmpty (Set a) -> Set a
 intersections (s0 :| ss)
   | null s0 = empty
@@ -908,7 +908,7 @@ intersections (s0 :| ss)
 
 -- | @Set@s form a 'Semigroup' under 'intersection'.
 --
--- @since FIXME
+-- @since 0.8
 newtype Intersection a = Intersection { getIntersection :: Set a }
     deriving (Show, Eq, Ord)
 
@@ -940,7 +940,7 @@ instance (Ord a) => Semigroup (Intersection a) where
 -- symmetricDifference (fromList [0,2,4,6]) (fromList [0,3,6,9]) == fromList [2,3,4,9]
 -- @
 --
--- @since FIXME
+-- @since 0.8
 symmetricDifference :: Ord a => Set a -> Set a -> Set a
 symmetricDifference Tip t2 = t2
 symmetricDifference t1 Tip = t1
@@ -1377,7 +1377,7 @@ instance NFData a => NFData (Set a) where
     rnf Tip           = ()
     rnf (Bin _ y l r) = rnf y `seq` rnf l `seq` rnf r
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Set where
     liftRnf rnfx = go
       where

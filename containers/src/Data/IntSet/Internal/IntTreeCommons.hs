@@ -22,7 +22,7 @@
 -- This module defines common constructs used by both "Data.IntSet" and
 -- "Data.IntMap".
 --
--- @since FIXME
+-- @since 0.8
 --
 
 module Data.IntSet.Internal.IntTreeCommons

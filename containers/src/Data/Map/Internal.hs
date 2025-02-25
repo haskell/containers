@@ -2109,7 +2109,7 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
 -- fromList [(2,\'b\'),(3,\'r\'),(4,\'w\'),(9,\'s\')]
 -- @
 --
--- @since FIXME
+-- @since 0.8
 symmetricDifference :: Ord k => Map k a -> Map k a -> Map k a
 symmetricDifference Tip t2 = t2
 symmetricDifference t1 Tip = t1
@@ -2956,7 +2956,7 @@ filter p m
 --
 -- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 --
--- @since FIXME
+-- @since 0.8
 
 filterKeys :: (k -> Bool) -> Map k a -> Map k a
 filterKeys p m = filterWithKey (\k _ -> p k) m
@@ -4503,14 +4503,14 @@ instance (NFData k, NFData a) => NFData (Map k a) where
     rnf Tip = ()
     rnf (Bin _ kx x l r) = rnf kx `seq` rnf x `seq` rnf l `seq` rnf r
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData k => NFData1 (Map k) where
   liftRnf rnfx = go
     where
     go Tip              = ()
     go (Bin _ kx x l r) = rnf kx `seq` rnfx x `seq` go l `seq` go r
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData2 Map where
   liftRnf2 rnfkx rnfx = go
     where
