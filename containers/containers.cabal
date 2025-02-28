@@ -84,8 +84,5 @@ Library
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
         Utils.Containers.Internal.StrictPair
-    if impl(ghc)
-      other-modules:
-        Utils.Containers.Internal.TypeError
 
     include-dirs: include
