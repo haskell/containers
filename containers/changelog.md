@@ -22,9 +22,8 @@
   least 2 entries with equal keys. (Soumik Sarkar)
   ([#1023](https://github.com/haskell/containers/pull/1023))
 
-* `Data.Set.fold` and `Data.IntSet.fold` have long been documented as
-  deprecated and are now marked as such. They will be removed in a future
-  release. (Soumik Sarkar)
+* `Data.Set.fold` and `Data.IntSet.fold` are deprecated. One should instead use
+  `Data.Set.foldr` and `Data.IntSet.foldr`. (Soumik Sarkar)
   ([#1049](https://github.com/haskell/containers/pull/1049))
 
 * For `Data.IntMap.{Lazy,Strict}`, `updateMin`, `updateMax`, `updateMinWithKey`,
@@ -37,7 +36,7 @@
   structures in the library. (Soumik Sarkar)
   ([#1077](https://github.com/haskell/containers/pull/1077))
 
-* Various deprecated functions, whose definitions currently cause type errors,
+* Some long deprecated functions, whose definitions currently cause type errors,
   have been removed. (Soumik Sarkar)
   ([#1046](https://github.com/haskell/containers/pull/1046))
 
@@ -104,7 +103,8 @@
 ### Performance improvements
 
 * The internal representations of `IntMap` and `IntSet` have been changed
-  to be a little more memory efficient. (Soumik Sarkar)
+  to be a little more memory efficient. Consequently, many functions on
+  `IntMap`s and `IntSet`s are a little faster now. (Soumik Sarkar)
   ([#995](https://github.com/haskell/containers/pull/995),
   [#998](https://github.com/haskell/containers/pull/998))
 
@@ -112,7 +112,7 @@
   (Soumik Sarkar) ([#1001](https://github.com/haskell/containers/pull/1001))
 
 * For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
-  do not perform a copy. (Soumik Sarkar)
+  do not perform an unnecessary copy. (Soumik Sarkar)
   ([#1057](https://github.com/haskell/containers/pull/1057))
 
 * Improved performance for `Data.Intset`'s `foldr`, `foldl'`, `foldl`, `foldr'`.
@@ -191,7 +191,8 @@
   [#1094](https://github.com/haskell/containers/pull/1094),
   [#1095](https://github.com/haskell/containers/pull/1095),
   [#1097](https://github.com/haskell/containers/pull/1097),
-  [#1103](https://github.com/haskell/containers/pull/1103))
+  [#1103](https://github.com/haskell/containers/pull/1103),
+  [#1117](https://github.com/haskell/containers/pull/1117))
 
 * Add new tests and benchmarks (Soumik Sarkar)
   ([#962](https://github.com/haskell/containers/pull/962),
