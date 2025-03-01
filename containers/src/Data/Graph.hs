@@ -164,7 +164,7 @@ data SCC vertex
   | NECyclicSCC {-# UNPACK #-} !(NonEmpty vertex)
   -- ^ A maximal set of mutually reachable vertices.
   --
-  -- @since 0.7.0
+  -- @since 0.7
   deriving ( Eq   -- ^ @since 0.5.9
            , Show -- ^ @since 0.5.9
            , Read -- ^ @since 0.5.9
@@ -228,7 +228,7 @@ instance F.Foldable SCC where
   toList = flattenSCC
 
 #if MIN_VERSION_base(4,18,0)
--- | @since 0.7.0
+-- | @since 0.7
 instance F1.Foldable1 SCC where
   foldMap1 f (AcyclicSCC v) = f v
   foldMap1 f (NECyclicSCC vs) = F1.foldMap1 f vs

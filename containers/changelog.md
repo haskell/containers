@@ -32,8 +32,8 @@
   ([#1065](https://github.com/haskell/containers/pull/1065))
 
 * `foldl'` and `foldr'` for `Seq` are now strict in the initial value. This
-  matches the behavior of the default implementations and of the other
-  structures in the library. (Soumik Sarkar)
+  matches the behavior of the default implementations and of other structures in
+  the library. (Soumik Sarkar)
   ([#1077](https://github.com/haskell/containers/pull/1077))
 
 * Some long deprecated functions, whose definitions currently cause type errors,
@@ -42,13 +42,14 @@
 
 ### Bug fixes
 
-* Make the package compile with MicroHs. (Lennart Augustsson)
+* Make the package compile with [MicroHs](https://github.com/augustss/MicroHs).
+  (Lennart Augustsson)
   ([#1043](https://github.com/haskell/containers/pull/1043),
   [#1081](https://github.com/haskell/containers/pull/1081))
 
 * Fix a strictness bug in `Data.Map.Strict.fromDistinctAscList` and
-  `Data.Map.Strict.fromDistinctDescList` where all values were not forced.
-  This bug affects versions 0.6.8 and 0.7. (Neil Mayhew)
+  `Data.Map.Strict.fromDistinctDescList` where all values were not forced to
+  WHNF. This bug affects versions 0.6.8 and 0.7. (Neil Mayhew)
   ([#996](https://github.com/haskell/containers/pull/996))
 
 * Fix a bug in `Data.IntMap`'s `isProperSubmapOfBy` where it could incorrectly
@@ -108,7 +109,7 @@
   ([#995](https://github.com/haskell/containers/pull/995),
   [#998](https://github.com/haskell/containers/pull/998))
 
-* Improved performance for `Data.Map`'s `minViewSure` and `maxViewSure`.
+* Improved performance for `Data.Map`'s `minView`, `maxView`, `difference`.
   (Soumik Sarkar) ([#1001](https://github.com/haskell/containers/pull/1001))
 
 * For `Data.Graph.SCC`, `Foldable.toList` and `Foldable1.toNonEmpty` now
