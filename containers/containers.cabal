@@ -1,6 +1,6 @@
 cabal-version: 2.2
 name: containers
-version: 0.7
+version: 0.8
 license: BSD-3-Clause
 license-file: LICENSE
 maintainer: libraries@haskell.org

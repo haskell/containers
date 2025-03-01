@@ -502,7 +502,7 @@ instance Traversable Seq where
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Seq where
     liftRnf rnfx (Seq xs) = liftRnf (liftRnf rnfx) xs
 
@@ -1214,7 +1214,7 @@ instance NFData a => NFData (FingerTree a) where
     rnf (Single x) = rnf x
     rnf (Deep _ pr m sf) = rnf pr `seq` rnf sf `seq` rnf m
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 FingerTree where
     liftRnf _ EmptyT = ()
     liftRnf rnfx (Single x) = rnfx x
@@ -1322,7 +1322,7 @@ instance NFData a => NFData (Digit a) where
     rnf (Three a b c) = rnf a `seq` rnf b `seq` rnf c
     rnf (Four a b c d) = rnf a `seq` rnf b `seq` rnf c `seq` rnf d
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Digit where
     liftRnf rnfx (One a) = rnfx a
     liftRnf rnfx (Two a b) = rnfx a `seq` rnfx b
@@ -1407,7 +1407,7 @@ instance NFData a => NFData (Node a) where
     rnf (Node2 _ a b) = rnf a `seq` rnf b
     rnf (Node3 _ a b c) = rnf a `seq` rnf b `seq` rnf c
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Node where
     liftRnf rnfx (Node2 _ a b) = rnfx a `seq` rnfx b
     liftRnf rnfx (Node3 _ a b c) = rnfx a `seq` rnfx b `seq` rnfx c
@@ -1472,7 +1472,7 @@ instance Traversable Elem where
 instance NFData a => NFData (Elem a) where
     rnf (Elem x) = rnf x
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 Elem where
     liftRnf rnfx (Elem x) = rnfx x
 

@@ -531,7 +531,7 @@ instance NFData a => NFData (IntMap a) where
     rnf (Tip _ v) = rnf v
     rnf (Bin _ l r) = rnf l `seq` rnf r
 
--- | @since 0.7.1
+-- | @since 0.8
 instance NFData1 IntMap where
     liftRnf rnfx = go
       where
@@ -1355,7 +1355,7 @@ intersectionWithKey f m1 m2
 -- fromList [(2,\'b\'),(3,\'r\'),(4,\'w\'),(9,\'s\')]
 -- @
 --
--- @since FIXME
+-- @since 0.8
 symmetricDifference :: IntMap a -> IntMap a -> IntMap a
 symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
   case treeTreeBranch p1 p2 of
@@ -2694,7 +2694,7 @@ filter p m
 --
 -- > filterKeys (> 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 --
--- @since FIXME
+-- @since 0.8
 
 filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
 filterKeys predicate = filterWithKey (\k _ -> predicate k)
