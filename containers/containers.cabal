@@ -38,7 +38,10 @@ source-repository head
 
 Library
     default-language: Haskell2010
-    build-depends: base >= 4.10 && < 5, array >= 0.4.0.0, deepseq >= 1.2 && < 1.6
+    build-depends:
+        base >= 4.10 && < 5
+      , array >= 0.4.0.0
+      , deepseq >= 1.4.3.0 && < 1.6
     if impl(ghc)
        build-depends: template-haskell
     hs-source-dirs: src
