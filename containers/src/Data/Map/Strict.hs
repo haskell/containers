@@ -121,6 +121,8 @@ module Data.Map.Strict
     , singleton
     , fromSet
     , fromArgSet
+    , unsafeFromSet
+    , unsafeFromSetA
 
     -- ** From Unordered Lists
     , fromList
@@ -240,6 +242,8 @@ module Data.Map.Strict
     , assocs
     , keysSet
     , argSet
+    , unsafeSet
+    , unsafeSetA
 
     -- ** Lists
     , toList
