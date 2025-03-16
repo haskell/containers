@@ -1403,78 +1403,65 @@ fromRange (lx,rx)
 -- __Warning__: This function should be used only if the elements are in
 -- non-decreasing order. This precondition is not checked. Use 'fromList' if the
 -- precondition may not hold.
+
+-- See Note [fromAscList implementation] in Data.IntMap.Internal.
 fromAscList :: [Key] -> IntSet
-fromAscList = fromMonoList
-{-# NOINLINE fromAscList #-}
+fromAscList xs = ascLinkAll (Foldable.foldl' next MSNada xs)
+  where
+    next s !ky = case s of
+      MSNada -> MSPush py bmy Nada
+      MSPush px bmx stk
+        | px == py -> MSPush py (bmx .|. bmy) stk
+        | otherwise -> let m = branchMask px py
+                       in MSPush py bmy (ascLinkTop stk px (Tip px bmx) m)
+      where
+        py = prefixOf ky
+        bmy = bitmapOf ky
+{-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements.
 --
--- __Warning__: This function should be used only if the elements are in
--- strictly increasing order. This precondition is not checked. Use 'fromList'
--- if the precondition may not hold.
-fromDistinctAscList :: [Key] -> IntSet
-fromDistinctAscList = fromAscList
-{-# INLINE fromDistinctAscList #-}
-
--- | \(O(n)\). Build a set from a monotonic list of elements.
+-- @fromDistinctAscList = 'fromAscList'@
 --
--- The precise conditions under which this function works are subtle:
--- For any branch mask, keys with the same prefix w.r.t. the branch
--- mask must occur consecutively in the list.
-fromMonoList :: [Key] -> IntSet
-fromMonoList []         = Nil
-fromMonoList (kx : zs1) = addAll' (prefixOf kx) (bitmapOf kx) zs1
-  where
-    -- `addAll'` collects all keys with the prefix `px` into a single
-    -- bitmap, and then proceeds with `addAll`.
-    addAll' !px !bm []
-        = Tip px bm
-    addAll' !px !bm (ky : zs)
-        | px == prefixOf ky
-        = addAll' px (bm .|. bitmapOf ky) zs
-        -- inlined: | otherwise = addAll px (Tip px bm) (ky : zs)
-        | py <- prefixOf ky
-        , m <- branchMask px py
-        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
-        = addAll px (linkWithMask m py ty px (Tip px bm)) zs'
+-- See warning on 'fromAscList'.
+--
+-- This definition exists for backwards compatibility. It offers no advantage
+-- over @fromAscList@.
+fromDistinctAscList :: [Key] -> IntSet
+-- See note on Data.IntMap.Internal.fromDisinctAscList.
+fromDistinctAscList = fromAscList
+{-# INLINE fromDistinctAscList #-} -- Inline for list fusion
 
-    -- for `addAll` and `addMany`, px is /a/ prefix inside the tree `tx`
-    -- `addAll` consumes the rest of the list, adding to the tree `tx`
-    addAll !_px !tx []
-        = tx
-    addAll !px !tx (ky : zs)
-        | py <- prefixOf ky
-        , m <- branchMask px py
-        , Inserted ty zs' <- addMany' m py (bitmapOf ky) zs
-        = addAll px (linkWithMask m py ty px tx) zs'
+data Stack
+  = Nada
+  | Push {-# UNPACK #-} !Int !IntSet !Stack
 
-    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    addMany' !_m !px !bm []
-        = Inserted (Tip px bm) []
-    addMany' !m !px !bm zs0@(ky : zs)
-        | px == prefixOf ky
-        = addMany' m px (bm .|. bitmapOf ky) zs
-        -- inlined: | otherwise = addMany m px (Tip px bm) (ky : zs)
-        | mask px m /= mask ky m
-        = Inserted (Tip (prefixOf px) bm) zs0
-        | py <- prefixOf ky
-        , mxy <- branchMask px py
-        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
-        = addMany m px (linkWithMask mxy py ty px (Tip px bm)) zs'
+data MonoState
+  = MSNada
+  | MSPush {-# UNPACK #-} !Int {-# UNPACK #-} !BitMap !Stack
 
-    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `px`.
-    addMany !_m !_px tx []
-        = Inserted tx []
-    addMany !m !px tx zs0@(ky : zs)
-        | mask px m /= mask ky m
-        = Inserted tx zs0
-        | py <- prefixOf ky
-        , mxy <- branchMask px py
-        , Inserted ty zs' <- addMany' mxy py (bitmapOf ky) zs
-        = addMany m px (linkWithMask mxy py ty px tx) zs'
-{-# INLINE fromMonoList #-}
+ascLinkTop :: Stack -> Int -> IntSet -> Int -> Stack
+ascLinkTop stk !rk r !rm = case stk of
+  Nada -> Push rm r stk
+  Push m l stk'
+    | i2w m < i2w rm -> let p = Prefix (mask rk m .|. m)
+                        in ascLinkTop stk' rk (Bin p l r) rm
+    | otherwise -> Push rm r stk
 
-data Inserted = Inserted !IntSet ![Key]
+ascLinkAll :: MonoState -> IntSet
+ascLinkAll s = case s of
+  MSNada -> Nil
+  MSPush px bmx stk -> ascLinkStack stk px (Tip px bmx)
+{-# INLINABLE ascLinkAll #-}
+
+ascLinkStack :: Stack -> Int -> IntSet -> IntSet
+ascLinkStack stk !rk r = case stk of
+  Nada -> r
+  Push m l stk'
+    | signBranch p -> Bin p r l
+    | otherwise -> ascLinkStack stk' rk (Bin p l r)
+    where
+      p = Prefix (mask rk m .|. m)
 
 {--------------------------------------------------------------------
   Eq

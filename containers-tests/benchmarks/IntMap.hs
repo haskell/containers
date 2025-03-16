@@ -46,7 +46,8 @@ main = do
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "fromList" $ whnf M.fromList elems
         , bench "fromAscList" $ whnf M.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf M.fromDistinctAscList elems
+        , bench "fromAscList:fusion" $
+            whnf (\n -> M.fromAscList [(i,()) | i <- [1..n]]) bound
         , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
                     (M.fromList $ zip [1..10] [1..10])
         , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
@@ -61,17 +62,18 @@ main = do
   where
     elems = elems_hits
     elems_hits   = zip keys values
-    elems_mid    = zip (map (+ (2^12 `div` 2)) keys) values
-    elems_most   = zip (map (+ (2^12 `div` 10)) keys) values
+    elems_mid    = zip (map (+ (bound `div` 2)) keys) values
+    elems_most   = zip (map (+ (bound `div` 10)) keys) values
     elems_misses = zip (map (\x-> x * 2 + 1) keys) values
     elems_mixed = zip mixedKeys values
     --------------------------------------------------------
-    keys = [1..2^12]
+    bound = 2^12
+    keys = [1..bound]
     keys' = fmap (+ 1000000) keys
-    keys'' = fmap (* 2) [1..2^12]
+    keys'' = fmap (* 2) [1..bound]
     mixedKeys = interleave keys keys'
-    values = [1..2^12]
-    key_mid = 2^11
+    values = [1..bound]
+    key_mid = bound `div` 2
     --------------------------------------------------------
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs

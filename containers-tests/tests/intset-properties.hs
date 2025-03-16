@@ -46,7 +46,6 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_difference" prop_difference
                    , testProperty "prop_intersection" prop_intersection
                    , testProperty "prop_symmetricDifference" prop_symmetricDifference
-                   , testProperty "prop_Ordered" prop_Ordered
                    , testProperty "prop_List" prop_List
                    , testProperty "prop_DescList" prop_DescList
                    , testProperty "prop_AscDescList" prop_AscDescList
@@ -90,6 +89,8 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "delete" prop_delete
                    , testProperty "deleteMin" prop_deleteMin
                    , testProperty "deleteMax" prop_deleteMax
+                   , testProperty "fromAscList" prop_fromAscList
+                   , testProperty "fromDistinctAscList" prop_fromDistinctAscList
                    ]
 
 ----------------------------------------------------------------
@@ -281,10 +282,6 @@ prop_disjoint a b = a `disjoint` b == null (a `intersection` b)
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
-prop_Ordered
-  = forAll (choose (5,100)) $ \n ->
-    let xs = concat [[i-n,i-n]|i<-[0..2*n :: Int]]
-    in fromAscList xs == fromList xs
 
 prop_List :: [Int] -> Bool
 prop_List xs
@@ -521,3 +518,20 @@ prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList 
 
 prop_deleteMax :: IntSet -> Property
 prop_deleteMax s = toList (deleteMax s) === if null s then [] else init (toList s)
+
+prop_fromAscList :: [Int] -> Property
+prop_fromAscList xs =
+    valid t .&&.
+    toList t === nubSortedXs
+  where
+    sortedXs = sort xs
+    nubSortedXs = List.map NE.head $ NE.group sortedXs
+    t = fromAscList sortedXs
+
+prop_fromDistinctAscList :: [Int] -> Property
+prop_fromDistinctAscList xs =
+    valid t .&&.
+    toList t === nubSortedXs
+  where
+    nubSortedXs = List.map NE.head $ NE.group $ sort xs
+    t = fromDistinctAscList nubSortedXs

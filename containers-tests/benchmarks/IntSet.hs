@@ -41,8 +41,11 @@ main = do
         , bench "fromList" $ whnf IS.fromList elems
         , bench "fromRange" $ whnf IS.fromRange (1,bound)
         , bench "fromRange:small" $ whnf IS.fromRange (-1,0)
-        , bench "fromAscList" $ whnf IS.fromAscList elems
-        , bench "fromDistinctAscList" $ whnf IS.fromDistinctAscList elems
+        , bench "fromAscList" $ whnf fromAscListNoinline elems
+        , bench "fromAscList:fusion" $ whnf (\n -> IS.fromAscList [1..n]) bound
+        , bench "fromAscList:sparse" $ whnf fromAscListNoinline elems_sparse
+        , bench "fromAscList:sparse:fusion" $
+            whnf (\n -> IS.fromAscList (map (*64) [1..n])) bound
         , bench "disjoint:false" $ whnf (IS.disjoint s) s_even
         , bench "disjoint:true" $ whnf (IS.disjoint s_odd) s_even
         , bench "null.intersection:false" $ whnf (IS.null. IS.intersection s) s_even
@@ -81,6 +84,11 @@ ins xs s0 = foldl' (\s a -> IS.insert a s) s0 xs
 del :: [Int] -> IS.IntSet -> IS.IntSet
 del xs s0 = foldl' (\s k -> IS.delete k s) s0 xs
 
+-- NOINLINE to work around an issue where the inlined function doesn't get
+-- optimized (see GHC #25878).
+fromAscListNoinline :: [Int] -> IS.IntSet
+fromAscListNoinline = IS.fromAscList
+{-# NOINLINE fromAscListNoinline #-}
 
 
 -- | Automata contain just the transitions
