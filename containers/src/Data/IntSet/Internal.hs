@@ -207,6 +207,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , signBranch
   , mask
   , branchMask
+  , branchPrefix
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
@@ -1355,8 +1356,7 @@ fromRange (lx,rx)
   | lx > rx  = empty
   | lp == rp = Tip lp (bitmapOf rx `shiftLL` 1 - bitmapOf lx)
   | otherwise =
-      let m = branchMask lx rx
-          p = Prefix (mask lx m .|. m)
+      let p = branchPrefix lx rx
       in if signBranch p  -- handle negative numbers
          then Bin p (goR 0) (goL 0)
          else Bin p (goL (unPrefix p)) (goR (unPrefix p))
@@ -1444,7 +1444,7 @@ ascLinkTop :: Stack -> Int -> IntSet -> Int -> Stack
 ascLinkTop stk !rk r !rm = case stk of
   Nada -> Push rm r stk
   Push m l stk'
-    | i2w m < i2w rm -> let p = Prefix (mask rk m .|. m)
+    | i2w m < i2w rm -> let p = mask rk m
                         in ascLinkTop stk' rk (Bin p l r) rm
     | otherwise -> Push rm r stk
 
@@ -1461,7 +1461,7 @@ ascLinkStack stk !rk r = case stk of
     | signBranch p -> Bin p r l
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
-      p = Prefix (mask rk m .|. m)
+      p = mask rk m
 
 {--------------------------------------------------------------------
   Eq
@@ -1698,17 +1698,12 @@ linkKey k1 t1 p2 t2 = link k1 t1 (unPrefix p2) t2
 -- sets must be different. @k1@ must share the prefix of @t1@ and @k2@ must
 -- share the prefix of @t2@.
 link :: Int -> IntSet -> Int -> IntSet -> IntSet
-link k1 t1 k2 t2 = linkWithMask (branchMask k1 k2) k1 t1 k2 t2
-{-# INLINE link #-}
-
--- `linkWithMask` is useful when the `branchMask` has already been computed
-linkWithMask :: Int -> Key -> IntSet -> Key -> IntSet -> IntSet
-linkWithMask m k1 t1 k2 t2
+link k1 t1 k2 t2
   | i2w k1 < i2w k2 = Bin p t1 t2
   | otherwise = Bin p t2 t1
   where
-    p = Prefix (mask k1 m .|. m)
-{-# INLINE linkWithMask #-}
+    p = branchPrefix k1 k2
+{-# INLINE link #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.

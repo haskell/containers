@@ -35,12 +35,13 @@ module Data.IntSet.Internal.IntTreeCommons
   , treeTreeBranch
   , mask
   , branchMask
+  , branchPrefix
   , i2w
   , Order(..)
   ) where
 
 import Data.Bits (Bits(..), countLeadingZeros)
-import Utils.Containers.Internal.BitUtil (wordSize)
+import Utils.Containers.Internal.BitUtil (iShiftRL)
 
 #ifdef __GLASGOW_HASKELL__
 import Language.Haskell.TH.Syntax (Lift)
@@ -144,19 +145,26 @@ signBranch :: Prefix -> Bool
 signBranch p = unPrefix p == (minBound :: Int)
 {-# INLINE signBranch #-}
 
--- | The prefix of key @i@ up to (but not including) the switching
--- bit @m@.
-mask :: Key -> Int -> Int
-mask i m = i .&. ((-m) `xor` m)
+-- | The prefix of @Int@ @i@ up to the switching bit @m@.
+mask :: Int -> Int -> Prefix
+mask i m = Prefix ((i .&. negate m) .|. m)
 {-# INLINE mask #-}
 
--- | The first switching bit where the two prefixes disagree.
+-- | The first switching bit where the two @Int@s disagree.
 --
--- Precondition for defined behavior: p1 /= p2
+-- Precondition for defined behavior: i1 /= i2
 branchMask :: Int -> Int -> Int
-branchMask p1 p2 =
-  unsafeShiftL 1 (wordSize - 1 - countLeadingZeros (p1 `xor` p2))
+branchMask i1 i2 = iShiftRL (minBound :: Int) (countLeadingZeros (i1 `xor` i2))
 {-# INLINE branchMask #-}
+
+-- | The shared prefix of two @Int@s.
+--
+-- Precondition for defined behavior: i1 /= i2
+branchPrefix :: Int -> Int -> Prefix
+branchPrefix i1 i2 = Prefix ((i1 .|. i2) .&. m)
+  where
+    m = unsafeShiftR (minBound :: Int) (countLeadingZeros (i1 `xor` i2))
+{-# INLINE branchPrefix #-}
 
 i2w :: Int -> Word
 i2w = fromIntegral
