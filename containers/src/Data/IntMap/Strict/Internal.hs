@@ -232,7 +232,7 @@ import Prelude ()
 import Data.Bits
 import qualified Data.IntMap.Internal as L
 import Data.IntSet.Internal.IntTreeCommons
-  (Key, Prefix(..), nomatch, left, signBranch, mask, branchMask)
+  (Key, Prefix(..), nomatch, left, signBranch, branchMask)
 import Data.IntMap.Internal
   ( IntMap (..)
   , bin
@@ -240,7 +240,10 @@ import Data.IntMap.Internal
   , binCheckRight
   , link
   , linkKey
-  , linkWithMask
+  , MonoState(..)
+  , Stack(..)
+  , ascLinkTop
+  , ascLinkAll
 
   , (\\)
   , (!)
@@ -1119,8 +1122,8 @@ fromListWithKey f xs
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
 fromAscList :: [(Key,a)] -> IntMap a
-fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
-{-# NOINLINE fromAscList #-}
+fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
+{-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -1134,8 +1137,8 @@ fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
 -- Also see the performance note on 'fromListWith'.
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
-{-# NOINLINE fromAscListWith #-}
+fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
+{-# INLINE fromAscListWith #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -1148,89 +1151,29 @@ fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
 --
 -- Also see the performance note on 'fromListWith'.
 
+-- See Note [fromAscList implementation] in Data.IntMap.Internal.
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey f = fromMonoListWithKey Nondistinct f
-{-# NOINLINE fromAscListWithKey #-}
+fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
+  where
+    next s (!ky, y) = case s of
+      MSNada -> msPush' ky y Nada
+      MSPush kx x stk
+        | kx == ky -> msPush' ky (f ky y x) stk
+        | otherwise -> let m = branchMask kx ky
+                       in msPush' ky y (ascLinkTop stk kx (Tip kx x) m)
+    msPush' ky !y = MSPush ky y
+{-# INLINE fromAscListWithKey #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
 --
--- __Warning__: This function should be used only if the keys are in
--- strictly increasing order. This precondition is not checked. Use 'fromList'
--- if the precondition may not hold.
+-- @fromDistinctAscList = 'fromAscList'@
 --
--- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
-
+-- See warning on 'fromAscList'.
+--
+-- This definition exists for backwards compatibility. It offers no advantage
+-- over @fromAscList@.
 fromDistinctAscList :: [(Key,a)] -> IntMap a
-fromDistinctAscList = fromMonoListWithKey Distinct (\_ x _ -> x)
-{-# NOINLINE fromDistinctAscList #-}
-
--- | \(O(n)\). Build a map from a list of key\/value pairs with monotonic keys
--- and a combining function.
---
--- The precise conditions under which this function works are subtle:
--- For any branch mask, keys with the same prefix w.r.t. the branch
--- mask must occur consecutively in the list.
---
--- Also see the performance note on 'fromListWith'.
-
-fromMonoListWithKey :: Distinct -> (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromMonoListWithKey distinct f = go
-  where
-    go []              = Nil
-    go ((kx,vx) : zs1) = addAll' kx vx zs1
-
-    -- `addAll'` collects all keys equal to `kx` into a single value,
-    -- and then proceeds with `addAll`.
-    --
-    -- We want to have the same strictness as fromListWithKey, which is achieved
-    -- with the bang on vx.
-    addAll' !kx !vx []
-        = Tip kx vx
-    addAll' !kx !vx ((ky,vy) : zs)
-        | Nondistinct <- distinct, kx == ky
-        = addAll' ky (f kx vy vx) zs
-        -- inlined: | otherwise = addAll kx (Tip kx vx) (ky : zs)
-        | m <- branchMask kx ky
-        , Inserted ty zs' <- addMany' m ky vy zs
-        = addAll kx (linkWithMask m ky ty kx (Tip kx vx)) zs'
-
-    -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
-    -- `addAll` consumes the rest of the list, adding to the tree `tx`
-    addAll !_kx !tx []
-        = tx
-    addAll !kx !tx ((ky,vy) : zs)
-        | m <- branchMask kx ky
-        , Inserted ty zs' <- addMany' m ky vy zs
-        = addAll kx (linkWithMask m ky ty kx tx) zs'
-
-    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    --
-    -- We want to have the same strictness as fromListWithKey, which is achieved
-    -- with the bang on vx.
-    addMany' !_m !kx !vx []
-        = Inserted (Tip kx vx) []
-    addMany' !m !kx !vx zs0@((ky,vy) : zs)
-        | Nondistinct <- distinct, kx == ky
-        = addMany' m ky (f kx vy vx) zs
-        -- inlined: | otherwise = addMany m kx (Tip kx vx) (ky : zs)
-        | mask kx m /= mask ky m
-        = Inserted (Tip kx vx) zs0
-        | mxy <- branchMask kx ky
-        , Inserted ty zs' <- addMany' mxy ky vy zs
-        = addMany m kx (linkWithMask mxy ky ty kx (Tip kx vx)) zs'
-
-    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
-    addMany !_m !_kx tx []
-        = Inserted tx []
-    addMany !m !kx tx zs0@((ky,vy) : zs)
-        | mask kx m /= mask ky m
-        = Inserted tx zs0
-        | mxy <- branchMask kx ky
-        , Inserted ty zs' <- addMany' mxy ky vy zs
-        = addMany m kx (linkWithMask mxy ky ty kx tx) zs'
-{-# INLINE fromMonoListWithKey #-}
-
-data Inserted a = Inserted !(IntMap a) ![(Key,a)]
-
-data Distinct = Distinct | Nondistinct
+-- See Note on Data.IntMap.Internal.fromDistinctAscList.
+fromDistinctAscList = fromAscList
+{-# INLINE fromDistinctAscList #-} -- Inline for list fusion

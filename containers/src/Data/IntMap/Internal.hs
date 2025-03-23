@@ -290,6 +290,10 @@ module Data.IntMap.Internal (
     , bin
     , binCheckLeft
     , binCheckRight
+    , MonoState(..)
+    , Stack(..)
+    , ascLinkTop
+    , ascLinkAll
 
     -- * Used by "IntMap.Merge.Lazy" and "IntMap.Merge.Strict"
     , mapWhenMissing
@@ -3385,8 +3389,8 @@ fromListWithKey f xs
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
 fromAscList :: [(Key,a)] -> IntMap a
-fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
-{-# NOINLINE fromAscList #-}
+fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
+{-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3400,8 +3404,8 @@ fromAscList = fromMonoListWithKey Nondistinct (\_ x _ -> x)
 -- Also see the performance note on 'fromListWith'.
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
-{-# NOINLINE fromAscListWith #-}
+fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
+{-# INLINE fromAscListWith #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order, with a combining function on equal keys.
@@ -3415,86 +3419,66 @@ fromAscListWith f = fromMonoListWithKey Nondistinct (\_ x y -> f x y)
 --
 -- Also see the performance note on 'fromListWith'.
 
+-- See Note [fromAscList implementation]
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromAscListWithKey f = fromMonoListWithKey Nondistinct f
-{-# NOINLINE fromAscListWithKey #-}
+fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
+  where
+    next s (!ky, y) = case s of
+      MSNada -> MSPush ky y Nada
+      MSPush kx x stk
+        | kx == ky -> MSPush ky (f ky y x) stk
+        | otherwise -> let m = branchMask kx ky
+                       in MSPush ky y (ascLinkTop stk kx (Tip kx x) m)
+{-# INLINE fromAscListWithKey #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
 --
--- __Warning__: This function should be used only if the keys are in
--- strictly increasing order. This precondition is not checked. Use 'fromList'
--- if the precondition may not hold.
+-- @fromDistinctAscList = 'fromAscList'@
 --
--- > fromDistinctAscList [(3,"b"), (5,"a")] == fromList [(3, "b"), (5, "a")]
-
+-- See warning on 'fromAscList'.
+--
+-- This definition exists for backwards compatibility. It offers no advantage
+-- over @fromAscList@.
 fromDistinctAscList :: [(Key,a)] -> IntMap a
-fromDistinctAscList = fromMonoListWithKey Distinct (\_ x _ -> x)
-{-# NOINLINE fromDistinctAscList #-}
+-- Note: There is nothing we can optimize compared to fromAscList.
+-- The adjacent key equals check (kx == ky) might seem unnecessary for
+-- fromDistinctAscList, but it guards branchMask which has undefined behavior
+-- under that case. We could error on kx == ky instead, but that isn't any
+-- better.
+fromDistinctAscList = fromAscList
+{-# INLINE fromDistinctAscList #-} -- Inline for list fusion
 
--- | \(O(n)\). Build a map from a list of key\/value pairs with monotonic keys
--- and a combining function.
---
--- The precise conditions under which this function works are subtle:
--- For any branch mask, keys with the same prefix w.r.t. the branch
--- mask must occur consecutively in the list.
---
--- Also see the performance note on 'fromListWith'.
+data Stack a
+  = Nada
+  | Push {-# UNPACK #-} !Int !(IntMap a) !(Stack a)
 
-fromMonoListWithKey :: Distinct -> (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromMonoListWithKey distinct f = go
-  where
-    go []              = Nil
-    go ((kx,vx) : zs1) = addAll' kx vx zs1
+data MonoState a
+  = MSNada
+  | MSPush {-# UNPACK #-} !Key a !(Stack a)
 
-    -- `addAll'` collects all keys equal to `kx` into a single value,
-    -- and then proceeds with `addAll`.
-    addAll' !kx vx []
-        = Tip kx vx
-    addAll' !kx vx ((ky,vy) : zs)
-        | Nondistinct <- distinct, kx == ky
-        = let v = f kx vy vx in addAll' ky v zs
-        -- inlined: | otherwise = addAll kx (Tip kx vx) (ky : zs)
-        | m <- branchMask kx ky
-        , Inserted ty zs' <- addMany' m ky vy zs
-        = addAll kx (linkWithMask m ky ty kx (Tip kx vx)) zs'
+ascLinkTop :: Stack a -> Int -> IntMap a -> Int -> Stack a
+ascLinkTop stk !rk r !rm = case stk of
+  Nada -> Push rm r stk
+  Push m l stk'
+    | i2w m < i2w rm -> let p = Prefix (mask rk m .|. m)
+                        in ascLinkTop stk' rk (Bin p l r) rm
+    | otherwise -> Push rm r stk
 
-    -- for `addAll` and `addMany`, kx is /a/ key inside the tree `tx`
-    -- `addAll` consumes the rest of the list, adding to the tree `tx`
-    addAll !_kx !tx []
-        = tx
-    addAll !kx !tx ((ky,vy) : zs)
-        | m <- branchMask kx ky
-        , Inserted ty zs' <- addMany' m ky vy zs
-        = addAll kx (linkWithMask m ky ty kx tx) zs'
+ascLinkAll :: MonoState a -> IntMap a
+ascLinkAll s = case s of
+  MSNada -> Nil
+  MSPush kx x stk -> ascLinkStack stk kx (Tip kx x)
+{-# INLINABLE ascLinkAll #-}
 
-    -- `addMany'` is similar to `addAll'`, but proceeds with `addMany'`.
-    addMany' !_m !kx vx []
-        = Inserted (Tip kx vx) []
-    addMany' !m !kx vx zs0@((ky,vy) : zs)
-        | Nondistinct <- distinct, kx == ky
-        = let v = f kx vy vx in addMany' m ky v zs
-        -- inlined: | otherwise = addMany m kx (Tip kx vx) (ky : zs)
-        | mask kx m /= mask ky m
-        = Inserted (Tip kx vx) zs0
-        | mxy <- branchMask kx ky
-        , Inserted ty zs' <- addMany' mxy ky vy zs
-        = addMany m kx (linkWithMask mxy ky ty kx (Tip kx vx)) zs'
-
-    -- `addAll` adds to `tx` all keys whose prefix w.r.t. `m` agrees with `kx`.
-    addMany !_m !_kx tx []
-        = Inserted tx []
-    addMany !m !kx tx zs0@((ky,vy) : zs)
-        | mask kx m /= mask ky m
-        = Inserted tx zs0
-        | mxy <- branchMask kx ky
-        , Inserted ty zs' <- addMany' mxy ky vy zs
-        = addMany m kx (linkWithMask mxy ky ty kx tx) zs'
-{-# INLINE fromMonoListWithKey #-}
-
-data Inserted a = Inserted !(IntMap a) ![(Key,a)]
-
-data Distinct = Distinct | Nondistinct
+ascLinkStack :: Stack a -> Int -> IntMap a -> IntMap a
+ascLinkStack stk !rk r = case stk of
+  Nada -> r
+  Push m l stk'
+    | signBranch p -> Bin p r l
+    | otherwise -> ascLinkStack stk' rk (Bin p l r)
+    where
+      p = Prefix (mask rk m .|. m)
 
 {--------------------------------------------------------------------
   Eq
@@ -3884,3 +3868,33 @@ withEmpty bars = "   ":bars
 -- * This is similar to the Map merge complexity, which is O(m log (n/m)).
 -- * When m is a small constant the term simplifies to O(min(n, W)), which is
 --   just the complexity we expect for single operations like insert and delete.
+
+-- Note [fromAscList implementation]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- fromAscList is an implementation that builds up the result bottom-up
+-- in linear time. It maintains a state (MonoState) that gets updated with
+-- key-value pairs from the input list one at a time. The state contains the
+-- last key-value pair, and a stack of pending trees.
+--
+-- For a new key-value pair, the branchMask with the previous key is computed.
+-- This represents the depth of the lowest common ancestor that the tree with
+-- the previous key, say tl, and the tree with the new key, tr, must have in
+-- the final result. Since the keys are in ascending order we expect no more
+-- keys in tl, and we can build it by moving up the stack and linking trees. We
+-- know when to stop by the branchMask value. We must not link higher than that
+-- depth, otherwise instead of tl we will build the parent of tl prematurely
+-- before tr is ready. Once the linking is done, tl will be at the top of the
+-- stack.
+--
+-- We also store the branchMask of a tree with its future right sibling in the
+-- stack. This is an optimization, benchmarks show that this is faster than
+-- recomputing the branchMask values when linking trees.
+--
+-- In the end, we link all the trees remaining in the stack. There is a small
+-- catch: negative keys appear in the input before non-negative keys (if they
+-- both appear), but the tree with negative keys and the tree with non-negative
+-- keys must be the right and left child of the root respectively. So we check
+-- for this and link them accordingly.
+--
+-- The implementation is defined as a foldl' over the input list, which makes
+-- it a good consumer in list fusion.
