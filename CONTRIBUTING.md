@@ -1,22 +1,16 @@
 # Instructions for Contributors
 
-To report bugs, please use the [GitHub issue tracker](https://github.com/haskell/containers/issues).
-We also appreciate [pull requests](https://github.com/haskell/containers/pulls) on GitHub.
+To report bugs, or propose enchancements or changes, please use the
+[GitHub issue tracker](https://github.com/haskell/containers/issues).
 
-For proposing API changes or enhancements, please follow the [guidelines outlined on the Haskell Wiki](https://wiki.haskell.org/Library_submissions#Guide_to_proposers).
-All such changes should be discussed on the libraries@haskell.org mailing list.
-
+You are also welcome to propose code changes in the form of
+[pull requests](https://github.com/haskell/containers/pulls).
+A pull request will usually aim to fix an issue. Consider creating an issue for
+your change if one doesn't exist already.
 
 ## Building, testing, and benchmarking
 
 Building, testing, and benchmarking the containers package is done using `cabal`.
-
-To avoid recompiling the tests' other dependencies when making changes, you can
-remove `containers` from the `packages` stanza of the `cabal.project` file.
-Note: this will not work in the unlikely event that you are fixing a bug that
-affects the test or benchmark framework itself. The `Data.Set` (for example)
-used in the tests and benchmarks is compiled separately from the one exposed by
-the `containers` package.
 
 ### Procedure
 
@@ -48,6 +42,10 @@ cabal run set-properties -- -p fromList
 cabal test set-properties --test-options "-p fromList"
 ```
 
+For quicker test and benchmark build times, remove `containers` from the
+`packages` stanza of the `cabal.project` file. This will avoid recompiling
+some test and benchmark dependencies that depend on `containers`.
+
 #### For Windows users
 
 To compile `containers-tests`, you need symbolic links to be activated on git.
@@ -61,24 +59,27 @@ To do so on Windows 10 or higher, follow these steps:
 
 When you send a pull request, please:
 
-- Link to the libraries@haskell.org discussion thread if you are changing the
-  public API.
+- Mention the issue you are attempting to fix.
 
-- If you are requesting a change that is likely to affect performance, we will
-  be able to evaluate it better if you include the results of running the
-  benchmarks before and after. If the current benchmarks cannot demonstrate
-  a desired difference, please try to add one or more new benchmarks to do so.
-  If there are significant changes, please include the benchmark results in
-  your commit message.
+- If your change adds new functionality or affects behaviour, please add
+  QuickCheck properties exercising the code if they do not already exist. If you
+  are fixing a bug that occurs too rarely for QuickCheck to hit reliably then
+  consider adding unit tests as well.
 
-- If you are requesting a change that adds new functionality or affects
-  behaviour, please add QuickCheck properties exercising the code if they
-  do not already exist. If you are fixing a bug that occurs too rarely for
-  QuickCheck to hit reliably then consider adding unit tests as well.
-  
-- Update the change log for non-trivial changes.
+- If your change is likely to affect performance, please share the results of
+  running the benchmarks before and after. If the current benchmarks cannot
+  demonstrate a desired difference, please try to add one or more new benchmarks
+  to do so. If there are significant changes, please include the benchmark
+  results in your commit message.
 
-- Let us know how you wish to be credited in the changelog.
+- When exporting a new definition, add a `@since FIXME` to the Haddocks for that
+  definition. This is a [@since annotation](https://haskell-haddock.readthedocs.io/latest/markup.html#since)
+  that will be updated to the next version by a maintainer before releasing it.
+
+- (Optional) Update the [changelog](/containers/changelog.md) for non-trivial
+  changes. If you don't, a maintainer will do so before the next release. You
+  may choose how you wish to be credited. We will mention your name on GitHub
+  unless you specify otherwise.
 
 ## Docs
 
