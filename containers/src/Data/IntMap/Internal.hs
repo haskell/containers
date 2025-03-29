@@ -286,7 +286,6 @@ module Data.IntMap.Internal (
     -- * Utility
     , link
     , linkKey
-    , linkWithMask
     , bin
     , binCheckLeft
     , binCheckRight
@@ -330,6 +329,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , signBranch
   , mask
   , branchMask
+  , branchPrefix
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
@@ -2180,8 +2180,7 @@ mergeA
       | i2w k1 < i2w k2 = binA p t1 t2
       | otherwise = binA p t2 t1
       where
-        m = branchMask k1 k2
-        p = Prefix (mask k1 m .|. m)
+        p = branchPrefix k1 k2
     {-# INLINE linkA #-}
 
     -- A variant of 'bin' that ensures that effects for negative keys are executed
@@ -3461,7 +3460,7 @@ ascLinkTop :: Stack a -> Int -> IntMap a -> Int -> Stack a
 ascLinkTop stk !rk r !rm = case stk of
   Nada -> Push rm r stk
   Push m l stk'
-    | i2w m < i2w rm -> let p = Prefix (mask rk m .|. m)
+    | i2w m < i2w rm -> let p = mask rk m
                         in ascLinkTop stk' rk (Bin p l r) rm
     | otherwise -> Push rm r stk
 
@@ -3478,7 +3477,7 @@ ascLinkStack stk !rk r = case stk of
     | signBranch p -> Bin p r l
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
-      p = Prefix (mask rk m .|. m)
+      p = mask rk m
 
 {--------------------------------------------------------------------
   Eq
@@ -3652,17 +3651,12 @@ linkKey k1 t1 p2 t2 = link k1 t1 (unPrefix p2) t2
 -- maps must be different. @k1@ must share the prefix of @t1@ and @k2@ must
 -- share the prefix of @t2@.
 link :: Int -> IntMap a -> Int -> IntMap a -> IntMap a
-link k1 t1 k2 t2 = linkWithMask (branchMask k1 k2) k1 t1 k2 t2
-{-# INLINE link #-}
-
--- `linkWithMask` is useful when the `branchMask` has already been computed
-linkWithMask :: Int -> Key -> IntMap a -> Key -> IntMap a -> IntMap a
-linkWithMask m k1 t1 k2 t2
+link k1 t1 k2 t2
   | i2w k1 < i2w k2 = Bin p t1 t2
   | otherwise = Bin p t2 t1
   where
-    p = Prefix (mask k1 m .|. m)
-{-# INLINE linkWithMask #-}
+    p = branchPrefix k1 k2
+{-# INLINE link #-}
 
 {--------------------------------------------------------------------
   @bin@ assures that we never have empty trees within a tree.
