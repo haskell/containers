@@ -3322,6 +3322,7 @@ fromList xs
   = Foldable.foldl' ins empty xs
   where
     ins t (k,x)  = insert k x t
+{-# INLINE fromList #-} -- Inline for list fusion
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
 --
@@ -3362,6 +3363,7 @@ fromList xs
 fromListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
 fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
+{-# INLINE fromListWith #-} -- Inline for list fusion
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
 --
@@ -3376,6 +3378,7 @@ fromListWithKey f xs
   = Foldable.foldl' ins empty xs
   where
     ins t (k,x) = insertWithKey f k x t
+{-# INLINE fromListWithKey #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.

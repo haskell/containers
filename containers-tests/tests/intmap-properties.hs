@@ -252,6 +252,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fromAscListWith"      prop_fromAscListWith
              , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
              , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
+             , testProperty "fromListWith"         prop_fromListWith
+             , testProperty "fromListWithKey"      prop_fromListWithKey
              ]
 
 {--------------------------------------------------------------------
@@ -2017,3 +2019,17 @@ prop_fromDistinctAscList kxs =
       NE.groupBy ((==) `on` fst) $
       List.sortBy (comparing fst) kxs
     t = fromDistinctAscList nubSortedKxs
+
+prop_fromListWith :: Fun (A, A) A -> [(Int, A)] -> Property
+prop_fromListWith f kxs =
+  valid m .&&.
+  m === List.foldl' (\m' (k,x) -> insertWith (applyFun2 f) k x m') empty kxs
+  where
+    m = fromListWith (applyFun2 f) kxs
+
+prop_fromListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
+prop_fromListWithKey f kxs =
+  valid m .&&.
+  m === List.foldl' (\m' (k,x) -> insertWith (applyFun3 f k) k x m') empty kxs
+  where
+    m = fromListWithKey (applyFun3 f) kxs

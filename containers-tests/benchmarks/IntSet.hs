@@ -14,6 +14,7 @@ import qualified Data.IntSet as IS
 import qualified Data.Set as S
 import qualified Data.IntMap as IM
 import qualified Data.Map.Strict as M
+import System.Random (StdGen, mkStdGen, randoms)
 
 import Utils.Fold (foldBenchmarks)
 
@@ -22,6 +23,7 @@ main = do
         s_even = IS.fromAscList elems_even :: IS.IntSet
         s_odd = IS.fromAscList elems_odd :: IS.IntSet
         s_sparse = IS.fromAscList elems_sparse :: IS.IntSet
+    evaluate $ rnf [elems_asc, elems_asc_sparse, elems_random]
     evaluate $ rnf [s, s_even, s_odd, s_sparse]
     defaultMain
         [ bench "member" $ whnf (member elems) s
@@ -38,7 +40,14 @@ main = do
         , bench "union" $ whnf (IS.union s_even) s_odd
         , bench "difference" $ whnf (IS.difference s) s_even
         , bench "intersection" $ whnf (IS.intersection s) s_even
-        , bench "fromList" $ whnf IS.fromList elems
+        , bench "fromList:asc" $ whnf IS.fromList elems_asc
+        , bench "fromList:asc:fusion" $ whnf (\n -> IS.fromList [1..n]) bound
+        , bench "fromList:asc:sparse" $ whnf IS.fromList elems_asc_sparse
+        , bench "fromList:asc:sparse:fusion" $
+            whnf (\n -> IS.fromList (map (*64) [1..n])) bound
+        , bench "fromList:random" $ whnf IS.fromList elems_random
+        , bench "fromList:random:fusion" $
+            whnf (\(n,g) -> IS.fromList (take n (randoms g))) (bound,gen)
         , bench "fromRange" $ whnf IS.fromRange (1,bound)
         , bench "fromRange:small" $ whnf IS.fromRange (-1,0)
         , bench "fromAscList" $ whnf fromAscListNoinline elems
@@ -67,13 +76,16 @@ main = do
         , bgroup "folds:sparse" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s_sparse
         ]
   where
-    bound = 2^12
+    !bound = 2^12
     elems = [1..bound]
     elems_even = [2,4..bound]
     elems_odd = [1,3..bound]
     elem_mid = bound `div` 2 + 31 -- falls in the middle of a packed Tip bitmask (assuming 64-bit words)
     elems_sparse = map (*64) elems -- when built into a map, each Tip is a singleton
     elem_sparse_mid = bound `div` 2 * 64
+    elems_asc = elems
+    elems_asc_sparse = elems_sparse
+    elems_random = take bound (randoms gen)
 
 member :: [Int] -> IS.IntSet -> Int
 member xs s = foldl' (\n x -> if IS.member x s then n + 1 else n) 0 xs
@@ -90,6 +102,8 @@ fromAscListNoinline :: [Int] -> IS.IntSet
 fromAscListNoinline = IS.fromAscList
 {-# NOINLINE fromAscListNoinline #-}
 
+gen :: StdGen
+gen = mkStdGen 42
 
 -- | Automata contain just the transitions
 type NFA = IM.IntMap (IM.IntMap IS.IntSet)

@@ -140,7 +140,8 @@ benchmark intmap-benchmarks
     Utils.Fold
 
   build-depends:
-    transformers
+      transformers
+    , random >=1.0 && <1.3
 
 benchmark intset-benchmarks
   import: benchmark-deps, warnings
@@ -154,7 +155,8 @@ benchmark intset-benchmarks
     Utils.Fold
 
   build-depends:
-    transformers
+      transformers
+    , random >=1.0 && <1.3
 
 benchmark map-benchmarks
   import: benchmark-deps, warnings

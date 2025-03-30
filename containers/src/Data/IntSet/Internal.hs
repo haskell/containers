@@ -1345,6 +1345,7 @@ fromList xs
   = Foldable.foldl' ins empty xs
   where
     ins t x  = insert x t
+{-# INLINE fromList #-} -- Inline for list fusion
 
 -- | \(O(n / W)\). Create a set from a range of integers.
 --
