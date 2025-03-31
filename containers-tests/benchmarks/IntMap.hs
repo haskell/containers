@@ -8,6 +8,7 @@ import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
 import Data.Maybe (fromMaybe)
+import System.Random (StdGen, mkStdGen, randoms, randomRs)
 import Prelude hiding (lookup)
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
@@ -18,6 +19,7 @@ main = do
     let m''   = M.fromAscList elems_most   :: M.IntMap Int
     let m'''  = M.fromAscList elems_misses :: M.IntMap Int
     let m'''' = M.fromAscList elems_mixed  :: M.IntMap Int
+    evaluate $ rnf [elems_asc, elems_random, elems_randomDups]
     evaluate $ rnf [m, m', m'', m''', m'''']
     defaultMain
         [ bench "lookup_hits" $ whnf (lookup keys) m
@@ -44,10 +46,18 @@ main = do
         , bench "alter"  $ whnf (alt keys) m
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
-        , bench "fromList" $ whnf M.fromList elems
-        , bench "fromAscList" $ whnf M.fromAscList elems
+        , bench "fromList:asc" $ whnf M.fromList elems_asc
+        , bench "fromList:asc:fusion" $
+            whnf (\n -> M.fromList (unitValues [1..n])) bound
+        , bench "fromList:random" $ whnf M.fromList elems_random
+        , bench "fromList:random:fusion" $
+            whnf (\(n,g) -> M.fromList (take n (unitValues (randoms g)))) (bound,gen)
+        , bench "fromListWith:randomDups" $ whnf (M.fromListWith const) elems_randomDups
+        , bench "fromListWith:randomDups:fusion" $
+            whnf (\(n,g) -> M.fromListWith const (take n (unitValues (randomRs (0,255) g)))) (bound,gen)
+        , bench "fromAscList" $ whnf M.fromAscList elems_asc
         , bench "fromAscList:fusion" $
-            whnf (\n -> M.fromAscList [(i,()) | i <- [1..n]]) bound
+            whnf (\n -> M.fromAscList (unitValues [1..n])) bound
         , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
                     (M.fromList $ zip [1..10] [1..10])
         , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
@@ -66,8 +76,13 @@ main = do
     elems_most   = zip (map (+ (bound `div` 10)) keys) values
     elems_misses = zip (map (\x-> x * 2 + 1) keys) values
     elems_mixed = zip mixedKeys values
+    elems_random = take bound (unitValues (randoms gen))
+    elems_asc = unitValues [1..bound]
+    -- Random elements in a small range to produce duplicates
+    elems_randomDups = take bound (unitValues (randomRs (0,255) gen))
+
     --------------------------------------------------------
-    bound = 2^12
+    !bound = 2^12
     keys = [1..bound]
     keys' = fmap (+ 1000000) keys
     keys'' = fmap (* 2) [1..bound]
@@ -129,3 +144,10 @@ maybeDel n | n `mod` 3 == 0 = Nothing
 interleave :: [Int] -> [Int] -> [Int]
 interleave [] ys = ys
 interleave (x:xs) (y:ys) = x : y : interleave xs ys
+
+unitValues :: [Int] -> [(Int, ())]
+unitValues = map (flip (,) ())
+{-# INLINE unitValues #-}
+
+gen :: StdGen
+gen = mkStdGen 42
