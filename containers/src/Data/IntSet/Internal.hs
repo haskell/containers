@@ -183,6 +183,8 @@ module Data.IntSet.Internal (
     -- * Internals
     , suffixBitMask
     , prefixBitMask
+    , prefixOf
+    , suffixOf
     , bitmapOf
     ) where
 

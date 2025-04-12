@@ -7,6 +7,7 @@ import Test.Tasty.Bench (bench, bgroup, defaultMain, whnf)
 import Data.List (foldl')
 import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
+import qualified Data.IntSet as S
 import Data.Maybe (fromMaybe)
 import System.Random (StdGen, mkStdGen, randoms, randomRs)
 import Prelude hiding (lookup)
@@ -19,8 +20,13 @@ main = do
     let m''   = M.fromAscList elems_most   :: M.IntMap Int
     let m'''  = M.fromAscList elems_misses :: M.IntMap Int
     let m'''' = M.fromAscList elems_mixed  :: M.IntMap Int
+        m_random = M.fromList elems_random
+        s = S.fromList keys
+        s_random2 = S.fromList keys_random2
     evaluate $ rnf [elems_asc, elems_random, elems_randomDups]
     evaluate $ rnf [m, m', m'', m''', m'''']
+    evaluate $ rnf m_random
+    evaluate $ rnf [s, s_random2]
     defaultMain
         [ bench "lookup_hits" $ whnf (lookup keys) m
         , bench "lookup_half" $ whnf (lookup keys) m'
@@ -65,6 +71,14 @@ main = do
         , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
+        , bench "withoutKeys" $ -- dense, equal keys
+            whnf (uncurry M.withoutKeys) (m, s)
+        , bench "restrictKeys" $ -- dense, equal keys
+            whnf (uncurry M.restrictKeys) (m, s)
+        , bench "withoutKeys:random" $ -- large keys, no overlap
+            whnf (uncurry M.withoutKeys) (m_random, s_random2)
+        , bench "restrictKeys:random" $ -- large keys, no overlap
+            whnf (uncurry M.restrictKeys) (m_random, s_random2)
         , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
         , bgroup "folds with key" $
             foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m
@@ -89,6 +103,7 @@ main = do
     mixedKeys = interleave keys keys'
     values = [1..bound]
     key_mid = bound `div` 2
+    keys_random2 = take bound (randoms gen2)
     --------------------------------------------------------
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
@@ -149,5 +164,6 @@ unitValues :: [Int] -> [(Int, ())]
 unitValues = map (flip (,) ())
 {-# INLINE unitValues #-}
 
-gen :: StdGen
+gen, gen2 :: StdGen
 gen = mkStdGen 42
+gen2 = mkStdGen 90
