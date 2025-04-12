@@ -1,5 +1,13 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## Next release
+
+### Performance improvements
+
+* Improved performance for `Data.IntMap.restrictKeys` and
+  `Data.IntMap.withoutKeys`. (Soumik Sarkar)
+  ([#1131](https://github.com/haskell/containers/pull/1131))
+
 ## 0.8  *March 2025*
 
 ### Breaking changes

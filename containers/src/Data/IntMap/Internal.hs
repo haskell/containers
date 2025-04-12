@@ -320,6 +320,7 @@ import Utils.Containers.Internal.Prelude hiding
   (lookup, map, filter, foldr, foldl, foldl', null)
 import Prelude ()
 
+import Data.IntSet.Internal (IntSet)
 import qualified Data.IntSet.Internal as IntSet
 import Data.IntSet.Internal.IntTreeCommons
   ( Key
@@ -335,7 +336,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , i2w
   , Order(..)
   )
-import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL)
+import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL, wordSize)
 import Utils.Containers.Internal.StrictPair
 
 #ifdef __GLASGOW_HASKELL__
@@ -402,19 +403,10 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 -- See Note [Okasaki-Gill] for how the implementation here relates to the one in
 -- Okasaki and Gill's paper.
 
--- Some stuff from "Data.IntSet.Internal", for 'restrictKeys' and
--- 'withoutKeys' to use.
-type IntSetPrefix = Int
-type IntSetBitMap = Word
-
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.6
 deriving instance Lift a => Lift (IntMap a)
 #endif
-
-bitmapOf :: Int -> IntSetBitMap
-bitmapOf x = shiftLL 1 (x .&. IntSet.suffixBitMask)
-{-# INLINE bitmapOf #-}
 
 {--------------------------------------------------------------------
   Operators
@@ -1196,7 +1188,7 @@ differenceWithKey f m1 m2
 -- @
 --
 -- @since 0.5.8
-withoutKeys :: IntMap a -> IntSet.IntSet -> IntMap a
+withoutKeys :: IntMap a -> IntSet -> IntMap a
 withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> binCheckLeft p1 (withoutKeys l1 t2) r1
   ABR -> binCheckRight p1 l1 (withoutKeys r1 t2)
@@ -1205,49 +1197,26 @@ withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 
   EQL -> bin p1 (withoutKeys l1 l2) (withoutKeys r1 r2)
   NOM -> t1
   where
-withoutKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
-    let px1 = unPrefix p1
-        minbit = bitmapOf (px1 .&. (px1-1))
-        lt_minbit = minbit - 1
-        maxbit = bitmapOf (px1 .|. (px1-1))
-        gt_maxbit = (-maxbit) `xor` maxbit
-    -- TODO(wrengr): should we manually inline/unroll 'updatePrefix'
-    -- and 'withoutBM' here, in order to avoid redundant case analyses?
-    in updatePrefix p2 t1 $ withoutBM (bm2 .|. lt_minbit .|. gt_maxbit)
+withoutKeys t1@(Bin _ _ _) (IntSet.Tip p2 bm2) = withoutKeysTip t1 p2 bm2
 withoutKeys t1@(Bin _ _ _) IntSet.Nil = t1
 withoutKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = Nil
     | otherwise = t1
 withoutKeys Nil _ = Nil
 
-
-updatePrefix
-    :: IntSetPrefix -> IntMap a -> (IntMap a -> IntMap a) -> IntMap a
-updatePrefix !kp t@(Bin p l r) f
-    | unPrefix p .&. IntSet.suffixBitMask /= 0 =
-        if unPrefix p .&. IntSet.prefixBitMask == kp then f t else t
-    | nomatch kp p = t
-    | left kp p    = binCheckLeft p (updatePrefix kp l f) r
-    | otherwise    = binCheckRight p l (updatePrefix kp r f)
-updatePrefix kp t@(Tip kx _) f
-    | kx .&. IntSet.prefixBitMask == kp = f t
-    | otherwise = t
-updatePrefix _ Nil _ = Nil
-
-
-withoutBM :: IntSetBitMap -> IntMap a -> IntMap a
-withoutBM 0 t = t
-withoutBM bm (Bin p l r) =
-    let leftBits = bitmapOf (unPrefix p) - 1
-        bmL = bm .&. leftBits
-        bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
-    in  bin p (withoutBM bmL l) (withoutBM bmR r)
-withoutBM bm t@(Tip k _)
-    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
-    | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = Nil
-    | otherwise = t
-withoutBM _ Nil = Nil
-
+withoutKeysTip :: IntMap a -> Int -> IntSet.BitMap -> IntMap a
+withoutKeysTip t@(Bin p l r) !p2 !bm2
+  | IntSet.suffixOf (unPrefix p) /= 0 =
+      if IntSet.prefixOf (unPrefix p) == p2
+      then restrictBM t (complement bm2)
+      else t
+  | nomatch p2 p = t
+  | left p2 p    = binCheckLeft p (withoutKeysTip l p2 bm2) r
+  | otherwise    = binCheckRight p l (withoutKeysTip r p2 bm2)
+withoutKeysTip t@(Tip kx _) !p2 !bm2
+  | IntSet.prefixOf kx == p2 && IntSet.bitmapOf kx .&. bm2 /= 0 = Nil
+  | otherwise = t
+withoutKeysTip Nil !_ !_ = Nil
 
 {--------------------------------------------------------------------
   Intersection
@@ -1270,7 +1239,7 @@ intersection m1 m2
 -- @
 --
 -- @since 0.5.8
-restrictKeys :: IntMap a -> IntSet.IntSet -> IntMap a
+restrictKeys :: IntMap a -> IntSet -> IntMap a
 restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
   ABL -> restrictKeys l1 t2
   ABR -> restrictKeys r1 t2
@@ -1278,50 +1247,55 @@ restrictKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1
   BAR -> restrictKeys t1 r2
   EQL -> bin p1 (restrictKeys l1 l2) (restrictKeys r1 r2)
   NOM -> Nil
-restrictKeys t1@(Bin p1 _ _) (IntSet.Tip p2 bm2) =
-    let px1 = unPrefix p1
-        minbit = bitmapOf (px1 .&. (px1-1))
-        ge_minbit = complement (minbit - 1)
-        maxbit = bitmapOf (px1 .|. (px1-1))
-        le_maxbit = maxbit .|. (maxbit - 1)
-    -- TODO(wrengr): should we manually inline/unroll 'lookupPrefix'
-    -- and 'restrictBM' here, in order to avoid redundant case analyses?
-    in restrictBM (bm2 .&. ge_minbit .&. le_maxbit) (lookupPrefix p2 t1)
+restrictKeys t1@(Bin _ _ _) (IntSet.Tip p2 bm2) = restrictKeysTip t1 p2 bm2
 restrictKeys (Bin _ _ _) IntSet.Nil = Nil
 restrictKeys t1@(Tip k1 _) t2
     | k1 `IntSet.member` t2 = t1
     | otherwise = Nil
 restrictKeys Nil _ = Nil
 
+restrictKeysTip :: IntMap a -> Int -> IntSet.BitMap -> IntMap a
+restrictKeysTip t@(Bin p l r) !p2 !bm2
+  | IntSet.suffixOf (unPrefix p) /= 0 =
+      if IntSet.prefixOf (unPrefix p) == p2
+      then restrictBM t bm2
+      else Nil
+  | nomatch p2 p = Nil
+  | left p2 p    = restrictKeysTip l p2 bm2
+  | otherwise    = restrictKeysTip r p2 bm2
+restrictKeysTip t@(Tip kx _) !p2 !bm2
+  | IntSet.prefixOf kx == p2 && IntSet.bitmapOf kx .&. bm2 /= 0 = t
+  | otherwise = Nil
+restrictKeysTip Nil !_ !_ = Nil
 
--- | \(O(\min(n,W))\). Restrict to the sub-map with all keys matching
--- a key prefix.
-lookupPrefix :: IntSetPrefix -> IntMap a -> IntMap a
-lookupPrefix !kp t@(Bin p l r)
-    | unPrefix p .&. IntSet.suffixBitMask /= 0 =
-        if unPrefix p .&. IntSet.prefixBitMask == kp then t else Nil
-    | nomatch kp p = Nil
-    | left kp p    = lookupPrefix kp l
-    | otherwise    = lookupPrefix kp r
-lookupPrefix kp t@(Tip kx _)
-    | (kx .&. IntSet.prefixBitMask) == kp = t
-    | otherwise = Nil
-lookupPrefix _ Nil = Nil
+-- Must be called on an IntMap whose keys fit in the given IntSet BitMap's Tip.
+-- Keeps keys that match the BitMap.
+-- Returns early as an optimization, i.e. if the tree can be entirely kept or
+-- discarded there is no need to recursively visit the children.
+restrictBM :: IntMap a -> IntSet.BitMap -> IntMap a
+restrictBM t@(Bin p l r) !bm
+  | bm' == 0 = Nil
+  | bm' == -1 = t
+  | otherwise = bin p (restrictBM l bm) (restrictBM r bm)
+  where
+    -- Here we care about the "submask" of bm corresponding the current Bin's
+    -- range. So we create bm', where this submask is at the lowest position and
+    -- and all other bits are set to the highest bit of the submask (using an
+    -- arithmetric shiftR). Now bm' is 0 when the submask is empty and -1 when
+    -- the submask is full.
+    px = IntSet.suffixOf (unPrefix p)
+    px1 = px - 1
+    min_ = px .&. px1
+    max_ = px .|. px1
+    sh = (wordSize - 1) - max_
+    bm' = (w2i bm `unsafeShiftL` sh) `unsafeShiftR` (sh + min_)
+restrictBM t@(Tip k _) !bm
+  | IntSet.bitmapOf k .&. bm /= 0 = t
+  | otherwise = Nil
+restrictBM Nil !_ = Nil
 
-
-restrictBM :: IntSetBitMap -> IntMap a -> IntMap a
-restrictBM 0 _ = Nil
-restrictBM bm (Bin p l r) =
-    let leftBits = bitmapOf (unPrefix p) - 1
-        bmL = bm .&. leftBits
-        bmR = bm `xor` bmL -- = (bm .&. complement leftBits)
-    in  bin p (restrictBM bmL l) (restrictBM bmR r)
-restrictBM bm t@(Tip k _)
-    -- TODO(wrengr): need we manually inline 'IntSet.Member' here?
-    | k `IntSet.member` IntSet.Tip (k .&. IntSet.prefixBitMask) bm = t
-    | otherwise = Nil
-restrictBM _ Nil = Nil
-
+w2i :: Word -> Int
+w2i = fromIntegral
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The intersection with a combining function.
@@ -3194,7 +3168,7 @@ assocs = toAscList
 -- > keysSet (fromList [(5,"a"), (3,"b")]) == Data.IntSet.fromList [3,5]
 -- > keysSet empty == Data.IntSet.empty
 
-keysSet :: IntMap a -> IntSet.IntSet
+keysSet :: IntMap a -> IntSet
 keysSet Nil = IntSet.Nil
 keysSet (Tip kx _) = IntSet.singleton kx
 keysSet (Bin p l r)
@@ -3212,7 +3186,7 @@ keysSet (Bin p l r)
 -- > fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
 -- > fromSet undefined Data.IntSet.empty == empty
 
-fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
+fromSet :: (Key -> a) -> IntSet -> IntMap a
 fromSet _ IntSet.Nil = Nil
 fromSet f (IntSet.Bin p l r) = Bin p (fromSet f l) (fromSet f r)
 fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
