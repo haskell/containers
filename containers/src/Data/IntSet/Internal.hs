@@ -98,6 +98,7 @@ module Data.IntSet.Internal (
     -- * Query
     , null
     , size
+    , compareSize
     , member
     , notMember
     , lookupLT
@@ -358,12 +359,32 @@ null _   = False
 {-# INLINE null #-}
 
 -- | \(O(n)\). Cardinality of the set.
+--
+-- See also: 'compareSize'
 size :: IntSet -> Int
 size = go 0
   where
     go !acc (Bin _ l r) = go (go acc l) r
     go acc (Tip _ bm) = acc + popCount bm
     go acc Nil = acc
+
+-- | \(O(\min(n,c))\). Compare the number of elements in the set to an @Int@.
+--
+-- @compareSize m c@ returns the same result as @compare ('size' m) c@ but is
+-- more efficient when @c@ is smaller than the size of the set.
+--
+-- @since FIXME
+compareSize :: IntSet -> Int -> Ordering
+compareSize !_ c0 | c0 < 0 = GT
+compareSize t c0 = compare 0 (go t c0)
+  where
+    go (Bin _ l r) c
+        | c' <= 0 = -1
+        | otherwise = go r c'
+        where
+          c' = go l c
+    go (Tip _ bm) c = c - popCount bm
+    go Nil c = c
 
 -- | \(O(\min(n,W))\). Is the value a member of the set?
 

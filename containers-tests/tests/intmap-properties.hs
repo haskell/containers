@@ -138,6 +138,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "maxViewWithKey" test_maxViewWithKey
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
+             , testCase "compareSize" test_compareSize
              , testProperty "valid"                prop_valid
              , testProperty "hasPrefix"            prop_hasPrefix
              , testProperty "empty valid"          prop_emptyValid
@@ -254,6 +255,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
              , testProperty "fromListWith"         prop_fromListWith
              , testProperty "fromListWithKey"      prop_fromListWithKey
+             , testProperty "compareSize"          prop_compareSize
              ]
 
 {--------------------------------------------------------------------
@@ -1196,6 +1198,12 @@ test_maximum = do
     maximum (elems testOrdMap) @?= maximum testOrdMap
   where getOW (OrdWith s _) = s
 
+-- Check cases where there is a risk of overflow
+test_compareSize :: Assertion
+test_compareSize = do
+  compareSize (fromList [(1,'a')]) minBound @?= GT
+  compareSize (fromList [(1,'a')]) maxBound @?= LT
+
 testOrdMap :: IntMap (OrdWith Int)
 testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]
 
@@ -2033,3 +2041,6 @@ prop_fromListWithKey f kxs =
   m === List.foldl' (\m' (k,x) -> insertWith (applyFun3 f k) k x m') empty kxs
   where
     m = fromListWithKey (applyFun3 f) kxs
+
+prop_compareSize :: IntMap A -> Int -> Property
+prop_compareSize t c = compareSize t c === compare (size t) c

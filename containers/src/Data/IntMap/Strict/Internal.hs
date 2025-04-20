@@ -108,6 +108,7 @@ module Data.IntMap.Strict.Internal (
     -- ** Size
     , null
     , size
+    , compareSize
 
     -- * Combine
 
@@ -305,6 +306,7 @@ import Data.IntMap.Internal
   , spanAntitone
   , restrictKeys
   , size
+  , compareSize
   , split
   , splitLookup
   , splitRoot

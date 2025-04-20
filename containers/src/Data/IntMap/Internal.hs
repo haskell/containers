@@ -95,6 +95,7 @@ module Data.IntMap.Internal (
     -- * Query
     , null
     , size
+    , compareSize
     , member
     , notMember
     , lookup
@@ -579,12 +580,32 @@ null _   = False
 -- > size empty                                   == 0
 -- > size (singleton 1 'a')                       == 1
 -- > size (fromList([(1,'a'), (2,'c'), (3,'b')])) == 3
+--
+-- See also: 'compareSize'
 size :: IntMap a -> Int
 size = go 0
   where
     go !acc (Bin _ l r) = go (go acc l) r
     go acc (Tip _ _) = 1 + acc
     go acc Nil = acc
+
+-- | \(O(\min(n,c))\). Compare the number of entries in the map to an @Int@.
+--
+-- @compareSize m c@ returns the same result as @compare ('size' m) c@ but is
+-- more efficient when @c@ is smaller than the size of the map.
+--
+-- @since FIXME
+compareSize :: IntMap a -> Int -> Ordering
+compareSize !_ c0 | c0 < 0 = GT
+compareSize Nil c0 = compare 0 c0
+compareSize t c0 = compare 0 (go t c0)
+  where
+    go (Bin _ l r) c
+      | c' <= 0 = -1
+      | otherwise = go r c'
+      where
+        c' = go l c
+    go _ c = c - 1 -- Must be Tip (invariant)
 
 -- | \(O(\min(n,W))\). Is the key a member of the map?
 --
