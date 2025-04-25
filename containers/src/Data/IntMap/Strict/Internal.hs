@@ -236,8 +236,8 @@ import Data.IntSet.Internal.IntTreeCommons
 import Data.IntMap.Internal
   ( IntMap (..)
   , bin
-  , binCheckLeft
-  , binCheckRight
+  , binCheckL
+  , binCheckR
   , link
   , linkKey
   , MonoState(..)
@@ -496,8 +496,8 @@ updateWithKey f !k t =
   case t of
     Bin p l r
       | nomatch k p -> t
-      | left k p    -> binCheckLeft p (updateWithKey f k l) r
-      | otherwise   -> binCheckRight p l (updateWithKey f k r)
+      | left k p    -> binCheckL p (updateWithKey f k l) r
+      | otherwise   -> binCheckR p l (updateWithKey f k r)
     Tip ky y
       | k==ky         -> case f k y of
                            Just !y' -> Tip ky y'
@@ -522,8 +522,8 @@ updateLookupWithKey f0 !k0 t0 = toPair $ go f0 k0 t0
       case t of
         Bin p l r
           | nomatch k p -> (Nothing :*: t)
-          | left k p    -> let (found :*: l') = go f k l in (found :*: binCheckLeft p l' r)
-          | otherwise   -> let (found :*: r') = go f k r in (found :*: binCheckRight p l r')
+          | left k p    -> let (found :*: l') = go f k l in (found :*: binCheckL p l' r)
+          | otherwise   -> let (found :*: r') = go f k r in (found :*: binCheckR p l r')
         Tip ky y
           | k==ky         -> case f k y of
                                Just !y' -> (Just y :*: Tip ky y')
@@ -543,8 +543,8 @@ alter f !k t =
       | nomatch k p -> case f Nothing of
                          Nothing -> t
                          Just !x  -> linkKey k (Tip k x) p t
-      | left k p    -> binCheckLeft p (alter f k l) r
-      | otherwise   -> binCheckRight p l (alter f k r)
+      | left k p    -> binCheckL p (alter f k l) r
+      | otherwise   -> binCheckR p l (alter f k r)
     Tip ky y
       | k==ky         -> case f (Just y) of
                            Just !x -> Tip ky x
@@ -742,10 +742,10 @@ mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
 
 updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey f t =
-  case t of Bin p l r | signBranch p -> binCheckRight p l (go f r)
+  case t of Bin p l r | signBranch p -> binCheckR p l (go f r)
             _ -> go f t
   where
-    go f' (Bin p l r) = binCheckLeft p (go f' l) r
+    go f' (Bin p l r) = binCheckL p (go f' l) r
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil
@@ -758,10 +758,10 @@ updateMinWithKey f t =
 
 updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey f t =
-  case t of Bin p l r | signBranch p -> binCheckLeft p (go f l) r
+  case t of Bin p l r | signBranch p -> binCheckL p (go f l) r
             _ -> go f t
   where
-    go f' (Bin p l r) = binCheckRight p l (go f' r)
+    go f' (Bin p l r) = binCheckR p l (go f' r)
     go f' (Tip k y) = case f' k y of
                         Just !y' -> Tip k y'
                         Nothing -> Nil

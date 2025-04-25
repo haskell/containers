@@ -287,8 +287,8 @@ module Data.IntMap.Internal (
     , link
     , linkKey
     , bin
-    , binCheckLeft
-    , binCheckRight
+    , binCheckL
+    , binCheckR
     , MonoState(..)
     , Stack(..)
     , ascLinkTop
@@ -933,8 +933,8 @@ insertLookupWithKey _ k x Nil = (Nothing,Tip k x)
 delete :: Key -> IntMap a -> IntMap a
 delete !k t@(Bin p l r)
   | nomatch k p = t
-  | left k p    = binCheckLeft p (delete k l) r
-  | otherwise   = binCheckRight p l (delete k r)
+  | left k p    = binCheckL p (delete k l) r
+  | otherwise   = binCheckR p l (delete k r)
 delete k t@(Tip ky _)
   | k == ky       = Nil
   | otherwise     = t
@@ -993,8 +993,8 @@ update f
 
 updateWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> IntMap a
 updateWithKey f !k (Bin p l r)
-  | left k p      = binCheckLeft p (updateWithKey f k l) r
-  | otherwise     = binCheckRight p l (updateWithKey f k r)
+  | left k p      = binCheckL p (updateWithKey f k l) r
+  | otherwise     = binCheckR p l (updateWithKey f k r)
 updateWithKey f k t@(Tip ky y)
   | k == ky       = case (f k y) of
                       Just y' -> Tip ky y'
@@ -1015,9 +1015,9 @@ updateWithKey _ _ Nil = Nil
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
 updateLookupWithKey f !k (Bin p l r)
   | left k p      = let !(found,l') = updateLookupWithKey f k l
-                    in (found,binCheckLeft p l' r)
+                    in (found,binCheckL p l' r)
   | otherwise     = let !(found,r') = updateLookupWithKey f k r
-                    in (found,binCheckRight p l r')
+                    in (found,binCheckR p l r')
 updateLookupWithKey f k t@(Tip ky y)
   | k==ky         = case (f k y) of
                       Just y' -> (Just y,Tip ky y')
@@ -1035,8 +1035,8 @@ alter f !k t@(Bin p l r)
   | nomatch k p = case f Nothing of
                     Nothing -> t
                     Just x -> linkKey k (Tip k x) p t
-  | left k p    = binCheckLeft p (alter f k l) r
-  | otherwise   = binCheckRight p l (alter f k r)
+  | left k p    = binCheckL p (alter f k l) r
+  | otherwise   = binCheckR p l (alter f k r)
 alter f k t@(Tip ky y)
   | k==ky         = case f (Just y) of
                       Just x -> Tip ky x
@@ -1190,8 +1190,8 @@ differenceWithKey f m1 m2
 -- @since 0.5.8
 withoutKeys :: IntMap a -> IntSet -> IntMap a
 withoutKeys t1@(Bin p1 l1 r1) t2@(IntSet.Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
-  ABL -> binCheckLeft p1 (withoutKeys l1 t2) r1
-  ABR -> binCheckRight p1 l1 (withoutKeys r1 t2)
+  ABL -> binCheckL p1 (withoutKeys l1 t2) r1
+  ABR -> binCheckR p1 l1 (withoutKeys r1 t2)
   BAL -> withoutKeys t1 l2
   BAR -> withoutKeys t1 r2
   EQL -> bin p1 (withoutKeys l1 l2) (withoutKeys r1 r2)
@@ -1211,8 +1211,8 @@ withoutKeysTip t@(Bin p l r) !p2 !bm2
       then restrictBM t (complement bm2)
       else t
   | nomatch p2 p = t
-  | left p2 p    = binCheckLeft p (withoutKeysTip l p2 bm2) r
-  | otherwise    = binCheckRight p l (withoutKeysTip r p2 bm2)
+  | left p2 p    = binCheckL p (withoutKeysTip l p2 bm2) r
+  | otherwise    = binCheckR p l (withoutKeysTip r p2 bm2)
 withoutKeysTip t@(Tip kx _) !p2 !bm2
   | IntSet.prefixOf kx == p2 && IntSet.bitmapOf kx .&. bm2 /= 0 = Nil
   | otherwise = t
@@ -1337,10 +1337,10 @@ intersectionWithKey f m1 m2
 symmetricDifference :: IntMap a -> IntMap a -> IntMap a
 symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
   case treeTreeBranch p1 p2 of
-    ABL -> bin p1 (symmetricDifference l1 t2) r1
-    ABR -> bin p1 l1 (symmetricDifference r1 t2)
-    BAL -> bin p2 (symmetricDifference t1 l2) r2
-    BAR -> bin p2 l2 (symmetricDifference t1 r2)
+    ABL -> binCheckL p1 (symmetricDifference l1 t2) r1
+    ABR -> binCheckR p1 l1 (symmetricDifference r1 t2)
+    BAL -> binCheckL p2 (symmetricDifference t1 l2) r2
+    BAR -> binCheckR p2 l2 (symmetricDifference t1 r2)
     EQL -> bin p1 (symmetricDifference l1 l2) (symmetricDifference r1 r2)
     NOM -> link (unPrefix p1) t1 (unPrefix p2) t2
 symmetricDifference t1@(Bin _ _ _) t2@(Tip k2 _) = symDiffTip t2 k2 t1
@@ -1353,8 +1353,8 @@ symDiffTip !t1 !k1 = go
   where
     go t2@(Bin p2 l2 r2)
       | nomatch k1 p2 = linkKey k1 t1 p2 t2
-      | left k1 p2 = bin p2 (go l2) r2
-      | otherwise = bin p2 l2 (go r2)
+      | left k1 p2 = binCheckL p2 (go l2) r2
+      | otherwise = binCheckR p2 l2 (go r2)
     go t2@(Tip k2 _)
       | k1 == k2 = Nil
       | otherwise = link k1 t1 k2 t2
@@ -2183,10 +2183,10 @@ mergeA
 
 updateMinWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMinWithKey f t =
-  case t of Bin p l r | signBranch p -> binCheckRight p l (go f r)
+  case t of Bin p l r | signBranch p -> binCheckR p l (go f r)
             _ -> go f t
   where
-    go f' (Bin p l r) = binCheckLeft p (go f' l) r
+    go f' (Bin p l r) = binCheckL p (go f' l) r
     go f' (Tip k y) = case f' k y of
                         Just y' -> Tip k y'
                         Nothing -> Nil
@@ -2199,10 +2199,10 @@ updateMinWithKey f t =
 
 updateMaxWithKey :: (Key -> a -> Maybe a) -> IntMap a -> IntMap a
 updateMaxWithKey f t =
-  case t of Bin p l r | signBranch p -> binCheckLeft p (go f l) r
+  case t of Bin p l r | signBranch p -> binCheckL p (go f l) r
             _ -> go f t
   where
-    go f' (Bin p l r) = binCheckRight p l (go f' r)
+    go f' (Bin p l r) = binCheckR p l (go f' r)
     go f' (Tip k y) = case f' k y of
                         Just y' -> Tip k y'
                         Nothing -> Nil
@@ -2229,11 +2229,11 @@ maxViewWithKeySure t =
   case t of
     Nil -> error "maxViewWithKeySure Nil"
     Bin p l r | signBranch p ->
-      case go l of View k a l' -> View k a (binCheckLeft p l' r)
+      case go l of View k a l' -> View k a (binCheckL p l' r)
     _ -> go t
   where
     go (Bin p l r) =
-        case go r of View k a r' -> View k a (binCheckRight p l r')
+        case go r of View k a r' -> View k a (binCheckR p l r')
     go (Tip k y) = View k y Nil
     go Nil = error "maxViewWithKey_go Nil"
 -- See note on NOINLINE at minViewWithKeySure
@@ -2263,11 +2263,11 @@ minViewWithKeySure t =
     Nil -> error "minViewWithKeySure Nil"
     Bin p l r | signBranch p ->
       case go r of
-        View k a r' -> View k a (binCheckRight p l r')
+        View k a r' -> View k a (binCheckR p l r')
     _ -> go t
   where
     go (Bin p l r) =
-        case go l of View k a l' -> View k a (binCheckLeft p l' r)
+        case go l of View k a l' -> View k a (binCheckL p l' r)
     go (Tip k y) = View k y Nil
     go Nil = error "minViewWithKey_go Nil"
 -- There's never anything significant to be gained by inlining
@@ -2737,12 +2737,12 @@ takeWhileAntitone predicate t =
     Bin p l r
       | signBranch p ->
         if predicate 0 -- handle negative numbers.
-        then bin p (go predicate l) r
+        then binCheckL p (go predicate l) r
         else go predicate r
     _ -> go predicate t
   where
     go predicate' (Bin p l r)
-      | predicate' (unPrefix p) = bin p l (go predicate' r)
+      | predicate' (unPrefix p) = binCheckR p l (go predicate' r)
       | otherwise               = go predicate' l
     go predicate' t'@(Tip ky _)
       | predicate' ky = t'
@@ -2766,12 +2766,12 @@ dropWhileAntitone predicate t =
       | signBranch p ->
         if predicate 0 -- handle negative numbers.
         then go predicate l
-        else bin p l (go predicate r)
+        else binCheckR p l (go predicate r)
     _ -> go predicate t
   where
     go predicate' (Bin p l r)
       | predicate' (unPrefix p) = go predicate' r
-      | otherwise               = bin p (go predicate' l) r
+      | otherwise               = binCheckL p (go predicate' l) r
     go predicate' t'@(Tip ky _)
       | predicate' ky = Nil
       | otherwise     = t'
@@ -2798,21 +2798,21 @@ spanAntitone predicate t =
         then
           case go predicate l of
             (lt :*: gt) ->
-              let !lt' = bin p lt r
+              let !lt' = binCheckL p lt r
               in (lt', gt)
         else
           case go predicate r of
             (lt :*: gt) ->
-              let !gt' = bin p l gt
+              let !gt' = binCheckR p l gt
               in (lt, gt')
     _ -> case go predicate t of
           (lt :*: gt) -> (lt, gt)
   where
     go predicate' (Bin p l r)
       | predicate' (unPrefix p)
-      = case go predicate' r of (lt :*: gt) -> bin p l lt :*: gt
+      = case go predicate' r of (lt :*: gt) -> binCheckR p l lt :*: gt
       | otherwise
-      = case go predicate' l of (lt :*: gt) -> lt :*: bin p gt r
+      = case go predicate' l of (lt :*: gt) -> lt :*: binCheckL p gt r
     go predicate' t'@(Tip ky _)
       | predicate' ky = (t' :*: Nil)
       | otherwise     = (Nil :*: t')
@@ -2893,20 +2893,20 @@ split k t =
         then
           case go k l of
             (lt :*: gt) ->
-              let !lt' = bin p lt r
+              let !lt' = binCheckL p lt r
               in (lt', gt)
         else
           case go k r of
             (lt :*: gt) ->
-              let !gt' = bin p l gt
+              let !gt' = binCheckR p l gt
               in (lt, gt')
     _ -> case go k t of
           (lt :*: gt) -> (lt, gt)
   where
     go !k' t'@(Bin p l r)
       | nomatch k' p = if k' < unPrefix p then Nil :*: t' else t' :*: Nil
-      | left k' p = case go k' l of (lt :*: gt) -> lt :*: bin p gt r
-      | otherwise = case go k' r of (lt :*: gt) -> bin p l lt :*: gt
+      | left k' p = case go k' l of (lt :*: gt) -> lt :*: binCheckL p gt r
+      | otherwise = case go k' r of (lt :*: gt) -> binCheckR p l lt :*: gt
     go k' t'@(Tip ky _)
       | k' > ky   = (t' :*: Nil)
       | k' < ky   = (Nil :*: t')
@@ -2940,8 +2940,8 @@ splitLookup k t =
       Bin p l r
         | signBranch p ->
           if k >= 0 -- handle negative numbers.
-          then mapLT (flip (bin p) r) (go k l)
-          else mapGT (bin p l) (go k r)
+          then mapLT (\l' -> binCheckL p l' r) (go k l)
+          else mapGT (binCheckR p l) (go k r)
       _ -> go k t
   of SplitLookup lt fnd gt -> (lt, fnd, gt)
   where
@@ -2950,8 +2950,8 @@ splitLookup k t =
           if k' < unPrefix p
           then SplitLookup Nil Nothing t'
           else SplitLookup t' Nothing Nil
-      | left k' p = mapGT (flip (bin p) r) (go k' l)
-      | otherwise  = mapLT (bin p l) (go k' r)
+      | left k' p = mapGT (\l' -> binCheckL p l' r) (go k' l)
+      | otherwise  = mapLT (binCheckR p l) (go k' r)
     go k' t'@(Tip ky y)
       | k' > ky   = SplitLookup t'  Nothing  Nil
       | k' < ky   = SplitLookup Nil Nothing  t'
@@ -3645,17 +3645,17 @@ bin _ Nil r = r
 bin p l r   = Bin p l r
 {-# INLINE bin #-}
 
--- binCheckLeft only checks that the left subtree is non-empty
-binCheckLeft :: Prefix -> IntMap a -> IntMap a -> IntMap a
-binCheckLeft _ Nil r = r
-binCheckLeft p l r   = Bin p l r
-{-# INLINE binCheckLeft #-}
+-- binCheckL only checks that the left subtree is non-empty
+binCheckL :: Prefix -> IntMap a -> IntMap a -> IntMap a
+binCheckL _ Nil r = r
+binCheckL p l r = Bin p l r
+{-# INLINE binCheckL #-}
 
--- binCheckRight only checks that the right subtree is non-empty
-binCheckRight :: Prefix -> IntMap a -> IntMap a -> IntMap a
-binCheckRight _ l Nil = l
-binCheckRight p l r   = Bin p l r
-{-# INLINE binCheckRight #-}
+-- binCheckR only checks that the right subtree is non-empty
+binCheckR :: Prefix -> IntMap a -> IntMap a -> IntMap a
+binCheckR _ l Nil = l
+binCheckR p l r = Bin p l r
+{-# INLINE binCheckR #-}
 
 {--------------------------------------------------------------------
   Utilities
