@@ -24,6 +24,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testCase "lookupGE" test_lookupGE
                    , testCase "split" test_split
                    , testCase "isProperSubsetOf" test_isProperSubsetOf
+                   , testCase "compareSize" test_compareSize
                    , testProperty "prop_Valid" prop_Valid
                    , testProperty "prop_EmptyValid" prop_EmptyValid
                    , testProperty "prop_SingletonValid" prop_SingletonValid
@@ -91,6 +92,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "deleteMax" prop_deleteMax
                    , testProperty "fromAscList" prop_fromAscList
                    , testProperty "fromDistinctAscList" prop_fromDistinctAscList
+                   , testProperty "compareSize" prop_compareSize
                    ]
 
 ----------------------------------------------------------------
@@ -135,6 +137,12 @@ test_isProperSubsetOf = do
 
     -- See Github #1007
     isProperSubsetOf (fromList [-65,-1]) (fromList [-65,-1,0]) @?= True
+
+-- Check cases where there is a risk of overflow
+test_compareSize :: Assertion
+test_compareSize = do
+  compareSize (fromList [1]) minBound @?= GT
+  compareSize (fromList [1]) maxBound @?= LT
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees
@@ -535,3 +543,6 @@ prop_fromDistinctAscList xs =
   where
     nubSortedXs = List.map NE.head $ NE.group $ sort xs
     t = fromDistinctAscList nubSortedXs
+
+prop_compareSize :: IntSet -> Int -> Property
+prop_compareSize t c = compareSize t c === compare (size t) c

@@ -122,6 +122,7 @@ module Data.IntSet (
             , lookupGE
             , IS.null
             , size
+            , compareSize
             , isSubsetOf
             , isProperSubsetOf
             , disjoint

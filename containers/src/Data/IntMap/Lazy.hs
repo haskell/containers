@@ -147,6 +147,7 @@ module Data.IntMap.Lazy (
     -- ** Size
     , IM.null
     , size
+    , compareSize
 
     -- * Combine
 

@@ -2,6 +2,11 @@
 
 ## Next release
 
+### Additions
+
+* Add `compareSize` for `IntSet` and `IntMap`. (Soumik Sarkar)
+  ([#1135](https://github.com/haskell/containers/pull/1135))
+
 ### Performance improvements
 
 * Improved performance for `Data.IntMap.restrictKeys` and

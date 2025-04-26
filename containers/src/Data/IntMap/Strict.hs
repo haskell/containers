@@ -165,6 +165,7 @@ module Data.IntMap.Strict (
     -- ** Size
     , null
     , size
+    , compareSize
 
     -- * Combine
 
