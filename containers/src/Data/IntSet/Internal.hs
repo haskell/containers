@@ -548,8 +548,8 @@ delete !x = deleteBM (prefixOf x) (bitmapOf x)
 deleteBM :: Int -> BitMap -> IntSet -> IntSet
 deleteBM !kx !bm t@(Bin p l r)
   | nomatch kx p = t
-  | left kx p    = bin p (deleteBM kx bm l) r
-  | otherwise    = bin p l (deleteBM kx bm r)
+  | left kx p    = binCheckL p (deleteBM kx bm l) r
+  | otherwise    = binCheckR p l (deleteBM kx bm r)
 deleteBM kx bm t@(Tip kx' bm')
   | kx' == kx = tip kx (bm' .&. complement bm)
   | otherwise = t
@@ -622,8 +622,8 @@ union Nil t = t
 -- Difference between two sets.
 difference :: IntSet -> IntSet -> IntSet
 difference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
-  ABL -> bin p1 (difference l1 t2) r1
-  ABR -> bin p1 l1 (difference r1 t2)
+  ABL -> binCheckL p1 (difference l1 t2) r1
+  ABR -> binCheckR p1 l1 (difference r1 t2)
   BAL -> difference t1 l2
   BAR -> difference t1 r2
   EQL -> bin p1 (difference l1 l2) (difference r1 r2)
@@ -733,10 +733,10 @@ instance Semigroup Intersection where
 symmetricDifference :: IntSet -> IntSet -> IntSet
 symmetricDifference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) =
   case treeTreeBranch p1 p2 of
-    ABL -> bin p1 (symmetricDifference l1 t2) r1
-    ABR -> bin p1 l1 (symmetricDifference r1 t2)
-    BAL -> bin p2 (symmetricDifference t1 l2) r2
-    BAR -> bin p2 l2 (symmetricDifference t1 r2)
+    ABL -> binCheckL p1 (symmetricDifference l1 t2) r1
+    ABR -> binCheckR p1 l1 (symmetricDifference r1 t2)
+    BAL -> binCheckL p2 (symmetricDifference t1 l2) r2
+    BAR -> binCheckR p2 l2 (symmetricDifference t1 r2)
     EQL -> bin p1 (symmetricDifference l1 l2) (symmetricDifference r1 r2)
     NOM -> link (unPrefix p1) t1 (unPrefix p2) t2
 symmetricDifference t1@(Bin _ _ _) t2@(Tip kx2 bm2) = symDiffTip t2 kx2 bm2 t1
@@ -749,8 +749,8 @@ symDiffTip !t1 !kx1 !bm1 = go
   where
     go t2@(Bin p2 l2 r2)
       | nomatch kx1 p2 = linkKey kx1 t1 p2 t2
-      | left kx1 p2 = bin p2 (go l2) r2
-      | otherwise = bin p2 l2 (go r2)
+      | left kx1 p2 = binCheckL p2 (go l2) r2
+      | otherwise = binCheckR p2 l2 (go r2)
     go t2@(Tip kx2 bm2)
       | kx1 == kx2 = tip kx1 (bm1 `xor` bm2)
       | otherwise = link kx1 t1 kx2 t2
@@ -911,12 +911,12 @@ takeWhileAntitone predicate t =
     Bin p l r
       | signBranch p ->
         if predicate 0 -- handle negative numbers.
-        then bin p (go predicate l) r
+        then binCheckL p (go predicate l) r
         else go predicate r
     _ -> go predicate t
   where
     go predicate' (Bin p l r)
-      | predicate' (unPrefix p) = bin p l (go predicate' r)
+      | predicate' (unPrefix p) = binCheckR p l (go predicate' r)
       | otherwise               = go predicate' l
     go predicate' (Tip kx bm) = tip kx (takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
@@ -938,12 +938,12 @@ dropWhileAntitone predicate t =
       | signBranch p ->
         if predicate 0 -- handle negative numbers.
         then go predicate l
-        else bin p l (go predicate r)
+        else binCheckR p l (go predicate r)
     _ -> go predicate t
   where
     go predicate' (Bin p l r)
       | predicate' (unPrefix p) = go predicate' r
-      | otherwise               = bin p (go predicate' l) r
+      | otherwise               = binCheckL p (go predicate' l) r
     go predicate' (Tip kx bm) = tip kx (bm `xor` takeWhileAntitoneBits kx predicate' bm)
     go _ Nil = Nil
 
@@ -968,19 +968,19 @@ spanAntitone predicate t =
         then
           case go predicate l of
             (lt :*: gt) ->
-              let !lt' = bin p lt r
+              let !lt' = binCheckL p lt r
               in (lt', gt)
         else
           case go predicate r of
             (lt :*: gt) ->
-              let !gt' = bin p l gt
+              let !gt' = binCheckR p l gt
               in (lt, gt')
     _ -> case go predicate t of
           (lt :*: gt) -> (lt, gt)
   where
     go predicate' (Bin p l r)
-      | predicate' (unPrefix p) = case go predicate' r of (lt :*: gt) -> bin p l lt :*: gt
-      | otherwise               = case go predicate' l of (lt :*: gt) -> lt :*: bin p gt r
+      | predicate' (unPrefix p) = case go predicate' r of (lt :*: gt) -> binCheckR p l lt :*: gt
+      | otherwise               = case go predicate' l of (lt :*: gt) -> lt :*: binCheckL p gt r
     go predicate' (Tip kx bm) = let bm' = takeWhileAntitoneBits kx predicate' bm
                                 in (tip kx bm' :*: tip kx (bm `xor` bm'))
     go _ Nil = (Nil :*: Nil)
@@ -999,20 +999,20 @@ split x t =
         then
           case go x l of
             (lt :*: gt) ->
-              let !lt' = bin p lt r
+              let !lt' = binCheckL p lt r
               in (lt', gt)
         else
           case go x r of
             (lt :*: gt) ->
-              let !gt' = bin p l gt
+              let !gt' = binCheckR p l gt
               in (lt, gt')
     _ -> case go x t of
           (lt :*: gt) -> (lt, gt)
   where
     go !x' t'@(Bin p l r)
         | nomatch x' p = if x' < unPrefix p then (Nil :*: t') else (t' :*: Nil)
-        | left x' p    = case go x' l of (lt :*: gt) -> lt :*: bin p gt r
-        | otherwise    = case go x' r of (lt :*: gt) -> bin p l lt :*: gt
+        | left x' p    = case go x' l of (lt :*: gt) -> lt :*: binCheckL p gt r
+        | otherwise    = case go x' r of (lt :*: gt) -> binCheckR p l lt :*: gt
     go x' t'@(Tip kx' bm)
         | kx' > x'          = (Nil :*: t')
           -- equivalent to kx' > prefixOf x'
@@ -1033,12 +1033,12 @@ splitMember x t =
         then
           case go x l of
             (lt, fnd, gt) ->
-              let !lt' = bin p lt r
+              let !lt' = binCheckL p lt r
               in (lt', fnd, gt)
         else
           case go x r of
             (lt, fnd, gt) ->
-              let !gt' = bin p l gt
+              let !gt' = binCheckR p l gt
               in (lt, fnd, gt')
     _ -> go x t
   where
@@ -1047,12 +1047,12 @@ splitMember x t =
         | left x' p =
           case go x' l of
             (lt, fnd, gt) ->
-              let !gt' = bin p gt r
+              let !gt' = binCheckL p gt r
               in (lt, fnd, gt')
         | otherwise =
           case go x' r of
             (lt, fnd, gt) ->
-              let !lt' = bin p l lt
+              let !lt' = binCheckR p l lt
               in (lt', fnd, gt)
     go x' t'@(Tip kx' bm)
         | kx' > x'          = (Nil, False, t')
@@ -1076,10 +1076,10 @@ splitMember x t =
 maxView :: IntSet -> Maybe (Key, IntSet)
 maxView t =
   case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go l of (result, l') -> Just (result, bin p l' r)
+            Bin p l r | signBranch p -> case go l of (result, l') -> Just (result, binCheckL p l' r)
             _ -> Just (go t)
   where
-    go (Bin p l r) = case go r of (result, r') -> (result, bin p l r')
+    go (Bin p l r) = case go r of (result, r') -> (result, binCheckR p l r')
     go (Tip kx bm) = case highestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
     go Nil = error "maxView Nil"
 
@@ -1088,10 +1088,10 @@ maxView t =
 minView :: IntSet -> Maybe (Key, IntSet)
 minView t =
   case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go r of (result, r') -> Just (result, bin p l r')
+            Bin p l r | signBranch p -> case go r of (result, r') -> Just (result, binCheckR p l r')
             _ -> Just (go t)
   where
-    go (Bin p l r) = case go l of (result, l') -> (result, bin p l' r)
+    go (Bin p l r) = case go l of (result, l') -> (result, binCheckL p l' r)
     go (Tip kx bm) = case lowestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
     go Nil = error "minView Nil"
 
@@ -1737,6 +1737,18 @@ bin _ l Nil = l
 bin _ Nil r = r
 bin p l r   = Bin p l r
 {-# INLINE bin #-}
+
+-- binCheckL only checks that the left subtree is non-empty
+binCheckL :: Prefix -> IntSet -> IntSet -> IntSet
+binCheckL _ Nil r = r
+binCheckL p l r = Bin p l r
+{-# INLINE binCheckL #-}
+
+-- binCheckR only checks that the right subtree is non-empty
+binCheckR :: Prefix -> IntSet -> IntSet -> IntSet
+binCheckR _ l Nil = l
+binCheckR p l r = Bin p l r
+{-# INLINE binCheckR #-}
 
 {--------------------------------------------------------------------
   @tip@ assures that we never have empty bitmaps within a tree.
