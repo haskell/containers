@@ -294,6 +294,13 @@ module Data.IntMap.Internal (
     , Stack(..)
     , ascLinkTop
     , ascLinkAll
+    , IntMapBuilder(..)
+    , BStack(..)
+    , emptyB
+    , insertB
+    , finishB
+    , moveToB
+    , MoveResult(..)
 
     -- * Used by "IntMap.Merge.Lazy" and "IntMap.Merge.Strict"
     , mapWhenMissing
@@ -3307,19 +3314,24 @@ foldlFB = foldlWithKey
 
 
 -- | \(O(n \min(n,W))\). Create a map from a list of key\/value pairs.
+-- If the list contains more than one value for the same key, the last value
+-- for the key is retained.
+--
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
 --
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
 fromList :: [(Key,a)] -> IntMap a
-fromList xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x)  = insert k x t
+fromList xs = finishB (Foldable.foldl' (\b (kx,x) -> insertB kx x b) emptyB xs)
 {-# INLINE fromList #-} -- Inline for list fusion
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+--
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
 --
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"x"), (5,"c")] == fromList [(3, "x"), (5, "cba")]
 -- > fromListWith (++) [] == empty
@@ -3362,6 +3374,9 @@ fromListWith f xs
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
 --
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
+--
 -- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
 -- > fromListWithKey f [] == empty
@@ -3369,10 +3384,8 @@ fromListWith f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromListWithKey f xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x) = insertWithKey f k x t
+fromListWithKey f xs =
+  finishB (Foldable.foldl' (\b (kx,x) -> insertWithB (f kx) kx x b) emptyB xs)
 {-# INLINE fromListWithKey #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
@@ -3476,6 +3489,135 @@ ascLinkStack stk !rk r = case stk of
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
       p = mask rk m
+
+{--------------------------------------------------------------------
+  IntMapBuilder
+--------------------------------------------------------------------}
+
+-- Note [IntMapBuilder]
+-- ~~~~~~~~~~~~~~~~~~~~
+-- IntMapBuilder serves as an accumulator for element-by-element construction
+-- of an IntMap. It can be used in folds to construct IntMaps. This plays nicely
+-- with list fusion when the structure folded over is a list, as in fromList and
+-- friends.
+--
+-- An IntMapBuilder is either empty (BNil) or has the recently inserted Tip
+-- together with a stack of trees (BTip). The structure is effectively a
+-- [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)). It always
+-- has its "focus" at the last inserted entry. To insert a new entry, we need
+-- to move the focus to the new entry. To do this we move up the stack to the
+-- lowest common ancestor of the currest position and the position of the
+-- new key (implemented as moveUpB), then down to the position of the new key
+-- (implemented as moveDownB).
+--
+-- When we are done inserting entries, we link the trees up the stack and get
+-- the final result.
+--
+-- The advantage of this implementation is that we take the shortest path in
+-- the tree from one key to the next. Unlike `insert`, we don't need to move
+-- up to the root after every insertion. This is very beneficial when we have
+-- runs of sorted keys, without many keys already in the tree in that range.
+-- If the keys are fully sorted, inserting them all takes O(n) time instead
+-- of O(n min(n,W)). But these benefits come at a small cost: when moving up
+-- the tree we have to check at every point if it is time to move down. These
+-- checks are absent in `insert`. So, in case we need to move up quite a lot,
+-- repeated `insert` is slightly faster, but the trade-off is worthwhile since
+-- such cases are pathological.
+
+data IntMapBuilder a
+  = BNil
+  | BTip {-# UNPACK #-} !Int a !(BStack a)
+
+-- BLeft: the IntMap is the left child
+-- BRight: the IntMap is the right child
+data BStack a
+  = BNada
+  | BLeft {-# UNPACK #-} !Prefix !(IntMap a) !(BStack a)
+  | BRight {-# UNPACK #-} !Prefix !(IntMap a) !(BStack a)
+
+-- Empty builder.
+emptyB :: IntMapBuilder a
+emptyB = BNil
+
+-- Insert a key and value. Replaces the old value if one already exists for
+-- the key.
+insertB :: Key -> a -> IntMapBuilder a -> IntMapBuilder a
+insertB !ky y b = case b of
+  BNil -> BTip ky y BNada
+  BTip kx x stk -> case moveToB ky kx x stk of
+    MoveResult _ stk' -> BTip ky y stk'
+{-# INLINE insertB #-}
+
+-- Insert a key and value. The new value is combined with the old value if one
+-- already exists for the key.
+insertWithB :: (a -> a -> a) -> Key -> a -> IntMapBuilder a -> IntMapBuilder a
+insertWithB f !ky y b = case b of
+  BNil -> BTip ky y BNada
+  BTip kx x stk -> case moveToB ky kx x stk of
+    MoveResult m stk' -> case m of
+      Nothing -> BTip ky y stk'
+      Just x' -> BTip ky (f y x') stk'
+{-# INLINE insertWithB #-}
+
+-- GHC >=9.6 supports unpacking sums, so we unpack the Maybe and avoid
+-- allocating Justs. GHC optimizes the workers for moveUpB and moveDownB to
+-- return (# (# (# #) | a #), BStack a #).
+data MoveResult a
+  = MoveResult
+#if __GLASGOW_HASKELL__ >= 906
+      {-# UNPACK #-}
+#endif
+      !(Maybe a)
+      !(BStack a)
+
+moveToB :: Key -> Key -> a -> BStack a -> MoveResult a
+moveToB ky kx x stk
+  | kx == ky = MoveResult (Just x) stk
+  | otherwise = moveUpB ky kx (Tip kx x) stk
+
+moveUpB :: Key -> Key -> IntMap a -> BStack a -> MoveResult a
+moveUpB !ky !kx !tx stk = case stk of
+  BNada -> MoveResult Nothing (linkB ky kx tx BNada)
+  BLeft p l stk'
+    | nomatch ky p -> moveUpB ky kx (Bin p l tx) stk'
+    | left ky p -> moveDownB ky l (BRight p tx stk')
+    | otherwise -> MoveResult Nothing (linkB ky kx tx stk)
+  BRight p r stk'
+    | nomatch ky p -> moveUpB ky kx (Bin p tx r) stk'
+    | left ky p -> MoveResult Nothing (linkB ky kx tx stk)
+    | otherwise -> moveDownB ky r (BLeft p tx stk')
+
+moveDownB :: Key -> IntMap a -> BStack a -> MoveResult a
+moveDownB !ky tx !stk = case tx of
+  Bin p l r
+    | nomatch ky p -> MoveResult Nothing (linkB ky (unPrefix p) tx stk)
+    | left ky p -> moveDownB ky l (BRight p r stk)
+    | otherwise -> moveDownB ky r (BLeft p l stk)
+  Tip kx x
+    | kx == ky -> MoveResult (Just x) stk
+    | otherwise -> MoveResult Nothing (linkB ky kx tx stk)
+  Nil -> error "moveDownB Tip"
+
+linkB :: Key -> Key -> IntMap a -> BStack a -> BStack a
+linkB ky kx tx stk
+  | i2w ky < i2w kx = BRight p tx stk
+  | otherwise = BLeft p tx stk
+  where
+    p = branchPrefix ky kx
+{-# INLINE linkB #-}
+
+-- Finalize the builder into a Map.
+finishB :: IntMapBuilder a -> IntMap a
+finishB b = case b of
+  BNil -> Nil
+  BTip kx x stk -> finishUpB (Tip kx x) stk
+{-# INLINABLE finishB #-}
+
+finishUpB :: IntMap a -> BStack a -> IntMap a
+finishUpB !t stk = case stk of
+  BNada -> t
+  BLeft p l stk' -> finishUpB (Bin p l t) stk'
+  BRight p r stk' -> finishUpB (Bin p t r) stk'
 
 {--------------------------------------------------------------------
   Eq

@@ -245,6 +245,13 @@ import Data.IntMap.Internal
   , Stack(..)
   , ascLinkTop
   , ascLinkAll
+  , IntMapBuilder(..)
+  , BStack(..)
+  , emptyB
+  , insertB
+  , finishB
+  , moveToB
+  , MoveResult(..)
 
   , (\\)
   , (!)
@@ -1049,18 +1056,21 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
 --------------------------------------------------------------------}
 -- | \(O(n \min(n,W))\). Create a map from a list of key\/value pairs.
 --
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
+--
 -- > fromList [] == empty
 -- > fromList [(5,"a"), (3,"b"), (5, "c")] == fromList [(5,"c"), (3,"b")]
 -- > fromList [(5,"c"), (3,"b"), (5, "a")] == fromList [(5,"a"), (3,"b")]
 
 fromList :: [(Key,a)] -> IntMap a
-fromList xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x)  = insert k x t
+fromList xs = finishB (Foldable.foldl' (\b (kx,!x) -> insertB kx x b) emptyB xs)
 {-# INLINE fromList #-} -- Inline for list fusion
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+--
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
 --
 -- > fromListWith (++) [(5,"a"), (5,"b"), (3,"x"), (5,"c")] == fromList [(3, "x"), (5, "cba")]
 -- > fromListWith (++) [] == empty
@@ -1103,6 +1113,9 @@ fromListWith f xs
 
 -- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
 --
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
+--
 -- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
 -- > fromListWithKey f [(5,"a"), (5,"b"), (3,"b"), (3,"a"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
 -- > fromListWithKey f [] == empty
@@ -1110,10 +1123,8 @@ fromListWith f xs
 -- Also see the performance note on 'fromListWith'.
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
-fromListWithKey f xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t (k,x) = insertWithKey f k x t
+fromListWithKey f xs =
+  finishB (Foldable.foldl' (\b (kx,x) -> insertWithB (f kx) kx x b) emptyB xs)
 {-# INLINE fromListWithKey #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
@@ -1182,3 +1193,20 @@ fromDistinctAscList :: [(Key,a)] -> IntMap a
 -- See Note on Data.IntMap.Internal.fromDistinctAscList.
 fromDistinctAscList = fromAscList
 {-# INLINE fromDistinctAscList #-} -- Inline for list fusion
+
+{--------------------------------------------------------------------
+  IntMapBuilder
+--------------------------------------------------------------------}
+
+-- Insert a key and value. The new value is combined with the old value if one
+-- already exists for the key. Strict in the inserted value.
+insertWithB :: (a -> a -> a) -> Key -> a -> IntMapBuilder a -> IntMapBuilder a
+insertWithB f !ky y b = case b of
+  BNil -> btip' ky y BNada
+  BTip kx x stk -> case moveToB ky kx x stk of
+    MoveResult m stk' -> case m of
+      Nothing -> btip' ky y stk'
+      Just x' -> btip' ky (f y x') stk'
+  where
+    btip' kx !x = BTip kx x
+{-# INLINE insertWithB #-}
