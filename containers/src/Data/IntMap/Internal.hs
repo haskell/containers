@@ -575,7 +575,9 @@ null Nil = True
 null _   = False
 {-# INLINE null #-}
 
--- | \(O(n)\). Number of elements in the map.
+-- | \(O(n)\). Number of entries in the map.
+--
+-- __Note__: Unlike @Data.Map.'Data.Map.Lazy.size'@, this is /not/ \(O(1)\).
 --
 -- > size empty                                   == 0
 -- > size (singleton 1 'a')                       == 1
