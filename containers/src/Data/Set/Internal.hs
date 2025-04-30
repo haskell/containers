@@ -774,6 +774,8 @@ lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
 
 -- | \(O(\log n)\). The minimal element of the set. Calls 'error' if the set is
 -- empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMin'.
 findMin :: Set a -> a
 findMin t
   | Just r <- lookupMin t = r
@@ -795,6 +797,8 @@ lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
 
 -- | \(O(\log n)\). The maximal element of the set. Calls 'error' if the set is
 -- empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMax'.
 findMax :: Set a -> a
 findMax t
   | Just r <- lookupMax t = r
@@ -1441,6 +1445,8 @@ splitMember x (Bin _ y l r)
 -- to, but not including, the 'size' of the set. Calls 'error' when the element
 -- is not a 'member' of the set.
 --
+-- __Note__: This function is partial. Prefer 'lookupIndex'.
+--
 -- > findIndex 2 (fromList [5,3])    Error: element is not in the set
 -- > findIndex 3 (fromList [5,3]) == 0
 -- > findIndex 5 (fromList [5,3]) == 1
@@ -1491,6 +1497,8 @@ lookupIndex = go 0
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
 -- than zero, greater or equal to 'size' of the set), 'error' is called.
 --
+-- __Note__: This function is partial.
+--
 -- > elemAt 0 (fromList [5,3]) == 3
 -- > elemAt 1 (fromList [5,3]) == 5
 -- > elemAt 2 (fromList [5,3])    Error: index out of range
@@ -1510,6 +1518,8 @@ elemAt i (Bin _ x l r)
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sorted sequence of elements. If the /index/ is out of range (less than zero,
 -- greater or equal to 'size' of the set), 'error' is called.
+--
+-- __Note__: This function is partial.
 --
 -- > deleteAt 0    (fromList [5,3]) == singleton 5
 -- > deleteAt 1    (fromList [5,3]) == singleton 3
@@ -1772,8 +1782,9 @@ glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
 
 -- | \(O(\log n)\). Delete and find the minimal element.
 --
--- > deleteFindMin set = (findMin set, deleteMin set)
-
+-- Calls 'error' if the set is empty.
+--
+-- __Note__: This function is partial. Prefer 'minView'.
 deleteFindMin :: Set a -> (a,Set a)
 deleteFindMin t
   | Just r <- minView t = r
@@ -1781,7 +1792,9 @@ deleteFindMin t
 
 -- | \(O(\log n)\). Delete and find the maximal element.
 --
--- > deleteFindMax set = (findMax set, deleteMax set)
+-- Calls 'error' if the set is empty.
+--
+-- __Note__: This function is partial. Prefer 'maxView'.
 deleteFindMax :: Set a -> (a,Set a)
 deleteFindMax t
   | Just r <- maxView t = r

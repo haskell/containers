@@ -272,12 +272,8 @@ module Data.Map.Lazy (
     -- * Min\/Max
     , lookupMin
     , lookupMax
-    , findMin
-    , findMax
     , deleteMin
     , deleteMax
-    , deleteFindMin
-    , deleteFindMax
     , updateMin
     , updateMax
     , updateMinWithKey
@@ -286,6 +282,10 @@ module Data.Map.Lazy (
     , maxView
     , minViewWithKey
     , maxViewWithKey
+    , findMin
+    , findMax
+    , deleteFindMin
+    , deleteFindMax
 
     -- * Debugging
     , valid

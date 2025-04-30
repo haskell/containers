@@ -838,6 +838,8 @@ atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
 -- | \(O(\log n)\). Update the element at /index/. Calls 'error' when an
 -- invalid index is used.
 --
+-- __Note__: This function is partial.
+--
 -- > updateAt (\ _ _ -> Just "x") 0    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "x"), (5, "a")]
 -- > updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "x")]
 -- > updateAt (\ _ _ -> Just "x") 2    (fromList [(5,"a"), (3,"b")])    Error: index out of range

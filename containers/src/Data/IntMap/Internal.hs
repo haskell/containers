@@ -416,6 +416,8 @@ deriving instance Lift a => Lift (IntMap a)
 -- | \(O(\min(n,W))\). Find the value at a key.
 -- Calls 'error' when the element can not be found.
 --
+-- __Note__: This function is partial. Prefer '!?'.
+--
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
@@ -2325,14 +2327,18 @@ minView :: IntMap a -> Maybe (a, IntMap a)
 minView t = fmap (\((_, x), t') -> (x, t')) (minViewWithKey t)
 
 -- | \(O(\min(n,W))\). Delete and find the maximal element.
--- This function throws an error if the map is empty. Use 'maxViewWithKey'
--- if the map may be empty.
+--
+-- Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'maxViewWithKey'.
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal element") . maxViewWithKey
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
--- This function throws an error if the map is empty. Use 'minViewWithKey'
--- if the map may be empty.
+--
+-- Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'minViewWithKey'.
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty map has no minimal element") . minViewWithKey
 
@@ -2366,6 +2372,8 @@ lookupMin (Bin p l r) =
 {-# INLINE lookupMin #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMin'.
 findMin :: IntMap a -> (Key, a)
 findMin t
   | Just r <- lookupMin t = r
@@ -2385,6 +2393,8 @@ lookupMax (Bin p l r) =
 {-# INLINE lookupMax #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMax'.
 findMax :: IntMap a -> (Key, a)
 findMax t
   | Just r <- lookupMax t = r
