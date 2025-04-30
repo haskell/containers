@@ -360,6 +360,8 @@ null _   = False
 
 -- | \(O(n)\). Cardinality of the set.
 --
+-- __Note__: Unlike @Data.Set.'Data.Set.size'@, this is /not/ \(O(1)\).
+--
 -- See also: 'compareSize'
 size :: IntSet -> Int
 size = go 0
