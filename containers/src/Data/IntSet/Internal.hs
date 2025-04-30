@@ -375,16 +375,18 @@ size = go 0
 --
 -- @since FIXME
 compareSize :: IntSet -> Int -> Ordering
-compareSize !_ c0 | c0 < 0 = GT
-compareSize t c0 = compare 0 (go t c0)
+compareSize Nil c0 = compare 0 c0
+compareSize _ c0 | c0 <= 0 = GT
+compareSize t c0 = compare 0 (go t (c0 - 1))
   where
+    go (Bin _ _ _) 0 = -1
     go (Bin _ l r) c
-        | c' <= 0 = -1
-        | otherwise = go r c'
-        where
-          c' = go l c
-    go (Tip _ bm) c = c - popCount bm
-    go Nil c = c
+      | c' < 0 = c'
+      | otherwise = go r c'
+      where
+        c' = go l (c - 1)
+    go (Tip _ bm) c = c + 1 - popCount bm
+    go Nil !_ = error "compareSize.go: Nil"
 
 -- | \(O(\min(n,W))\). Is the value a member of the set?
 
