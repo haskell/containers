@@ -79,6 +79,9 @@ main = do
             whnf (uncurry M.withoutKeys) (m_random, s_random2)
         , bench "restrictKeys:random" $ -- large keys, no overlap
             whnf (uncurry M.restrictKeys) (m_random, s_random2)
+        , bench "size" $ whnf M.size m
+        , bench "compareSize:2" $ whnf (flip M.compareSize 2) m
+        , bench "compareSize:n" $ whnf (flip M.compareSize bound) m
         , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
         , bgroup "folds with key" $
             foldWithKeyBenchmarks M.foldrWithKey M.foldlWithKey M.foldrWithKey' M.foldlWithKey' M.foldMapWithKey m

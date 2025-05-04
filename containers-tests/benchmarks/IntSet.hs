@@ -72,6 +72,12 @@ main = do
         , bench "eq" $ whnf (\s' -> s' == s') s -- worst case, compares everything
         , bench "compare:dense" $ whnf (\s' -> compare s' s') s -- worst case, compares everything
         , bench "compare:sparse" $ whnf (\s' -> compare s' s') s_sparse -- worst case, compares everything
+        , bench "size" $ whnf IS.size s
+        , bench "size:sparse" $ whnf IS.size s_sparse
+        , bench "compareSize:2" $ whnf (flip IS.compareSize 2) s
+        , bench "compareSize:sparse:2" $ whnf (flip IS.compareSize 2) s_sparse
+        , bench "compareSize:n" $ whnf (flip IS.compareSize bound) s
+        , bench "compareSize:sparse:n" $ whnf (flip IS.compareSize bound) s_sparse
         , bgroup "folds:dense" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s
         , bgroup "folds:sparse" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s_sparse
         ]

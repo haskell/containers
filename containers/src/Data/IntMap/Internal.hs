@@ -598,16 +598,17 @@ size = go 0
 --
 -- @since FIXME
 compareSize :: IntMap a -> Int -> Ordering
-compareSize !_ c0 | c0 < 0 = GT
 compareSize Nil c0 = compare 0 c0
-compareSize t c0 = compare 0 (go t c0)
+compareSize _ c0 | c0 <= 0 = GT
+compareSize t c0 = compare 0 (go t (c0 - 1))
   where
+    go (Bin _ _ _) 0 = -1
     go (Bin _ l r) c
-      | c' <= 0 = -1
+      | c' < 0 = c'
       | otherwise = go r c'
       where
-        c' = go l c
-    go _ c = c - 1 -- Must be Tip (invariant)
+        c' = go l (c - 1)
+    go _ c = c
 
 -- | \(O(\min(n,W))\). Is the key a member of the map?
 --
