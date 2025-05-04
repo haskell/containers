@@ -488,7 +488,9 @@ deriving instance (Lift k, Lift a) => Lift (Map k a)
 instance (Ord k) => Monoid (Map k v) where
     mempty  = empty
     mconcat = unions
+#if !MIN_VERSION_base(4,11,0)
     mappend = (<>)
+#endif
 
 -- | @(<>)@ = 'union'
 --

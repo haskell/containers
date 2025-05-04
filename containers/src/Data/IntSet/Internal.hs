@@ -315,7 +315,9 @@ deriving instance Lift IntSet
 instance Monoid IntSet where
     mempty  = empty
     mconcat = unions
+#if !MIN_VERSION_base(4,11,0)
     mappend = (<>)
+#endif
 
 -- | @(<>)@ = 'union'
 --

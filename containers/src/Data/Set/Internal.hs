@@ -293,7 +293,9 @@ deriving instance Lift a => Lift (Set a)
 instance Ord a => Monoid (Set a) where
     mempty  = empty
     mconcat = unions
+#if !MIN_VERSION_base(4,11,0)
     mappend = (<>)
+#endif
 
 -- | @(<>)@ = 'union'
 --
@@ -2099,8 +2101,9 @@ instance Semigroup (MergeSet a) where
 
 instance Monoid (MergeSet a) where
   mempty = MergeSet empty
-
+#if !MIN_VERSION_base(4,11,0)
   mappend = (<>)
+#endif
 
 -- | \(O(n+m)\). Calculate the disjoint union of two sets.
 --
