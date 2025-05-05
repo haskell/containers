@@ -83,7 +83,7 @@
 -- [Note: Using INLINABLE]
 -- ~~~~~~~~~~~~~~~~~~~~~~~
 -- It is crucial to the performance that the functions specialize on the Ord
--- type when possible. GHC 7.0 and higher does this by itself when it sees th
+-- type when possible. GHC 7.0 and higher does this by itself when it sees the
 -- unfolding of a function -- that is why all public functions are marked
 -- INLINABLE (that exposes the unfolding).
 
@@ -116,7 +116,7 @@
 -- floats out of its enclosing function and then it heap-allocates the
 -- dictionary and the argument. Maybe it floats out too late and strictness
 -- analyzer cannot see that these could be passed on stack.
---
+
 
 -- [Note: Order of constructors]
 -- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -126,6 +126,22 @@
 -- of first constructor results in the forward jump not taken.
 -- On GHC 7.0, reordering constructors from Tip | Bin to Bin | Tip
 -- improves the benchmark by up to 10% on x86.
+
+
+-- [Note: Matching on Leafy Nodes]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- In a balanced tree, at least two-thirds of Tip constructors are siblings
+-- of another Tip constructor. The parents of these cases can be quickly
+-- identified as the size value packed into their Bin constructors will equal
+-- 1. By specializing recursive functions which visit the whole tree to
+-- recognize this scenario, we can elide unnecessary function calls that would
+-- go on to match these Tip constructors but otherwise perform no useful work.
+-- This optimization can lead to performance improvements of approximately
+-- 30% to 35% for foldMap and foldl', and around 20% for mapMaybe.
+--
+-- Alternatives, like matching on the Tip constructors directly, or also
+-- trying to optimise cases where only one side a Tip are slower in practice.
+
 
 module Data.Map.Internal (
     -- * Map type
@@ -2969,6 +2985,9 @@ filterKeys p m = filterWithKey (\k _ -> p k) m
 
 filterWithKey :: (k -> a -> Bool) -> Map k a -> Map k a
 filterWithKey _ Tip = Tip
+filterWithKey p t@(Bin 1 kx x _ _)
+  | p kx x    = t
+  | otherwise = Tip
 filterWithKey p t@(Bin _ kx x l r)
   | p kx x    = if pl `ptrEq` l && pr `ptrEq` r
                 then t
@@ -2981,6 +3000,8 @@ filterWithKey p t@(Bin _ kx x l r)
 -- predicate.
 filterWithKeyA :: Applicative f => (k -> a -> f Bool) -> Map k a -> f (Map k a)
 filterWithKeyA _ Tip = pure Tip
+filterWithKeyA p t@(Bin 1 kx x _ _) =
+  fmap (bool Tip t) (p kx x)
 filterWithKeyA p t@(Bin _ kx x l r) =
   liftA3 combine (filterWithKeyA p l) (p kx x) (filterWithKeyA p r)
   where
@@ -3071,6 +3092,9 @@ partitionWithKey :: (k -> a -> Bool) -> Map k a -> (Map k a,Map k a)
 partitionWithKey p0 t0 = toPair $ go p0 t0
   where
     go _ Tip = (Tip :*: Tip)
+    go p t@(Bin 1 kx x _ _)
+      | p kx x    = t :*: Tip
+      | otherwise = Tip :*: t
     go p t@(Bin _ kx x l r)
       | p kx x    = (if l1 `ptrEq` l && r1 `ptrEq` r
                      then t
@@ -3098,6 +3122,9 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
+mapMaybeWithKey f (Bin 1 kx x _ _) = case f kx x of
+  Just y  -> Bin 1 kx y Tip Tip
+  Nothing -> Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
@@ -3110,7 +3137,7 @@ traverseMaybeWithKey :: Applicative f
 traverseMaybeWithKey = go
   where
     go _ Tip = pure Tip
-    go f (Bin _ kx x Tip Tip) = maybe Tip (\x' -> Bin 1 kx x' Tip Tip) <$> f kx x
+    go f (Bin 1 kx x _ _) = maybe Tip (\x' -> Bin 1 kx x' Tip Tip) <$> f kx x
     go f (Bin _ kx x l r) = liftA3 combine (go f l) (f kx x) (go f r)
       where
         combine !l' mx !r' = case mx of
@@ -3142,7 +3169,7 @@ mapEither f m
 mapEitherWithKey :: (k -> a -> Either b c) -> Map k a -> (Map k b, Map k c)
 mapEitherWithKey f0 t0 = toPair $ go f0 t0
   where
-    go _ Tip = (Tip :*: Tip)
+    go _ Tip = Tip :*: Tip
     go f (Bin _ kx x l r) = case f kx x of
       Left y  -> link kx y l1 r1 :*: link2 l2 r2
       Right z -> link2 l1 r1 :*: link kx z l2 r2
@@ -3160,6 +3187,7 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 map :: (a -> b) -> Map k a -> Map k b
 map f = go where
   go Tip = Tip
+  go (Bin 1 kx x _ _) = Bin 1 kx (f x) Tip Tip
   go (Bin sx kx x l r) = Bin sx kx (f x) (go l) (go r)
 -- We use a `go` function to allow `map` to inline. This makes
 -- a big difference if someone uses `map (const x) m` instead
@@ -3180,6 +3208,7 @@ map f = go where
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
+mapWithKey f (Bin 1 kx x _ _) = Bin 1 kx (f kx x) Tip Tip
 mapWithKey f (Bin sx kx x l r) = Bin sx kx (f kx x) (mapWithKey f l) (mapWithKey f r)
 
 #ifdef __GLASGOW_HASKELL__
@@ -3233,6 +3262,9 @@ mapAccumWithKey f a t
 -- argument through the map in ascending order of keys.
 mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumL _ a Tip               = (a,Tip)
+mapAccumL f a (Bin 1 kx x _ _ ) =
+  let (a1,x') = f a kx x
+  in (a1,Bin 1 kx x' Tip Tip)
 mapAccumL f a (Bin sx kx x l r) =
   let (a1,l') = mapAccumL f a l
       (a2,x') = f a1 kx x
@@ -3243,6 +3275,9 @@ mapAccumL f a (Bin sx kx x l r) =
 -- argument through the map in descending order of keys.
 mapAccumRWithKey :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumRWithKey _ a Tip = (a,Tip)
+mapAccumRWithKey f a (Bin 1 kx x _ _) =
+  let (a0,x') = f a kx x
+  in (a0,Bin 1 kx x' Tip Tip)
 mapAccumRWithKey f a (Bin sx kx x l r) =
   let (a1,r') = mapAccumRWithKey f a r
       (a2,x') = f a1 kx x
@@ -3334,6 +3369,7 @@ foldr :: (a -> b -> b) -> b -> Map k a -> b
 foldr f z = go z
   where
     go z' Tip             = z'
+    go z' (Bin 1 _ x _ _) = f x z'
     go z' (Bin _ _ x l r) = go (f x (go z' r)) l
 {-# INLINE foldr #-}
 
@@ -3343,8 +3379,9 @@ foldr f z = go z
 foldr' :: (a -> b -> b) -> b -> Map k a -> b
 foldr' f z = go z
   where
-    go !z' Tip            = z'
-    go z' (Bin _ _ x l r) = go (f x $! go z' r) l
+    go !z' Tip             = z'
+    go !z' (Bin 1 _ x _ _) = f x z'
+    go z'  (Bin _ _ x l r) = go (f x $! go z' r) l
 {-# INLINE foldr' #-}
 
 -- | \(O(n)\). Fold the values in the map using the given left-associative
@@ -3360,6 +3397,7 @@ foldl :: (a -> b -> a) -> a -> Map k b -> a
 foldl f z = go z
   where
     go z' Tip             = z'
+    go z' (Bin 1 _ x _ _) = f z' x
     go z' (Bin _ _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
 
@@ -3369,8 +3407,9 @@ foldl f z = go z
 foldl' :: (a -> b -> a) -> a -> Map k b -> a
 foldl' f z = go z
   where
-    go !z' Tip            = z'
-    go z' (Bin _ _ x l r) =
+    go !z' Tip             = z'
+    go !z' (Bin 1 _ x _ _) = f z' x
+    go z' (Bin _ _ x l r)  =
       let !z'' = go z' l
       in go (f z'' x) r
 {-# INLINE foldl' #-}
@@ -3388,7 +3427,8 @@ foldl' f z = go z
 foldrWithKey :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey f z = go z
   where
-    go z' Tip             = z'
+    go z' Tip              = z'
+    go z' (Bin 1 kx x _ _) = f kx x z'
     go z' (Bin _ kx x l r) = go (f kx x (go z' r)) l
 {-# INLINE foldrWithKey #-}
 
@@ -3399,7 +3439,8 @@ foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey' f z = go z
   where
     go !z' Tip              = z'
-    go z' (Bin _ kx x l r) = go (f kx x $! go z' r) l
+    go !z' (Bin 1 kx x _ _) = f kx x z'
+    go z' (Bin _ kx x l r)  = go (f kx x $! go z' r) l
 {-# INLINE foldrWithKey' #-}
 
 -- | \(O(n)\). Fold the keys and values in the map using the given left-associative
@@ -3416,6 +3457,7 @@ foldlWithKey :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey f z = go z
   where
     go z' Tip              = z'
+    go z' (Bin 1 kx x _ _) = f z' kx x
     go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
 {-# INLINE foldlWithKey #-}
 
@@ -3426,6 +3468,7 @@ foldlWithKey' :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey' f z = go z
   where
     go !z' Tip             = z'
+    go !z' (Bin 1 kx x _ _) = f z' kx x
     go z' (Bin _ kx x l r) =
       let !z'' = go z' l
       in go (f z'' kx x) r
@@ -4423,6 +4466,7 @@ instance Functor (Map k) where
   fmap f m  = map f m
 #ifdef __GLASGOW_HASKELL__
   _ <$ Tip = Tip
+  a <$ (Bin 1 kx _ _ _) = Bin 1 kx a Tip Tip
   a <$ (Bin sx kx _ l r) = Bin sx kx a (a <$ l) (a <$ r)
 #endif
 
