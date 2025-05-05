@@ -1426,15 +1426,15 @@ prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
   where m = fromList $ zip xs $ repeat ()
 
-prop_fromList :: [Int] -> Property
+prop_fromList :: [(Int, A)] -> Property
 prop_fromList xs
-  = case fromList (zip xs xs) of
+  = case fromList xs of
       t -> valid t .&&.
-           t === fromAscList (zip sort_xs sort_xs) .&&.
-           t === fromDistinctAscList (zip nub_sort_xs nub_sort_xs) .&&.
-           t === List.foldr (uncurry insert) empty (zip xs xs)
-  where sort_xs = sort xs
-        nub_sort_xs = List.map List.head $ List.group sort_xs
+           t === fromAscList sort_xs .&&.
+           t === fromDistinctAscList nub_sort_xs .&&.
+           t === List.foldl' (\t' (k,x) -> insert k x t') empty xs
+  where sort_xs = List.sortBy (comparing fst) xs
+        nub_sort_xs = List.map NE.last $ NE.groupBy ((==) `on` fst) sort_xs
 
 ----------------------------------------------------------------
 
