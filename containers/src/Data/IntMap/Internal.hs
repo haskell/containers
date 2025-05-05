@@ -447,7 +447,9 @@ infixl 9 !?,\\{-This comment teaches CPP correct behaviour -}
 instance Monoid (IntMap a) where
     mempty  = empty
     mconcat = unions
+#if !MIN_VERSION_base(4,11,0)
     mappend = (<>)
+#endif
 
 -- | @(<>)@ = 'union'
 --

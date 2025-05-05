@@ -1001,7 +1001,9 @@ instance Read1 Seq where
 -- | @mempty@ = 'empty'
 instance Monoid (Seq a) where
     mempty = empty
+#if !MIN_VERSION_base(4,11,0)
     mappend = (Semigroup.<>)
+#endif
 
 -- | @(<>)@ = '(><)'
 --
