@@ -1103,13 +1103,17 @@ minView t =
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
 --
--- > deleteFindMin set = (findMin set, deleteMin set)
+-- Calls 'error' if the set is empty.
+--
+-- __Note__: This function is partial. Prefer 'minView'.
 deleteFindMin :: IntSet -> (Key, IntSet)
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | \(O(\min(n,W))\). Delete and find the maximal element.
 --
--- > deleteFindMax set = (findMax set, deleteMax set)
+-- Calls 'error' if the set is empty.
+--
+-- __Note__: This function is partial. Prefer 'maxView'.
 deleteFindMax :: IntSet -> (Key, IntSet)
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
@@ -1130,6 +1134,8 @@ lookupMin (Bin p l r) = Just $! lookupMinSure (if signBranch p then r else l)
 
 -- | \(O(\min(n,W))\). The minimal element of the set. Calls 'error' if the set
 -- is empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMin'.
 findMin :: IntSet -> Key
 findMin t
   | Just r <- lookupMin t = r
@@ -1152,6 +1158,8 @@ lookupMax (Bin p l r) = Just $! lookupMaxSure (if signBranch p then l else r)
 
 -- | \(O(\min(n,W))\). The maximal element of the set. Calls 'error' if the set
 -- is empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMax'.
 findMax :: IntSet -> Key
 findMax t
   | Just r <- lookupMax t = r

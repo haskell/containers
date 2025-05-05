@@ -287,12 +287,8 @@ module Data.Map.Strict
     -- * Min\/Max
     , lookupMin
     , lookupMax
-    , findMin
-    , findMax
     , deleteMin
     , deleteMax
-    , deleteFindMin
-    , deleteFindMax
     , updateMin
     , updateMax
     , updateMinWithKey
@@ -301,6 +297,10 @@ module Data.Map.Strict
     , maxView
     , minViewWithKey
     , maxViewWithKey
+    , findMin
+    , findMax
+    , deleteFindMin
+    , deleteFindMax
 
     -- * Debugging
     , valid

@@ -249,12 +249,8 @@ module Data.IntMap.Lazy (
     -- * Min\/Max
     , lookupMin
     , lookupMax
-    , findMin
-    , findMax
     , deleteMin
     , deleteMax
-    , deleteFindMin
-    , deleteFindMax
     , updateMin
     , updateMax
     , updateMinWithKey
@@ -263,6 +259,10 @@ module Data.IntMap.Lazy (
     , maxView
     , minViewWithKey
     , maxViewWithKey
+    , findMin
+    , findMax
+    , deleteFindMin
+    , deleteFindMax
     ) where
 
 import Data.IntMap.Internal as IM
