@@ -1760,6 +1760,10 @@ singleton       :: a -> Seq a
 singleton x     =  Seq (Single (Elem x))
 
 -- | \( O(\log n) \). @replicate n x@ is a sequence consisting of @n@ copies of @x@.
+--
+-- Calls 'error' if @n < 0@.
+--
+-- __Note__: This function is partial.
 replicate       :: Int -> a -> Seq a
 replicate n x
   | n >= 0      = runIdentity (replicateA n (Identity x))
@@ -1768,6 +1772,10 @@ replicate n x
 -- | 'replicateA' is an 'Applicative' version of 'replicate', and makes
 -- \( O(\log n) \) calls to 'liftA2' and 'pure'.
 --
+-- Calls 'error' if @n < 0@.
+--
+-- __Note__: This function is partial.
+--
 -- > replicateA n x = sequenceA (replicate n x)
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
 replicateA n x
@@ -1775,13 +1783,9 @@ replicateA n x
   | otherwise   = error "replicateA takes a nonnegative integer argument"
 {-# SPECIALIZE replicateA :: Int -> State a b -> State a (Seq b) #-}
 
--- | 'replicateM' is the @Seq@ counterpart of
--- @Control.Monad.'Control.Monad.replicateM'@.
+-- | Synonym for 'replicateA'.
 --
--- > replicateM n x = sequence (replicate n x)
---
--- For @base >= 4.8.0@ and @containers >= 0.5.11@, 'replicateM'
--- is a synonym for 'replicateA'.
+-- This definition exists for backwards compatibility.
 replicateM :: Applicative m => Int -> m a -> m (Seq a)
 replicateM = replicateA
 
@@ -1790,10 +1794,14 @@ replicateM = replicateA
 -- @k@ is 0.
 --
 -- prop> cycleTaking k = fromList . take k . cycle . toList
-
+--
 -- If you wish to concatenate a possibly empty sequence @xs@ with
--- itself precisely @k@ times, use @'stimes' k xs@ instead of this
--- function.
+-- itself precisely @k@ times, use @'Data.Semigroup.stimes' k xs@ instead of
+-- this function.
+--
+-- Calls 'error' if @k > 0@ and @null xs@.
+--
+-- __Note__: This function is partial.
 --
 -- @since 0.5.8
 cycleTaking :: Int -> Seq a -> Seq a
@@ -2207,7 +2215,9 @@ unfoldl f = unfoldl' empty
 -- | \( O(n) \).  Constructs a sequence by repeated application of a function
 -- to a seed value.
 --
--- > iterateN n f x = fromList (Prelude.take n (Prelude.iterate f x))
+-- Calls 'error' if @n < 0@.
+--
+-- __Note__: This function is partial.
 iterateN :: Int -> (a -> a) -> a -> Seq a
 iterateN n f x
   | n >= 0      = replicateA n (State (\ y -> (f y, y))) `execState` x
@@ -2386,6 +2396,10 @@ scanl f z0 xs = z0 <| snd (mapAccumL (\ x z -> let x' = f x z in (x', x')) z0 xs
 
 -- | 'scanl1' is a variant of 'scanl' that has no starting value argument:
 --
+-- Calls 'error' if the sequence is empty.
+--
+-- __Note__: This function is partial.
+--
 -- > scanl1 f (fromList [x1, x2, ...]) = fromList [x1, x1 `f` x2, ...]
 scanl1 :: (a -> a -> a) -> Seq a -> Seq a
 scanl1 f xs = case viewl xs of
@@ -2397,6 +2411,10 @@ scanr :: (a -> b -> b) -> b -> Seq a -> Seq b
 scanr f z0 xs = snd (mapAccumR (\ z x -> let z' = f x z in (z', z')) z0 xs) |> z0
 
 -- | 'scanr1' is a variant of 'scanr' that has no starting value argument.
+--
+-- Calls 'error' if the sequence is empty.
+--
+-- __Note__: This function is partial.
 scanr1 :: (a -> a -> a) -> Seq a -> Seq a
 scanr1 f xs = case viewr xs of
     EmptyR          -> error "scanr1 takes a nonempty sequence as an argument"
@@ -2411,7 +2429,9 @@ scanr1 f xs = case viewr xs of
 --
 -- prop> xs `index` i = toList xs !! i
 --
--- Caution: 'index' necessarily delays retrieving the requested
+-- __Note__: This function is partial. Prefer 'lookup'.
+--
+-- __Note__: 'index' necessarily delays retrieving the requested
 -- element until the result is forced. It can therefore lead to a space
 -- leak if the result is stored, unforced, in another structure. To retrieve
 -- an element immediately without forcing it, use 'lookup' or '(!?)'.
@@ -3382,6 +3402,10 @@ valid.
 -- | \( O(n) \). Convert a given sequence length and a function representing that
 -- sequence into a sequence.
 --
+-- Calls 'error' if @n < 0@.
+--
+-- __Note__: This function is partial.
+--
 -- @since 0.5.6.2
 fromFunction :: Int -> (Int -> a) -> Seq a
 fromFunction len f | len < 0 = error "Data.Sequence.fromFunction called with negative len"
@@ -3959,6 +3983,10 @@ splitSuffixN i s pr m (Four a b c d)
 -- really affect edge cases. Performance degrades smoothly from \( O(1) \) (for
 -- \( c = n \)) to \( O(n) \) (for \( c = 1 \)). The true bound is more like
 -- \( O \Bigl( \bigl(\frac{n}{c} - 1\bigr) (\log (c + 1)) + 1 \Bigr) \)
+--
+-- Calls 'error' if @n <= 0@ and @not (null xs)@.
+--
+-- __Note__: This function is partial.
 --
 -- @since 0.5.8
 chunksOf :: Int -> Seq a -> Seq (Seq a)

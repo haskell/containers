@@ -267,12 +267,8 @@ module Data.IntMap.Strict (
     -- * Min\/Max
     , lookupMin
     , lookupMax
-    , findMin
-    , findMax
     , deleteMin
     , deleteMax
-    , deleteFindMin
-    , deleteFindMax
     , updateMin
     , updateMax
     , updateMinWithKey
@@ -281,6 +277,10 @@ module Data.IntMap.Strict (
     , maxView
     , minViewWithKey
     , maxViewWithKey
+    , findMin
+    , findMax
+    , deleteFindMin
+    , deleteFindMax
     ) where
 
 import Data.IntMap.Strict.Internal

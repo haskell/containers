@@ -166,14 +166,14 @@ module Data.IntSet (
             -- * Min\/Max
             , lookupMin
             , lookupMax
-            , findMin
-            , findMax
             , deleteMin
             , deleteMax
-            , deleteFindMin
-            , deleteFindMax
             , maxView
             , minView
+            , findMin
+            , findMax
+            , deleteFindMin
+            , deleteFindMax
 
             -- * Conversion
 

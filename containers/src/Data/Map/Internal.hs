@@ -434,6 +434,8 @@ infixl 9 !,!?,\\ --
 -- | \(O(\log n)\). Find the value at a key.
 -- Calls 'error' when the element can not be found.
 --
+-- __Note__: This function is partial. Prefer '!?'.
+--
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
@@ -623,8 +625,6 @@ notMember k m = not $ member k m
 {-# INLINE notMember #-}
 #endif
 
--- | \(O(\log n)\). Find the value at a key.
--- Calls 'error' when the element can not be found.
 find :: Ord k => k -> Map k a -> a
 find = go
   where
@@ -1456,6 +1456,8 @@ alterFYoneda = go
 -- including, the 'size' of the map. Calls 'error' when the key is not
 -- a 'member' of the map.
 --
+-- __Note__: This function is partial. Prefer 'lookupIndex'.
+--
 -- > findIndex 2 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 -- > findIndex 3 (fromList [(5,"a"), (3,"b")]) == 0
 -- > findIndex 5 (fromList [(5,"a"), (3,"b")]) == 1
@@ -1501,6 +1503,8 @@ lookupIndex = go 0
 -- | \(O(\log n)\). Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sequence sorted by keys. If the /index/ is out of range (less
 -- than zero, greater or equal to 'size' of the map), 'error' is called.
+--
+-- __Note__: This function is partial.
 --
 -- > elemAt 0 (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
@@ -1586,6 +1590,8 @@ splitAt i0 m0
 -- the sequence sorted by keys. If the /index/ is out of range (less than zero,
 -- greater or equal to 'size' of the map), 'error' is called.
 --
+-- __Note__: This function is partial.
+--
 -- > updateAt (\ _ _ -> Just "x") 0    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "x"), (5, "a")]
 -- > updateAt (\ _ _ -> Just "x") 1    (fromList [(5,"a"), (3,"b")]) == fromList [(3, "b"), (5, "x")]
 -- > updateAt (\ _ _ -> Just "x") 2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
@@ -1611,6 +1617,8 @@ updateAt f !i t =
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sequence sorted by keys. If the /index/ is out of range (less than zero,
 -- greater or equal to 'size' of the map), 'error' is called.
+--
+-- __Note__: This function is partial.
 --
 -- > deleteAt 0  (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 -- > deleteAt 1  (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
@@ -1669,6 +1677,8 @@ lookupMin (Bin _ k x l _) = Just $! kvToTuple (lookupMinSure k x l)
 
 -- | \(O(\log n)\). The minimal key of the map. Calls 'error' if the map is empty.
 --
+-- __Note__: This function is partial. Prefer 'lookupMin'.
+--
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
@@ -1694,6 +1704,8 @@ lookupMax (Bin _ k x _ r) = Just $! kvToTuple (lookupMaxSure k x r)
 {-# INLINE lookupMax #-} -- See Note [Inline lookupMin] in Data.Set.Internal
 
 -- | \(O(\log n)\). The maximal key of the map. Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'lookupMax'.
 --
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
@@ -4107,9 +4119,9 @@ maxViewSure !k x !l r = case r of
 
 -- | \(O(\log n)\). Delete and find the minimal element.
 --
--- > deleteFindMin (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((3,"b"), fromList[(5,"a"), (10,"c")])
--- > deleteFindMin empty                                      Error: can not return the minimal element of an empty map
-
+-- Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'minViewWithKey'.
 deleteFindMin :: Map k a -> ((k,a),Map k a)
 deleteFindMin t = case minViewWithKey t of
   Nothing -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
@@ -4117,9 +4129,9 @@ deleteFindMin t = case minViewWithKey t of
 
 -- | \(O(\log n)\). Delete and find the maximal element.
 --
--- > deleteFindMax (fromList [(5,"a"), (3,"b"), (10,"c")]) == ((10,"c"), fromList [(3,"b"), (5,"a")])
--- > deleteFindMax empty                                      Error: can not return the maximal element of an empty map
-
+-- Calls 'error' if the map is empty.
+--
+-- __Note__: This function is partial. Prefer 'maxViewWithKey'.
 deleteFindMax :: Map k a -> ((k,a),Map k a)
 deleteFindMax t = case maxViewWithKey t of
   Nothing -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
