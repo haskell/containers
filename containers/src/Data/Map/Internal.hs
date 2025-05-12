@@ -2168,9 +2168,8 @@ disjoint (Bin _ k _ l r) t
 {--------------------------------------------------------------------
   Compose
 --------------------------------------------------------------------}
--- | Relate the keys of one map to the values of
--- the other, by using the values of the former as keys for lookups
--- in the latter.
+-- | Given maps @bc@ and @ab@, relate the keys of @ab@ to the values of @bc@,
+-- by using the values of @ab@ as keys for lookups in @bc@.
 --
 -- Complexity: \( O (n \log m) \), where \(m\) is the size of the first argument
 --
