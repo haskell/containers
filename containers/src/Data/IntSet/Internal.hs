@@ -1377,11 +1377,11 @@ foldlFB = foldl
 
 
 -- | \(O(n \min(n,W))\). Create a set from a list of integers.
+--
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
 fromList :: [Key] -> IntSet
-fromList xs
-  = Foldable.foldl' ins empty xs
-  where
-    ins t x  = insert x t
+fromList xs = finishB (Foldable.foldl' (flip insertB) emptyB xs)
 {-# INLINE fromList #-} -- Inline for list fusion
 
 -- | \(O(n / W)\). Create a set from a range of integers.
@@ -1500,6 +1500,83 @@ ascLinkStack stk !rk r = case stk of
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
       p = mask rk m
+
+{--------------------------------------------------------------------
+  IntSetBuilder
+--------------------------------------------------------------------}
+
+-- See Note [IntMapBuilder] in Data.IntMap.Internal.
+
+data IntSetBuilder
+  = BNil
+  | BTip {-# UNPACK #-} !Int {-# UNPACK #-} !BitMap !BStack
+
+-- BLeft: the IntMap is the left child
+-- BRight: the IntMap is the right child
+data BStack
+  = BNada
+  | BLeft {-# UNPACK #-} !Prefix !IntSet !BStack
+  | BRight {-# UNPACK #-} !Prefix !IntSet !BStack
+
+-- Empty builder.
+emptyB :: IntSetBuilder
+emptyB = BNil
+
+-- Insert an element.
+insertB :: Key -> IntSetBuilder -> IntSetBuilder
+insertB !ky b = case b of
+  BNil -> BTip py bmy BNada
+  BTip px bmx stk
+    | px == py -> BTip py (bmx .|. bmy) stk
+    | otherwise -> insertUpB py bmy px (Tip px bmx) stk
+  where
+    py = prefixOf ky
+    bmy = bitmapOf ky
+{-# INLINE insertB #-}
+
+insertUpB :: Int -> BitMap -> Int -> IntSet -> BStack -> IntSetBuilder
+insertUpB !py !bmy !px !tx stk = case stk of
+  BNada -> BTip py bmy (linkB py px tx BNada)
+  BLeft p l stk'
+    | nomatch py p -> insertUpB py bmy px (Bin p l tx) stk'
+    | left py p -> insertDownB py bmy l (BRight p tx stk')
+    | otherwise -> BTip py bmy (linkB py px tx stk)
+  BRight p r stk'
+    | nomatch py p -> insertUpB py bmy px (Bin p tx r) stk'
+    | left py p -> BTip py bmy (linkB py px tx stk)
+    | otherwise -> insertDownB py bmy r (BLeft p tx stk')
+
+insertDownB :: Int -> BitMap -> IntSet -> BStack -> IntSetBuilder
+insertDownB !py !bmy tx !stk = case tx of
+  Bin p l r
+    | nomatch py p -> BTip py bmy (linkB py (unPrefix p) tx stk)
+    | left py p -> insertDownB py bmy l (BRight p r stk)
+    | otherwise -> insertDownB py bmy r (BLeft p l stk)
+  Tip px bmx
+    | px == py -> BTip py (bmx .|. bmy) stk
+    | otherwise -> BTip py bmy (linkB py px tx stk)
+  Nil -> error "insertDownB Tip"
+
+linkB :: Key -> Key -> IntSet -> BStack -> BStack
+linkB ky kx tx stk
+  | i2w ky < i2w kx = BRight p tx stk
+  | otherwise = BLeft p tx stk
+  where
+    p = branchPrefix ky kx
+{-# INLINE linkB #-}
+
+-- Finalize the builder into an IntSet.
+finishB :: IntSetBuilder -> IntSet
+finishB b = case b of
+  BNil -> Nil
+  BTip px bmx stk -> finishUpB (Tip px bmx) stk
+{-# INLINABLE finishB #-}
+
+finishUpB :: IntSet -> BStack -> IntSet
+finishUpB !t stk = case stk of
+  BNada -> t
+  BLeft p l stk' -> finishUpB (Bin p l t) stk'
+  BRight p r stk' -> finishUpB (Bin p t r) stk'
 
 {--------------------------------------------------------------------
   Eq
