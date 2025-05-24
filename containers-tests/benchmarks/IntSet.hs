@@ -14,7 +14,8 @@ import qualified Data.IntSet as IS
 import qualified Data.Set as S
 import qualified Data.IntMap as IM
 import qualified Data.Map.Strict as M
-import System.Random (StdGen, mkStdGen, randoms)
+import Data.Word (Word8)
+import System.Random (StdGen, mkStdGen, randoms, randomRs)
 
 import Utils.Fold (foldBenchmarks)
 
@@ -23,7 +24,14 @@ main = do
         s_even = IS.fromAscList elems_even :: IS.IntSet
         s_odd = IS.fromAscList elems_odd :: IS.IntSet
         s_sparse = IS.fromAscList elems_sparse :: IS.IntSet
-    evaluate $ rnf [elems_asc, elems_asc_sparse, elems_random]
+    evaluate $
+      rnf
+        [ elems_asc
+        , elems_asc_sparse
+        , elems_random
+        , elems_randomDups
+        , elems_fromListWorstCase
+        ]
     evaluate $ rnf [s, s_even, s_odd, s_sparse]
     defaultMain
         [ bench "member" $ whnf (member elems) s
@@ -40,14 +48,18 @@ main = do
         , bench "union" $ whnf (IS.union s_even) s_odd
         , bench "difference" $ whnf (IS.difference s) s_even
         , bench "intersection" $ whnf (IS.intersection s) s_even
-        , bench "fromList:asc" $ whnf IS.fromList elems_asc
+        , bench "fromList:asc" $ whnf fromListNoinline elems_asc
         , bench "fromList:asc:fusion" $ whnf (\n -> IS.fromList [1..n]) bound
-        , bench "fromList:asc:sparse" $ whnf IS.fromList elems_asc_sparse
+        , bench "fromList:asc:sparse" $ whnf fromListNoinline elems_asc_sparse
         , bench "fromList:asc:sparse:fusion" $
             whnf (\n -> IS.fromList (map (*64) [1..n])) bound
-        , bench "fromList:random" $ whnf IS.fromList elems_random
+        , bench "fromList:random" $ whnf fromListNoinline elems_random
         , bench "fromList:random:fusion" $
             whnf (\(n,g) -> IS.fromList (take n (randoms g))) (bound,gen)
+        , bench "fromList:randomDups" $ whnf fromListNoinline elems_randomDups
+        , bench "fromList:randomDups:fusion" $
+            whnf (\(n,g) -> IS.fromList (take n (map word8ToInt (randoms g)))) (bound,gen)
+        , bench "fromList:worstCase" $ whnf fromListNoinline elems_fromListWorstCase
         , bench "fromRange" $ whnf IS.fromRange (1,bound)
         , bench "fromRange:small" $ whnf IS.fromRange (-1,0)
         , bench "fromAscList" $ whnf fromAscListNoinline elems
@@ -92,6 +104,17 @@ main = do
     elems_asc = elems
     elems_asc_sparse = elems_sparse
     elems_random = take bound (randoms gen)
+    -- Random elements in a small range to produce duplicates
+    elems_randomDups = take bound (map word8ToInt (randoms gen))
+    -- Worst case for the current fromList algorithm. Consider removing this
+    -- test case if the algorithm changes.
+    elems_fromListWorstCase =
+      take bound $
+      concat
+        [ take 63 (iterate (*2) 1)
+        , take 63 (map negate (iterate (*2) 1))
+        , interleave [1..] (map negate [1..])
+        ]
 
 member :: [Int] -> IS.IntSet -> Int
 member xs s = foldl' (\n x -> if IS.member x s then n + 1 else n) 0 xs
@@ -108,8 +131,19 @@ fromAscListNoinline :: [Int] -> IS.IntSet
 fromAscListNoinline = IS.fromAscList
 {-# NOINLINE fromAscListNoinline #-}
 
+fromListNoinline :: [Int] -> IS.IntSet
+fromListNoinline = IS.fromList
+{-# NOINLINE fromListNoinline #-}
+
+interleave :: [a] -> [a] -> [a]
+interleave [] ys = ys
+interleave (x:xs) (y:ys) = x : y : interleave xs ys
+
 gen :: StdGen
 gen = mkStdGen 42
+
+word8ToInt :: Word8 -> Int
+word8ToInt = fromIntegral
 
 -- | Automata contain just the transitions
 type NFA = IM.IntMap (IM.IntMap IS.IntSet)

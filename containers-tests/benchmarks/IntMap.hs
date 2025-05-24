@@ -9,7 +9,8 @@ import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
 import qualified Data.IntSet as S
 import Data.Maybe (fromMaybe)
-import System.Random (StdGen, mkStdGen, randoms, randomRs)
+import Data.Word (Word8)
+import System.Random (StdGen, mkStdGen, randoms)
 import Prelude hiding (lookup)
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
@@ -23,7 +24,8 @@ main = do
         m_random = M.fromList elems_random
         s = S.fromList keys
         s_random2 = S.fromList keys_random2
-    evaluate $ rnf [elems_asc, elems_random, elems_randomDups]
+    evaluate $
+      rnf [elems_asc, elems_random, elems_randomDups, elems_fromListWorstCase]
     evaluate $ rnf [m, m', m'', m''', m'''']
     evaluate $ rnf m_random
     evaluate $ rnf [s, s_random2]
@@ -58,9 +60,17 @@ main = do
         , bench "fromList:random" $ whnf M.fromList elems_random
         , bench "fromList:random:fusion" $
             whnf (\(n,g) -> M.fromList (take n (unitValues (randoms g)))) (bound,gen)
-        , bench "fromListWith:randomDups" $ whnf (M.fromListWith const) elems_randomDups
+        , bench "fromList:randomDups" $ whnf M.fromList elems_randomDups
+        , bench "fromList:randomDups:fusion" $
+            whnf
+              (\(n,g) -> M.fromList (take n (unitValues (map word8ToInt (randoms g)))))
+              (bound,gen)
+        , bench "fromListWith:randomDups" $ whnf (M.fromListWith seq) elems_randomDups
         , bench "fromListWith:randomDups:fusion" $
-            whnf (\(n,g) -> M.fromListWith const (take n (unitValues (randomRs (0,255) g)))) (bound,gen)
+            whnf
+              (\(n,g) -> M.fromListWith seq (take n (unitValues (map word8ToInt (randoms g)))))
+              (bound,gen)
+        , bench "fromList:worstCase" $ whnf M.fromList elems_fromListWorstCase
         , bench "fromAscList" $ whnf M.fromAscList elems_asc
         , bench "fromAscList:fusion" $
             whnf (\n -> M.fromAscList (unitValues [1..n])) bound
@@ -96,7 +106,17 @@ main = do
     elems_random = take bound (unitValues (randoms gen))
     elems_asc = unitValues [1..bound]
     -- Random elements in a small range to produce duplicates
-    elems_randomDups = take bound (unitValues (randomRs (0,255) gen))
+    elems_randomDups = take bound (unitValues (map word8ToInt (randoms gen)))
+    -- Worst case for the current fromList algorithm. Consider removing this
+    -- test case if the algorithm changes.
+    elems_fromListWorstCase =
+      unitValues $
+      take bound $
+      concat
+        [ take 63 (iterate (*2) 1)
+        , take 63 (map negate (iterate (*2) 1))
+        , interleave [1..] (map negate [1..])
+        ]
 
     --------------------------------------------------------
     !bound = 2^12
@@ -170,3 +190,6 @@ unitValues = map (flip (,) ())
 gen, gen2 :: StdGen
 gen = mkStdGen 42
 gen2 = mkStdGen 90
+
+word8ToInt :: Word8 -> Int
+word8ToInt = fromIntegral
