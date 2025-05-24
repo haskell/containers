@@ -3571,9 +3571,11 @@ data MoveResult a
       !(BStack a)
 
 moveToB :: Key -> Key -> a -> BStack a -> MoveResult a
-moveToB ky kx x stk
+moveToB !ky !kx x !stk
   | kx == ky = MoveResult (Just x) stk
   | otherwise = moveUpB ky kx (Tip kx x) stk
+-- Don't inline this; there is no benefit according to benchmarks.
+{-# NOINLINE moveToB #-}
 
 moveUpB :: Key -> Key -> IntMap a -> BStack a -> MoveResult a
 moveUpB !ky !kx !tx stk = case stk of
