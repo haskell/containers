@@ -99,7 +99,8 @@ module Data.Graph (
     , flattenSCCs
 
     -- * Trees
-    , module Data.Tree
+    , Tree(..)
+    , Forest
 
     ) where
 
@@ -117,7 +118,7 @@ import Data.Array.ST.Safe (STArray)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 #endif
-import Data.Tree (Tree(Node), Forest)
+import Data.Tree (Tree(..), Forest)
 
 -- std interfaces
 import Data.Foldable as F
