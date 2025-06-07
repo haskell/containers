@@ -151,6 +151,7 @@ module Data.Map.Strict
     , adjustWithKey
     , update
     , updateWithKey
+    , upsert
     , updateLookupWithKey
     , alter
     , alterF
