@@ -88,6 +88,7 @@ module Data.IntMap.Strict.Internal (
     , adjustWithKey
     , update
     , updateWithKey
+    , upsert
     , updateLookupWithKey
     , alter
     , alterF
@@ -513,6 +514,24 @@ updateWithKey f !k t =
                            Nothing -> Nil
       | otherwise     -> t
     Nil -> Nil
+
+-- | \(O(\min(n,W))\). Update the value at a key or insert a value if the key is
+-- not in the map.
+--
+-- @
+-- let inc = maybe 1 (+1)
+-- upsert inc 100 (fromList [(100,1),(300,2)]) == fromList [(100,2),(300,2)]
+-- upsert inc 200 (fromList [(100,1),(300,2)]) == fromList [(100,1),(200,1),(300,2)]
+-- @
+upsert :: (Maybe a -> a) -> Key -> IntMap a -> IntMap a
+upsert f !k t@(Bin p l r)
+  | nomatch k p = linkKey k (Tip k $! f Nothing) p t
+  | left k p = Bin p (upsert f k l) r
+  | otherwise = Bin p l (upsert f k r)
+upsert f !k t@(Tip ky y)
+  | k == ky = Tip ky $! f (Just y)
+  | otherwise = link k (Tip k $! f Nothing) ky t
+upsert f !k Nil = Tip k $! f Nothing
 
 -- | \(O(\min(n,W))\). Look up and update.
 -- The function returns original value, if it is updated.

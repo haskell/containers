@@ -145,6 +145,7 @@ module Data.IntMap.Strict (
     , adjustWithKey
     , update
     , updateWithKey
+    , upsert
     , updateLookupWithKey
     , alter
     , alterF

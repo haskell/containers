@@ -229,6 +229,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "adjustWithKey"        prop_adjustWithKey
              , testProperty "update"               prop_update
              , testProperty "updateWithKey"        prop_updateWithKey
+             , testProperty "upsert"               prop_upsert
              , testProperty "updateLookupWithKey"  prop_updateLookupWithKey
              , testProperty "differenceWith"       prop_differenceWith
              , testProperty "differenceWithKey"    prop_differenceWithKey
@@ -1823,6 +1824,12 @@ prop_updateWithKey f k m = valid m' .&&. m' === m''
       Just x -> case applyFun2 f k x of
         Nothing -> delete k m
         Just x' -> insert k x' m
+
+prop_upsert :: Fun (Maybe A) A -> Int -> IntMap A -> Property
+prop_upsert f k m = valid m' .&&. m' == m''
+  where
+    m' = upsert (applyFun f) k m
+    m'' = insert k (applyFun f (lookup k m)) m
 
 prop_updateLookupWithKey
   :: Fun (Int, A) (Maybe A) -> Int -> IntMap A -> Property
