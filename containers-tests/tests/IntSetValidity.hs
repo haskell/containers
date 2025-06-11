@@ -8,6 +8,8 @@ import Data.List (intercalate)
 import Numeric (showHex)
 import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
 
+#include "containers.h"
+
 {--------------------------------------------------------------------
   Assertions
 --------------------------------------------------------------------}
