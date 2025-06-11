@@ -8,6 +8,10 @@ on:
     branches:
       - master
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   i386:
     runs-on: ubuntu-latest
