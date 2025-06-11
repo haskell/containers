@@ -226,9 +226,6 @@ import Data.Coerce (coerce)
 
 #if __GLASGOW_HASKELL__
 import qualified GHC.Exts
-#  if !(WORD_SIZE_IN_BITS==64)
-import qualified GHC.Int
-#  endif
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
