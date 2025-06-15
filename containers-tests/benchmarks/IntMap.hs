@@ -10,7 +10,7 @@ import qualified Data.IntMap.Strict as MS
 import qualified Data.IntSet as S
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8)
-import System.Random (StdGen, mkStdGen, randoms)
+import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
@@ -55,6 +55,10 @@ main = do
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "fromList:asc" $ whnf M.fromList elems_asc
+        , bench "mapKeys:asc" $ whnf (M.mapKeys (+1)) m
+        , bench "mapKeys:random" $ whnf (M.mapKeys (fst . random . mkStdGen)) m
+        , bench "mapKeysWith:asc:dups" $ whnf (M.mapKeysWith (+) (`div` 2)) m
+        , bench "mapKeysMonotonic" $ whnf (M.mapKeysMonotonic (+1)) m
         , bench "fromList:asc:fusion" $
             whnf (\n -> M.fromList (unitValues [1..n])) bound
         , bench "fromList:random" $ whnf M.fromList elems_random

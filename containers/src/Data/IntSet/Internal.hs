@@ -1183,11 +1183,14 @@ deleteMax = maybe Nil snd . maxView
 -- | \(O(n \min(n,W))\).
 -- @'map' f s@ is the set obtained by applying @f@ to each element of @s@.
 --
+-- If `f` is monotonically non-decreasing or monotonically non-increasing, this
+-- function takes \(O(n)\) time.
+--
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
 
 map :: (Key -> Key) -> IntSet -> IntSet
-map f = fromList . List.map f . toList
+map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
 
 -- | \(O(n)\). The
 --
@@ -1203,11 +1206,8 @@ map f = fromList . List.map f . toList
 -- precondition may not hold.
 --
 -- @since 0.6.3.1
-
--- Note that for now the test is insufficient to support any fancier implementation.
 mapMonotonic :: (Key -> Key) -> IntSet -> IntSet
-mapMonotonic f = fromDistinctAscList . List.map f . toAscList
-
+mapMonotonic f t = ascLinkAll (foldl' (\s x -> ascInsert s (f x)) MSNada t)
 
 {--------------------------------------------------------------------
   Fold
@@ -1441,17 +1441,7 @@ fromRange (lx,rx)
 
 -- See Note [fromAscList implementation] in Data.IntMap.Internal.
 fromAscList :: [Key] -> IntSet
-fromAscList xs = ascLinkAll (Foldable.foldl' next MSNada xs)
-  where
-    next s !ky = case s of
-      MSNada -> MSPush py bmy Nada
-      MSPush px bmx stk
-        | px == py -> MSPush py (bmx .|. bmy) stk
-        | otherwise -> let m = branchMask px py
-                       in MSPush py bmy (ascLinkTop stk px (Tip px bmx) m)
-      where
-        py = prefixOf ky
-        bmy = bitmapOf ky
+fromAscList xs = ascLinkAll (Foldable.foldl' ascInsert MSNada xs)
 {-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a set from an ascending list of distinct elements.
@@ -1474,6 +1464,19 @@ data Stack
 data MonoState
   = MSNada
   | MSPush {-# UNPACK #-} !Int {-# UNPACK #-} !BitMap !Stack
+
+-- Insert an element. The element must be >= the last inserted element.
+ascInsert :: MonoState -> Int -> MonoState
+ascInsert s !ky = case s of
+  MSNada -> MSPush py bmy Nada
+  MSPush px bmx stk
+    | px == py -> MSPush py (bmx .|. bmy) stk
+    | otherwise -> let m = branchMask px py
+                   in MSPush py bmy (ascLinkTop stk px (Tip px bmx) m)
+  where
+    py = prefixOf ky
+    bmy = bitmapOf ky
+{-# INLINE ascInsert #-}
 
 ascLinkTop :: Stack -> Int -> IntSet -> Int -> Stack
 ascLinkTop stk !rk r !rm = case stk of
