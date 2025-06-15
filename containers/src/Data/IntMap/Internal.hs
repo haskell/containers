@@ -1045,6 +1045,8 @@ updateWithKey _ _ Nil = Nil
 -- upsert inc 100 (fromList [(100,1),(300,2)]) == fromList [(100,2),(300,2)]
 -- upsert inc 200 (fromList [(100,1),(300,2)]) == fromList [(100,1),(200,1),(300,2)]
 -- @
+--
+-- @since FIXME
 upsert :: (Maybe a -> a) -> Key -> IntMap a -> IntMap a
 upsert f !k t@(Bin p l r)
   | nomatch k p = linkKey k (Tip k (f Nothing)) p t

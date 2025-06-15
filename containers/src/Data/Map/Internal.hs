@@ -1129,6 +1129,8 @@ updateWithKey = go
 -- upsert inc \'a\' (fromList [(\'a\',1),(\'c\',2)]) == fromList [(\'a\',2),(\'c\',2)]
 -- upsert inc \'b\' (fromList [(\'a\',1),(\'c\',2)]) == fromList [(\'a\',1),(\'b\',1),(\'c\',2)]
 -- @
+--
+-- @since FIXME
 upsert :: Ord k => (Maybe a -> a) -> k -> Map k a -> Map k a
 upsert f !k (Bin sz kx x l r) =
   case compare k kx of
