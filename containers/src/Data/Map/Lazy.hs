@@ -137,6 +137,7 @@ module Data.Map.Lazy (
     , adjustWithKey
     , update
     , updateWithKey
+    , upsert
     , updateLookupWithKey
     , alter
     , alterF

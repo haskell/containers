@@ -163,6 +163,7 @@ module Data.Map.Internal (
     , adjustWithKey
     , update
     , updateWithKey
+    , upsert
     , updateLookupWithKey
     , alter
     , alterF
@@ -1119,6 +1120,25 @@ updateWithKey = go
 #else
 {-# INLINE updateWithKey #-}
 #endif
+
+-- | \(O(\log n)\). Update the value at a key or insert a value if the key is
+-- not in the map.
+--
+-- @
+-- let inc = maybe 1 (+1)
+-- upsert inc \'a\' (fromList [(\'a\',1),(\'c\',2)]) == fromList [(\'a\',2),(\'c\',2)]
+-- upsert inc \'b\' (fromList [(\'a\',1),(\'c\',2)]) == fromList [(\'a\',1),(\'b\',1),(\'c\',2)]
+-- @
+--
+-- @since FIXME
+upsert :: Ord k => (Maybe a -> a) -> k -> Map k a -> Map k a
+upsert f !k (Bin sz kx x l r) =
+  case compare k kx of
+    LT -> balanceL kx x (upsert f k l) r
+    EQ -> Bin sz kx (f (Just x)) l r
+    GT -> balanceR kx x l (upsert f k r)
+upsert f !k Tip = singleton k (f Nothing)
+{-# INLINABLE upsert #-}
 
 -- | \(O(\log n)\). Look up and update. See also 'updateWithKey'.
 -- This function returns the changed value, if it is updated.

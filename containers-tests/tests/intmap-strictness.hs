@@ -288,6 +288,17 @@ prop_lazyUpdateWithKey fun k m = isNotBottomProp (L.updateWithKey f k m)
   where
     f = coerce (applyFunc2 fun)
 
+prop_strictUpsert :: Func (Maybe A) (Bot A) -> Int -> IntMap A -> Property
+prop_strictUpsert fun k m =
+  isBottom (M.upsert f k m) === isBottom (M.alter (Just . f) k m)
+  where
+    f = coerce (applyFunc fun)
+
+prop_lazyUpsert :: Func (Maybe A) (Bot A) -> Int -> IntMap A -> Property
+prop_lazyUpsert fun k m = isNotBottomProp (L.upsert f k m)
+  where
+    f = coerce (applyFunc fun)
+
 prop_strictUpdateLookupWithKey
   :: Func2 Key A (Maybe (Bot A)) -> Key -> IntMap A -> Property
 prop_strictUpdateLookupWithKey fun k m =
@@ -1018,6 +1029,7 @@ tests =
       , testPropStrictLazy "adjust" prop_strictAdjust prop_lazyAdjust
       , testPropStrictLazy "adjustWithKey" prop_strictAdjustWithKey prop_lazyAdjustWithKey
       , testPropStrictLazy "update" prop_strictUpdate prop_lazyUpdate
+      , testPropStrictLazy "upsert" prop_strictUpsert prop_lazyUpsert
       , testPropStrictLazy "updateWithKey" prop_strictUpdateWithKey prop_lazyUpdateWithKey
       , testPropStrictLazy "updateLookupWithKey" prop_strictUpdateLookupWithKey prop_lazyUpdateLookupWithKey
       , testPropStrictLazy "alter" prop_strictAlter prop_lazyAlter
