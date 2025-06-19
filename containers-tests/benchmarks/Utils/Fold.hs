@@ -44,9 +44,11 @@ foldBenchmarks foldr foldl foldr' foldl' foldMap xs =
 
     -- foldr'
   , bench "foldr'_sum" $ whnf (foldr' (+) 0) xs
+  , bench "foldr'_maximum" $ whnf foldr'_maximum xs
 
     -- foldl'
   , bench "foldl'_sum" $ whnf (foldl' (+) 0) xs
+  , bench "foldl'_maximum" $ whnf foldl'_maximum xs
 
     -- foldMap
   , bench "foldMap_elem" $ whnf foldMap_elem xs
@@ -80,6 +82,12 @@ foldBenchmarks foldr foldl foldr' foldl' foldMap xs =
     foldl_traverseSum :: f -> Int
     foldl_traverseSum xs =
       execState (foldl (\z x -> modify' (+x) *> z) (pure ()) xs) 0
+
+    foldr'_maximum :: f -> Maybe Int
+    foldr'_maximum = foldr' (\x z -> Just $! maybe x (max x) z) Nothing
+
+    foldl'_maximum :: f -> Maybe Int
+    foldl'_maximum = foldl' (\z x -> Just $! maybe x (max x) z) Nothing
 
     foldMap_elem :: f -> Any
     foldMap_elem = foldMap (\x -> Any (x == minBound))
@@ -138,8 +146,11 @@ instance Applicative f => Monoid (Effect f) where
 --   Folding with an effect. In practice:
 --   * Folds defined using foldr, such as Data.Foldable.traverse_ and friends
 --
--- foldl', foldr'
+-- foldl'_sum, foldr'_sum
 --   Strict folds.
+--
+-- foldl'_maximum, foldr'_maximum
+--  Strict folds with a `Maybe` as accumulator which could be optimized away.
 --
 -- foldMap_elem
 --   Simple lazy fold that visits every element. In practice:
