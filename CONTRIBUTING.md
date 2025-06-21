@@ -8,6 +8,10 @@ You are also welcome to propose code changes in the form of
 A pull request will usually aim to fix an issue. Consider creating an issue for
 your change if one doesn't exist already.
 
+If you would like to contribute but are not sure where to start, we suggest
+picking up one of the issues marked as
+https://github.com/haskell/containers/labels/low-hanging-fruit.
+
 ## Building, testing, and benchmarking
 
 Building, testing, and benchmarking the containers package is done using `cabal`.
