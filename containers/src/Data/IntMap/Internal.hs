@@ -326,7 +326,7 @@ import Data.Bits
 import qualified Data.Foldable as Foldable
 import Data.Maybe (fromMaybe)
 import Utils.Containers.Internal.Prelude hiding
-  (lookup, map, filter, foldr, foldl, foldl', null)
+  (lookup, map, filter, foldr, foldl, foldl', foldMap, null)
 import Prelude ()
 
 import Data.IntSet.Internal (IntSet)
@@ -470,23 +470,13 @@ instance Semigroup (IntMap a) where
 
 -- | Folds in order of increasing key.
 instance Foldable.Foldable IntMap where
-  fold = go
-    where go Nil = mempty
-          go (Tip _ v) = v
-          go (Bin p l r)
-            | signBranch p = go r `mappend` go l
-            | otherwise = go l `mappend` go r
+  fold = foldMap id
   {-# INLINABLE fold #-}
   foldr = foldr
   {-# INLINE foldr #-}
   foldl = foldl
   {-# INLINE foldl #-}
-  foldMap f t = go t
-    where go Nil = mempty
-          go (Tip _ v) = f v
-          go (Bin p l r)
-            | signBranch p = go r `mappend` go l
-            | otherwise = go l `mappend` go r
+  foldMap = foldMap
   {-# INLINE foldMap #-}
   foldl' = foldl'
   {-# INLINE foldl' #-}
@@ -3033,15 +3023,18 @@ splitLookup k t =
 --
 -- > let f a len = len + (length a)
 -- > foldr f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+
+-- See Note [IntMap folds]
 foldr :: (a -> b -> b) -> b -> IntMap a -> b
 foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z l) r -- put negative numbers before
       | otherwise -> go (go z r) l
     _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldr.go: Nil"
     go z' (Tip _ x)   = f x z'
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldr #-}
@@ -3049,15 +3042,18 @@ foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | \(O(n)\). A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds]
 foldr' :: (a -> b -> b) -> b -> IntMap a -> b
 foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z l) r -- put negative numbers before
       | otherwise -> go (go z r) l
     _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldr'.go: Nil"
     go z' (Tip _ x)   = f x z'
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldr' #-}
@@ -3071,15 +3067,18 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 --
 -- > let f len a = len + (length a)
 -- > foldl f 0 (fromList [(5,"a"), (3,"bbb")]) == 4
+
+-- See Note [IntMap folds]
 foldl :: (a -> b -> a) -> a -> IntMap b -> a
 foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z r) l -- put negative numbers before
       | otherwise -> go (go z l) r
     _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldl.go: Nil"
     go z' (Tip _ x)   = f z' x
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl #-}
@@ -3087,18 +3086,45 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | \(O(n)\). A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds]
 foldl' :: (a -> b -> a) -> a -> IntMap b -> a
 foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z r) l -- put negative numbers before
       | otherwise -> go (go z l) r
     _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldl'.go: Nil"
     go z' (Tip _ x)   = f z' x
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
+
+-- See Note [IntMap folds]
+foldMap :: Monoid m => (a -> m) -> IntMap a -> m
+foldMap f = \t -> -- Use lambda to be inlinable with two arguments.
+  case t of
+    Nil -> mempty
+    Bin p l r
+#if MIN_VERSION_base(4,11,0)
+      | signBranch p -> go r <> go l
+      | otherwise -> go l <> go r
+#else
+      | signBranch p -> go r `mappend` go l
+      | otherwise -> go l `mappend` go r
+#endif
+    _ -> go t
+  where
+    go Nil = error "foldMap.go: Nil"
+    go (Tip _ x) = f x
+#if MIN_VERSION_base(4,11,0)
+    go (Bin _ l r) = go l <> go r
+#else
+    go (Bin _ l r) = go l `mappend` go r
+#endif
+{-# INLINE foldMap #-}
 
 -- | \(O(n)\). Fold the keys and values in the map using the given right-associative
 -- binary operator, such that
@@ -3110,15 +3136,18 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 --
 -- > let f k a result = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldrWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (5:a)(3:b)"
+
+-- See Note [IntMap folds]
 foldrWithKey :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z l) r -- put negative numbers before
       | otherwise -> go (go z r) l
     _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldrWithKey.go: Nil"
     go z' (Tip kx x)  = f kx x z'
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldrWithKey #-}
@@ -3126,15 +3155,18 @@ foldrWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | \(O(n)\). A strict version of 'foldrWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds]
 foldrWithKey' :: (Key -> a -> b -> b) -> b -> IntMap a -> b
 foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z l) r -- put negative numbers before
       | otherwise -> go (go z r) l
     _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldrWithKey'.go: Nil"
     go z' (Tip kx x)  = f kx x z'
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldrWithKey' #-}
@@ -3149,15 +3181,18 @@ foldrWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 --
 -- > let f result k a = result ++ "(" ++ (show k) ++ ":" ++ a ++ ")"
 -- > foldlWithKey f "Map: " (fromList [(5,"a"), (3,"b")]) == "Map: (3:b)(5:a)"
+
+-- See Note [IntMap folds]
 foldlWithKey :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z r) l -- put negative numbers before
       | otherwise -> go (go z l) r
     _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldlWithKey.go: Nil"
     go z' (Tip kx x)  = f z' kx x
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldlWithKey #-}
@@ -3165,15 +3200,18 @@ foldlWithKey f z = \t ->      -- Use lambda t to be inlinable with two arguments
 -- | \(O(n)\). A strict version of 'foldlWithKey'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds]
 foldlWithKey' :: (a -> Key -> b -> a) -> a -> IntMap b -> a
 foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
   case t of
+    Nil -> z
     Bin p l r
       | signBranch p -> go (go z r) l -- put negative numbers before
       | otherwise -> go (go z l) r
     _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldlWithKey'.go: Nil"
     go z' (Tip kx x)  = f z' kx x
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldlWithKey' #-}
@@ -3185,14 +3223,29 @@ foldlWithKey' f z = \t ->      -- Use lambda t to be inlinable with two argument
 -- This can be an asymptotically faster than 'foldrWithKey' or 'foldlWithKey' for some monoids.
 --
 -- @since 0.5.4
+
+-- See Note [IntMap folds]
 foldMapWithKey :: Monoid m => (Key -> a -> m) -> IntMap a -> m
-foldMapWithKey f = go
+foldMapWithKey f = \t -> -- Use lambda to be inlinable with two arguments.
+  case t of
+    Nil -> mempty
+    Bin p l r
+#if MIN_VERSION_base(4,11,0)
+      | signBranch p -> go r <> go l
+      | otherwise -> go l <> go r
+#else
+      | signBranch p -> go r `mappend` go l
+      | otherwise -> go l `mappend` go r
+#endif
+    _ -> go t
   where
-    go Nil           = mempty
-    go (Tip kx x)    = f kx x
-    go (Bin p l r)
-      | signBranch p = go r `mappend` go l
-      | otherwise = go l `mappend` go r
+    go Nil = error "foldMap.go: Nil"
+    go (Tip kx x) = f kx x
+#if MIN_VERSION_base(4,11,0)
+    go (Bin _ l r) = go l <> go r
+#else
+    go (Bin _ l r) = go l `mappend` go r
+#endif
 {-# INLINE foldMapWithKey #-}
 
 {--------------------------------------------------------------------
@@ -4069,3 +4122,40 @@ withEmpty bars = "   ":bars
 --
 -- The implementation is defined as a foldl' over the input list, which makes
 -- it a good consumer in list fusion.
+
+-- Note [IntMap folds]
+-- ~~~~~~~~~~~~~~~~~~~
+-- Folds on IntMap are defined in a particular way for a few reasons.
+--
+-- foldl' :: (a -> b -> a) -> a -> IntMap b -> a
+-- foldl' f z = \t ->
+--   case t of
+--     Nil -> z
+--     Bin p l r
+--       | signBranch p -> go (go z r) l
+--       | otherwise -> go (go z l) r
+--     _ -> go z t
+--   where
+--     go !_ Nil         = error "foldl'.go: Nil"
+--     go z' (Tip _ x)   = f z' x
+--     go z' (Bin _ l r) = go (go z' l) r
+-- {-# INLINE foldl' #-}
+--
+-- 1. We first check if the Bin separates negative and positive keys, and fold
+--    over the children accordingly. This check is not inside `go` because it
+--    can only happen at the top level and we don't need to check every Bin.
+-- 2. We also check for Nil at the top level instead of, say, `go z Nil = z`.
+--    That's because `Nil` is also allowed only at the top-level, but more
+--    importantly it allows for better optimizations if the `Nil` branch errors
+--    in `go`. For example, if we have
+--      maximum :: Ord a => IntMap a -> Maybe a
+--      maximum = foldl' (\m x -> Just $! maybe x (max x) m) Nothing
+--    because `go` certainly returns a `Just` (or errors), CPR analysis will
+--    optimize it to return `(# a #)` instead of `Maybe a`. This makes it
+--    satisfy the conditions for SpecConstr, which generates two specializations
+--    of `go` for `Nothing` and `Just` inputs. Now both `Maybe`s have been
+--    optimized out of `go`.
+-- 3. The `Tip` is not matched on at the top-level to avoid using `f` more than
+--    once. This allows `f` to be inlined into `go` even if `f` is big, since
+--    it's likely to be the only place `f` is used, and not inlining `f` means
+--    missing out on optimizations. See GHC #25259 for more on this.

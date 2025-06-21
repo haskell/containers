@@ -1226,13 +1226,18 @@ fold = foldr
 -- For example,
 --
 -- > toAscList set = foldr (:) [] set
+
+-- See Note [IntMap folds] in Data.IntMap.Internal
 foldr :: (Key -> b -> b) -> b -> IntSet -> b
 foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin p l r | signBranch p -> go (go z l) r -- put negative numbers before
-                      | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Nil -> z
+    Bin p l r
+      | signBranch p -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldr.go: Nil"
     go z' (Tip kx bm) = foldrBits kx f z' bm
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldr #-}
@@ -1240,13 +1245,18 @@ foldr f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | \(O(n)\). A strict version of 'foldr'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds] in Data.IntMap.Internal
 foldr' :: (Key -> b -> b) -> b -> IntSet -> b
 foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin p l r | signBranch p -> go (go z l) r -- put negative numbers before
-                      | otherwise -> go (go z r) l
-            _ -> go z t
+  case t of
+    Nil -> z
+    Bin p l r
+      | signBranch p -> go (go z l) r -- put negative numbers before
+      | otherwise -> go (go z r) l
+    _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldr'.go: Nil"
     go z' (Tip kx bm) = foldr'Bits kx f z' bm
     go z' (Bin _ l r) = go (go z' r) l
 {-# INLINE foldr' #-}
@@ -1257,13 +1267,18 @@ foldr' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- For example,
 --
 -- > toDescList set = foldl (flip (:)) [] set
+
+-- See Note [IntMap folds] in Data.IntMap.Internal
 foldl :: (a -> Key -> a) -> a -> IntSet -> a
 foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin p l r | signBranch p -> go (go z r) l -- put negative numbers before
-                      | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Nil -> z
+    Bin p l r
+      | signBranch p -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
-    go z' Nil         = z'
+    go _ Nil          = error "foldl.go: Nil"
     go z' (Tip kx bm) = foldlBits kx f z' bm
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl #-}
@@ -1271,13 +1286,18 @@ foldl f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | \(O(n)\). A strict version of 'foldl'. Each application of the operator is
 -- evaluated before using the result in the next application. This
 -- function is strict in the starting value.
+
+-- See Note [IntMap folds] in Data.IntMap.Internal
 foldl' :: (a -> Key -> a) -> a -> IntSet -> a
 foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
-  case t of Bin p l r | signBranch p -> go (go z r) l -- put negative numbers before
-                      | otherwise -> go (go z l) r
-            _ -> go z t
+  case t of
+    Nil -> z
+    Bin p l r
+      | signBranch p -> go (go z r) l -- put negative numbers before
+      | otherwise -> go (go z l) r
+    _ -> go z t
   where
-    go !z' Nil        = z'
+    go !_ Nil         = error "foldl'.go: Nil"
     go z' (Tip kx bm) = foldl'Bits kx f z' bm
     go z' (Bin _ l r) = go (go z' l) r
 {-# INLINE foldl' #-}
@@ -1285,6 +1305,8 @@ foldl' f z = \t ->      -- Use lambda t to be inlinable with two arguments only.
 -- | \(O(n)\). Map the elements in the set to a monoid and combine with @(<>)@.
 --
 -- @since 0.8
+
+-- See Note [IntMap folds] in Data.IntMap.Internal
 foldMap :: Monoid a => (Key -> a) -> IntSet -> a
 foldMap f = \t ->  -- Use lambda t to be inlinable with one argument only.
   case t of
@@ -1296,6 +1318,7 @@ foldMap f = \t ->  -- Use lambda t to be inlinable with one argument only.
       | signBranch p -> go r `mappend` go l  -- handle negative numbers
       | otherwise -> go l `mappend` go r
 #endif
+    Nil -> mempty
     _ -> go t
   where
 #if MIN_VERSION_base(4,11,0)
@@ -1304,7 +1327,7 @@ foldMap f = \t ->  -- Use lambda t to be inlinable with one argument only.
     go (Bin _ l r) = go l `mappend` go r
 #endif
     go (Tip kx bm) = foldMapBits kx f bm
-    go Nil = mempty
+    go Nil = error "foldMap.go: Nil"
 {-# INLINE foldMap #-}
 
 {--------------------------------------------------------------------
