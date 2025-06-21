@@ -970,6 +970,9 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
 -- | \(O(n \min(n,W))\).
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
 --
+-- If `f` is monotonically non-decreasing or monotonically non-increasing, this
+-- function takes \(O(n)\) time.
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
 -- combined using @c@.
@@ -980,7 +983,8 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
 -- Also see the performance note on 'fromListWith'.
 
 mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
-mapKeysWith c f = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysWith c f t =
+  finishB (foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB t)
 
 {--------------------------------------------------------------------
   Filter
