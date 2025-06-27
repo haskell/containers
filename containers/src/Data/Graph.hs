@@ -8,6 +8,7 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Safe #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
+{-# LANGUAGE UnboxedTuples #-}
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
@@ -126,7 +127,6 @@ import Data.Foldable as F
 import qualified Data.Foldable1 as F1
 #endif
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
-import Data.Maybe
 import Data.Array
 #if USE_UNBOXED_ARRAYS
 import qualified Data.Array.Unboxed as UA
@@ -148,6 +148,8 @@ import Language.Haskell.TH.Syntax (Lift(..))
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
 #endif
+
+import qualified Utils.Containers.Internal.UnboxedMaybe as U
 
 -- Make sure we don't use Integer by mistake.
 default ()
@@ -523,27 +525,37 @@ graphFromEdges edges0
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
     sorted_edges    = L.sortBy lt edges0
-    edges1          = zipWith (,) [0..] sorted_edges
 
-    graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
-    key_map         = array bounds0 [(,) v k                       | (,) v (_,    k, _ ) <- edges1]
-    vertex_map      = array bounds0 edges1
+    graph = listArray bounds0 [map_keys ks | (_, _, ks) <- sorted_edges]
+    key_map = listArray bounds0 [k | (_, k, _) <- sorted_edges]
+    vertex_map = listArray bounds0 sorted_edges
 
     (_,k1,_) `lt` (_,k2,_) = k1 `compare` k2
 
     -- key_vertex :: key -> Maybe Vertex
     --  returns Nothing for non-interesting vertices
-    key_vertex k   = findVertex 0 max_v
-                   where
-                     findVertex a b | a > b
-                              = Nothing
-                     findVertex a b = case compare k (key_map ! mid) of
-                                   LT -> findVertex a (mid-1)
-                                   EQ -> Just mid
-                                   GT -> findVertex (mid+1) b
-                              where
-                                mid = a + (b - a) `div` 2
+#ifdef __GLASGOW_HASKELL__
+    key_vertex' k = binarySearch 0 max_v k key_map
+    key_vertex k = U.toMaybe (key_vertex' k)
+    map_keys = U.mapMaybe key_vertex'
+#else
+    key_vertex k = binarySearch 0 max_v k key_map
+    map_keys = U.mapMaybe key_vertex
+#endif
 {-# INLINABLE graphFromEdges #-}
+
+binarySearch :: Ord a => Int -> Int -> a -> Array Int a -> U.Maybe Int
+binarySearch lo0 hi0 k !arr = go lo0 hi0
+  where
+    go lo hi
+      | lo > hi = U.Nothing
+      | otherwise = case compare k (arr ! mid) of
+          LT -> go lo (mid-1)
+          EQ -> U.Just mid
+          GT -> go (mid+1) hi
+      where
+        mid = lo + (hi - lo) `div` 2
+{-# INLINABLE binarySearch #-}
 
 -------------------------------------------------------------------------
 --                                                                      -
