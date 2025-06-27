@@ -2653,6 +2653,9 @@ mapAccumRWithKey f a t
 -- | \(O(n \min(n,W))\).
 -- @'mapKeys' f s@ is the map obtained by applying @f@ to each key of @s@.
 --
+-- If `f` is monotonically non-decreasing or monotonically non-increasing, this
+-- function takes \(O(n)\) time.
+--
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the value at the greatest of the
 -- original keys is retained.
@@ -2662,10 +2665,13 @@ mapAccumRWithKey f a t
 -- > mapKeys (\ _ -> 3) (fromList [(1,"b"), (2,"a"), (3,"d"), (4,"c")]) == singleton 3 "c"
 
 mapKeys :: (Key->Key) -> IntMap a -> IntMap a
-mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeys f t = finishB (foldlWithKey' (\b kx x -> insertB (f kx) x b) emptyB t)
 
 -- | \(O(n \min(n,W))\).
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
+--
+-- If `f` is monotonically non-decreasing or monotonically non-increasing, this
+-- function takes \(O(n)\) time.
 --
 -- The size of the result may be smaller if @f@ maps two or more distinct
 -- keys to the same new key.  In this case the associated values will be
@@ -2677,8 +2683,8 @@ mapKeys f = fromList . foldrWithKey (\k x xs -> (f k, x) : xs) []
 -- Also see the performance note on 'fromListWith'.
 
 mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
-mapKeysWith c f
-  = fromListWith c . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysWith c f t =
+  finishB (foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB t)
 
 -- | \(O(n)\).
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
@@ -2700,8 +2706,8 @@ mapKeysWith c f
 -- > mapKeysMonotonic (\ k -> k * 2) (fromList [(5,"a"), (3,"b")]) == fromList [(6, "b"), (10, "a")]
 
 mapKeysMonotonic :: (Key->Key) -> IntMap a -> IntMap a
-mapKeysMonotonic f
-  = fromDistinctAscList . foldrWithKey (\k x xs -> (f k, x) : xs) []
+mapKeysMonotonic f t =
+  ascLinkAll (foldlWithKey' (\s kx x -> ascInsert s (f kx) x) MSNada t)
 
 {--------------------------------------------------------------------
   Filter
@@ -3487,7 +3493,8 @@ fromListWithKey f xs =
 -- > fromAscList [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "b")]
 
 fromAscList :: [(Key,a)] -> IntMap a
-fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
+fromAscList xs =
+  ascLinkAll (Foldable.foldl' (\s (ky, y) -> ascInsert s ky y) MSNada xs)
 {-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
@@ -3554,6 +3561,17 @@ data Stack a
 data MonoState a
   = MSNada
   | MSPush {-# UNPACK #-} !Key a !(Stack a)
+
+-- Insert an entry. The key must be >= the last inserted key. If it is equal
+-- to the previous key, the previous value is replaced.
+ascInsert :: MonoState a -> Int -> a -> MonoState a
+ascInsert s !ky y = case s of
+  MSNada -> MSPush ky y Nada
+  MSPush kx x stk
+    | kx == ky -> MSPush ky y stk
+    | otherwise -> let m = branchMask kx ky
+                   in MSPush ky y (ascLinkTop stk kx (Tip kx x) m)
+{-# INLINE ascInsert #-}
 
 ascLinkTop :: Stack a -> Int -> IntMap a -> Int -> Stack a
 ascLinkTop stk !rk r !rm = case stk of

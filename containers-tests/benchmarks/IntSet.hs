@@ -15,7 +15,7 @@ import qualified Data.Set as S
 import qualified Data.IntMap as IM
 import qualified Data.Map.Strict as M
 import Data.Word (Word8)
-import System.Random (StdGen, mkStdGen, randoms, randomRs)
+import System.Random (StdGen, mkStdGen, randoms, random, randomRs)
 
 import Utils.Fold (foldBenchmarks)
 
@@ -36,7 +36,9 @@ main = do
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) IS.empty
-        , bench "map" $ whnf (IS.map (+ 1)) s
+        , bench "map:asc" $ whnf (IS.map (+ 1)) s
+        , bench "map:random" $ whnf (IS.map (fst . random . mkStdGen)) s
+        , bench "mapMonotonic" $ whnf (IS.mapMonotonic (+1)) s
         , bench "filter" $ whnf (IS.filter ((== 0) . (`mod` 2))) s
         , bench "partition" $ whnf (IS.partition ((== 0) . (`mod` 2))) s
         , bench "delete" $ whnf (del elems) s
