@@ -123,6 +123,7 @@ module Data.IntMap.Lazy (
 
     -- * Deletion\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update

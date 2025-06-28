@@ -109,6 +109,7 @@ module Data.IntSet (
 
             -- * Deletion
             , delete
+            , pop
 
             -- * Generalized insertion/deletion
             , alterF
