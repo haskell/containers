@@ -102,6 +102,7 @@ module Data.Set (
 
             -- * Deletion
             , delete
+            , pop
 
             -- * Generalized insertion/deletion
 

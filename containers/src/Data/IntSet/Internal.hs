@@ -115,6 +115,7 @@ module Data.IntSet.Internal (
     , fromRange
     , insert
     , delete
+    , pop
     , alterF
 
     -- * Combine
@@ -559,6 +560,39 @@ deleteBM kx bm t@(Tip kx' bm')
   | kx' == kx = tip kx (bm' .&. complement bm)
   | otherwise = t
 deleteBM _ _ Nil = Nil
+
+-- | \(O(\min(n,W))\). Pop an element from the set.
+--
+-- Returns @Nothing@ if the element is not a member of the set. Otherwise
+-- returns @Just@ the set with the element removed.
+--
+-- @
+-- pop 1 (fromList [0,2,4]) == Nothing
+-- pop 2 (fromList [0,2,4]) == Just (fromList [0,4])
+-- @
+--
+-- @since FIXME
+pop :: Key -> IntSet -> Maybe IntSet
+pop x0 t0 = case go x0 t0 of
+  True :*: t -> Just t
+  _ -> Nothing
+  where
+    -- We use `StrictPair Bool IntSet` instead of a sum to avoid allocations.
+    -- See Note [Popped impl] in Data.Map.Internal
+    go !x (Bin p l r)
+      | nomatch x p = False :*: Nil
+      | left x p = case go x l of
+          True :*: l' -> True :*: binCheckL p l' r
+          q -> q
+      | otherwise = case go x r of
+          True :*: r' -> True :*: binCheckR p l r'
+          q -> q
+    go !x (Tip ky bmy)
+      | prefixOf x == ky && bmx .&. bmy /= 0 = True :*: tip ky (bmx `xor` bmy)
+      | otherwise = False :*: Nil
+      where
+        bmx = bitmapOf x
+    go !_ Nil = False :*: Nil
 
 -- | \(O(\min(n,W))\). @('alterF' f x s)@ can delete or insert @x@ in @s@ depending
 -- on whether it is already present in @s@.
