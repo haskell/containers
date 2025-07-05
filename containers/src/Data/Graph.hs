@@ -126,7 +126,6 @@ import Data.Foldable as F
 import qualified Data.Foldable1 as F1
 #endif
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
-import Data.Maybe
 import Data.Array
 #if USE_UNBOXED_ARRAYS
 import qualified Data.Array.Unboxed as UA
@@ -523,23 +522,30 @@ graphFromEdges edges0
     max_v           = length edges0 - 1
     bounds0         = (0,max_v) :: (Vertex, Vertex)
     sorted_edges    = L.sortBy lt edges0
-    edges1          = zipWith (,) [0..] sorted_edges
 
-    graph           = array bounds0 [(,) v (mapMaybe key_vertex ks) | (,) v (_,    _, ks) <- edges1]
-    key_map         = array bounds0 [(,) v k                       | (,) v (_,    k, _ ) <- edges1]
-    vertex_map      = array bounds0 edges1
+    graph = listArray bounds0 [keysToVertices ks | (_, _, ks) <- sorted_edges]
+    key_map = listArray bounds0 [k | (_, k, _) <- sorted_edges]
+    vertex_map = listArray bounds0 sorted_edges
 
     (_,k1,_) `lt` (_,k2,_) = k1 `compare` k2
 
-    -- key_vertex :: key -> Maybe Vertex
-    --  returns Nothing for non-interesting vertices
-    key_vertex k   = findVertex 0 max_v
+    keysToVertices = foldr f []
+      where
+        f k vs =
+          let v = keyVertexGo k
+          in if v < 0 then vs else v:vs
+
+    key_vertex k =
+      let v = keyVertexGo k
+      in if v < 0 then Nothing else Just v
+
+    -- Binary search. Returns -1 when not found.
+    keyVertexGo k = findVertex 0 max_v
                    where
-                     findVertex a b | a > b
-                              = Nothing
+                     findVertex a b | a > b = -1
                      findVertex a b = case compare k (key_map ! mid) of
                                    LT -> findVertex a (mid-1)
-                                   EQ -> Just mid
+                                   EQ -> mid
                                    GT -> findVertex (mid+1) b
                               where
                                 mid = a + (b - a) `div` 2
