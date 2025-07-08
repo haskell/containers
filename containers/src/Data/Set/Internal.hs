@@ -1231,7 +1231,7 @@ ascLinkTop (Push x l@(Bin lsz _ _ _) stk) !rsz r y
 ascLinkTop stk !_ r y = Push y r stk
 
 ascLinkAll :: Stack a -> Set a
-ascLinkAll stk = foldl'Stack (\r x l -> link x l r) Tip stk
+ascLinkAll stk = foldl'Stack (\r x l -> linkL x l r) Tip stk
 {-# INLINABLE ascLinkAll #-}
 
 -- | \(O(n)\). Build a set from a descending list of distinct elements in linear time.
@@ -1259,7 +1259,7 @@ descLinkTop x !lsz l (Push y r@(Bin rsz _ _ _) stk)
 descLinkTop y !_ r stk = Push y r stk
 
 descLinkAll :: Stack a -> Set a
-descLinkAll stk = foldl'Stack (\l x r -> link x l r) Tip stk
+descLinkAll stk = foldl'Stack (\l x r -> linkR x l r) Tip stk
 {-# INLINABLE descLinkAll #-}
 
 data Stack a = Push !a !(Set a) !(Stack a) | Nada
@@ -1416,8 +1416,8 @@ splitS :: Ord a => a -> Set a -> StrictPair (Set a) (Set a)
 splitS _ Tip = (Tip :*: Tip)
 splitS x (Bin _ y l r)
       = case compare x y of
-          LT -> let (lt :*: gt) = splitS x l in (lt :*: link y gt r)
-          GT -> let (lt :*: gt) = splitS x r in (link y l lt :*: gt)
+          LT -> let (lt :*: gt) = splitS x l in (lt :*: linkR y gt r)
+          GT -> let (lt :*: gt) = splitS x r in (linkL y l lt :*: gt)
           EQ -> (l :*: r)
 {-# INLINABLE splitS #-}
 
@@ -1428,10 +1428,10 @@ splitMember _ Tip = (Tip, False, Tip)
 splitMember x (Bin _ y l r)
    = case compare x y of
        LT -> let (lt, found, gt) = splitMember x l
-                 !gt' = link y gt r
+                 !gt' = linkR y gt r
              in (lt, found, gt')
        GT -> let (lt, found, gt) = splitMember x r
-                 !lt' = link y l lt
+                 !lt' = linkL y l lt
              in (lt', found, gt)
        EQ -> (l, True, r)
 #if __GLASGOW_HASKELL__
@@ -1558,7 +1558,7 @@ take i0 m0 = go i0 m0
     go i (Bin _ x l r) =
       case compare i sizeL of
         LT -> go i l
-        GT -> link x l (go (i - sizeL - 1) r)
+        GT -> linkL x l (go (i - sizeL - 1) r)
         EQ -> l
       where sizeL = size l
 
@@ -1578,7 +1578,7 @@ drop i0 m0 = go i0 m0
     go !_ Tip = Tip
     go i (Bin _ x l r) =
       case compare i sizeL of
-        LT -> link x (go i l) r
+        LT -> linkR x (go i l) r
         GT -> go (i - sizeL - 1) r
         EQ -> insertMin x r
       where sizeL = size l
@@ -1598,9 +1598,9 @@ splitAt i0 m0
     go i (Bin _ x l r)
       = case compare i sizeL of
           LT -> case go i l of
-                  ll :*: lr -> ll :*: link x lr r
+                  ll :*: lr -> ll :*: linkR x lr r
           GT -> case go (i - sizeL - 1) r of
-                  rl :*: rr -> link x l rl :*: rr
+                  rl :*: rr -> linkL x l rl :*: rr
           EQ -> l :*: insertMin x r
       where sizeL = size l
 
@@ -1618,7 +1618,7 @@ splitAt i0 m0
 takeWhileAntitone :: (a -> Bool) -> Set a -> Set a
 takeWhileAntitone _ Tip = Tip
 takeWhileAntitone p (Bin _ x l r)
-  | p x = link x l (takeWhileAntitone p r)
+  | p x = linkL x l (takeWhileAntitone p r)
   | otherwise = takeWhileAntitone p l
 
 -- | \(O(\log n)\). Drop while a predicate on the elements holds.
@@ -1636,7 +1636,7 @@ dropWhileAntitone :: (a -> Bool) -> Set a -> Set a
 dropWhileAntitone _ Tip = Tip
 dropWhileAntitone p (Bin _ x l r)
   | p x = dropWhileAntitone p r
-  | otherwise = link x (dropWhileAntitone p l) r
+  | otherwise = linkR x (dropWhileAntitone p l) r
 
 -- | \(O(\log n)\). Divide a set at the point where a predicate on the elements stops holding.
 -- The user is responsible for ensuring that for all elements @j@ and @k@ in the set,
@@ -1659,8 +1659,8 @@ spanAntitone p0 m = toPair (go p0 m)
   where
     go _ Tip = Tip :*: Tip
     go p (Bin _ x l r)
-      | p x = let u :*: v = go p r in link x l u :*: v
-      | otherwise = let u :*: v = go p l in u :*: link x v r
+      | p x = let u :*: v = go p r in linkL x l u :*: v
+      | otherwise = let u :*: v = go p l in u :*: linkR x v r
 
 {--------------------------------------------------------------------
   SetBuilder
@@ -1740,11 +1740,38 @@ finishB (BSet s) = s
 link :: a -> Set a -> Set a -> Set a
 link x Tip r  = insertMin x r
 link x l Tip  = insertMax x l
-link x l@(Bin sizeL y ly ry) r@(Bin sizeR z lz rz)
-  | delta*sizeL < sizeR  = balanceL z (link x l lz) rz
-  | delta*sizeR < sizeL  = balanceR y ly (link x ry r)
-  | otherwise            = bin x l r
+link x l@(Bin lsz lx ll lr) r@(Bin rsz rx rl rr)
+  | delta*lsz < rsz = balanceL rx (linkR_ x lsz l rl) rr
+  | delta*rsz < lsz = balanceR lx ll (linkL_ x lr rsz r)
+  | otherwise = Bin (1+lsz+rsz) x l r
 
+-- Variant of link. Restores balance when the left tree may be too large for the
+-- right tree, but not the other way around.
+linkL :: a -> Set a -> Set a -> Set a
+linkL x l r = case r of
+  Tip -> insertMax x l
+  Bin rsz _ _ _ -> linkL_ x l rsz r
+
+linkL_ :: a -> Set a -> Int -> Set a -> Set a
+linkL_ x l !rsz r = case l of
+  Bin lsz lx ll lr
+    | delta*rsz < lsz -> balanceR lx ll (linkL_ x lr rsz r)
+    | otherwise -> Bin (1+lsz+rsz) x l r
+  Tip -> Bin (1+rsz) x Tip r
+
+-- Variant of link. Restores balance when the right tree may be too large for
+-- the left tree, but not the other way around.
+linkR :: a -> Set a -> Set a -> Set a
+linkR x l r = case l of
+  Tip -> insertMin x r
+  Bin lsz _ _ _ -> linkR_ x lsz l r
+
+linkR_ :: a -> Int -> Set a -> Set a -> Set a
+linkR_ x !lsz l r = case r of
+  Bin rsz rx rl rr
+    | delta*lsz < rsz -> balanceL rx (linkR_ x lsz l rl) rr
+    | otherwise -> Bin (1+lsz+rsz) x l r
+  Tip -> Bin (1+lsz) x l Tip
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
 insertMax,insertMin :: a -> Set a -> Set a
@@ -1766,10 +1793,24 @@ insertMin x t
 merge :: Set a -> Set a -> Set a
 merge Tip r   = r
 merge l Tip   = l
-merge l@(Bin sizeL x lx rx) r@(Bin sizeR y ly ry)
-  | delta*sizeL < sizeR = balanceL y (merge l ly) ry
-  | delta*sizeR < sizeL = balanceR x lx (merge rx r)
-  | otherwise           = glue l r
+merge l@(Bin lsz lx ll lr) r@(Bin rsz rx rl rr)
+  | delta*lsz < rsz = balanceL rx (mergeR_ lsz l rl) rr
+  | delta*rsz < lsz = balanceR lx ll (mergeL_ lr rsz r)
+  | otherwise = glue l r
+
+mergeL_ :: Set a -> Int -> Set a -> Set a
+mergeL_ l !rsz r = case l of
+  Bin lsz lx ll lr
+    | delta*rsz < lsz -> balanceR lx ll (mergeL_ lr rsz r)
+    | otherwise -> glue l r
+  Tip -> r
+
+mergeR_ :: Int -> Set a -> Set a -> Set a
+mergeR_ !lsz l r = case r of
+  Bin rsz rx rl rr
+    | delta*lsz < rsz -> balanceL rx (mergeR_ lsz l rl) rr
+    | otherwise -> glue l r
+  Tip -> l
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.

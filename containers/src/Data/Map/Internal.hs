@@ -1558,7 +1558,7 @@ take i0 m0 = go i0 m0
     go i (Bin _ kx x l r) =
       case compare i sizeL of
         LT -> go i l
-        GT -> link kx x l (go (i - sizeL - 1) r)
+        GT -> linkL kx x l (go (i - sizeL - 1) r)
         EQ -> l
       where sizeL = size l
 
@@ -1578,7 +1578,7 @@ drop i0 m0 = go i0 m0
     go !_ Tip = Tip
     go i (Bin _ kx x l r) =
       case compare i sizeL of
-        LT -> link kx x (go i l) r
+        LT -> linkR kx x (go i l) r
         GT -> go (i - sizeL - 1) r
         EQ -> insertMin kx x r
       where sizeL = size l
@@ -1600,9 +1600,9 @@ splitAt i0 m0
     go i (Bin _ kx x l r)
       = case compare i sizeL of
           LT -> case go i l of
-                  ll :*: lr -> ll :*: link kx x lr r
+                  ll :*: lr -> ll :*: linkR kx x lr r
           GT -> case go (i - sizeL - 1) r of
-                  rl :*: rr -> link kx x l rl :*: rr
+                  rl :*: rr -> linkL kx x l rl :*: rr
           EQ -> l :*: insertMin kx x r
       where sizeL = size l
 
@@ -3034,7 +3034,7 @@ filterWithKeyA p t@(Bin _ kx x l r) =
 takeWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
 takeWhileAntitone _ Tip = Tip
 takeWhileAntitone p (Bin _ kx x l r)
-  | p kx = link kx x l (takeWhileAntitone p r)
+  | p kx = linkL kx x l (takeWhileAntitone p r)
   | otherwise = takeWhileAntitone p l
 
 -- | \(O(\log n)\). Drop while a predicate on the keys holds.
@@ -3052,7 +3052,7 @@ dropWhileAntitone :: (k -> Bool) -> Map k a -> Map k a
 dropWhileAntitone _ Tip = Tip
 dropWhileAntitone p (Bin _ kx x l r)
   | p kx = dropWhileAntitone p r
-  | otherwise = link kx x (dropWhileAntitone p l) r
+  | otherwise = linkR kx x (dropWhileAntitone p l) r
 
 -- | \(O(\log n)\). Divide a map at the point where a predicate on the keys stops holding.
 -- The user is responsible for ensuring that for all keys @j@ and @k@ in the map,
@@ -3075,8 +3075,8 @@ spanAntitone p0 m = toPair (go p0 m)
   where
     go _ Tip = Tip :*: Tip
     go p (Bin _ kx x l r)
-      | p kx = let u :*: v = go p r in link kx x l u :*: v
-      | otherwise = let u :*: v = go p l in u :*: link kx x v r
+      | p kx = let u :*: v = go p r in linkL kx x l u :*: v
+      | otherwise = let u :*: v = go p l in u :*: linkR kx x v r
 
 -- | \(O(n)\). Partition the map according to a predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -3842,7 +3842,7 @@ ascLinkTop (Push kx x l@(Bin lsz _ _ _ _) stk) !rsz r ky y
 ascLinkTop stk !_ l kx x = Push kx x l stk
 
 ascLinkAll :: Stack k a -> Map k a
-ascLinkAll stk = foldl'Stack (\r kx x l -> link kx x l r) Tip stk
+ascLinkAll stk = foldl'Stack (\r kx x l -> linkL kx x l r) Tip stk
 {-# INLINABLE ascLinkAll #-}
 
 -- | \(O(n)\). Build a map from a descending list of distinct elements in linear time.
@@ -3875,7 +3875,7 @@ descLinkTop ky y !_ r stk = Push ky y r stk
 {-# INLINABLE descLinkTop #-}
 
 descLinkAll :: Stack k a -> Map k a
-descLinkAll stk = foldl'Stack (\l kx x r -> link kx x l r) Tip stk
+descLinkAll stk = foldl'Stack (\l kx x r -> linkR kx x l r) Tip stk
 {-# INLINABLE descLinkAll #-}
 
 data Stack k a = Push !k a !(Map k a) !(Stack k a) | Nada
@@ -3939,8 +3939,8 @@ split !k0 t0 = toPair $ go k0 t0
       case t of
         Tip            -> Tip :*: Tip
         Bin _ kx x l r -> case compare k kx of
-          LT -> let (lt :*: gt) = go k l in lt :*: link kx x gt r
-          GT -> let (lt :*: gt) = go k r in link kx x l lt :*: gt
+          LT -> let (lt :*: gt) = go k l in lt :*: linkR kx x gt r
+          GT -> let (lt :*: gt) = go k r in linkL kx x l lt :*: gt
           EQ -> (l :*: r)
 #if __GLASGOW_HASKELL__
 {-# INLINABLE split #-}
@@ -3964,10 +3964,10 @@ splitLookup k0 m = case go k0 m of
         Tip            -> StrictTriple Tip Nothing Tip
         Bin _ kx x l r -> case compare k kx of
           LT -> let StrictTriple lt z gt = go k l
-                    !gt' = link kx x gt r
+                    !gt' = linkR kx x gt r
                 in StrictTriple lt z gt'
           GT -> let StrictTriple lt z gt = go k r
-                    !lt' = link kx x l lt
+                    !lt' = linkL kx x l lt
                 in StrictTriple lt' z gt
           EQ -> StrictTriple l (Just x) r
 #if __GLASGOW_HASKELL__
@@ -3988,10 +3988,10 @@ splitMember k0 m = case go k0 m of
         Tip            -> StrictTriple Tip False Tip
         Bin _ kx x l r -> case compare k kx of
           LT -> let StrictTriple lt z gt = go k l
-                    !gt' = link kx x gt r
+                    !gt' = linkR kx x gt r
                 in StrictTriple lt z gt'
           GT -> let StrictTriple lt z gt = go k r
-                    !lt' = link kx x l lt
+                    !lt' = linkL kx x l lt
                 in StrictTriple lt' z gt
           EQ -> StrictTriple l True r
 #if __GLASGOW_HASKELL__
@@ -4079,11 +4079,38 @@ finishB (BMap m) = m
 link :: k -> a -> Map k a -> Map k a -> Map k a
 link kx x Tip r  = insertMin kx x r
 link kx x l Tip  = insertMax kx x l
-link kx x l@(Bin sizeL ky y ly ry) r@(Bin sizeR kz z lz rz)
-  | delta*sizeL < sizeR  = balanceL kz z (link kx x l lz) rz
-  | delta*sizeR < sizeL  = balanceR ky y ly (link kx x ry r)
-  | otherwise            = bin kx x l r
+link kx x l@(Bin lsz lkx lx ll lr) r@(Bin rsz rkx rx rl rr)
+  | delta*lsz < rsz = balanceL rkx rx (linkR_ kx x lsz l rl) rr
+  | delta*rsz < lsz = balanceR lkx lx ll (linkL_ kx x lr rsz r)
+  | otherwise       = Bin (1+lsz+rsz) kx x l r
 
+-- Variant of link. Restores balance when the left tree may be too large for the
+-- right tree, but not the other way around.
+linkL :: k -> a -> Map k a -> Map k a -> Map k a
+linkL kx x l r = case r of
+  Tip -> insertMax kx x l
+  Bin rsz _ _ _ _ -> linkL_ kx x l rsz r
+
+linkL_ :: k -> a -> Map k a -> Int -> Map k a -> Map k a
+linkL_ kx x l !rsz r = case l of
+  Bin lsz lkx lx ll lr
+    | delta*rsz < lsz -> balanceR lkx lx ll (linkL_ kx x lr rsz r)
+    | otherwise -> Bin (1+lsz+rsz) kx x l r
+  Tip -> Bin (1+rsz) kx x Tip r
+
+-- Variant of link. Restores balance when the right tree may be too large for
+-- the left tree, but not the other way around.
+linkR :: k -> a -> Map k a -> Map k a -> Map k a
+linkR kx x l r = case l of
+  Tip -> insertMin kx x r
+  Bin lsz _ _ _ _ -> linkR_ kx x lsz l r
+
+linkR_ :: k -> a -> Int -> Map k a -> Map k a -> Map k a
+linkR_ kx x !lsz l r = case r of
+  Bin rsz rkx rx rl rr
+    | delta*lsz < rsz -> balanceL rkx rx (linkR_ kx x lsz l rl) rr
+    | otherwise -> Bin (1+lsz+rsz) kx x l r
+  Tip -> Bin (1+lsz) kx x l Tip
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
 insertMax,insertMin :: k -> a -> Map k a -> Map k a
@@ -4105,10 +4132,24 @@ insertMin kx x t
 link2 :: Map k a -> Map k a -> Map k a
 link2 Tip r   = r
 link2 l Tip   = l
-link2 l@(Bin sizeL kx x lx rx) r@(Bin sizeR ky y ly ry)
-  | delta*sizeL < sizeR = balanceL ky y (link2 l ly) ry
-  | delta*sizeR < sizeL = balanceR kx x lx (link2 rx r)
-  | otherwise           = glue l r
+link2 l@(Bin lsz lkx lx ll lr) r@(Bin rsz rkx rx rl rr)
+  | delta*lsz < rsz = balanceL rkx rx (link2R_ lsz l rl) rr
+  | delta*rsz < lsz = balanceR lkx lx ll (link2L_ lr rsz r)
+  | otherwise = glue l r
+
+link2L_ :: Map k a -> Int -> Map k a -> Map k a
+link2L_ l !rsz r = case l of
+  Bin lsz lkx lx ll lr
+    | delta*rsz < lsz -> balanceR lkx lx ll (link2L_ lr rsz r)
+    | otherwise -> glue l r
+  Tip -> r
+
+link2R_ :: Int -> Map k a -> Map k a -> Map k a
+link2R_ !lsz l r = case r of
+  Bin rsz rkx rx rl rr
+    | delta*lsz < rsz -> balanceL rkx rx (link2R_ lsz l rl) rr
+    | otherwise -> glue l r
+  Tip -> l
 
 {--------------------------------------------------------------------
   [glue l r]: glues two trees together.
