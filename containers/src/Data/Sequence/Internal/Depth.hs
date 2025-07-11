@@ -3,7 +3,11 @@
 {-# LANGUAGE KindSignatures #-}
 {-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE RoleAnnotations #-}
+#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# LANGUAGE Trustworthy #-}
+#else
+{-# LANGUAGE Safe #-}
+#endif
 {-# LANGUAGE TypeOperators #-}
 {-# LANGUAGE ViewPatterns #-}
 
@@ -33,8 +37,10 @@ module Data.Sequence.Internal.Depth
   , Depth2_ (Bottom2, Deeper2)
   ) where
 
+#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 import Data.Kind (Type)
 import Unsafe.Coerce (unsafeCoerce)
+#endif
 
 -- @Depth_@ is an optimized representation of the following GADT:
 --
@@ -55,6 +61,15 @@ import Unsafe.Coerce (unsafeCoerce)
 -- arithmetic overflow on 64-bit systems requires somewhat absurdly long
 -- computations on sequences constructed with extensive amounts of internal
 -- sharing (e.g., using the '*>' operator repeatedly).
+#if !defined(MIN_VERSION_GLASGOW_HASKELL) || !MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
+-- Old versions of GHC would crash out in all sorts of weird ways with the fancy version,
+-- so we give a totally plain version here. We also use the plain one for MicroHS, for
+-- now, because I don't know what it wants.
+data Depth_ node a t where
+  Bottom :: Depth_ node a a
+  Deeper :: !(Depth_ node a t) -> Depth_ node a (node t)
+
+#else
 newtype Depth_ (node :: Type -> Type) (a :: Type) (t :: Type)
   = Depth_ Word
 type role Depth_ nominal nominal nominal
@@ -64,9 +79,7 @@ pattern Bottom :: () => t ~ a => Depth_ node a t
 pattern Bottom <- (checkBottom -> AtBottom)
   where
     Bottom = Depth_ 0
-#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE Bottom #-}
-#endif
 
 -- | The depth is non-zero.
 pattern Deeper :: () => t ~ node t' => Depth_ node a t' -> Depth_ node a t
@@ -75,9 +88,7 @@ pattern Deeper d <- (checkBottom -> NotBottom d)
     Deeper (Depth_ d)
       | d == maxBound = error "Depth overflow"
       | otherwise = Depth_ (d + 1)
-#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE Deeper #-}
-#endif
 
 {-# COMPLETE Bottom, Deeper #-}
 
@@ -88,20 +99,22 @@ data CheckedBottom node a t where
 checkBottom :: Depth_ node a t -> CheckedBottom node a t
 checkBottom (Depth_ 0) = unsafeCoerce AtBottom
 checkBottom (Depth_ d) = unsafeCoerce (NotBottom (Depth_ (d - 1)))
-#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE checkBottom #-}
-#else
-{-# NOINLINE checkBottom #-}
-#endif
 
+#endif
 
 -- | A version of 'Depth_' for implementing traversals. Conceptually,
 --
 -- @
 -- data Depth2_ node a t b u where
 --   Bottom2 :: Depth2_ node a a b b
---   Deeper2 :: !(Depth2_ node a t b u) -> Depth_ node a (node t) b (node u)
+--   Deeper2 :: !(Depth2_ node a t b u) -> Depth2_ node a (node t) b (node u)
 -- @
+#if !defined(MIN_VERSION_GLASGOW_HASKELL) || !MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
+data Depth2_ node a t b u where
+  Bottom2 :: Depth2_ node a a b b
+  Deeper2 :: !(Depth2_ node a t b u) -> Depth2_ node a (node t) b (node u)
+#else
 newtype Depth2_ (node :: Type -> Type) (a :: Type) (t :: Type) (b :: Type) (u :: Type)
   = Depth2_ Word
 type role Depth2_ nominal nominal nominal nominal nominal
@@ -111,9 +124,7 @@ pattern Bottom2 :: () => (t ~ a, u ~ b) => Depth2_ node a t b u
 pattern Bottom2 <- (checkBottom2 -> AtBottom2)
   where
     Bottom2 = Depth2_ 0
-#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE Bottom2 #-}
-#endif
 
 -- | The depth is non-zero.
 pattern Deeper2 :: () => (t ~ node t', u ~ node u') => Depth2_ node a t' b u' -> Depth2_ node a t b u
@@ -122,9 +133,7 @@ pattern Deeper2 d <- (checkBottom2 -> NotBottom2 d)
     Deeper2 (Depth2_ d)
       | d == maxBound = error "Depth2 overflow"
       | otherwise = Depth2_ (d + 1)
-#if defined(MIN_VERSION_GLASGOW_HASKELL) && MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE Deeper2 #-}
-#endif
 
 {-# COMPLETE Bottom2, Deeper2 #-}
 
@@ -135,8 +144,5 @@ data CheckedBottom2 node a t b u where
 checkBottom2 :: Depth2_ node a t b u -> CheckedBottom2 node a t b u
 checkBottom2 (Depth2_ 0) = unsafeCoerce AtBottom2
 checkBottom2 (Depth2_ d) = unsafeCoerce (NotBottom2 (Depth2_ (d - 1)))
-#if MIN_VERSION_GLASGOW_HASKELL(9,2,0,0)
 {-# INLINE checkBottom2 #-}
-#else
-{-# NOINLINE checkBottom2 #-}
 #endif

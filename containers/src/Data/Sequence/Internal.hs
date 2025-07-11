@@ -3351,8 +3351,8 @@ foldWithIndexNode (<+>) f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
 -- element in the sequence.
 --
 -- @since 0.5.8
-foldMapWithIndex :: forall m a. Monoid m => (Int -> a -> m) -> Seq a -> m
 #ifdef __GLASGOW_HASKELL__
+foldMapWithIndex :: forall m a. Monoid m => (Int -> a -> m) -> Seq a -> m
 foldMapWithIndex f (Seq t) = foldMapWithIndexFT Bottom 0 t
   where
     foldMapWithIndexFT :: Depth (Elem a) t -> Int -> FingerTree t -> m
@@ -3401,6 +3401,7 @@ sizeBlob2 Bottom2 = size
 sizeBlob2 (Deeper2 _) = size
 
 #else
+foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
  where
   lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
