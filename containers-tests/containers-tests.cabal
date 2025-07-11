@@ -106,7 +106,6 @@ library
     Data.Map.Strict.Internal
     Data.Sequence
     Data.Sequence.Internal
-    Data.Sequence.Internal.Depth
     Data.Sequence.Internal.Sorting
     Data.Set
     Data.Set.Internal

@@ -179,7 +179,6 @@ module Data.Sequence.Internal (
     node2,
     node3,
 #endif
-    bongo
     ) where
 
 import Utils.Containers.Internal.Prelude hiding (
@@ -3454,6 +3453,48 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
 -- access to the index of each element.
 --
 -- @since 0.5.8
+#ifdef __GLASGOW_HASKELL__
+traverseWithIndex :: forall f a b. Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
+traverseWithIndex f (Seq t) = Seq <$> traverseWithIndexFT Bottom2 0 t
+  where
+    traverseWithIndexFT :: Depth2 (Elem a) t (Elem b) u -> Int -> FingerTree t -> f (FingerTree u)
+    traverseWithIndexFT !_ !_ EmptyT = pure EmptyT
+    traverseWithIndexFT d s (Single xs) = Single <$> traverseWithIndexBlob d s xs
+    traverseWithIndexFT d s (Deep s' pr m sf) = case depthSized2 d of { Sizzy ->
+      liftA3 (Deep s')
+        (traverseWithIndexDigit (traverseWithIndexBlob d) s pr)
+        (traverseWithIndexFT (Deeper2 d) sPspr m)
+        (traverseWithIndexDigit (traverseWithIndexBlob d) sPsprm sf)
+          where
+            !sPspr = s + size pr
+            !sPsprm = sPspr + size m
+      }
+
+    traverseWithIndexBlob :: Depth2 (Elem a) t (Elem b) u -> Int -> t -> f u
+    traverseWithIndexBlob Bottom2 k (Elem a) = Elem <$> f k a
+    traverseWithIndexBlob (Deeper2 yop) k (Node2 s t1 t2) =
+      liftA2 (Node2 s)
+        (traverseWithIndexBlob yop k t1)
+        (traverseWithIndexBlob yop (k + sizeBlob2 yop t1) t2)
+    traverseWithIndexBlob (Deeper2 yop) k (Node3 s t1 t2 t3) =
+      liftA3 (Node3 s)
+        (traverseWithIndexBlob yop k t1)
+        (traverseWithIndexBlob yop (k + st1) t2)
+        (traverseWithIndexBlob yop (k + st1t2) t3)
+      where
+        st1 = sizeBlob2 yop t1
+        st1t2 = st1 + sizeBlob2 yop t2
+
+{-# INLINABLE [1] traverseWithIndex #-}
+
+{-# RULES
+"travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
+  traverseWithIndex (\k a -> f k (g k a)) xs
+"travWithIndex/fmapSeq" forall f g xs . traverseWithIndex f (fmapSeq g xs) =
+  traverseWithIndex (\k a -> f k (g a)) xs
+ #-}
+
+#else
 traverseWithIndex :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
 traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> Elem <$> f' s a) 0 xs'
  where
@@ -3491,24 +3532,6 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
   traverseWithIndexDigitN f i t = traverseWithIndexDigit f i t
 
-  {-# INLINE traverseWithIndexDigit #-}
-  traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
-  traverseWithIndexDigit f !s (One a) = One <$> f s a
-  traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
-    where
-      !sPsa = s + size a
-  traverseWithIndexDigit f s (Three a b c) =
-                                      liftA3 Three (f s a) (f sPsa b) (f sPsab c)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  traverseWithIndexDigit f s (Four a b c d) =
-                          liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
-
   traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
   traverseWithIndexNodeE f i t = traverseWithIndexNode f i t
 
@@ -3526,21 +3549,27 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsa = s + size a
       !sPsab = sPsa + size b
 
-
-#ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [1] traverseWithIndex #-}
-#else
 {-# INLINE [1] traverseWithIndex #-}
 #endif
 
-#ifdef __GLASGOW_HASKELL__
-{-# RULES
-"travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
-  traverseWithIndex (\k a -> f k (g k a)) xs
-"travWithIndex/fmapSeq" forall f g xs . traverseWithIndex f (fmapSeq g xs) =
-  traverseWithIndex (\k a -> f k (g a)) xs
- #-}
-#endif
+{-# INLINE traverseWithIndexDigit #-}
+traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a-> f b) -> Int -> Digit a -> f (Digit b)
+traverseWithIndexDigit f !s (One a) = One <$> f s a
+traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
+  where
+    !sPsa = s + size a
+traverseWithIndexDigit f s (Three a b c) =
+                                    liftA3 Three (f s a) (f sPsa b) (f sPsab c)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+traverseWithIndexDigit f s (Four a b c d) =
+                        liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
 {-
 It might be nice to be able to rewrite
 
@@ -5149,12 +5178,79 @@ zipWith f s1 s2 = zipWith' f s1' s2'
     s1' = take minLen s1
     s2' = take minLen s2
 
+#ifdef __GLASGOW_HASKELL__
+-- | A version of zipWith that assumes the sequences have the same length.
+zipWith' :: forall a b c. (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith' f = \(Seq t1) s2 -> Seq (zipFT Bottom2 t1 s2)
+  where
+
+    zipBlob :: Depth2 (Elem a) t (Elem c) v -> t -> Seq b -> v
+    zipBlob Bottom2 (Elem a) s2
+      | Seq (Single (Elem b)) <- s2 = Elem (f a b)
+      | otherwise = error "zipWith': invariant failure"
+    zipBlob (Deeper2 w) (Node2 s (x :: q) y) s2 = Node2 s (zipBlob w x s2l) (zipBlob w y s2r)
+      where
+        sz :: q -> Int
+        sz = case w of
+          Bottom2 -> size
+          Deeper2 _ -> size
+        (s2l, s2r) = splitAt (sz x) s2
+    zipBlob (Deeper2 w) (Node3 s (x :: q) y z) s2 = Node3 s (zipBlob w x s2l) (zipBlob w y s2c) (zipBlob w z s2r)
+      where
+        sz :: q -> Int
+        sz = case w of
+          Bottom2 -> size
+          Deeper2 _ -> size
+        (s2l, s2rem) = splitAt (sz x) s2
+        (s2c, s2r) = splitAt (sz y) s2rem
+
+    zipDigit :: forall t v. Depth2 (Elem a) t (Elem c) v -> Digit t -> Seq b -> Digit v
+    zipDigit p = \d s2 ->
+      case d of
+        One t -> One (zipBlob p t s2)
+        Two t u -> Two (zipBlob p t s2l) (zipBlob p u s2r)
+          where
+            (s2l, s2r) = splitAt (sz t) s2
+        Three t u v -> Three (zipBlob p t s2l) (zipBlob p u s2c) (zipBlob p v s2r)
+          where
+            (s2l, s2rem) = splitAt (sz t) s2
+            (s2c, s2r) = splitAt (sz u) s2rem
+        Four t u v w -> Four (zipBlob p t s21) (zipBlob p u s22) (zipBlob p v s23) (zipBlob p w s24)
+          where
+            (s2l, s2r) = splitAt (sz t + sz u) s2
+            (s21, s22) = splitAt (sz t) s2l
+            (s23, s24) = splitAt (sz v) s2r
+      where
+        sz :: t -> Int
+        sz = case p of
+          Bottom2 -> size
+          Deeper2 _ -> size
+
+    zipFT :: forall t v. Depth2 (Elem a) t (Elem c) v -> FingerTree t -> Seq b -> FingerTree v
+    zipFT !_ EmptyT !_ = EmptyT
+    zipFT w (Single t) s2 = Single (zipBlob w t s2)
+    zipFT w (Deep s pr m sf) s2 =
+      Deep s
+        (zipDigit w pr s2l)
+        (zipFT (Deeper2 w) m s2c)
+        (zipDigit w sf s2r)
+      where
+        szd :: Digit t -> Int
+        szd = case w of
+          Bottom2 -> size
+          Deeper2 _ -> size
+        (s2l, s2rem) = splitAt (szd pr) s2
+        (s2c, s2r) = splitAt (size m) s2rem
+
+
+#else
 -- | A version of zipWith that assumes the sequences have the same length.
 zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
 zipWith' f s1 s2 = splitMap uncheckedSplitAt goLeaf s2 s1
   where
     goLeaf (Seq (Single (Elem b))) a = f a b
     goLeaf _ _ = error "Data.Sequence.zipWith'.goLeaf internal error: not a singleton"
+#endif
 
 -- | \( O(\min(n_1,n_2,n_3)) \).  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
@@ -5200,7 +5296,3 @@ fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
-
-{-# NOINLINE bongo #-}
-bongo :: Seq [a] -> [a]
-bongo xs = GHC.Exts.inline foldMap id xs
