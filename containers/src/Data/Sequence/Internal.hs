@@ -5191,19 +5191,11 @@ zipWith' f = \(Seq t1) s2 -> Seq (zipFT Bottom2 t1 s2)
       | otherwise = error "zipWith': invariant failure"
     zipBlob (Deeper2 w) (Node2 s (x :: q) y) s2 = Node2 s (zipBlob w x s2l) (zipBlob w y s2r)
       where
-        sz :: q -> Int
-        sz = case w of
-          Bottom2 -> size
-          Deeper2 _ -> size
-        (s2l, s2r) = splitAt (sz x) s2
+        (s2l, s2r) = splitAt (sizeBlob2 w x) s2
     zipBlob (Deeper2 w) (Node3 s (x :: q) y z) s2 = Node3 s (zipBlob w x s2l) (zipBlob w y s2c) (zipBlob w z s2r)
       where
-        sz :: q -> Int
-        sz = case w of
-          Bottom2 -> size
-          Deeper2 _ -> size
-        (s2l, s2rem) = splitAt (sz x) s2
-        (s2c, s2r) = splitAt (sz y) s2rem
+        (s2l, s2rem) = splitAt (sizeBlob2 w x) s2
+        (s2c, s2r) = splitAt (sizeBlob2 w y) s2rem
 
     zipDigit :: forall t v. Depth2 (Elem a) t (Elem c) v -> Digit t -> Seq b -> Digit v
     zipDigit p = \d s2 ->
@@ -5223,9 +5215,7 @@ zipWith' f = \(Seq t1) s2 -> Seq (zipFT Bottom2 t1 s2)
             (s23, s24) = splitAt (sz v) s2r
       where
         sz :: t -> Int
-        sz = case p of
-          Bottom2 -> size
-          Deeper2 _ -> size
+        sz = sizeBlob2 p
 
     zipFT :: forall t v. Depth2 (Elem a) t (Elem c) v -> FingerTree t -> Seq b -> FingerTree v
     zipFT !_ EmptyT !_ = EmptyT
