@@ -831,7 +831,8 @@ unions = Foldable.foldl' union empty
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
-union t1 Tip  = t1
+union t1 t2 | t1 `ptrEq` t2 = t1
+union t1 Tip = t1
 union t1 (Bin 1 x _ _) = insertR x t1
 union (Bin 1 x _ _) t2 = insert x t2
 union Tip t2  = t2
