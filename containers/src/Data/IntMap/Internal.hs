@@ -1326,7 +1326,7 @@ restrictBM t@(Bin p l r) !bm
     -- Here we care about the "submask" of bm corresponding the current Bin's
     -- range. So we create bm', where this submask is at the lowest position and
     -- and all other bits are set to the highest bit of the submask (using an
-    -- arithmetric shiftR). Now bm' is 0 when the submask is empty and -1 when
+    -- arithmetic shiftR). Now bm' is 0 when the submask is empty and -1 when
     -- the submask is full.
     px = IntSet.suffixOf (unPrefix p)
     px1 = px - 1
@@ -3612,7 +3612,7 @@ ascLinkStack stk !rk r = case stk of
 -- [zipper](https://en.wikipedia.org/wiki/Zipper_(data_structure)). It always
 -- has its "focus" at the last inserted entry. To insert a new entry, we need
 -- to move the focus to the new entry. To do this we move up the stack to the
--- lowest common ancestor of the currest position and the position of the
+-- lowest common ancestor of the current position and the position of the
 -- new key (implemented as moveUpB), then down to the position of the new key
 -- (implemented as moveDownB).
 --

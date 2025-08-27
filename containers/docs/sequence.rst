@@ -81,7 +81,7 @@ Importing Sequence
 ------------------
 
 When using ``Sequence`` in a Haskell source file you should always use a
-``qualified`` import becasue it exports names that clash with the standard
+``qualified`` import because it exports names that clash with the standard
 Prelude (you can import the type constructor and some operators on their own
 though!).
 

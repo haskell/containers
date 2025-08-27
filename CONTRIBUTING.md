@@ -1,6 +1,6 @@
 # Instructions for Contributors
 
-To report bugs, or propose enchancements or changes, please use the
+To report bugs, or propose enhancements or changes, please use the
 [GitHub issue tracker](https://github.com/haskell/containers/issues).
 
 You are also welcome to propose code changes in the form of
