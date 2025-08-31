@@ -12,7 +12,7 @@ import sys
 
 # -- General configuration ------------------------------------------------
 
-# Add the _extenions dir to the search path.
+# Add the _extensions dir to the search path.
 sys.path.insert(0, os.path.abspath('.') + '/_extensions')
 sys.path.insert(0, os.path.abspath('.') + '/_extensions/haddock-autolink')
 

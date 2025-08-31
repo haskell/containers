@@ -2335,8 +2335,8 @@ validsize t
 -- done in O(1) using `Bin`. The final linking of the stack is done in O(log n)
 -- using `link` (proof below). The total time is thus O(n).
 --
--- Additionally, the implemention is written using foldl' over the input list,
--- which makes it participate as a good consumer in list fusion.
+-- Additionally, the implementation is written using foldl' over the input
+-- list, which makes it participate as a good consumer in list fusion.
 --
 -- fromDistinctDescList is implemented similarly, adapted for left and right
 -- sides being swapped.
