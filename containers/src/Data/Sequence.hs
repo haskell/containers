@@ -192,6 +192,8 @@ module Data.Sequence (
     breakr,         -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     partition,      -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     filter,         -- :: (a -> Bool) -> Seq a -> Seq a
+    catMaybes,      -- :: Seq (Maybe a) -> Seq a
+    mapMaybe,       -- :: (a -> Maybe b) -> Seq a -> Seq b
     -- * Sorting
     sort,           -- :: Ord a => Seq a -> Seq a
     sortBy,         -- :: (a -> a -> Ordering) -> Seq a -> Seq a

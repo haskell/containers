@@ -24,7 +24,8 @@ import Data.Array (listArray)
 import Data.Coerce (coerce)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
-import Data.Maybe
+import Data.Maybe (listToMaybe)
+import qualified Data.Maybe as Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Semigroup (stimes, stimesMonoid)
@@ -100,6 +101,8 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "breakr" prop_breakr
        , testProperty "partition" prop_partition
        , testProperty "filter" prop_filter
+       , testProperty "catMaybes" prop_catMaybes
+       , testProperty "mapMaybe" prop_mapMaybe
        , testProperty "sort" prop_sort
        , testProperty "sortStable" prop_sortStable
        , testProperty "sortBy" prop_sortBy
@@ -552,6 +555,15 @@ prop_filter :: Positive Int -> Seq Int -> Bool
 prop_filter (Positive n) xs =
     toList' (filter p xs) ~= Prelude.filter p (toList xs)
   where p x = x `mod` n == 0
+
+prop_catMaybes :: Seq (Maybe Int) -> Bool
+prop_catMaybes xs =
+    toList' (catMaybes xs) ~= Maybe.catMaybes (toList xs)
+
+prop_mapMaybe :: Positive Int -> Seq Int -> Bool
+prop_mapMaybe (Positive n) xs =
+    toList' (mapMaybe f xs) ~= Maybe.mapMaybe f (toList xs)
+  where f x = if x `mod` n == 0 then Just x else Nothing
 
 -- * Sorting
 
