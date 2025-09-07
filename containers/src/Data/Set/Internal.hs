@@ -162,6 +162,8 @@ module Data.Set.Internal (
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
+            , catMaybes
+            , mapMaybe
             , partition
             , split
             , splitMember
@@ -239,6 +241,7 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
+import qualified Data.Maybe as Maybe
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -992,6 +995,25 @@ partition p0 t0 = toPair $ go p0 t0
                        (if l2 `ptrEq` l && r2 `ptrEq` r
                         then t
                         else link x l2 r2)
+
+{--------------------------------------------------------------------
+  Maybes
+--------------------------------------------------------------------}
+
+-- | \(O(n)\). Drop 'Nothing' if it's in the set, and retain the 'Just' values.
+--
+-- @since FIXME
+catMaybes :: Set (Maybe a) -> Set a
+catMaybes = mapMonotonic Maybe.fromJust . dropWhileAntitone Maybe.isNothing
+
+-- | \(O(n \log n)\). Map values and collect the 'Just' results.
+--
+-- If the function is monotonically non-decreasing, this function takes \(O(n)\)
+-- time.
+--
+-- @since FIXME
+mapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
+mapMaybe f = fromList . Maybe.mapMaybe f . toList
 
 {----------------------------------------------------------------------
   Map

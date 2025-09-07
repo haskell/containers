@@ -2,7 +2,8 @@
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
-import Data.Maybe
+import Data.Maybe (isJust, fromJust)
+import qualified Data.Maybe as Maybe
 import Data.Set
 import Data.Set.Internal (link, merge)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
@@ -98,6 +99,8 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "prop_catMaybes" prop_catMaybes
+                   , testProperty "prop_mapMaybe" prop_mapMaybe
                    , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
                    , testProperty "spanAntitone"         prop_spanAntitone
@@ -240,6 +243,32 @@ instance IsInt a => Arbitrary (Set a) where
         let i' = i + diff
         put i'
         pure (fromInt i')
+
+newtype MaybeIntSet = MaybeIntSet (Set (Maybe Int)) deriving (Show)
+instance Arbitrary MaybeIntSet where
+  arbitrary = sized $ \sz0 -> do
+    sz <- choose (0, sz0)
+    middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
+    let shift = (sz * (gapRange) + 1) `quot` 2
+        start = middle - shift
+    hasNothing <- arbitrary
+    t <- evalStateT (mkArbSet (step start) sz)
+                    (if hasNothing then Nothing else Just start)
+    if valid t
+      then pure $ MaybeIntSet t
+      else error "Test generated invalid tree!"
+    where
+      step start = do
+        mi <- get
+        case mi of
+          Nothing -> do
+            put $ Just start
+            pure Nothing
+          Just i -> do
+            diff <- lift $ choose (1, gapRange)
+            let i' = i + diff
+            put $ Just i'
+            pure $ Just i'
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
@@ -617,6 +646,14 @@ prop_partition s i = case partition odd s of
 
 prop_filter :: Set Int -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)
+
+prop_catMaybes :: MaybeIntSet -> Bool
+prop_catMaybes (MaybeIntSet s) =
+  toList (catMaybes s) == Maybe.catMaybes (toList s)
+
+prop_mapMaybe :: Set Int -> Bool
+prop_mapMaybe s = toList (mapMaybe f s) == Maybe.mapMaybe f (toList s)
+  where f n = if odd n then Just n else Nothing
 
 prop_take :: Int -> Set Int -> Property
 prop_take n xs = valid taken .&&.
