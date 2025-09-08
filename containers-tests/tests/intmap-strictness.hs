@@ -618,6 +618,12 @@ prop_lazyMapKeysWith fun kfun m = isNotBottomProp (L.mapKeysWith f kf m)
     f = coerce (applyFunc2 fun) :: A -> A -> A
     kf = applyFunc kfun
 
+prop_strictCatMaybes :: IntMap (Maybe (Bot A)) -> Property
+prop_strictCatMaybes m = isBottom (M.catMaybes m) === isBottom (M.mapMaybe id m)
+
+prop_lazyCatMaybes :: IntMap (Maybe (Bot A)) -> Property
+prop_lazyCatMaybes m = isNotBottomProp (L.catMaybes m)
+
 prop_strictMapMaybe :: Func A (Maybe (Bot B)) -> IntMap A -> Property
 prop_strictMapMaybe fun m =
   isBottom (M.mapMaybe f m) === isBottom (M.mapMaybeWithKey (const f) m)
@@ -1050,6 +1056,7 @@ tests =
       , testPropStrictLazy "mapAccumWithKey" prop_strictMapAccumWithKey prop_lazyMapAccumWithKey
       , testPropStrictLazy "mapAccumRWithKey" prop_strictMapAccumRWithKey prop_lazyMapAccumRWithKey
       , testPropStrictLazy "mapKeysWith" prop_strictMapKeysWith prop_lazyMapKeysWith
+      , testPropStrictLazy "catMaybes" prop_strictCatMaybes prop_lazyCatMaybes
       , testPropStrictLazy "mapMaybe" prop_strictMapMaybe prop_lazyMapMaybe
       , testPropStrictLazy "mapMaybeWithKey" prop_strictMapMaybeWithKey prop_lazyMapMaybeWithKey
       , testPropStrictLazy "mapEither" prop_strictMapEither prop_lazyMapEither

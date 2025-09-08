@@ -252,6 +252,7 @@ module Data.IntMap.Strict (
     , dropWhileAntitone
     , spanAntitone
 
+    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
