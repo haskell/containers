@@ -246,6 +246,7 @@ module Data.Map.Strict.Internal
     , dropWhileAntitone
     , spanAntitone
 
+    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -1245,6 +1246,15 @@ mergeWithKey f g1 g2 = go
 {--------------------------------------------------------------------
   Filter and partition
 --------------------------------------------------------------------}
+
+-- | \(O(n)\). Remove 'Nothing's and retain the 'Just' values.
+--
+-- > catMaybes (fromList [(5,Just "a"), (3,Nothing)]) == singleton 5 "a"
+--
+-- @since FIXME
+
+catMaybes :: Map k (Maybe a) -> Map k a
+catMaybes = mapMaybe id
 
 -- | \(O(n)\). Map values and collect the 'Just' results.
 --
