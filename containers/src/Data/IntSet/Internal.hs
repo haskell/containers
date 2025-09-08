@@ -134,6 +134,8 @@ module Data.IntSet.Internal (
     , dropWhileAntitone
     , spanAntitone
 
+    , mapMaybe
+
     , split
     , splitMember
     , splitRoot
@@ -879,6 +881,18 @@ filter predicate t
   where bitPred kx bm bi | predicate (kx + bi) = bm .|. bitmapOfSuffix bi
                          | otherwise           = bm
         {-# INLINE bitPred #-}
+
+-- | \( O(n \log n) \). Map values and collect the 'Just' results.
+--
+-- If the function is monotonically non-decreasing or monotonically
+-- non-increasing, 'mapMaybe' takes \(O(n)\) time.
+--
+-- @since FIXME
+mapMaybe :: (Key -> Maybe Key) -> IntSet -> IntSet
+mapMaybe f t = finishB (foldl' go emptyB t)
+  where go b x = case f x of
+          Nothing -> b
+          Just x' -> insertB x' b
 
 -- | \(O(n)\). partition the set according to some predicate.
 partition :: (Key -> Bool) -> IntSet -> (IntSet,IntSet)

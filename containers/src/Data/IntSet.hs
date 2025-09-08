@@ -145,6 +145,8 @@ module Data.IntSet (
             , dropWhileAntitone
             , spanAntitone
 
+            , mapMaybe
+
             , split
             , splitMember
             , splitRoot
