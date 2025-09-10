@@ -439,12 +439,12 @@ deriving instance Lift a => Lift (IntMap a)
 #endif
 (!) m0 !k = go m0
   where
-    go (Bin p m l r) | nomatch k p m = not_found
-                     | zero k m  = go l
-                     | otherwise = go r
+    go (Bin p l r) | left k p  = go l
+                   | otherwise = go r
     go (Tip kx x) | k == kx   = x
                   | otherwise = not_found
     go Nil = not_found
+
     not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | \(O(\min(n,W))\). Find the value at a key.
