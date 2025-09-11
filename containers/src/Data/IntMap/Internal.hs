@@ -2422,11 +2422,7 @@ kvToTuple :: KeyValue a -> (Key, a)
 kvToTuple (KeyValue k x) = (k, x)
 {-# INLINE kvToTuple #-}
 
-#if __GLASGOW_HASKELL__ >= 800
-lookupMinSure :: HasCallStack => IntMap a -> KeyValue a
-#else
 lookupMinSure :: IntMap a -> KeyValue a
-#endif
 lookupMinSure (Tip k v)   = KeyValue k v
 lookupMinSure (Bin _ l _) = lookupMinSure l
 lookupMinSure Nil         = error "lookupMinSure Nil"
@@ -2451,11 +2447,7 @@ findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty map has no minimal element"
 
-#if __GLASGOW_HASKELL__ >= 800
-lookupMaxSure :: HasCallStack => IntMap a -> KeyValue a
-#else
 lookupMaxSure :: IntMap a -> KeyValue a
-#endif
 lookupMaxSure (Tip k v)   = KeyValue k v
 lookupMaxSure (Bin _ _ r) = lookupMaxSure r
 lookupMaxSure Nil         = error "lookupMaxSure Nil"
