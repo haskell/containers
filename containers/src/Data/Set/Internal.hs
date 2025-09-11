@@ -782,7 +782,7 @@ lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
 -- empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-#if MIN_VERSION_base(4,9,0)
+#if __GLASGOW_HASKELL__ >= 800
 findMin :: HasCallStack => Set a -> a
 #else
 findMin :: Set a -> a
