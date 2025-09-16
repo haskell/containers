@@ -882,7 +882,7 @@ filter predicate t
                          | otherwise           = bm
         {-# INLINE bitPred #-}
 
--- | \( O(n \log n) \). Map values and collect the 'Just' results.
+-- | \(O(n \min(n,W))\). Map elements and collect the 'Just' results.
 --
 -- If the function is monotonically non-decreasing or monotonically
 -- non-increasing, 'mapMaybe' takes \(O(n)\) time.

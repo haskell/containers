@@ -1000,13 +1000,14 @@ partition p0 t0 = toPair $ go p0 t0
   Maybes
 --------------------------------------------------------------------}
 
--- | \(O(n)\). Drop 'Nothing' if it's in the set, and retain the 'Just' values.
+-- | \(O(n)\). Drop 'Nothing' if it's in the set, and retain the 'Just'
+-- elements.
 --
 -- @since FIXME
 catMaybes :: Set (Maybe a) -> Set a
 catMaybes = mapMonotonic Maybe.fromJust . dropWhileAntitone Maybe.isNothing
 
--- | \(O(n \log n)\). Map values and collect the 'Just' results.
+-- | \(O(n \log n)\). Map elements and collect the 'Just' results.
 --
 -- If the function is monotonically non-decreasing, this function takes \(O(n)\)
 -- time.

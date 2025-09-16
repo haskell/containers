@@ -4202,13 +4202,13 @@ filter :: (a -> Bool) -> Seq a -> Seq a
 filter p = foldl' (\ xs x -> if p x then xs `snoc'` x else xs) empty
 
 -- | \( O(n) \). Take a sequence of 'Maybe's and return a sequence of all the
--- 'Just' values.
+-- 'Just' elements.
 --
 -- @since FIXME
 catMaybes :: Seq (Maybe a) -> Seq a
 catMaybes = mapMaybe id
 
--- | \( O(n) \). Map values and collect the 'Just' results.
+-- | \( O(n) \). Map elements and collect the 'Just' results.
 --
 -- @since FIXME
 mapMaybe :: (a -> Maybe b) -> Seq a -> Seq b
