@@ -1014,7 +1014,11 @@ catMaybes = mapMonotonic Maybe.fromJust . dropWhileAntitone Maybe.isNothing
 --
 -- @since FIXME
 mapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
-mapMaybe f = fromList . Maybe.mapMaybe f . toList
+mapMaybe f t = finishB (foldl' go emptyB t)
+  where go b x = case f x of
+          Nothing -> b
+          Just x' -> insertB x' b
+{-# INLINABLE mapMaybe #-}
 
 {----------------------------------------------------------------------
   Map
