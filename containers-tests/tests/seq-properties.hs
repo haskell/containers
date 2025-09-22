@@ -560,10 +560,9 @@ prop_catMaybes :: Seq (Maybe Int) -> Bool
 prop_catMaybes xs =
     toList' (catMaybes xs) ~= Maybe.catMaybes (toList xs)
 
-prop_mapMaybe :: Positive Int -> Seq Int -> Bool
-prop_mapMaybe (Positive n) xs =
-    toList' (mapMaybe f xs) ~= Maybe.mapMaybe f (toList xs)
-  where f x = if x `mod` n == 0 then Just x else Nothing
+prop_mapMaybe :: Fun Int (Maybe Int) -> Seq Int -> Bool
+prop_mapMaybe f xs =
+  toList' (mapMaybe (applyFun f) xs) ~= Maybe.mapMaybe (applyFun f) (toList xs)
 
 -- * Sorting
 

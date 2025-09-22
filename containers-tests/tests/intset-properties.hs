@@ -459,11 +459,11 @@ prop_filter s i =
      valid evens .&&.
      parts === (odds, evens)
 
-prop_mapMaybe :: IntSet -> Property
-prop_mapMaybe s =
-  let f n = if odd n then Just n else Nothing
-      odds = mapMaybe f s
-  in valid odds .&&. toList odds === Maybe.mapMaybe f (toList s)
+prop_mapMaybe :: Fun Int (Maybe Int) -> IntSet -> Property
+prop_mapMaybe f s =
+  let mapped = mapMaybe (applyFun f) s
+  in valid mapped .&&.
+     mapped === fromList (Maybe.mapMaybe (applyFun f) $ toList s)
 
 prop_takeWhileAntitone :: Int -> [Int] -> Property
 prop_takeWhileAntitone x ys =

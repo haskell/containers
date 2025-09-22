@@ -651,9 +651,11 @@ prop_catMaybes :: MaybeIntSet -> Bool
 prop_catMaybes (MaybeIntSet s) =
   toList (catMaybes s) == Maybe.catMaybes (toList s)
 
-prop_mapMaybe :: Set Int -> Bool
-prop_mapMaybe s = toList (mapMaybe f s) == Maybe.mapMaybe f (toList s)
-  where f n = if odd n then Just n else Nothing
+prop_mapMaybe :: Fun Int (Maybe Int) -> Set Int -> Property
+prop_mapMaybe f s =
+  let mapped = mapMaybe (applyFun f) s
+  in valid mapped .&&.
+     mapped === fromList (Maybe.mapMaybe (applyFun f) $ toList s)
 
 prop_take :: Int -> Set Int -> Property
 prop_take n xs = valid taken .&&.
