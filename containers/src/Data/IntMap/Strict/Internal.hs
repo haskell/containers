@@ -195,7 +195,6 @@ module Data.IntMap.Strict.Internal (
     , dropWhileAntitone
     , spanAntitone
 
-    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -990,14 +989,6 @@ mapKeysWith c f t =
 {--------------------------------------------------------------------
   Filter
 --------------------------------------------------------------------}
--- | \(O(n)\). Remove 'Nothing's and retain the 'Just' values.
---
--- > catMaybes (fromList [(5,Just "a"), (3,Nothing)]) == singleton 5 "a"
---
--- @since FIXME
-
-catMaybes :: IntMap (Maybe a) -> IntMap a
-catMaybes = mapMaybe id
 
 -- | \(O(n)\). Map values and collect the 'Just' results.
 --

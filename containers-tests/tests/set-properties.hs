@@ -99,7 +99,6 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
-                   , testProperty "prop_catMaybes" prop_catMaybes
                    , testProperty "prop_mapMaybe" prop_mapMaybe
                    , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -646,10 +645,6 @@ prop_partition s i = case partition odd s of
 
 prop_filter :: Set Int -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)
-
-prop_catMaybes :: MaybeIntSet -> Bool
-prop_catMaybes (MaybeIntSet s) =
-  toList (catMaybes s) == Maybe.catMaybes (toList s)
 
 prop_mapMaybe :: Fun Int (Maybe Int) -> Set Int -> Property
 prop_mapMaybe f s =

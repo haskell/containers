@@ -234,7 +234,6 @@ module Data.IntMap.Lazy (
     , dropWhileAntitone
     , spanAntitone
 
-    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither

@@ -18,7 +18,7 @@ import Control.Monad ((<=<))
 import qualified Data.Either as Either
 import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
-import Data.Maybe hiding (catMaybes, mapMaybe)
+import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Semigroup (Arg(..))
@@ -124,7 +124,6 @@ main = defaultMain $ testGroup "map-properties"
          , testCase "filterWithKey" test_filterWithKey
          , testCase "partition" test_partition
          , testCase "partitionWithKey" test_partitionWithKey
-         , testCase "catMaybes" test_catMaybes
          , testCase "mapMaybe" test_mapMaybe
          , testCase "mapMaybeWithKey" test_mapMaybeWithKey
          , testCase "mapEither" test_mapEither
@@ -297,7 +296,6 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "differenceWith"       prop_differenceWith
          , testProperty "differenceWithKey"    prop_differenceWithKey
          , testProperty "partitionWithKey"     prop_partitionWithKey
-         , testProperty "catMaybes"            prop_catMaybes
          , testProperty "mapMaybe"             prop_mapMaybe
          , testProperty "mapMaybeWithKey"      prop_mapMaybeWithKey
          , testProperty "traverseMaybeWithKey" prop_traverseMaybeWithKey
@@ -863,9 +861,6 @@ test_partitionWithKey = do
     partitionWithKey (\ k _ -> k > 3) (fromList [(5,"a"), (3,"b")]) @?= (singleton 5 "a", singleton 3 "b")
     partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (3,"b")]) @?= (fromList [(3, "b"), (5, "a")], empty)
     partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (3,"b")]) @?= (empty, fromList [(3, "b"), (5, "a")])
-
-test_catMaybes :: Assertion
-test_catMaybes = catMaybes (fromList [(5,Just "a"), (3,Nothing)]) @?= singleton 5 "a"
 
 test_mapMaybe :: Assertion
 test_mapMaybe = mapMaybe f (fromList [(5,"a"), (3,"b")]) @?= singleton 5 "new a"
@@ -1964,13 +1959,6 @@ prop_partitionWithKey f m =
   (toList m1, toList m2) === List.partition (applyFun f) (toList m)
   where
     (m1, m2) = partitionWithKey (applyFun2 f) m
-
-prop_catMaybes :: Map Int (Maybe A) -> Property
-prop_catMaybes m =
-  valid m' .&&.
-  toList m' === Maybe.mapMaybe (\(k,x) -> (,) k <$> x) (toList m)
-  where
-    m' = catMaybes m
 
 prop_mapMaybe :: Fun A (Maybe B) -> Map Int A -> Property
 prop_mapMaybe f m =

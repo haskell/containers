@@ -128,7 +128,6 @@ module Data.Sequence.Internal (
     breakr,         -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     partition,      -- :: (a -> Bool) -> Seq a -> (Seq a, Seq a)
     filter,         -- :: (a -> Bool) -> Seq a -> Seq a
-    catMaybes,      -- :: Seq (Maybe a) -> Seq a
     mapMaybe,       -- :: (a -> Maybe b) -> Seq a -> Seq b
     -- * Indexing
     lookup,         -- :: Int -> Seq a -> Maybe a
@@ -4200,13 +4199,6 @@ partition p = toPair . foldl' part (empty :*: empty)
 -- predicate.
 filter :: (a -> Bool) -> Seq a -> Seq a
 filter p = foldl' (\ xs x -> if p x then xs `snoc'` x else xs) empty
-
--- | \( O(n) \). Take a sequence of 'Maybe's and return a sequence of all the
--- 'Just' elements.
---
--- @since FIXME
-catMaybes :: Seq (Maybe a) -> Seq a
-catMaybes = mapMaybe id
 
 -- | \( O(n) \). Map elements and collect the 'Just' results.
 --

@@ -137,7 +137,6 @@ module Data.Set (
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
-            , catMaybes
             , mapMaybe
             , partition
             , split

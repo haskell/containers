@@ -247,7 +247,6 @@ module Data.Map.Lazy (
     , dropWhileAntitone
     , spanAntitone
 
-    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither

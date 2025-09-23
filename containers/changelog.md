@@ -7,8 +7,7 @@
 * Add `compareSize` for `IntSet` and `IntMap`. (Soumik Sarkar)
   ([#1135](https://github.com/haskell/containers/pull/1135))
 
-* Add `catMaybes` for `Seq`, `Set`, `Map` and `IntMap`; and `mapMaybe` for
-  `Seq`, `Set` and `IntSet`. (Phil Hazelden)
+* Add `mapMaybe` for `Seq`, `Set` and `IntSet`. (Phil Hazelden)
   ([#1159](https://github.com/haskell/containers/pull/1159)
 
 ### Performance improvements

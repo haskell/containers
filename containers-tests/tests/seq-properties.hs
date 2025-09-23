@@ -101,7 +101,6 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "breakr" prop_breakr
        , testProperty "partition" prop_partition
        , testProperty "filter" prop_filter
-       , testProperty "catMaybes" prop_catMaybes
        , testProperty "mapMaybe" prop_mapMaybe
        , testProperty "sort" prop_sort
        , testProperty "sortStable" prop_sortStable
@@ -555,10 +554,6 @@ prop_filter :: Positive Int -> Seq Int -> Bool
 prop_filter (Positive n) xs =
     toList' (filter p xs) ~= Prelude.filter p (toList xs)
   where p x = x `mod` n == 0
-
-prop_catMaybes :: Seq (Maybe Int) -> Bool
-prop_catMaybes xs =
-    toList' (catMaybes xs) ~= Maybe.catMaybes (toList xs)
 
 prop_mapMaybe :: Fun Int (Maybe Int) -> Seq Int -> Bool
 prop_mapMaybe f xs =

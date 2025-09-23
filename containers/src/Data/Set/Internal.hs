@@ -162,7 +162,6 @@ module Data.Set.Internal (
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
-            , catMaybes
             , mapMaybe
             , partition
             , split
@@ -241,7 +240,6 @@ import Data.Functor.Identity (Identity)
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.Maybe as Maybe
 
 import Utils.Containers.Internal.StrictPair
 import Utils.Containers.Internal.PtrEquality
@@ -999,13 +997,6 @@ partition p0 t0 = toPair $ go p0 t0
 {--------------------------------------------------------------------
   Maybes
 --------------------------------------------------------------------}
-
--- | \(O(n)\). Drop 'Nothing' if it's in the set, and retain the 'Just'
--- elements.
---
--- @since FIXME
-catMaybes :: Set (Maybe a) -> Set a
-catMaybes = mapMonotonic Maybe.fromJust . dropWhileAntitone Maybe.isNothing
 
 -- | \(O(n \log n)\). Map elements and collect the 'Just' results.
 --

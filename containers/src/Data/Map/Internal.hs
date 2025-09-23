@@ -304,7 +304,6 @@ module Data.Map.Internal (
     , partition
     , partitionWithKey
 
-    , catMaybes
     , mapMaybe
     , mapMaybeWithKey
     , mapEither
@@ -3114,15 +3113,6 @@ partitionWithKey p0 t0 = toPair $ go p0 t0
       where
         (l1 :*: l2) = go p l
         (r1 :*: r2) = go p r
-
--- | \(O(n)\). Remove 'Nothing's and retain the 'Just' values.
---
--- > catMaybes (fromList [(5,Just "a"), (3,Nothing)]) == singleton 5 "a"
---
--- @since FIXME
-
-catMaybes :: Map k (Maybe a) -> Map k a
-catMaybes = mapMaybe id
 
 -- | \(O(n)\). Map values and collect the 'Just' results.
 --

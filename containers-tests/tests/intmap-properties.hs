@@ -18,7 +18,7 @@ import Control.Monad ((<=<))
 import qualified Data.Either as Either
 import qualified Data.Foldable as Foldable
 import Data.Monoid
-import Data.Maybe hiding (catMaybes, mapMaybe)
+import Data.Maybe hiding (mapMaybe)
 import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Foldable (foldMap)
@@ -110,7 +110,6 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "filterWithKey" test_filterWithKey
              , testCase "partition" test_partition
              , testCase "partitionWithKey" test_partitionWithKey
-             , testCase "catMaybes" test_catMaybes
              , testCase "mapMaybe" test_mapMaybe
              , testCase "mapMaybeWithKey" test_mapMaybeWithKey
              , testCase "mapEither" test_mapEither
@@ -190,7 +189,6 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "filterKeys"           prop_filterKeys
              , testProperty "filterWithKey"        prop_filterWithKey
              , testProperty "partition"            prop_partition
-             , testProperty "catMaybes"            prop_catMaybes
              , testProperty "mapMaybe"             prop_mapMaybe
              , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
              , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -943,10 +941,6 @@ test_partitionWithKey = do
     partitionWithKey (\ k _ -> k < 7) (fromList [(5,"a"), (-3,"b")]) @?= (fromList [(-3, "b"), (5, "a")], empty)
     partitionWithKey (\ k _ -> k > 7) (fromList [(5,"a"), (-3,"b")]) @?= (empty, fromList [(-3, "b"), (5, "a")])
 
-test_catMaybes :: Assertion
-test_catMaybes = do
-    catMaybes (fromList [(5,Just "a"), (3,Nothing)])  @?= singleton 5 "a"
-
 test_mapMaybe :: Assertion
 test_mapMaybe = do
     mapMaybe f (fromList [(5,"a"), (3,"b")])  @?= singleton 5 "new a"
@@ -1558,13 +1552,6 @@ prop_filterWithKey fun m =
   valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
   where
     m' = filterWithKey (applyFun2 fun) m
-
-prop_catMaybes :: IntMap (Maybe A) -> Property
-prop_catMaybes m =
-  valid m' .&&.
-  toList m' === Maybe.mapMaybe (\(k,x) -> (,) k <$> x) (toList m)
-  where
-    m' = catMaybes m
 
 prop_mapMaybe :: Fun Int (Maybe Bool) -> IMap -> Property
 prop_mapMaybe f m =
