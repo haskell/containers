@@ -1136,7 +1136,7 @@ fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
 {-# INLINE fromListWith #-} -- Inline for list fusion
 
--- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
+-- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
 -- If the keys are in sorted order, ascending or descending, this function
 -- takes \(O(n)\) time.
@@ -1167,7 +1167,7 @@ fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
 {-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
--- the keys are in ascending order, with a combining function on equal keys.
+-- the keys are in ascending order, with a combining function for equal keys.
 --
 -- __Warning__: This function should be used only if the keys are in
 -- non-decreasing order. This precondition is not checked. Use 'fromListWith' if
@@ -1182,13 +1182,16 @@ fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
 {-# INLINE fromAscListWith #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
--- the keys are in ascending order, with a combining function on equal keys.
+-- the keys are in ascending order, with a combining function that receives
+-- the key for equal keys.
 --
 -- __Warning__: This function should be used only if the keys are in
 -- non-decreasing order. This precondition is not checked. Use 'fromListWithKey'
 -- if the precondition may not hold.
 --
--- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
+-- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
+-- > fromAscListWithKey f [(3,"b"), (3,"a"), (5,"a"), (5,"b"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
+-- > fromAscListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
 
