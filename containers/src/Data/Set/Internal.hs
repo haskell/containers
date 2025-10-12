@@ -252,10 +252,14 @@ import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
 import GHC.Exts ( build, lazy )
 import qualified GHC.Exts as GHCExts
 import Data.Data
-import Language.Haskell.TH.Syntax (Lift)
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift(..))
+#  else
+import Language.Haskell.TH.Syntax (Lift(..))
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
-import Data.Coerce (coerce)
+#  endif
+import Data.Coerce
 #endif
 
 
