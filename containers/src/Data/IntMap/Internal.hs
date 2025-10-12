@@ -358,9 +358,13 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex,
 import qualified Data.Data as Data
 import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift)
+#  else
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#  endif
 #endif
 #if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read
