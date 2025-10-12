@@ -42,7 +42,12 @@ Library
         base >= 4.10 && < 5
       , array >= 0.4.0.0
       , deepseq >= 1.4.3.0 && < 1.6
-    if impl(ghc)
+    -- template-haskell-lift was added as a boot library in GHC-9.14
+    -- once we no longer wish to backport releases to older major releases,
+    -- this conditional can be dropped
+    if impl(ghc >= 9.14)
+       build-depends: template-haskell-lift >= 0.1 && <0.2
+    elif impl(ghc)
        build-depends: template-haskell
     hs-source-dirs: src
     ghc-options: -O2 -Wall
