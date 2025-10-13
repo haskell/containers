@@ -243,32 +243,6 @@ instance IsInt a => Arbitrary (Set a) where
         put i'
         pure (fromInt i')
 
-newtype MaybeIntSet = MaybeIntSet (Set (Maybe Int)) deriving (Show)
-instance Arbitrary MaybeIntSet where
-  arbitrary = sized $ \sz0 -> do
-    sz <- choose (0, sz0)
-    middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
-    let shift = (sz * (gapRange) + 1) `quot` 2
-        start = middle - shift
-    hasNothing <- arbitrary
-    t <- evalStateT (mkArbSet (step start) sz)
-                    (if hasNothing then Nothing else Just start)
-    if valid t
-      then pure $ MaybeIntSet t
-      else error "Test generated invalid tree!"
-    where
-      step start = do
-        mi <- get
-        case mi of
-          Nothing -> do
-            put $ Just start
-            pure Nothing
-          Just i -> do
-            diff <- lift $ choose (1, gapRange)
-            let i' = i + diff
-            put $ Just i'
-            pure $ Just i'
-
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
 data TwoLists a = TwoLists [a] [a]

@@ -989,7 +989,6 @@ mapKeysWith c f t =
 {--------------------------------------------------------------------
   Filter
 --------------------------------------------------------------------}
-
 -- | \(O(n)\). Map values and collect the 'Just' results.
 --
 -- > let f x = if x == "a" then Just "new a" else Nothing
