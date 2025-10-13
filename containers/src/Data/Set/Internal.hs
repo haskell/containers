@@ -162,6 +162,7 @@ module Data.Set.Internal (
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
+            , mapMaybe
             , partition
             , split
             , splitMember
@@ -992,6 +993,23 @@ partition p0 t0 = toPair $ go p0 t0
                        (if l2 `ptrEq` l && r2 `ptrEq` r
                         then t
                         else link x l2 r2)
+
+{--------------------------------------------------------------------
+  Maybes
+--------------------------------------------------------------------}
+
+-- | \(O(n \log n)\). Map elements and collect the 'Just' results.
+--
+-- If the function is monotonically non-decreasing, this function takes \(O(n)\)
+-- time.
+--
+-- @since FIXME
+mapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
+mapMaybe f t = finishB (foldl' go emptyB t)
+  where go b x = case f x of
+          Nothing -> b
+          Just x' -> insertB x' b
+{-# INLINABLE mapMaybe #-}
 
 {----------------------------------------------------------------------
   Map

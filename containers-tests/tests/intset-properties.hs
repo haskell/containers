@@ -6,6 +6,7 @@ import Data.IntSet
 import Data.List (nub,sort)
 import qualified Data.List as List
 import Data.Maybe (listToMaybe)
+import qualified Data.Maybe as Maybe
 import Data.Monoid (mempty)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
@@ -79,6 +80,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "prop_mapMaybe" prop_mapMaybe
                    , testProperty "takeWhileAntitone" prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone" prop_dropWhileAntitone
                    , testProperty "spanAntitone" prop_spanAntitone
@@ -456,6 +458,12 @@ prop_filter s i =
   in valid odds .&&.
      valid evens .&&.
      parts === (odds, evens)
+
+prop_mapMaybe :: Fun Int (Maybe Int) -> IntSet -> Property
+prop_mapMaybe f s =
+  let mapped = mapMaybe (applyFun f) s
+  in valid mapped .&&.
+     mapped === fromList (Maybe.mapMaybe (applyFun f) $ toList s)
 
 prop_takeWhileAntitone :: Int -> [Int] -> Property
 prop_takeWhileAntitone x ys =

@@ -2,7 +2,8 @@
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
-import Data.Maybe
+import Data.Maybe (isJust, fromJust)
+import qualified Data.Maybe as Maybe
 import Data.Set
 import Data.Set.Internal (link, merge)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
@@ -98,6 +99,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "prop_mapMaybe" prop_mapMaybe
                    , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
                    , testProperty "spanAntitone"         prop_spanAntitone
@@ -617,6 +619,12 @@ prop_partition s i = case partition odd s of
 
 prop_filter :: Set Int -> Int -> Bool
 prop_filter s i = partition odd s == (filter odd s, filter even s)
+
+prop_mapMaybe :: Fun Int (Maybe Int) -> Set Int -> Property
+prop_mapMaybe f s =
+  let mapped = mapMaybe (applyFun f) s
+  in valid mapped .&&.
+     mapped === fromList (Maybe.mapMaybe (applyFun f) $ toList s)
 
 prop_take :: Int -> Set Int -> Property
 prop_take n xs = valid taken .&&.

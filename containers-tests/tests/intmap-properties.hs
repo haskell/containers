@@ -189,6 +189,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "filterKeys"           prop_filterKeys
              , testProperty "filterWithKey"        prop_filterWithKey
              , testProperty "partition"            prop_partition
+             , testProperty "mapMaybe"             prop_mapMaybe
              , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
              , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
              , testProperty "spanAntitone"         prop_spanAntitone
@@ -1551,6 +1552,13 @@ prop_filterWithKey fun m =
   valid m' .&&. toList m' === Prelude.filter (apply fun) (toList m)
   where
     m' = filterWithKey (applyFun2 fun) m
+
+prop_mapMaybe :: Fun Int (Maybe Bool) -> IMap -> Property
+prop_mapMaybe f m =
+  valid m' .&&.
+  toList m' === Maybe.mapMaybe (\(k,x) -> (,) k <$> applyFun f x) (toList m)
+  where
+    m' = mapMaybe (applyFun f) m
 
 prop_partition :: Fun Int Bool -> [(Int, Int)] -> Property
 prop_partition p ys = length ys > 0 ==>

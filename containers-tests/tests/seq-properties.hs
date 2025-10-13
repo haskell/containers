@@ -24,7 +24,8 @@ import Data.Array (listArray)
 import Data.Coerce (coerce)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
-import Data.Maybe
+import Data.Maybe (listToMaybe)
+import qualified Data.Maybe as Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Semigroup (stimes, stimesMonoid)
@@ -100,6 +101,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "breakr" prop_breakr
        , testProperty "partition" prop_partition
        , testProperty "filter" prop_filter
+       , testProperty "mapMaybe" prop_mapMaybe
        , testProperty "sort" prop_sort
        , testProperty "sortStable" prop_sortStable
        , testProperty "sortBy" prop_sortBy
@@ -552,6 +554,10 @@ prop_filter :: Positive Int -> Seq Int -> Bool
 prop_filter (Positive n) xs =
     toList' (filter p xs) ~= Prelude.filter p (toList xs)
   where p x = x `mod` n == 0
+
+prop_mapMaybe :: Fun Int (Maybe Int) -> Seq Int -> Bool
+prop_mapMaybe f xs =
+  toList' (mapMaybe (applyFun f) xs) ~= Maybe.mapMaybe (applyFun f) (toList xs)
 
 -- * Sorting
 
