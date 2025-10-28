@@ -421,9 +421,7 @@ import Utils.Containers.Internal.StrictPair
 import Data.Coerce
 #endif
 
-#ifdef __GLASGOW_HASKELL__
 import Data.Functor.Identity (Identity (..))
-#endif
 
 import qualified Data.Foldable as Foldable
 
