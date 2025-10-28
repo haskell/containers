@@ -106,6 +106,7 @@ module Data.Map.Lazy (
     , empty
     , singleton
     , fromSet
+    , fromSetA
     , fromArgSet
 
     -- ** From Unordered Lists

@@ -214,6 +214,7 @@ module Data.Map.Strict.Internal
     , keysSet
     , argSet
     , fromSet
+    , fromSetA
     , fromArgSet
 
     -- ** Lists
@@ -1455,8 +1456,25 @@ mapKeysWith c f m =
 -- > fromSet undefined Data.Set.empty == empty
 
 fromSet :: (k -> a) -> Set.Set k -> Map k a
-fromSet _ Set.Tip = Tip
-fromSet f (Set.Bin sz x l r) = case f x of v -> v `seq` Bin sz x v (fromSet f l) (fromSet f r)
+fromSet f = runIdentity . fromSetA f'
+  where
+  f' k = let fk = f k in fk `seq` pure fk
+
+-- | \(O(n)\). Build a map from a set of keys and a function which for each key
+-- computes its value in an 'Applicative' context.
+--
+-- This can only be as strict as the 'Applicative' allows it to be.
+--
+-- > fromSetA (\k -> pure $ replicate k 'a') (Data.Set.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
+-- > fromSetA undefined Data.Set.empty == pure empty
+
+fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
+fromSetA _ Set.Tip = pure Tip
+fromSetA f (Set.Bin sz x l r) = 
+  (Bin sz x $!)
+    <$> f x
+    <*> fromSetA f l
+    <*> fromSetA f r
 
 -- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
 --

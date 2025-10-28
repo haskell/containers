@@ -64,6 +64,7 @@ module Data.IntMap.Strict.Internal (
     , empty
     , singleton
     , fromSet
+    , fromSetA
 
     -- ** From Unordered Lists
     , fromList
@@ -330,6 +331,7 @@ import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
 import Utils.Containers.Internal.StrictPair
 import qualified Data.Foldable as Foldable
+import Data.Functor.Identity (Identity (..))
 
 {--------------------------------------------------------------------
   Construction
@@ -1056,25 +1058,43 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > fromSet undefined Data.IntSet.empty == empty
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
-fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p l r) = Bin p (fromSet f l) (fromSet f r)
-fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
-  where -- This is slightly complicated, as we to convert the dense
-        -- representation of IntSet into tree representation of IntMap.
-        --
-        -- We are given a nonzero bit mask 'bmask' of 'bits' bits with prefix 'prefix'.
-        -- We split bmask into halves corresponding to left and right subtree.
-        -- If they are both nonempty, we create a Bin node, otherwise exactly
-        -- one of them is nonempty and we construct the IntMap from that half.
-        buildTree g !prefix !bmask bits = case bits of
-          0 -> Tip prefix $! g prefix
-          _ -> case bits `iShiftRL` 1 of
-                 bits2 | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-                           buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
-                       | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-                           buildTree g prefix bmask bits2
-                       | otherwise ->
-                           Bin (Prefix (prefix .|. bits2)) (buildTree g prefix bmask bits2) (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+fromSet f = runIdentity . fromSetA f'
+  where
+  f' k = let fk = f k in fk `seq` pure fk
+
+-- | \(O(n)\). Build a map from a set of keys and a function which for each key
+-- computes its value, while within an 'Applicative' context.
+--
+-- This can only be as strict as the 'Applicative' allows it to be.
+--
+-- > fromSetA (\k -> pure $ replicate k 'a') (Data.IntSet.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
+-- > fromSetA undefined Data.IntSet.empty == pure empty
+
+fromSetA :: Applicative f => (Key -> f a) -> IntSet.IntSet -> f (IntMap a)
+fromSetA _ IntSet.Nil = pure Nil
+fromSetA f (IntSet.Bin p l r) = liftA2 (Bin p) (fromSetA f l) (fromSetA f r)
+fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
+  where
+    -- This is slightly complicated, as we to convert the dense
+    -- representation of IntSet into tree representation of IntMap.
+    --
+    -- We are given a nonzero bit mask 'bmask' of 'bits' bits with prefix 'prefix'.
+    -- We split bmask into halves corresponding to left and right subtree.
+    -- If they are both nonempty, we create a Bin node, otherwise exactly
+    -- one of them is nonempty and we construct the IntMap from that half.
+    buildTree g !prefix !bmask bits = case bits of
+      0 -> (Tip prefix $!) <$> g prefix
+      _ -> case bits `iShiftRL` 1 of
+        bits2
+          | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+              buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
+          | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
+              buildTree g prefix bmask bits2
+          | otherwise ->
+              liftA2
+                (Bin (Prefix (prefix .|. bits2)))
+                  (buildTree g prefix bmask bits2)
+                  (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
 
 {--------------------------------------------------------------------
   Lists
