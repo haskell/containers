@@ -15,6 +15,7 @@ import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
+import Data.Tuple.Solo (Solo (MkSolo), getSolo)
 import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
 
@@ -130,6 +131,10 @@ main = do
         , bench "fromDistinctDescList" $ whnf M.fromDistinctDescList elems_distinct_desc
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> M.fromDistinctDescList [(i,i) | i <- [n,n-1..1]]) bound
         , bench "fromSet" $ whnf (M.fromSet pred) s_random
+        , bench "Lazy.fromSetA outer" $ whnf (M.fromSetA (MkSolo . pred)) s_random
+        , bench "Strict.fromSetA outer" $ whnf (MS.fromSetA (MkSolo . pred)) s_random
+        , bench "Lazy.fromSetA inner" $ whnf (getSolo . M.fromSetA (MkSolo . pred)) s_random
+        , bench "Strict.fromSetA inner" $ whnf (getSolo . MS.fromSetA (MkSolo . pred)) s_random
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything

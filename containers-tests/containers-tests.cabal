@@ -59,6 +59,7 @@ common benchmark-deps
   build-depends:
       containers-tests
     , deepseq           >=1.1.0.0 && <1.6
+    , OneTuple
     , tasty-bench       >=0.3.1   && <0.5
 
   -- Flags recommended by tasty-bench
