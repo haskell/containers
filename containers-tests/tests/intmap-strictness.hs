@@ -17,10 +17,10 @@ import Data.Ord (comparing)
 import Test.ChasingBottoms.IsBottom
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
+import Data.Tuple.Solo (Solo (MkSolo), getSolo)
 import Test.QuickCheck
 import Test.QuickCheck.Poly (A, B, C)
 import Test.QuickCheck.Function (apply)
-import Data.Tuple (Solo (..), getSolo)
 
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet

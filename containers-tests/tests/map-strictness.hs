@@ -15,13 +15,13 @@ import qualified Data.List.NonEmpty as NE
 import Data.Ord (Down(..), comparing)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Semigroup (Arg(..))
+import Data.Tuple.Solo (Solo (MkSolo), getSolo)
 import Test.ChasingBottoms.IsBottom (bottom, isBottom)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Function
 import Test.QuickCheck.Poly (A, B, C, OrdA, OrdB)
-import Data.Tuple (Solo (..), getSolo)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
