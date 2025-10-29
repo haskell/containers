@@ -3536,7 +3536,11 @@ argSet (Bin sz kx x l r) = Set.Bin sz (Arg kx x) (argSet l) (argSet r)
 -- > fromSet undefined Data.Set.empty == empty
 
 fromSet :: (k -> a) -> Set.Set k -> Map k a
+#ifdef __GLASGOW_HASKELL__
+fromSet f = runIdentity . fromSetA (coerce f)
+#else
 fromSet f = runIdentity . fromSetA (pure . f)
+#endif
 
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value in an 'Applicative' context.

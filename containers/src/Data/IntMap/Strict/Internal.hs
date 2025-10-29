@@ -333,6 +333,10 @@ import Utils.Containers.Internal.StrictPair
 import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity (..))
 
+#ifdef __GLASGOW_HASKELL__
+import Data.Coerce
+#endif
+
 {--------------------------------------------------------------------
   Construction
 --------------------------------------------------------------------}
@@ -1058,7 +1062,11 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > fromSet undefined Data.IntSet.empty == empty
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
+#ifdef __GLASGOW_HASKELL__
+fromSet f = runIdentity . fromSetA (coerce f)
+#else
 fromSet f = runIdentity . fromSetA (pure . f)
+#endif
 
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value, while within an 'Applicative' context.

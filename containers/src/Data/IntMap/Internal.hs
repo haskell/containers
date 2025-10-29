@@ -3310,7 +3310,11 @@ keysSet (Bin p l r)
 -- > fromSet undefined Data.IntSet.empty == empty
 
 fromSet :: (Key -> a) -> IntSet -> IntMap a
+#ifdef __GLASGOW_HASKELL__
+fromSet f = runIdentity . fromSetA (coerce f)
+#else
 fromSet f = runIdentity . fromSetA (pure . f)
+#endif
 
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value, while within an 'Applicative' context.
