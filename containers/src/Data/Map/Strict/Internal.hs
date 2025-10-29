@@ -1467,6 +1467,17 @@ fromSet f = runIdentity . fromSetA (pure . f)
 --
 -- > fromSetA (\k -> pure $ replicate k 'a') (Data.Set.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
 -- > fromSetA undefined Data.Set.empty == pure empty
+--
+-- The following strictness properties hold:
+--
+-- > fromSetA f = fmap forceValues . Data.Map.Lazy.fromSetA f
+-- >   where
+-- >     forceValues xs = foldr (\ !_ r -> r) () xs `seq` xs
+--
+-- > fromSetA f =
+-- >   fmap getSolo .
+-- >   getCompose .
+-- >   Data.Map.Lazy.fromSetA (Compose . fmap (MkSolo $!) . f)
 
 fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
