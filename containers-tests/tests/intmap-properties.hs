@@ -1700,13 +1700,13 @@ prop_keysSet keys =
 
 prop_fromSet :: [Int] -> Fun Int A -> Property
 prop_fromSet keys funF =
-  let f = applyFun funF
+  let f = apply funF
   in fromSet f (IntSet.fromList keys) === fromList (fmap (id &&& f) keys)
 
 prop_fromSetA_action_order :: [Int] -> Fun Int A -> Property
 prop_fromSetA_action_order keys funF =
   let iSet = IntSet.fromList keys
-      f = applyFun funF
+      f = apply funF
       action = \k ->
         let v = f k
         in tell [v] $> v

@@ -1722,13 +1722,13 @@ prop_argSet xs =
 
 prop_fromSet :: [OrdA] -> Fun OrdA B -> Property
 prop_fromSet keys funF =
-  let f = applyFun funF
+  let f = apply funF
   in fromSet f (Set.fromList keys) === fromList (fmap (id &&& f) keys)
 
 prop_fromSetA_action_order :: [OrdA] -> Fun OrdA B -> Property
 prop_fromSetA_action_order keys funF =
   let iSet = Set.fromList keys
-      f = applyFun funF
+      f = apply funF
       action = \k ->
         let v = f k
         in tell [v] $> v
