@@ -1454,9 +1454,7 @@ mapKeysWith c f m =
 -- > fromSet undefined Data.Set.empty == empty
 
 fromSet :: (k -> a) -> Set.Set k -> Map k a
-fromSet f = runIdentity . fromSetA f'
-  where
-  f' k = let fk = f k in fk `seq` pure fk
+fromSet f = runIdentity . fromSetA (pure . f)
 
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value in an 'Applicative' context.

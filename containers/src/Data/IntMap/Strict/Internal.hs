@@ -1058,9 +1058,7 @@ mapEitherWithKey f0 t0 = toPair $ go f0 t0
 -- > fromSet undefined Data.IntSet.empty == empty
 
 fromSet :: (Key -> a) -> IntSet.IntSet -> IntMap a
-fromSet f = runIdentity . fromSetA f'
-  where
-  f' k = let fk = f k in fk `seq` pure fk
+fromSet f = runIdentity . fromSetA (pure . f)
 
 -- | \(O(n)\). Build a map from a set of keys and a function which for each key
 -- computes its value, while within an 'Applicative' context.
