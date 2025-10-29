@@ -8,8 +8,9 @@ import Data.Bifunctor (bimap)
 import Data.Coerce (coerce)
 import Data.Either (partitionEithers)
 import qualified Data.Foldable as F
-import Data.Functor.Identity (Identity(..))
 import Data.Function (on)
+import Data.Functor.Compose
+import Data.Functor.Identity (Identity(..))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
@@ -85,7 +86,19 @@ prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
 prop_lazyFromSetA :: Func Key (Bot A) -> IntSet -> Property
 prop_lazyFromSetA fun set = isNotBottomProp (getSolo (L.fromSetA f set))
   where
-    f = MkSolo . applyFunc fun
+  f = MkSolo . applyFunc fun
+
+prop_fromSetA_equiv_strictness :: Func Int (Bot A) -> IntSet -> Property
+prop_fromSetA_equiv_strictness fun set =
+  -- strict fromSetA is the same as lazy and then forcing
+  bottomOn (M.fromSetA f set) (fmap forceValues (L.fromSetA f set)) .&&.
+  -- strict fromSetA is the same as lazy fromSetA composed with strictly applied
+  -- wrapper
+  bottomOn (M.fromSetA f set) (fmap getSolo . getCompose $ L.fromSetA (Compose . fmap (MkSolo $!) . f) set)
+  where
+  forceValues xs = foldr (\ !_ r -> r) () xs `seq` xs
+  bottomOn = on (===) (isBottom . getSolo)
+  f = MkSolo . applyFunc fun
 
 prop_strictFromList :: [(Key, Bot A)] -> Property
 prop_strictFromList kvs =
@@ -1028,6 +1041,7 @@ tests =
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton
       , testPropStrictLazy "fromSet" prop_strictFromSet prop_lazyFromSet
       , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
+      , testProperty       "fromSetA equivalences" prop_fromSetA_equiv_strictness
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
       , testPropStrictLazy "fromListWithKey" prop_strictFromListWithKey prop_lazyFromListWithKey
