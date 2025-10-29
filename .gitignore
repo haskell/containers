@@ -24,3 +24,5 @@ cabal.project.local
 /benchmarks/SetOperations/bench-*
 /result
 /TAGS
+
+benchmark_tmp
