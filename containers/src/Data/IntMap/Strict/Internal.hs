@@ -1070,7 +1070,9 @@ fromSet f = runIdentity . fromSetA (pure . f)
 
 fromSetA :: Applicative f => (Key -> f a) -> IntSet.IntSet -> f (IntMap a)
 fromSetA _ IntSet.Nil = pure Nil
-fromSetA f (IntSet.Bin p l r) = liftA2 (Bin p) (fromSetA f l) (fromSetA f r)
+fromSetA f (IntSet.Bin p l r)
+  | signBranch p = liftA2 (flip (Bin p)) (fromSetA f r) (fromSetA f l)
+  | otherwise = liftA2 (Bin p) (fromSetA f l) (fromSetA f r)
 fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where
     -- This is slightly complicated, as we to convert the dense
