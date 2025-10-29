@@ -10,10 +10,12 @@
 **/dist-newstyle/*
 GNUmakefile
 dist-install
+dist-mcabal
 ghc.mk
 .stack-work
 .cabal-sandbox/
 cabal.sandbox.config
+cabal.project.local
 /benchmarks/bench-Map
 /benchmarks/bench-Set
 /benchmarks/bench-IntSet
