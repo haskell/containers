@@ -73,9 +73,9 @@ prop_strictFromSet fun set =
 
 prop_strictFromSetA :: Func Key (Bot A) -> IntSet -> Property
 prop_strictFromSetA fun set =
-  isBottom (getSolo (M.fromSetA f set)) === any (isBottom . getSolo . f) (IntSet.toList set)
+  isBottom (getSolo (M.fromSetA (MkSolo . f) set)) === any (isBottom . f) (IntSet.toList set)
   where
-    f = MkSolo . applyFunc fun
+    f = applyFunc fun
 
 prop_lazyFromSet :: Func Key (Bot A) -> IntSet -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)

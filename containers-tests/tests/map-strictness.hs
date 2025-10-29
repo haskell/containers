@@ -137,9 +137,9 @@ prop_strictFromSet fun set =
 
 prop_strictFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromSetA fun set =
-  isBottom (getSolo (M.fromSetA f set)) === any (isBottom . getSolo . f) (Set.toList set)
+  isBottom (getSolo (M.fromSetA (MkSolo . f) set)) === any (isBottom . f) (Set.toList set)
   where
-    f = MkSolo . applyFunc fun
+    f = applyFunc fun
 
 prop_lazyFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
