@@ -133,23 +133,23 @@ prop_strictFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromSet fun set =
   isBottom (M.fromSet f set) === any (isBottom . f) (Set.toList set)
   where
-    f = coerce (applyFunc fun) :: OrdA -> A
+    f = applyFunc fun
 
 prop_strictFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromSetA fun set =
   isBottom (getSolo (M.fromSetA f set)) === any (isBottom . getSolo . f) (Set.toList set)
   where
-    f = MkSolo . coerce (applyFunc fun) :: OrdA -> Solo A
+    f = MkSolo . applyFunc fun
 
 prop_lazyFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
   where
-    f = coerce (applyFunc fun) :: OrdA -> A
+    f = applyFunc fun
 
 prop_lazyFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_lazyFromSetA fun set = isNotBottomProp (getSolo (L.fromSetA f set))
   where
-    f = MkSolo . coerce (applyFunc fun) :: OrdA -> Solo A
+    f = MkSolo . applyFunc fun
 
 prop_strictFromArgSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromArgSet fun set =
