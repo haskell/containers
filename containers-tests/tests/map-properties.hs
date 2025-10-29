@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
@@ -11,6 +12,7 @@ import Data.Map.Internal (Map, link2, link)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>), (<|>))
+import Control.Arrow ((&&&))
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer.Lazy
@@ -1710,34 +1712,31 @@ prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c'
     cv' = curry (apply cv)
     acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 
-prop_keysSet :: [(Int, Int)] -> Bool
-prop_keysSet xs =
-  keysSet (fromList xs) == Set.fromList (List.map fst xs)
+prop_keysSet :: [OrdA] -> Property
+prop_keysSet keys =
+  keysSet (fromList (fmap (, ()) keys)) === Set.fromList keys
 
-prop_argSet :: [(Int, Int)] -> Bool
+prop_argSet :: [(OrdA, B)] -> Property
 prop_argSet xs =
-  argSet (fromList xs) == Set.fromList (List.map (uncurry Arg) xs)
+  argSet (fromList xs) === Set.fromList (List.map (uncurry Arg) xs)
 
-prop_fromSet :: [(Int, Int)] -> Bool
-prop_fromSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (Set.fromList $ List.map fst xs) == fromList xs
+prop_fromSet :: [OrdA] -> Fun OrdA B -> Property
+prop_fromSet keys funF =
+  let f = applyFun funF
+  in fromSet f (Set.fromList keys) === fromList (fmap (id &&& f) keys)
 
-prop_fromSetA_action_order :: [(Int, Int)] -> Bool
-prop_fromSetA_action_order ys =
-  let oSet = Set.fromList (fst <$> ys)
-      lookupYs = List.nubBy ((==) `on` fst) ys
-      doLookup k = fromJust $ List.lookup k lookupYs
+prop_fromSetA_action_order :: [OrdA] -> Fun OrdA B -> Property
+prop_fromSetA_action_order keys funF =
+  let iSet = Set.fromList keys
+      f = applyFun funF
       action = \k ->
-        let v = doLookup k
+        let v = f k
         in tell [v] $> v
-      xs = Set.toList oSet
-  in execWriter (fromSetA action oSet) == List.map doLookup xs
+  in execWriter (fromSetA action iSet) === List.map f (Set.toList iSet)
 
-prop_fromArgSet :: [(Int, Int)] -> Bool
+prop_fromArgSet :: [(OrdA, B)] -> Property
 prop_fromArgSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs
+  fromArgSet (Set.fromList $ List.map (uncurry Arg) ys) === fromList ys
 
 prop_eq :: Map Int A -> Map Int A -> Property
 prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)
