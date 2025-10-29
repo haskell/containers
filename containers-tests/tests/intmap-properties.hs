@@ -15,6 +15,7 @@ import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
 import Control.Monad ((<=<))
+import Control.Monad.Trans.Writer.Lazy
 import qualified Data.Either as Either
 import qualified Data.Foldable as Foldable
 import Data.Monoid
@@ -23,6 +24,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
+import Data.Functor
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
 import qualified Prelude (map, filter)
@@ -212,6 +214,7 @@ main = defaultMain $ testGroup "intmap-properties"
                  prop_FoldableTraversableCompat
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
+             , testProperty "fromSetA eval order"  prop_fromSetA_action_order
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
              , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
@@ -1697,6 +1700,17 @@ prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+
+prop_fromSetA_action_order :: [(Int, Int)] -> Bool
+prop_fromSetA_action_order ys =
+  let iSet = IntSet.fromList (fst <$> ys)
+      lookupYs = List.nubBy ((==) `on` fst) ys
+      doLookup k = fromJust $ List.lookup k lookupYs
+      action = \k ->
+        let v = doLookup k
+        in tell [v] $> v
+      xs = IntSet.toList iSet
+  in execWriter (fromSetA action iSet) == List.map doLookup xs
 
 newtype Identity a = Identity a
     deriving (Eq, Show)

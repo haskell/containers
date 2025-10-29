@@ -23,6 +23,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Semigroup (Arg(..))
 import Data.Function
+import Data.Functor
 import qualified Data.Foldable as Foldable
 import qualified Data.Bifoldable as Bifoldable
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt)
@@ -256,6 +257,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "keysSet"              prop_keysSet
          , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
+         , testProperty "fromSetA eval order"  prop_fromSetA_action_order
          , testProperty "fromArgSet"           prop_fromArgSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -1720,6 +1722,17 @@ prop_fromSet :: [(Int, Int)] -> Bool
 prop_fromSet ys =
   let xs = List.nubBy ((==) `on` fst) ys
   in fromSet (\k -> fromJust $ List.lookup k xs) (Set.fromList $ List.map fst xs) == fromList xs
+
+prop_fromSetA_action_order :: [(Int, Int)] -> Bool
+prop_fromSetA_action_order ys =
+  let oSet = Set.fromList (fst <$> ys)
+      lookupYs = List.nubBy ((==) `on` fst) ys
+      doLookup k = fromJust $ List.lookup k lookupYs
+      action = \k ->
+        let v = doLookup k
+        in tell [v] $> v
+      xs = Set.toList oSet
+  in execWriter (fromSetA action oSet) == List.map doLookup xs
 
 prop_fromArgSet :: [(Int, Int)] -> Bool
 prop_fromArgSet ys =
