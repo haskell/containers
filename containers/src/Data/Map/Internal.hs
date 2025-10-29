@@ -3551,9 +3551,9 @@ fromSet f = runIdentity . fromSetA (pure . f)
 fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
 fromSetA f (Set.Bin sz x l r) =
-  Bin sz x
-    <$> f x
-    <*> fromSetA f l
+  flip (Bin sz x)
+    <$> fromSetA f l
+    <*> f x
     <*> fromSetA f r
 
 -- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
