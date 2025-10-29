@@ -20,6 +20,7 @@ import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Poly (A, B, C)
 import Test.QuickCheck.Function (apply)
+import Data.Tuple (Solo (..), getSolo)
 
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
@@ -70,10 +71,21 @@ prop_strictFromSet fun set =
   where
     f = coerce (applyFunc fun) :: Key -> A
 
+prop_strictFromSetA :: Func Key (Bot A) -> IntSet -> Property
+prop_strictFromSetA fun set =
+  isBottom (getSolo (M.fromSetA f set)) === any (isBottom . getSolo . f) (IntSet.toList set)
+  where
+    f = MkSolo . coerce (applyFunc fun) :: Key -> Solo A
+
 prop_lazyFromSet :: Func Key (Bot A) -> IntSet -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
   where
     f = coerce (applyFunc fun) :: Key -> A
+
+prop_lazyFromSetA :: Func Key (Bot A) -> IntSet -> Property
+prop_lazyFromSetA fun set = isNotBottomProp (getSolo (L.fromSetA f set))
+  where
+    f = MkSolo . coerce (applyFunc fun) :: Key -> Solo A
 
 prop_strictFromList :: [(Key, Bot A)] -> Property
 prop_strictFromList kvs =
@@ -1015,6 +1027,7 @@ tests =
     , testGroup "Construction"
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton
       , testPropStrictLazy "fromSet" prop_strictFromSet prop_lazyFromSet
+      , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
       , testPropStrictLazy "fromListWithKey" prop_strictFromListWithKey prop_lazyFromListWithKey

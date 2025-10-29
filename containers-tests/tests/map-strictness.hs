@@ -21,6 +21,7 @@ import Test.Tasty.QuickCheck (testProperty)
 import Test.QuickCheck
 import Test.QuickCheck.Function
 import Test.QuickCheck.Poly (A, B, C, OrdA, OrdB)
+import Data.Tuple (Solo (..), getSolo)
 
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
@@ -134,10 +135,21 @@ prop_strictFromSet fun set =
   where
     f = coerce (applyFunc fun) :: OrdA -> A
 
+prop_strictFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
+prop_strictFromSetA fun set =
+  isBottom (getSolo (M.fromSetA f set)) === any (isBottom . getSolo . f) (Set.toList set)
+  where
+    f = MkSolo . coerce (applyFunc fun) :: OrdA -> Solo A
+
 prop_lazyFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
   where
     f = coerce (applyFunc fun) :: OrdA -> A
+
+prop_lazyFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
+prop_lazyFromSetA fun set = isNotBottomProp (getSolo (L.fromSetA f set))
+  where
+    f = MkSolo . coerce (applyFunc fun) :: OrdA -> Solo A
 
 prop_strictFromArgSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromArgSet fun set =
@@ -1153,6 +1165,7 @@ tests =
     , testGroup "Construction"
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton
       , testPropStrictLazy "fromSet" prop_strictFromSet prop_lazyFromSet
+      , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
       , testPropStrictLazy "fromArgSet" prop_strictFromArgSet prop_lazyFromArgSet
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
