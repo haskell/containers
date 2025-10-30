@@ -161,7 +161,7 @@ prop_fromSetA_equiv_strictness fun set =
   bottomOn (M.fromSetA f set) (fmap getSolo . getCompose $ L.fromSetA (Compose . fmap (MkSolo $!) . f) set)
   where
   forceValues xs = foldr (\ !_ r -> r) () xs `seq` xs
-  bottomOn = on (===) (isBottom . getSolo)
+  bottomOn = (===) `on` isBottom . getSolo
   f = MkSolo . applyFunc fun
 
 prop_strictFromArgSet :: Func OrdA (Bot A) -> Set OrdA -> Property
