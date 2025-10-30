@@ -147,7 +147,7 @@ main = do
         , bench "mapKeysWith:desc" $ whnf (M.mapKeysWith (+) (negate . (`div` 2))) m
         ]
   where
-    bound = 2^12
+    bound = 2^14
     elems = shuffle elems_distinct_asc
     elems_even = zip evens evens
     elems_odd = zip odds odds
