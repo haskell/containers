@@ -3350,6 +3350,11 @@ fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
                 (Bin (Prefix (prefix .|. bits2)))
                   (buildTree g prefix bmask bits2)
                   (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromSetA #-}
+#else
+{-# INLINE fromSetA #-}
+#endif
 
 {--------------------------------------------------------------------
   Lists

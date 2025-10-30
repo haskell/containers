@@ -3555,6 +3555,11 @@ fromSetA f (Set.Bin sz x l r) =
     <$> fromSetA f l
     <*> f x
     <*> fromSetA f r
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromSetA #-}
+#else
+{-# INLINE fromSetA #-}
+#endif
 
 -- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
 --
