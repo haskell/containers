@@ -109,6 +109,8 @@ module Data.IntMap.Internal (
     -- * Construction
     , empty
     , singleton
+    , fromSet
+    , fromSetA
 
     -- ** Insertion
     , insert
@@ -221,7 +223,6 @@ module Data.IntMap.Internal (
     , keys
     , assocs
     , keysSet
-    , fromSet
 
     -- ** Lists
     , toList
@@ -3309,9 +3310,24 @@ keysSet (Bin p l r)
 -- > fromSet undefined Data.IntSet.empty == empty
 
 fromSet :: (Key -> a) -> IntSet -> IntMap a
-fromSet _ IntSet.Nil = Nil
-fromSet f (IntSet.Bin p l r) = Bin p (fromSet f l) (fromSet f r)
-fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
+#ifdef __GLASGOW_HASKELL__
+fromSet f = runIdentity . fromSetA (coerce f)
+#else
+fromSet f = runIdentity . fromSetA (pure . f)
+#endif
+
+-- | \(O(n)\). Build a map from a set of keys and a function which for each key
+-- computes its value, while within an 'Applicative' context.
+--
+-- > fromSetA (\k -> pure $ replicate k 'a') (Data.IntSet.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
+-- > fromSetA undefined Data.IntSet.empty == pure empty
+
+fromSetA :: Applicative f => (Key -> f a) -> IntSet -> f (IntMap a)
+fromSetA _ IntSet.Nil = pure Nil
+fromSetA f (IntSet.Bin p l r)
+  | signBranch p = liftA2 (flip (Bin p)) (fromSetA f r) (fromSetA f l)
+  | otherwise = liftA2 (Bin p) (fromSetA f l) (fromSetA f r)
+fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
   where
     -- This is slightly complicated, as we to convert the dense
     -- representation of IntSet into tree representation of IntMap.
@@ -3322,7 +3338,7 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
     -- create a Bin node, otherwise exactly one of them is nonempty
     -- and we construct the IntMap from that half.
     buildTree g !prefix !bmask bits = case bits of
-      0 -> Tip prefix (g prefix)
+      0 -> Tip prefix <$> (g prefix)
       _ -> case bits `iShiftRL` 1 of
         bits2
           | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
@@ -3330,9 +3346,15 @@ fromSet f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
           | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
               buildTree g prefix bmask bits2
           | otherwise ->
-              Bin (Prefix (prefix .|. bits2))
-                (buildTree g prefix bmask bits2)
-                (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+              liftA2
+                (Bin (Prefix (prefix .|. bits2)))
+                  (buildTree g prefix bmask bits2)
+                  (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+#if __GLASGOW_HASKELL__
+{-# INLINABLE fromSetA #-}
+#else
+{-# INLINE fromSetA #-}
+#endif
 
 {--------------------------------------------------------------------
   Lists

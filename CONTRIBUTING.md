@@ -59,6 +59,17 @@ To do so on Windows 10 or higher, follow these steps:
 2. Enable git symlinks: `git config --global core.symlinks true`.
 3. Clone the repository again once git is properly configured.
 
+### Benchmarking script
+
+To run the all benchmarks of your branch against master, you can run the script
+`./bench.sh` while on your feature branch.
+
+This first builds and benchmarks against the master branch, and then builds and
+benchmarks on your branch, and compares between them.
+
+You can also fiddle with the script as long as the changes are reflected in your
+local master branch and run less than the full suite of benchmarks.
+
 ## Sending Pull Requests
 
 When you send a pull request, please:

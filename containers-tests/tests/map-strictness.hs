@@ -9,12 +9,14 @@ import Data.Coerce (coerce)
 import Data.Either (partitionEithers)
 import Data.Foldable as F
 import Data.Function (on)
+import Data.Functor.Compose (Compose (..))
 import Data.Functor.Identity (Identity(..))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 import Data.Ord (Down(..), comparing)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Semigroup (Arg(..))
+import Data.Tuple.Solo (Solo (MkSolo), getSolo)
 import Test.ChasingBottoms.IsBottom (bottom, isBottom)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
@@ -132,12 +134,35 @@ prop_strictFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromSet fun set =
   isBottom (M.fromSet f set) === any (isBottom . f) (Set.toList set)
   where
-    f = coerce (applyFunc fun) :: OrdA -> A
+    f = applyFunc fun
+
+prop_strictFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
+prop_strictFromSetA fun set =
+  isBottom (getSolo (M.fromSetA (MkSolo . f) set)) === any (isBottom . f) (Set.toList set)
+  where
+    f = applyFunc fun
 
 prop_lazyFromSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_lazyFromSet fun set = isNotBottomProp (L.fromSet f set)
   where
-    f = coerce (applyFunc fun) :: OrdA -> A
+    f = applyFunc fun
+
+prop_lazyFromSetA :: Func OrdA (Bot A) -> Set OrdA -> Property
+prop_lazyFromSetA fun set = isNotBottomProp (getSolo (L.fromSetA f set))
+  where
+    f = MkSolo . applyFunc fun
+
+prop_fromSetA_equiv_strictness :: Func OrdA (Bot A) -> Set OrdA -> Property
+prop_fromSetA_equiv_strictness fun set =
+  -- strict fromSetA is the same as lazy and then forcing
+  bottomOn (M.fromSetA f set) (fmap forceValues (L.fromSetA f set)) .&&.
+  -- strict fromSet is the same as lazy fromSetA with a strict function,
+  -- and unwrapping the container
+  bottomOn (M.fromSetA f set) (fmap getSolo . getCompose $ L.fromSetA (Compose . fmap (MkSolo $!) . f) set)
+  where
+  forceValues xs = foldr (\ !_ r -> r) () xs `seq` xs
+  bottomOn = (===) `on` isBottom . getSolo
+  f = MkSolo . applyFunc fun
 
 prop_strictFromArgSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromArgSet fun set =
@@ -1153,6 +1178,8 @@ tests =
     , testGroup "Construction"
       [ testPropStrictLazy "singleton" prop_strictSingleton prop_lazySingleton
       , testPropStrictLazy "fromSet" prop_strictFromSet prop_lazyFromSet
+      , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
+      , testProperty       "fromSetA equivalences" prop_fromSetA_equiv_strictness
       , testPropStrictLazy "fromArgSet" prop_strictFromArgSet prop_lazyFromArgSet
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith

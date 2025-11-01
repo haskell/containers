@@ -120,6 +120,7 @@ module Data.Map.Strict
     , empty
     , singleton
     , fromSet
+    , fromSetA
     , fromArgSet
 
     -- ** From Unordered Lists

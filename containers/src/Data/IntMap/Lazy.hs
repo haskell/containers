@@ -103,6 +103,7 @@ module Data.IntMap.Lazy (
     , empty
     , singleton
     , fromSet
+    , fromSetA
 
     -- ** From Unordered Lists
     , fromList

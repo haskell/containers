@@ -8,7 +8,10 @@
   ([#1135](https://github.com/haskell/containers/pull/1135))
 
 * Add `mapMaybe` for `Seq`, `Set` and `IntSet`. (Phil Hazelden)
-  ([#1159](https://github.com/haskell/containers/pull/1159)
+  ([#1159](https://github.com/haskell/containers/pull/1159))
+
+* Add `fromSetA` for `Map` and `IntMap`. (L0neGamer)
+  ([#1163](https://github.com/haskell/containers/pull/1163))
 
 ### Performance improvements
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
@@ -11,6 +12,7 @@ import Data.Map.Internal (Map, link2, link)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
 
 import Control.Applicative (Const(Const, getConst), pure, (<$>), (<*>), (<|>))
+import Control.Arrow ((&&&))
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer.Lazy
@@ -23,6 +25,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Semigroup (Arg(..))
 import Data.Function
+import Data.Functor
 import qualified Data.Foldable as Foldable
 import qualified Data.Bifoldable as Bifoldable
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt)
@@ -256,6 +259,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "keysSet"              prop_keysSet
          , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
+         , testProperty "fromSetA eval order"  prop_fromSetA_action_order
          , testProperty "fromArgSet"           prop_fromArgSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -1708,23 +1712,31 @@ prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c'
     cv' = curry (apply cv)
     acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 
-prop_keysSet :: [(Int, Int)] -> Bool
-prop_keysSet xs =
-  keysSet (fromList xs) == Set.fromList (List.map fst xs)
+prop_keysSet :: [OrdA] -> Property
+prop_keysSet keys =
+  keysSet (fromList (fmap (, ()) keys)) === Set.fromList keys
 
-prop_argSet :: [(Int, Int)] -> Bool
+prop_argSet :: [(OrdA, B)] -> Property
 prop_argSet xs =
-  argSet (fromList xs) == Set.fromList (List.map (uncurry Arg) xs)
+  argSet (fromList xs) === Set.fromList (List.map (uncurry Arg) xs)
 
-prop_fromSet :: [(Int, Int)] -> Bool
-prop_fromSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (Set.fromList $ List.map fst xs) == fromList xs
+prop_fromSet :: [OrdA] -> Fun OrdA B -> Property
+prop_fromSet keys funF =
+  let f = apply funF
+  in fromSet f (Set.fromList keys) === fromList (fmap (id &&& f) keys)
 
-prop_fromArgSet :: [(Int, Int)] -> Bool
+prop_fromSetA_action_order :: [OrdA] -> Fun OrdA B -> Property
+prop_fromSetA_action_order keys funF =
+  let iSet = Set.fromList keys
+      f = apply funF
+      action = \k ->
+        let v = f k
+        in tell [v] $> v
+  in execWriter (fromSetA action iSet) === List.map f (Set.toList iSet)
+
+prop_fromArgSet :: [(OrdA, B)] -> Property
 prop_fromArgSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromArgSet (Set.fromList $ List.map (uncurry Arg) xs) == fromList xs
+  fromArgSet (Set.fromList $ List.map (uncurry Arg) ys) === fromList ys
 
 prop_eq :: Map Int A -> Map Int A -> Property
 prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)

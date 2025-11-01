@@ -9,6 +9,7 @@ import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
 import qualified Data.IntSet as S
 import Data.Maybe (fromMaybe)
+import Data.Tuple.Solo (Solo (MkSolo), getSolo)
 import Data.Word (Word8)
 import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
@@ -80,6 +81,11 @@ main = do
             whnf (\n -> M.fromAscList (unitValues [1..n])) bound
         , bench "minView" $ whnf (maybe 0 (\((k,v), m) -> k+v+M.size m) . M.minViewWithKey)
                     (M.fromList $ zip [1..10] [1..10])
+        , bench "fromSet" $ whnf (M.fromSet pred) s_random2
+        , bench "Lazy.fromSetA outer" $ whnf (M.fromSetA (MkSolo . pred)) s_random2
+        , bench "Strict.fromSetA outer" $ whnf (MS.fromSetA (MkSolo . pred)) s_random2
+        , bench "Lazy.fromSetA inner" $ whnf (getSolo . M.fromSetA (MkSolo . pred)) s_random2
+        , bench "Strict.fromSetA inner" $ whnf (getSolo . MS.fromSetA (MkSolo . pred)) s_random2
         , bench "spanAntitone" $ whnf (M.spanAntitone (<key_mid)) m
         , bench "split" $ whnf (M.split key_mid) m
         , bench "splitLookup" $ whnf (M.splitLookup key_mid) m
@@ -123,7 +129,7 @@ main = do
         ]
 
     --------------------------------------------------------
-    !bound = 2^12
+    !bound = 2^14
     keys = [1..bound]
     keys' = fmap (+ 1000000) keys
     keys'' = fmap (* 2) [1..bound]

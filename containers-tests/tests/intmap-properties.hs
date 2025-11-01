@@ -1,4 +1,5 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TupleSections #-}
 
 #ifdef STRICT
 import Data.IntMap.Strict as Data.IntMap
@@ -14,7 +15,9 @@ import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
 import IntMapValidity (hasPrefix, hasPrefixSimple, valid)
 
 import Control.Applicative (Applicative(..))
+import Control.Arrow ((&&&))
 import Control.Monad ((<=<))
+import Control.Monad.Trans.Writer.Lazy
 import qualified Data.Either as Either
 import qualified Data.Foldable as Foldable
 import Data.Monoid
@@ -23,6 +26,7 @@ import qualified Data.Maybe as Maybe (mapMaybe)
 import Data.Ord
 import Data.Foldable (foldMap)
 import Data.Function
+import Data.Functor
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
 import qualified Prelude (map, filter)
@@ -212,6 +216,7 @@ main = defaultMain $ testGroup "intmap-properties"
                  prop_FoldableTraversableCompat
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
+             , testProperty "fromSetA eval order"  prop_fromSetA_action_order
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
              , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
@@ -1689,14 +1694,23 @@ prop_FoldableTraversableCompat :: Fun A [B] -> IntMap A -> Property
 prop_FoldableTraversableCompat fun m = foldMap f m === foldMapDefault f m
   where f = apply fun
 
-prop_keysSet :: [(Int, Int)] -> Bool
-prop_keysSet xs =
-  keysSet (fromList xs) == IntSet.fromList (List.map fst xs)
+prop_keysSet :: [Int] -> Property
+prop_keysSet keys =
+  keysSet (fromList (fmap (, ()) keys)) === IntSet.fromList keys
 
-prop_fromSet :: [(Int, Int)] -> Bool
-prop_fromSet ys =
-  let xs = List.nubBy ((==) `on` fst) ys
-  in fromSet (\k -> fromJust $ List.lookup k xs) (IntSet.fromList $ List.map fst xs) == fromList xs
+prop_fromSet :: [Int] -> Fun Int A -> Property
+prop_fromSet keys funF =
+  let f = apply funF
+  in fromSet f (IntSet.fromList keys) === fromList (fmap (id &&& f) keys)
+
+prop_fromSetA_action_order :: [Int] -> Fun Int A -> Property
+prop_fromSetA_action_order keys funF =
+  let iSet = IntSet.fromList keys
+      f = apply funF
+      action = \k ->
+        let v = f k
+        in tell [v] $> v
+  in execWriter (fromSetA action iSet) === List.map f (IntSet.toList iSet)
 
 newtype Identity a = Identity a
     deriving (Eq, Show)

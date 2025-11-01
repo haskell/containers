@@ -121,6 +121,7 @@ module Data.IntMap.Strict (
     , empty
     , singleton
     , fromSet
+    , fromSetA
 
     -- ** From Unordered Lists
     , fromList
