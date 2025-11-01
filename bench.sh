@@ -1,5 +1,9 @@
 #! /bin/bash
 
+# convenience script to run all benchmarks for the master branch and for the
+# starting branch, and compare the before and after in the output file
+# bench-$CURR_BRANCH_NAME.out, in `benchmark_tmp/`
+
 exitWith () {
   echo "$1"
   exit $(($2))
