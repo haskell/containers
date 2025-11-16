@@ -1727,12 +1727,16 @@ prop_fromSet keys funF =
 
 prop_fromSetA_action_order :: [OrdA] -> Fun OrdA B -> Property
 prop_fromSetA_action_order keys funF =
-  let iSet = Set.fromList keys
+  let set = Set.fromList keys
+      setList = Set.toList set
       f = apply funF
       action = \k ->
         let v = f k
         in tell [v] $> v
-  in execWriter (fromSetA action iSet) === List.map f (Set.toList iSet)
+      (writtenMap, writtenOutput) = runWriter (fromSetA action set)
+  in
+    writtenOutput === List.map f setList .&&.
+    toList writtenMap === fmap (id &&& f) setList
 
 prop_fromArgSet :: [(OrdA, B)] -> Property
 prop_fromArgSet ys =
