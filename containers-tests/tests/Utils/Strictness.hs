@@ -27,12 +27,6 @@ instance Arbitrary a => Arbitrary (Bot a) where
     , (4, Bot <$> arbitrary)
     ]
 
-instance CoArbitrary a => CoArbitrary (Bot a) where
-  coarbitrary (Bot x) = coarbitrary x
-
-instance Function a => Function (Bot a) where
-  function = functionMap (\(Bot x) -> x) Bot
-
 {--------------------------------------------------------------------
   Lazy functions
 --------------------------------------------------------------------}
