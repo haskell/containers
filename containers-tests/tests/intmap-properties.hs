@@ -1701,7 +1701,10 @@ prop_keysSet keys =
 prop_fromSet :: [Int] -> Fun Int A -> Property
 prop_fromSet keys funF =
   let f = apply funF
-  in fromSet f (IntSet.fromList keys) === fromList (fmap (id &&& f) keys)
+      m = fromSet f (IntSet.fromList keys)
+  in
+    valid m .&&.
+    m === fromList (fmap (id &&& f) keys)
 
 prop_fromSetA_action_order :: [Int] -> Fun Int A -> Property
 prop_fromSetA_action_order keys funF =
@@ -1713,6 +1716,7 @@ prop_fromSetA_action_order keys funF =
         in tell [v] $> v
       (writtenMap, writtenOutput) = runWriter (fromSetA action set)
   in
+    valid writtenMap .&&.
     writtenOutput === List.map f setList .&&.
     toList writtenMap === fmap (id &&& f) setList
 
