@@ -1661,9 +1661,9 @@ fromDescListWith f xs
 -- if the precondition may not hold.
 --
 -- > let f k a1 a2 = (show k) ++ ":" ++ a1 ++ a2
--- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")] == fromList [(3, "b"), (5, "5:b5:ba")]
--- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"b")]) == True
--- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
+-- > fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"c")] == fromList [(3, "b"), (5, "5:c5:ba")]
+-- > valid (fromAscListWithKey f [(3,"b"), (5,"a"), (5,"b"), (5,"c")]) == True
+-- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"c")]) == False
 --
 -- Also see the performance note on 'fromListWith'.
 
