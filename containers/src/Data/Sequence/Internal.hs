@@ -1,3 +1,4 @@
+{- OPTIONS_GHC -ddump-simpl #-}
 {-# LANGUAGE CPP #-}
 #include "containers.h"
 {-# LANGUAGE BangPatterns #-}
@@ -7,6 +8,7 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
@@ -195,7 +197,7 @@ import Control.Applicative ((<$>), (<**>),  Alternative,
 import qualified Control.Applicative as Applicative
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Control.Monad (MonadPlus(..))
-import Data.Monoid (Monoid(..))
+import Data.Monoid (Monoid(..), Endo(..), Dual(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
 import Data.Foldable (foldr', toList)
@@ -235,6 +237,7 @@ import Data.Functor.Identity (Identity(..))
 import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
 import Control.Monad.Fix (MonadFix (..), fix)
+import Data.Sequence.Internal.Depth (Depth_ (..), Depth2_ (..))
 
 default ()
 
@@ -369,38 +372,87 @@ instance Functor Seq where
     x <$ s = replicate (length s) x
 #endif
 
-fmapSeq :: (a -> b) -> Seq a -> Seq b
-fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
 #ifdef __GLASGOW_HASKELL__
+fmapSeq :: forall a b. (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq t0) = Seq (fmapFT Bottom2 t0)
+  where
+    fmapBlob :: Depth2 (Elem a) t (Elem b) u -> t -> u
+    fmapBlob Bottom2 (Elem a) = Elem (f a)
+    fmapBlob (Deeper2 w) (Node2 s x y) = Node2 s (fmapBlob w x) (fmapBlob w y)
+    fmapBlob (Deeper2 w) (Node3 s x y z) = Node3 s (fmapBlob w x) (fmapBlob w y) (fmapBlob w z)
+
+    fmapFT :: Depth2 (Elem a) t (Elem b) u -> FingerTree t -> FingerTree u
+    fmapFT !_ EmptyT = EmptyT
+    fmapFT w (Single t) = Single (fmapBlob w t)
+    fmapFT w (Deep s pr m sf) =
+      Deep s
+        (fmap (fmapBlob w) pr)
+        (fmapFT (Deeper2 w) m)
+        (fmap (fmapBlob w) sf)
+
 {-# NOINLINE [1] fmapSeq #-}
 {-# RULES
 "fmapSeq/fmapSeq" forall f g xs . fmapSeq f (fmapSeq g xs) = fmapSeq (f . g) xs
 "fmapSeq/coerce" fmapSeq coerce = coerce
  #-}
+
+#else
+fmapSeq :: (a -> b) -> Seq a -> Seq b
+fmapSeq f (Seq xs) = Seq (fmap (fmap f) xs)
+#endif
+
+#ifdef __GLASGOW_HASKELL__
+type Depth = Depth_ Node
+type Depth2 = Depth2_ Node
 #endif
 
 instance Foldable Seq where
 #ifdef __GLASGOW_HASKELL__
     foldMap :: forall m a. Monoid m => (a -> m) -> Seq a -> m
-    foldMap = coerce (foldMap :: (Elem a -> m) -> FingerTree (Elem a) -> m)
+    foldMap f (Seq t0) = foldMapFT Bottom t0
+      where
+        foldMapBlob :: Depth (Elem a) t -> t -> m
+        foldMapBlob Bottom (Elem a) = f a
+        foldMapBlob (Deeper w) (Node2 _ x y) = foldMapBlob w x <> foldMapBlob w y
+        foldMapBlob (Deeper w) (Node3 _ x y z) = foldMapBlob w x <> foldMapBlob w y <> foldMapBlob w z
+
+        foldMapFT :: Depth (Elem a) t -> FingerTree t -> m
+        foldMapFT !_ EmptyT = mempty
+        foldMapFT w (Single t) = foldMapBlob w t
+        foldMapFT w (Deep _ pr m sf) =
+          foldMap (foldMapBlob w) pr
+          <> foldMapFT (Deeper w) m
+          <> foldMap (foldMapBlob w) sf
 
     foldr :: forall a b. (a -> b -> b) -> b -> Seq a -> b
-    foldr = coerce (foldr :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
+    -- We define this explicitly so we can inline the foldMap. And we don't
+    -- define it as a coercion of the FingerTree version because we want users
+    -- to have the option of (effectively) inlining it explicitly. Should we
+    -- define this by hand to associate optimally? Or is GHC clever enough to
+    -- do that for us?
+    foldr f z t = appEndo (GHC.Exts.inline foldMap (coerce f) t) z
 
     foldl :: forall b a. (b -> a -> b) -> b -> Seq a -> b
-    foldl = coerce (foldl :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
+    foldl f z t = appEndo (getDual (GHC.Exts.inline foldMap (Dual . Endo . flip f) t)) z
 
     foldr' :: forall a b. (a -> b -> b) -> b -> Seq a -> b
-    foldr' = coerce (foldr' :: (Elem a -> b -> b) -> b -> FingerTree (Elem a) -> b)
+    foldr' f z0 = \ xs ->
+        GHC.Exts.inline foldl (\ (k::b->b) (x::a) -> GHC.Exts.oneShot (\ (z::b) -> z `seq` k (f x z)))
+              (id::b->b) xs z0
 
     foldl' :: forall b a. (b -> a -> b) -> b -> Seq a -> b
-    foldl' = coerce (foldl' :: (b -> Elem a -> b) -> b -> FingerTree (Elem a) -> b)
+    foldl' f z0 = \ xs ->
+        GHC.Exts.inline foldr (\ (x::a) (k::b->b) -> GHC.Exts.oneShot (\ (z::b) -> z `seq` k (f z x)))
+              (id::b->b) xs z0
 
     foldr1 :: forall a. (a -> a -> a) -> Seq a -> a
-    foldr1 = coerce (foldr1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+    foldr1 _f Empty = error "foldr1: empty sequence"
+    foldr1 f  (xs :|> x) = foldr f x xs
 
     foldl1 :: forall a. (a -> a -> a) -> Seq a -> a
-    foldl1 = coerce (foldl1 :: (Elem a -> Elem a -> Elem a) -> FingerTree (Elem a) -> Elem a)
+    foldl1 _f Empty = error "foldl1: empty sequence"
+    foldl1 f  (x :<| xs) = foldl f x xs
+
 #else
     foldMap f (Seq xs) = foldMap (f . getElem) xs
 
@@ -427,7 +479,37 @@ instance Foldable Seq where
 instance Traversable Seq where
 #if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
-#endif
+    traverse :: forall f a b. Applicative f => (a -> f b) -> Seq a -> f (Seq b)
+    traverse f (Seq t0) = Seq <$> traverseFT Bottom2 t0
+      where
+        traverseFT :: Depth2 (Elem a) t (Elem b) u -> FingerTree t -> f (FingerTree u)
+        traverseFT !_ EmptyT = pure EmptyT
+        traverseFT w (Single t) = Single <$> traverseBlob w t
+        traverseFT w (Deep s pr m sf) = liftA3 (Deep s)
+          (traverse (traverseBlob w) pr)
+          (traverseFT (Deeper2 w) m)
+          (traverse (traverseBlob w) sf)
+
+        -- Traverse a 2-3 tree, given its height.
+        traverseBlob :: Depth2 (Elem a) t (Elem b) u -> t -> f u
+        traverseBlob Bottom2 (Elem a) = Elem <$> f a
+
+        -- We have a special case here to avoid needing to `fmap Elem` over
+        -- each of the leaves, in case that's not free in the relevant functor.
+        -- We still end up using extra fmaps for the very first level of the
+        -- FingerTree and the Seq constructor. While we *could* avoid that,
+        -- doing so requires a good bit of extra code to save *at most* nine
+        -- fmap applications for the sequence. It would also save on Depth
+        -- comparisons, but I doubt that matters very much.
+        traverseBlob (Deeper2 Bottom2) (Node2 s (Elem x) (Elem y))
+          = liftA2 (\x' y' -> Node2 s (Elem x') (Elem y')) (f x) (f y)
+        traverseBlob (Deeper2 Bottom2) (Node3 s (Elem x) (Elem y) (Elem z))
+          = liftA3 (\x' y' z' -> Node3 s (Elem x') (Elem y') (Elem z'))
+              (f x) (f y) (f z)
+
+        traverseBlob (Deeper2 w) (Node2 s x y) = liftA2 (Node2 s) (traverseBlob w x) (traverseBlob w y)
+        traverseBlob (Deeper2 w) (Node3 s x y z) = liftA3 (Node3 s) (traverseBlob w x) (traverseBlob w y) (traverseBlob w z)
+#else
     traverse _ (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
@@ -499,6 +581,7 @@ instance Traversable Seq where
             :: Applicative f
             => (Node a -> f (Node b)) -> Node (Node a) -> f (Node (Node b))
         traverseNodeN f t = traverse f t
+#endif
 
 instance NFData a => NFData (Seq a) where
     rnf (Seq xs) = rnf xs
@@ -1099,6 +1182,7 @@ instance Foldable FingerTree where
     {-# INLINABLE foldMap #-}
 #endif
 
+
     foldr _ z' EmptyT = z'
     foldr f' z' (Single x') = x' `f'` z'
     foldr f' z' (Deep _ pr' m' sf') =
@@ -1266,7 +1350,7 @@ foldDigit _     f (One a) = f a
 foldDigit (<+>) f (Two a b) = f a <+> f b
 foldDigit (<+>) f (Three a b c) = f a <+> f b <+> f c
 foldDigit (<+>) f (Four a b c d) = f a <+> f b <+> f c <+> f d
-{-# INLINE foldDigit #-}
+{-# INLINABLE foldDigit #-}
 
 instance Foldable Digit where
     foldMap = foldDigit mappend
@@ -3143,6 +3227,49 @@ delDigit f i (Four a b c d)
 -- | A generalization of 'fmap', 'mapWithIndex' takes a mapping
 -- function that also depends on the element's index, and applies it to every
 -- element in the sequence.
+#ifdef __GLASGOW_HASKELL__
+mapWithIndex :: forall a b. (Int -> a -> b) -> Seq a -> Seq b
+mapWithIndex f (Seq t) = Seq $ mapWithIndexFT Bottom2 0 t
+  where
+    mapWithIndexFT :: Depth2 (Elem a) t (Elem b) u -> Int -> FingerTree t -> FingerTree u
+    mapWithIndexFT !_ !_ EmptyT = EmptyT
+    mapWithIndexFT d s (Single xs) = Single $ mapWithIndexBlob d s xs
+    mapWithIndexFT d s (Deep s' pr m sf) = case depthSized2 d of { Sizzy ->
+      Deep s'
+        (mapWithIndexDigit (mapWithIndexBlob d) s pr)
+        (mapWithIndexFT (Deeper2 d) sPspr m)
+        (mapWithIndexDigit (mapWithIndexBlob d) sPsprm sf)
+          where
+            !sPspr = s + size pr
+            !sPsprm = sPspr + size m
+      }
+
+    mapWithIndexBlob :: Depth2 (Elem a) t (Elem b) u -> Int -> t -> u
+    mapWithIndexBlob Bottom2 k (Elem a) = Elem (f k a)
+    mapWithIndexBlob (Deeper2 yop) k (Node2 s t1 t2) =
+      Node2 s
+        (mapWithIndexBlob yop k t1)
+        (mapWithIndexBlob yop (k + sizeBlob2 yop t1) t2)
+    mapWithIndexBlob (Deeper2 yop) k (Node3 s t1 t2 t3) =
+      Node3 s
+        (mapWithIndexBlob yop k t1)
+        (mapWithIndexBlob yop (k + st1) t2)
+        (mapWithIndexBlob yop (k + st1t2) t3)
+      where
+        st1 = sizeBlob2 yop t1
+        st1t2 = st1 + sizeBlob2 yop t2
+
+{-# NOINLINE [1] mapWithIndex #-}
+
+{-# RULES
+"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f k (g k a)) xs
+"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
+  mapWithIndex (\k a -> f k (g a)) xs
+"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
+  mapWithIndex (\k a -> f (g k a)) xs
+ #-}
+#else
 mapWithIndex :: (Int -> a -> b) -> Seq a -> Seq b
 mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)) 0 xs'
  where
@@ -3160,25 +3287,6 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
       !sPspr = s + size pr
       !sPsprm = sPspr + size m
 
-  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> Digit b #-}
-  {-# SPECIALIZE mapWithIndexDigit :: (Int -> Node y -> b) -> Int -> Digit (Node y) -> Digit b #-}
-  mapWithIndexDigit :: Sized a => (Int -> a -> b) -> Int -> Digit a -> Digit b
-  mapWithIndexDigit f !s (One a) = One (f s a)
-  mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
-    where
-      !sPsa = s + size a
-  mapWithIndexDigit f s (Three a b c) =
-                                      Three (f s a) (f sPsa b) (f sPsab c)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  mapWithIndexDigit f s (Four a b c d) =
-                          Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
-
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Elem y -> b) -> Int -> Node (Elem y) -> Node b #-}
   {-# SPECIALIZE mapWithIndexNode :: (Int -> Node y -> b) -> Int -> Node (Node y) -> Node b #-}
   mapWithIndexNode :: Sized a => (Int -> a -> b) -> Int -> Node a -> Node b
@@ -3190,18 +3298,27 @@ mapWithIndex f' (Seq xs') = Seq $ mapWithIndexTree (\s (Elem a) -> Elem (f' s a)
     where
       !sPsa = s + size a
       !sPsab = sPsa + size b
-
-#ifdef __GLASGOW_HASKELL__
-{-# NOINLINE [1] mapWithIndex #-}
-{-# RULES
-"mapWithIndex/mapWithIndex" forall f g xs . mapWithIndex f (mapWithIndex g xs) =
-  mapWithIndex (\k a -> f k (g k a)) xs
-"mapWithIndex/fmapSeq" forall f g xs . mapWithIndex f (fmapSeq g xs) =
-  mapWithIndex (\k a -> f k (g a)) xs
-"fmapSeq/mapWithIndex" forall f g xs . fmapSeq f (mapWithIndex g xs) =
-  mapWithIndex (\k a -> f (g k a)) xs
- #-}
 #endif
+
+{-# SPECIALIZE mapWithIndexDigit :: (Int -> Elem a -> b) -> Int -> Digit (Elem a) -> Digit b #-}
+{-# SPECIALIZE mapWithIndexDigit :: (Int -> Node a -> b) -> Int -> Digit (Node a) -> Digit b #-}
+mapWithIndexDigit :: Sized x => (Int -> x -> y) -> Int -> Digit x -> Digit y
+mapWithIndexDigit f !s (One a) = One (f s a)
+mapWithIndexDigit f s (Two a b) = Two (f s a) (f sPsa b)
+  where
+    !sPsa = s + size a
+mapWithIndexDigit f s (Three a b c) =
+                                    Three (f s a) (f sPsa b) (f sPsab c)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+mapWithIndexDigit f s (Four a b c d) =
+                        Four (f s a) (f sPsa b) (f sPsab c) (f sPsabc d)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
 
 {-# INLINE foldWithIndexDigit #-}
 foldWithIndexDigit :: Sized a => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
@@ -3235,15 +3352,65 @@ foldWithIndexNode (<+>) f s (Node3 _ a b c) = f s a <+> f sPsa b <+> f sPsab c
 -- element in the sequence.
 --
 -- @since 0.5.8
+#ifdef __GLASGOW_HASKELL__
+foldMapWithIndex :: forall m a. Monoid m => (Int -> a -> m) -> Seq a -> m
+foldMapWithIndex f (Seq t) = foldMapWithIndexFT Bottom 0 t
+  where
+    foldMapWithIndexFT :: Depth (Elem a) t -> Int -> FingerTree t -> m
+    foldMapWithIndexFT !_ !_ EmptyT = mempty
+    foldMapWithIndexFT d s (Single xs) = foldMapWithIndexBlob d s xs
+    foldMapWithIndexFT d s (Deep _ pr m sf) = case depthSized d of { Sizzy ->
+      foldWithIndexDigit (<>) (foldMapWithIndexBlob d) s pr <>
+      foldMapWithIndexFT (Deeper d) sPspr m <>
+      foldWithIndexDigit (<>) (foldMapWithIndexBlob d) sPsprm sf
+        where
+          !sPspr = s + size pr
+          !sPsprm = sPspr + size m
+      }
+
+    foldMapWithIndexBlob :: Depth (Elem a) t -> Int -> t -> m
+    foldMapWithIndexBlob Bottom k (Elem a) = f k a
+    foldMapWithIndexBlob (Deeper yop) k (Node2 _s t1 t2) =
+      foldMapWithIndexBlob yop k t1 <>
+      foldMapWithIndexBlob yop (k + sizeBlob yop t1) t2
+    foldMapWithIndexBlob (Deeper yop) k (Node3 _s t1 t2 t3) =
+      foldMapWithIndexBlob yop k t1 <>
+      foldMapWithIndexBlob yop (k + st1) t2 <>
+      foldMapWithIndexBlob yop (k + st1t2) t3
+      where
+        st1 = sizeBlob yop t1
+        st1t2 = st1 + sizeBlob yop t2
+{-# INLINABLE foldMapWithIndex #-}
+
+data Sizzy a where
+  Sizzy :: Sized a => Sizzy a
+
+depthSized :: Depth (Elem a) t -> Sizzy t
+depthSized Bottom = Sizzy
+depthSized (Deeper _) = Sizzy
+
+depthSized2 :: Depth2 (Elem a) t (Elem b) u -> Sizzy t
+depthSized2 Bottom2 = Sizzy
+depthSized2 (Deeper2 _) = Sizzy
+
+sizeBlob :: Depth (Elem a) t -> t -> Int
+sizeBlob Bottom = size
+sizeBlob (Deeper _) = size
+
+sizeBlob2 :: Depth2 (Elem a) t (Elem b) u -> t -> Int
+sizeBlob2 Bottom2 = size
+sizeBlob2 (Deeper2 _) = size
+
+#else
 foldMapWithIndex :: Monoid m => (Int -> a -> m) -> Seq a -> m
 foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
  where
   lift_elem :: (Int -> a -> m) -> (Int -> Elem a -> m)
-#ifdef __GLASGOW_HASKELL__
+#  ifdef __GLASGOW_HASKELL__
   lift_elem g = coerce g
-#else
+#  else
   lift_elem g = \s (Elem a) -> g s a
-#endif
+#  endif
   {-# INLINE lift_elem #-}
 -- We have to specialize these functions by hand, unfortunately, because
 -- GHC does not specialize until *all* instances are determined.
@@ -3282,15 +3449,54 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
 
   foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
   foldMapWithIndexNodeN f i t = foldWithIndexNode (<>) f i t
-
-#if __GLASGOW_HASKELL__
-{-# INLINABLE foldMapWithIndex #-}
 #endif
 
 -- | 'traverseWithIndex' is a version of 'traverse' that also offers
 -- access to the index of each element.
 --
 -- @since 0.5.8
+#ifdef __GLASGOW_HASKELL__
+traverseWithIndex :: forall f a b. Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
+traverseWithIndex f (Seq t) = Seq <$> traverseWithIndexFT Bottom2 0 t
+  where
+    traverseWithIndexFT :: Depth2 (Elem a) t (Elem b) u -> Int -> FingerTree t -> f (FingerTree u)
+    traverseWithIndexFT !_ !_ EmptyT = pure EmptyT
+    traverseWithIndexFT d s (Single xs) = Single <$> traverseWithIndexBlob d s xs
+    traverseWithIndexFT d s (Deep s' pr m sf) = case depthSized2 d of { Sizzy ->
+      liftA3 (Deep s')
+        (traverseWithIndexDigit (traverseWithIndexBlob d) s pr)
+        (traverseWithIndexFT (Deeper2 d) sPspr m)
+        (traverseWithIndexDigit (traverseWithIndexBlob d) sPsprm sf)
+          where
+            !sPspr = s + size pr
+            !sPsprm = sPspr + size m
+      }
+
+    traverseWithIndexBlob :: Depth2 (Elem a) t (Elem b) u -> Int -> t -> f u
+    traverseWithIndexBlob Bottom2 k (Elem a) = Elem <$> f k a
+    traverseWithIndexBlob (Deeper2 yop) k (Node2 s t1 t2) =
+      liftA2 (Node2 s)
+        (traverseWithIndexBlob yop k t1)
+        (traverseWithIndexBlob yop (k + sizeBlob2 yop t1) t2)
+    traverseWithIndexBlob (Deeper2 yop) k (Node3 s t1 t2 t3) =
+      liftA3 (Node3 s)
+        (traverseWithIndexBlob yop k t1)
+        (traverseWithIndexBlob yop (k + st1) t2)
+        (traverseWithIndexBlob yop (k + st1t2) t3)
+      where
+        st1 = sizeBlob2 yop t1
+        st1t2 = st1 + sizeBlob2 yop t2
+
+{-# INLINABLE [1] traverseWithIndex #-}
+
+{-# RULES
+"travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
+  traverseWithIndex (\k a -> f k (g k a)) xs
+"travWithIndex/fmapSeq" forall f g xs . traverseWithIndex f (fmapSeq g xs) =
+  traverseWithIndex (\k a -> f k (g a)) xs
+ #-}
+
+#else
 traverseWithIndex :: Applicative f => (Int -> a -> f b) -> Seq a -> f (Seq b)
 traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> Elem <$> f' s a) 0 xs'
  where
@@ -3328,24 +3534,6 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
   traverseWithIndexDigitN :: Applicative f => (Int -> Node a -> f b) -> Int -> Digit (Node a) -> f (Digit b)
   traverseWithIndexDigitN f i t = traverseWithIndexDigit f i t
 
-  {-# INLINE traverseWithIndexDigit #-}
-  traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a -> f b) -> Int -> Digit a -> f (Digit b)
-  traverseWithIndexDigit f !s (One a) = One <$> f s a
-  traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
-    where
-      !sPsa = s + size a
-  traverseWithIndexDigit f s (Three a b c) =
-                                      liftA3 Three (f s a) (f sPsa b) (f sPsab c)
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-  traverseWithIndexDigit f s (Four a b c d) =
-                          liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
-    where
-      !sPsa = s + size a
-      !sPsab = sPsa + size b
-      !sPsabc = sPsab + size c
-
   traverseWithIndexNodeE :: Applicative f => (Int -> Elem a -> f b) -> Int -> Node (Elem a) -> f (Node b)
   traverseWithIndexNodeE f i t = traverseWithIndexNode f i t
 
@@ -3363,21 +3551,27 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
       !sPsa = s + size a
       !sPsab = sPsa + size b
 
-
-#ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [1] traverseWithIndex #-}
-#else
 {-# INLINE [1] traverseWithIndex #-}
 #endif
 
-#ifdef __GLASGOW_HASKELL__
-{-# RULES
-"travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
-  traverseWithIndex (\k a -> f k (g k a)) xs
-"travWithIndex/fmapSeq" forall f g xs . traverseWithIndex f (fmapSeq g xs) =
-  traverseWithIndex (\k a -> f k (g a)) xs
- #-}
-#endif
+{-# INLINE traverseWithIndexDigit #-}
+traverseWithIndexDigit :: (Applicative f, Sized a) => (Int -> a-> f b) -> Int -> Digit a -> f (Digit b)
+traverseWithIndexDigit f !s (One a) = One <$> f s a
+traverseWithIndexDigit f s (Two a b) = liftA2 Two (f s a) (f sPsa b)
+  where
+    !sPsa = s + size a
+traverseWithIndexDigit f s (Three a b c) =
+                                    liftA3 Three (f s a) (f sPsa b) (f sPsab c)
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+traverseWithIndexDigit f s (Four a b c d) =
+                        liftA3 Four (f s a) (f sPsa b) (f sPsab c) <*> f sPsabc d
+  where
+    !sPsa = s + size a
+    !sPsab = sPsa + size b
+    !sPsabc = sPsab + size c
+
 {-
 It might be nice to be able to rewrite
 
@@ -4995,12 +5189,69 @@ zipWith f s1 s2 = zipWith' f s1' s2'
     s1' = take minLen s1
     s2' = take minLen s2
 
+#ifdef __GLASGOW_HASKELL__
+-- | A version of zipWith that assumes the sequences have the same length.
+zipWith' :: forall a b c. (a -> b -> c) -> Seq a -> Seq b -> Seq c
+zipWith' f = \(Seq t1) s2 -> Seq (zipFT Bottom2 t1 s2)
+  where
+
+    zipBlob :: Depth2 (Elem a) t (Elem c) v -> t -> Seq b -> v
+    zipBlob Bottom2 (Elem a) s2
+      | Seq (Single (Elem b)) <- s2 = Elem (f a b)
+      | otherwise = error "zipWith': invariant failure"
+    zipBlob (Deeper2 w) (Node2 s (x :: q) y) s2 = Node2 s (zipBlob w x s2l) (zipBlob w y s2r)
+      where
+        (s2l, s2r) = splitAt (sizeBlob2 w x) s2
+    zipBlob (Deeper2 w) (Node3 s (x :: q) y z) s2 = Node3 s (zipBlob w x s2l) (zipBlob w y s2c) (zipBlob w z s2r)
+      where
+        (s2l, s2rem) = splitAt (sizeBlob2 w x) s2
+        (s2c, s2r) = splitAt (sizeBlob2 w y) s2rem
+
+    zipDigit :: forall t v. Depth2 (Elem a) t (Elem c) v -> Digit t -> Seq b -> Digit v
+    zipDigit p = \d s2 ->
+      case d of
+        One t -> One (zipBlob p t s2)
+        Two t u -> Two (zipBlob p t s2l) (zipBlob p u s2r)
+          where
+            (s2l, s2r) = splitAt (sz t) s2
+        Three t u v -> Three (zipBlob p t s2l) (zipBlob p u s2c) (zipBlob p v s2r)
+          where
+            (s2l, s2rem) = splitAt (sz t) s2
+            (s2c, s2r) = splitAt (sz u) s2rem
+        Four t u v w -> Four (zipBlob p t s21) (zipBlob p u s22) (zipBlob p v s23) (zipBlob p w s24)
+          where
+            (s2l, s2r) = splitAt (sz t + sz u) s2
+            (s21, s22) = splitAt (sz t) s2l
+            (s23, s24) = splitAt (sz v) s2r
+      where
+        sz :: t -> Int
+        sz = sizeBlob2 p
+
+    zipFT :: forall t v. Depth2 (Elem a) t (Elem c) v -> FingerTree t -> Seq b -> FingerTree v
+    zipFT !_ EmptyT !_ = EmptyT
+    zipFT w (Single t) s2 = Single (zipBlob w t s2)
+    zipFT w (Deep s pr m sf) s2 =
+      Deep s
+        (zipDigit w pr s2l)
+        (zipFT (Deeper2 w) m s2c)
+        (zipDigit w sf s2r)
+      where
+        szd :: Digit t -> Int
+        szd = case w of
+          Bottom2 -> size
+          Deeper2 _ -> size
+        (s2l, s2rem) = splitAt (szd pr) s2
+        (s2c, s2r) = splitAt (size m) s2rem
+
+
+#else
 -- | A version of zipWith that assumes the sequences have the same length.
 zipWith' :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
 zipWith' f s1 s2 = splitMap uncheckedSplitAt goLeaf s2 s1
   where
     goLeaf (Seq (Single (Elem b))) a = f a b
     goLeaf _ _ = error "Data.Sequence.zipWith'.goLeaf internal error: not a singleton"
+#endif
 
 -- | \( O(\min(n_1,n_2,n_3)) \).  'zip3' takes three sequences and returns a
 -- sequence of triples, analogous to 'zip'.
