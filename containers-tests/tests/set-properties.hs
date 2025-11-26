@@ -1,4 +1,6 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
@@ -192,42 +194,7 @@ test_deleteAt = do
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 
--- | The IsInt class lets us constrain a type variable to be Int in an entirely
--- standard way. The constraint @ IsInt a @ is essentially equivalent to the
--- GHC-only constraint @ a ~ Int @, but @ IsInt @ requires manual intervention
--- to use. If ~ is ever standardized, we should certainly use it instead.
--- Earlier versions used an Enum constraint, but this is confusing because
--- not all Enum instances will work properly for the Arbitrary instance here.
-class (Show a, Read a, Integral a, Arbitrary a) => IsInt a where
-  fromIntF :: f Int -> f a
-
-instance IsInt Int where
-  fromIntF = id
-
--- | Convert an Int to any instance of IsInt
-fromInt :: IsInt a => Int -> a
-fromInt = runIdentity . fromIntF . Identity
-
-{- We don't actually need this, but we can add it if we ever do
-toIntF :: IsInt a => g a -> g Int
-toIntF = unf . fromIntF . F $ id
-
-newtype F g a b = F {unf :: g b -> a}
-
-toInt :: IsInt a => a -> Int
-toInt = runIdentity . toIntF . Identity -}
-
-
--- How much the minimum value of an arbitrary set should vary
-positionFactor :: Int
-positionFactor = 1
-
--- How much the gap between consecutive elements in an arbitrary
--- set should vary
-gapRange :: Int
-gapRange = 5
-
-instance IsInt a => Arbitrary (Set a) where
+instance (Int ~ a) => Arbitrary (Set a) where
   arbitrary = sized (\sz0 -> do
         sz <- choose (0, sz0)
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
@@ -241,45 +208,45 @@ instance IsInt a => Arbitrary (Set a) where
         diff <- lift $ choose (1, gapRange)
         let i' = i + diff
         put i'
-        pure (fromInt i')
+        pure i'
+
+      -- How much the minimum value of an arbitrary set should vary
+      positionFactor :: Int
+      positionFactor = 1
+
+      -- How much the gap between consecutive elements in an arbitrary
+      -- set should vary
+      gapRange :: Int
+      gapRange = 5
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
-
-data TwoLists a = TwoLists [a] [a]
-
-data Options2 = One2 | Two2 | Both2 deriving (Bounded, Enum)
-instance Arbitrary Options2 where
-  arbitrary = arbitraryBoundedEnum
 
 -- We produce two lists from a simple "universe". This instance
 -- is intended to give good results when the two lists are then
 -- combined with each other; if other elements are used with them,
 -- they may or may not behave particularly well.
-instance IsInt a => Arbitrary (TwoLists a) where
-  arbitrary = sized $ \sz0 -> do
-    sz <- choose (0, sz0)
-    let universe = [0,3..3*(fromInt sz - 1)]
-    divide2Gen universe
-
 instance Arbitrary TwoSets where
   arbitrary = do
-    TwoLists l r <- arbitrary
+    (l, r) <- sized $ \sz0 -> do
+      sz <- choose (0, sz0)
+      let universe = [0,3..3*(sz - 1)]
+      divide2Gen universe
     TwoSets <$> setFromList l <*> setFromList r
-
-divide2Gen :: [a] -> Gen (TwoLists a)
-divide2Gen [] = pure (TwoLists [] [])
-divide2Gen (x : xs) = do
-  way <- arbitrary
-  TwoLists ls rs <- divide2Gen xs
-  case way of
-    One2 -> pure (TwoLists (x : ls) rs)
-    Two2 -> pure (TwoLists ls (x : rs))
-    Both2 -> pure (TwoLists (x : ls) (x : rs))
+    where
+    divide2Gen :: [a] -> Gen ([a], [a])
+    divide2Gen [] = pure ([], [])
+    divide2Gen (x : xs) = do
+      mIsFirst <- arbitrary
+      (ls, rs) <- divide2Gen xs
+      pure $ case mIsFirst of
+        Just True -> ((x : ls), rs)
+        Just False -> (ls, (x : rs))
+        Nothing -> ((x : ls), (x : rs))
 
 {--------------------------------------------------------------------
   Valid trees
 --------------------------------------------------------------------}
-forValid :: (IsInt a,Testable b) => (Set a -> b) -> Property
+forValid :: (Int ~ a, Testable b) => (Set a -> b) -> Property
 forValid f = forAll arbitrary $ \t ->
     classify (size t == 0) "empty" $
     classify (size t > 0  && size t <= 10) "small" $

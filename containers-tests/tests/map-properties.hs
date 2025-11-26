@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE TypeFamilies #-}
 
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
@@ -313,46 +315,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
          ]
 
-{--------------------------------------------------------------------
-  Arbitrary, reasonably balanced trees
---------------------------------------------------------------------}
-
--- | The IsInt class lets us constrain a type variable to be Int in an entirely
--- standard way. The constraint @ IsInt a @ is essentially equivalent to the
--- GHC-only constraint @ a ~ Int @, but @ IsInt @ requires manual intervention
--- to use. If ~ is ever standardized, we should certainly use it instead.
--- Earlier versions used an Enum constraint, but this is confusing because
--- not all Enum instances will work properly for the Arbitrary instance here.
-class (Show a, Read a, Integral a, Arbitrary a) => IsInt a where
-  fromIntF :: f Int -> f a
-
-instance IsInt Int where
-  fromIntF = id
-
--- | Convert an Int to any instance of IsInt
-fromInt :: IsInt a => Int -> a
-fromInt = runIdentity . fromIntF . Identity
-
-{- We don't actually need this, but we can add it if we ever do
-toIntF :: IsInt a => g a -> g Int
-toIntF = unf . fromIntF . F $ id
-
-newtype F g a b = F {unf :: g b -> a}
-
-toInt :: IsInt a => a -> Int
-toInt = runIdentity . toIntF . Identity -}
-
-
--- How much the minimum key of an arbitrary map should vary
-positionFactor :: Int
-positionFactor = 1
-
--- How much the gap between consecutive keys in an arbitrary
--- map should vary
-gapRange :: Int
-gapRange = 5
-
-instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
+instance (Int ~ k, Arbitrary v) => Arbitrary (Map k v) where
   arbitrary = sized (\sz0 -> do
         sz <- choose (0, sz0)
         middle <- choose (-positionFactor * (sz + 1), positionFactor * (sz + 1))
@@ -366,7 +329,16 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         diff <- lift $ choose (1, gapRange)
         let i' = i + diff
         put i'
-        pure (fromInt i')
+        pure i'
+
+      -- How much the minimum key of an arbitrary map should vary
+      positionFactor :: Int
+      positionFactor = 1
+
+      -- How much the gap between consecutive keys in an arbitrary
+      -- map should vary
+      gapRange :: Int
+      gapRange = 5
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
