@@ -324,6 +324,7 @@ instance (Int ~ k, Arbitrary v) => Arbitrary (Map k v) where
         t <- evalStateT (mkArbMap step sz) start
         if valid t then pure t else error "Test generated invalid tree!")
     where
+      step :: StateT Int Gen Int
       step = do
         i <- get
         diff <- lift $ choose (1, gapRange)

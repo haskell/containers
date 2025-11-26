@@ -221,18 +221,23 @@ instance (Int ~ a) => Arbitrary (Set a) where
 
 data TwoSets = TwoSets (Set Int) (Set Int) deriving (Show)
 
--- We produce two lists from a simple "universe". This instance
+-- | We produce two lists from a simple "universe". This instance
 -- is intended to give good results when the two lists are then
 -- combined with each other; if other elements are used with them,
 -- they may or may not behave particularly well.
+--
+-- The universe is made of ints in multiples of three. Each value is equally
+-- likely to be in the left set, the right set, or both sets.
 instance Arbitrary TwoSets where
   arbitrary = do
     (l, r) <- sized $ \sz0 -> do
       sz <- choose (0, sz0)
       let universe = [0,3..3*(sz - 1)]
       divide2Gen universe
-    TwoSets <$> setFromList l <*> setFromList r
+    liftA2 TwoSets (setFromList l) (setFromList r)
     where
+    -- | Split a list into two lists, choosing to add values to one of the first list,
+    -- the second list, or both lists evenly.
     divide2Gen :: [a] -> Gen ([a], [a])
     divide2Gen [] = pure ([], [])
     divide2Gen (x : xs) = do
