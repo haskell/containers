@@ -88,14 +88,11 @@
 -- INLINABLE (that exposes the unfolding).
 
 
--- [Note: Using INLINE]
+-- Note [Using INLINE]
 -- ~~~~~~~~~~~~~~~~~~~~
--- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
--- We mark the functions that just navigate down the tree (lookup, insert,
--- delete and similar). That navigation code gets inlined and thus specialized
--- when possible. There is a price to pay -- code growth. The code INLINED is
--- therefore only the tree navigation, all the real work (rebalancing) is not
--- INLINED by using a NOINLINE.
+-- We mark some functions INLINE where it is more beneficial than INLINABLE.
+-- There is a price to pay -- code growth. The code INLINED is therefore usually
+-- only the tree navigation, other work such as rebalancing is not INLINED.
 --
 -- All methods marked INLINE have to be nonrecursive -- a 'go' function doing
 -- the real work is provided.
