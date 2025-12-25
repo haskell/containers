@@ -1482,10 +1482,8 @@ fromSet f = runIdentity . fromSetA (pure . f)
 fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
 fromSetA f (Set.Bin sz x l r) = 
-  flip (Bin sz x $!)
-    <$> fromSetA f l
-    <*> f x
-    <*> fromSetA f r
+  liftA3 (flip (Bin sz x $!)) (fromSetA f l) (f x) (fromSetA f r)
+
 #if __GLASGOW_HASKELL__
 {-# INLINABLE fromSetA #-}
 #else
