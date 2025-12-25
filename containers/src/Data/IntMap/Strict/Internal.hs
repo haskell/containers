@@ -85,6 +85,7 @@ module Data.IntMap.Strict.Internal (
 
     -- * Deletion\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update
@@ -278,6 +279,7 @@ import Data.IntMap.Internal
   , mergeWithKey'
   , compose
   , delete
+  , pop
   , deleteMin
   , deleteMax
   , deleteFindMax

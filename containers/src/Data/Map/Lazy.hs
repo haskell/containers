@@ -134,6 +134,7 @@ module Data.Map.Lazy (
 
     -- * Deletion\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update

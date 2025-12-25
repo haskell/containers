@@ -142,6 +142,7 @@ module Data.Set.Internal (
             , singleton
             , insert
             , delete
+            , pop
             , alterF
             , powerSet
 
@@ -587,6 +588,35 @@ delete = go
 #else
 {-# INLINE delete #-}
 #endif
+
+-- | \(O(\log n)\). Pop an element from the set.
+--
+-- Returns @Nothing@ if the element is not a member of the set. Otherwise
+-- returns @Just@ the set with the element removed.
+--
+-- @
+-- pop 1 (fromList [0,2,4]) == Nothing
+-- pop 2 (fromList [0,2,4]) == Just (fromList [0,4])
+-- @
+--
+-- @since FIXME
+pop :: Ord a => a -> Set a -> Maybe (Set a)
+pop x0 t0 = case go x0 t0 of
+  True :*: t -> Just t
+  _ -> Nothing
+  where
+    -- We use `StrictPair Bool (Set a)` instead of a sum to avoid allocations.
+    -- See Note [Popped impl] in Data.Map.Internal
+    go !x (Bin _ y l r) = case compare x y of
+      LT -> case go x l of
+        True :*: l' -> True :*: balanceR y l' r
+        q -> q
+      EQ -> True :*: glue l r
+      GT -> case go x r of
+        True :*: r' -> True :*: balanceL y l r'
+        q -> q
+    go !_ Tip = False :*: Tip
+{-# INLINABLE pop #-}
 
 -- | \(O(\log n)\) @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
 -- whether an equal element is found in @s@.

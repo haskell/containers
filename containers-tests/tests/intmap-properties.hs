@@ -228,6 +228,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "isSubmapOfBy"         prop_isSubmapOfBy
              , testProperty "insert"               prop_insert
              , testProperty "delete"               prop_delete
+             , testProperty "pop"                  prop_pop
              , testProperty "insertWith"           prop_insertWith
              , testProperty "insertWithKey"        prop_insertWithKey
              , testProperty "insertLookupWithKey"  prop_insertLookupWithKey
@@ -1792,6 +1793,16 @@ prop_delete k m = valid m' .&&. toList m' === kxs'
     m' = delete k m
     kxs = toList m
     kxs' = maybe kxs (\v -> kxs List.\\ [(k,v)]) (List.lookup k kxs)
+
+prop_pop :: Int -> IntMap A -> Property
+prop_pop k m = case pop k m of
+  Nothing -> property $ notMember k m
+  Just (x, m') ->
+    valid m' .&&.
+    Just x === List.lookup k kxs .&&.
+    toList m' === kxs List.\\ [(k,x)]
+    where
+      kxs = toList m
 
 prop_insertWith :: Fun (A, A) A -> Int -> A -> IntMap A -> Property
 prop_insertWith f k x m = valid m' .&&. toList m' === kxs'

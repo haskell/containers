@@ -142,6 +142,7 @@ module Data.IntMap.Strict (
 
     -- * Deletion\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update
