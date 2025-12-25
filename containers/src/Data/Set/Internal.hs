@@ -78,14 +78,11 @@
 -- INLINABLE (that exposes the unfolding).
 
 
--- [Note: Using INLINE]
+-- Note [Using INLINE]
 -- ~~~~~~~~~~~~~~~~~~~~
--- For other compilers and GHC pre 7.0, we mark some of the functions INLINE.
--- We mark the functions that just navigate down the tree (lookup, insert,
--- delete and similar). That navigation code gets inlined and thus specialized
--- when possible. There is a price to pay -- code growth. The code INLINED is
--- therefore only the tree navigation, all the real work (rebalancing) is not
--- INLINED by using a NOINLINE.
+-- We mark some functions INLINE where it is more beneficial than INLINABLE.
+-- There is a price to pay -- code growth. The code INLINED is therefore usually
+-- only the tree navigation, other work such as rebalancing is not INLINED.
 --
 -- All methods marked INLINE have to be nonrecursive -- a 'go' function doing
 -- the real work is provided.
@@ -268,9 +265,7 @@ infixl 9 \\ --
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE (\\) #-}
-#endif
 
 {--------------------------------------------------------------------
   Sets are size balanced trees
@@ -394,20 +389,12 @@ member = go
       LT -> go x l
       GT -> go x r
       EQ -> True
-#if __GLASGOW_HASKELL__
 {-# INLINABLE member #-}
-#else
-{-# INLINE member #-}
-#endif
 
 -- | \(O(\log n)\). Is the element not in the set?
 notMember :: Ord a => a -> Set a -> Bool
 notMember a t = not $ member a t
-#if __GLASGOW_HASKELL__
 {-# INLINABLE notMember #-}
-#else
-{-# INLINE notMember #-}
-#endif
 
 -- | \(O(\log n)\). Find largest element smaller than the given one.
 --
@@ -423,11 +410,7 @@ lookupLT = goNothing
     goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x <= y = goJust x best l
                                 | otherwise = goJust x y r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLT #-}
-#else
-{-# INLINE lookupLT #-}
-#endif
 
 -- | \(O(\log n)\). Find smallest element greater than the given one.
 --
@@ -443,11 +426,7 @@ lookupGT = goNothing
     goJust !_ best Tip = Just best
     goJust x best (Bin _ y l r) | x < y = goJust x y l
                                 | otherwise = goJust x best r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGT #-}
-#else
-{-# INLINE lookupGT #-}
-#endif
 
 -- | \(O(\log n)\). Find largest element smaller or equal to the given one.
 --
@@ -466,11 +445,7 @@ lookupLE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x best l
                                                       EQ -> Just y
                                                       GT -> goJust x y r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupLE #-}
-#else
-{-# INLINE lookupLE #-}
-#endif
 
 -- | \(O(\log n)\). Find smallest element greater or equal to the given one.
 --
@@ -489,11 +464,7 @@ lookupGE = goNothing
     goJust x best (Bin _ y l r) = case compare x y of LT -> goJust x y l
                                                       EQ -> Just y
                                                       GT -> goJust x best r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupGE #-}
-#else
-{-# INLINE lookupGE #-}
-#endif
 
 {--------------------------------------------------------------------
   Construction
@@ -531,11 +502,7 @@ insert x0 = go x0 x0
            where !r' = go orig x r
         EQ | lazy orig `seq` (orig `ptrEq` y) -> t
            | otherwise -> Bin sz (lazy orig) l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
-#else
-{-# INLINE insert #-}
-#endif
 
 #ifndef __GLASGOW_HASKELL__
 lazy :: a -> a
@@ -560,11 +527,7 @@ insertR x0 = go x0 x0
            | otherwise -> balanceR y l r'
            where !r' = go orig x r
         EQ -> t
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertR #-}
-#else
-{-# INLINE insertR #-}
-#endif
 
 -- | \(O(\log n)\). Delete an element from a set.
 
@@ -582,11 +545,7 @@ delete = go
            | otherwise -> balanceL y l r'
            where !r' = go x r
         EQ -> glue l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE delete #-}
-#else
-{-# INLINE delete #-}
-#endif
 
 -- | \(O(\log n)\) @('alterF' f x s)@ can delete or insert @x@ in @s@ depending on
 -- whether an equal element is found in @s@.
@@ -612,9 +571,7 @@ alterF f k s = fmap choose (f member_)
 
     choose True  = inserted
     choose False = deleted
-#ifndef __GLASGOW_HASKELL__
-{-# INLINE alterF #-}
-#else
+#ifdef __GLASGOW_HASKELL__
 {-# INLINABLE [2] alterF #-}
 
 {-# RULES
@@ -646,11 +603,7 @@ alteredSet x0 s0 = go x0 s0
             Deleted d           -> Deleted (balanceL y l d)
             Inserted i          -> Inserted (balanceR y l i)
         EQ -> Deleted (glue l r)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE alteredSet #-}
-#else
-{-# INLINE alteredSet #-}
-#endif
 
 {--------------------------------------------------------------------
   Subset
@@ -665,9 +618,7 @@ alteredSet x0 s0 = go x0 s0
 isProperSubsetOf :: Ord a => Set a -> Set a -> Bool
 isProperSubsetOf s1 s2
     = size s1 < size s2 && isSubsetOfX s1 s2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE isProperSubsetOf #-}
-#endif
 
 
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
@@ -682,9 +633,7 @@ isProperSubsetOf s1 s2
 isSubsetOf :: Ord a => Set a -> Set a -> Bool
 isSubsetOf t1 t2
   = size t1 <= size t2 && isSubsetOfX t1 t2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOf #-}
-#endif
 
 -- Test whether a set is a subset of another without the *initial*
 -- size test.
@@ -718,9 +667,7 @@ isSubsetOfX (Bin _ x l r) t
     isSubsetOfX l lt && isSubsetOfX r gt
   where
     (lt,found,gt) = splitMember x t
-#if __GLASGOW_HASKELL__
 {-# INLINABLE isSubsetOfX #-}
-#endif
 
 {--------------------------------------------------------------------
   Disjoint
@@ -825,9 +772,7 @@ deleteMax Tip             = Tip
 -- | The union of the sets in a Foldable structure : (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: (Foldable f, Ord a) => f (Set a) -> Set a
 unions = Foldable.foldl' union empty
-#if __GLASGOW_HASKELL__
 {-# INLINABLE unions #-}
-#endif
 
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
@@ -842,9 +787,7 @@ union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
     | otherwise -> link x l1l2 r1r2
     where !l1l2 = union l1 l2
           !r1r2 = union r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE union #-}
-#endif
 
 {--------------------------------------------------------------------
   Difference
@@ -863,9 +806,7 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
      | otherwise -> merge l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE difference #-}
-#endif
 
 {--------------------------------------------------------------------
   Intersection
@@ -893,9 +834,7 @@ intersection t1@(Bin _ x l1 r1) t2
     !(l2, b, r2) = splitMember x t2
     !l1l2 = intersection l1 l2
     !r1r2 = intersection r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE intersection #-}
-#endif
 
 -- | The intersection of a series of sets. Intersections are performed
 -- left-to-right.
@@ -958,9 +897,7 @@ symmetricDifference (Bin _ x l1 r1) t2
     !(l2, found, r2) = splitMember x t2
     !l1l2 = symmetricDifference l1 l2
     !r1r2 = symmetricDifference r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE symmetricDifference #-}
-#endif
 
 {--------------------------------------------------------------------
   Filter and partition
@@ -1028,9 +965,7 @@ mapMaybe f t = finishB (foldl' go emptyB t)
 
 map :: Ord b => (a->b) -> Set a -> Set b
 map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE map #-}
-#endif
 
 -- | \(O(n)\).
 -- @'mapMonotonic' f s == 'map' f s@, but works only when @f@ is strictly increasing.
@@ -1452,9 +1387,7 @@ splitMember x (Bin _ y l r)
                  !lt' = linkL y l lt
              in (lt', found, gt)
        EQ -> (l, True, r)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
-#endif
 
 {--------------------------------------------------------------------
   Indexing
@@ -1484,9 +1417,7 @@ findIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> idx + size l
-#if __GLASGOW_HASKELL__
 {-# INLINABLE findIndex #-}
-#endif
 
 -- | \(O(\log n)\). Look up the /index/ of an element, which is its zero-based index in
 -- the sorted sequence of elements. The index is a number from /0/ up to, but not
@@ -1509,9 +1440,7 @@ lookupIndex = go 0
       LT -> go idx x l
       GT -> go (idx + size l + 1) x r
       EQ -> Just $! idx + size l
-#if __GLASGOW_HASKELL__
 {-# INLINABLE lookupIndex #-}
-#endif
 
 -- | \(O(\log n)\). Retrieve an element by its /index/, i.e. by its zero-based
 -- index in the sorted sequence of elements. If the /index/ is out of range (less
