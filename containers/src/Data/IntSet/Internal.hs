@@ -618,9 +618,7 @@ alterF f k s = fmap choose (f member_)
 
     choose True  = inserted
     choose False = deleted
-#ifndef __GLASGOW_HASKELL__
-{-# INLINE alterF #-}
-#else
+#ifdef __GLASGOW_HASKELL__
 {-# INLINABLE [2] alterF #-}
 
 {-# RULES

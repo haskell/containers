@@ -474,11 +474,7 @@ insert = go
             LT -> balanceL ky y (go kx x l) r
             GT -> balanceR ky y l (go kx x r)
             EQ -> Bin sz kx x l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insert #-}
-#else
-{-# INLINE insert #-}
-#endif
 
 -- | \(O(\log n)\). Insert with a function, combining new value and old value.
 -- @'insertWith' f key value mp@
@@ -502,11 +498,7 @@ insertWith = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !y' = f x y in Bin sy kx y' l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWith #-}
-#else
-{-# INLINE insertWith #-}
-#endif
 
 insertWithR :: Ord k => (a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithR = go
@@ -518,11 +510,7 @@ insertWithR = go
             LT -> balanceL ky y (go f kx x l) r
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !y' = f y x in Bin sy ky y' l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithR #-}
-#else
-{-# INLINE insertWithR #-}
-#endif
 
 -- | \(O(\log n)\). Insert with a function, combining key, new value and old value.
 -- @'insertWithKey' f key value mp@
@@ -552,11 +540,7 @@ insertWithKey = go
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !x' = f kx x y
                   in Bin sy kx x' l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKey #-}
-#else
-{-# INLINE insertWithKey #-}
-#endif
 
 insertWithKeyR :: Ord k => (k -> a -> a -> a) -> k -> a -> Map k a -> Map k a
 insertWithKeyR = go
@@ -571,11 +555,7 @@ insertWithKeyR = go
             GT -> balanceR ky y l (go f kx x r)
             EQ -> let !y' = f ky y x
                   in Bin sy ky y' l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertWithKeyR #-}
-#else
-{-# INLINE insertWithKeyR #-}
-#endif
 
 -- | \(O(\log n)\). Combines insert operation with old value retrieval.
 -- The expression (@'insertLookupWithKey' f k x map@)
@@ -610,11 +590,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
                   in found :*: balanceR ky y l r'
             EQ -> let x' = f kx x y
                   in x' `seq` (Just y :*: Bin sy kx x' l r)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE insertLookupWithKey #-}
-#else
-{-# INLINE insertLookupWithKey #-}
-#endif
 
 {--------------------------------------------------------------------
   Deletion
@@ -630,11 +606,7 @@ insertLookupWithKey f0 kx0 x0 t0 = toPair $ go f0 kx0 x0 t0
 
 adjust :: Ord k => (a -> a) -> k -> Map k a -> Map k a
 adjust f = adjustWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE adjust #-}
-#else
-{-# INLINE adjust #-}
-#endif
 
 -- | \(O(\log n)\). Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
@@ -655,11 +627,7 @@ adjustWithKey = go
            GT -> Bin sx kx x l (go f k r)
            EQ -> Bin sx kx x' l r
              where !x' = f kx x
-#if __GLASGOW_HASKELL__
 {-# INLINABLE adjustWithKey #-}
-#else
-{-# INLINE adjustWithKey #-}
-#endif
 
 -- | \(O(\log n)\). The expression (@'update' f k map@) updates the value @x@
 -- at @k@ (if it is in the map). If (@f x@) is 'Nothing', the element is
@@ -672,11 +640,7 @@ adjustWithKey = go
 
 update :: Ord k => (a -> Maybe a) -> k -> Map k a -> Map k a
 update f = updateWithKey (\_ x -> f x)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE update #-}
-#else
-{-# INLINE update #-}
-#endif
 
 -- | \(O(\log n)\). The expression (@'updateWithKey' f k map@) updates the
 -- value @x@ at @k@ (if it is in the map). If (@f k x@) is 'Nothing',
@@ -701,11 +665,7 @@ updateWithKey = go
            EQ -> case f kx x of
                    Just x' -> x' `seq` Bin sx kx x' l r
                    Nothing -> glue l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE updateWithKey #-}
-#else
-{-# INLINE updateWithKey #-}
-#endif
 
 -- | \(O(\log n)\). Update the value at a key or insert a value if the key is
 -- not in the map.
@@ -750,11 +710,7 @@ updateLookupWithKey f0 k0 t0 = toPair $ go f0 k0 t0
                EQ -> case f kx x of
                        Just x' -> x' `seq` (Just x' :*: Bin sx kx x' l r)
                        Nothing -> (Just x :*: glue l r)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE updateLookupWithKey #-}
-#else
-{-# INLINE updateLookupWithKey #-}
-#endif
 
 -- | \(O(\log n)\). The expression (@'alter' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alter' can be used to insert, delete, or update a value in a 'Map'.
@@ -785,11 +741,7 @@ alter = go
                EQ -> case f (Just x) of
                        Just x' -> x' `seq` Bin sx kx x' l r
                        Nothing -> glue l r
-#if __GLASGOW_HASKELL__
 {-# INLINABLE alter #-}
-#else
-{-# INLINE alter #-}
-#endif
 
 -- | \(O(\log n)\). The expression (@'alterF' f k map@) alters the value @x@ at @k@, or absence thereof.
 -- 'alterF' can be used to inspect, insert, delete, or update a value in a 'Map'.
@@ -835,9 +787,7 @@ alterF :: (Functor f, Ord k)
        => (Maybe a -> f (Maybe a)) -> k -> Map k a -> f (Map k a)
 alterF f k m = atKeyImpl Strict k f m
 
-#ifndef __GLASGOW_HASKELL__
-{-# INLINE alterF #-}
-#else
+#ifdef __GLASGOW_HASKELL__
 {-# INLINABLE [2] alterF #-}
 
 -- We can save a little time by recognizing the special case of
@@ -943,9 +893,7 @@ updateMaxWithKey f (Bin _ kx x l r)    = balanceL kx x l (updateMaxWithKey f r)
 unionsWith :: (Foldable f, Ord k) => (a->a->a) -> f (Map k a) -> Map k a
 unionsWith f ts
   = Foldable.foldl' (unionWith f) empty ts
-#if __GLASGOW_HASKELL__
 {-# INLINABLE unionsWith #-}
-#endif
 
 {--------------------------------------------------------------------
   Union with a combining function
@@ -964,9 +912,7 @@ unionWith _f Tip t2 = t2
 unionWith f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
   (l2, mb, r2) -> link k1 x1' (unionWith f l1 l2) (unionWith f r1 r2)
     where !x1' = maybe x1 (f x1) mb
-#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWith #-}
-#endif
 
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
 -- Union with a combining function.
@@ -984,9 +930,7 @@ unionWithKey _f Tip t2 = t2
 unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
   (l2, mb, r2) -> link k1 x1' (unionWithKey f l1 l2) (unionWithKey f r1 r2)
     where !x1' = maybe x1 (f k1 x1) mb
-#if __GLASGOW_HASKELL__
 {-# INLINABLE unionWithKey #-}
-#endif
 
 {--------------------------------------------------------------------
   Difference
@@ -1004,9 +948,7 @@ unionWithKey f (Bin _ k1 x1 l1 r1) t2 = case splitLookup k1 t2 of
 
 differenceWith :: Ord k => (a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWith f = merge preserveMissing dropMissing (zipWithMaybeMatched $ \_ x1 x2 -> f x1 x2)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWith #-}
-#endif
 
 -- | \(O(n+m)\). Difference with a combining function. When two equal keys are
 -- encountered, the combining function is applied to the key and both values.
@@ -1019,9 +961,7 @@ differenceWith f = merge preserveMissing dropMissing (zipWithMaybeMatched $ \_ x
 
 differenceWithKey :: Ord k => (k -> a -> b -> Maybe a) -> Map k a -> Map k b -> Map k a
 differenceWithKey f = merge preserveMissing dropMissing (zipWithMaybeMatched f)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE differenceWithKey #-}
-#endif
 
 
 {--------------------------------------------------------------------
@@ -1042,9 +982,7 @@ intersectionWith f (Bin _ k x1 l1 r1) t2 = case mb of
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWith f l1 l2
     !r1r2 = intersectionWith f r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWith #-}
-#endif
 
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Intersection with a combining function.
 --
@@ -1061,9 +999,7 @@ intersectionWithKey f (Bin _ k x1 l1 r1) t2 = case mb of
     !(l2, mb, r2) = splitLookup k t2
     !l1l2 = intersectionWithKey f l1 l2
     !r1r2 = intersectionWithKey f r1 r2
-#if __GLASGOW_HASKELL__
 {-# INLINABLE intersectionWithKey #-}
-#endif
 
 -- | Map covariantly over a @'WhenMissing' f k x@.
 mapWhenMissing :: Functor f => (a -> b) -> WhenMissing f k x a -> WhenMissing f k x b
@@ -1441,9 +1377,7 @@ mapAccumRWithKey f a (Bin sx kx x l r) =
 mapKeysWith :: Ord k2 => (a -> a -> a) -> (k1->k2) -> Map k1 a -> Map k2 a
 mapKeysWith c f m =
   finishB (foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB m)
-#if __GLASGOW_HASKELL__
 {-# INLINABLE mapKeysWith #-}
-#endif
 
 {--------------------------------------------------------------------
   Conversions
@@ -1485,12 +1419,7 @@ fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
 fromSetA f (Set.Bin sz x l r) = 
   liftA3 (flip (Bin sz x $!)) (fromSetA f l) (f x) (fromSetA f r)
-
-#if __GLASGOW_HASKELL__
 {-# INLINABLE fromSetA #-}
-#else
-{-# INLINE fromSetA #-}
-#endif
 
 -- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
 --
