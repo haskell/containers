@@ -18,7 +18,8 @@
 -- = Finite Maps (strict interface)
 --
 -- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
--- from keys of type @k@ to values of type @v@.
+-- from keys of type @k@ to values of type @v@. Most operations require that @k@
+-- have an instance of the 'Ord' class.
 --
 -- Each function in this module is careful to force values before installing
 -- them in a 'Map'. This is usually more efficient when laziness is not
@@ -48,9 +49,11 @@
 -- > import Data.Map.Strict (Map)
 -- > import qualified Data.Map.Strict as Map
 --
--- Note that the implementation is generally /left-biased/. Functions that take
--- two maps as arguments and combine them, such as `union` and `intersection`,
--- prefer the values in the first argument to those in the second.
+-- The @'Ord' k@ instance is expected to be lawful and define a total order.
+-- Unless otherwise specified, operations expect equality on keys to be
+-- extensional: if keys @k1@ and @k2@ satisfy @k1 == k2@, they are considered
+-- identical. For instance, if only one key must be retained by an operation, it
+-- is free to select either.
 --
 --
 -- == Warning
