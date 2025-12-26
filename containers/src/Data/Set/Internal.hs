@@ -220,6 +220,22 @@ module Data.Set.Internal (
             , showTreeWith
             , valid
 
+            -- * General merge functions
+            , WhenMissing
+            , SimpleWhenMissing
+            , dropMissing
+            , preserveMissing
+            , filterMissing
+            , filterAMissing
+            , runWhenMissing
+            , WhenMatched
+            , SimpleWhenMatched
+            , filterMatched
+            , filterAMatched
+            , runWhenMatched
+            , merge
+            , mergeA
+
             -- Internals (for testing)
             , bin
             , balanced
@@ -230,11 +246,11 @@ module Data.Set.Internal (
 import Utils.Containers.Internal.Prelude hiding
   (filter,foldl,foldl',foldr,null,map,take,drop,splitAt)
 import Prelude ()
-import Control.Applicative (Const(..))
+import Control.Applicative (Const(..), liftA3)
 import qualified Data.List as List
 import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid, stimesIdempotent)
 import Data.Functor.Classes
-import Data.Functor.Identity (Identity)
+import Data.Functor.Identity (Identity(..))
 import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
@@ -944,6 +960,25 @@ filter p t@(Bin _ x l r)
     where
       !l' = filter p l
       !r' = filter p r
+
+filterA :: Applicative f => (a -> f Bool) -> Set a -> f (Set a)
+filterA p = go
+  where
+    -- Handle the singleton case separately as it is possible for fmap to be
+    -- cheaper than liftA3.
+    go t@(Bin 1 x _ _) = finish <$> p x
+      where
+        finish False = Tip
+        finish True = t
+    go t@(Bin _ x l r) = liftA3 doLink (go l) (p x) (go r)
+      where
+        doLink !l' keepx !r'
+          | keepx = if l `ptrEq` l' && r `ptrEq` r'
+                    then t
+                    else link x l' r'
+          | otherwise = link2 l' r'
+    go Tip = pure Tip
+{-# INLINABLE filterA #-}
 
 -- | \(O(n)\). Partition the set into two sets, one with all elements that satisfy
 -- the predicate and one with all elements that don't satisfy the predicate.
@@ -2140,6 +2175,261 @@ instance Monoid (MergeSet a) where
 -- @since 0.5.11
 disjointUnion :: Set a -> Set b -> Set (Either a b)
 disjointUnion as bs = link2 (mapMonotonic Left as) (mapMonotonic Right bs)
+
+{--------------------------------------------------------------------
+  Merging Sets
+--------------------------------------------------------------------}
+
+-- | A tactic for dealing with elements present in one set but not the other in
+-- 'merge' or 'mergeA'.
+--
+-- A tactic of type @WhenMissing f a@ is an abstract representation of a
+-- function of type @a -> f Bool@.
+--
+-- @since FIXME
+data WhenMissing f a = WhenMissing
+  { missingSubtree :: Set a -> f (Set a)
+  , missingElem :: a -> f Bool
+  }
+
+-- | A tactic for dealing with elements present in one set but not the other in
+-- 'merge'.
+--
+-- A tactic of type @SimpleWhenMissing a@ is an abstract representation
+-- of a function of type @a -> Bool@.
+--
+-- @since FIXME
+type SimpleWhenMissing = WhenMissing Identity
+
+-- | Along with 'filterAMissing', witnesses the isomorphism between
+-- @WhenMissing f a@ and @a -> f Bool@.
+--
+-- @since FIXME
+runWhenMissing :: WhenMissing f a -> a -> f Bool
+runWhenMissing = missingElem
+
+-- | A tactic for dealing with elements present in both sets in 'merge' or
+-- 'mergeA'.
+--
+-- A tactic of type @WhenMatched f a@ is an abstract representation of a
+-- function of type @a -> f Bool@.
+--
+-- @since FIXME
+newtype WhenMatched f a = WhenMatched { matchedElem :: a -> f Bool }
+
+-- | A tactic for dealing with elements present in both sets in 'merge'.
+--
+-- A tactic of type @SimpleWhenMatched a@ is an abstract representation of a
+-- function of type @a -> Bool@.
+--
+-- @since FIXME
+type SimpleWhenMatched = WhenMatched Identity
+
+-- | Along with 'filterAMatched', witnesses the isomorphism between
+-- @WhenMatched f a@ and @a -> f Bool@.
+--
+-- @since FIXME
+runWhenMatched :: WhenMatched f a -> a -> f Bool
+runWhenMatched = matchedElem
+
+-- | When an element is found in both sets, choose whether to keep the element
+-- in the merged set.
+--
+-- @since FIXME
+filterMatched :: Applicative f => (a -> Bool) -> WhenMatched f a
+filterMatched f = WhenMatched (pure . f)
+{-# INLINE filterMatched #-}
+
+-- | When an element is found in both sets, choose whether to keep the element
+-- in the merged set.
+--
+-- @since FIXME
+filterAMatched :: (a -> f Bool) -> WhenMatched f a
+filterAMatched = WhenMatched
+
+-- | Drop all the elements that are missing from the other set.
+--
+-- @
+-- dropMissing :: 'SimpleWhenMissing' a
+-- @
+--
+-- > dropMissing = filterMissing (\_ -> False)
+--
+-- but @dropMissing@ is more efficient.
+--
+-- @since FIXME
+dropMissing :: Applicative f => WhenMissing f a
+dropMissing = WhenMissing
+  { missingSubtree = \_ -> pure Tip
+  , missingElem = \_ -> pure False
+  }
+{-# INLINE dropMissing #-}
+
+-- | Preserve the elements that are missing from the other set.
+--
+-- @
+-- preserveMissing :: 'SimpleWhenMissing' a
+-- @
+--
+-- > preserveMissing = filterMissing (\_ -> True)
+--
+-- but @preserveMissing@ is more efficient.
+--
+-- @since FIXME
+preserveMissing :: Applicative f => WhenMissing f a
+preserveMissing = WhenMissing
+  { missingSubtree = pure
+  , missingElem = \_ -> pure True
+  }
+{-# INLINE preserveMissing #-}
+
+-- | Filter the elements that are missing from the other set.
+--
+-- @
+-- filterMissing :: (a -> Bool) -> 'SimpleWhenMissing' a
+-- @
+--
+-- @since FIXME
+filterMissing :: Applicative f => (a -> Bool) -> WhenMissing f a
+filterMissing f = WhenMissing
+  { missingSubtree = pure . filter f
+  , missingElem = pure . f
+  }
+{-# INLINE filterMissing #-}
+
+-- | Filter the elements that are missing from the other set using some
+-- 'Applicative' action.
+--
+-- @since FIXME
+filterAMissing :: Applicative f => (a -> f Bool) -> WhenMissing f a
+filterAMissing f = WhenMissing
+  { missingSubtree = filterA f
+  , missingElem = f
+  }
+{-# INLINE filterAMissing #-}
+
+-- | Merge two sets.
+--
+-- 'merge' takes two 'SimpleWhenMissing' tactics, a 'SimpleWhenMatched' tactic,
+-- and two sets. It uses the tactics to merge the sets.
+--
+-- Consider
+--
+-- @
+-- merge (filterMissing g1) (filterMissing g2) (filterMatched f) s1 s2
+-- @
+--
+-- @
+-- g1 = (==2)
+-- g2 = (==3)
+-- f  = (==6)
+-- s1 = [2, 4, 6, 8, 10, 12]
+-- s2 = [3, 6, 9, 12]
+-- @
+--
+-- 'merge' will pass the elements to @g1@, @g2@, or @f@ as appropriate,
+-- producing a @Bool@ for each element.
+--
+-- @
+-- m1:      [   2,            4,     6,     8,           10     12]
+-- m2:      [          3,            6,            9,           12]
+-- result:  [g1 2,  g2 3,  g1 4,   f 6,  g1 8,  g2 9, g1 10,  f 12]
+--        = [True,  True, False,  True, False, False, False, False]
+-- @
+--
+-- The result set contains the element for which we have @True@.
+--
+-- >>> merge (filterMissing g1) (filterMissing g2) (filterMatched f) s1 s2
+-- fromList [2,3,6]
+--
+-- The other tactics below are optimizations or simplifications of
+-- 'filterMissing' for special cases. Most importantly,
+--
+-- * 'dropMissing' drops all elements.
+-- * 'preserveMissing' leaves all elements alone.
+--
+-- When 'merge' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should typically use 'merge'
+-- to define your custom combining functions.
+--
+-- @since FIXME
+merge
+  :: Ord a
+  => SimpleWhenMissing a -- ^ What to do with elements in @s1@ but not @s2@
+  -> SimpleWhenMissing a -- ^ What to do with elements in @s2@ but not @s1@
+  -> SimpleWhenMatched a -- ^ What to do with elements in both @s1@ and @s2@
+  -> Set a -- ^ Set @s1@
+  -> Set a -- ^ Set @s2@
+  -> Set a
+merge g1 g2 f = \s1 s2 -> runIdentity (mergeA g1 g2 f s1 s2)
+{-# INLINE merge #-}
+
+-- | An applicative version of 'merge'.
+--
+-- 'mergeA' takes two 'WhenMissing' tactics, a 'WhenMatched' tactic, and two
+-- sets. It uses the tactics to merge the sets.
+--
+-- Behaves just like 'merge' while allowing @Applicative@ effects. Effects are
+-- performed in increasing order of elements.
+--
+-- Consider,
+--
+-- @
+-- mergeA (filterAMissing g1) (filterAMissing g2) (filterAMatched f) s1 s2
+-- @
+--
+-- @
+-- g1 x = (x == 2) <$ putStrLn ("g1 " ++ show x)
+-- g2 x = (x == 3) <$ putStrLn ("g2 " ++ show x)
+-- f x = (x == 6) <$ putStrLn ("f " ++ show x)
+-- s1 = [2, 4, 6, 8, 10, 12]
+-- s2 = [3, 6, 9, 12]
+-- @
+--
+-- As with 'merge', the result set is @[2,3,6]@. Additionally, @g1@, @g2@, and
+-- @f@ perform @IO@ effects, printing the elements in increasing order.
+--
+-- >>> mergeA (filterAMissing g1) (filterAMissing g2) (filterAMatched f) s1 s2
+-- g1 2
+-- g2 3
+-- g1 4
+-- f 6
+-- g1 8
+-- g2 9
+-- g1 10
+-- f 12
+-- fromList [2,3,6]
+--
+-- When 'mergeA' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should generally only use
+-- 'mergeA' to define custom combining functions.
+--
+-- @since FIXME
+mergeA
+  :: (Applicative f, Ord a)
+  => WhenMissing f a -- ^ What to do with elements in @s1@ but not @s2@
+  -> WhenMissing f a -- ^ What to do with elements in @s2@ but not @s1@
+  -> WhenMatched f a -- ^ What to do with elements in both @s1@ and @s2@
+  -> Set a -- ^ Set @s1@
+  -> Set a -- ^ Set @s2@
+  -> f (Set a)
+mergeA
+    WhenMissing{missingSubtree = g1t, missingElem = g1k}
+    WhenMissing{missingSubtree = g2t}
+    WhenMatched{matchedElem = f} = go
+  where
+    go t1 Tip = g1t t1
+    go Tip t2 = g2t t2
+    go (Bin _ x1 l1 r1) t2 = case splitMember x1 t2 of
+      (l2, found, r2)
+        | found -> liftA3 doLink l1l2 (f x1) r1r2
+        | otherwise -> liftA3 doLink l1l2 (g1k x1) r1r2
+        where
+          doLink l' True r' = link x1 l' r'
+          doLink l' False r' = link2 l' r'
+          l1l2 = go l1 l2
+          r1r2 = go r1 r2
+{-# INLINE mergeA #-}
 
 {--------------------------------------------------------------------
   Debugging
