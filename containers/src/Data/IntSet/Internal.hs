@@ -236,6 +236,10 @@ import Language.Haskell.TH ()
 import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity(..))
 
+#if __GLASGOW_HASKELL__ >= 800
+import GHC.Stack (HasCallStack)
+#endif
+
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
 {--------------------------------------------------------------------
@@ -1117,7 +1121,11 @@ minView t =
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'minView'.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMin :: HasCallStack => IntSet -> (Key, IntSet)
+#else
 deleteFindMin :: IntSet -> (Key, IntSet)
+#endif
 deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal element") . minView
 
 -- | \(O(\min(n,W))\). Delete and find the maximal element.
@@ -1125,7 +1133,11 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxView'.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMax :: HasCallStack => IntSet -> (Key, IntSet)
+#else
 deleteFindMax :: IntSet -> (Key, IntSet)
+#endif
 deleteFindMax = fromMaybe (error "deleteFindMax: empty set has no maximal element") . maxView
 
 lookupMinSure :: IntSet -> Key
@@ -1147,7 +1159,11 @@ lookupMin (Bin p l r) = Just $! lookupMinSure (if signBranch p then r else l)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
+#if __GLASGOW_HASKELL__ >= 800
+findMin :: HasCallStack => IntSet -> Key
+#else
 findMin :: IntSet -> Key
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "findMin: empty set has no minimal element"
@@ -1171,7 +1187,11 @@ lookupMax (Bin p l r) = Just $! lookupMaxSure (if signBranch p then l else r)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
+#if __GLASGOW_HASKELL__ >= 800
+findMax :: HasCallStack => IntSet -> Key
+#else
 findMax :: IntSet -> Key
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "findMax: empty set has no maximal element"
