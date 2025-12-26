@@ -224,7 +224,7 @@ module Data.Set.Internal (
             , bin
             , balanced
             , link
-            , merge
+            , link2
             ) where
 
 import Utils.Containers.Internal.Prelude hiding
@@ -834,7 +834,7 @@ difference t1 Tip  = t1
 difference t1 (Bin _ x l2 r2) = case split x t1 of
    (l1, r1)
      | size l1l2 + size r1r2 == size t1 -> t1
-     | otherwise -> merge l1l2 r1r2
+     | otherwise -> link2 l1l2 r1r2
      where !l1l2 = difference l1 l2
            !r1r2 = difference r1 r2
 {-# INLINABLE difference #-}
@@ -860,7 +860,7 @@ intersection t1@(Bin _ x l1 r1) t2
   | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
         then t1
         else link x l1l2 r1r2
-  | otherwise = merge l1l2 r1r2
+  | otherwise = link2 l1l2 r1r2
   where
     !(l2, b, r2) = splitMember x t2
     !l1l2 = intersection l1 l2
@@ -922,7 +922,7 @@ symmetricDifference :: Ord a => Set a -> Set a -> Set a
 symmetricDifference Tip t2 = t2
 symmetricDifference t1 Tip = t1
 symmetricDifference (Bin _ x l1 r1) t2
-  | found = merge l1l2 r1r2
+  | found = link2 l1l2 r1r2
   | otherwise = link x l1l2 r1r2
   where
     !(l2, found, r2) = splitMember x t2
@@ -940,7 +940,7 @@ filter p t@(Bin _ x l r)
     | p x = if l `ptrEq` l' && r `ptrEq` r'
             then t
             else link x l' r'
-    | otherwise = merge l' r'
+    | otherwise = link2 l' r'
     where
       !l' = filter p l
       !r' = filter p r
@@ -956,8 +956,8 @@ partition p0 t0 = toPair $ go p0 t0
       ((l1 :*: l2), (r1 :*: r2))
         | p x       -> (if l1 `ptrEq` l && r1 `ptrEq` r
                         then t
-                        else link x l1 r1) :*: merge l2 r2
-        | otherwise -> merge l1 r1 :*:
+                        else link x l1 r1) :*: link2 l2 r2
+        | otherwise -> link2 l1 r1 :*:
                        (if l2 `ptrEq` l && r2 `ptrEq` r
                         then t
                         else link x l2 r2)
@@ -1698,7 +1698,7 @@ finishB (BSet s) = s
   are valid:
     [glue l r]        Glues [l] and [r] together. Assumes that [l] and
                       [r] are already balanced with respect to each other.
-    [merge l r]       Merges two trees and restores balance.
+    [link2 l r]       Merges two trees and restores balance.
 --------------------------------------------------------------------}
 
 {--------------------------------------------------------------------
@@ -1755,27 +1755,27 @@ insertMin x t
           -> balanceL y (insertMin x l) r
 
 {--------------------------------------------------------------------
-  [merge l r]: merges two trees.
+  [link2 l r]: merges two trees.
 --------------------------------------------------------------------}
-merge :: Set a -> Set a -> Set a
-merge Tip r   = r
-merge l Tip   = l
-merge l@(Bin lsz lx ll lr) r@(Bin rsz rx rl rr)
-  | delta*lsz < rsz = balanceL rx (mergeR_ lsz l rl) rr
-  | delta*rsz < lsz = balanceR lx ll (mergeL_ lr rsz r)
+link2 :: Set a -> Set a -> Set a
+link2 Tip r   = r
+link2 l Tip   = l
+link2 l@(Bin lsz lx ll lr) r@(Bin rsz rx rl rr)
+  | delta*lsz < rsz = balanceL rx (link2R_ lsz l rl) rr
+  | delta*rsz < lsz = balanceR lx ll (link2L_ lr rsz r)
   | otherwise = glue l r
 
-mergeL_ :: Set a -> Int -> Set a -> Set a
-mergeL_ l !rsz r = case l of
+link2L_ :: Set a -> Int -> Set a -> Set a
+link2L_ l !rsz r = case l of
   Bin lsz lx ll lr
-    | delta*rsz < lsz -> balanceR lx ll (mergeL_ lr rsz r)
+    | delta*rsz < lsz -> balanceR lx ll (link2L_ lr rsz r)
     | otherwise -> glue l r
   Tip -> r
 
-mergeR_ :: Int -> Set a -> Set a -> Set a
-mergeR_ !lsz l r = case r of
+link2R_ :: Int -> Set a -> Set a -> Set a
+link2R_ !lsz l r = case r of
   Bin rsz rx rl rr
-    | delta*lsz < rsz -> balanceL rx (mergeR_ lsz l rl) rr
+    | delta*lsz < rsz -> balanceL rx (link2R_ lsz l rl) rr
     | otherwise -> glue l r
   Tip -> l
 
@@ -2118,7 +2118,7 @@ cartesianProduct as bs =
 newtype MergeSet a = MergeSet { getMergeSet :: Set a }
 
 instance Semigroup (MergeSet a) where
-  MergeSet xs <> MergeSet ys = MergeSet (merge xs ys)
+  MergeSet xs <> MergeSet ys = MergeSet (link2 xs ys)
 
 instance Monoid (MergeSet a) where
   mempty = MergeSet empty
@@ -2139,7 +2139,7 @@ instance Monoid (MergeSet a) where
 --
 -- @since 0.5.11
 disjointUnion :: Set a -> Set b -> Set (Either a b)
-disjointUnion as bs = merge (mapMonotonic Left as) (mapMonotonic Right bs)
+disjointUnion as bs = link2 (mapMonotonic Left as) (mapMonotonic Right bs)
 
 {--------------------------------------------------------------------
   Debugging

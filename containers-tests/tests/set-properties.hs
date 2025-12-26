@@ -5,7 +5,7 @@ import qualified Data.List as List
 import Data.Maybe (isJust, fromJust)
 import qualified Data.Maybe as Maybe
 import Data.Set
-import Data.Set.Internal (link, merge)
+import Data.Set.Internal (link, link2)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -51,7 +51,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "alterF/four" prop_alterF_four
                    , testProperty "alterF/valid" prop_alterF_valid
                    , testProperty "prop_Link" prop_Link
-                   , testProperty "prop_Merge" prop_Merge
+                   , testProperty "prop_link2" prop_link2
                    , testProperty "prop_UnionValid" prop_UnionValid
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
@@ -391,10 +391,10 @@ prop_Link x = forValidUnitTree $ \t ->
     let (l,r) = split x t
     in valid (link x l r)
 
-prop_Merge :: Int -> Property
-prop_Merge x = forValidUnitTree $ \t ->
+prop_link2 :: Int -> Property
+prop_link2 x = forValidUnitTree $ \t ->
     let (l,r) = split x t
-    in valid (merge l r)
+    in valid (link2 l r)
 
 {--------------------------------------------------------------------
   Union
