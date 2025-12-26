@@ -1022,9 +1022,6 @@ mapMaybe f t = finishB (foldl' go emptyB t)
 --
 -- It's worth noting that the size of the result may be smaller if,
 -- for some @(x,y)@, @x \/= y && f x == f y@
---
--- If the function produces duplicate values, only one will be retained. No
--- guarantee is made as to which.
 
 map :: Ord b => (a->b) -> Set a -> Set b
 map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
@@ -1173,9 +1170,6 @@ foldlFB = foldl
 --
 -- If the elements are in non-decreasing order, this function takes \(O(n)\)
 -- time.
---
--- If the list contains duplicate elements, only one will be retained. No
--- guarantee is made as to which.
 fromList :: Ord a => [a] -> Set a
 fromList xs = finishB (Foldable.foldl' (flip insertB) emptyB xs)
 {-# INLINE fromList #-}  -- INLINE for fusion
@@ -1187,9 +1181,6 @@ fromList xs = finishB (Foldable.foldl' (flip insertB) emptyB xs)
     fromAscList xs == fromList xs
 --------------------------------------------------------------------}
 -- | \(O(n)\). Build a set from an ascending list in linear time.
---
--- If the list contains duplicate elements, only one will be retained. No
--- guarantee is made as to which.
 --
 -- __Warning__: This function should be used only if the elements are in
 -- non-decreasing order. This precondition is not checked. Use 'fromList' if the
@@ -1206,9 +1197,6 @@ fromAscList xs = ascLinkAll (Foldable.foldl' next Nada xs)
 {-# INLINE fromAscList #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a set from a descending list in linear time.
---
--- If the list contains duplicate elements, only one will be retained. No
--- guarantee is made as to which.
 --
 -- __Warning__: This function should be used only if the elements are in
 -- non-increasing order. This precondition is not checked. Use 'fromList' if the

@@ -17,8 +17,8 @@
 -- = Finite Sets
 --
 -- The @'Set' e@ type represents a set of elements of type @e@. Most operations
--- require that @e@ be an instance of the 'Ord' class. A 'Set' is strict in its
--- elements.
+-- require that @e@ have an instance of the 'Ord' class. A 'Set' is strict in
+-- its elements.
 --
 -- For a walkthrough of the most commonly used functions see the
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
@@ -29,11 +29,11 @@
 -- >  import Data.Set (Set)
 -- >  import qualified Data.Set as Set
 --
--- Note that the implementation is generally /left-biased/. Functions that take
--- two sets as arguments and combine them, such as `union` and `intersection`,
--- prefer the entries in the first argument to those in the second. Of course,
--- this bias can only be observed when equality is an equivalence relation
--- instead of structural equality.
+-- The @'Ord' e@ instance is expected to be lawful and define a total order.
+-- Unless otherwise specified, operations expect equality to be extensional: if
+-- elements @x1@ and @x2@ satisfy @x1 == x2@, they are considered identical. For
+-- instance, if only one element must be retained by an operation, it is free to
+-- select either.
 --
 --
 -- == Warning
