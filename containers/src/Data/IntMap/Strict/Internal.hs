@@ -1167,7 +1167,7 @@ fromAscList xs = fromAscListWithKey (\_ x _ -> x) xs
 {-# INLINE fromAscList #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
--- the keys are in ascending order, with a combining function for equal keys.
+-- the keys are in ascending order, with a combining function on equal keys.
 --
 -- __Warning__: This function should be used only if the keys are in
 -- non-decreasing order. This precondition is not checked. Use 'fromListWith' if
@@ -1182,8 +1182,7 @@ fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
 {-# INLINE fromAscListWith #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
--- the keys are in ascending order, with a combining function that receives
--- the key for equal keys.
+-- the keys are in ascending order, with a combining function on equal keys.
 --
 -- __Warning__: This function should be used only if the keys are in
 -- non-decreasing order. This precondition is not checked. Use 'fromListWithKey'
