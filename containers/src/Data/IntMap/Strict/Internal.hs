@@ -1180,7 +1180,7 @@ fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
 {-# INLINE fromListWith #-} -- Inline for list fusion
 
--- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also fromAscListWithKey'.
+-- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
 --
 -- If the keys are in sorted order, ascending or descending, this function
 -- takes \(O(n)\) time.
@@ -1232,7 +1232,9 @@ fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
 -- non-decreasing order. This precondition is not checked. Use 'fromListWithKey'
 -- if the precondition may not hold.
 --
--- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
+-- > let f key new_value old_value = show key ++ ":" ++ new_value ++ "|" ++ old_value
+-- > fromAscListWithKey f [(3,"b"), (3,"a"), (5,"a"), (5,"b"), (5,"c")] == fromList [(3, "3:a|b"), (5, "5:c|5:b|a")]
+-- > fromAscListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
 
