@@ -52,6 +52,8 @@ main = do
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
         , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
+        , bench "isSubsetOf:true" $ whnf (s_even `S.isSubsetOf`) s
+        , bench "isSubsetOf:false" $ whnf (s_even `S.isSubsetOf`) s_odd
         , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
         , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
         , bench "alterF:member" $ whnf (alterF_member elems) s
