@@ -1,13 +1,9 @@
-{-# LANGUAGE CPP #-}
-#ifdef __GLASGOW_HASKELL__
-{-# LANGUAGE Safe #-}
-#endif
-
-#include "containers.h"
-
--- | A strict pair
-
-module Utils.Containers.Internal.StrictPair (StrictPair(..), toPair) where
+-- | Simple strict types for internal use.
+module Utils.Containers.Internal.Strict
+  ( StrictPair(..)
+  , toPair
+  , StrictTriple(..)
+  ) where
 
 -- | The same as a regular Haskell pair, but
 --
@@ -22,3 +18,5 @@ infixr 1 :*:
 toPair :: StrictPair a b -> (a, b)
 toPair (x :*: y) = (x, y)
 {-# INLINE toPair #-}
+
+data StrictTriple a b c = TripleS !a !b !c

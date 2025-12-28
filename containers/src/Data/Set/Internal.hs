@@ -241,7 +241,7 @@ import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
 
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
 import Utils.Containers.Internal.PtrEquality
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 

@@ -365,7 +365,6 @@ module Data.Map.Internal (
     , ascLinkAll
     , descLinkTop
     , descLinkAll
-    , MaybeS(..)
     , Identity(..)
     , Stack(..)
     , foldl'Stack
@@ -403,8 +402,8 @@ import Prelude ()
 import qualified Data.Set.Internal as Set
 import Data.Set.Internal (Set)
 import Utils.Containers.Internal.PtrEquality (ptrEq)
-import Utils.Containers.Internal.StrictPair
-import Utils.Containers.Internal.StrictMaybe
+import Utils.Containers.Internal.Strict
+  (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.BitQueue
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 #ifdef DEFINE_ALTERF_FALLBACK
@@ -3976,20 +3975,20 @@ split !k0 t0 = toPair $ go k0 t0
 -- > splitLookup 6 (fromList [(5,"a"), (3,"b")]) == (fromList [(3,"b"), (5,"a")], Nothing, empty)
 splitLookup :: Ord k => k -> Map k a -> (Map k a,Maybe a,Map k a)
 splitLookup k0 m = case go k0 m of
-     StrictTriple l mv r -> (l, mv, r)
+     TripleS l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) (Maybe a) (Map k a)
     go !k t =
       case t of
-        Tip            -> StrictTriple Tip Nothing Tip
+        Tip            -> TripleS Tip Nothing Tip
         Bin _ kx x l r -> case compare k kx of
-          LT -> let StrictTriple lt z gt = go k l
+          LT -> let TripleS lt z gt = go k l
                     !gt' = linkR kx x gt r
-                in StrictTriple lt z gt'
-          GT -> let StrictTriple lt z gt = go k r
+                in TripleS lt z gt'
+          GT -> let TripleS lt z gt = go k r
                     !lt' = linkL kx x l lt
-                in StrictTriple lt' z gt
-          EQ -> StrictTriple l (Just x) r
+                in TripleS lt' z gt
+          EQ -> TripleS l (Just x) r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitLookup #-}
 #endif
@@ -4000,25 +3999,23 @@ splitLookup k0 m = case go k0 m of
 -- constructors.
 splitMember :: Ord k => k -> Map k a -> (Map k a,Bool,Map k a)
 splitMember k0 m = case go k0 m of
-     StrictTriple l mv r -> (l, mv, r)
+     TripleS l mv r -> (l, mv, r)
   where
     go :: Ord k => k -> Map k a -> StrictTriple (Map k a) Bool (Map k a)
     go !k t =
       case t of
-        Tip            -> StrictTriple Tip False Tip
+        Tip            -> TripleS Tip False Tip
         Bin _ kx x l r -> case compare k kx of
-          LT -> let StrictTriple lt z gt = go k l
+          LT -> let TripleS lt z gt = go k l
                     !gt' = linkR kx x gt r
-                in StrictTriple lt z gt'
-          GT -> let StrictTriple lt z gt = go k r
+                in TripleS lt z gt'
+          GT -> let TripleS lt z gt = go k r
                     !lt' = linkL kx x l lt
-                in StrictTriple lt' z gt
-          EQ -> StrictTriple l True r
+                in TripleS lt' z gt
+          EQ -> TripleS l True r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif
-
-data StrictTriple a b c = StrictTriple !a !b !c
 
 {--------------------------------------------------------------------
   MapBuilder

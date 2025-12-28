@@ -203,7 +203,7 @@ import Utils.Containers.Internal.Prelude hiding
 import Prelude ()
 
 import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
 import Data.IntSet.Internal.IntTreeCommons
   ( Key
   , Prefix(..)

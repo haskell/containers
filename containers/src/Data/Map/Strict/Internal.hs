@@ -415,7 +415,7 @@ import Control.Applicative (Const (..), liftA3)
 import Data.Semigroup (Arg (..))
 import qualified Data.Set.Internal as Set
 import qualified Data.Map.Internal as L
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce

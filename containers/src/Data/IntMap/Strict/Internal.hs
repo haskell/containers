@@ -329,7 +329,7 @@ import Data.IntMap.Internal
   )
 import qualified Data.IntSet.Internal as IntSet
 import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
 import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity (..))
 
