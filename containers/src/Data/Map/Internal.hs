@@ -159,6 +159,7 @@ module Data.Map.Internal (
 
     -- ** Delete\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update
@@ -1035,6 +1036,54 @@ delete = go
 {-# INLINE delete #-}
 #endif
 
+-- | \(O(\log n)\). Pop an entry from the map.
+--
+-- Returns @Nothing@ if the key is not in the map. Otherwise returns @Just@ the
+-- value at the key and a map with the entry removed.
+--
+-- @
+-- pop 1 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Nothing
+-- pop 2 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Just ("b",fromList [(0,"a"),(4,"c")])
+-- @
+--
+-- @since FIXME
+pop :: Ord k => k -> Map k a -> Maybe (a, Map k a)
+pop k0 t0 = case go k0 t0 of
+  Popped (Just y) t -> Just (y, t)
+  _ -> Nothing
+  where
+    -- See Note [Popped impl]
+    go !k (Bin _ kx x l r) = case compare k kx of
+      LT -> case go k l of
+        Popped y@(Just _) l' -> Popped y (balanceR kx x l' r)
+        q -> q
+      EQ -> Popped (Just x) (glue l r)
+      GT -> case go k r of
+        Popped y@(Just _) r' -> Popped y (balanceL kx x l r')
+        q -> q
+    go !_ Tip = Popped Nothing Tip
+{-# INLINABLE pop #-}
+
+-- Note [Popped impl]
+-- ~~~~~~~~~~~~~~~~~~
+-- Popped is implemented as a pair, though a sum makes more sense:
+--   data Popped k a = NotPopped | Popped a !(Map k a)
+-- This is because GHC optimizes a return value of `Popped k a` to
+-- `(# Maybe a, Map k a #)`, avoiding all Popped allocations in `pop`.
+-- GHC cannot do this with a sum type yet, see GHC #14259. Manually using
+-- unboxed sums avoids the allocations but GHC loses strictness information,
+-- see #25988.
+--
+-- On GHC>=9.6 we unbox the Maybe and avoid that allocation too, so `pop`'s `go`
+-- returns `(# (# (# #) | a #), Map k a #)`.
+
+data Popped k a = Popped
+#if __GLASGOW_HASKELL__ >= 906
+  {-# UNPACK #-}
+#endif
+  !(Maybe a)
+  !(Map k a)
+
 -- | \(O(\log n)\). Update a value at a specific key with the result of the provided function.
 -- When the key is not
 -- a member of the map, the original map is returned.
@@ -1148,6 +1197,8 @@ upsert f !k Tip = singleton k (f Nothing)
 -- > updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) == (Just "5:new a", fromList [(3, "b"), (5, "5:new a")])
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
+--
+-- See also: 'pop'
 
 -- See Note: Type of local 'go' function
 updateLookupWithKey :: Ord k => (k -> a -> Maybe a) -> k -> Map k a -> (Maybe a,Map k a)

@@ -90,6 +90,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "intersections_lazy" prop_intersections_lazy
                    , testProperty "insert" prop_insert
                    , testProperty "delete" prop_delete
+                   , testProperty "pop" prop_pop
                    , testProperty "deleteMin" prop_deleteMin
                    , testProperty "deleteMax" prop_deleteMax
                    , testProperty "fromAscList" prop_fromAscList
@@ -528,6 +529,11 @@ prop_delete :: Int -> IntSet -> Property
 prop_delete x s = valid s' .&&. toList s' === toList s List.\\ [x]
   where
     s' = delete x s
+
+prop_pop :: Int -> IntSet -> Property
+prop_pop x s = case pop x s of
+  Nothing -> property $ notMember x s
+  Just s' -> valid s' .&&. toList s' === toList s List.\\ [x]
 
 prop_deleteMin :: IntSet -> Property
 prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList s)

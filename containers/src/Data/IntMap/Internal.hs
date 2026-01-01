@@ -120,6 +120,7 @@ module Data.IntMap.Internal (
 
     -- ** Delete\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update
@@ -967,6 +968,43 @@ delete k t@(Tip ky _)
   | otherwise     = t
 delete _k Nil = Nil
 
+-- | \(O(\min(n,W))\). Pop an entry from the map.
+--
+-- Returns @Nothing@ if the key is not in the map. Otherwise returns @Just@ the
+-- value at the key and a map with the entry removed.
+--
+-- @
+-- pop 1 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Nothing
+-- pop 2 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Just ("b",fromList [(0,"a"),(4,"c")])
+-- @
+--
+-- @since FIXME
+pop :: Key -> IntMap a -> Maybe (a, IntMap a)
+pop k0 t0 = case go k0 t0 of
+  Popped (Just y) t -> Just (y, t)
+  _ -> Nothing
+  where
+    go !k (Bin p l r)
+      | nomatch k p = Popped Nothing Nil
+      | left k p = case go k l of
+          Popped y@(Just _) l' -> Popped y (binCheckL p l' r)
+          q -> q
+      | otherwise = case go k r of
+          Popped y@(Just _) r' -> Popped y (binCheckR p l r')
+          q -> q
+    go !k (Tip ky y)
+      | k == ky = Popped (Just y) Nil
+      | otherwise = Popped Nothing Nil
+    go !_ Nil = Popped Nothing Nil
+
+-- See Note [Popped impl] in Data.Map.Internal
+data Popped k a = Popped
+#if __GLASGOW_HASKELL__ >= 906
+  {-# UNPACK #-}
+#endif
+  !(Maybe a)
+  !(IntMap a)
+
 -- | \(O(\min(n,W))\). Adjust a value at a specific key. When the key is not
 -- a member of the map, the original map is returned.
 --
@@ -1058,6 +1096,8 @@ upsert f !k Nil = Tip k (f Nothing)
 -- > updateLookupWithKey f 5 (fromList [(5,"a"), (3,"b")]) == (Just "a", fromList [(3, "b"), (5, "5:new a")])
 -- > updateLookupWithKey f 7 (fromList [(5,"a"), (3,"b")]) == (Nothing,  fromList [(3, "b"), (5, "a")])
 -- > updateLookupWithKey f 3 (fromList [(5,"a"), (3,"b")]) == (Just "b", singleton 5 "a")
+--
+-- See also: 'pop'
 
 updateLookupWithKey ::  (Key -> a -> Maybe a) -> Key -> IntMap a -> (Maybe a,IntMap a)
 updateLookupWithKey f !k (Bin p l r)

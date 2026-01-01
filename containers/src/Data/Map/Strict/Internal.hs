@@ -97,6 +97,7 @@ module Data.Map.Strict.Internal
 
     -- ** Delete\/Update
     , delete
+    , pop
     , adjust
     , adjustWithKey
     , update
@@ -338,6 +339,7 @@ import Data.Map.Internal
   , elems
   , empty
   , delete
+  , pop
   , deleteAt
   , deleteFindMax
   , deleteFindMin
