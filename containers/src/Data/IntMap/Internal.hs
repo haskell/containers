@@ -347,7 +347,8 @@ import Data.IntSet.Internal.IntTreeCommons
   , Order(..)
   )
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL, wordSize)
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict
+  (StrictPair(..), StrictTriple(..), toPair)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
@@ -2974,14 +2975,14 @@ split k t =
     go _ Nil = (Nil :*: Nil)
 
 
-data SplitLookup a = SplitLookup !(IntMap a) !(Maybe a) !(IntMap a)
+type SplitLookup a = StrictTriple (IntMap a) (Maybe a) (IntMap a)
 
 mapLT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
-mapLT f (SplitLookup lt fnd gt) = SplitLookup (f lt) fnd gt
+mapLT f (TripleS lt fnd gt) = TripleS (f lt) fnd gt
 {-# INLINE mapLT #-}
 
 mapGT :: (IntMap a -> IntMap a) -> SplitLookup a -> SplitLookup a
-mapGT f (SplitLookup lt fnd gt) = SplitLookup lt fnd (f gt)
+mapGT f (TripleS lt fnd gt) = TripleS lt fnd (f gt)
 {-# INLINE mapGT #-}
 
 -- | \(O(\min(n,W))\). Performs a 'split' but also returns whether the pivot
@@ -3003,20 +3004,20 @@ splitLookup k t =
           then mapLT (\l' -> binCheckL p l' r) (go k l)
           else mapGT (binCheckR p l) (go k r)
       _ -> go k t
-  of SplitLookup lt fnd gt -> (lt, fnd, gt)
+  of TripleS lt fnd gt -> (lt, fnd, gt)
   where
     go !k' t'@(Bin p l r)
       | nomatch k' p =
           if k' < unPrefix p
-          then SplitLookup Nil Nothing t'
-          else SplitLookup t' Nothing Nil
+          then TripleS Nil Nothing t'
+          else TripleS t' Nothing Nil
       | left k' p = mapGT (\l' -> binCheckL p l' r) (go k' l)
       | otherwise  = mapLT (binCheckR p l) (go k' r)
     go k' t'@(Tip ky y)
-      | k' > ky   = SplitLookup t'  Nothing  Nil
-      | k' < ky   = SplitLookup Nil Nothing  t'
-      | otherwise = SplitLookup Nil (Just y) Nil
-    go _ Nil      = SplitLookup Nil Nothing  Nil
+      | k' > ky   = TripleS t'  Nothing  Nil
+      | k' < ky   = TripleS Nil Nothing  t'
+      | otherwise = TripleS Nil (Just y) Nil
+    go _ Nil      = TripleS Nil Nothing  Nil
 
 {--------------------------------------------------------------------
   Fold

@@ -232,7 +232,7 @@ import qualified Data.Array
 
 import Data.Functor.Identity (Identity(..))
 
-import Utils.Containers.Internal.StrictPair (StrictPair (..), toPair)
+import Utils.Containers.Internal.Strict (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
 import Control.Monad.Fix (MonadFix (..), fix)
 

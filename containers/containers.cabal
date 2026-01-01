@@ -81,11 +81,10 @@ Library
     other-modules:
         Utils.Containers.Internal.Prelude
         Utils.Containers.Internal.State
-        Utils.Containers.Internal.StrictMaybe
+        Utils.Containers.Internal.Strict
         Utils.Containers.Internal.PtrEquality
         Utils.Containers.Internal.EqOrdUtil
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
-        Utils.Containers.Internal.StrictPair
 
     include-dirs: include

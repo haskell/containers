@@ -7,7 +7,7 @@ module Utils.Containers.Internal.EqOrdUtil
 #if !MIN_VERSION_base(4,11,0)
 import Data.Semigroup (Semigroup(..))
 #endif
-import Utils.Containers.Internal.StrictPair
+import Utils.Containers.Internal.Strict (StrictPair(..))
 
 newtype EqM a = EqM { runEqM :: a -> StrictPair Bool a }
 
