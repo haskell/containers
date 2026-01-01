@@ -18,7 +18,8 @@
 -- = Finite Maps (lazy interface)
 --
 -- The @'Map' k v@ type represents a finite map (sometimes called a dictionary)
--- from keys of type @k@ to values of type @v@. A 'Map' is strict in its keys but lazy
+-- from keys of type @k@ to values of type @v@. Most operations require that @k@
+-- have an instance of the 'Ord' class. A 'Map' is strict in its keys but lazy
 -- in its values.
 --
 -- The functions in "Data.Map.Strict" are careful to force values before
@@ -43,9 +44,11 @@
 -- > import Data.Map.Lazy (Map)
 -- > import qualified Data.Map.Lazy as Map
 --
--- Note that the implementation is generally /left-biased/. Functions that take
--- two maps as arguments and combine them, such as `union` and `intersection`,
--- prefer the values in the first argument to those in the second.
+-- The @'Ord' k@ instance is expected to be lawful and define a total order.
+-- Unless otherwise specified, operations expect equality on keys to be
+-- extensional: if keys @k1@ and @k2@ satisfy @k1 == k2@, they are considered
+-- identical. For instance, if only one key must be retained by an operation, it
+-- is free to select either.
 --
 --
 -- == Warning
