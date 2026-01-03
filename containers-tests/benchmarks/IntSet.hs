@@ -139,6 +139,7 @@ fromListNoinline = IS.fromList
 
 interleave :: [a] -> [a] -> [a]
 interleave [] ys = ys
+interleave xs [] = xs
 interleave (x:xs) (y:ys) = x : y : interleave xs ys
 
 gen :: StdGen

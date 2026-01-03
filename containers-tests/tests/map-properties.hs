@@ -1242,6 +1242,7 @@ prop_mergeWithKeyModel xs ys
                                             (Nothing, Just y) -> if keep_y then Just (k, y) else Nothing
                                             (Just x, Nothing) -> if keep_x then Just (k, x) else Nothing
                                             (Just x, Just y) -> (\v -> (k, v)) `fmap` f k x y
+                                            (Nothing, Nothing) -> error "impossible"
 
           -- We prevent inlining testMergeWithKey to disable the SpecConstr
           -- optimalization. There are too many call patterns here so several
@@ -1914,14 +1915,18 @@ prop_maxViewWithKey m = case maxViewWithKey m of
 prop_minView :: Map Int A -> Property
 prop_minView m = case minView m of
   Nothing -> property $ null m
-  Just (x,m') | ~(_,x'):xs' <- toList m ->
-    valid m' .&&. x == x' .&&. toList m' === xs'
+  Just (x,m') -> valid m' .&&. kxs === (minKey, x) : toList m'
+    where
+      kxs = toList m
+      minKey = minimum (fmap fst kxs)
 
 prop_maxView :: Map Int A -> Property
 prop_maxView m = case maxView m of
   Nothing -> property $ null m
-  Just (x,m') | ~(_,x'):xs' <- toDescList m ->
-    valid m' .&&. x == x' .&&. toDescList m' === xs'
+  Just (x,m') -> valid m' .&&. kxs === (maxKey, x) : toDescList m'
+    where
+      kxs = toDescList m
+      maxKey = maximum (fmap fst kxs)
 
 prop_isSubmapOf :: Map Int A -> Map Int A -> Property
 prop_isSubmapOf m1 m2 = isSubmapOf m1 m2 === all (`elem` kys) (toList m1)

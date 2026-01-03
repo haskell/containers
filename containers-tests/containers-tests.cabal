@@ -27,7 +27,7 @@ extra-source-files:
 
 tested-with:
   GHC ==8.2.2 || ==8.4.4 || ==8.6.5 || ==8.8.4 || ==8.10.7 || ==9.0.2 || ==9.2.8 ||
-      ==9.4.8 || ==9.6.6 || ==9.8.4 || ==9.10.1 || ==9.12.1
+      ==9.4.8 || ==9.6.6 || ==9.8.4 || ==9.10.3 || ==9.12.2 || ==9.14.1
 
 source-repository head
   type:     git
@@ -37,11 +37,14 @@ common deps
   build-depends:
       array    >=0.4.0.0
     , base     >=4.10    && <5
-    , deepseq  >=1.2     && <1.6
+    , deepseq >= 1.4.3.0 && < 1.6
     , template-haskell
 
 common warnings
-  ghc-options: -Werror=unused-top-binds
+  ghc-options:
+    -Werror=unused-top-binds
+    -Werror=incomplete-patterns
+    -Werror=incomplete-uni-patterns
 
 common test-deps
   import: deps
@@ -58,7 +61,6 @@ common benchmark-deps
   import: deps
   build-depends:
       containers-tests
-    , deepseq           >=1.1.0.0 && <1.6
     , OneTuple
     , tasty-bench       >=0.3.1   && <0.5
 
@@ -295,7 +297,6 @@ benchmark lookupge-intmap
   hs-source-dirs: benchmarks/LookupGE
   main-is:        IntMap.hs
   other-modules:  LookupGE_IntMap
-  build-depends:  containers-tests
 
 benchmark lookupge-map
   import: benchmark-deps, warnings
@@ -304,7 +305,6 @@ benchmark lookupge-map
   hs-source-dirs: benchmarks/LookupGE
   main-is:        Map.hs
   other-modules:  LookupGE_Map
-  build-depends:  containers-tests
   ghc-options:    -O2
 
 -------------------

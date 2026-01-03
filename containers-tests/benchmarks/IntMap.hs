@@ -191,6 +191,7 @@ maybeDel n | n `mod` 3 == 0 = Nothing
 ------------------------------------------------------------
 interleave :: [Int] -> [Int] -> [Int]
 interleave [] ys = ys
+interleave xs [] = xs
 interleave (x:xs) (y:ys) = x : y : interleave xs ys
 
 unitValues :: [Int] -> [(Int, ())]

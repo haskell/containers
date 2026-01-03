@@ -226,8 +226,7 @@ fakeDeleteAt i xs
 -- and rejoin the pieces in the opposite order.
 -- Finally getting the middle element forces the whole spine.
 shuffle :: [Int] -> S.Seq Int -> Int
-shuffle ps s = case S.viewl (S.drop (S.length s `div` 2) (foldl' cut s ps)) of
-    x S.:< _ -> x
+shuffle ps s = S.index (foldl' cut s ps) (S.length s `div` 2)
   where cut xs p = let (front, back) = S.splitAt p xs in back S.>< front
 
 stateReplicate :: Int -> S.Seq Char
