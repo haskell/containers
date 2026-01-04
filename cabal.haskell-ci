@@ -12,3 +12,7 @@ install-dependencies: False
 installed: +all -binary -text
 
 cabal-check: False
+
+-- Stop haskell-ci from inserting -Werror=unused-packages
+-- https://github.com/haskell-CI/haskell-ci/pull/789#issuecomment-3224566698
+error-unused-packages: False
