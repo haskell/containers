@@ -242,7 +242,8 @@ import qualified Data.Foldable as Foldable
 import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.List.NonEmpty (NonEmpty(..))
 
-import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
+import Utils.Containers.Internal.Strict
+  (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.PtrEquality
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
 
@@ -1460,16 +1461,17 @@ splitS x (Bin _ y l r)
 -- | \(O(\log n)\). Performs a 'split' but also returns whether the pivot
 -- element was found in the original set.
 splitMember :: Ord a => a -> Set a -> (Set a,Bool,Set a)
-splitMember _ Tip = (Tip, False, Tip)
-splitMember x (Bin _ y l r)
-   = case compare x y of
-       LT -> let (lt, found, gt) = splitMember x l
-                 !gt' = linkR y gt r
-             in (lt, found, gt')
-       GT -> let (lt, found, gt) = splitMember x r
-                 !lt' = linkL y l lt
-             in (lt', found, gt)
-       EQ -> (l, True, r)
+splitMember x0 t = case go x0 t of
+  TripleS lt found gt -> (lt, found, gt)
+  where
+    go _ Tip = TripleS Tip False Tip
+    go x (Bin _ y l r) =
+      case compare x y of
+        LT -> case go x l of
+          TripleS lt found gt -> TripleS lt found (linkR y gt r)
+        GT -> case go x r of
+          TripleS lt found gt -> TripleS (linkL y l lt) found gt
+        EQ -> TripleS l True r
 #if __GLASGOW_HASKELL__
 {-# INLINABLE splitMember #-}
 #endif

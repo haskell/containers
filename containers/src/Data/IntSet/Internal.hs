@@ -204,7 +204,8 @@ import Utils.Containers.Internal.Prelude hiding
 import Prelude ()
 
 import Utils.Containers.Internal.BitUtil (iShiftRL, shiftLL, shiftRL)
-import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
+import Utils.Containers.Internal.Strict
+  (StrictPair(..), StrictTriple(..), toPair)
 import Data.IntSet.Internal.IntTreeCommons
   ( Key
   , Prefix(..)
@@ -1083,40 +1084,39 @@ splitMember x t =
         if x >= 0 -- handle negative numbers.
         then
           case go x l of
-            (lt, fnd, gt) ->
+            TripleS lt fnd gt ->
               let !lt' = binCheckL p lt r
               in (lt', fnd, gt)
         else
           case go x r of
-            (lt, fnd, gt) ->
+            TripleS lt fnd gt ->
               let !gt' = binCheckR p l gt
               in (lt, fnd, gt')
-    _ -> go x t
+    _ -> case go x t of
+      TripleS lt fnd gt -> (lt, fnd, gt)
   where
     go !x' t'@(Bin p l r)
-        | nomatch x' p = if x' < unPrefix p then (Nil, False, t') else (t', False, Nil)
+        | nomatch x' p = if x' < unPrefix p
+                         then TripleS Nil False t'
+                         else TripleS t' False Nil
         | left x' p =
           case go x' l of
-            (lt, fnd, gt) ->
-              let !gt' = binCheckL p gt r
-              in (lt, fnd, gt')
+            TripleS lt fnd gt -> TripleS lt fnd (binCheckL p gt r)
         | otherwise =
           case go x' r of
-            (lt, fnd, gt) ->
-              let !lt' = binCheckR p l lt
-              in (lt', fnd, gt)
+            TripleS lt fnd gt -> TripleS (binCheckR p l lt) fnd gt
     go x' t'@(Tip kx' bm)
-        | kx' > x'          = (Nil, False, t')
+        | kx' > x'          = TripleS Nil False t'
           -- equivalent to kx' > prefixOf x'
-        | kx' < prefixOf x' = (t', False, Nil)
+        | kx' < prefixOf x' = TripleS t' False Nil
         | otherwise = let !lt = tip kx' (bm .&. lowerBitmap)
                           !found = (bm .&. bitmapOfx') /= 0
                           !gt = tip kx' (bm .&. higherBitmap)
-                      in (lt, found, gt)
+                      in TripleS lt found gt
             where bitmapOfx' = bitmapOf x'
                   lowerBitmap = bitmapOfx' - 1
                   higherBitmap = complement (lowerBitmap + bitmapOfx')
-    go _ Nil = (Nil, False, Nil)
+    go _ Nil = TripleS Nil False Nil
 
 {----------------------------------------------------------------------
   Min/Max
