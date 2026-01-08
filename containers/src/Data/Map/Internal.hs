@@ -427,6 +427,9 @@ import Data.Coerce
 import Text.Read hiding (lift)
 #endif
 import qualified Control.Category as Category
+#if __GLASGOW_HASKELL__ >= 800
+import GHC.Stack (HasCallStack)
+#endif
 
 {--------------------------------------------------------------------
   Operators
@@ -441,8 +444,18 @@ infixl 9 !,!?,\\ --
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
+#if __GLASGOW_HASKELL__ >= 800
+(!) :: (HasCallStack, Ord k) => Map k a -> k -> a
+#else
 (!) :: Ord k => Map k a -> k -> a
-(!) m k = find k m
+#endif
+(!) m !k = go m
+  where
+    go Tip = error "Map.!: given key is not an element in the map"
+    go (Bin _ kx x l r) = case compare k kx of
+      LT -> go l
+      GT -> go r
+      EQ -> x
 #if __GLASGOW_HASKELL__
 {-# INLINE (!) #-}
 #endif
@@ -625,20 +638,6 @@ notMember k m = not $ member k m
 {-# INLINABLE notMember #-}
 #else
 {-# INLINE notMember #-}
-#endif
-
-find :: Ord k => k -> Map k a -> a
-find = go
-  where
-    go !_ Tip = error "Map.!: given key is not an element in the map"
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> x
-#if __GLASGOW_HASKELL__
-{-# INLINABLE find #-}
-#else
-{-# INLINE find #-}
 #endif
 
 -- | \(O(\log n)\). The expression @('findWithDefault' def k map)@ returns
@@ -1535,7 +1534,11 @@ alterFYoneda = go
 -- > findIndex 6 (fromList [(5,"a"), (3,"b")])    Error: element is not in the map
 
 -- See Note: Type of local 'go' function
+#if __GLASGOW_HASKELL__ >= 800
+findIndex :: (HasCallStack, Ord k) => k -> Map k a -> Int
+#else
 findIndex :: Ord k => k -> Map k a -> Int
+#endif
 findIndex = go 0
   where
     go :: Ord k => Int -> k -> Map k a -> Int
@@ -1581,6 +1584,18 @@ lookupIndex = go 0
 -- > elemAt 1 (fromList [(5,"a"), (3,"b")]) == (5, "a")
 -- > elemAt 2 (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
+elemAt :: HasCallStack => Int -> Map k a -> (k,a)
+elemAt = go where
+  go !_ Tip = error "Map.elemAt: index out of range"
+  go i (Bin _ kx x l r)
+    = case compare i sizeL of
+        LT -> elemAt i l
+        GT -> elemAt (i-sizeL-1) r
+        EQ -> (kx,x)
+    where
+      sizeL = size l
+#else
 elemAt :: Int -> Map k a -> (k,a)
 elemAt !_ Tip = error "Map.elemAt: index out of range"
 elemAt i (Bin _ kx x l r)
@@ -1590,6 +1605,7 @@ elemAt i (Bin _ kx x l r)
       EQ -> (kx,x)
   where
     sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Take a given number of entries in key order, beginning
 -- with the smallest keys.
@@ -1672,6 +1688,21 @@ splitAt i0 m0
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
+updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+updateAt = go where
+  go f !i t =
+    case t of
+      Tip -> error "Map.updateAt: index out of range"
+      Bin sx kx x l r -> case compare i sizeL of
+        LT -> balanceR kx x (go f i l) r
+        GT -> balanceL kx x l (go f (i-sizeL-1) r)
+        EQ -> case f kx x of
+                Just x' -> Bin sx kx x' l r
+                Nothing -> glue l r
+        where
+          sizeL = size l
+#else
 updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
 updateAt f !i t =
   case t of
@@ -1684,6 +1715,7 @@ updateAt f !i t =
               Nothing -> glue l r
       where
         sizeL = size l
+#endif
 
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sequence sorted by keys. If the /index/ is out of range (less than zero,
@@ -1696,6 +1728,19 @@ updateAt f !i t =
 -- > deleteAt 2 (fromList [(5,"a"), (3,"b")])     Error: index out of range
 -- > deleteAt (-1) (fromList [(5,"a"), (3,"b")])  Error: index out of range
 
+#if __GLASGOW_HASKELL__ >= 800
+deleteAt :: HasCallStack => Int -> Map k a -> Map k a
+deleteAt = go where
+  go !i t =
+    case t of
+      Tip -> error "Map.deleteAt: index out of range"
+      Bin _ kx x l r -> case compare i sizeL of
+        LT -> balanceR kx x (go i l) r
+        GT -> balanceL kx x l (go (i-sizeL-1) r)
+        EQ -> glue l r
+        where
+          sizeL = size l
+#else
 deleteAt :: Int -> Map k a -> Map k a
 deleteAt !i t =
   case t of
@@ -1706,6 +1751,7 @@ deleteAt !i t =
       EQ -> glue l r
       where
         sizeL = size l
+#endif
 
 
 {--------------------------------------------------------------------
@@ -1753,7 +1799,11 @@ lookupMin (Bin _ k x l _) = Just $! kvToTuple (lookupMinSure k x l)
 -- > findMin (fromList [(5,"a"), (3,"b")]) == (3,"b")
 -- > findMin empty                            Error: empty map has no minimal element
 
+#if __GLASGOW_HASKELL__ >= 800
+findMin :: HasCallStack => Map k a -> (k,a)
+#else
 findMin :: Map k a -> (k,a)
+#endif
 findMin t
   | Just r <- lookupMin t = r
   | otherwise = error "Map.findMin: empty map has no minimal element"
@@ -1781,7 +1831,11 @@ lookupMax (Bin _ k x _ r) = Just $! kvToTuple (lookupMaxSure k x r)
 -- > findMax (fromList [(5,"a"), (3,"b")]) == (5,"a")
 -- > findMax empty                            Error: empty map has no maximal element
 
+#if __GLASGOW_HASKELL__ >= 800
+findMax :: HasCallStack => Map k a -> (k,a)
+#else
 findMax :: Map k a -> (k,a)
+#endif
 findMax t
   | Just r <- lookupMax t = r
   | otherwise = error "Map.findMax: empty map has no maximal element"
@@ -4250,7 +4304,11 @@ maxViewSure !k x !l r = case r of
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'minViewWithKey'.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMin :: HasCallStack => Map k a -> ((k,a),Map k a)
+#else
 deleteFindMin :: Map k a -> ((k,a),Map k a)
+#endif
 deleteFindMin t = case minViewWithKey t of
   Nothing -> (error "Map.deleteFindMin: can not return the minimal element of an empty map", Tip)
   Just res -> res
@@ -4260,7 +4318,11 @@ deleteFindMin t = case minViewWithKey t of
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxViewWithKey'.
+#if __GLASGOW_HASKELL__ >= 800
+deleteFindMax :: HasCallStack => Map k a -> ((k,a),Map k a)
+#else
 deleteFindMax :: Map k a -> ((k,a),Map k a)
+#endif
 deleteFindMax t = case maxViewWithKey t of
   Nothing -> (error "Map.deleteFindMax: can not return the maximal element of an empty map", Tip)
   Just res -> res
