@@ -21,7 +21,6 @@
 {-# LANGUAGE PatternGuards #-}
 
 {-# OPTIONS_HADDOCK not-home #-}
-{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
 
 -----------------------------------------------------------------------------
 -- |
@@ -4092,8 +4091,10 @@ tailsTree f (Deep n pr m sf) =
         (tailsTree f' m)
         (fmap (f . digitToTree) (tailsDigit sf))
   where
-    f' ms = let ConsLTree node m' = viewLTree ms in
+    f' ms = case viewLTree ms of
+      ConsLTree node m' ->
         fmap (\ pr' -> f (deep pr' m' sf)) (tailsNode node)
+      EmptyLTree -> error "EmptyLTree"
 
 {-# SPECIALIZE initsTree :: (FingerTree (Elem a) -> Elem b) -> FingerTree (Elem a) -> FingerTree (Elem b) #-}
 {-# SPECIALIZE initsTree :: (FingerTree (Node a) -> Node b) -> FingerTree (Node a) -> FingerTree (Node b) #-}
@@ -4107,8 +4108,10 @@ initsTree f (Deep n pr m sf) =
         (initsTree f' m)
         (fmap (f . deep pr m) (initsDigit sf))
   where
-    f' ms =  let SnocRTree m' node = viewRTree ms in
+    f' ms = case viewRTree ms of
+      SnocRTree m' node ->
              fmap (\ sf' -> f (deep pr m' sf')) (initsNode node)
+      EmptyRTree -> error "EmptyRTree"
 
 {-# INLINE foldlWithIndex #-}
 -- | 'foldlWithIndex' is a version of 'foldl' that also provides access
