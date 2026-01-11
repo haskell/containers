@@ -1,8 +1,6 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 
-#include "containers.h"
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Utils.Containers.Internal.BitQueue

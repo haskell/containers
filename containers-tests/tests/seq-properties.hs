@@ -2,8 +2,6 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
-#include "containers.h"
-
 import Data.Sequence.Internal
   ( Sized (..)
   , Seq (Seq)

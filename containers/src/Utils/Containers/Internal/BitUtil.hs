@@ -4,8 +4,6 @@
 {-# LANGUAGE Trustworthy #-}
 #endif
 
-#include "containers.h"
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Utils.Containers.Internal.BitUtil
