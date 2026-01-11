@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
