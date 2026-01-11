@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-
 module Data.Map.Internal.Debug where
 
 import Data.Map.Internal (Map (..), size, delta)

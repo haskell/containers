@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 import Control.Applicative (Const(..))
 import Data.Bits ((.&.), popCount)
 import Data.Word (Word)
