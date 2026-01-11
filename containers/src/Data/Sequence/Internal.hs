@@ -425,9 +425,7 @@ instance Foldable Seq where
     {-# INLINE null #-}
 
 instance Traversable Seq where
-#if __GLASGOW_HASKELL__
     {-# INLINABLE traverse #-}
-#endif
     traverse _ (Seq EmptyT) = pure (Seq EmptyT)
     traverse f' (Seq (Single (Elem x'))) =
         (\x'' -> Seq (Single (Elem x''))) <$> f' x'
@@ -1095,9 +1093,7 @@ instance Foldable FingerTree where
 
         foldMapNodeN :: Monoid m => (Node a -> m) -> Node (Node a) -> m
         foldMapNodeN f t = foldNode (<>) f t
-#if __GLASGOW_HASKELL__
     {-# INLINABLE foldMap #-}
-#endif
 
     foldr _ z' EmptyT = z'
     foldr f' z' (Single x') = x' `f'` z'
@@ -3283,9 +3279,7 @@ foldMapWithIndex f' (Seq xs') = foldMapWithIndexTreeE (lift_elem f') 0 xs'
   foldMapWithIndexNodeN :: Monoid m => (Int -> Node a -> m) -> Int -> Node (Node a) -> m
   foldMapWithIndexNodeN f i t = foldWithIndexNode (<>) f i t
 
-#if __GLASGOW_HASKELL__
 {-# INLINABLE foldMapWithIndex #-}
-#endif
 
 -- | 'traverseWithIndex' is a version of 'traverse' that also offers
 -- access to the index of each element.
@@ -3366,11 +3360,7 @@ traverseWithIndex f' (Seq xs') = Seq <$> traverseWithIndexTreeE (\s (Elem a) -> 
 
 #ifdef __GLASGOW_HASKELL__
 {-# INLINABLE [1] traverseWithIndex #-}
-#else
-{-# INLINE [1] traverseWithIndex #-}
-#endif
 
-#ifdef __GLASGOW_HASKELL__
 {-# RULES
 "travWithIndex/mapWithIndex" forall f g xs . traverseWithIndex f (mapWithIndex g xs) =
   traverseWithIndex (\k a -> f k (g k a)) xs
