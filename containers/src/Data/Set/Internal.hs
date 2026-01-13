@@ -1055,6 +1055,7 @@ foldl :: (a -> b -> a) -> a -> Set b -> a
 foldl f z = go z
   where
     go z' Tip           = z'
+    go z' (Bin 1 x _ _) = f z' x
     go z' (Bin _ x l r) = go (f (go z' l) x) r
 {-# INLINE foldl #-}
 
@@ -1065,6 +1066,7 @@ foldl' :: (a -> b -> a) -> a -> Set b -> a
 foldl' f z = go z
   where
     go !z' Tip           = z'
+    go !z' (Bin 1 x _ _) = f z' x
     go z' (Bin _ x l r) =
       let !z'' = go z' l
       in go (f z'' x) r
