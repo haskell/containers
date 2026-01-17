@@ -71,6 +71,7 @@ Library
         Data.Map.Internal
         Data.Map.Internal.Debug
         Data.Set.Internal
+        Data.Set.Merge
         Data.Set
         Data.Graph
         Data.Sequence

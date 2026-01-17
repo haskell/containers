@@ -1,11 +1,13 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 import qualified Data.IntSet as IntSet
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
 import Data.Maybe (isJust, fromJust)
 import qualified Data.Maybe as Maybe
 import Data.Set
-import Data.Set.Internal (link, merge)
+import Data.Set.Internal (link, link2)
+import Data.Set.Merge
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', all, take, drop, splitAt)
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -51,7 +53,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "alterF/four" prop_alterF_four
                    , testProperty "alterF/valid" prop_alterF_valid
                    , testProperty "prop_Link" prop_Link
-                   , testProperty "prop_Merge" prop_Merge
+                   , testProperty "prop_link2" prop_link2
                    , testProperty "prop_UnionValid" prop_UnionValid
                    , testProperty "prop_UnionInsert" prop_UnionInsert
                    , testProperty "prop_UnionAssoc" prop_UnionAssoc
@@ -122,6 +124,8 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "lookupIndex" prop_lookupIndex
                    , testProperty "elemAt" prop_elemAt
                    , testProperty "deleteAt" prop_deleteAt
+                   , testProperty "merge" prop_merge
+                   , testProperty "mergeA" prop_mergeA
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -391,10 +395,10 @@ prop_Link x = forValidUnitTree $ \t ->
     let (l,r) = split x t
     in valid (link x l r)
 
-prop_Merge :: Int -> Property
-prop_Merge x = forValidUnitTree $ \t ->
+prop_link2 :: Int -> Property
+prop_link2 x = forValidUnitTree $ \t ->
     let (l,r) = split x t
-    in valid (merge l r)
+    in valid (link2 l r)
 
 {--------------------------------------------------------------------
   Union
@@ -752,3 +756,85 @@ prop_deleteAt i s = 0 <= i && i < size s ==>
   toList s' === [x | (j, x) <- zip [0..] (toList s), i /= j]
   where
     s' = deleteAt i s
+
+prop_merge
+  :: WhenMissingSpec Int
+  -> WhenMissingSpec Int
+  -> WhenMatchedSpec Int
+  -> Set Int
+  -> Set Int
+  -> Property
+prop_merge miss1 miss2 match s1 s2 =
+  valid s .&&.
+  s === (filter (runIdentity . runWhenMissing miss1') s1Only `union`
+         filter (runIdentity . runWhenMissing miss2') s2Only `union`
+         filter (runIdentity . runWhenMatched match') s12Both)
+  where
+    miss1' = toSimpleWhenMissing miss1
+    miss2' = toSimpleWhenMissing miss2
+    match' = toSimpleWhenMatched match
+    s = merge miss1' miss2' match' s1 s2
+
+    s1Only = difference s1 s2
+    s2Only = difference s2 s1
+    s12Both = intersection s1 s2
+
+    toSimpleWhenMissing s = case s of
+      DropMissing -> dropMissing
+      PreserveMissing -> preserveMissing
+      FilterMissing f -> filterMissing (applyFun f)
+
+    toSimpleWhenMatched (FilterMatched f) = filterMatched (applyFun f)
+
+prop_mergeA
+  :: WhenMissingSpec Int
+  -> WhenMissingSpec Int
+  -> WhenMatchedSpec Int
+  -> Set Int
+  -> Set Int
+  -> Property
+prop_mergeA miss1 miss2 match s1 s2 =
+  valid s .&&.
+  s === (filter (snd . runWhenMissing miss1') s1Only `union`
+         filter (snd . runWhenMissing miss2') s2Only `union`
+         filter (snd . runWhenMatched match') s12Both) .&&.
+  xs === sort (concat (fmap (fst . runWhenMissing miss1') (toList s1Only) ++
+                       fmap (fst . runWhenMissing miss2') (toList s2Only) ++
+                       fmap (fst . runWhenMatched match') (toList s12Both)))
+  where
+    miss1' = toWhenMissing miss1
+    miss2' = toWhenMissing miss2
+    match' = toWhenMatched match
+    (xs, s) = mergeA miss1' miss2' match' s1 s2
+
+    s1Only = difference s1 s2
+    s2Only = difference s2 s1
+    s12Both = intersection s1 s2
+
+    toWhenMissing s = case s of
+      DropMissing -> dropMissing
+      PreserveMissing -> preserveMissing
+      FilterMissing f -> filterAMissing (\x -> ([x], applyFun f x))
+
+    toWhenMatched (FilterMatched f) = filterAMatched (\x -> ([x], applyFun f x))
+
+data WhenMissingSpec a
+  = DropMissing
+  | PreserveMissing
+  | FilterMissing (Fun a Bool)
+  deriving Show
+
+instance (Arbitrary a, CoArbitrary a, Function a)
+  => Arbitrary (WhenMissingSpec a) where
+  arbitrary = oneof
+    [ pure DropMissing
+    , pure PreserveMissing
+    , FilterMissing <$> arbitrary
+    ]
+  shrink s = case s of
+    DropMissing -> []
+    PreserveMissing -> []
+    FilterMissing f -> FilterMissing <$> shrink f
+
+newtype WhenMatchedSpec a = FilterMatched (Fun a Bool)
+  deriving (Show, Arbitrary)
