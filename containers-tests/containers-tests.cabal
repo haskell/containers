@@ -38,7 +38,11 @@ common deps
       array    >=0.4.0.0
     , base     >=4.10    && <5
     , deepseq >= 1.4.3.0 && < 1.6
-    , template-haskell
+
+  if impl(ghc >= 9.14)
+      build-depends: template-haskell-lift >= 0.1 && <0.2
+  elif impl(ghc)
+      build-depends: template-haskell
 
 common warnings
   ghc-options:
