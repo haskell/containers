@@ -225,6 +225,11 @@ module Data.Set.Internal (
             , balanced
             , link
             , merge
+            , balanceL
+            , balanceR
+            , glue
+            , insertMin
+            , insertMax
             ) where
 
 import Utils.Containers.Internal.Prelude hiding
