@@ -2,8 +2,6 @@
 {-# LANGUAGE BangPatterns #-}
 {-# LANGUAGE PatternGuards #-}
 
-{-# OPTIONS_GHC -fno-warn-incomplete-uni-patterns #-}
-
 #include "containers.h"
 
 -----------------------------------------------------------------------------
@@ -665,7 +663,10 @@ unionWith f m1 m2
 
 unionWithKey :: (Key -> a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
 unionWithKey f m1 m2
-  = mergeWithKey' Bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 $! f k1 x1 x2) id id m1 m2
+  = mergeWithKey' Bin f' id id m1 m2
+  where
+    f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 $! f k1 x1 x2
+    f' _ _ = error "not Tip"
 
 {--------------------------------------------------------------------
   Difference
@@ -717,7 +718,10 @@ intersectionWith f m1 m2
 
 intersectionWithKey :: (Key -> a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
 intersectionWithKey f m1 m2
-  = mergeWithKey' bin (\(Tip k1 x1) (Tip _k2 x2) -> Tip k1 $! f k1 x1 x2) (const Nil) (const Nil) m1 m2
+  = mergeWithKey' bin f' (const Nil) (const Nil) m1 m2
+  where
+    f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 $! f k1 x1 x2
+    f' _ _ = error "not Tip"
 
 {--------------------------------------------------------------------
   MergeWithKey
@@ -763,9 +767,11 @@ intersectionWithKey f m1 m2
 mergeWithKey :: (Key -> a -> b -> Maybe c) -> (IntMap a -> IntMap c) -> (IntMap b -> IntMap c)
              -> IntMap a -> IntMap b -> IntMap c
 mergeWithKey f g1 g2 = mergeWithKey' bin combine g1 g2
-  where -- We use the lambda form to avoid non-exhaustive pattern matches warning.
-        combine = \(Tip k1 x1) (Tip _k2 x2) -> case f k1 x1 x2 of Nothing -> Nil
-                                                                  Just !x -> Tip k1 x
+  where
+        combine (Tip k1 x1) (Tip _k2 x2) = case f k1 x1 x2 of
+          Nothing -> Nil
+          Just !x -> Tip k1 x
+        combine _ _ = error "not Tip"
         {-# INLINE combine #-}
 {-# INLINE mergeWithKey #-}
 
