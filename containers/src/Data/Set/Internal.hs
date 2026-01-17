@@ -1746,13 +1746,16 @@ linkR_ x !lsz l r = case r of
   Tip -> Bin (1+lsz) x l Tip
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
-insertMax,insertMin :: a -> Set a -> Set a
+-- @since FIXME
+insertMax :: a -> Set a -> Set a
 insertMax x t
   = case t of
       Tip -> singleton x
       Bin _ y l r
           -> balanceR y l (insertMax x r)
 
+-- @since FIXME
+insertMin :: a -> Set a -> Set a
 insertMin x t
   = case t of
       Tip -> singleton x
@@ -1788,6 +1791,7 @@ mergeR_ !lsz l r = case r of
   [glue l r]: glues two trees together.
   Assumes that [l] and [r] are already balanced with respect to each other.
 --------------------------------------------------------------------}
+-- @since FIXME
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
@@ -1931,6 +1935,7 @@ ratio = 2
 
 -- balanceL is called when left subtree might have been inserted to or when
 -- right subtree might have been deleted from.
+-- @since FIXME
 balanceL :: a -> Set a -> Set a -> Set a
 balanceL x l r = case (l, r) of
   (Bin ls _ _ _, Bin rs _ _ _)
@@ -1961,6 +1966,7 @@ balanceL_ x l r = case r of
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
+-- @since FIXME
 balanceR :: a -> Set a -> Set a -> Set a
 balanceR x l r = case (l, r) of
   (Bin ls _ _ _, Bin rs _ _ _)
