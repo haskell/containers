@@ -14,14 +14,13 @@ jobs:
       uses: actions/checkout@v4
       with:
         path: cont
+    # mhs
     - name: checkout mhs repo
-      # workaround for `act`: https://github.com/nektos/act/issues/678#issuecomment-1693751996
-      run: git clone https://github.com/augustss/MicroHs.git --branch stable-5 mhs
-#      uses: actions/checkout@v4
-#      with:
-#        repository: augustss/MicroHs
-#        ref: stable-4
-#        path: mhs
+      uses: actions/checkout@v4
+      with:
+        repository: augustss/MicroHs
+        ref: v0.15.0.0
+        path: mhs
     - name: make and install mhs
       run: |
         cd mhs
@@ -30,7 +29,7 @@ jobs:
       run: |
         PATH="$HOME/.mcabal/bin:$PATH"
         cd cont/containers
-        mcabal install
+        mcabal -r install
     - name: cleanup
       run: |
         rm -rf $HOME/.mcabal
