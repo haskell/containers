@@ -46,14 +46,18 @@ import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
 import Test.Tasty.HUnit
 import Test.ChasingBottoms.IsBottom (isBottom)
+#if __GLASGOW_HASKELL__ >= 914
+import qualified Language.Haskell.TH.Lift as TH
+#else
 import qualified Language.Haskell.TH.Syntax as TH
+#endif
 
 import Utils.Strictness (Bot(..), Func2, applyFunc2)
 
 main :: IO ()
 main = defaultMain $ testGroup "seq-properties"
        [ test_lift
-#if MIN_VERSION_template_haskell(2,16,0)
+#if __GLASGOW_HASKELL__ >= 810
        , test_liftTyped
 #endif
        , testProperty "fmap" prop_fmap
@@ -987,7 +991,7 @@ test_lift = testCase "lift" $ do
   (mempty :: Seq Int) @=? $([| $(TH.lift (fromList [] :: Seq Integer)) |])
   fromList [1..3 :: Int] @=? $([| $(TH.lift (fromList [1..3 :: Integer])) |])
 
-#if MIN_VERSION_template_haskell(2,16,0)
+#if __GLASGOW_HASKELL__ >= 810
 test_liftTyped :: TestTree
 test_liftTyped = testCase "liftTyped" $ do
   (mempty :: Seq Int) @=? $$([|| $$(TH.liftTyped (fromList [])) ||])

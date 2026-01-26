@@ -230,9 +230,13 @@ import Data.Coerce (coerce)
 
 #if __GLASGOW_HASKELL__
 import qualified GHC.Exts
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift)
+#  else
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#  endif
 #endif
 
 import qualified Data.Foldable as Foldable

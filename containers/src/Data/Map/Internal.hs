@@ -410,9 +410,13 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build, lazy)
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift)
+#  else
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#  endif
 #  ifdef USE_MAGIC_PROXY
 import GHC.Exts (Proxy#, proxy# )
 #  endif
