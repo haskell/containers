@@ -192,7 +192,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "differenceMerge"   prop_differenceMerge
          , testProperty "unionWithKeyMerge"   prop_unionWithKeyMerge
          , testProperty "mergeWithKey model"   prop_mergeWithKeyModel
-         , testProperty "mergeA effects"       prop_mergeA_effects
+         , testProperty "merge"                prop_merge
+         , testProperty "mergeA"               prop_mergeA
          , testProperty "fromAscList"          prop_fromAscList
          , testProperty "fromAscListWith"      prop_fromAscListWith
          , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
@@ -1250,52 +1251,112 @@ prop_mergeWithKeyModel xs ys
           -- warnings are issued if testMergeWithKey gets inlined.
           {-# NOINLINE testMergeWithKey #-}
 
--- This uses the instance
---     Monoid a => Applicative ((,) a)
--- to test that effects are sequenced in ascending key order.
-prop_mergeA_effects :: WhenMissingSpec -> WhenMissingSpec -> WhenMatchedSpec -> UMap -> UMap -> Property
-prop_mergeA_effects onlyLeft onlyRight both xs ys
-  = effects === sort effects
+prop_merge
+  :: WhenMissingSpec Int A
+  -> WhenMissingSpec Int A
+  -> WhenMatchedSpec Int A
+  -> Map Int A
+  -> Map Int A
+  -> Property
+prop_merge miss1 miss2 match m1 m2 =
+  valid m .&&.
+  m ===
+    (mapMaybeWithKey (\k x -> runIdentity (runWhenMissing miss1' k x)) m1Only `union`
+     mapMaybeWithKey (\k x -> runIdentity (runWhenMissing miss2' k x)) m2Only `union`
+     mapMaybeWithKey (\k (x,y) -> runIdentity (runWhenMatched match' k x y)) m12Both)
   where
-    (effects, _m) = mergeA (whenMissing onlyLeft) (whenMissing onlyRight) (whenMatched both) xs ys
+    miss1' = whenMissing miss1
+    miss2' = whenMissing miss2
+    match' = whenMatched match
+
+    m = merge miss1' miss2' match' m1 m2
+
+    m1Only = difference m1 m2
+    m2Only = difference m2 m1
+    m12Both = intersectionWith (,) m1 m2
+
     whenMissing spec = case spec of
       DropMissing -> dropMissing
       PreserveMissing -> preserveMissing
-      FilterMissing -> filterMissing (\_ _ -> False)
-      FilterAMissing -> filterAMissing (\k _ -> ([k], False))
-      MapMissing -> mapMissing (\_ _ -> ())
-      TraverseMissing -> traverseMissing (\k _ -> ([k], ()))
-      MapMaybeMissing -> mapMaybeMissing (\_ _ -> Nothing)
-      TraverseMaybeMissing -> traverseMaybeMissing (\k _ -> ([k], Nothing))
+      FilterMissing f -> filterMissing (applyFun2 f)
+      MapMissing f -> mapMissing (applyFun2 f)
+      MapMaybeMissing f -> mapMaybeMissing (applyFun2 f)
     whenMatched spec = case spec of
-      ZipWithMatched -> zipWithMatched (\_ _ _ -> ())
-      ZipWithAMatched -> zipWithAMatched (\k _ _ -> ([k], ()))
-      ZipWithMaybeMatched -> zipWithMaybeMatched (\_ _ _ -> Nothing)
-      ZipWithMaybeAMatched -> zipWithMaybeAMatched (\k _ _ -> ([k], Nothing))
+      ZipWithMatched f -> zipWithMatched (applyFun3 f)
+      ZipWithMaybeMatched f -> zipWithMaybeMatched (applyFun3 f)
 
-data WhenMissingSpec
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeA
+  :: WhenMissingSpec Int A
+  -> WhenMissingSpec Int A
+  -> WhenMatchedSpec Int A
+  -> Map Int A
+  -> Map Int A
+  -> Property
+prop_mergeA miss1 miss2 match m1 m2 =
+  valid m .&&.
+  m ===
+    (mapMaybeWithKey (\k x -> snd (runWhenMissing miss1' k x)) m1Only `union`
+     mapMaybeWithKey (\k x -> snd (runWhenMissing miss2' k x)) m2Only `union`
+     mapMaybeWithKey (\k (x,y) -> snd (runWhenMatched match' k x y)) m12Both) .&&.
+  ks ===
+    sort
+      (concat
+         (fmap (\(k,x) -> fst (runWhenMissing miss1' k x)) (toList m1Only) ++
+          fmap (\(k,x) -> fst (runWhenMissing miss2' k x)) (toList m2Only) ++
+          fmap (\(k,(x,y)) -> fst (runWhenMatched match' k x y)) (toList m12Both)))
+  where
+    miss1' = whenMissing miss1
+    miss2' = whenMissing miss2
+    match' = whenMatched match
+
+    (ks, m) = mergeA miss1' miss2' match' m1 m2
+
+    m1Only = difference m1 m2
+    m2Only = difference m2 m1
+    m12Both = intersectionWith (,) m1 m2
+
+    whenMissing spec = case spec of
+      DropMissing -> dropMissing
+      PreserveMissing -> preserveMissing
+      FilterMissing f -> filterAMissing (\k x -> ([k], applyFun2 f k x))
+      MapMissing f -> traverseMissing (\k x -> ([k], applyFun2 f k x))
+      MapMaybeMissing f -> traverseMaybeMissing (\k x -> ([k], applyFun2 f k x))
+    whenMatched spec = case spec of
+      ZipWithMatched f -> zipWithAMatched (\k x y -> ([k], applyFun3 f k x y))
+      ZipWithMaybeMatched f -> zipWithMaybeAMatched (\k x y -> ([k], applyFun3 f k x y))
+
+data WhenMissingSpec k a
   = DropMissing
   | PreserveMissing
-  | FilterMissing
-  | FilterAMissing
-  | MapMissing
-  | TraverseMissing
-  | MapMaybeMissing
-  | TraverseMaybeMissing
-  deriving (Bounded, Enum, Show)
+  | FilterMissing (Fun (k, a) Bool)
+  | MapMissing (Fun (k, a) a)
+  | MapMaybeMissing (Fun (k, a) (Maybe a))
+  deriving Show
 
-instance Arbitrary WhenMissingSpec where
-  arbitrary = arbitraryBoundedEnum
+instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
+  => Arbitrary (WhenMissingSpec k a) where
+  arbitrary = oneof
+    [ pure DropMissing
+    , pure PreserveMissing
+    , FilterMissing <$> arbitrary
+    , MapMissing <$> arbitrary
+    , MapMaybeMissing <$> arbitrary
+    ]
 
-data WhenMatchedSpec
-  = ZipWithMatched
-  | ZipWithAMatched
-  | ZipWithMaybeMatched
-  | ZipWithMaybeAMatched
-  deriving (Bounded, Enum, Show)
+data WhenMatchedSpec k a
+  = ZipWithMatched (Fun (k, a, a) a)
+  | ZipWithMaybeMatched (Fun (k, a, a) (Maybe a))
+  deriving Show
 
-instance Arbitrary WhenMatchedSpec where
-  arbitrary = arbitraryBoundedEnum
+instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
+  => Arbitrary (WhenMatchedSpec k a) where
+  arbitrary = oneof
+    [ ZipWithMatched <$> arbitrary
+    , ZipWithMaybeMatched <$> arbitrary
+    ]
 
 ----------------------------------------------------------------
 
