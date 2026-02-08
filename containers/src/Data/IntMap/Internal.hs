@@ -2028,7 +2028,7 @@ traverseMaybeWithKey f = go
 
 -- | Merge two maps.
 --
--- 'merge' takes two 'WhenMissing' tactics, a 'WhenMatched' tactic
+-- 'merge' takes two 'SimpleWhenMissing' tactics, a 'SimpleWhenMatched' tactic
 -- and two maps. It uses the tactics to merge the maps. Its behavior
 -- is best understood via its fundamental tactics, 'mapMaybeMissing'
 -- and 'zipWithMaybeMatched'.
@@ -2036,45 +2036,31 @@ traverseMaybeWithKey f = go
 -- Consider
 --
 -- @
--- merge (mapMaybeMissing g1)
---              (mapMaybeMissing g2)
---              (zipWithMaybeMatched f)
---              m1 m2
+-- merge (mapMaybeMissing g1) (mapMaybeMissing g2) (zipWithMaybeMatched f) m1 m2
 -- @
 --
--- Take, for example,
---
 -- @
--- m1 = [(0, \'a\'), (1, \'b\'), (3, \'c\'), (4, \'d\')]
--- m2 = [(1, "one"), (2, "two"), (4, "three")]
--- @
---
--- 'merge' will first \"align\" these maps by key:
---
--- @
--- m1 = [(0, \'a\'), (1, \'b\'),               (3, \'c\'), (4, \'d\')]
--- m2 =           [(1, "one"), (2, "two"),           (4, "three")]
+-- g1 k x = if k == 2 then Just ("1" ++ x) else Nothing
+-- g2 k x = if k == 3 then Just ("2" ++ x) else Nothing
+-- f k x y = if k == 6 then Just ("3" ++ x ++ y) else Nothing
+-- m1 = fromList [(2,"a"), (4,"b"), (6,"c"), (8,"d"), (10,"e"), (12,"f")]
+-- m2 = fromList [(3,"g"), (6,"h"), (9,"i"), (12,"j")]
 -- @
 --
--- It will then pass the individual entries and pairs of entries
--- to @g1@, @g2@, or @f@ as appropriate:
+-- 'merge' will pass the keys and values to @g1@, @g2@, or @f@ as appropriate,
+-- producing a @Maybe@ for each element.
 --
 -- @
--- maybes = [g1 0 \'a\', f 1 \'b\' "one", g2 2 "two", g1 3 \'c\', f 4 \'d\' "three"]
+-- m1:      [ (2, "a"),            (4, "b"),    (6, "c"), (8, "d"),           (10, "e"),    (12, "f")]
+-- m2:      [            (3, "g"),              (6, "h"),           (9, "i"),               (12, "j")]
+-- result:  [ g1 2 "a",  g2 3 "g", g1 4 "b", f 6 "c" "h", g1 8 "d", g2 9 "i", g1 10 "e", f 12 "f" "j"]
+--        = [Just "1a", Just "2g",  Nothing,  Just "3ch",  Nothing,  Nothing,   Nothing,      Nothing]
 -- @
 --
--- This produces a 'Maybe' for each key:
+-- The result map contains the @Just@ values.
 --
--- @
--- keys =     0        1          2           3        4
--- results = [Nothing, Just True, Just False, Nothing, Just True]
--- @
---
--- Finally, the @Just@ results are collected into a map:
---
--- @
--- return value = [(1, True), (2, False), (4, True)]
--- @
+-- >>> merge (mapMaybeMissing g1) (mapMaybeMissing g2) (zipWithMaybeMatched f) m1 m2
+-- fromList [(2,"1a"), (3,"2g"), (6,"3ch")]
 --
 -- The other tactics below are optimizations or simplifications of
 -- 'mapMaybeMissing' for special cases. Most importantly,
@@ -2103,7 +2089,7 @@ merge
   -> IntMap a -- ^ Map @m1@
   -> IntMap b -- ^ Map @m2@
   -> IntMap c
-merge g1 g2 f m1 m2 =
+merge g1 g2 f = \m1 m2 ->
   runIdentity $ mergeA g1 g2 f m1 m2
 {-# INLINE merge #-}
 
@@ -2115,49 +2101,44 @@ merge g1 g2 f m1 m2 =
 -- Its behavior is best understood via its fundamental tactics,
 -- 'traverseMaybeMissing' and 'zipWithMaybeAMatched'.
 --
+-- Behaves just like 'merge' while allowing @Applicative@ effects. Effects are
+-- performed in increasing order of keys.
+--
 -- Consider
 --
 -- @
 -- mergeA (traverseMaybeMissing g1)
---               (traverseMaybeMissing g2)
---               (zipWithMaybeAMatched f)
---               m1 m2
+--        (traverseMaybeMissing g2)
+--        (zipWithMaybeAMatched f)
+--        m1
+--        m2
 -- @
 --
--- Take, for example,
---
 -- @
--- m1 = [(0, \'a\'), (1, \'b\'), (3,\'c\'), (4, \'d\')]
--- m2 = [(1, "one"), (2, "two"), (4, "three")]
--- @
---
--- 'mergeA' will first \"align\" these maps by key:
---
--- @
--- m1 = [(0, \'a\'), (1, \'b\'),               (3, \'c\'), (4, \'d\')]
--- m2 =           [(1, "one"), (2, "two"),           (4, "three")]
+-- g1 k x = let z = if k == 2 then Just ("1" ++ x) else Nothing
+--          in z <$ putStrLn ("g1 " ++ show (k, x))
+-- g2 k x = let z = if k == 3 then Just ("2" ++ x) else Nothing
+--          in z <$ putStrLn ("g2 " ++ show (k, x))
+-- f k x y = let z = if k == 6 then Just ("3" ++ x ++ y) else Nothing
+--           in z <$ putStrLn ("f " ++ show (k, x, y))
+-- m1 = fromList [(2,"a"), (4,"b"), (6,"c"), (8,"d"), (10,"e"), (12,"f")]
+-- m2 = fromList [(3,"g"), (6,"h"), (9,"i"), (12,"j")]
 -- @
 --
--- It will then pass the individual entries and pairs of entries
--- to @g1@, @g2@, or @f@ as appropriate:
+-- As with 'merge', the result map is @[(2,"1a"), (3,"2g"), (6,"3ch")]@.
+-- Additionally, @g1@, @g2@, and @f@ perform @IO@ effects, printing in
+-- increasing order of key.
 --
--- @
--- actions = [g1 0 \'a\', f 1 \'b\' "one", g2 2 "two", g1 3 \'c\', f 4 \'d\' "three"]
--- @
---
--- Next, it will perform the actions in the @actions@ list in order from
--- left to right.
---
--- @
--- keys =     0        1          2           3        4
--- results = [Nothing, Just True, Just False, Nothing, Just True]
--- @
---
--- Finally, the @Just@ results are collected into a map:
---
--- @
--- return value = [(1, True), (2, False), (4, True)]
--- @
+-- >>> mergeA (traverseMaybeMissing g1) (traverseMaybeMissing g2) (zipWithMaybeAMatched f) m1 m2
+-- g1 (2,"a")
+-- g2 (3,"g")
+-- g1 (4,"b")
+-- f (6,"c","h")
+-- g1 (8,"d")
+-- g2 (9,"i")
+-- g1 (10,"e")
+-- f (12,"f","j")
+-- fromList [(2,"1a"),(3,"2g"),(6,"3ch")]
 --
 -- The other tactics below are optimizations or simplifications of
 -- 'traverseMaybeMissing' for special cases. Most importantly,
