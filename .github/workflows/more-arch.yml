@@ -52,5 +52,5 @@ jobs:
         run: |
           ghc --version
           cabal --version
-          cabal update
+          cabal update --verbose=3
           cabal test all
