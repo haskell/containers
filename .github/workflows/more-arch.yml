@@ -36,6 +36,12 @@ jobs:
   # s390x is 31-bit-address/32-bit-data and big-endian
   s390x:
     runs-on: ubuntu-latest
+
+    # Not required, but speeds up builds by storing container images in a
+    # GitHub package registry.
+    permissions:
+      packages: write
+
     steps:
     - uses: actions/checkout@v6
     - uses: uraimo/run-on-arch-action@v3
@@ -47,7 +53,8 @@ jobs:
         # https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
         distro: ubuntu22.04
 
-        # Not required, but speeds up builds
+        # Not required, but speeds up builds by storing container images in a
+        # GitHub package registry.
         githubToken: ${{ github.token }}
 
         install: |
