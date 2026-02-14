@@ -41,6 +41,10 @@ jobs:
     - uses: uraimo/run-on-arch-action@v3
       with:
         arch: s390x
+
+        # Note: Do not use ubuntu24.04 since it comes with ghc and cabal
+        # versions that segfault (possibly
+        # https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
         distro: ubuntu22.04
 
         # Not required, but speeds up builds
@@ -52,5 +56,5 @@ jobs:
         run: |
           ghc --version
           cabal --version
-          cabal update --verbose=3
+          cabal update
           cabal test all
