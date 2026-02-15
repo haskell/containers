@@ -51,7 +51,7 @@ jobs:
         # Note: Do not use ubuntu24.04 since it comes with ghc and cabal
         # versions that segfault (possibly
         # https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
-        distro: ubuntu22.04
+        distro: ubuntu_rolling
 
         # Not required, but speeds up builds by storing container images in a
         # GitHub package registry.
@@ -62,7 +62,7 @@ jobs:
           apt-get update -y
           apt-get install -y ghc cabal-install g++
 
-        # Test without optimizations because it is too slow (>1h) otherwise
+        # Test without optimizations because it is even slower otherwise
         run: |
           ghc --version
           cabal --version
