@@ -71,5 +71,7 @@ jobs:
           package *
             optimization: 0
           EOF
+          sed -i '/containers\//d' cabal.project
+          cat cabal.project
           cabal update
           cabal test all
