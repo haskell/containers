@@ -73,5 +73,6 @@ jobs:
           EOF
           sed -i '/containers\//d' cabal.project
           cat cabal.project
-          cabal build containers-tests --jobs=2
-          cabal test all
+          cabal update
+          cabal build all:tests --jobs=2
+          cabal test all:tests
