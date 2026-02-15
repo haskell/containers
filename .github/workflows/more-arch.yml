@@ -36,39 +36,17 @@ jobs:
   # s390x is 31-bit-address/32-bit-data and big-endian
   s390x:
     runs-on: ubuntu-latest
-
-    # Not required, but speeds up builds by storing container images in a
-    # GitHub package registry.
-    permissions:
-      packages: write
-
+    container:
+      image: s390x/ubuntu:noble
     steps:
+    - name: Install
+      run: |
+        apt-get update -y
+        apt-get install -y ghc cabal-install
     - uses: actions/checkout@v6
-    - uses: uraimo/run-on-arch-action@v3
-      with:
-        arch: s390x
-
-        # Note: Do not use ubuntu24.04 since it comes with ghc and cabal
-        # versions that segfault (possibly
-        # https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
-        distro: ubuntu22.04
-
-        # Not required, but speeds up builds by storing container images in a
-        # GitHub package registry.
-        githubToken: ${{ github.token }}
-
-        # Install g++ because text requires stdc++
-        install: |
-          apt-get update -y
-          apt-get install -y ghc cabal-install g++
-
-        # Test without optimizations because it is too slow (>1h) otherwise
-        run: |
-          ghc --version
-          cabal --version
-          cat >> cabal.project.local <<EOF
-          package *
-            optimization: 0
-          EOF
-          cabal update
-          cabal test all
+    - name: Test
+      run: |
+        ghc --version
+        cabal --version
+        cabal update
+        cabal test all
