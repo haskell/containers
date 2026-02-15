@@ -57,9 +57,10 @@ jobs:
         # GitHub package registry.
         githubToken: ${{ github.token }}
 
+        # Install g++ because text requires stdc++
         install: |
           apt-get update -y
-          apt-get install -y ghc cabal-install
+          apt-get install -y ghc cabal-install g++
 
         # Test without optimizations because it is too slow (>1h) otherwise
         run: |
