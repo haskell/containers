@@ -60,8 +60,10 @@ jobs:
         install: |
           apt-get update -y
           apt-get install -y ghc cabal-install
+
+        # Test without optimizations because it is too slow (>1h) otherwise
         run: |
           ghc --version
           cabal --version
           cabal update
-          cabal test all
+          cabal test all --disable-optimization
