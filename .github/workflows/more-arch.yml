@@ -65,5 +65,9 @@ jobs:
         run: |
           ghc --version
           cabal --version
+          cat >> cabal.project.local <<EOF
+          package *
+            optimization: 0
+          EOF
           cabal update
-          cabal test all --disable-optimization
+          cabal test all
