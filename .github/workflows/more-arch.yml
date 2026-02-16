@@ -74,5 +74,5 @@ jobs:
           sed -i '/containers\//d' cabal.project
           cat cabal.project
           cabal update
-          cabal build all:tests --ghc-options=-j2
+          cabal build all:tests
           cabal test all:tests
