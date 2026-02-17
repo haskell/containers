@@ -58,10 +58,9 @@ jobs:
         githubToken: ${{ github.token }}
 
         # Install GHC via apt because GHCup doesn't support s390x
-        # Install g++ because text needs it
         install: |
           apt-get update -y
-          apt-get install -y ghc cabal-install g++
+          apt-get install -y ghc cabal-install
 
         # Test without optimizations because it is even slower otherwise
         run: |
