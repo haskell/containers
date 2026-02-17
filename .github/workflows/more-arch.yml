@@ -61,7 +61,7 @@ jobs:
         # Install g++ because text needs it
         install: |
           apt-get update -y
-          apt-get install -y ghc cabal-install g++
+          apt-get install -y ghc cabal-install g++ libghc-tasty-hunit-dev libghc-tasty-quickcheck-dev
 
         # Test without optimizations because it is even slower otherwise
         run: |
