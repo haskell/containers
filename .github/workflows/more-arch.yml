@@ -66,4 +66,15 @@ jobs:
         run: |
           ghc --version
           cabal --version
-          ghc -e 'GHC.Conc.getNumProcessors'
+          sed -i '/containers\//d' cabal.project
+          cat cabal.project
+          cat >> cabal.project.local <<EOF
+          package *
+            optimization: 0
+          package containers-tests
+            -- This overrides the -O2 in containers-tests's ghc-options
+            ghc-options: -O0
+          EOF
+          cabal update
+          cabal build all:tests
+          cabal test all:tests
