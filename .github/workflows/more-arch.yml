@@ -76,5 +76,5 @@ jobs:
             ghc-options: -O0
           EOF
           cabal update
-          cabal build all:tests --ghc-options="+RTS -A32m -RTS"
+          cabal build all:tests
           cabal test all:tests
