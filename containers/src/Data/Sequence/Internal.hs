@@ -226,6 +226,7 @@ import GHC.Generics (Generic, Generic1)
 import qualified GHC.Arr
 import Data.Coerce
 import qualified GHC.Exts
+import GHC.Stack (HasCallStack)
 #else
 import qualified Data.List
 #endif
@@ -238,10 +239,6 @@ import Data.Functor.Identity (Identity(..))
 import Utils.Containers.Internal.Strict (StrictPair (..), toPair)
 import Control.Monad.Zip (MonadZip (..))
 import Control.Monad.Fix (MonadFix (..), fix)
-
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
 
 default ()
 

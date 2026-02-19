@@ -226,6 +226,7 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex, DataType, mkDataType)
 import qualified Data.Data
 import Text.Read
 import Data.Coerce (coerce)
+import GHC.Stack (HasCallStack)
 #endif
 
 #if __GLASGOW_HASKELL__
@@ -241,10 +242,6 @@ import Language.Haskell.TH ()
 
 import qualified Data.Foldable as Foldable
 import Data.Functor.Identity (Identity(..))
-
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 

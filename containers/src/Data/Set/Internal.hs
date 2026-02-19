@@ -271,6 +271,7 @@ import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
 #endif
 #if __GLASGOW_HASKELL__
 import GHC.Exts ( build, lazy )
+import GHC.Stack (HasCallStack)
 import qualified GHC.Exts as GHCExts
 import Data.Data
 #  if __GLASGOW_HASKELL__ >= 914
@@ -282,11 +283,6 @@ import Language.Haskell.TH ()
 #  endif
 import Data.Coerce (coerce)
 #endif
-
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
-
 
 {--------------------------------------------------------------------
   Operators

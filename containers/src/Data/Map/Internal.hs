@@ -410,6 +410,7 @@ import Utils.Containers.Internal.BitUtil (wordSize)
 
 #if __GLASGOW_HASKELL__
 import GHC.Exts (build, lazy)
+import GHC.Stack (HasCallStack)
 #  if __GLASGOW_HASKELL__ >= 914
 import Language.Haskell.TH.Lift (Lift)
 #  else
@@ -428,9 +429,6 @@ import Data.Coerce
 import Text.Read hiding (lift)
 #endif
 import qualified Control.Category as Category
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
 
 {--------------------------------------------------------------------
   Operators

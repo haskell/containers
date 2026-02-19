@@ -421,13 +421,10 @@ import Utils.Containers.Internal.Strict (StrictPair(..), toPair)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
+import GHC.Stack (HasCallStack)
 #endif
 
 import Data.Functor.Identity (Identity (..))
-
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
 
 import qualified Data.Foldable as Foldable
 
