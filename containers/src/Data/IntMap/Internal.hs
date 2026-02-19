@@ -357,6 +357,7 @@ import Data.Data (Data(..), Constr, mkConstr, constrIndex,
 import qualified Data.Data as Data
 import GHC.Exts (build)
 import qualified GHC.Exts as GHCExts
+import GHC.Stack (HasCallStack)
 #  if __GLASGOW_HASKELL__ >= 914
 import Language.Haskell.TH.Lift (Lift)
 #  else
@@ -369,10 +370,6 @@ import Language.Haskell.TH ()
 import Text.Read
 #endif
 import qualified Control.Category as Category
-
-#if __GLASGOW_HASKELL__ >= 800
-import GHC.Stack (HasCallStack)
-#endif
 
 {--------------------------------------------------------------------
   Types
@@ -438,7 +435,7 @@ deriving instance Lift a => Lift (IntMap a)
 -- > fromList [(5,'a'), (3,'b')] ! 1    Error: element not in the map
 -- > fromList [(5,'a'), (3,'b')] ! 5 == 'a'
 
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 (!) :: HasCallStack => IntMap a -> Key -> a
 #else
 (!) :: IntMap a -> Key -> a
@@ -2387,7 +2384,7 @@ minView t = fmap (\((_, x), t') -> (x, t')) (minViewWithKey t)
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxViewWithKey'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMax :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 #else
 deleteFindMax :: IntMap a -> ((Key, a), IntMap a)
@@ -2399,7 +2396,7 @@ deleteFindMax = fromMaybe (error "deleteFindMax: empty map has no maximal elemen
 -- Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'minViewWithKey'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMin :: HasCallStack => IntMap a -> ((Key, a), IntMap a)
 #else
 deleteFindMin :: IntMap a -> ((Key, a), IntMap a)
@@ -2438,7 +2435,7 @@ lookupMin (Bin p l r) =
 -- | \(O(\min(n,W))\). The minimal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMin :: HasCallStack => IntMap a -> (Key, a)
 #else
 findMin :: IntMap a -> (Key, a)
@@ -2463,7 +2460,7 @@ lookupMax (Bin p l r) =
 -- | \(O(\min(n,W))\). The maximal key of the map. Calls 'error' if the map is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMax :: HasCallStack => IntMap a -> (Key, a)
 #else
 findMax :: IntMap a -> (Key, a)

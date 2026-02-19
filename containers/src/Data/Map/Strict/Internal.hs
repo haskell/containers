@@ -824,8 +824,11 @@ atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
 -- > updateAt (\_ _  -> Nothing)  2    (fromList [(5,"a"), (3,"b")])    Error: index out of range
 -- > updateAt (\_ _  -> Nothing)  (-1) (fromList [(5,"a"), (3,"b")])    Error: index out of range
 
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 updateAt :: HasCallStack => (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+#else
+updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
+#endif
 updateAt = go where
   go f i t = i `seq`
     case t of
@@ -838,20 +841,6 @@ updateAt = go where
                 Nothing -> glue l r
         where
           sizeL = size l
-#else
-updateAt :: (k -> a -> Maybe a) -> Int -> Map k a -> Map k a
-updateAt f i t = i `seq`
-  case t of
-    Tip -> error "Map.updateAt: index out of range"
-    Bin sx kx x l r -> case compare i sizeL of
-      LT -> balanceR kx x (updateAt f i l) r
-      GT -> balanceL kx x l (updateAt f (i-sizeL-1) r)
-      EQ -> case f kx x of
-              Just x' -> x' `seq` Bin sx kx x' l r
-              Nothing -> glue l r
-      where
-        sizeL = size l
-#endif
 
 {--------------------------------------------------------------------
   Minimal, Maximal

@@ -525,11 +525,7 @@ instance MonadFix Seq where
 -- This is just like the instance for lists, but we can take advantage of
 -- constant-time length and logarithmic-time indexing to speed things up.
 -- Using fromFunction, we make this about as lazy as we can.
-#if __GLASGOW_HASKELL__ >= 800
-mfixSeq :: HasCallStack => (a -> Seq a) -> Seq a
-#else
 mfixSeq :: (a -> Seq a) -> Seq a
-#endif
 mfixSeq f = fromFunction (length (f err)) (\k -> fix (\xk -> f xk `index` k))
   where
     err = error "mfix for Data.Sequence.Seq applied to strict function"
@@ -1773,7 +1769,7 @@ singleton x     =  Seq (Single (Elem x))
 -- Calls 'error' if @n < 0@.
 --
 -- __Note__: This function is partial.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 replicate       :: HasCallStack => Int -> a -> Seq a
 #else
 replicate       :: Int -> a -> Seq a
@@ -1790,7 +1786,7 @@ replicate n x
 -- __Note__: This function is partial.
 --
 -- > replicateA n x = sequenceA (replicate n x)
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 replicateA :: (HasCallStack, Applicative f) => Int -> f a -> f (Seq a)
 #else
 replicateA :: Applicative f => Int -> f a -> f (Seq a)
@@ -1803,7 +1799,7 @@ replicateA n x
 -- | Synonym for 'replicateA'.
 --
 -- This definition exists for backwards compatibility.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 replicateM :: (HasCallStack, Applicative m) => Int -> m a -> m (Seq a)
 #else
 replicateM :: (Applicative m) => Int -> m a -> m (Seq a)
@@ -1825,7 +1821,7 @@ replicateM = replicateA
 -- __Note__: This function is partial.
 --
 -- @since 0.5.8
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 cycleTaking :: HasCallStack => Int -> Seq a -> Seq a
 #else
 cycleTaking :: Int -> Seq a -> Seq a
@@ -2243,7 +2239,7 @@ unfoldl f = unfoldl' empty
 -- Calls 'error' if @n < 0@.
 --
 -- __Note__: This function is partial.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 iterateN :: HasCallStack => Int -> (a -> a) -> a -> Seq a
 #else
 iterateN :: Int -> (a -> a) -> a -> Seq a
@@ -2430,7 +2426,7 @@ scanl f z0 xs = z0 <| snd (mapAccumL (\ x z -> let x' = f x z in (x', x')) z0 xs
 -- __Note__: This function is partial.
 --
 -- > scanl1 f (fromList [x1, x2, ...]) = fromList [x1, x1 `f` x2, ...]
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 scanl1 :: HasCallStack => (a -> a -> a) -> Seq a -> Seq a
 #else
 scanl1 :: (a -> a -> a) -> Seq a -> Seq a
@@ -2448,7 +2444,7 @@ scanr f z0 xs = snd (mapAccumR (\ z x -> let z' = f x z in (z', z')) z0 xs) |> z
 -- Calls 'error' if the sequence is empty.
 --
 -- __Note__: This function is partial.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 scanr1 :: HasCallStack => (a -> a -> a) -> Seq a -> Seq a
 #else
 scanr1 :: (a -> a -> a) -> Seq a -> Seq a
@@ -2472,7 +2468,7 @@ scanr1 f xs = case viewr xs of
 -- element until the result is forced. It can therefore lead to a space
 -- leak if the result is stored, unforced, in another structure. To retrieve
 -- an element immediately without forcing it, use 'lookup' or '(!?)'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 index           :: HasCallStack => Seq a -> Int -> a
 #else
 index           :: Seq a -> Int -> a
@@ -3442,7 +3438,7 @@ valid.
 -- __Note__: This function is partial.
 --
 -- @since 0.5.6.2
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 fromFunction :: HasCallStack => Int -> (Int -> a) -> Seq a
 #else
 fromFunction :: Int -> (Int -> a) -> Seq a
@@ -4028,7 +4024,7 @@ splitSuffixN i s pr m (Four a b c d)
 -- __Note__: This function is partial.
 --
 -- @since 0.5.8
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 chunksOf :: HasCallStack => Int -> Seq a -> Seq (Seq a)
 #else
 chunksOf :: Int -> Seq a -> Seq (Seq a)

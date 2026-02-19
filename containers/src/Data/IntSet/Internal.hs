@@ -1157,7 +1157,7 @@ minView t =
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'minView'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMin :: HasCallStack => IntSet -> (Key, IntSet)
 #else
 deleteFindMin :: IntSet -> (Key, IntSet)
@@ -1169,7 +1169,7 @@ deleteFindMin = fromMaybe (error "deleteFindMin: empty set has no minimal elemen
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxView'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMax :: HasCallStack => IntSet -> (Key, IntSet)
 #else
 deleteFindMax :: IntSet -> (Key, IntSet)
@@ -1195,7 +1195,7 @@ lookupMin (Bin p l r) = Just $! lookupMinSure (if signBranch p then r else l)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMin :: HasCallStack => IntSet -> Key
 #else
 findMin :: IntSet -> Key
@@ -1223,7 +1223,7 @@ lookupMax (Bin p l r) = Just $! lookupMaxSure (if signBranch p then l else r)
 -- is empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMax :: HasCallStack => IntSet -> Key
 #else
 findMax :: IntSet -> Key

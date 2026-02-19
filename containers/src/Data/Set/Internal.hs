@@ -786,7 +786,7 @@ lookupMin (Bin _ x l _) = Just $! lookupMinSure x l
 -- empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMin'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMin :: HasCallStack => Set a -> a
 #else
 findMin :: Set a -> a
@@ -813,7 +813,7 @@ lookupMax (Bin _ x _ r) = Just $! lookupMaxSure x r
 -- empty.
 --
 -- __Note__: This function is partial. Prefer 'lookupMax'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findMax :: HasCallStack => Set a -> a
 #else
 findMax :: Set a -> a
@@ -1484,7 +1484,7 @@ splitMember x0 t = case go x0 t of
 -- @since 0.5.4
 
 -- See Note: Type of local 'go' function
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 findIndex :: (HasCallStack, Ord a) => a -> Set a -> Int
 #else
 findIndex :: Ord a => a -> Set a -> Int
@@ -1534,8 +1534,11 @@ lookupIndex = go 0
 --
 -- @since 0.5.4
 
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 elemAt :: HasCallStack => Int -> Set a -> a
+#else
+elemAt :: Int -> Set a -> a
+#endif
 elemAt = go where
   go !_ Tip = error "Set.elemAt: index out of range"
   go i (Bin _ x l r)
@@ -1545,17 +1548,6 @@ elemAt = go where
         EQ -> x
     where
       sizeL = size l
-#else
-elemAt :: Int -> Set a -> a
-elemAt !_ Tip = error "Set.elemAt: index out of range"
-elemAt i (Bin _ x l r)
-  = case compare i sizeL of
-      LT -> elemAt i l
-      GT -> elemAt (i-sizeL-1) r
-      EQ -> x
-  where
-    sizeL = size l
-#endif
 
 -- | \(O(\log n)\). Delete the element at /index/, i.e. by its zero-based index in
 -- the sorted sequence of elements. If the /index/ is out of range (less than zero,
@@ -1570,8 +1562,11 @@ elemAt i (Bin _ x l r)
 --
 -- @since 0.5.4
 
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteAt :: HasCallStack => Int -> Set a -> Set a
+#else
+deleteAt :: Int -> Set a -> Set a
+#endif
 deleteAt = go where
   go !i t =
     case t of
@@ -1582,18 +1577,6 @@ deleteAt = go where
         EQ -> glue l r
         where
           sizeL = size l
-#else
-deleteAt :: Int -> Set a -> Set a
-deleteAt !i t =
-  case t of
-    Tip -> error "Set.deleteAt: index out of range"
-    Bin _ x l r -> case compare i sizeL of
-      LT -> balanceR x (deleteAt i l) r
-      GT -> balanceL x l (deleteAt (i-sizeL-1) r)
-      EQ -> glue l r
-      where
-        sizeL = size l
-#endif
 
 -- | \(O(\log n)\). Take a given number of elements in order, beginning
 -- with the smallest ones.
@@ -1887,7 +1870,7 @@ glue l@(Bin sl xl ll lr) r@(Bin sr xr rl rr)
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'minView'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMin :: HasCallStack => Set a -> (a,Set a)
 #else
 deleteFindMin :: Set a -> (a,Set a)
@@ -1901,7 +1884,7 @@ deleteFindMin t
 -- Calls 'error' if the set is empty.
 --
 -- __Note__: This function is partial. Prefer 'maxView'.
-#if __GLASGOW_HASKELL__ >= 800
+#ifdef __GLASGOW_HASKELL__
 deleteFindMax :: HasCallStack => Set a -> (a,Set a)
 #else
 deleteFindMax :: Set a -> (a,Set a)
