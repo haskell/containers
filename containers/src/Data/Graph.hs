@@ -607,12 +607,7 @@ run
   -> a
 run bnds f = runST $ do
   m <- newArrayBool bnds
-  f (readArray m)
-    (\v -> do
-#ifdef WORDS_BIGENDIAN
-      writeArray m (v+1) True
-#endif
-      writeArray m v True)
+  f (readArray m) (\v -> writeArray m v True)
 {-# INLINE run #-}
 
 #else /* !USE_ST_MONAD */
