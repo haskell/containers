@@ -3,10 +3,10 @@ name: More arch CI
 on:
   push:
     branches:
-      - master
+    - master
   pull_request:
     branches:
-      - master
+    - master
 
 defaults:
   run:
@@ -48,9 +48,10 @@ jobs:
       with:
         arch: s390x
 
-        # Note: Do not use ubuntu24.04 since it comes with ghc and cabal
-        # versions that segfault (possibly
-        # https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
+        # ubuntu_rolling is currently Ubuntu 25. Consider switching this to an
+        # LTS.
+        # Do not use ubuntu24.04 since it comes with ghc and cabal versions that
+        # segfault (possibly https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
         distro: ubuntu_rolling
 
         # Not required, but speeds up builds by storing container images in a
@@ -66,7 +67,7 @@ jobs:
         run: |
           ghc --version
           cabal --version
-          sed -i '/containers\//d' cabal.project
+          sed -i 's/containers\//-- &/' cabal.project
           cat cabal.project
           cat >> cabal.project.local <<EOF
           package *
@@ -76,5 +77,4 @@ jobs:
             ghc-options: -O0
           EOF
           cabal update
-          cabal build all:tests
-          cabal test all:tests
+          cabal test all
