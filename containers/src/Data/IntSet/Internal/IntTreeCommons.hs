@@ -44,9 +44,13 @@ import Data.Bits (Bits(..), countLeadingZeros)
 import Utils.Containers.Internal.BitUtil (iShiftRL)
 
 #ifdef __GLASGOW_HASKELL__
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift)
+#  else
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#  endif
 #endif
 
 

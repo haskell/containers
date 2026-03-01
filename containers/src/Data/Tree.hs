@@ -75,9 +75,13 @@ import Control.DeepSeq (NFData(rnf),NFData1(liftRnf))
 import Data.Data (Data)
 import GHC.Generics (Generic, Generic1)
 import qualified GHC.Exts
+#  if __GLASGOW_HASKELL__ >= 914
+import Language.Haskell.TH.Lift (Lift)
+#  else
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
+#  endif
 #endif
 
 import Control.Monad.Zip (MonadZip (..))
