@@ -132,6 +132,22 @@ library
 -- B E N C H M A R K I N G --
 -----------------------------
 
+library benchmark-utils
+  import: deps, warnings
+  default-language: Haskell2010
+  hs-source-dirs: benchmark-utils
+
+  build-depends:
+      containers-tests
+    , random >=1.0 && <1.3
+    , transformers
+    , tasty-bench
+
+  exposed-modules:
+    SetOperations
+    Utils.Fold
+    Utils.Random
+
 benchmark intmap-benchmarks
   import: benchmark-deps, warnings
   default-language: Haskell2010
@@ -140,11 +156,8 @@ benchmark intmap-benchmarks
   main-is:        IntMap.hs
   ghc-options:    -O2
 
-  other-modules:
-    Utils.Fold
-
   build-depends:
-      transformers
+      benchmark-utils
     , random >=1.0 && <1.3
 
 benchmark intset-benchmarks
@@ -155,11 +168,8 @@ benchmark intset-benchmarks
   main-is:        IntSet.hs
   ghc-options:    -O2
 
-  other-modules:
-    Utils.Fold
-
   build-depends:
-      transformers
+      benchmark-utils
     , random >=1.0 && <1.3
 
 benchmark map-benchmarks
@@ -172,14 +182,8 @@ benchmark map-benchmarks
   build-depends:
       random >=1.0 && <1.3
 
-  other-modules:
-      Utils.Random
-
-  other-modules:
-    Utils.Fold
-
   build-depends:
-    transformers
+      benchmark-utils
 
 benchmark tree-benchmarks
   import: benchmark-deps, warnings
@@ -189,11 +193,8 @@ benchmark tree-benchmarks
   main-is:        Tree.hs
   ghc-options:    -O2
 
-  other-modules:
-    Utils.Fold
-
   build-depends:
-    transformers
+      benchmark-utils
 
 benchmark sequence-benchmarks
   import: benchmark-deps, warnings
@@ -203,14 +204,9 @@ benchmark sequence-benchmarks
   main-is:        Sequence.hs
   ghc-options:    -O2
   build-depends:
-      random >=1.0 && <1.3
+      benchmark-utils
+    , random >=1.0 && <1.3
     , transformers
-
-  other-modules:
-    Utils.Fold
-
-  build-depends:
-    transformers
 
 benchmark set-benchmarks
   import: benchmark-deps, warnings
@@ -219,17 +215,9 @@ benchmark set-benchmarks
   hs-source-dirs: benchmarks
   main-is:        Set.hs
   ghc-options:    -O2
-  build-depends:
-      random >=1.0 && <1.3
-
-  other-modules:
-      Utils.Random
-
-  other-modules:
-    Utils.Fold
 
   build-depends:
-    transformers
+      benchmark-utils
 
 benchmark graph-benchmarks
   import: benchmark-deps, warnings
@@ -247,8 +235,10 @@ benchmark set-operations-intmap
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntMap.hs
-  other-modules:  SetOperations
   ghc-options:    -O2
+
+  build-depends:
+      benchmark-utils
 
 benchmark set-operations-intset
   import: benchmark-deps, warnings
@@ -256,8 +246,10 @@ benchmark set-operations-intset
   type:           exitcode-stdio-1.0
   hs-source-dirs: benchmarks/SetOperations
   main-is:        SetOperations-IntSet.hs
-  other-modules:  SetOperations
   ghc-options:    -O2
+
+  build-depends:
+      benchmark-utils
 
 benchmark set-operations-map
   import: benchmark-deps, warnings
@@ -265,15 +257,11 @@ benchmark set-operations-map
   type:           exitcode-stdio-1.0
   hs-source-dirs:
       benchmarks/SetOperations
-      benchmarks
   main-is:        SetOperations-Map.hs
-  other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      random >=1.0 && <1.3
 
-  other-modules:
-      Utils.Random
+  build-depends:
+      benchmark-utils
 
 benchmark set-operations-set
   import: benchmark-deps, warnings
@@ -281,15 +269,11 @@ benchmark set-operations-set
   type:           exitcode-stdio-1.0
   hs-source-dirs:
       benchmarks/SetOperations
-      benchmarks
   main-is:        SetOperations-Set.hs
-  other-modules:  SetOperations
   ghc-options:    -O2
-  build-depends:
-      random >=1.0 && <1.3
 
-  other-modules:
-      Utils.Random
+  build-depends:
+      benchmark-utils
 
 benchmark lookupge-intmap
   import: benchmark-deps, warnings
@@ -315,6 +299,25 @@ benchmark lookupge-map
 -- Every test-suite contains the build-depends and options of the library,
 -- plus the testing stuff.
 
+library test-utils
+  import: deps, warnings
+  default-language: Haskell2010
+  hs-source-dirs: test-utils
+
+  build-depends:
+      containers-tests
+    , ChasingBottoms
+    , QuickCheck
+    , transformers
+
+  exposed-modules:
+    IntMapValidity
+    IntSetValidity
+    Utils.ArbitrarySetMap
+    Utils.MergeFunc
+    Utils.NubSorted
+    Utils.Strictness
+
 test-suite map-lazy-properties
   import: test-deps, warnings
   default-language: Haskell2010
@@ -322,8 +325,8 @@ test-suite map-lazy-properties
   main-is:          map-properties.hs
   type:             exitcode-stdio-1.0
 
-  other-modules:
-    Utils.ArbitrarySetMap
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -338,8 +341,8 @@ test-suite map-strict-properties
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
 
-  other-modules:
-    Utils.ArbitrarySetMap
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -364,8 +367,8 @@ test-suite set-properties
   main-is:          set-properties.hs
   type:             exitcode-stdio-1.0
 
-  other-modules:
-    Utils.ArbitrarySetMap
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -378,7 +381,9 @@ test-suite intmap-lazy-properties
   hs-source-dirs:   tests
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
-  other-modules:    IntMapValidity
+
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -392,7 +397,9 @@ test-suite intmap-strict-properties
   main-is:          intmap-properties.hs
   type:             exitcode-stdio-1.0
   cpp-options:      -DSTRICT
-  other-modules:    IntMapValidity
+
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -405,7 +412,9 @@ test-suite intset-properties
   hs-source-dirs:   tests
   main-is:          intset-properties.hs
   type:             exitcode-stdio-1.0
-  other-modules:    IntSetValidity
+
+  build-depends:
+      test-utils
 
   ghc-options:      -O2
   other-extensions:
@@ -418,16 +427,15 @@ test-suite seq-properties
   hs-source-dirs:   tests
   main-is:          seq-properties.hs
   type:             exitcode-stdio-1.0
+
   build-depends:
-      ChasingBottoms
+      test-utils
+    , ChasingBottoms
 
   ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
-
-  other-modules:
-      Utils.Strictness
 
 test-suite tree-properties
   import: test-deps, warnings
@@ -456,18 +464,13 @@ test-suite map-strictness-properties
   main-is:          map-strictness.hs
   type:             exitcode-stdio-1.0
   build-depends:
-      ChasingBottoms
+      test-utils
+    , ChasingBottoms
 
   ghc-options:      -Wall
   other-extensions:
     BangPatterns
     CPP
-
-  other-modules:
-    Utils.ArbitrarySetMap
-    Utils.MergeFunc
-    Utils.NubSorted
-    Utils.Strictness
 
 test-suite intmap-strictness-properties
   import: test-deps, warnings
@@ -480,14 +483,10 @@ test-suite intmap-strictness-properties
     CPP
 
   build-depends:
-      ChasingBottoms
+      test-utils
+    , ChasingBottoms
 
   ghc-options:      -Wall
-
-  other-modules:
-    Utils.MergeFunc
-    Utils.NubSorted
-    Utils.Strictness
 
 test-suite set-strictness-properties
   import: test-deps, warnings
@@ -500,14 +499,10 @@ test-suite set-strictness-properties
     CPP
 
   build-depends:
-      ChasingBottoms
+      test-utils
+    , ChasingBottoms
 
   ghc-options:      -Wall
-
-  other-modules:
-    Utils.ArbitrarySetMap
-    Utils.NubSorted
-    Utils.Strictness
 
 test-suite intset-strictness-properties
   import: test-deps, warnings
@@ -520,13 +515,10 @@ test-suite intset-strictness-properties
     CPP
 
   build-depends:
-      ChasingBottoms
+      test-utils
+    , ChasingBottoms
 
   ghc-options:      -Wall
-
-  other-modules:
-    Utils.NubSorted
-    Utils.Strictness
 
 test-suite listutils-properties
   import: test-deps, warnings

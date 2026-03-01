@@ -1,27 +1,27 @@
-{-# LANGUAGE CPP #-}
-module IntSetValidity (valid) where
+module IntMapValidity
+  ( valid
+  , hasPrefix
+  , hasPrefixSimple
+  ) where
 
-import Data.Bits (xor, (.&.))
+import Data.Bits (finiteBitSize, testBit, xor, (.&.))
+import Data.List (intercalate, elemIndex)
 import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
-import Data.IntSet.Internal
-import Data.List (intercalate)
+import Data.IntMap.Internal
 import Numeric (showHex)
-import Test.Tasty.QuickCheck (Property, counterexample, property, (.&&.))
-
-#include "containers.h"
+import Test.QuickCheck (Property, counterexample, property, (.&&.))
 
 {--------------------------------------------------------------------
   Assertions
 --------------------------------------------------------------------}
--- | Returns true iff the internal structure of the IntSet is valid.
-valid :: IntSet -> Property
+-- | Returns true iff the internal structure of the IntMap is valid.
+valid :: IntMap a -> Property
 valid t =
   counterexample "nilNeverChildOfBin" (nilNeverChildOfBin t) .&&.
-  counterexample "prefixesOk" (prefixesOk t) .&&.
-  counterexample "tipsValid" (tipsValid t)
+  counterexample "prefixesOk" (prefixesOk t)
 
 -- Invariant: Nil is never found as a child of Bin.
-nilNeverChildOfBin :: IntSet -> Bool
+nilNeverChildOfBin :: IntMap a  -> Bool
 nilNeverChildOfBin t =
   case t of
     Nil -> True
@@ -38,7 +38,7 @@ nilNeverChildOfBin t =
 -- * All keys in a Bin start with the Bin's shared prefix.
 -- * All keys in the Bin's left child have the Prefix's mask bit unset.
 -- * All keys in the Bin's right child have the Prefix's mask bit set.
-prefixesOk :: IntSet -> Property
+prefixesOk :: IntMap a -> Property
 prefixesOk t = case t of
   Nil -> property ()
   Tip _ _ -> property ()
@@ -46,8 +46,8 @@ prefixesOk t = case t of
     where
       px = unPrefix p
       m = px .&. (-px)
-      keysl = elems l
-      keysr = elems r
+      keysl = keys l
+      keysr = keys r
       debugStr = concat
         [ "px=" ++ showIntHex px
         , ", keysl=[" ++ intercalate "," (fmap showIntHex keysl) ++ "]"
@@ -62,26 +62,17 @@ prefixesOk t = case t of
 hasPrefix :: Int -> Prefix -> Bool
 hasPrefix i p = not (nomatch i p)
 
--- Invariant: The Prefix is zero for the last 5 (on 32 bit arches) or 6 bits
---            (on 64 bit arches). The values of the set represented by a tip
---            are the prefix plus the indices of the set bits in the bit map.
---
--- Note: Valid entries stored in tip omitted.
-tipsValid :: IntSet -> Bool
-tipsValid t =
-  case t of
-    Nil -> True
-    tip@(Tip p b) -> validTipPrefix p && b /= 0
-    Bin _ l r -> tipsValid l && tipsValid r
+-- We test that hasPrefix behaves the same as hasPrefixSimple.
+hasPrefixSimple :: Int -> Prefix -> Bool
+hasPrefixSimple k p = case elemIndex True pbits of
+  Nothing -> error "no mask bit" -- should not happen
+  Just i -> drop (i+1) kbits == drop (i+1) pbits
+  where
+    kbits = toBits k
+    pbits = toBits (unPrefix p)
 
-validTipPrefix :: Int -> Bool
-#if WORD_SIZE_IN_BITS==32
--- Last 5 bits of the prefix must be zero for 32 bit arches.
-validTipPrefix p = (0x0000001F .&. p) == 0
-#else
--- Last 6 bits of the prefix must be zero for 64 bit arches.
-validTipPrefix p = (0x000000000000003F .&. p) == 0
-#endif
+    -- Bits from lowest to highest.
+    toBits x = fmap (testBit x) [0 .. finiteBitSize (0 :: Int) - 1]
 
 showIntHex :: Int -> String
 showIntHex x = "0x" ++ showHex (fromIntegral x :: Word) ""
