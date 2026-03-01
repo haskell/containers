@@ -35,6 +35,7 @@ main = do
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
+        , bench "index" $ whnf (indexMany evens) m
         , bench "map" $ whnf (M.map (+ 1)) m
         , bench "map really" $ nf (M.map (+ 2)) m
         , bench "<$" $ whnf ((1 :: Int) <$) m
@@ -89,6 +90,8 @@ main = do
         , bench "mapMaybe" $ whnf (M.mapMaybe maybeDel) m
         , bench "mapMaybeWithKey" $ whnf (M.mapMaybeWithKey (const maybeDel)) m
         , bench "lookupIndex" $ whnf (lookupIndex keys_distinct_asc) m
+        , bench "findIndex" $ whnf (findIndexMany evens) m
+        , bench "elemAt" $ whnf elemAtMany m
         , bench "union" $ whnf (M.union m_even) m_odd
         , bench "difference" $ whnf (M.difference m) m_even
         , bench "intersection" $ whnf (M.intersection m) m_even
@@ -172,6 +175,9 @@ add3 x y z = x + y + z
 lookup :: [Int] -> M.Map Int Int -> Int
 lookup xs m = foldl' (\n k -> fromMaybe n (M.lookup k m)) 0 xs
 
+indexMany :: [Int] -> M.Map Int a -> ()
+indexMany xs !m = foldl' (\_ k -> m M.! k `seq` ()) () xs
+
 atLookup :: [Int] -> M.Map Int Int -> Int
 atLookup xs m = foldl' (\n k -> fromMaybe n (getConst (alterF Const k m))) 0 xs
 
@@ -184,6 +190,12 @@ atLookupNoRules xs m = foldl' (\n k -> fromMaybe n (getConsty (alterF Consty k m
 
 lookupIndex :: [Int] -> M.Map Int Int -> Int
 lookupIndex xs m = foldl' (\n k -> fromMaybe n (M.lookupIndex k m)) 0 xs
+
+findIndexMany :: [Int] -> M.Map Int a -> ()
+findIndexMany xs !m = foldl' (\_ k -> M.findIndex k m `seq` ()) () xs
+
+elemAtMany :: M.Map k a -> ()
+elemAtMany !m = foldl' (\_ i -> M.elemAt i m `seq` ()) () [0,2 .. M.size m - 1]
 
 ins :: [(Int, Int)] -> M.Map Int Int -> M.Map Int Int
 ins xs m = foldl' (\m (k, v) -> M.insert k v m) m xs
