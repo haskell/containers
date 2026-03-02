@@ -1487,8 +1487,8 @@ elemAt = go where
   go !_ Tip = error "Map.elemAt: index out of range"
   go i (Bin _ kx x l r)
     = case compare i sizeL of
-        LT -> elemAt i l
-        GT -> elemAt (i-sizeL-1) r
+        LT -> go i l
+        GT -> go (i-sizeL-1) r
         EQ -> (kx,x)
     where
       sizeL = size l
