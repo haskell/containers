@@ -1,4 +1,4 @@
-name: More arch CI
+name: s390x CI
 
 on:
   push:
@@ -8,31 +8,7 @@ on:
     branches:
     - master
 
-defaults:
-  run:
-    shell: bash
-
 jobs:
-  # i386 is 32-bit
-  i386:
-    runs-on: ubuntu-latest
-    container:
-      image: i386/ubuntu:bionic
-    steps:
-    - name: Install
-      run: |
-        apt-get update -y
-        apt-get install -y autoconf build-essential zlib1g-dev libgmp-dev curl libncurses5 libtinfo5 libncurses5-dev libtinfo-dev
-        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 sh
-    - uses: actions/checkout@v1 # This version must stay old enough to remain compatible with the container image
-    - name: Test
-      run: |
-        source ~/.ghcup/env
-        ghc --version
-        cabal --version
-        cabal update
-        cabal test all
-
   # s390x is 31-bit-address/32-bit-data and big-endian
   s390x:
     runs-on: ubuntu-latest
