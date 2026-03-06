@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns #-}
 module Main where
 
 import Control.Applicative
@@ -37,7 +38,15 @@ main = do
         u10000 = S.replicate 10000 () :: S.Seq ()
     evaluate $ rnf [u10, u100, u1000, u10000]
     defaultMain
-      [ bgroup "splitAt/append"
+      [ bgroup "lookup"
+        [ bench "10" $ nf lookupMany s10
+        , bench "10000" $ nf lookupMany s10000
+        ]
+      , bgroup "index"
+        [ bench "10" $ nf indexMany s10
+        , bench "10000" $ nf indexMany s10000
+        ]
+      , bgroup "splitAt/append"
          [ bench "10" $ nf (shuffle r10) s10
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
@@ -177,6 +186,14 @@ main = do
       , bgroup "folds 10" $ foldBenchmarks foldr foldl foldr' foldl' foldMap s10
       , bgroup "folds 10000" $ foldBenchmarks foldr foldl foldr' foldl' foldMap s10000
       ]
+
+lookupMany :: S.Seq a -> ()
+lookupMany !xs =
+  foldl' (\_ i -> S.lookup i xs `seq` ()) () [0,2 .. S.length xs - 1]
+
+indexMany :: S.Seq a -> ()
+indexMany !xs =
+  foldl' (\_ i -> S.index xs i `seq` ()) () [0,2 .. S.length xs - 1]
 
 {-
 -- This is around 4.6 times as slow as insertAt

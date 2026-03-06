@@ -15,6 +15,7 @@ import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
+import Utils.Random (shuffle)
 
 main = do
     let m     = M.fromAscList elems_hits   :: M.IntMap Int
@@ -30,12 +31,14 @@ main = do
     evaluate $ rnf [m, m', m'', m''', m'''']
     evaluate $ rnf m_random
     evaluate $ rnf [s, s_random2]
+    evaluate $ rnf evens
     defaultMain
         [ bench "lookup_hits" $ whnf (lookup keys) m
         , bench "lookup_half" $ whnf (lookup keys) m'
         , bench "lookup_most" $ whnf (lookup keys) m''
         , bench "lookup_misses" $ whnf (lookup keys'') m'''
         , bench "lookup_mixed" $ whnf (lookup keys) m''''
+        , bench "index" $ whnf (indexMany evens) m
         , bench "insert" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty
         , bench "insertWith update" $ whnf (insWith elems) m
@@ -137,6 +140,7 @@ main = do
     values = [1..bound]
     key_mid = bound `div` 2
     keys_random2 = take bound (randoms gen2)
+    evens = shuffle [2,4..bound]
     --------------------------------------------------------
     sum k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
@@ -148,6 +152,9 @@ add3 x y z = x + y + z
 
 lookup :: [Int] -> M.IntMap Int -> Int
 lookup xs m = foldl' (\n k -> fromMaybe n (M.lookup k m)) 0 xs
+
+indexMany :: [Int] -> M.IntMap a -> ()
+indexMany xs !m = foldl' (\_ k -> m M.! k `seq` ()) () xs
 
 ins :: [(Int, Int)] -> M.IntMap Int -> M.IntMap Int
 ins xs m = foldl' (\m (k, v) -> M.insert k v m) m xs

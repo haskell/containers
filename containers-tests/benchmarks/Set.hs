@@ -31,6 +31,8 @@ main = do
         , bench "findMax" $ whnf S.findMax s
         , bench "deleteMin" $ whnf S.deleteMin s
         , bench "deleteMax" $ whnf S.deleteMax s
+        , bench "findIndex" $ whnf (findIndexMany elems_even) s
+        , bench "elemAt" $ whnf elemAtMany s
         , bench "unions" $ whnf S.unions [s_even, s_odd]
         , bench "union" $ whnf (S.union s_even) s_odd
         , bench "difference" $ whnf (S.difference s) s_even
@@ -88,6 +90,12 @@ ins xs s0 = foldl' (\s a -> S.insert a s) s0 xs
 
 del :: [Int] -> S.Set Int -> S.Set Int
 del xs s0 = foldl' (\s k -> S.delete k s) s0 xs
+
+findIndexMany :: [Int] -> S.Set Int -> ()
+findIndexMany xs !s = foldl' (\_ k -> S.findIndex k s `seq` ()) () xs
+
+elemAtMany :: S.Set a -> ()
+elemAtMany !s = foldl' (\_ i -> S.elemAt i s `seq` ()) () [0,2 .. S.size s - 1]
 
 alterF_member :: [Int] -> S.Set Int -> Int
 alterF_member xs s = foldl' (\n x -> if member' x s then n + 1 else n) 0 xs
