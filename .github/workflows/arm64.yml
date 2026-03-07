@@ -26,5 +26,7 @@ jobs:
     - name: Test
       run: |
         source ~/.ghcup/env
+        ghc --version
+        cabal --version
         cabal update
         cabal test all
