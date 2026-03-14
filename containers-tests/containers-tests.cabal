@@ -332,7 +332,6 @@ test-suite map-lazy-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -348,7 +347,6 @@ test-suite map-strict-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -359,7 +357,7 @@ test-suite bitqueue-properties
   hs-source-dirs:   tests
   main-is:          bitqueue-properties.hs
   type:             exitcode-stdio-1.0
-  ghc-options:      -O2
+
   other-extensions:
     BangPatterns
     CPP
@@ -374,7 +372,6 @@ test-suite set-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -389,7 +386,6 @@ test-suite intmap-lazy-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -405,7 +401,6 @@ test-suite intmap-strict-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -420,7 +415,6 @@ test-suite intset-properties
   build-depends:
       test-utils
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -436,7 +430,6 @@ test-suite seq-properties
       test-utils
     , ChasingBottoms
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -448,7 +441,6 @@ test-suite tree-properties
   main-is:          tree-properties.hs
   type:             exitcode-stdio-1.0
 
-  ghc-options:      -O2
   other-extensions:
     BangPatterns
     CPP
@@ -459,7 +451,6 @@ test-suite graph-properties
   hs-source-dirs:   tests
   main-is:          graph-properties.hs
   type:             exitcode-stdio-1.0
-  ghc-options:      -O2
 
 test-suite map-strictness-properties
   import: test-deps, warnings

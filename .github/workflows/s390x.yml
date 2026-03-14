@@ -1,0 +1,56 @@
+name: s390x CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+jobs:
+  # s390x is 31-bit-address/32-bit-data and big-endian
+  s390x:
+    runs-on: ubuntu-latest
+
+    # Not required, but speeds up builds by storing container images in a
+    # GitHub package registry.
+    permissions:
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v6
+    - uses: uraimo/run-on-arch-action@v3
+      with:
+        arch: s390x
+
+        # ubuntu_rolling is currently Ubuntu 25. Consider switching this to an
+        # LTS.
+        # Do not use ubuntu24.04 since it comes with ghc and cabal versions that
+        # segfault (possibly https://gitlab.haskell.org/ghc/ghc/-/issues/24163).
+        distro: ubuntu_rolling
+
+        # Not required, but speeds up builds by storing container images in a
+        # GitHub package registry.
+        githubToken: ${{ github.token }}
+
+        # Install GHC via apt because GHCup doesn't support s390x
+        install: |
+          apt-get update -y
+          apt-get install -y ghc cabal-install
+
+        # Test without optimizations because it is much slower otherwise
+        run: |
+          ghc --version
+          cabal --version
+          sed -i 's/containers\//-- &/' cabal.project
+          cat cabal.project
+          cat >> cabal.project.local <<EOF
+          package *
+            optimization: 0
+          package containers-tests
+            -- This overrides the -O2 in containers-tests's ghc-options
+            ghc-options: -O0
+          EOF
+          cabal update
+          cabal test all
