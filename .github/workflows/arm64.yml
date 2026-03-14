@@ -1,0 +1,32 @@
+name: arm64 CI
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+    - name: Install
+      # GHCup requirements from https://www.haskell.org/ghcup/install/#linux-ubuntu
+      run: |
+        sudo apt-get update -y
+        sudo apt-get install -y build-essential curl libffi-dev libffi8ubuntu1 libgmp-dev libgmp10 libncurses-dev
+        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 sh
+    - uses: actions/checkout@v6
+    - name: Test
+      run: |
+        source ~/.ghcup/env
+        ghc --version
+        cabal --version
+        cabal update
+        cabal test all
