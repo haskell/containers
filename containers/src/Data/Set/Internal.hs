@@ -157,6 +157,7 @@ module Data.Set.Internal (
 
             -- * Filter
             , filter
+            , filterA
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone
@@ -227,6 +228,7 @@ module Data.Set.Internal (
             , preserveMissing
             , filterMissing
             , filterAMissing
+            , whenMissing
             , runWhenMissing
             , WhenMatched(..)
             , SimpleWhenMatched
@@ -958,7 +960,7 @@ symmetricDifference (Bin _ x l1 r1) t2
 {--------------------------------------------------------------------
   Filter and partition
 --------------------------------------------------------------------}
--- | \(O(n)\). Filter all elements that satisfy the predicate.
+-- | \(O(n)\). Keep all elements that satisfy the predicate.
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
 filter p t@(Bin _ x l r)
@@ -970,6 +972,9 @@ filter p t@(Bin _ x l r)
       !l' = filter p l
       !r' = filter p r
 
+-- | \(O(n)\). Keep all elements that satisfy the Applicative predicate.
+--
+-- @since FIXME
 filterA :: Applicative f => (a -> f Bool) -> Set a -> f (Set a)
 filterA p = go
   where
@@ -2263,6 +2268,42 @@ filterMatched f = WhenMatched (pure . f)
 filterAMatched :: (a -> f Bool) -> WhenMatched f a
 filterAMatched = WhenMatched
 
+-- | Create a @WhenMissing@ from two functions.
+--
+-- @whenMissing@ must be called with two functions @f@ and @g@ such that
+-- @g = 'filterA' f@. @g@ may be a more efficient way of applying @f@ to all
+-- elements in a @Set@.
+--
+-- __Warning__: It is the caller's responsibility to ensure the above property.
+--
+-- === __Examples__
+--
+-- @
+-- preserveMissing :: Applicative f => WhenMissing f a
+-- preserveMissing = whenMissing f g
+--   where
+--     f _x = pure True
+--     g s = pure s
+--     -- Note that this satisfies g = filterA f
+-- @
+--
+-- @
+-- import Data.Functor.Const (Const(..))
+-- import Data.Monoid (All(..))
+--
+-- -- For a usage of this, see examples on mergeA
+-- isEmpty :: WhenMissing (Const All) a
+-- isEmpty = whenMissing f g
+--   where
+--     f _x = Const (All False)
+--     g s = Const (All (null s))
+--     -- Note that this satisfies g = filterA f
+-- @
+--
+-- @since FIXME
+whenMissing :: (a -> f Bool) -> (Set a -> f (Set a)) -> WhenMissing f a
+whenMissing = flip WhenMissing
+
 -- | Drop all the elements that are missing from the other set.
 --
 -- @
@@ -2419,6 +2460,41 @@ merge g1 g2 f = \s1 s2 -> runIdentity (mergeA g1 g2 f s1 s2)
 -- When 'mergeA' is given three arguments, it is inlined at the call
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
+--
+-- === __Examples__
+--
+-- @
+-- data Pair a = Pair !a !a deriving Functor
+--
+-- instance Applicative Pair where
+--    pure x = Pair x x
+--    liftA2 f (Pair x1 y1) (Pair x2 y2) = Pair (f x1 x2) (f y1 y2)
+--
+-- -- | Calculate the left-biased union and intersection of the two sets.
+-- unionIntersection :: Ord a => Set a -> Set a -> (Set a, Set a)
+-- unionIntersection m1 m2 =
+--   case mergeA preserveAndDropMissing preserveAndDropMissing preserveAndPreserveMatched m1 m2 of
+--     Pair mu mi -> (mu, mi)
+--   where
+--     -- use Pair to build the union and intersection together
+--     preserveAndDropMissing = 'whenMissing' (\\_x -> Pair True False) (\\s -> Pair s empty)
+--     preserveAndPreserveMatched = 'filterAMatched' (\\_x -> Pair True True)
+-- @
+--
+-- @
+-- import Data.Functor.Const (Const(..))
+-- import Data.Monoid (All(..))
+--
+-- -- | Whether the first set is a subset of the second set.
+-- isSubsetOf :: Ord a => Set a -> Set a -> Bool
+-- isSubsetOf m1 m2 =
+--   getAll (getConst (mergeA isEmpty alwaysTrueMissing alwaysTrueMatched m1 m2))
+--   where
+--     -- the result is True if there are no elements occurring only in the first set
+--     isEmpty = 'whenMissing' (\\_x -> Const (All False)) (\\s -> Const (All (null s)))
+--     alwaysTrueMissing = 'whenMissing' (\\_x -> Const (All True)) (\\_s -> Const (All True))
+--     alwaysTrueMatched = 'filterAMatched' (\\_x -> Const (All True))
+-- @
 --
 -- @since FIXME
 mergeA

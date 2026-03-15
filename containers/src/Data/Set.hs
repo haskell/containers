@@ -135,6 +135,7 @@ module Data.Set (
 
             -- * Filter
             , S.filter
+            , filterA
             , takeWhileAntitone
             , dropWhileAntitone
             , spanAntitone

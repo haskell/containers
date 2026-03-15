@@ -101,6 +101,7 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "prop_splitRoot" prop_splitRoot
                    , testProperty "prop_partition" prop_partition
                    , testProperty "prop_filter" prop_filter
+                   , testProperty "prop_filterA" prop_filterA
                    , testProperty "prop_mapMaybe" prop_mapMaybe
                    , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -622,8 +623,19 @@ prop_partition :: Set Int -> Int -> Bool
 prop_partition s i = case partition odd s of
     (s1,s2) -> all odd (toList s1) && all even (toList s2) && s == s1 `union` s2
 
-prop_filter :: Set Int -> Int -> Bool
-prop_filter s i = partition odd s == (filter odd s, filter even s)
+prop_filter :: Set Int -> Fun Int Bool -> Property
+prop_filter s f =
+  valid s' .&&. toList s' === List.filter (applyFun f) (toList s)
+  where
+    s' = filter (applyFun f) s
+
+prop_filterA :: Set Int -> Fun Int Bool -> Property
+prop_filterA s f =
+  valid s' .&&.
+  xs === toList s .&&.
+  toList s' === List.filter (applyFun f) (toList s)
+  where
+    (xs, s') = filterA (\x -> ([x], applyFun f x)) s
 
 prop_mapMaybe :: Fun Int (Maybe Int) -> Set Int -> Property
 prop_mapMaybe f s =
