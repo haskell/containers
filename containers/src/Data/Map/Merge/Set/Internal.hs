@@ -236,6 +236,37 @@ merge miss1 miss2 match = \t1 t2 -> runIdentity (mergeA miss1 miss2 match t1 t2)
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
 --
+-- === __Examples__
+--
+-- @
+-- data Pair a = Pair !a !a deriving Functor
+--
+-- instance Applicative Pair where
+--    pure x = Pair x x
+--    liftA2 f (Pair x1 y1) (Pair x2 y2) = Pair (f x1 x2) (f y1 y2)
+--
+-- -- | Partition the map according to whether the keys appear in the set.
+-- partitionKeys :: Ord k => Map k a -> Set k -> (Map k a, Map k a)
+-- partitionKeys m s =
+--   case mergeA dropAndPreserveMissing dropMissingSet preserveAndDropMatched m s of
+--     Pair m1 m2 -> (m1, m2)
+--   where
+--     dropAndPreserveMissing = whenMissing (\\_k x -> Pair Nothing (Just x)) (\\m -> Pair empty m)
+--     preserveAndDropMatched = traverseMaybeMatched (\\_k x -> Pair (Just x) Nothing)
+-- @
+--
+-- @
+-- import Data.Functor.Const (Const(..))
+-- import Data.Monoid (All(..))
+--
+-- -- | Whether the keys of the map are a subset of the keys of the set.
+-- keysAreSubsetOf :: Ord k => Map k a -> Set k -> Bool
+-- keysAreSubsetOf m s =
+--   getAll (getConst (mergeA isEmpty dropMissing 'dropMatched' m1 m2))
+--   where
+--     isEmpty = whenMissing (\\_k _x -> Const (All False)) (\\m -> Const (All (null m)))
+-- @
+--
 -- @since FIXME
 mergeA
   :: (Applicative f, Ord k)

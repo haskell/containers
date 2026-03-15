@@ -38,6 +38,7 @@ module Data.Set.Merge
     -- | The tactics described for 'merge' work for 'mergeA' as well.
     -- Furthermore, the following are available.
   , filterAMissing
+  , whenMissing
 
     -- *** @WhenMatched@ tactics
     -- | The tactics described for 'merge' work for 'mergeA' as well.

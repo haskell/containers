@@ -72,6 +72,7 @@ module Data.IntMap.Merge.Lazy (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+    , whenMissing
 
     -- *** Covariant maps for tactics
     , mapWhenMissing

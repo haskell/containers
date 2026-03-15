@@ -60,6 +60,7 @@ module Data.Map.Merge.Set.Strict
   , MS.filterAMissing
   , MS.traverseMissing
   , MS.traverseMaybeMissing
+  , M.whenMissing
 
   -- *** @WhenMissingSet@ tactics
   , generateAMissingSet
@@ -71,6 +72,7 @@ module Data.Map.Merge.Set.Strict
   ) where
 
 import qualified Data.Map.Strict.Internal as MS
+import qualified Data.Map.Internal as M
 import qualified Data.Map.Merge.Set.Internal as Internal
 import Data.Map.Merge.Set.Internal (WhenMatched(..), WhenMissingSet(..))
 
