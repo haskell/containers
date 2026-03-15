@@ -78,6 +78,7 @@ module Data.Map.Merge.Strict (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+    , Internal.whenMissing
 
     -- ** Covariant maps for tactics
     , mapWhenMissing
@@ -89,4 +90,5 @@ module Data.Map.Merge.Strict (
     , runWhenMissing
     ) where
 
+import qualified Data.Map.Internal as Internal
 import Data.Map.Strict.Internal
