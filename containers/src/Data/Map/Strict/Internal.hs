@@ -1198,6 +1198,9 @@ mapMaybe f = mapMaybeWithKey (\_ x -> f x)
 
 mapMaybeWithKey :: (k -> a -> Maybe b) -> Map k a -> Map k b
 mapMaybeWithKey _ Tip = Tip
+mapMaybeWithKey f (Bin 1 kx x _ _) = case f kx x of
+  Just y  -> y `seq` Bin 1 kx y Tip Tip
+  Nothing -> Tip
 mapMaybeWithKey f (Bin _ kx x l r) = case f kx x of
   Just y  -> y `seq` link kx y (mapMaybeWithKey f l) (mapMaybeWithKey f r)
   Nothing -> link2 (mapMaybeWithKey f l) (mapMaybeWithKey f r)
@@ -1211,7 +1214,7 @@ traverseMaybeWithKey :: Applicative f
 traverseMaybeWithKey = go
   where
     go _ Tip = pure Tip
-    go f (Bin _ kx x Tip Tip) = maybe Tip (\ !x' -> Bin 1 kx x' Tip Tip) <$> f kx x
+    go f (Bin 1 kx x _ _) = maybe Tip (\ !x' -> Bin 1 kx x' Tip Tip) <$> f kx x
     go f (Bin _ kx x l r) = liftA3 combine (go f l) (f kx x) (go f r)
       where
         combine !l' mx !r' = case mx of
@@ -1262,6 +1265,7 @@ map :: (a -> b) -> Map k a -> Map k b
 map f = go
   where
     go Tip = Tip
+    go (Bin 1 kx x _ _) = let !x' = f x in Bin 1 kx x' Tip Tip
     go (Bin sx kx x l r) = let !x' = f x in Bin sx kx x' (go l) (go r)
 -- We use `go` to let `map` inline. This is important if `f` is a constant
 -- function.
@@ -1281,6 +1285,9 @@ map f = go
 
 mapWithKey :: (k -> a -> b) -> Map k a -> Map k b
 mapWithKey _ Tip = Tip
+mapWithKey f (Bin 1 kx x _ _) =
+  let x' = f kx x
+  in x' `seq` Bin 1 kx x' Tip Tip
 mapWithKey f (Bin sx kx x l r) =
   let x' = f kx x
   in x' `seq` Bin sx kx x' (mapWithKey f l) (mapWithKey f r)
@@ -1343,6 +1350,9 @@ mapAccumWithKey f a t
 -- argument through the map in ascending order of keys.
 mapAccumL :: (a -> k -> b -> (a,c)) -> a -> Map k b -> (a,Map k c)
 mapAccumL _ a Tip               = (a,Tip)
+mapAccumL f a (Bin 1 kx x _ _) =
+  let (a1,x') = f a kx x
+  in x' `seq` (a1,Bin 1 kx x' Tip Tip)
 mapAccumL f a (Bin sx kx x l r) =
   let (a1,l') = mapAccumL f a l
       (a2,x') = f a1 kx x
