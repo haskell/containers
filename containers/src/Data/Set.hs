@@ -20,6 +20,16 @@
 -- require that @e@ have an instance of the 'Ord' class. A 'Set' is strict in
 -- its elements.
 --
+-- When deciding if this is the correct data structure to use, consider:
+--
+-- * If you are using 'Int' keys, you will get much better performance for most
+-- operations using "Data.IntSet".
+--
+-- * If you don't care about ordering and don't handle untrusted elements,
+-- consider using @Data.HashSet@ from the
+-- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
+-- package instead.
+--
 -- For a walkthrough of the most commonly used functions see the
 -- <https://haskell-containers.readthedocs.io/en/latest/set.html sets introduction>.
 --

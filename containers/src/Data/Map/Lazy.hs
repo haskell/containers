@@ -31,7 +31,8 @@
 -- * If you are using 'Prelude.Int' keys, you will get much better performance for most
 -- operations using "Data.IntMap.Lazy".
 --
--- * If you don't care about ordering, consider using @Data.HashMap.Lazy@ from the
+-- * If you don't care about ordering and don't handle untrusted keys, consider
+-- using @Data.HashMap.Lazy@ from the
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
 -- package instead.
 --
