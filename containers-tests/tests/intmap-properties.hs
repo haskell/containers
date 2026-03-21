@@ -272,7 +272,12 @@ main = defaultMain $ testGroup "intmap-properties"
 --------------------------------------------------------------------}
 
 instance Arbitrary a => Arbitrary (IntMap a) where
-  arbitrary = oneof [go arbitrary, go (getLarge <$> arbitrary)]
+  arbitrary = oneof
+    [ go arbitrary
+    , go (getLarge <$> arbitrary)
+    , go (getNonNegative <$> arbitrary)
+    , go (getNegative <$> arbitrary)
+    ]
     where
       go kgen = fromList <$> listOf ((,) <$> kgen <*> arbitrary)
   shrink = fmap fromList . shrink . toAscList

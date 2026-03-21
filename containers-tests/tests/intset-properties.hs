@@ -151,7 +151,12 @@ test_compareSize = do
   Arbitrary, reasonably balanced trees
 --------------------------------------------------------------------}
 instance Arbitrary IntSet where
-  arbitrary = fromList <$> oneof [arbitrary, fmap (fmap getLarge) arbitrary]
+  arbitrary = fromList <$> oneof
+    [ arbitrary
+    , listOf (getLarge <$> arbitrary)
+    , listOf (getNonNegative <$> arbitrary)
+    , listOf (getNegative <$> arbitrary)
+    ]
   shrink = fmap fromList . shrink . toAscList
 
 {--------------------------------------------------------------------
