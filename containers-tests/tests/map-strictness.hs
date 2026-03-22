@@ -227,14 +227,14 @@ prop_strictFromListUpsert fun kvs =
   isBottom (M.fromListUpsert f kvs') ===
   isBottom (F.foldl' (\acc (k,x) -> M.upsert (f x) k acc) M.empty kvs')
   where
-    f = coerce (applyFunc2 fun)
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
     kvs' = coerce kvs :: [(OrdA, A)]
 
 prop_lazyFromListUpsert
   :: Func2 A (Maybe B) (Bot B) -> [(OrdA, Bot A)] -> Property
 prop_lazyFromListUpsert fun kvs = isNotBottomProp (L.fromListUpsert f kvs')
   where
-    f = coerce (applyFunc2 fun)
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
     kvs' = coerce kvs :: [(OrdA, A)]
 
 prop_strictFromAscList :: [(OrdA, Bot A)] -> Property
