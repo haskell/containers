@@ -20,6 +20,7 @@ import Data.Sequence
 import Control.Applicative (Applicative(..), liftA2)
 import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
+import qualified Control.Monad as Monad
 import Data.Array (listArray)
 import Data.Coerce (coerce)
 import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), all, sum, foldl', foldr')
@@ -29,6 +30,7 @@ import qualified Data.Maybe as Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
 import Data.Proxy (Proxy(..))
+import Data.Ord (comparing)
 import Data.Semigroup (stimes, stimesMonoid)
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
@@ -288,25 +290,6 @@ instance Valid a => Valid (Digit a) where
   strictness.)
 --------------------------------------------------------------------}
 
--- utilities for partial conversions
-
-infix 4 ~=
-
-(~=) :: Eq a => Maybe a -> a -> Bool
-(~=) = maybe (const False) (==)
-
--- Partial conversion of an output sequence to a list.
-toList' :: Seq a -> Maybe [a]
-toList' xs
-  | valid xs = Just (toList xs)
-  | otherwise = Nothing
-
-toListList' :: Seq (Seq a) -> Maybe [[a]]
-toListList' xss = toList' xss >>= mapM toList'
-
-toListPair' :: (Seq a, Seq b) -> Maybe ([a], [b])
-toListPair' (xs, ys) = (,) <$> toList' xs <*> toList' ys
-
 -- Extra "polymorphic" test type
 newtype D = D{ unD :: Integer }
   deriving ( Eq )
@@ -323,14 +306,19 @@ instance CoArbitrary D where
 
 -- instances
 
-prop_fmap :: Seq Int -> Bool
-prop_fmap xs =
-    toList' (fmap f xs) ~= map f (toList xs)
-  where f = (+100)
+prop_fmap :: Fun A B -> Seq A -> Property
+prop_fmap f xs =
+  valid ys .&&.
+  toList ys === map (applyFun f) (toList xs)
+  where
+    ys = fmap (applyFun f) xs
 
-prop_constmap :: A -> Seq A -> Bool
-prop_constmap x xs =
-    toList' (x <$ xs) ~= map (const x) (toList xs)
+prop_constmap :: B -> Seq A -> Property
+prop_constmap y xs =
+  valid ys .&&.
+  toList ys === map (const y) (toList xs)
+  where
+    ys = y <$ xs
 
 prop_foldr :: Seq A -> Property
 prop_foldr xs =
@@ -370,17 +358,20 @@ prop_foldl1 xs =
     not (null xs) ==> foldl1 f xs == Data.List.foldl1 f (toList xs)
   where f = (-)
 
-prop_equals :: Seq OrdA -> Seq OrdA -> Bool
+prop_equals :: Seq A -> Seq A -> Property
 prop_equals xs ys =
-    (xs == ys) == (toList xs == toList ys)
+    (xs == ys) === (toList xs == toList ys)
 
-prop_compare :: Seq OrdA -> Seq OrdA -> Bool
+prop_compare :: Seq OrdA -> Seq OrdA -> Property
 prop_compare xs ys =
-    compare xs ys == compare (toList xs) (toList ys)
+    compare xs ys === compare (toList xs) (toList ys)
 
-prop_mappend :: Seq A -> Seq A -> Bool
+prop_mappend :: Seq A -> Seq A -> Property
 prop_mappend xs ys =
-    toList' (mappend xs ys) ~= toList xs ++ toList ys
+  valid zs .&&.
+  toList zs === toList xs ++ toList ys
+  where
+    zs = mappend xs ys
 
 -- * Construction
 
@@ -388,25 +379,40 @@ prop_mappend xs ys =
     toList' empty ~= []
 -}
 
-prop_singleton :: A -> Bool
+prop_singleton :: A -> Property
 prop_singleton x =
-    toList' (singleton x) ~= [x]
+  valid xs .&&.
+  toList xs === [x]
+  where
+    xs = singleton x
 
-prop_cons :: A -> Seq A -> Bool
+prop_cons :: A -> Seq A -> Property
 prop_cons x xs =
-    toList' (x <| xs) ~= x : toList xs
+  valid xs' .&&.
+  toList xs' === x : toList xs
+  where
+    xs' = x <| xs
 
-prop_snoc :: Seq A -> A -> Bool
+prop_snoc :: Seq A -> A -> Property
 prop_snoc xs x =
-    toList' (xs |> x) ~= toList xs ++ [x]
+  valid xs' .&&.
+  toList xs' === toList xs ++ [x]
+  where
+    xs' = xs |> x
 
-prop_append :: Seq A -> Seq A -> Bool
+prop_append :: Seq A -> Seq A -> Property
 prop_append xs ys =
-    toList' (xs >< ys) ~= toList xs ++ toList ys
+  valid zs .&&.
+  toList zs === toList xs ++ toList ys
+  where
+    zs = xs >< ys
 
-prop_fromList :: [A] -> Bool
+prop_fromList :: [A] -> Property
 prop_fromList xs =
-    toList' (fromList xs) ~= xs
+  valid xs' .&&.
+  toList xs' === xs
+  where
+    xs' = fromList xs
 
 -- QuickCheck does not generate long lists by default (the current limit seems
 -- to be 99), so we set the generator to use the max list length we want.
@@ -415,179 +421,239 @@ prop_fromList_long = forAllShrink (resize 10000 arbitrary) shrink $ \xs ->
   let ys = fromList (xs :: [Bool])
   in valid ys .&&. toList ys === xs
 
-prop_fromFunction :: [A] -> Bool
-prop_fromFunction xs =
-    toList' (fromFunction (Prelude.length xs) (xs!!)) ~= xs
+prop_fromFunction :: NonNegative Int -> Fun Int A -> Property
+prop_fromFunction (NonNegative n) f =
+  valid xs .&&.
+  toList xs === fmap (applyFun f) [0..n-1]
+  where
+    xs = fromFunction n (applyFun f)
 
-prop_fromArray :: [A] -> Bool
-prop_fromArray xs =
-    toList' (fromArray (listArray (42, 42+Prelude.length xs-1) xs)) ~= xs
+prop_fromArray :: Int -> [A] -> Property
+prop_fromArray startIdx xs =
+  valid xs' .&&.
+  toList xs' === xs
+  where
+    a = listArray (startIdx, startIdx + Prelude.length xs - 1) xs
+    xs' = fromArray a
 
 -- ** Repetition
 
-prop_replicate :: NonNegative Int -> A -> Bool
-prop_replicate (NonNegative m) x =
-    toList' (replicate n x) ~= Prelude.replicate n x
-  where n = m `mod` 10000
-
-prop_replicateA :: NonNegative Int -> Bool
-prop_replicateA (NonNegative m) =
-    traverse toList' (replicateA n a) ~= sequenceA (Prelude.replicate n a)
+prop_replicate :: NonNegative Int -> A -> Property
+prop_replicate (NonNegative n) x =
+  valid xs .&&.
+  toList xs === Prelude.replicate n x
   where
-    n = m `mod` 10000
-    a = Action 1 0 :: M Int
+    xs = replicate n x
 
-prop_replicateM :: NonNegative Int -> Bool
-prop_replicateM (NonNegative m) =
-    traverse toList' (replicateM n a) ~= sequence (Prelude.replicate n a)
+prop_replicateA :: NonNegative Int -> Fun A A -> A -> Property
+prop_replicateA (NonNegative n) f z =
+  valid xs .&&.
+  (toList xs, z') === runState (Monad.replicateM n act) z
   where
-    n = m `mod` 10000
-    a = Action 1 0 :: M Int
+    act = get <* modify' (applyFun f)
+    (xs, z') = runState (replicateA n act) z
+
+prop_replicateM :: NonNegative Int -> Fun A A -> A -> Property
+prop_replicateM (NonNegative n) f z =
+  valid xs .&&.
+  (toList xs, z') === runState (Monad.replicateM n act) z
+  where
+    act = get <* modify' (applyFun f)
+    (xs, z') = runState (replicateM n act) z
 
 -- ** Iterative construction
 
-prop_iterateN :: NonNegative Int -> Int -> Bool
-prop_iterateN (NonNegative m) x =
-    toList' (iterateN n f x) ~= Prelude.take n (Prelude.iterate f x)
+prop_iterateN :: NonNegative Int -> Fun A A -> A -> Property
+prop_iterateN (NonNegative n) f x =
+  valid xs .&&.
+  toList xs === Prelude.take n (Prelude.iterate (applyFun f) x)
   where
-    n = m `mod` 10000
-    f = (+1)
+    xs = iterateN n (applyFun f) x
 
-prop_unfoldr :: [A] -> Bool
-prop_unfoldr z =
-    toList' (unfoldr f z) ~= Data.List.unfoldr f z
+prop_unfoldr :: [A] -> Property
+prop_unfoldr z = valid xs .&&. toList xs === z
   where
-    f [] = Nothing
-    f (x:xs) = Just (x, xs)
+    xs = unfoldr Data.List.uncons z
 
-prop_unfoldl :: [A] -> Bool
-prop_unfoldl z =
-    toList' (unfoldl f z) ~= Data.List.reverse (Data.List.unfoldr (fmap swap . f) z)
+prop_unfoldl :: [A] -> Property
+prop_unfoldl z = valid xs' .&&. toList xs' === Data.List.reverse z
   where
-    f [] = Nothing
-    f (x:xs) = Just (xs, x)
-    swap (x,y) = (y,x)
+    xs' = unfoldl (fmap (\(x,xs) ->(xs,x)) . Data.List.uncons) z
 
 -- * Deconstruction
 
 -- ** Queries
 
-prop_null :: Seq A -> Bool
+prop_null :: Seq A -> Property
 prop_null xs =
-    null xs == Prelude.null (toList xs)
+  null xs === Prelude.null (toList xs)
 
-prop_length :: Seq A -> Bool
+prop_length :: Seq A -> Property
 prop_length xs =
-    length xs == Prelude.length (toList xs)
+  length xs === Prelude.length (toList xs)
 
 -- ** Views
 
-prop_viewl :: Seq A -> Bool
+prop_viewl :: Seq A -> Property
 prop_viewl xs =
     case viewl xs of
-    EmptyL ->   Prelude.null (toList xs)
-    x :< xs' -> valid xs' && toList xs == x : toList xs'
+    EmptyL -> property $ Prelude.null (toList xs)
+    x :< xs' -> valid xs' .&&. toList xs === x : toList xs'
 
-prop_viewr :: Seq A -> Bool
+prop_viewr :: Seq A -> Property
 prop_viewr xs =
     case viewr xs of
-    EmptyR ->   Prelude.null (toList xs)
-    xs' :> x -> valid xs' && toList xs == toList xs' ++ [x]
+    EmptyR -> property $ Prelude.null (toList xs)
+    xs' :> x -> valid xs' .&&. toList xs === toList xs' ++ [x]
 
 -- * Scans
 
-prop_scanl :: [A] -> Seq A -> Bool
-prop_scanl z xs =
-    toList' (scanl f z xs) ~= Data.List.scanl f z (toList xs)
-  where f = flip (:)
+prop_scanl :: Fun (B, A) B -> B -> Seq A -> Property
+prop_scanl f z xs =
+  valid ys .&&.
+  toList ys === Data.List.scanl (applyFun2 f) z (toList xs)
+  where
+    ys = scanl (applyFun2 f) z xs
 
-prop_scanl1 :: Seq Int -> Property
-prop_scanl1 xs =
-    not (null xs) ==> toList' (scanl1 f xs) ~= Data.List.scanl1 f (toList xs)
-  where f = (-)
+prop_scanl1 :: Fun (A, A) A -> Seq A -> Property
+prop_scanl1 f xs =
+  not (null xs) ==>
+    valid xs' .&&.
+    toList xs' === Data.List.scanl1 (applyFun2 f) (toList xs)
+  where
+    xs' = scanl1 (applyFun2 f) xs
 
-prop_scanr :: [A] -> Seq A -> Bool
-prop_scanr z xs =
-    toList' (scanr f z xs) ~= Data.List.scanr f z (toList xs)
-  where f = (:)
+prop_scanr :: Fun (A, B) B -> B -> Seq A -> Property
+prop_scanr f z xs =
+  valid ys .&&.
+  toList ys === Data.List.scanr (applyFun2 f) z (toList xs)
+  where
+    ys = scanr (applyFun2 f) z xs
 
-prop_scanr1 :: Seq Int -> Property
-prop_scanr1 xs =
-    not (null xs) ==> toList' (scanr1 f xs) ~= Data.List.scanr1 f (toList xs)
-  where f = (-)
+prop_scanr1 :: Fun (A, A) A -> Seq A -> Property
+prop_scanr1 f xs =
+  not (null xs) ==>
+    valid xs' .&&.
+    toList xs' === Data.List.scanr1 (applyFun2 f) (toList xs)
+  where
+    xs' = scanr1 (applyFun2 f) xs
 
 -- * Sublists
 
-prop_tails :: Seq A -> Bool
+prop_tails :: Seq A -> Property
 prop_tails xs =
-    toListList' (tails xs) ~= Data.List.tails (toList xs)
+  conjoin (fmap valid (toList xss)) .&&.
+  fmap toList (toList xss) === Data.List.tails (toList xs)
+  where
+    xss = tails xs
 
-prop_inits :: Seq A -> Bool
+prop_inits :: Seq A -> Property
 prop_inits xs =
-    toListList' (inits xs) ~= Data.List.inits (toList xs)
+  conjoin (fmap valid (toList xss)) .&&.
+  fmap toList (toList xss) === Data.List.inits (toList xs)
+  where
+    xss = inits xs
 
 -- ** Sequential searches
--- We use predicates with varying density.
 
-prop_takeWhileL :: Positive Int -> Seq Int -> Bool
-prop_takeWhileL (Positive n) xs =
-    toList' (takeWhileL p xs) ~= Prelude.takeWhile p (toList xs)
-  where p x = x `mod` n == 0
+prop_takeWhileL :: Fun A Bool -> Seq A -> Property
+prop_takeWhileL f xs =
+  valid xs' .&&.
+  toList xs' === Prelude.takeWhile (applyFun f) (toList xs)
+  where
+    xs' = takeWhileL (applyFun f) xs
 
-prop_takeWhileR :: Positive Int -> Seq Int -> Bool
-prop_takeWhileR (Positive n) xs =
-    toList' (takeWhileR p xs) ~= Prelude.reverse (Prelude.takeWhile p (Prelude.reverse (toList xs)))
-  where p x = x `mod` n == 0
+prop_takeWhileR :: Fun A Bool -> Seq A -> Property
+prop_takeWhileR f xs =
+  valid xs' .&&.
+  toList xs' ===
+    Prelude.reverse
+      (Prelude.takeWhile (applyFun f) (Prelude.reverse (toList xs)))
+  where
+    xs' = takeWhileR (applyFun f) xs
 
-prop_dropWhileL :: Positive Int -> Seq Int -> Bool
-prop_dropWhileL (Positive n) xs =
-    toList' (dropWhileL p xs) ~= Prelude.dropWhile p (toList xs)
-  where p x = x `mod` n == 0
+prop_dropWhileL :: Fun A Bool -> Seq A -> Property
+prop_dropWhileL f xs =
+  valid xs' .&&.
+  toList xs' === Prelude.dropWhile (applyFun f) (toList xs)
+  where
+    xs' = dropWhileL (applyFun f) xs
 
-prop_dropWhileR :: Positive Int -> Seq Int -> Bool
-prop_dropWhileR (Positive n) xs =
-    toList' (dropWhileR p xs) ~= Prelude.reverse (Prelude.dropWhile p (Prelude.reverse (toList xs)))
-  where p x = x `mod` n == 0
+prop_dropWhileR :: Fun A Bool -> Seq A -> Property
+prop_dropWhileR f xs =
+  valid xs' .&&.
+  toList xs' ===
+    Prelude.reverse
+      (Prelude.dropWhile (applyFun f) (Prelude.reverse (toList xs)))
+  where
+    xs' = dropWhileR (applyFun f) xs
 
-prop_spanl :: Positive Int -> Seq Int -> Bool
-prop_spanl (Positive n) xs =
-    toListPair' (spanl p xs) ~= Data.List.span p (toList xs)
-  where p x = x `mod` n == 0
+prop_spanl :: Fun A Bool -> Seq A -> Property
+prop_spanl f xs =
+  valid xs1 .&&.
+  valid xs2 .&&.
+  (toList xs1, toList xs2) === Data.List.span (applyFun f) (toList xs)
+  where
+    (xs1, xs2) = spanl (applyFun f) xs
 
-prop_spanr :: Positive Int -> Seq Int -> Bool
-prop_spanr (Positive n) xs =
-    toListPair' (spanr p xs) ~= (Prelude.reverse *** Prelude.reverse) (Data.List.span p (Prelude.reverse (toList xs)))
-  where p x = x `mod` n == 0
+prop_spanr :: Fun A Bool -> Seq A -> Property
+prop_spanr f xs =
+  valid xs1 .&&.
+  valid xs2 .&&.
+  (toList xs1, toList xs2) ===
+    (Prelude.reverse *** Prelude.reverse)
+      (Data.List.span (applyFun f) (Prelude.reverse (toList xs)))
+  where
+    (xs1, xs2) = spanr (applyFun f) xs
 
-prop_breakl :: Positive Int -> Seq Int -> Bool
-prop_breakl (Positive n) xs =
-    toListPair' (breakl p xs) ~= Data.List.break p (toList xs)
-  where p x = x `mod` n == 0
+prop_breakl :: Fun A Bool -> Seq A -> Property
+prop_breakl f xs =
+  valid xs1 .&&.
+  valid xs2 .&&.
+  (toList xs1, toList xs2) === Data.List.break (applyFun f) (toList xs)
+  where
+    (xs1, xs2) = breakl (applyFun f) xs
 
-prop_breakr :: Positive Int -> Seq Int -> Bool
-prop_breakr (Positive n) xs =
-    toListPair' (breakr p xs) ~= (Prelude.reverse *** Prelude.reverse) (Data.List.break p (Prelude.reverse (toList xs)))
-  where p x = x `mod` n == 0
+prop_breakr :: Fun A Bool -> Seq A -> Property
+prop_breakr f xs =
+  valid xs1 .&&.
+  valid xs2 .&&.
+  (toList xs1, toList xs2) ===
+    (Prelude.reverse *** Prelude.reverse)
+      (Data.List.break (applyFun f) (Prelude.reverse (toList xs)))
+  where
+    (xs1, xs2) = breakr (applyFun f) xs
 
-prop_partition :: Positive Int -> Seq Int -> Bool
-prop_partition (Positive n) xs =
-    toListPair' (partition p xs) ~= Data.List.partition p (toList xs)
-  where p x = x `mod` n == 0
+prop_partition :: Fun A Bool -> Seq A -> Property
+prop_partition f xs =
+  valid xs1 .&&.
+  valid xs2 .&&.
+  (toList xs1, toList xs2) === Data.List.partition (applyFun f) (toList xs)
+  where
+    (xs1, xs2) = partition (applyFun f) xs
 
-prop_filter :: Positive Int -> Seq Int -> Bool
-prop_filter (Positive n) xs =
-    toList' (filter p xs) ~= Prelude.filter p (toList xs)
-  where p x = x `mod` n == 0
+prop_filter :: Fun A Bool -> Seq A -> Property
+prop_filter f xs =
+  valid xs' .&&.
+  toList xs' === Prelude.filter (applyFun f) (toList xs)
+  where
+    xs' = filter (applyFun f) xs
 
-prop_mapMaybe :: Fun Int (Maybe Int) -> Seq Int -> Bool
+prop_mapMaybe :: Fun A (Maybe B) -> Seq A -> Property
 prop_mapMaybe f xs =
-  toList' (mapMaybe (applyFun f) xs) ~= Maybe.mapMaybe (applyFun f) (toList xs)
+  valid ys .&&.
+  toList ys === Maybe.mapMaybe (applyFun f) (toList xs)
+  where
+    ys = mapMaybe (applyFun f) xs
 
 -- * Sorting
 
-prop_sort :: Seq OrdA -> Bool
+prop_sort :: Seq OrdA -> Property
 prop_sort xs =
-    toList' (sort xs) ~= Data.List.sort (toList xs)
+  valid xs' .&&.
+  toList xs' === Data.List.sort (toList xs)
+  where
+    xs' = sort xs
 
 data UnstableOrd = UnstableOrd OrdA A
     deriving (Show)
@@ -604,48 +670,64 @@ instance Arbitrary UnstableOrd where
         [ UnstableOrd x' y'
         | (x',y') <- shrink (x, y) ]
 
-prop_sortStable :: Seq UnstableOrd -> Bool
+prop_sortStable :: Seq UnstableOrd -> Property
 prop_sortStable xs =
-    (fmap . fmap) unignore (toList' (sort xs)) ~=
+  valid xs' .&&.
+  fmap unignore (toList (sort xs)) ===
     fmap unignore (Data.List.sort (toList xs))
   where
     unignore (UnstableOrd x y) = (x, y)
+    xs' = sort xs
 
-prop_sortBy :: Seq (OrdA, B) -> Bool
+prop_sortBy :: Seq (OrdA, B) -> Property
 prop_sortBy xs =
-    toList' (sortBy f xs) ~= Data.List.sortBy f (toList xs)
-  where f (x1, _) (x2, _) = compare x1 x2
-
-prop_sortOn :: Fun A OrdB -> Seq A -> Bool
-prop_sortOn (Fun _ f) xs =
-    toList' (sortOn f xs) ~= listSortOn f (toList xs)
+  valid xs' .&&.
+  toList xs' === Data.List.sortBy (comparing fst) (toList xs)
   where
-    listSortOn = Data.List.sortOn
+    xs' = sortBy (comparing fst) xs
 
-prop_sortOnStable :: Fun A UnstableOrd -> Seq A -> Bool
-prop_sortOnStable (Fun _ f) xs =
-    toList' (sortOn f xs) ~= listSortOn f (toList xs)
+prop_sortOn :: Fun A OrdB -> Seq A -> Property
+prop_sortOn f xs =
+  valid xs' .&&.
+  toList xs' === Data.List.sortOn (applyFun f) (toList xs)
   where
-    listSortOn = Data.List.sortOn
+    xs' = sortOn (applyFun f) xs
 
-prop_unstableSort :: Seq OrdA -> Bool
+prop_sortOnStable :: Fun A UnstableOrd -> Seq A -> Property
+prop_sortOnStable f xs =
+  valid xs' .&&.
+  toList xs' === Data.List.sortOn (applyFun f) (toList xs)
+  where
+    xs' = sortOn (applyFun f) xs
+
+prop_unstableSort :: Seq OrdA -> Property
 prop_unstableSort xs =
-    toList' (unstableSort xs) ~= Data.List.sort (toList xs)
+  valid xs' .&&.
+  toList xs' === Data.List.sort (toList xs)
+  where
+    xs' = unstableSort xs
 
-prop_unstableSortBy :: Seq OrdA -> Bool
+prop_unstableSortBy :: Seq OrdA -> Property
 prop_unstableSortBy xs =
-    toList' (unstableSortBy compare xs) ~= Data.List.sort (toList xs)
+  valid xs' .&&.
+  toList xs' === Data.List.sort (toList xs)
+  where
+    xs' = unstableSortBy compare xs
 
 prop_unstableSortOn :: Fun A OrdB -> Seq A -> Property
-prop_unstableSortOn (Fun _ f) xs =
-    toList' (unstableSortBy (compare `on` f) xs) === toList' (unstableSortOn f xs)
+prop_unstableSortOn f xs =
+  valid xs' .&&.
+  conjoin (Data.List.zipWith ((<=) `on` applyFun f) xsl' (tail xsl'))
+  where
+    xs' = unstableSortOn (applyFun f) xs
+    xsl' = toList xs'
 
 -- * Indexing
 
 prop_index :: Seq A -> Property
 prop_index xs =
     not (null xs) ==> forAll (choose (0, length xs-1)) $ \ i ->
-    index xs i == toList xs !! i
+    index xs i === toList xs !! i
 
 prop_safeIndex :: Seq A -> Property
 prop_safeIndex xs =
@@ -667,31 +749,48 @@ prop_deleteAt xs =
           (((0 <= i && i < length xs) .&&. res === case splitAt i xs of (front, back) -> front >< drop 1 back)
             .||. ((i < 0 || i >= length xs) .&&. res === xs))
 
-prop_adjust :: Int -> Int -> Seq Int -> Bool
-prop_adjust n i xs =
-    toList' (adjust f i xs) ~= adjustList f i (toList xs)
-  where f = (+n)
+prop_adjust :: Fun A A -> Int -> Seq A -> Property
+prop_adjust f i xs =
+  valid ys .&&.
+  toList ys === adjustList (applyFun f) i (toList xs)
+  where
+    ys = adjust (applyFun f) i xs
 
-prop_adjust' :: Int -> Int -> Seq Int -> Bool
-prop_adjust' n i xs =
-    toList' (adjust' f i xs) ~= adjustList f i (toList xs)
-  where f = (+n)
+prop_adjust' :: Fun A A -> Int -> Seq A -> Property
+prop_adjust' f i xs =
+  valid ys .&&.
+  toList ys === adjustList (applyFun f) i (toList xs)
+  where
+    ys = adjust' (applyFun f) i xs
 
-prop_update :: Int -> A -> Seq A -> Bool
+prop_update :: Int -> A -> Seq A -> Property
 prop_update i x xs =
-    toList' (update i x xs) ~= adjustList (const x) i (toList xs)
+  valid ys .&&.
+  toList ys === adjustList (const x) i (toList xs)
+  where
+    ys = update i x xs
 
-prop_take :: Int -> Seq A -> Bool
+prop_take :: Int -> Seq A -> Property
 prop_take n xs =
-    toList' (take n xs) ~= Prelude.take n (toList xs)
+  valid ys .&&.
+  toList (take n xs) === Prelude.take n (toList xs)
+  where
+    ys = take n xs
 
-prop_drop :: Int -> Seq A -> Bool
+prop_drop :: Int -> Seq A -> Property
 prop_drop n xs =
-    toList' (drop n xs) ~= Prelude.drop n (toList xs)
+  valid ys .&&.
+  toList (drop n xs) === Prelude.drop n (toList xs)
+  where
+    ys = drop n xs
 
-prop_splitAt :: Int -> Seq A -> Bool
+prop_splitAt :: Int -> Seq A -> Property
 prop_splitAt n xs =
-    toListPair' (splitAt n xs) ~= Prelude.splitAt n (toList xs)
+  valid ys .&&.
+  valid zs .&&.
+  (toList ys, toList zs) === Prelude.splitAt n (toList xs)
+  where
+    (ys, zs) = splitAt n xs
 
 prop_chunksOf :: Seq A -> Property
 prop_chunksOf xs =
@@ -709,108 +808,136 @@ adjustList f i xs =
 -- The elem* tests have poor coverage, but for find* we use predicates
 -- of varying density.
 
-prop_elemIndexL :: A -> Seq A -> Bool
+prop_elemIndexL :: A -> Seq A -> Property
 prop_elemIndexL x xs =
-    elemIndexL x xs == Data.List.elemIndex x (toList xs)
+  elemIndexL x xs === Data.List.elemIndex x (toList xs)
 
-prop_elemIndicesL :: A -> Seq A -> Bool
+prop_elemIndicesL :: A -> Seq A -> Property
 prop_elemIndicesL x xs =
-    elemIndicesL x xs == Data.List.elemIndices x (toList xs)
+  elemIndicesL x xs === Data.List.elemIndices x (toList xs)
 
-prop_elemIndexR :: A -> Seq A -> Bool
+prop_elemIndexR :: A -> Seq A -> Property
 prop_elemIndexR x xs =
-    elemIndexR x xs == listToMaybe (Prelude.reverse (Data.List.elemIndices x (toList xs)))
+  elemIndexR x xs === listToMaybe (Prelude.reverse (Data.List.elemIndices x (toList xs)))
 
-prop_elemIndicesR :: A -> Seq A -> Bool
+prop_elemIndicesR :: A -> Seq A -> Property
 prop_elemIndicesR x xs =
-    elemIndicesR x xs == Prelude.reverse (Data.List.elemIndices x (toList xs))
+  elemIndicesR x xs === Prelude.reverse (Data.List.elemIndices x (toList xs))
 
-prop_findIndexL :: Positive Int -> Seq Int -> Bool
+prop_findIndexL :: Positive Int -> Seq Int -> Property
 prop_findIndexL (Positive n) xs =
-    findIndexL p xs == Data.List.findIndex p (toList xs)
+  findIndexL p xs === Data.List.findIndex p (toList xs)
   where p x = x `mod` n == 0
 
-prop_findIndicesL :: Positive Int -> Seq Int -> Bool
+prop_findIndicesL :: Positive Int -> Seq Int -> Property
 prop_findIndicesL (Positive n) xs =
-    findIndicesL p xs == Data.List.findIndices p (toList xs)
+  findIndicesL p xs === Data.List.findIndices p (toList xs)
   where p x = x `mod` n == 0
 
-prop_findIndexR :: Positive Int -> Seq Int -> Bool
+prop_findIndexR :: Positive Int -> Seq Int -> Property
 prop_findIndexR (Positive n) xs =
-    findIndexR p xs == listToMaybe (Prelude.reverse (Data.List.findIndices p (toList xs)))
+  findIndexR p xs === listToMaybe (Prelude.reverse (Data.List.findIndices p (toList xs)))
   where p x = x `mod` n == 0
 
-prop_findIndicesR :: Positive Int -> Seq Int -> Bool
+prop_findIndicesR :: Positive Int -> Seq Int -> Property
 prop_findIndicesR (Positive n) xs =
-    findIndicesR p xs == Prelude.reverse (Data.List.findIndices p (toList xs))
+  findIndicesR p xs === Prelude.reverse (Data.List.findIndices p (toList xs))
   where p x = x `mod` n == 0
 
 -- * Folds
 
-prop_foldlWithIndex :: [(Int, A)] -> Seq A -> Bool
-prop_foldlWithIndex z xs =
-    foldlWithIndex f z xs == Data.List.foldl (uncurry . f) z (Data.List.zip [0..] (toList xs))
-  where f ys n y = (n,y):ys
+prop_foldlWithIndex :: Fun (B, Int, A) B -> B -> Seq A -> Property
+prop_foldlWithIndex f z xs =
+  foldlWithIndex (applyFun3 f) z xs ===
+    Data.List.foldl
+      (\z' (i,x) -> applyFun3 f z' i x)
+      z
+      (Data.List.zip [0..] (toList xs))
 
-prop_foldrWithIndex :: [(Int, A)] -> Seq A -> Bool
-prop_foldrWithIndex z xs =
-    foldrWithIndex f z xs == Data.List.foldr (uncurry f) z (Data.List.zip [0..] (toList xs))
-  where f n y ys = (n,y):ys
+prop_foldrWithIndex :: Fun (Int, A, B) B -> B -> Seq A -> Property
+prop_foldrWithIndex f z xs =
+  foldrWithIndex (applyFun3 f) z xs ===
+    Data.List.foldr
+      (\(i,x) -> applyFun3 f i x)
+      z
+      (Data.List.zip [0..] (toList xs))
 
-prop_foldMapWithIndexL :: (Fun (B, Int, A) B) -> B -> Seq A -> Bool
-prop_foldMapWithIndexL (Fun _ f) z t = foldlWithIndex f' z t ==
-  appEndo (getDual (foldMapWithIndex (\i -> Dual . Endo . flip (flip f' i)) t)) z
+prop_foldMapWithIndexL :: Fun (B, Int, A) B -> B -> Seq A -> Property
+prop_foldMapWithIndexL (Fun _ f) z t =
+  foldlWithIndex f' z t ===
+    appEndo (getDual (foldMapWithIndex (\i -> Dual . Endo . flip (flip f' i)) t)) z
   where f' b i a = f (b, i, a)
 
-prop_foldMapWithIndexR :: (Fun (Int, A, B) B) -> B -> Seq A -> Bool
-prop_foldMapWithIndexR (Fun _ f) z t = foldrWithIndex f' z t ==
+prop_foldMapWithIndexR :: Fun (Int, A, B) B -> B -> Seq A -> Property
+prop_foldMapWithIndexR (Fun _ f) z t =
+  foldrWithIndex f' z t ===
    appEndo (foldMapWithIndex (\i -> Endo . f' i) t) z
   where f' i a b = f (i, a, b)
 
 -- * Transformations
 
-prop_mapWithIndex :: Seq A -> Bool
+prop_mapWithIndex :: Seq A -> Property
 prop_mapWithIndex xs =
-    toList' (mapWithIndex f xs) ~= map (uncurry f) (Data.List.zip [0..] (toList xs))
-  where f = (,)
+  valid ys .&&.
+  toList ys === Data.List.zip [0..] (toList xs)
+  where
+    ys = mapWithIndex (,) xs
 
-prop_traverseWithIndex :: Seq Int -> Bool
+prop_traverseWithIndex :: Seq Int -> Property
 prop_traverseWithIndex xs =
-    runState (traverseWithIndex (\i x -> modify ((i,x) :)) xs) [] ==
+    runState (traverseWithIndex (\i x -> modify ((i,x) :)) xs) [] ===
     runState (sequenceA . mapWithIndex (\i x -> modify ((i,x) :)) $ xs) [] 
 
-prop_reverse :: Seq A -> Bool
+prop_reverse :: Seq A -> Property
 prop_reverse xs =
-    toList' (reverse xs) ~= Prelude.reverse (toList xs)
+  valid ys .&&.
+  toList ys === Prelude.reverse (toList xs)
+  where
+    ys = reverse xs
 
 -- ** Zips
 
-prop_zip :: Seq A -> Seq B -> Bool
+prop_zip :: Seq A -> Seq B -> Property
 prop_zip xs ys =
-    toList' (zip xs ys) ~= Prelude.zip (toList xs) (toList ys)
+  valid zs .&&.
+  toList zs === Prelude.zip (toList xs) (toList ys)
+  where
+    zs = zip xs ys
 
-prop_zipWith :: Seq A -> Seq B -> Bool
+prop_zipWith :: Seq A -> Seq B -> Property
 prop_zipWith xs ys =
-    toList' (zipWith f xs ys) ~= Prelude.zipWith f (toList xs) (toList ys)
-  where f = (,)
+  valid zs .&&.
+  toList zs === Prelude.zip (toList xs) (toList ys)
+  where
+    zs = zipWith (,) xs ys
 
-prop_zip3 :: Seq A -> Seq B -> Seq C -> Bool
+prop_zip3 :: Seq A -> Seq B -> Seq C -> Property
 prop_zip3 xs ys zs =
-    toList' (zip3 xs ys zs) ~= Prelude.zip3 (toList xs) (toList ys) (toList zs)
+  valid ts .&&.
+  toList ts === Prelude.zip3 (toList xs) (toList ys) (toList zs)
+  where
+    ts = zip3 xs ys zs
 
-prop_zipWith3 :: Seq A -> Seq B -> Seq C -> Bool
+prop_zipWith3 :: Seq A -> Seq B -> Seq C -> Property
 prop_zipWith3 xs ys zs =
-    toList' (zipWith3 f xs ys zs) ~= Prelude.zipWith3 f (toList xs) (toList ys) (toList zs)
-  where f = (,,)
+  valid ts .&&.
+  toList ts === Prelude.zip3 (toList xs) (toList ys) (toList zs)
+  where
+    ts = zipWith3 (,,) xs ys zs
 
-prop_zip4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Bool
+prop_zip4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Property
 prop_zip4 xs ys zs ts =
-    toList' (zip4 xs ys zs ts) ~= Data.List.zip4 (toList xs) (toList ys) (toList zs) (toList ts)
+  valid us .&&.
+  toList us === Data.List.zip4 (toList xs) (toList ys) (toList zs) (toList ts)
+  where
+    us = zip4 xs ys zs ts
 
-prop_zipWith4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Bool
+prop_zipWith4 :: Seq A -> Seq B -> Seq C -> Seq Int -> Property
 prop_zipWith4 xs ys zs ts =
-    toList' (zipWith4 f xs ys zs ts) ~= Data.List.zipWith4 f (toList xs) (toList ys) (toList zs) (toList ts)
-  where f = (,,,)
+  valid us .&&.
+  toList us === Data.List.zip4 (toList xs) (toList ys) (toList zs) (toList ts)
+  where
+    us = zipWith4 (,,,) xs ys zs ts
 
 -- This comes straight from the MonadZip documentation
 prop_mzipNaturality :: Fun A C -> Fun B D -> Seq A -> Seq B -> Property
@@ -841,13 +968,19 @@ prop_munzipLazy pairs = deepseq ((`seq` ()) <$> repaired) True
 
 -- Applicative operations
 
-prop_ap :: Seq A -> Seq B -> Bool
+prop_ap :: Seq A -> Seq B -> Property
 prop_ap xs ys =
-    toList' ((,) <$> xs <*> ys) ~= ( (,) <$> toList xs <*> toList ys )
+  valid zs .&&.
+  toList zs === ( (,) <$> toList xs <*> toList ys )
+  where
+    zs = (,) <$> xs <*> ys
 
-prop_ap_NOINLINE :: Seq A -> Seq B -> Bool
+prop_ap_NOINLINE :: Seq A -> Seq B -> Property
 prop_ap_NOINLINE xs ys =
-    toList' (((,) <$> xs) `apNOINLINE` ys) ~= ( (,) <$> toList xs <*> toList ys )
+  valid zs .&&.
+  toList zs === ( (,) <$> toList xs <*> toList ys )
+  where
+    zs = ((,) <$> xs) `apNOINLINE` ys
 
 {-# NOINLINE apNOINLINE #-}
 apNOINLINE :: Seq (a -> b) -> Seq a -> Seq b
@@ -859,26 +992,39 @@ prop_liftA2 xs ys = valid q .&&.
   where
     q = liftA2 (,) xs ys
 
-prop_then :: Seq A -> Seq B -> Bool
+prop_then :: Seq A -> Seq B -> Property
 prop_then xs ys =
-    toList' (xs *> ys) ~= (toList xs *> toList ys)
+  valid zs .&&.
+  toList zs === (toList xs *> toList ys)
+  where
+    zs = xs *> ys
 
 -- We take only the length of the second sequence because
 -- the implementation throws the rest away; there's no
 -- point wasting test cases varying other aspects of that
 -- argument.
-prop_before :: Seq A -> NonNegative Int -> Bool
+prop_before :: Seq A -> NonNegative Int -> Property
 prop_before xs (NonNegative lys) =
-    toList' (xs <* ys) ~= (toList xs <* toList ys)
-  where ys = replicate lys ()
+  valid zs .&&.
+  toList zs === (toList xs <* toList ys)
+  where
+    ys = replicate lys ()
+    zs = xs <* ys
 
-prop_intersperse :: A -> Seq A -> Bool
+prop_intersperse :: A -> Seq A -> Property
 prop_intersperse x xs =
-    toList' (intersperse x xs) ~= Data.List.intersperse x (toList xs)
+  valid xs' .&&.
+  toList xs' === Data.List.intersperse x (toList xs)
+  where
+    xs' = intersperse x xs
 
 prop_cycleTaking :: Int -> Seq A -> Property
 prop_cycleTaking n xs =
-    (n <= 0 || not (null xs)) ==> toList' (cycleTaking n xs) ~= Data.List.take n (Data.List.cycle (toList xs))
+  (n <= 0 || not (null xs)) ==>
+    valid xs' .&&.
+    toList xs' === Data.List.take n (Data.List.cycle (toList xs))
+  where
+    xs' = cycleTaking n xs
 
 prop_empty_pat :: Seq A -> Bool
 prop_empty_pat xs@Empty = null xs
@@ -907,9 +1053,12 @@ prop_viewr_con xs x = xs :|> x === xs |> x
 
 -- Monad operations
 
-prop_bind :: Seq A -> Fun A (Seq B) -> Bool
-prop_bind xs (Fun _ f) =
-    toList' (xs >>= f) ~= (toList xs >>= toList . f)
+prop_bind :: Seq A -> Fun A (Seq B) -> Property
+prop_bind xs f =
+  valid ys .&&.
+  toList ys === (toList xs >>= toList . applyFun f)
+  where
+    ys = xs >>= applyFun f
 
 -- Semigroup operations
 
