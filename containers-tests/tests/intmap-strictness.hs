@@ -141,6 +141,22 @@ prop_lazyFromListWithKey fun kvs = isNotBottomProp (L.fromListWithKey f kvs')
     f = coerce (applyFunc3 fun)
     kvs' = coerce kvs :: [(Key, A)]
 
+prop_strictFromListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+prop_strictFromListUpsert fun kvs =
+  isBottom (M.fromListUpsert f kvs') ===
+  isBottom (F.foldl' (\acc (k,x) -> M.upsert (f x) k acc) M.empty kvs')
+  where
+    f = coerce (applyFunc2 fun)
+    kvs' = coerce kvs :: [(Key, A)]
+
+prop_lazyFromListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+prop_lazyFromListUpsert fun kvs = isNotBottomProp (L.fromListUpsert f kvs')
+  where
+    f = coerce (applyFunc2 fun)
+    kvs' = coerce kvs :: [(Key, A)]
+
 prop_strictFromAscList :: [(Key, Bot A)] -> Property
 prop_strictFromAscList kvs =
   isBottom (M.fromAscList kvs') === isBottom (M.fromList kvs')
@@ -1045,6 +1061,7 @@ tests =
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
       , testPropStrictLazy "fromListWithKey" prop_strictFromListWithKey prop_lazyFromListWithKey
+      , testPropStrictLazy "fromListUpsert" prop_strictFromListUpsert prop_lazyFromListUpsert
       , testPropStrictLazy "fromAscList" prop_strictFromAscList prop_lazyFromAscList
       , testPropStrictLazy "fromAscListWith" prop_strictFromAscListWith prop_lazyFromAscListWith
       , testPropStrictLazy "fromAscListWithKey" prop_strictFromAscListWithKey prop_lazyFromAscListWithKey

@@ -116,6 +116,7 @@ module Data.Map.Lazy (
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** From Ascending Lists
     , fromAscList

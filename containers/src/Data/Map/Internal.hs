@@ -276,6 +276,7 @@ module Data.Map.Internal (
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** Ordered lists
     , toAscList
@@ -3529,6 +3530,27 @@ fromListWithKey f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> insertWithB (f kx) kx x b) emptyB xs)
 {-# INLINE fromListWithKey #-}  -- INLINE for fusion
 
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a
+-- combining function.
+--
+-- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
+--
+-- This behavior of this function is equivalent to performing an @upsert@ for
+-- every key\/value in the list.
+--
+-- @
+-- fromListUpsert f = foldl' (\\m (k, x) -> 'upsert' (f x) k m) 'empty'
+-- @
+--
+-- > let f x = maybe [x] (x:)
+-- > fromListUpsert f [(5,'a'), (5,'b'), (3,'c'), (3,'d'), (5,'e')] == fromList [(3,"dc"), (5,"eba")]
+--
+-- @since FIXME
+fromListUpsert :: Ord k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
+fromListUpsert f xs =
+  finishB (Foldable.foldl' (\b (kx, x) -> upsertB (f x) kx b) emptyB xs)
+{-# INLINE fromListUpsert #-}  -- INLINE for fusion
+
 -- | \(O(n)\). Convert the map to a list of key\/value pairs. Subject to list fusion.
 --
 -- > toList (fromList [(5,"a"), (3,"b")]) == [(3,"b"), (5,"a")]
@@ -3933,6 +3955,21 @@ insertWithB f !ky y b = case b of
     Nada -> BAsc (Push ky y Tip Nada)
   BMap m -> BMap (insertWith f ky y m)
 {-# INLINE insertWithB #-}
+
+-- Upsert a key-value. The given function is used to generate the value based
+-- on the existing value for the key.
+upsertB :: Ord k => (Maybe a -> a) -> k -> MapBuilder k a -> MapBuilder k a
+upsertB f !ky b = case b of
+  BAsc stk -> case stk of
+    Push kx x l stk' -> case compare ky kx of
+      LT -> BMap (upsert f ky (ascLinkAll stk))
+      EQ -> BAsc (Push ky (f (Just x)) l stk')
+      GT -> case l of
+        Tip -> BAsc (ascLinkTop stk' 1 (singleton kx x) ky (f Nothing))
+        Bin{} -> BAsc (Push ky (f Nothing) Tip stk)
+    Nada -> BAsc (Push ky (f Nothing) Tip Nada)
+  BMap m -> BMap (upsert f ky m)
+{-# INLINE upsertB #-}
 
 -- Finalize the builder into a Map.
 finishB :: MapBuilder k a -> Map k a

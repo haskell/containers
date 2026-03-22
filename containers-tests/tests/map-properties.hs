@@ -208,6 +208,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "fromList"             prop_fromList
          , testProperty "fromListWith"         prop_fromListWith
          , testProperty "fromListWithKey"      prop_fromListWithKey
+         , testProperty "fromListUpsert"       prop_fromListUpsert
          , testProperty "alter"                prop_alter
          , testProperty "alterF/alter"         prop_alterF_alter
          , testProperty "alterF/alter/noRULES" prop_alterF_alter_noRULES
@@ -1456,6 +1457,13 @@ prop_fromListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
 prop_fromListWithKey f kxs =
   fromListWithKey (applyFun3 f) kxs ===
   List.foldl' (\m (kx, x) -> insertWithKey (applyFun3 f) kx x m) empty kxs
+
+prop_fromListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
+prop_fromListUpsert f kxs =
+  valid m' .&&.
+  m' === List.foldl' (\m (kx,x) -> upsert (applyFun2 f x) kx m) empty kxs
+  where
+    m' = fromListUpsert (applyFun2 f) kxs
 
 ----------------------------------------------------------------
 
