@@ -36,7 +36,8 @@
 -- * If you are using 'Prelude.Int' keys, you will get much better performance for
 -- most operations using "Data.IntMap.Strict".
 --
--- * If you don't care about ordering, consider use @Data.HashMap.Strict@ from the
+-- * If you don't care about ordering and don't handle untrusted keys, consider
+-- using @Data.HashMap.Strict@ from the
 -- <https://hackage.haskell.org/package/unordered-containers unordered-containers>
 -- package instead.
 --
