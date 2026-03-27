@@ -131,6 +131,7 @@ module Data.Map.Strict
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** From Ascending Lists
     , fromAscList
