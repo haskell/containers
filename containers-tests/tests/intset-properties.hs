@@ -8,14 +8,19 @@ import qualified Data.List as List
 import Data.Maybe (listToMaybe)
 import qualified Data.Maybe as Maybe
 import Data.Monoid (mempty)
+import Data.Proxy (Proxy(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 import IntSetValidity (valid)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', foldMap)
+
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck hiding ((.&.))
+import qualified Test.QuickCheck.Classes.Base as Laws
+
+import Utils.QuickCheckClasses (testLaws)
 
 main :: IO ()
 main = defaultMain $ testGroup "intset-properties"
@@ -96,6 +101,17 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "fromAscList" prop_fromAscList
                    , testProperty "fromDistinctAscList" prop_fromDistinctAscList
                    , testProperty "compareSize" prop_compareSize
+                   , testLaws $ Laws.eqLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.ordLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.showLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.semigroupLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.monoidLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.isListLaws (Proxy :: Proxy IntSet)
+                   , testGroup "Intersection"
+                     [ testLaws $ Laws.semigroupLaws (Proxy :: Proxy Intersection)
+                     , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy Intersection)
+                     ]
                    ]
 
 ----------------------------------------------------------------
@@ -158,6 +174,10 @@ instance Arbitrary IntSet where
     , listOf (getNegative <$> arbitrary)
     ]
   shrink = fmap fromList . shrink . toAscList
+
+instance Arbitrary Intersection where
+  arbitrary = Intersection <$> arbitrary
+  shrink = fmap Intersection . shrink . getIntersection
 
 {--------------------------------------------------------------------
   Valid IntMaps

@@ -29,4 +29,5 @@ jobs:
         ghc --version
         cabal --version
         cabal update
+        cabal build all
         cabal test all

@@ -56,9 +56,10 @@ common test-deps
       containers-tests
     , OneTuple
     , QuickCheck                  >=2.7.1
-    , tasty
+    , quickcheck-classes-base     >= 0.6.2.0 && < 0.7
+    , tasty                       >= 1.5.4 && < 1.6
     , tasty-hunit
-    , tasty-quickcheck
+    , tasty-quickcheck            >= 0.11.1 && < 0.12
     , transformers
 
 common benchmark-deps
@@ -312,6 +313,9 @@ library test-utils
       containers-tests
     , ChasingBottoms
     , QuickCheck
+    , quickcheck-classes-base     >= 0.6.2.0 && < 0.7
+    , tasty                       >= 1.5.4 && < 1.6
+    , tasty-quickcheck            >= 0.11.1 && < 0.12
     , transformers
 
   exposed-modules:
@@ -320,6 +324,7 @@ library test-utils
     Utils.ArbitrarySetMap
     Utils.MergeFunc
     Utils.NubSorted
+    Utils.QuickCheckClasses
     Utils.Strictness
 
 test-suite map-lazy-properties
@@ -440,6 +445,9 @@ test-suite tree-properties
   hs-source-dirs:   tests
   main-is:          tree-properties.hs
   type:             exitcode-stdio-1.0
+
+  build-depends:
+      test-utils
 
   other-extensions:
     BangPatterns
