@@ -66,12 +66,15 @@ main = defaultMain $ testGroup "tree-properties"
          , testLaws $ Laws.eqLaws (Proxy :: Proxy (Tree A))
          , testLaws $ Laws.ordLaws (Proxy :: Proxy (Tree OrdA))
          , testLaws $ Laws.showLaws (Proxy :: Proxy (Tree A))
+-- Requires Arbitrary1 on old GHC, skip
+#if __GLASGOW_HASKELL__ >= 805
          , testLaws $ Laws.foldableLaws (Proxy :: Proxy Tree)
          , testLaws $ Laws.functorLaws (Proxy :: Proxy Tree)
          , testLaws $ Laws.traversableLaws (Proxy :: Proxy Tree)
          , testLaws $ Laws.applicativeLaws (Proxy :: Proxy Tree)
          , testLaws $ Laws.monadLaws (Proxy :: Proxy Tree)
          , testLaws $ Laws.monadZipLaws (Proxy :: Proxy Tree)
+#endif
          , testGroup "PostOrder"
            [ testCase "foldr"                      test_PostOrder_foldr
            , testProperty "toList"                 prop_PostOrder_toList
@@ -93,9 +96,12 @@ main = defaultMain $ testGroup "tree-properties"
            , testProperty "foldlMap1'"             prop_PostOrder_foldlMap1'
            , testProperty "foldlMap1"              prop_PostOrder_foldlMap1
 #endif
+-- Requires Arbitrary1 on old GHC, skip
+#if __GLASGOW_HASKELL__ >= 805
            , testLaws $ Laws.foldableLaws (Proxy :: Proxy PostOrder)
            , testLaws $ Laws.functorLaws (Proxy :: Proxy PostOrder)
            , testLaws $ Laws.traversableLaws (Proxy :: Proxy PostOrder)
+#endif
            ]
          ]
 

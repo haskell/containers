@@ -174,6 +174,8 @@ main = defaultMain $ testGroup "seq-properties"
        , testLaws $ Laws.showLaws (Proxy :: Proxy (Seq A))
        , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Seq A))
        , testLaws $ Laws.monoidLaws (Proxy :: Proxy (Seq A))
+-- Requires Arbitrary1 on old GHC, skip
+#if __GLASGOW_HASKELL__ >= 805
        , testLaws $ Laws.foldableLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.functorLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.traversableLaws (Proxy :: Proxy Seq)
@@ -182,6 +184,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testLaws $ Laws.monadLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.monadPlusLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.monadZipLaws (Proxy :: Proxy Seq)
+#endif
        , testLaws $ Laws.isListLaws (Proxy :: Proxy (Seq A))
        , testGroup "strictness"
          [ testProperty "foldr" prop_strictness_foldr

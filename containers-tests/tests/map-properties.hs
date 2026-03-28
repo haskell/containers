@@ -323,9 +323,12 @@ main = defaultMain $ testGroup "map-properties"
          , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Map Int A))
          , testLaws $ Laws.monoidLaws (Proxy :: Proxy (Map Int A))
          , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (Map Int A))
+-- Requires Arbitrary1 on old GHC, skip
+#if __GLASGOW_HASKELL__ >= 805
          , testLaws $ Laws.foldableLaws (Proxy :: Proxy (Map Int))
          , testLaws $ Laws.functorLaws (Proxy :: Proxy (Map Int))
          , testLaws $ Laws.traversableLaws (Proxy :: Proxy (Map Int))
+#endif
          , testLaws $ Laws.isListLaws (Proxy :: Proxy (Map Int A))
          ]
 
