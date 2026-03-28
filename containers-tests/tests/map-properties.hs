@@ -326,6 +326,7 @@ main = defaultMain $ testGroup "map-properties"
          , testLaws $ Laws.foldableLaws (Proxy :: Proxy (Map Int))
          , testLaws $ Laws.functorLaws (Proxy :: Proxy (Map Int))
          , testLaws $ Laws.traversableLaws (Proxy :: Proxy (Map Int))
+         , testLaws $ Laws.isListLaws (Proxy :: Proxy (Map Int A))
          ]
 
 {--------------------------------------------------------------------

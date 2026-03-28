@@ -278,6 +278,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testLaws $ Laws.foldableLaws (Proxy :: Proxy IntMap)
              , testLaws $ Laws.functorLaws (Proxy :: Proxy IntMap)
              , testLaws $ Laws.traversableLaws (Proxy :: Proxy IntMap)
+             , testLaws $ Laws.isListLaws (Proxy :: Proxy (IntMap A))
              ]
 
 {--------------------------------------------------------------------

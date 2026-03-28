@@ -107,6 +107,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testLaws $ Laws.semigroupLaws (Proxy :: Proxy IntSet)
                    , testLaws $ Laws.monoidLaws (Proxy :: Proxy IntSet)
                    , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy IntSet)
+                   , testLaws $ Laws.isListLaws (Proxy :: Proxy IntSet)
                    , testGroup "Intersection"
                      [ testLaws $ Laws.semigroupLaws (Proxy :: Proxy Intersection)
                      , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy Intersection)

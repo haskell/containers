@@ -182,6 +182,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testLaws $ Laws.monadLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.monadPlusLaws (Proxy :: Proxy Seq)
        , testLaws $ Laws.monadZipLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.isListLaws (Proxy :: Proxy (Seq A))
        , testGroup "strictness"
          [ testProperty "foldr" prop_strictness_foldr
          , testProperty "foldl" prop_strictness_foldl
