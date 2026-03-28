@@ -28,6 +28,7 @@ import Data.Function
 import Data.Functor
 import qualified Data.Foldable as Foldable
 import qualified Data.Bifoldable as Bifoldable
+import Data.Proxy (Proxy(..))
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt)
 import qualified Prelude
 
@@ -36,13 +37,16 @@ import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
+
 import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
+import qualified Test.QuickCheck.Classes.Base as Laws
 
 import Utils.ArbitrarySetMap (mkArbMap)
+import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
 
@@ -313,6 +317,15 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mapAccum"             prop_mapAccum
          , testProperty "mapAccumWithKey"      prop_mapAccumWithKey
          , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
+         , testLaws $ Laws.eqLaws (Proxy :: Proxy (Map Int A))
+         , testLaws $ Laws.ordLaws (Proxy :: Proxy (Map Int OrdA))
+         , testLaws $ Laws.showLaws (Proxy :: Proxy (Map Int A))
+         , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Map Int A))
+         , testLaws $ Laws.monoidLaws (Proxy :: Proxy (Map Int A))
+         , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (Map Int A))
+         , testLaws $ Laws.foldableLaws (Proxy :: Proxy (Map Int))
+         , testLaws $ Laws.functorLaws (Proxy :: Proxy (Map Int))
+         , testLaws $ Laws.traversableLaws (Proxy :: Proxy (Map Int))
          ]
 
 {--------------------------------------------------------------------

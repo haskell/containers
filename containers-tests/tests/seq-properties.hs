@@ -28,6 +28,7 @@ import Data.Maybe (listToMaybe)
 import qualified Data.Maybe as Maybe
 import Data.Function (on)
 import Data.Monoid (Monoid(..), All(..), Endo(..), Dual(..))
+import Data.Proxy (Proxy(..))
 import Data.Semigroup (stimes, stimesMonoid)
 import Data.Traversable (Traversable(traverse), sequenceA)
 import Prelude hiding (
@@ -41,6 +42,7 @@ import Test.Tasty
 import Test.Tasty.QuickCheck hiding ((><))
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, OrdA, B, OrdB, C)
+import qualified Test.QuickCheck.Classes.Base as Laws
 import Control.Monad.Zip (MonadZip (..))
 import Control.DeepSeq (deepseq)
 import Control.Monad.Fix (MonadFix (..))
@@ -53,6 +55,7 @@ import qualified Language.Haskell.TH.Syntax as TH
 #endif
 
 import Utils.Strictness (Bot(..), Func2, applyFunc2)
+import Utils.QuickCheckClasses (testLaws)
 
 main :: IO ()
 main = defaultMain $ testGroup "seq-properties"
@@ -166,6 +169,19 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "Right view constructor" prop_viewr_con
        , testProperty "stimes" prop_stimes
        , testProperty "traverse" prop_traverse
+       , testLaws $ Laws.eqLaws (Proxy :: Proxy (Seq A))
+       , testLaws $ Laws.ordLaws (Proxy :: Proxy (Seq OrdA))
+       , testLaws $ Laws.showLaws (Proxy :: Proxy (Seq A))
+       , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Seq A))
+       , testLaws $ Laws.monoidLaws (Proxy :: Proxy (Seq A))
+       , testLaws $ Laws.foldableLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.functorLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.traversableLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.applicativeLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.alternativeLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.monadLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.monadPlusLaws (Proxy :: Proxy Seq)
+       , testLaws $ Laws.monadZipLaws (Proxy :: Proxy Seq)
        , testGroup "strictness"
          [ testProperty "foldr" prop_strictness_foldr
          , testProperty "foldl" prop_strictness_foldl
