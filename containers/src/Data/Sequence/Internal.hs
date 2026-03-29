@@ -4324,6 +4324,10 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- eventually find a less mind-bending way to accomplish this.
 
 -- | \( O(n) \). Create a sequence from a finite list of elements.
+--
+-- @'fromList' . 'toList' = id@
+--
+-- For any finite list @xs@, @'toList' ('fromList' xs) = xs@.
 fromList        :: [a] -> Seq a
 -- Note: we can avoid map_elem if we wish by scattering
 -- Elem applications throughout mkTreeE and getNodesE, but
