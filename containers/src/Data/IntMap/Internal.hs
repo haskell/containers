@@ -1583,13 +1583,13 @@ data WhenMissing f x y = WhenMissing
   , missingKey :: Key -> x -> f (Maybe y)}
 
 -- | @since 0.5.9
-instance (Applicative f, Monad f) => Functor (WhenMissing f x) where
+instance Monad f => Functor (WhenMissing f x) where
   fmap = mapWhenMissing
   {-# INLINE fmap #-}
 
 
 -- | @since 0.5.9
-instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
+instance Monad f => Category.Category (WhenMissing f)
   where
     id = preserveMissing
     f . g =
@@ -1605,7 +1605,7 @@ instance (Applicative f, Monad f) => Category.Category (WhenMissing f)
 -- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
 --
 -- @since 0.5.9
-instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
+instance Monad f => Applicative (WhenMissing f x) where
   pure x = mapMissing (\ _ _ -> x)
   f <*> g =
     traverseMaybeMissing $ \k x -> do
@@ -1620,7 +1620,7 @@ instance (Applicative f, Monad f) => Applicative (WhenMissing f x) where
 -- | Equivalent to @ReaderT k (ReaderT x (MaybeT f))@.
 --
 -- @since 0.5.9
-instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
+instance Monad f => Monad (WhenMissing f x) where
   m >>= f =
     traverseMaybeMissing $ \k x -> do
       res1 <- missingKey m k x
@@ -1634,7 +1634,7 @@ instance (Applicative f, Monad f) => Monad (WhenMissing f x) where
 --
 -- @since 0.5.9
 mapWhenMissing
-  :: (Applicative f, Monad f)
+  :: Monad f
   => (a -> b)
   -> WhenMissing f x a
   -> WhenMissing f x b
@@ -1749,7 +1749,7 @@ instance Functor f => Functor (WhenMatched f x y) where
 
 
 -- | @since 0.5.9
-instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
+instance Monad f => Category.Category (WhenMatched f x)
   where
     id = zipWithMatched (\_ _ y -> y)
     f . g =
@@ -1765,7 +1765,7 @@ instance (Monad f, Applicative f) => Category.Category (WhenMatched f x)
 -- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
 --
 -- @since 0.5.9
-instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
+instance Monad f => Applicative (WhenMatched f x y) where
   pure x = zipWithMatched (\_ _ _ -> x)
   fs <*> xs =
     zipWithMaybeAMatched $ \k x y -> do
@@ -1780,7 +1780,7 @@ instance (Monad f, Applicative f) => Applicative (WhenMatched f x y) where
 -- | Equivalent to @ReaderT Key (ReaderT x (ReaderT y (MaybeT f)))@
 --
 -- @since 0.5.9
-instance (Monad f, Applicative f) => Monad (WhenMatched f x y) where
+instance Monad f => Monad (WhenMatched f x y) where
   m >>= f =
     zipWithMaybeAMatched $ \k x y -> do
       res <- runWhenMatched m k x y
