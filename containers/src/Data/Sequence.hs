@@ -172,6 +172,8 @@ module Data.Sequence (
     viewl,          -- :: Seq a -> ViewL a
     ViewR(..),
     viewr,          -- :: Seq a -> ViewR a
+    -- ** List
+    toList,
     -- * Scans
     scanl,          -- :: (a -> b -> a) -> a -> Seq b -> Seq a
     scanl1,         -- :: (a -> a -> a) -> Seq a -> Seq a
