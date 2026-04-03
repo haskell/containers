@@ -13,16 +13,19 @@ import Test.Tasty
 import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
+import qualified Test.QuickCheck.Classes.Base as Laws
 import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import Data.Functor.Identity
 import Data.Foldable (all)
+import Data.Proxy (Proxy(..))
 import Data.Ord (Down(..), comparing)
 import Control.Applicative (liftA2)
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
 import Utils.ArbitrarySetMap (mkArbSet, setFromList)
+import Utils.QuickCheckClasses (testLaws)
 
 main :: IO ()
 main = defaultMain $ testGroup "set-properties"
@@ -126,6 +129,17 @@ main = defaultMain $ testGroup "set-properties"
                    , testProperty "deleteAt" prop_deleteAt
                    , testProperty "merge" prop_merge
                    , testProperty "mergeA" prop_mergeA
+                   , testLaws $ Laws.eqLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.ordLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.showLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.monoidLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (Set Int))
+                   , testLaws $ Laws.isListLaws (Proxy :: Proxy (Set Int))
+                   , testGroup "Intersection"
+                     [ testLaws $ Laws.semigroupLaws (Proxy :: Proxy (Intersection Int))
+                     , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (Intersection Int))
+                     ]
                    ]
 
 -- A type with a peculiar Eq instance designed to make sure keys
@@ -255,6 +269,10 @@ data TwoLists a = TwoLists [a] [a]
 data Options2 = One2 | Two2 | Both2 deriving (Bounded, Enum)
 instance Arbitrary Options2 where
   arbitrary = arbitraryBoundedEnum
+
+instance IsInt a => Arbitrary (Intersection a) where
+  arbitrary = Intersection <$> arbitrary
+  shrink = fmap Intersection . shrink . getIntersection
 
 -- We produce two lists from a simple "universe". This instance
 -- is intended to give good results when the two lists are then

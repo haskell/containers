@@ -28,6 +28,7 @@ import Data.Foldable (foldMap)
 import Data.Function
 import Data.Functor
 import Data.Functor.Identity (runIdentity)
+import Data.Proxy (Proxy(..))
 import Data.Traversable (Traversable(traverse), foldMapDefault)
 import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl')
 import qualified Prelude (map, filter)
@@ -41,6 +42,9 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
+import qualified Test.QuickCheck.Classes.Base as Laws
+
+import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
 
@@ -265,6 +269,19 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fromListWith"         prop_fromListWith
              , testProperty "fromListWithKey"      prop_fromListWithKey
              , testProperty "compareSize"          prop_compareSize
+             , testLaws $ Laws.eqLaws (Proxy :: Proxy (IntMap A))
+             , testLaws $ Laws.ordLaws (Proxy :: Proxy (IntMap OrdA))
+             , testLaws $ Laws.showLaws (Proxy :: Proxy (IntMap A))
+             , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (IntMap A))
+             , testLaws $ Laws.monoidLaws (Proxy :: Proxy (IntMap A))
+             , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (IntMap A))
+-- Requires Arbitrary1 on GHC <8.6, skip
+#if __GLASGOW_HASKELL__ >= 806
+             , testLaws $ Laws.foldableLaws (Proxy :: Proxy IntMap)
+             , testLaws $ Laws.functorLaws (Proxy :: Proxy IntMap)
+             , testLaws $ Laws.traversableLaws (Proxy :: Proxy IntMap)
+#endif
+             , testLaws $ Laws.isListLaws (Proxy :: Proxy (IntMap A))
              ]
 
 {--------------------------------------------------------------------

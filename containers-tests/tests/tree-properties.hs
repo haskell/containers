@@ -9,11 +9,13 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
+import qualified Test.QuickCheck.Classes.Base as Laws
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
 import Data.Foldable (fold, foldl', toList)
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
+import Data.Proxy (Proxy(..))
 import Data.Traversable (foldMapDefault)
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup ((<>)))
@@ -21,6 +23,8 @@ import Data.Semigroup (Semigroup ((<>)))
 #if MIN_VERSION_base(4,18,0)
 import qualified Data.Foldable1 as Foldable1
 #endif
+
+import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
 
@@ -59,6 +63,18 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "edges"                    prop_edges
          , testProperty "pathsToRoot"              prop_pathsToRoot
          , testProperty "pathsFromRoot"            prop_pathsFromRoot
+         , testLaws $ Laws.eqLaws (Proxy :: Proxy (Tree A))
+         , testLaws $ Laws.ordLaws (Proxy :: Proxy (Tree OrdA))
+         , testLaws $ Laws.showLaws (Proxy :: Proxy (Tree A))
+-- Requires Arbitrary1 on GHC <8.6, skip
+#if __GLASGOW_HASKELL__ >= 806
+         , testLaws $ Laws.foldableLaws (Proxy :: Proxy Tree)
+         , testLaws $ Laws.functorLaws (Proxy :: Proxy Tree)
+         , testLaws $ Laws.traversableLaws (Proxy :: Proxy Tree)
+         , testLaws $ Laws.applicativeLaws (Proxy :: Proxy Tree)
+         , testLaws $ Laws.monadLaws (Proxy :: Proxy Tree)
+         , testLaws $ Laws.monadZipLaws (Proxy :: Proxy Tree)
+#endif
          , testGroup "PostOrder"
            [ testCase "foldr"                      test_PostOrder_foldr
            , testProperty "toList"                 prop_PostOrder_toList
@@ -79,6 +95,12 @@ main = defaultMain $ testGroup "tree-properties"
            , testProperty "foldrMap1"              prop_PostOrder_foldrMap1
            , testProperty "foldlMap1'"             prop_PostOrder_foldlMap1'
            , testProperty "foldlMap1"              prop_PostOrder_foldlMap1
+#endif
+-- Requires Arbitrary1 on GHC <8.6, skip
+#if __GLASGOW_HASKELL__ >= 806
+           , testLaws $ Laws.foldableLaws (Proxy :: Proxy PostOrder)
+           , testLaws $ Laws.functorLaws (Proxy :: Proxy PostOrder)
+           , testLaws $ Laws.traversableLaws (Proxy :: Proxy PostOrder)
 #endif
            ]
          ]
