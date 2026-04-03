@@ -275,8 +275,8 @@ main = defaultMain $ testGroup "intmap-properties"
              , testLaws $ Laws.semigroupLaws (Proxy :: Proxy (IntMap A))
              , testLaws $ Laws.monoidLaws (Proxy :: Proxy (IntMap A))
              , testLaws $ Laws.idempotentSemigroupLaws (Proxy :: Proxy (IntMap A))
--- Requires Arbitrary1 on old GHC, skip
-#if __GLASGOW_HASKELL__ >= 805
+-- Requires Arbitrary1 on GHC <8.6, skip
+#if __GLASGOW_HASKELL__ >= 806
              , testLaws $ Laws.foldableLaws (Proxy :: Proxy IntMap)
              , testLaws $ Laws.functorLaws (Proxy :: Proxy IntMap)
              , testLaws $ Laws.traversableLaws (Proxy :: Proxy IntMap)

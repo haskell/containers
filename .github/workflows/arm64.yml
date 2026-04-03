@@ -29,6 +29,5 @@ jobs:
         ghc --version
         cabal --version
         cabal update
-        # Workaround for https://github.com/haskell/cabal/issues/11677
-        cabal build all
+        cabal build all  # Workaround for https://github.com/haskell/cabal/issues/11677
         cabal test all
