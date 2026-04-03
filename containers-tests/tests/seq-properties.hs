@@ -22,7 +22,7 @@ import Control.Arrow ((***))
 import Control.Monad.Trans.State.Strict
 import Data.Array (listArray)
 import Data.Coerce (coerce)
-import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), toList, all, sum, foldl', foldr')
+import Data.Foldable (Foldable(foldl, foldl1, foldr, foldr1, foldMap, fold), all, sum, foldl', foldr')
 import Data.Functor ((<$>), (<$))
 import Data.Maybe (listToMaybe)
 import qualified Data.Maybe as Maybe
@@ -194,8 +194,8 @@ instance (Arbitrary a, Sized a) => Arbitrary (FingerTree a) where
         arb n = do
             pr <- arbitrary
             sf <- arbitrary
-            let n_pr = Prelude.length (toList pr)
-            let n_sf = Prelude.length (toList sf)
+            let n_pr = Prelude.length pr
+                n_sf = Prelude.length sf
             -- adding n `div` 7 ensures that n_m >= 0, and makes more Singles
             let n_m = max (n `div` 7) ((n - n_pr - n_sf) `div` 3)
             m <- arb n_m

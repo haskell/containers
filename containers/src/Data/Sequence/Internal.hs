@@ -107,6 +107,8 @@ module Data.Sequence.Internal (
     viewl,          -- :: Seq a -> ViewL a
     ViewR(..),
     viewr,          -- :: Seq a -> ViewR a
+    -- ** List
+    toList,
     -- * Scans
     scanl,          -- :: (a -> b -> a) -> a -> Seq b -> Seq a
     scanl1,         -- :: (a -> a -> a) -> Seq a -> Seq a
@@ -197,7 +199,7 @@ import Control.Monad (MonadPlus(..))
 import Data.Monoid (Monoid(..))
 import Data.Functor (Functor(..))
 import Utils.Containers.Internal.State (State(..), execState)
-import Data.Foldable (foldr', toList)
+import Data.Foldable (foldr')
 import qualified Data.Foldable as F
 
 import qualified Data.Semigroup as Semigroup
@@ -2375,6 +2377,12 @@ viewRTree (Deep s pr m (Three x y z)) =
 viewRTree (Deep s pr m (Four w x y z)) =
     SnocRTree (Deep (s - size z) pr m (Three w x y)) z
 
+-- | \(O(n)\). Convert to a list of elements.
+--
+-- @since FIXME
+toList :: Seq a -> [a]
+toList = F.toList
+
 ------------------------------------------------------------------------
 -- Scans
 --
@@ -4316,8 +4324,10 @@ findIndicesR p xs = foldlWithIndex g [] xs
 -- eventually find a less mind-bending way to accomplish this.
 
 -- | \( O(n) \). Create a sequence from a finite list of elements.
--- There is a function 'toList' in the opposite direction for all
--- instances of the 'Foldable' class, including 'Seq'.
+--
+-- @'fromList' . 'toList' = id@
+--
+-- For any finite list @xs@, @'toList' ('fromList' xs) = xs@.
 fromList        :: [a] -> Seq a
 -- Note: we can avoid map_elem if we wish by scattering
 -- Elem applications throughout mkTreeE and getNodesE, but
