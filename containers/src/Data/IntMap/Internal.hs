@@ -187,6 +187,7 @@ module Data.IntMap.Internal (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+    , whenMissing
 
     -- ** Deprecated general combining function
     , mergeWithKey
@@ -1629,6 +1630,44 @@ instance Monad f => Monad (WhenMissing f x) where
         Just r  -> missingKey (f r) k x
   {-# INLINE (>>=) #-}
 
+-- | Create a @WhenMissing@ from two functions.
+--
+-- @whenMissing@ must be called with two functions @f@ and @g@ such that
+-- @g = 'traverseMaybeWithKey' f@. @g@ may be a more efficient way of applying
+-- @f@ to all key-value pairs in an @IntMap@.
+--
+-- __Warning__: It is the caller's responsibility to ensure the above property.
+--
+-- === __Examples__
+--
+-- @
+-- preserveMissing :: Applicative f => WhenMissing f x x
+-- preserveMissing = whenMissing f g
+--   where
+--     f _k x = pure (Just x)
+--     g m = pure m
+--     -- Note that this satisfies g = traverseMaybeWithKey f
+-- @
+--
+-- @
+-- import Data.Functor.Const (Const(..))
+-- import Data.Monoid (All(..))
+--
+-- -- For a usage of this, see examples on mergeA
+-- isEmpty :: WhenMissing (Const All) x y
+-- isEmpty = whenMissing f g
+--   where
+--     f _k _x = Const (All False)
+--     g m = Const (All (null m))
+--     -- Note that this satisfies g = traverseMaybeWithKey f
+-- @
+--
+-- @since FIXME
+whenMissing
+  :: (Key -> x -> f (Maybe y))
+  -> (IntMap x -> f (IntMap y))
+  -> WhenMissing f x y
+whenMissing = flip WhenMissing
 
 -- | Map covariantly over a @'WhenMissing' f x@.
 --
@@ -2154,6 +2193,41 @@ merge g1 g2 f = \m1 m2 ->
 -- When 'mergeA' is given three arguments, it is inlined at the call
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
+--
+-- === __Examples__
+--
+-- @
+-- data Pair a = Pair !a !a deriving Functor
+--
+-- instance Applicative Pair where
+--    pure x = Pair x x
+--    liftA2 f (Pair x1 y1) (Pair x2 y2) = Pair (f x1 x2) (f y1 y2)
+--
+-- -- | Calculate the left-biased union and intersection of the two maps.
+-- unionIntersection :: IntMap a -> IntMap a -> (IntMap a, IntMap a)
+-- unionIntersection m1 m2 =
+--   case mergeA preserveAndDropMissing preserveAndDropMissing preserveAndPreserveMatched m1 m2 of
+--     Pair mu mi -> (mu, mi)
+--   where
+--     -- use Pair to build the union and intersection together
+--     preserveAndDropMissing = 'whenMissing' (\\_k x -> Pair (Just x) Nothing) (\\m -> Pair m empty)
+--     preserveAndPreserveMatched = 'zipWithMaybeAMatched' (\\_k x1 _x2 -> Pair (Just x1) (Just x1))
+-- @
+--
+-- @
+-- import Data.Functor.Const (Const(..))
+-- import Data.Monoid (All(..))
+--
+-- -- | Whether the keys of the first map are a subset of the keys of the second map.
+-- keysAreSubsetOf :: IntMap a -> IntMap b -> Bool
+-- keysAreSubsetOf m1 m2 =
+--   getAll (getConst (mergeA isEmpty alwaysTrueMissing alwaysTrueMatched m1 m2))
+--   where
+--     -- the result is True if there are no keys occurring only in the first map
+--     isEmpty = 'whenMissing' (\\_k _x -> Const (All False)) (\\m -> Const (All (null m)))
+--     alwaysTrueMissing = 'whenMissing' (\\_k _x -> Const (All True)) (\\_m -> Const (All True))
+--     alwaysTrueMatched = 'zipWithAMatched' (\\_k _x1 _x2 -> Const (All True))
+-- @
 --
 -- @since 0.5.9
 mergeA
