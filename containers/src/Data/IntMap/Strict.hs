@@ -127,6 +127,7 @@ module Data.IntMap.Strict (
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** From Ascending Lists
     , fromAscList
