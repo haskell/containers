@@ -262,6 +262,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fromAscListWith"      prop_fromAscListWith
              , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
              , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
+             , testProperty "fromDescList"         prop_fromDescList
              , testProperty "fromListWith"         prop_fromListWith
              , testProperty "fromListWithKey"      prop_fromListWithKey
              , testProperty "compareSize"          prop_compareSize
@@ -2164,6 +2165,14 @@ prop_fromDistinctAscList kxs =
       NE.groupBy ((==) `on` fst) $
       List.sortBy (comparing fst) kxs
     t = fromDistinctAscList nubSortedKxs
+
+prop_fromDescList :: [(Int, A)] -> Property
+prop_fromDescList kxs =
+  valid t .&&.
+  t === fromList sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescList sortedKxs
 
 prop_fromListWith :: Fun (A, A) A -> [(Int, A)] -> Property
 prop_fromListWith f kxs =

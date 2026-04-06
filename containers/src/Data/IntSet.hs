@@ -103,6 +103,7 @@ module Data.IntSet (
             , fromRange
             , fromAscList
             , fromDistinctAscList
+            , fromDescList
 
             -- * Insertion
             , insert

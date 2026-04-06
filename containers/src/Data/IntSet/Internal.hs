@@ -179,6 +179,7 @@ module Data.IntSet.Internal (
     , toDescList
     , fromAscList
     , fromDistinctAscList
+    , fromDescList
 
     -- * Debugging
     , showTree
@@ -1530,6 +1531,19 @@ fromDistinctAscList :: [Key] -> IntSet
 fromDistinctAscList = fromAscList
 {-# INLINE fromDistinctAscList #-} -- Inline for list fusion
 
+-- | \(O(n)\). Build a set from an descending list of elements.
+--
+-- __Warning__: This function should be used only if the elements are in
+-- non-increasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
+--
+-- @since FIXME
+
+-- See Note [fromAscList implementation] in Data.IntMap.Internal.
+fromDescList :: [Key] -> IntSet
+fromDescList xs = descLinkAll (Foldable.foldl' descInsert MSNada xs)
+{-# INLINE fromDescList #-} -- Inline for list fusion
+
 data Stack
   = Nada
   | Push {-# UNPACK #-} !Int !IntSet !Stack
@@ -1573,6 +1587,42 @@ ascLinkStack stk !rk r = case stk of
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
       p = mask rk m
+
+-- Insert an element. The element must be <= the last inserted element.
+descInsert :: MonoState -> Int -> MonoState
+descInsert s !ky = case s of
+  MSNada -> MSPush py bmy Nada
+  MSPush px bmx stk
+    | px == py -> MSPush py (bmx .|. bmy) stk
+    | otherwise -> let m = branchMask px py
+                   in MSPush py bmy (descLinkTop px (Tip px bmx) m stk)
+  where
+    py = prefixOf ky
+    bmy = bitmapOf ky
+{-# INLINE descInsert #-}
+
+descLinkTop :: Int -> IntSet -> Int -> Stack -> Stack
+descLinkTop !lk l !lm stk = case stk of
+  Nada -> Push lm l stk
+  Push m r stk'
+    | i2w m < i2w lm -> let p = mask lk m
+                        in descLinkTop lk (Bin p l r) lm stk'
+    | otherwise -> Push lm l stk
+
+descLinkAll :: MonoState -> IntSet
+descLinkAll s = case s of
+  MSNada -> Nil
+  MSPush px bmx stk -> descLinkStack px (Tip px bmx) stk
+{-# INLINABLE descLinkAll #-}
+
+descLinkStack :: Int -> IntSet -> Stack -> IntSet
+descLinkStack !lk l stk = case stk of
+  Nada -> l
+  Push m r stk'
+    | signBranch p -> Bin p r l
+    | otherwise -> descLinkStack lk (Bin p l r) stk'
+    where
+      p = mask lk m
 
 {--------------------------------------------------------------------
   IntSetBuilder

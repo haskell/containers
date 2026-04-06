@@ -95,6 +95,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "deleteMax" prop_deleteMax
                    , testProperty "fromAscList" prop_fromAscList
                    , testProperty "fromDistinctAscList" prop_fromDistinctAscList
+                   , testProperty "fromDescList" prop_fromDescList
                    , testProperty "compareSize" prop_compareSize
                    ]
 
@@ -562,6 +563,15 @@ prop_fromDistinctAscList xs =
   where
     nubSortedXs = List.map NE.head $ NE.group $ sort xs
     t = fromDistinctAscList nubSortedXs
+
+prop_fromDescList :: [Int] -> Property
+prop_fromDescList xs =
+    valid t .&&.
+    toList t === nubSortedXs
+  where
+    sortedXs = sort xs
+    nubSortedXs = List.map NE.head $ NE.group sortedXs
+    t = fromDescList (reverse sortedXs)
 
 prop_compareSize :: IntSet -> Int -> Property
 prop_compareSize t c = compareSize t c === compare (size t) c
