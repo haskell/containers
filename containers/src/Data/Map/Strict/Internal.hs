@@ -223,6 +223,7 @@ module Data.Map.Strict.Internal
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** Ordered lists
     , toAscList
@@ -1433,7 +1434,7 @@ fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromA
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs. See also 'fromAscList'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs.
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
@@ -1448,7 +1449,7 @@ fromList xs =
   finishB (Foldable.foldl' (\b (kx, !x) -> insertB kx x b) emptyB xs)
 {-# INLINE fromList #-} -- INLINE for fusion
 
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
@@ -1458,6 +1459,8 @@ fromList xs =
 -- Note the reverse ordering of @"cba"@ in the example.
 --
 -- The symmetric combining function @f@ is applied in a left-fold over the list, as @f new old@.
+--
+-- See also: 'fromListUpsert'
 --
 -- === Performance
 --
@@ -1491,7 +1494,7 @@ fromListWith f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> insertWithB f kx x b) emptyB xs)
 {-# INLINE fromListWith #-}  -- INLINE for fusion
 
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
@@ -1500,11 +1503,34 @@ fromListWith f xs =
 -- > fromListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromListUpsert'
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> insertWithB (f kx) kx x b) emptyB xs)
 {-# INLINE fromListWithKey #-}  -- INLINE for fusion
+
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a
+-- combining function.
+--
+-- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
+--
+-- The result is equivalent to performing an @upsert@ for every key\/value in
+-- the list.
+--
+-- @
+-- fromListUpsert f = foldl' (\\m (k, x) -> 'upsert' (f x) k m) 'empty'
+-- @
+--
+-- > let f x = maybe [x] (x:)
+-- > fromListUpsert f [(5,'a'), (5,'b'), (3,'c'), (3,'d'), (5,'e')] == fromList [(3,"dc"), (5,"eba")]
+--
+-- @since FIXME
+fromListUpsert :: Ord k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
+fromListUpsert f xs =
+  finishB (Foldable.foldl' (\b (kx, x) -> upsertB (f x) kx b) emptyB xs)
+{-# INLINE fromListUpsert #-}  -- INLINE for fusion
 
 {--------------------------------------------------------------------
   Building trees from ascending/descending lists can be done in linear time.
@@ -1693,3 +1719,21 @@ insertWithB f !ky y b = case b of
   where
     push' kx !x = Push kx x
 {-# INLINE insertWithB #-}
+
+-- Upsert a key-value. The given function is used to generate the value based
+-- on the existing value for the key. Strict in the inserted value.
+upsertB :: Ord k => (Maybe b -> b) -> k -> MapBuilder k b -> MapBuilder k b
+upsertB f !ky b = case b of
+  BAsc stk -> case stk of
+    Push kx x l stk' -> case compare ky kx of
+      LT -> BMap (upsert f ky (ascLinkAll stk))
+      EQ -> BAsc (push' ky (f (Just x)) l stk')
+      GT -> case l of
+        Tip -> let !y = f Nothing
+               in BAsc (ascLinkTop stk' 1 (singleton kx x) ky y)
+        Bin{} -> BAsc (push' ky (f Nothing) Tip stk)
+    Nada -> BAsc (push' ky (f Nothing) Tip Nada)
+  BMap m -> BMap (upsert f ky m)
+  where
+    push' kx !x = Push kx x
+{-# INLINE upsertB #-}

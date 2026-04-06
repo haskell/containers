@@ -68,6 +68,7 @@ module Data.IntMap.Strict.Internal (
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** From Ascending Lists
     , fromAscList
@@ -1140,7 +1141,7 @@ fromList :: [(Key,a)] -> IntMap a
 fromList xs = finishB (Foldable.foldl' (\b (kx,!x) -> insertB kx x b) emptyB xs)
 {-# INLINE fromList #-} -- Inline for list fusion
 
--- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+-- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in sorted order, ascending or descending, this function
 -- takes \(O(n)\) time.
@@ -1151,6 +1152,8 @@ fromList xs = finishB (Foldable.foldl' (\b (kx,!x) -> insertB kx x b) emptyB xs)
 -- Note the reverse ordering of @"cba"@ in the example.
 --
 -- The symmetric combining function @f@ is applied in a left-fold over the list, as @f new old@.
+--
+-- See also: 'fromListUpsert'
 --
 -- === Performance
 --
@@ -1184,7 +1187,7 @@ fromListWith f xs
   = fromListWithKey (\_ x y -> f x y) xs
 {-# INLINE fromListWith #-} -- Inline for list fusion
 
--- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
+-- | \(O(n \min(n,W))\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in sorted order, ascending or descending, this function
 -- takes \(O(n)\) time.
@@ -1194,11 +1197,35 @@ fromListWith f xs
 -- > fromListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromListUpsert'
 
 fromListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
 fromListWithKey f xs =
   finishB (Foldable.foldl' (\b (kx,x) -> insertWithB (f kx) kx x b) emptyB xs)
 {-# INLINE fromListWithKey #-} -- Inline for list fusion
+
+-- | \(O(n \min(n,W)\). Build a map from a list of key\/value pairs with a
+-- combining function.
+--
+-- If the keys are in sorted order, ascending or descending, this function
+-- takes \(O(n)\) time.
+--
+-- The result is equivalent to performing an @upsert@ for every key\/value in
+-- the list.
+--
+-- @
+-- fromListUpsert f = foldl' (\\m (k, x) -> 'upsert' (f x) k m) 'empty'
+-- @
+--
+-- > let f x = maybe [x] (x:)
+-- > fromListUpsert f [(5,'a'), (5,'b'), (3,'c'), (3,'d'), (5,'e')] == fromList [(3,"dc"), (5,"eba")]
+--
+-- @since FIXME
+fromListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
+fromListUpsert f xs =
+  finishB (Foldable.foldl' (\b (kx, x) -> upsertB (f x) kx b) emptyB xs)
+{-# INLINE fromListUpsert #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order.
@@ -1285,3 +1312,14 @@ insertWithB f !ky y b = case b of
   where
     btip' kx !x = BTip kx x
 {-# INLINE insertWithB #-}
+
+-- Upsert a key-value. The given function is used to generate the value based
+-- on the existing value for the key.
+upsertB :: (Maybe a -> a) -> Key -> IntMapBuilder a -> IntMapBuilder a
+upsertB f !ky b = case b of
+  BNil -> btip' ky (f Nothing) BNada
+  BTip kx x stk -> case moveToB ky kx x stk of
+    MoveResult m stk' -> btip' ky (f m) stk'
+  where
+    btip' kx !x = BTip kx x
+{-# INLINE upsertB #-}
