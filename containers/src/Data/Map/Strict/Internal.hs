@@ -1434,7 +1434,7 @@ fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromA
 {--------------------------------------------------------------------
   Lists
 --------------------------------------------------------------------}
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs. See also 'fromAscList'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs.
 -- If the list contains more than one value for the same key, the last value
 -- for the key is retained.
 --
@@ -1449,7 +1449,7 @@ fromList xs =
   finishB (Foldable.foldl' (\b (kx, !x) -> insertB kx x b) emptyB xs)
 {-# INLINE fromList #-} -- INLINE for fusion
 
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWith'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
@@ -1459,6 +1459,8 @@ fromList xs =
 -- Note the reverse ordering of @"cba"@ in the example.
 --
 -- The symmetric combining function @f@ is applied in a left-fold over the list, as @f new old@.
+--
+-- See also: 'fromListUpsert'
 --
 -- === Performance
 --
@@ -1492,7 +1494,7 @@ fromListWith f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> insertWithB f kx x b) emptyB xs)
 {-# INLINE fromListWith #-}  -- INLINE for fusion
 
--- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function. See also 'fromAscListWithKey'.
+-- | \(O(n \log n)\). Build a map from a list of key\/value pairs with a combining function.
 --
 -- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
@@ -1501,6 +1503,8 @@ fromListWith f xs =
 -- > fromListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromListUpsert'
 
 fromListWithKey :: Ord k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromListWithKey f xs =
@@ -1512,8 +1516,8 @@ fromListWithKey f xs =
 --
 -- If the keys are in non-decreasing order, this function takes \(O(n)\) time.
 --
--- This behavior of this function is equivalent to performing an @upsert@ for
--- every key\/value in the list.
+-- The result is equivalent to performing an @upsert@ for every key\/value in
+-- the list.
 --
 -- @
 -- fromListUpsert f = foldl' (\\m (k, x) -> 'upsert' (f x) k m) 'empty'
