@@ -128,11 +128,12 @@ module Data.IntMap.Strict (
     , fromListWith
     , fromListWithKey
 
-    -- ** From Ascending Lists
+    -- ** From Ordered Lists
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
 
     -- * Insertion
     , insert

@@ -237,6 +237,7 @@ module Data.IntMap.Internal (
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
 
     -- * Filter
     , filter
@@ -296,6 +297,9 @@ module Data.IntMap.Internal (
     , Stack(..)
     , ascLinkTop
     , ascLinkAll
+    , descInsert
+    , descLinkTop
+    , descLinkAll
     , IntMapBuilder(..)
     , BStack(..)
     , emptyB
@@ -3605,6 +3609,22 @@ fromDistinctAscList :: [(Key,a)] -> IntMap a
 fromDistinctAscList = fromAscList
 {-# INLINE fromDistinctAscList #-} -- Inline for list fusion
 
+-- | \(O(n)\). Build a map from a list of key\/value pairs where
+-- the keys are in descending order.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
+--
+-- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3,"b"), (5,"a")]
+-- > fromDescList [(5,"a"), (5,"b"), (3,"b")] == fromList [(3,"b"), (5,"b")]
+--
+-- @since FIXME
+fromDescList :: [(Key,a)] -> IntMap a
+fromDescList xs =
+  descLinkAll (Foldable.foldl' (\s (ky, y) -> descInsert ky y s) MSNada xs)
+{-# INLINE fromDescList #-} -- Inline for list fusion
+
 data Stack a
   = Nada
   | Push {-# UNPACK #-} !Int !(IntMap a) !(Stack a)
@@ -3646,6 +3666,40 @@ ascLinkStack stk !rk r = case stk of
     | otherwise -> ascLinkStack stk' rk (Bin p l r)
     where
       p = mask rk m
+
+-- Insert an entry. The key must be <= the last inserted key. If it is equal
+-- to the previous key, the previous value is replaced.
+descInsert :: Int -> a -> MonoState a -> MonoState a
+descInsert !ky y s = case s of
+  MSNada -> MSPush ky y Nada
+  MSPush kx x stk
+    | kx == ky -> MSPush ky y stk
+    | otherwise -> let m = branchMask kx ky
+                   in MSPush ky y (descLinkTop kx (Tip kx x) m stk)
+{-# INLINE descInsert #-}
+
+descLinkTop :: Int -> IntMap a -> Int -> Stack a -> Stack a
+descLinkTop !lk l !lm stk = case stk of
+  Nada -> Push lm l stk
+  Push m r stk'
+    | i2w m < i2w lm -> let p = mask lk m
+                        in descLinkTop lk (Bin p l r) lm stk'
+    | otherwise -> Push lm l stk
+
+descLinkAll :: MonoState a -> IntMap a
+descLinkAll s = case s of
+  MSNada -> Nil
+  MSPush kx x stk -> descLinkStack kx (Tip kx x) stk
+{-# INLINABLE descLinkAll #-}
+
+descLinkStack :: Int -> IntMap a -> Stack a -> IntMap a
+descLinkStack !lk l stk = case stk of
+  Nada -> l
+  Push m r stk'
+    | signBranch p -> Bin p r l
+    | otherwise -> descLinkStack lk (Bin p l r) stk'
+    where
+      p = mask lk m
 
 {--------------------------------------------------------------------
   IntMapBuilder
