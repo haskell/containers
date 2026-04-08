@@ -75,7 +75,7 @@ jobs:
         cabal sdist containers --output-dir $GITHUB_WORKSPACE  # generates containers-VERSION.tar.gz
         cd $GITHUB_WORKSPACE
         mkdir unpacked
-        tar --extract --verbose --file $GITHUB_WORKSPACE/containers-*.tar.gz --directory $GITHUB_WORKSPACE/unpacked
+        tar --extract --verbose --file containers-*.tar.gz --directory unpacked
     - name: build
       run: |
         cd $GITHUB_WORKSPACE/unpacked/containers-*
