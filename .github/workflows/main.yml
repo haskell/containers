@@ -87,6 +87,7 @@ jobs:
     - name: test
       run: |
         cd $GITHUB_WORKSPACE/source
+        cabal build all:tests  # workaround for https://github.com/haskell/cabal/issues/11677
         cabal test all --test-show-details=direct --test-options="--quickcheck-tests=1000"
     - name: build benchmarks
       run: |
