@@ -78,13 +78,11 @@ jobs:
         tar --extract --verbose --file containers-*.tar.gz --directory unpacked
     - name: build
       run: |
-        DIR=$(ls unpacked | head -n 1)
-        cd unpacked/$DIR
+        cd unpacked/containers-*
         cabal build containers
     - name: haddock
       run: |
-        DIR=$(ls unpacked | head -n 1)
-        cd unpacked/$DIR
+        cd unpacked/containers-*
         cabal haddock containers
     - name: test
       run: |
