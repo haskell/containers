@@ -1,0 +1,93 @@
+name: main
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  main:
+    strategy:
+      matrix:
+        include:
+        - ghc: 9.14.1
+          os: ubuntu-24.04
+        - ghc: 9.12.2
+          os: ubuntu-24.04
+        - ghc: 9.10.3
+          os: ubuntu-24.04
+        - ghc: 9.8.4
+          os: ubuntu-24.04
+        - ghc: 9.6.6
+          os: ubuntu-24.04
+        - ghc: 9.4.8
+          os: ubuntu-24.04
+        - ghc: 9.2.8
+          os: ubuntu-24.04
+        - ghc: 9.0.2
+          os: ubuntu-24.04
+        - ghc: 8.10.7
+          os: ubuntu-24.04
+        - ghc: 8.8.4
+          os: ubuntu-24.04
+        - ghc: 8.6.5
+          os: ubuntu-24.04
+        - ghc: 8.4.4
+          os: ubuntu-24.04
+        - ghc: 8.2.2
+          os: ubuntu-24.04
+        - ghc: recommended
+          os: ubuntu-24.04-arm
+        - ghc: recommended
+          os: windows-latest
+        - ghc: recommended
+          os: macos-latest
+    name: ${{ matrix.os }} - ghc-${{ matrix.ghc }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+      with:
+        path: source
+    - name: set up GHC
+      uses: haskell/ghcup-setup@v1
+      with:
+        ghc: ${{ matrix.ghc }}
+        cabal: recommended
+    - name: print versions
+      run: |
+        ghc --version
+        cabal --version
+    - name: update cabal index
+      run: |
+        cabal update
+    - name: sdist and unpack
+      run: |
+        cd $GITHUB_WORKSPACE/source
+        cabal sdist containers --output-dir $GITHUB_WORKSPACE  # generates containers-VERSION.tar.gz
+        cd $GITHUB_WORKSPACE
+        mkdir unpacked
+        tar --extract --verbose --file $GITHUB_WORKSPACE/containers-*.tar.gz --directory $GITHUB_WORKSPACE/unpacked
+    - name: build
+      run: |
+        cd $GITHUB_WORKSPACE/unpacked/containers-*
+        cabal build containers
+    - name: haddock
+      run: |
+        cd $GITHUB_WORKSPACE/unpacked/containers-*
+        cabal haddock containers
+    - name: test
+      run: |
+        cd $GITHUB_WORKSPACE/source
+        cabal test all --test-show-details=direct --test-options="--quickcheck-tests=1000"
+    - name: build benchmarks
+      run: |
+        cd $GITHUB_WORKSPACE/source
+        cabal build all:benchmarks
