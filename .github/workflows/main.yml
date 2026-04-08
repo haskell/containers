@@ -71,25 +71,27 @@ jobs:
         cabal update
     - name: sdist and unpack
       run: |
-        cd $GITHUB_WORKSPACE/source
-        cabal sdist containers --output-dir $GITHUB_WORKSPACE  # generates containers-VERSION.tar.gz
-        cd $GITHUB_WORKSPACE
+        pushd source
+        cabal sdist containers --output-dir ..  # generates containers-VERSION.tar.gz
+        popd
         mkdir unpacked
         tar --extract --verbose --file containers-*.tar.gz --directory unpacked
     - name: build
       run: |
-        cd $GITHUB_WORKSPACE/unpacked/containers-*
+        DIR=$(ls unpacked | head -n 1)
+        cd unpacked/$DIR
         cabal build containers
     - name: haddock
       run: |
-        cd $GITHUB_WORKSPACE/unpacked/containers-*
+        DIR=$(ls unpacked | head -n 1)
+        cd unpacked/$DIR
         cabal haddock containers
     - name: test
       run: |
-        cd $GITHUB_WORKSPACE/source
+        cd source
         cabal build all:tests  # workaround for https://github.com/haskell/cabal/issues/11677
         cabal test all --test-show-details=direct --test-options="--quickcheck-tests=1000"
     - name: build benchmarks
       run: |
-        cd $GITHUB_WORKSPACE/source
+        cd source
         cabal build all:benchmarks
