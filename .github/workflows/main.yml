@@ -15,6 +15,7 @@ defaults:
 jobs:
   main:
     strategy:
+      fail-fast: false
       matrix:
         include:
         - ghc: 9.14.1
