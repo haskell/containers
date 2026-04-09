@@ -57,11 +57,12 @@ jobs:
       uses: actions/checkout@v6
       with:
         path: source
-    - name: set up GHC
+    - name: GHCup
       uses: haskell/ghcup-setup@v1
-      with:
-        ghc: ${{ matrix.ghc }}
-        cabal: recommended
+    - name: install GHC
+      run: |
+        ghcup --verbose install ghc --set ${{ matrix.ghc }}
+        ghcup --verbose install cabal --set recommended
     - name: print versions
       run: |
         ghc --version
