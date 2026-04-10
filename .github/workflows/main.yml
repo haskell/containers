@@ -17,6 +17,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Test with all supported GHC versions.
+        # Keep this in sync the tested-with field in containers.cabal.
+        # Addtionally, test on arm, windows, and macos.
         include:
         - ghc: 9.14.1
           os: ubuntu-24.04
