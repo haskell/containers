@@ -57,16 +57,18 @@ jobs:
       uses: actions/checkout@v6
       with:
         path: source
-    - name: GHCup
-      uses: haskell/ghcup-setup@v1
     - name: install deps
       if: ${{ matrix.ghc == '8.2.2' }}
       run: |
         sudo apt-get install -y libtinfo5  # See https://github.com/haskell/ghcup-hs/issues/947
-    - name: install GHC
-      run: |
-        ghcup --verbose install ghc --set ${{ matrix.ghc }}
-        ghcup --verbose install cabal --set recommended
+    - name: install ghc
+      uses: haskell/ghcup-setup@v1
+      with:
+        ghc: ${{ matrix.ghc }}
+        cabal: recommended
+        config: |
+          meta-cache: 0
+          verbose: True
     - name: print versions
       run: |
         ghc --version
