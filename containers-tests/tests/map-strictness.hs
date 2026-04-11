@@ -16,7 +16,12 @@ import qualified Data.List.NonEmpty as NE
 import Data.Ord (Down(..), comparing)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Semigroup (Arg(..))
-import Data.Tuple.Solo (Solo (MkSolo), getSolo)
+#if __GLASGOW_HASKELL__ < 906
+import Data.Tuple.Solo
+#else
+import Data.Tuple
+#endif
+  (Solo (MkSolo), getSolo)
 import Test.ChasingBottoms.IsBottom (bottom, isBottom)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
