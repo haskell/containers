@@ -15,7 +15,12 @@ import Data.Map (alterF)
 import Data.Maybe (fromMaybe)
 import Data.Functor ((<$))
 import Data.Coerce
-import Data.Tuple.Solo (Solo (MkSolo), getSolo)
+#if __GLASGOW_HASKELL__ < 908
+import Data.Tuple.Solo
+#else
+import Data.Tuple
+#endif
+  (Solo(MkSolo), getSolo)
 import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
 

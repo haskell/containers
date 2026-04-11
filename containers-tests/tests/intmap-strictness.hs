@@ -23,7 +23,7 @@ import Data.Tuple.Solo
 #else
 import Data.Tuple
 #endif
-  (Solo (MkSolo), getSolo)
+  (Solo(MkSolo), getSolo)
 import Test.QuickCheck
 import Test.QuickCheck.Poly (A, B, C)
 import Test.QuickCheck.Function (apply)

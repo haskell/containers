@@ -21,7 +21,7 @@ import Data.Tuple.Solo
 #else
 import Data.Tuple
 #endif
-  (Solo (MkSolo), getSolo)
+  (Solo(MkSolo), getSolo)
 import Test.ChasingBottoms.IsBottom (bottom, isBottom)
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
