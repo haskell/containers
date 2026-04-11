@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
@@ -9,7 +10,12 @@ import qualified Data.IntMap as M
 import qualified Data.IntMap.Strict as MS
 import qualified Data.IntSet as S
 import Data.Maybe (fromMaybe)
-import Data.Tuple.Solo (Solo (MkSolo), getSolo)
+#if __GLASGOW_HASKELL__ < 908
+import Data.Tuple.Solo
+#else
+import Data.Tuple
+#endif
+  (Solo(MkSolo), getSolo)
 import Data.Word (Word8)
 import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
