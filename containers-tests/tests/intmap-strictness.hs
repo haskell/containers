@@ -18,7 +18,7 @@ import Data.Ord (comparing)
 import Test.ChasingBottoms.IsBottom
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
-#if __GLASGOW_HASKELL__ < 906
+#if __GLASGOW_HASKELL__ < 908
 import Data.Tuple.Solo
 #else
 import Data.Tuple

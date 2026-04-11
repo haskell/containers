@@ -16,7 +16,7 @@ import qualified Data.List.NonEmpty as NE
 import Data.Ord (Down(..), comparing)
 import Data.Maybe (catMaybes, mapMaybe)
 import Data.Semigroup (Arg(..))
-#if __GLASGOW_HASKELL__ < 906
+#if __GLASGOW_HASKELL__ < 908
 import Data.Tuple.Solo
 #else
 import Data.Tuple
