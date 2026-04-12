@@ -82,7 +82,7 @@ jobs:
     - name: sdist and unpack
       run: |
         pushd source
-        cabal sdist containers --output-dir ..  # generates containers-VERSION.tar.gz
+        cabal sdist containers --output-directory ..  # generates containers-VERSION.tar.gz
         popd
         mkdir unpacked
         tar --extract --verbose --file containers-*.tar.gz --directory unpacked
