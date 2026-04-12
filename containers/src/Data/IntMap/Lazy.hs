@@ -109,6 +109,7 @@ module Data.IntMap.Lazy (
     , fromList
     , fromListWith
     , fromListWithKey
+    , fromListUpsert
 
     -- ** From Ordered Lists
     , fromAscList

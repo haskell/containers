@@ -269,6 +269,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testProperty "fromDescList"         prop_fromDescList
              , testProperty "fromListWith"         prop_fromListWith
              , testProperty "fromListWithKey"      prop_fromListWithKey
+             , testProperty "fromListUpsert"       prop_fromListUpsert
              , testProperty "compareSize"          prop_compareSize
              , testLaws $ Laws.eqLaws (Proxy :: Proxy (IntMap A))
              , testLaws $ Laws.ordLaws (Proxy :: Proxy (IntMap OrdA))
@@ -2204,6 +2205,13 @@ prop_fromListWithKey f kxs =
   m === List.foldl' (\m' (k,x) -> insertWith (applyFun3 f k) k x m') empty kxs
   where
     m = fromListWithKey (applyFun3 f) kxs
+
+prop_fromListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
+prop_fromListUpsert f kxs =
+  valid m' .&&.
+  m' === List.foldl' (\m (kx,x) -> upsert (applyFun2 f x) kx m) empty kxs
+  where
+    m' = fromListUpsert (applyFun2 f) kxs
 
 prop_compareSize :: IntMap A -> Int -> Property
 prop_compareSize t c = compareSize t c === compare (size t) c
