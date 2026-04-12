@@ -69,11 +69,12 @@ module Data.IntMap.Strict.Internal (
     , fromListWith
     , fromListWithKey
 
-    -- ** From Ascending Lists
+    -- ** From Ordered Lists
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
     , fromDistinctAscList
+    , fromDescList
 
     -- * Insertion
     , insert
@@ -246,6 +247,8 @@ import Data.IntMap.Internal
   , Stack(..)
   , ascLinkTop
   , ascLinkAll
+  , descInsert
+  , descLinkAll
   , IntMapBuilder(..)
   , BStack(..)
   , emptyB
@@ -1268,6 +1271,22 @@ fromDistinctAscList :: [(Key,a)] -> IntMap a
 -- See Note on Data.IntMap.Internal.fromDistinctAscList.
 fromDistinctAscList = fromAscList
 {-# INLINE fromDistinctAscList #-} -- Inline for list fusion
+
+-- | \(O(n)\). Build a map from a list of key\/value pairs where
+-- the keys are in descending order.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromList' if the
+-- precondition may not hold.
+--
+-- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3,"b"), (5,"a")]
+-- > fromDescList [(5,"a"), (5,"b"), (3,"b")] == fromList [(3,"b"), (5,"b")]
+--
+-- @since FIXME
+fromDescList :: [(Key,a)] -> IntMap a
+fromDescList xs =
+  descLinkAll (Foldable.foldl' (\s (!ky, !y) -> descInsert ky y s) MSNada xs)
+{-# INLINE fromDescList #-} -- Inline for list fusion
 
 {--------------------------------------------------------------------
   IntMapBuilder

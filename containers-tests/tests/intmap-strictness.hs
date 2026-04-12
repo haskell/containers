@@ -14,7 +14,7 @@ import Data.Functor.Identity (Identity(..))
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
-import Data.Ord (comparing)
+import Data.Ord (Down(..), comparing)
 import Test.ChasingBottoms.IsBottom
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
@@ -192,6 +192,17 @@ prop_lazyFromDistinctAscList :: [(Key, Bot A)] -> Property
 prop_lazyFromDistinctAscList kvs = isNotBottomProp (L.fromDistinctAscList kvs')
   where
     kvs' = uniqOn fst $ List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+
+prop_strictFromDescList :: [(Key, Bot A)] -> Property
+prop_strictFromDescList kvs =
+  isBottom (M.fromDescList kvs') === isBottom (M.fromList kvs')
+  where
+    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
+
+prop_lazyFromDescList :: [(Key, Bot A)] -> Property
+prop_lazyFromDescList kvs = isNotBottomProp (L.fromDescList kvs')
+  where
+    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
 
 prop_strictInsert :: Key -> Bot A -> IntMap A -> Property
 prop_strictInsert k (Bot x) m = isBottom (M.insert k x m) === isBottom x
@@ -1049,6 +1060,7 @@ tests =
       , testPropStrictLazy "fromAscListWith" prop_strictFromAscListWith prop_lazyFromAscListWith
       , testPropStrictLazy "fromAscListWithKey" prop_strictFromAscListWithKey prop_lazyFromAscListWithKey
       , testPropStrictLazy "fromDistinctAscList" prop_strictFromDistinctAscList prop_lazyFromDistinctAscList
+      , testPropStrictLazy "fromDescList" prop_strictFromDescList prop_lazyFromDescList
       , testPropStrictLazy "insert" prop_strictInsert prop_lazyInsert
       , testPropStrictLazy "insertWith" prop_strictInsertWith prop_lazyInsertWith
       , testPropStrictLazy "insertWithKey" prop_strictInsertWithKey prop_lazyInsertWithKey
