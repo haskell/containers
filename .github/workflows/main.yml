@@ -1,0 +1,105 @@
+name: main
+
+on:
+  push:
+    branches:
+    - master
+  pull_request:
+    branches:
+    - master
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  main:
+    strategy:
+      fail-fast: false
+      matrix:
+        # Test with all supported GHC versions.
+        # Keep this in sync the tested-with field in containers.cabal.
+        # Addtionally, test on arm, windows, and macos.
+        include:
+        - ghc: 9.14.1
+          os: ubuntu-24.04
+        - ghc: 9.12.2
+          os: ubuntu-24.04
+        - ghc: 9.10.3
+          os: ubuntu-24.04
+        - ghc: 9.8.4
+          os: ubuntu-24.04
+        - ghc: 9.6.6
+          os: ubuntu-24.04
+        - ghc: 9.4.8
+          os: ubuntu-24.04
+        - ghc: 9.2.8
+          os: ubuntu-24.04
+        - ghc: 9.0.2
+          os: ubuntu-24.04
+        - ghc: 8.10.7
+          os: ubuntu-24.04
+        - ghc: 8.8.4
+          os: ubuntu-24.04
+        - ghc: 8.6.5
+          os: ubuntu-24.04
+        - ghc: 8.4.4
+          os: ubuntu-24.04
+        - ghc: 8.2.2
+          os: ubuntu-22.04
+        - ghc: recommended
+          os: ubuntu-24.04-arm
+        - ghc: recommended
+          os: windows-latest
+        - ghc: recommended
+          os: macos-latest
+    name: ${{ matrix.os }} - ghc-${{ matrix.ghc }}
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: checkout
+      uses: actions/checkout@v6
+      with:
+        path: source
+    - name: install deps
+      if: ${{ matrix.ghc == '8.2.2' }}
+      run: |
+        sudo apt-get install -y libtinfo5  # See https://github.com/haskell/ghcup-hs/issues/947
+    - name: install ghc
+      uses: haskell/ghcup-setup@v1
+      with:
+        ghc: ${{ matrix.ghc }}
+        cabal: recommended
+        config: |
+          meta-cache: 0
+          verbose: True
+    - name: print versions
+      run: |
+        ghc --version
+        cabal --version
+    - name: update cabal index
+      run: |
+        cabal update
+    - name: sdist and unpack
+      run: |
+        pushd source
+        cabal sdist containers --output-directory ..  # generates containers-VERSION.tar.gz
+        popd
+        mkdir unpacked
+        tar --extract --verbose --file containers-*.tar.gz --directory unpacked
+    - name: build
+      run: |
+        cd unpacked/containers-*
+        cabal build containers
+    - name: haddock
+      run: |
+        cd unpacked/containers-*
+        cabal haddock containers
+    - name: test
+      run: |
+        cd source
+        cabal build all:tests  # workaround for https://github.com/haskell/cabal/issues/11677
+        cabal test all --test-show-details=direct --test-options="--quickcheck-tests=1000"
+    - name: build benchmarks
+      run: |
+        cd source
+        cabal build all:benchmarks
