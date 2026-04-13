@@ -108,11 +108,11 @@ import Utils.Containers.Internal.Prelude
 import Prelude ()
 #if USE_ST_MONAD
 import Control.Monad.ST
-import Data.Array.ST.Safe (newArray, readArray, writeArray)
+import Data.Array.ST (newArray, readArray, writeArray)
 # if USE_UNBOXED_ARRAYS
-import Data.Array.ST.Safe (STUArray)
+import Data.Array.ST (STUArray)
 # else
-import Data.Array.ST.Safe (STArray)
+import Data.Array.ST (STArray)
 # endif
 #else
 import Data.IntSet (IntSet)
