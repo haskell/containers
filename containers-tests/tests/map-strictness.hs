@@ -278,6 +278,22 @@ prop_lazyFromAscListWithKey fun kvs =
     f = coerce (applyFunc3 fun)
     kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(OrdA, A)]
 
+prop_strictFromAscListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(OrdA, Bot A)] -> Property
+prop_strictFromAscListUpsert fun kvs =
+  isBottom (M.fromAscListUpsert f kvs') === isBottom (M.fromListUpsert f kvs')
+  where
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
+    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(OrdA, A)]
+
+prop_lazyFromAscListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(OrdA, Bot A)] -> Property
+prop_lazyFromAscListUpsert fun kvs =
+  isNotBottomProp (L.fromAscListUpsert f kvs')
+  where
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
+    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(OrdA, A)]
+
 prop_strictFromDistinctAscList :: [(OrdA, Bot A)] -> Property
 prop_strictFromDistinctAscList kvs =
   isBottom (M.fromDistinctAscList kvs') === isBottom (M.fromList kvs')
@@ -328,6 +344,22 @@ prop_lazyFromDescListWithKey fun kvs =
   isNotBottomProp (L.fromDescListWithKey f kvs')
   where
     f = coerce (applyFunc3 fun)
+    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(OrdA, A)]
+
+prop_strictFromDescListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(OrdA, Bot A)] -> Property
+prop_strictFromDescListUpsert fun kvs =
+  isBottom (M.fromDescListUpsert f kvs') === isBottom (M.fromListUpsert f kvs')
+  where
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
+    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(OrdA, A)]
+
+prop_lazyFromDescListUpsert
+  :: Func2 A (Maybe B) (Bot B) -> [(OrdA, Bot A)] -> Property
+prop_lazyFromDescListUpsert fun kvs =
+  isNotBottomProp (L.fromDescListUpsert f kvs')
+  where
+    f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
     kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(OrdA, A)]
 
 prop_strictFromDistinctDescList :: [(OrdA, Bot A)] -> Property
@@ -1204,10 +1236,12 @@ tests =
       , testPropStrictLazy "fromAscList" prop_strictFromAscList prop_lazyFromAscList
       , testPropStrictLazy "fromAscListWith" prop_strictFromAscListWith prop_lazyFromAscListWith
       , testPropStrictLazy "fromAscListWithKey" prop_strictFromAscListWithKey prop_lazyFromAscListWithKey
+      , testPropStrictLazy "fromAscListUpsert" prop_strictFromAscListUpsert prop_lazyFromAscListUpsert
       , testPropStrictLazy "fromDistinctAscList" prop_strictFromDistinctAscList prop_lazyFromDistinctAscList
       , testPropStrictLazy "fromDescList" prop_strictFromDescList prop_lazyFromDescList
       , testPropStrictLazy "fromDescListWith" prop_strictFromDescListWith prop_lazyFromDescListWith
       , testPropStrictLazy "fromDescListWithKey" prop_strictFromDescListWithKey prop_lazyFromDescListWithKey
+      , testPropStrictLazy "fromDescListUpsert" prop_strictFromDescListUpsert prop_lazyFromDescListUpsert
       , testPropStrictLazy "fromDistinctDescList" prop_strictFromDistinctDescList prop_lazyFromDistinctDescList
       , testPropStrictLazy "insert" prop_strictInsert prop_lazyInsert
       , testPropStrictLazy "insertWith" prop_strictInsertWith prop_lazyInsertWith

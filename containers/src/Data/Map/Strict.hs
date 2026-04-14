@@ -137,12 +137,14 @@ module Data.Map.Strict
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
 
     -- ** From Descending Lists
     , fromDescList
     , fromDescListWith
     , fromDescListWithKey
+    , fromDescListUpsert
     , fromDistinctDescList
 
     -- * Insertion
