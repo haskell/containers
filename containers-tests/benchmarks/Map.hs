@@ -23,6 +23,7 @@ import Data.Tuple
   (Solo(MkSolo), getSolo)
 import System.Random (StdGen, mkStdGen, random, randoms)
 import Prelude hiding (lookup)
+import Utils.Containers.Internal.Strict (StrictPair(..))
 
 import Utils.Fold (foldBenchmarks, foldWithKeyBenchmarks)
 import Utils.Random (shuffle)
@@ -31,9 +32,10 @@ main = do
     let m = M.fromList elems :: M.Map Int Int
         m_even = M.fromList elems_even :: M.Map Int Int
         m_odd = M.fromList elems_odd :: M.Map Int Int
+        s_odd_keys = M.keysSet m_odd :: Set.Set Int
         s_random = Set.fromList keys_random :: Set.Set Int
     evaluate $ rnf [m, m_even, m_odd]
-    evaluate $ rnf [s_random]
+    evaluate $ rnf [s_random, s_odd_keys]
     evaluate $ rnf
       [elems_distinct_asc, elems_distinct_desc, elems_asc, elems_desc]
     evaluate $ rnf [keys_random]
@@ -144,6 +146,7 @@ main = do
         , bench "Lazy.fromSetA inner" $ whnf (getSolo . M.fromSetA (MkSolo . pred)) s_random
         , bench "Strict.fromSetA inner" $ whnf (getSolo . MS.fromSetA (MkSolo . pred)) s_random
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
+
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
         , bgroup "folds" $ foldBenchmarks M.foldr M.foldl M.foldr' M.foldl' foldMap m
@@ -153,6 +156,10 @@ main = do
         , bench "mapKeys:desc" $ whnf (M.mapKeys (negate . (+1))) m
         , bench "mapKeysWith:asc" $ whnf (M.mapKeysWith (+) (`div` 2)) m
         , bench "mapKeysWith:desc" $ whnf (M.mapKeysWith (+) (negate . (`div` 2))) m
+
+        , bench "restrictKeys" $ whnf (M.restrictKeys m) s_odd_keys
+        , bench "withoutKeys" $ whnf (M.withoutKeys m) s_odd_keys
+        , bench "partitionKeys" $ whnf (M.partitionKeys m) s_odd_keys
         ]
   where
     bound = 2^14

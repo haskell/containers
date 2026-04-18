@@ -243,6 +243,7 @@ module Data.Map.Strict.Internal
     , filterWithKey
     , restrictKeys
     , withoutKeys
+    , partitionKeys
     , partition
     , partitionWithKey
     , takeWhileAntitone
@@ -410,7 +411,8 @@ import Data.Map.Internal
   , toDescList
   , union
   , unions
-  , withoutKeys )
+  , withoutKeys
+  , partitionKeys )
 
 import Data.Map.Internal.Debug (valid)
 
