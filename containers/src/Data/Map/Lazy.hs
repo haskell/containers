@@ -123,12 +123,14 @@ module Data.Map.Lazy (
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
 
     -- ** From Descending Lists
     , fromDescList
     , fromDescListWith
     , fromDescListWithKey
+    , fromDescListUpsert
     , fromDistinctDescList
 
     -- * Insertion

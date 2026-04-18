@@ -237,8 +237,10 @@ module Data.IntMap.Internal (
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
     , fromDescList
+    , fromDescListUpsert
 
     -- * Filter
     , filter
@@ -3588,6 +3590,8 @@ fromAscList xs =
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromAscListUpsert'
 
 fromAscListWith :: (a -> a -> a) -> [(Key,a)] -> IntMap a
 fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
@@ -3605,6 +3609,8 @@ fromAscListWith f xs = fromAscListWithKey (\_ x y -> f x y) xs
 -- > fromAscListWithKey f [] == empty
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromAscListUpsert'
 
 -- See Note [fromAscList implementation]
 fromAscListWithKey :: (Key -> a -> a -> a) -> [(Key,a)] -> IntMap a
@@ -3617,6 +3623,29 @@ fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
         | otherwise -> let m = branchMask kx ky
                        in MSPush ky y (ascLinkTop stk kx (Tip kx x) m)
 {-# INLINE fromAscListWithKey #-} -- Inline for list fusion
+
+-- | \(O(n)\). Build a map from an ascending list in linear time with a
+-- combining function for equal keys.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListUpsert'
+-- if the precondition may not hold.
+--
+-- > let f x = maybe [x] (x:)
+-- > fromAscListUpsert f [(3,'a'), (3,'b'), (5,'c'), (5,'d'), (5,'e')] == fromList [(3,"ba"), (5,"edc")]
+--
+-- @since FIXME
+fromAscListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
+fromAscListUpsert f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
+  where
+    next s (!ky, y) = case s of
+      MSNada -> MSPush ky (f y Nothing) Nada
+      MSPush kx x stk
+        | kx == ky -> MSPush ky (f y (Just x)) stk
+        | otherwise ->
+            let m = branchMask kx ky
+            in MSPush ky (f y Nothing) (ascLinkTop stk kx (Tip kx x) m)
+{-# INLINE fromAscListUpsert #-} -- Inline for list fusion
 
 -- | \(O(n)\). Build a map from a list of key\/value pairs where
 -- the keys are in ascending order and all distinct.
@@ -3651,6 +3680,29 @@ fromDescList :: [(Key,a)] -> IntMap a
 fromDescList xs =
   descLinkAll (Foldable.foldl' (\s (ky, y) -> descInsert ky y s) MSNada xs)
 {-# INLINE fromDescList #-} -- Inline for list fusion
+
+-- | \(O(n)\). Build a map from a descending list in linear time with a
+-- combining function for equal keys.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromListUpsert'
+-- if the precondition may not hold.
+--
+-- > let f x = maybe [x] (x:)
+-- > fromDescListUpsert f [(5,'a'), (5,'b'), (5,'c'), (3,'d'), (3,'e')] == fromList [(3,"ed"), (5,"cba")]
+--
+-- @since FIXME
+fromDescListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
+fromDescListUpsert f xs = descLinkAll (Foldable.foldl' next MSNada xs)
+  where
+    next s (!ky, y) = case s of
+      MSNada -> MSPush ky (f y Nothing) Nada
+      MSPush kx x stk
+        | kx == ky -> MSPush ky (f y (Just x)) stk
+        | otherwise ->
+            let m = branchMask kx ky
+            in MSPush ky (f y Nothing) (descLinkTop kx (Tip kx x) m stk)
+{-# INLINE fromDescListUpsert #-} -- Inline for list fusion
 
 data Stack a
   = Nada
