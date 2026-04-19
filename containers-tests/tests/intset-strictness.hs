@@ -12,7 +12,7 @@ import Test.QuickCheck.Poly (B)
 import Data.IntSet (IntSet)
 import qualified Data.IntSet as S
 
-import Utils.NubSorted (NubSorted(..))
+import Utils.QuickCheck (NubSorted(..))
 import Utils.Strictness (Bot(..), Func2, applyFunc2)
 
 ------------------------------------------------------------------------
