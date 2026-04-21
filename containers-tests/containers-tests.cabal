@@ -86,8 +86,8 @@ library
   -- this is important for testing; may it affect benchmarks?
   cpp-options:      -DTESTING
 
-  include-dirs:     include
-  hs-source-dirs:   src
+  include-dirs:     ../containers/include
+  hs-source-dirs:   ../containers/src
 
   ghc-options:      -O2 -Wall
   if impl(ghc >= 8.6)
