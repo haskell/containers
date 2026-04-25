@@ -115,8 +115,10 @@ module Data.IntMap.Lazy (
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
     , fromDescList
+    , fromDescListUpsert
 
     -- * Insertion
     , insert

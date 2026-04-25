@@ -133,8 +133,10 @@ module Data.IntMap.Strict (
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
     , fromDescList
+    , fromDescListUpsert
 
     -- * Insertion
     , insert

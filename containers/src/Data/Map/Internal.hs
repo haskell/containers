@@ -284,10 +284,12 @@ module Data.Map.Internal (
     , fromAscList
     , fromAscListWith
     , fromAscListWithKey
+    , fromAscListUpsert
     , fromDistinctAscList
     , fromDescList
     , fromDescListWith
     , fromDescListWithKey
+    , fromDescListUpsert
     , fromDistinctDescList
 
     -- * Filter
@@ -3661,6 +3663,8 @@ fromDescList xs = fromDescListWithKey (\_ x _ -> x) xs
 -- > fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")] == fromList [(3, "b"), (5, "ba")]
 -- > valid (fromAscListWith (++) [(3,"b"), (5,"a"), (5,"b")]) == True
 -- > valid (fromAscListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
+--
+-- See also: 'fromAscListUpsert'
 
 fromAscListWith :: Eq k => (a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWith f xs
@@ -3678,6 +3682,8 @@ fromAscListWith f xs
 -- > valid (fromDescListWith (++) [(5,"a"), (3,"b"), (5,"b")]) == False
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromDescListUpsert'
 --
 -- @since 0.5.8
 
@@ -3699,6 +3705,8 @@ fromDescListWith f xs
 -- > valid (fromAscListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"c")]) == False
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromAscListUpsert'
 
 fromAscListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next Nada xs)
@@ -3724,6 +3732,8 @@ fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next Nada xs)
 -- > valid (fromDescListWithKey f [(5,"a"), (3,"b"), (5,"b"), (5,"b")]) == False
 --
 -- Also see the performance note on 'fromListWith'.
+--
+-- See also: 'fromDescListUpsert'
 
 fromDescListWithKey :: Eq k => (k -> a -> a -> a) -> [(k,a)] -> Map k a
 fromDescListWithKey f xs = descLinkAll (Foldable.foldl' next Nada xs)
@@ -3736,6 +3746,49 @@ fromDescListWithKey f xs = descLinkAll (Foldable.foldl' next Nada xs)
       Nada -> Push ky y Tip stk
 {-# INLINE fromDescListWithKey #-}  -- INLINE for fusion
 
+-- | \(O(n)\). Build a map from an ascending list in linear time with a
+-- combining function for equal keys.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-decreasing order. This precondition is not checked. Use 'fromListUpsert'
+-- if the precondition may not hold.
+--
+-- > let f x = maybe [x] (x:)
+-- > fromAscListUpsert f [(3,'a'), (3,'b'), (5,'c'), (5,'d'), (5,'e')] == fromList [(3,"ba"), (5,"edc")]
+--
+-- @since FIXME
+fromAscListUpsert :: Eq k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
+fromAscListUpsert f xs = ascLinkAll (Foldable.foldl' next Nada xs)
+  where
+    next stk (!ky, y) = case stk of
+      Push kx x l stk'
+        | ky == kx -> Push ky (f y (Just x)) l stk'
+        | Tip <- l -> ascLinkTop stk' 1 (singleton kx x) ky (f y Nothing)
+        | otherwise -> Push ky (f y Nothing) Tip stk
+      Nada -> Push ky (f y Nothing) Tip stk
+{-# INLINE fromAscListUpsert #-}  -- INLINE for fusion
+
+-- | \(O(n)\). Build a map from a descending list in linear time with a
+-- combining function for equal keys.
+--
+-- __Warning__: This function should be used only if the keys are in
+-- non-increasing order. This precondition is not checked. Use 'fromListUpsert'
+-- if the precondition may not hold.
+--
+-- > let f x = maybe [x] (x:)
+-- > fromDescListUpsert f [(5,'a'), (5,'b'), (5,'c'), (3,'d'), (3,'e')] == fromList [(3,"ed"), (5,"cba")]
+--
+-- @since FIXME
+fromDescListUpsert :: Eq k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
+fromDescListUpsert f xs = descLinkAll (Foldable.foldl' next Nada xs)
+  where
+    next stk (!ky, y) = case stk of
+      Push kx x r stk'
+        | ky == kx -> Push ky (f y (Just x)) r stk'
+        | Tip <- r -> descLinkTop ky (f y Nothing) 1 (singleton kx x) stk'
+        | otherwise -> Push ky (f y Nothing) Tip stk
+      Nada -> Push ky (f y Nothing) Tip stk
+{-# INLINE fromDescListUpsert #-}  -- INLINE for fusion
 
 -- | \(O(n)\). Build a map from an ascending list of distinct elements in linear time.
 --

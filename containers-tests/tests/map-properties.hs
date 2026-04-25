@@ -201,10 +201,12 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "fromAscList"          prop_fromAscList
          , testProperty "fromAscListWith"      prop_fromAscListWith
          , testProperty "fromAscListWithKey"   prop_fromAscListWithKey
+         , testProperty "fromAscListUpsert"    prop_fromAscListUpsert
          , testProperty "fromDistinctAscList"  prop_fromDistinctAscList
          , testProperty "fromDescList"         prop_fromDescList
          , testProperty "fromDescListWith"     prop_fromDescListWith
          , testProperty "fromDescListWithKey"  prop_fromDescListWithKey
+         , testProperty "fromDescListUpsert"   prop_fromDescListUpsert
          , testProperty "fromDistinctDescList" prop_fromDistinctDescList
          , testProperty "fromList then toList" prop_list
          , testProperty "toDescList"           prop_descList
@@ -1419,6 +1421,14 @@ prop_fromDistinctDescList kxs =
       List.sortBy (comparing (Down . fst)) kxs
     t = fromDistinctDescList nubDownSortedKxs
 
+prop_fromDescListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
+prop_fromDescListUpsert f kxs =
+  valid t .&&.
+  t === fromListUpsert (applyFun2 f) downSortedKxs
+  where
+    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
+    t = fromDescListUpsert (applyFun2 f) downSortedKxs
+
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
   where m = fromList $ zip xs $ repeat ()
@@ -1453,6 +1463,14 @@ prop_fromAscListWithKey f kxs =
   where
     sortedKxs = List.sortBy (comparing fst) kxs
     t = fromAscListWithKey (apply3 f) sortedKxs
+
+prop_fromAscListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
+prop_fromAscListUpsert f kxs =
+  valid t .&&.
+  t === fromListUpsert (applyFun2 f) sortedKxs
+  where
+    sortedKxs = List.sortBy (comparing fst) kxs
+    t = fromAscListUpsert (applyFun2 f) sortedKxs
 
 prop_fromDistinctAscList :: [(Int, A)] -> Property
 prop_fromDistinctAscList kxs =
