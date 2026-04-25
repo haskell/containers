@@ -160,7 +160,7 @@ Create a sequence from a list
 ::
 
     Seq.fromList :: [a] -> Seq a
-    Seq.FromList xs = ...
+    Seq.fromList xs = ...
 
 :haddock_short:`/Data.Sequence#fromList` creates a sequence containing the
 elements of the list ``xs``. Sequences allow duplicate so all elements will be
@@ -200,19 +200,7 @@ Create a list from a sequence
 
 ::
 
-    import qualified Data.Foldable as Foldable
-    Foldable.toList :: Seq a -> [a]
-
-
-There is no ``toList`` function in the Sequence module since it can be
-`easily implemented <https://wiki.haskell.org/Foldable_and_Traversable>`_ with a
-fold using ``Seq``'s `Foldable
-<https://wiki.haskell.org/Typeclassopedia#Foldable>`_ instance.
-
-::
-
-    import qualified Data.Foldable as Foldable
-    Foldable.toList (Seq.fromList ["base", "containers", "QuickCheck"])
+    Seq.toList (Seq.fromList ["base", "containers", "QuickCheck"])
     > ["base","containers","QuickCheck"]
 
 
