@@ -33,7 +33,7 @@ import qualified Data.Set as Set
 import qualified Data.IntSet as IntSet
 import Data.IntSet (IntSet)
 #ifdef __GLASGOW_HASKELL__
-import GHC.Exts ( build )
+import GHC.Exts (build, oneShot)
 #endif
 
 -- *** Ord-based nubbing ***
@@ -72,9 +72,8 @@ nubOrd = nubOrdOn id
 --
 -- @since 0.6.0.1
 nubOrdOn :: Ord b => (a -> b) -> [a] -> [a]
--- For some reason we need to write an explicit lambda here to allow this
--- to inline when only applied to a function.
-nubOrdOn f = \xs -> nubOrdOnExcluding f Set.empty xs
+nubOrdOn f =  -- Inline with 1 arg
+  \xs -> nubOrdOnExcluding f Set.empty xs
 {-# INLINE nubOrdOn #-}
 
 -- Splitting nubOrdOn like this means that we don't have to worry about
@@ -110,11 +109,13 @@ nubOrdOnFB :: Ord b
            -> (Set b -> r)
            -> Set b
            -> r
-nubOrdOnFB f c x r s
-  | fx `Set.member` s = r s
-  | otherwise = x `c` r (Set.insert fx s)
-  where !fx = f x
-{-# INLINABLE [0] nubOrdOnFB #-}
+nubOrdOnFB f c =  -- Inline with 2 args
+  \x r -> oneShot (\s ->
+    let !y = f x
+    in if y `Set.member` s
+       then r s
+       else x `c` r (Set.insert y s))
+{-# INLINE [0] nubOrdOnFB #-}
 
 constNubOn :: a -> b -> a
 constNubOn x _ = x
@@ -153,9 +154,8 @@ nubInt = nubIntOn id
 --
 -- @since 0.6.0.1
 nubIntOn :: (a -> Int) -> [a] -> [a]
--- For some reason we need to write an explicit lambda here to allow this
--- to inline when only applied to a function.
-nubIntOn f = \xs -> nubIntOnExcluding f IntSet.empty xs
+nubIntOn f =  -- Inline with 1 arg
+  \xs -> nubIntOnExcluding f IntSet.empty xs
 {-# INLINE nubIntOn #-}
 
 -- Splitting nubIntOn like this means that we don't have to worry about
@@ -189,9 +189,11 @@ nubIntOnFB :: (a -> Int)
            -> (IntSet -> r)
            -> IntSet
            -> r
-nubIntOnFB f c x r s
-  | fx `IntSet.member` s = r s
-  | otherwise = x `c` r (IntSet.insert fx s)
-  where !fx = f x
-{-# INLINABLE [0] nubIntOnFB #-}
+nubIntOnFB f c =  -- Inline with 2 args
+  \x r -> oneShot (\s ->
+    let !y = f x
+    in if y `IntSet.member` s
+       then r s
+       else x `c` r (IntSet.insert y s))
+{-# INLINE [0] nubIntOnFB #-}
 #endif

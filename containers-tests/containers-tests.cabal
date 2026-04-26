@@ -286,6 +286,14 @@ benchmark set-operations-set
   build-depends:
       benchmark-utils
 
+benchmark listutils
+  import: benchmark-deps, warnings
+  default-language: Haskell2010
+  type:           exitcode-stdio-1.0
+  hs-source-dirs: benchmarks
+  main-is:        ListUtils.hs
+  ghc-options:    -O2
+
 benchmark lookupge-intmap
   import: benchmark-deps, warnings
   default-language: Haskell2010
