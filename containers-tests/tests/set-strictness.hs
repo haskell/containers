@@ -12,7 +12,7 @@ import Data.Set (Set)
 import qualified Data.Set as S
 
 import Utils.ArbitrarySetMap (setFromList)
-import Utils.NubSorted (NubSorted(..))
+import Utils.QuickCheck (NubSorted(..))
 import Utils.Strictness (Bot(..), Func2, applyFunc2)
 
 ------------------------------------------------------------------------

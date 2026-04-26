@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 import Control.Applicative (Const(..))
 import Data.Bits ((.&.), popCount)
+import Data.Coerce (coerce)
 import Data.Word (Word)
 import Data.IntSet
 import Data.List (nub,sort)
@@ -8,6 +9,7 @@ import qualified Data.List as List
 import Data.Maybe (listToMaybe)
 import qualified Data.Maybe as Maybe
 import Data.Monoid (mempty)
+import Data.Ord (Down(..))
 import Data.Proxy (Proxy(..))
 import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
@@ -20,6 +22,7 @@ import Test.Tasty.HUnit
 import Test.Tasty.QuickCheck hiding ((.&.))
 import qualified Test.QuickCheck.Classes.Base as Laws
 
+import Utils.QuickCheck (NubSorted(..))
 import Utils.QuickCheckClasses (testLaws)
 
 main :: IO ()
@@ -567,31 +570,32 @@ prop_deleteMin s = toList (deleteMin s) === if null s then [] else tail (toList 
 prop_deleteMax :: IntSet -> Property
 prop_deleteMax s = toList (deleteMax s) === if null s then [] else init (toList s)
 
-prop_fromAscList :: [Int] -> Property
-prop_fromAscList xs =
+prop_fromAscList :: SortedList Int -> Property
+prop_fromAscList (Sorted xs) =
     valid t .&&.
-    toList t === nubSortedXs
+    t === fromList xs .&&.
+    toList t === nubXs
   where
-    sortedXs = sort xs
-    nubSortedXs = List.map NE.head $ NE.group sortedXs
-    t = fromAscList sortedXs
+    nubXs = List.map NE.head $ NE.group xs
+    t = fromAscList xs
 
-prop_fromDistinctAscList :: [Int] -> Property
-prop_fromDistinctAscList xs =
+prop_fromDistinctAscList :: NubSorted Int -> Property
+prop_fromDistinctAscList (NubSorted xs) =
     valid t .&&.
-    toList t === nubSortedXs
+    t === fromList xs .&&.
+    toList t === xs
   where
-    nubSortedXs = List.map NE.head $ NE.group $ sort xs
-    t = fromDistinctAscList nubSortedXs
+    t = fromDistinctAscList xs
 
-prop_fromDescList :: [Int] -> Property
-prop_fromDescList xs =
+prop_fromDescList :: SortedList (Down Int) -> Property
+prop_fromDescList xs' =
     valid t .&&.
-    toList t === nubSortedXs
+    t === fromList xs .&&.
+    toList t === reverse nubXs
   where
-    sortedXs = sort xs
-    nubSortedXs = List.map NE.head $ NE.group sortedXs
-    t = fromDescList (reverse sortedXs)
+    xs = coerce xs' :: [Int]
+    nubXs = List.map NE.head $ NE.group xs
+    t = fromDescList xs
 
 prop_compareSize :: IntSet -> Int -> Property
 prop_compareSize t c = compareSize t c === compare (size t) c

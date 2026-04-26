@@ -17,6 +17,7 @@ import Control.Monad.Trans.State.Strict
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Writer.Lazy
 import Control.Monad ((<=<))
+import Data.Coerce (coerce)
 import qualified Data.Either as Either
 import Data.Functor.Identity (Identity(Identity, runIdentity))
 import Data.Monoid
@@ -34,8 +35,6 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
-import Data.List.NonEmpty (NonEmpty(..))
-import qualified Data.List.NonEmpty as NE
 import qualified Data.Set as Set
 
 import Test.Tasty
@@ -46,6 +45,7 @@ import Test.QuickCheck.Poly (A, B, C, OrdA)
 import qualified Test.QuickCheck.Classes.Base as Laws
 
 import Utils.ArbitrarySetMap (mkArbMap)
+import Utils.QuickCheck (NubSortedOnFst(..), SortedOnFst(..))
 import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
@@ -1386,48 +1386,48 @@ prop_list xs = (sort (nub xs) == [x | (x,()) <- toList (fromList [(x,()) | x <- 
 prop_descList :: [Int] -> Bool
 prop_descList xs = (reverse (sort (nub xs)) == [x | (x,()) <- toDescList (fromList [(x,()) | x <- xs])])
 
-prop_fromDescList :: [(Int, A)] -> Property
-prop_fromDescList kxs =
+prop_fromDescList :: SortedOnFst (Down Int) A -> Property
+prop_fromDescList kxs' =
     valid t .&&.
     t === fromList kxs
   where
-    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
-    t = fromDescList downSortedKxs
+    kxs = coerce kxs' :: [(Int, A)]
+    t = fromDescList kxs
 
-prop_fromDescListWith :: Fun (A, A) A -> [(Int, A)] -> Property
-prop_fromDescListWith f kxs =
+prop_fromDescListWith :: Fun (A, A) A -> SortedOnFst (Down Int) A -> Property
+prop_fromDescListWith f kxs' =
     valid t .&&.
-    t === fromListWith (apply2 f) downSortedKxs
+    t === fromListWith (applyFun2 f) kxs
   where
-    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
-    t = fromDescListWith (apply2 f) downSortedKxs
+    kxs = coerce kxs' :: [(Int, A)]
+    t = fromDescListWith (applyFun2 f) kxs
 
-prop_fromDescListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
-prop_fromDescListWithKey f kxs =
+prop_fromDescListWithKey
+  :: Fun (Int, A, A) A -> SortedOnFst (Down Int) A -> Property
+prop_fromDescListWithKey f kxs' =
     valid t .&&.
-    t === fromListWithKey (apply3 f) downSortedKxs
+    t === fromListWithKey (applyFun3 f) kxs
   where
-    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
-    t = fromDescListWithKey (apply3 f) downSortedKxs
+    kxs = coerce kxs' :: [(Int, A)]
+    t = fromDescListWithKey (applyFun3 f) kxs
 
-prop_fromDistinctDescList :: [(Int, A)] -> Property
-prop_fromDistinctDescList kxs =
+prop_fromDistinctDescList :: NubSortedOnFst (Down Int) A -> Property
+prop_fromDistinctDescList kxs' =
     valid t .&&.
-    toList t === reverse nubDownSortedKxs
+    t === fromList kxs .&&.
+    toList t === reverse kxs
   where
-    nubDownSortedKxs =
-      List.map NE.head $
-      NE.groupBy ((==) `on` fst) $
-      List.sortBy (comparing (Down . fst)) kxs
-    t = fromDistinctDescList nubDownSortedKxs
+    kxs = coerce kxs' :: [(Int, A)]
+    t = fromDistinctDescList kxs
 
-prop_fromDescListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
-prop_fromDescListUpsert f kxs =
+prop_fromDescListUpsert
+  :: Fun (A, Maybe B) B -> SortedOnFst (Down Int) A -> Property
+prop_fromDescListUpsert f kxs' =
   valid t .&&.
-  t === fromListUpsert (applyFun2 f) downSortedKxs
+  t === fromListUpsert (applyFun2 f) kxs
   where
-    downSortedKxs = List.sortBy (comparing (Down . fst)) kxs
-    t = fromDescListUpsert (applyFun2 f) downSortedKxs
+    kxs = coerce kxs' :: [(Int, A)]
+    t = fromDescListUpsert (applyFun2 f) kxs
 
 prop_ascDescList :: [Int] -> Bool
 prop_ascDescList xs = toAscList m == reverse (toDescList m)
@@ -1440,48 +1440,41 @@ prop_fromList xs
            t == List.foldr (uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
 
-prop_fromAscList :: [(Int, A)] -> Property
-prop_fromAscList kxs =
+prop_fromAscList :: SortedOnFst Int A -> Property
+prop_fromAscList (SortedOnFst kxs) =
     valid t .&&.
-    t === fromList sortedKxs
+    t === fromList kxs
   where
-    sortedKxs = List.sortBy (comparing fst) kxs
-    t = fromAscList sortedKxs
+    t = fromAscList kxs
 
-prop_fromAscListWith :: Fun (A, A) A -> [(Int, A)] -> Property
-prop_fromAscListWith f kxs =
+prop_fromAscListWith :: Fun (A, A) A -> SortedOnFst Int A -> Property
+prop_fromAscListWith f (SortedOnFst kxs) =
     valid t .&&.
-    t === fromListWith (apply2 f) sortedKxs
+    t === fromListWith (applyFun2 f) kxs
   where
-    sortedKxs = List.sortBy (comparing fst) kxs
-    t = fromAscListWith (apply2 f) sortedKxs
+    t = fromAscListWith (applyFun2 f) kxs
 
-prop_fromAscListWithKey :: Fun (Int, A, A) A -> [(Int, A)] -> Property
-prop_fromAscListWithKey f kxs =
+prop_fromAscListWithKey :: Fun (Int, A, A) A -> SortedOnFst Int A -> Property
+prop_fromAscListWithKey f (SortedOnFst kxs) =
     valid t .&&.
-    t === fromListWithKey (apply3 f) sortedKxs
+    t === fromListWithKey (applyFun3 f) kxs
   where
-    sortedKxs = List.sortBy (comparing fst) kxs
-    t = fromAscListWithKey (apply3 f) sortedKxs
+    t = fromAscListWithKey (applyFun3 f) kxs
 
-prop_fromAscListUpsert :: Fun (A, Maybe B) B -> [(Int, A)] -> Property
-prop_fromAscListUpsert f kxs =
+prop_fromAscListUpsert :: Fun (A, Maybe B) B -> SortedOnFst Int A -> Property
+prop_fromAscListUpsert f (SortedOnFst kxs) =
   valid t .&&.
-  t === fromListUpsert (applyFun2 f) sortedKxs
+  t === fromListUpsert (applyFun2 f) kxs
   where
-    sortedKxs = List.sortBy (comparing fst) kxs
-    t = fromAscListUpsert (applyFun2 f) sortedKxs
+    t = fromAscListUpsert (applyFun2 f) kxs
 
-prop_fromDistinctAscList :: [(Int, A)] -> Property
-prop_fromDistinctAscList kxs =
+prop_fromDistinctAscList :: NubSortedOnFst Int A -> Property
+prop_fromDistinctAscList (NubSortedOnFst kxs) =
     valid t .&&.
-    toList t === nubSortedKxs
+    t === fromList kxs .&&.
+    toList t === kxs
   where
-    nubSortedKxs =
-      List.map NE.head $
-      NE.groupBy ((==) `on` fst) $
-      List.sortBy (comparing fst) kxs
-    t = fromDistinctAscList nubSortedKxs
+    t = fromDistinctAscList kxs
 
 prop_fromListWith :: Fun (A, A) A -> [(Int, A)] -> Property
 prop_fromListWith f kxs =

@@ -329,7 +329,7 @@ library test-utils
     IntSetValidity
     Utils.ArbitrarySetMap
     Utils.MergeFunc
-    Utils.NubSorted
+    Utils.QuickCheck
     Utils.QuickCheckClasses
     Utils.Strictness
 
