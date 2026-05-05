@@ -73,6 +73,9 @@ Library
         Data.Map.Strict.Internal
         Data.Map.Strict
         Data.Map.Merge.Strict
+        Data.Map.Merge.Set.Internal
+        Data.Map.Merge.Set.Lazy
+        Data.Map.Merge.Set.Strict
         Data.Map.Internal
         Data.Map.Internal.Debug
         Data.Set.Internal

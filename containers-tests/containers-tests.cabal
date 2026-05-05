@@ -117,6 +117,9 @@ library
     Data.Map.Lazy
     Data.Map.Merge.Lazy
     Data.Map.Merge.Strict
+    Data.Map.Merge.Set.Internal
+    Data.Map.Merge.Set.Lazy
+    Data.Map.Merge.Set.Strict
     Data.Map.Strict
     Data.Map.Strict.Internal
     Data.Sequence

@@ -1,9 +1,14 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE DerivingStrategies #-}
+
 module Utils.MergeFunc
   ( WhenMatchedFunc(..)
   , WhenMissingFunc(..)
+  , MapSet_WhenMatchedFunc(..)
+  , MapSet_WhenMissingSetFunc(..)
   ) where
 
-import Test.QuickCheck
+import Test.QuickCheck (CoArbitrary, Function, Arbitrary(..), oneof)
 import Utils.Strictness (Func, Func2, Func3)
 
 -- k: key, x: left map value, y: right map value, z: result map value,
@@ -69,3 +74,30 @@ instance
     MapMissingFunc fun -> MapMissingFunc <$> shrink fun
     FmapMapMissingFunc fun2 fun1 ->
       uncurry FmapMapMissingFunc <$> shrink (fun2, fun1)
+
+-- For Set-Map to Map merge.
+-- k: key, a: map value, b: result map value
+data MapSet_WhenMatchedFunc k a b
+  = MapSet_MapMaybeMatchedFunc (Func2 k a (Maybe b))
+  | MapSet_MapMatchedFunc (Func2 k a b)
+  deriving Show
+
+instance
+  ( CoArbitrary k, Function k
+  , CoArbitrary a, Function a
+  , Arbitrary b
+  ) => Arbitrary (MapSet_WhenMatchedFunc k a b) where
+  arbitrary = oneof
+    [ MapSet_MapMaybeMatchedFunc <$> arbitrary
+    , MapSet_MapMatchedFunc <$> arbitrary
+    ]
+  shrink wmf = case wmf of
+    MapSet_MapMaybeMatchedFunc fun -> MapSet_MapMaybeMatchedFunc <$> shrink fun
+    MapSet_MapMatchedFunc fun -> MapSet_MapMatchedFunc <$> shrink fun
+
+-- For Set-Map to Map merge.
+-- k: key, a: result map value
+newtype MapSet_WhenMissingSetFunc k a
+  = MapSet_GenerateMissingSetFunc (Func k a)
+  deriving stock Show
+  deriving newtype Arbitrary
