@@ -4,9 +4,11 @@
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
 import Data.Map.Merge.Strict
+import qualified Data.Map.Merge.Set.Strict as MergeSet
 #else
 import Data.Map.Lazy as Data.Map
 import Data.Map.Merge.Lazy
+import qualified Data.Map.Merge.Set.Lazy as MergeSet
 #endif
 import Data.Map.Internal (Map, link2, link)
 import Data.Map.Internal.Debug (showTree, showTreeWith, balanced)
@@ -35,6 +37,7 @@ import qualified Prelude
 
 import Data.List (nub,sort)
 import qualified Data.List as List
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Test.Tasty
@@ -44,8 +47,8 @@ import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
 import qualified Test.QuickCheck.Classes.Base as Laws
 
-import Utils.ArbitrarySetMap (mkArbMap)
-import Utils.QuickCheck (NubSortedOnFst(..), SortedOnFst(..))
+import Utils.ArbitrarySetMap (mkArbMap, setFromList)
+import Utils.QuickCheck (NubSorted(..), NubSortedOnFst(..), SortedOnFst(..))
 import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
@@ -320,6 +323,8 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mapAccum"             prop_mapAccum
          , testProperty "mapAccumWithKey"      prop_mapAccumWithKey
          , testProperty "mapAccumRWithKey"     prop_mapAccumRWithKey
+         , testProperty "Merge.Set.merge"      prop_mergeMapSet
+         , testProperty "Merge.Set.mergeA"     prop_mergeAMapSet
          , testLaws $ Laws.eqLaws (Proxy :: Proxy (Map Int A))
          , testLaws $ Laws.ordLaws (Proxy :: Proxy (Map Int OrdA))
          , testLaws $ Laws.showLaws (Proxy :: Proxy (Map Int A))
@@ -400,6 +405,11 @@ instance Eq a => Eq (OddEq a) where
   OddEq x _ == OddEq y _ = x == y
 instance Ord a => Ord (OddEq a) where
   OddEq x _ `compare` OddEq y _ = x `compare` y
+
+instance (Ord a, Arbitrary a) => Arbitrary (Set a) where
+  arbitrary = do
+    NubSorted xs <- arbitrary
+    setFromList xs
 
 ------------------------------------------------------------------------
 
@@ -1376,6 +1386,117 @@ instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
   arbitrary = oneof
     [ ZipWithMatched <$> arbitrary
     , ZipWithMaybeMatched <$> arbitrary
+    ]
+
+prop_mergeMapSet
+  :: WhenMissingSpec Int A
+  -> WhenMissingMapSetSpec Int A
+  -> WhenMatchedMapSetSpec Int A
+  -> Map Int A
+  -> Set Int
+  -> Property
+prop_mergeMapSet miss1 miss2 match m1 s2 =
+  valid m .&&.
+  m ===
+    (mapMaybeWithKey (\k x -> runIdentity (runWhenMissing miss1' k x)) m1Only `union`
+     mapMaybe id (fromSet (runIdentity . MergeSet.runWhenMissingSet miss2') s2Only) `union`
+     mapMaybeWithKey (\k x -> runIdentity (MergeSet.runWhenMatched match' k x)) m12Both)
+  where
+    miss1' = whenMissing miss1
+    miss2' = whenMissingSet miss2
+    match' = whenMatched match
+
+    m = MergeSet.merge miss1' miss2' match' m1 s2
+
+    m1Only = filterKeys (`Set.notMember` s2) m1
+    s2Only = Set.filter (`notMember` m1) s2
+    m12Both = filterKeys (`Set.member` s2) m1
+
+    whenMissing spec = case spec of
+      DropMissing -> MergeSet.dropMissing
+      PreserveMissing -> MergeSet.preserveMissing
+      FilterMissing f -> MergeSet.filterMissing (applyFun2 f)
+      MapMissing f -> MergeSet.mapMissing (applyFun2 f)
+      MapMaybeMissing f -> MergeSet.mapMaybeMissing (applyFun2 f)
+    whenMissingSet spec = case spec of
+      DropMissingMapSet -> MergeSet.dropMissingSet
+      GenerateMissingMapSet f -> MergeSet.generateMissingSet (applyFun f)
+    whenMatched spec = case spec of
+      FilterMatchedMapSet f -> MergeSet.filterMatched (applyFun2 f)
+      MapMatchedMapSet f -> MergeSet.mapMatched (applyFun2 f)
+      MapMaybeMatchedMapSet f -> MergeSet.mapMaybeMatched (applyFun2 f)
+
+-- This uses the instance
+--     Monoid a => Applicative ((,) a)
+-- to test that effects are sequenced in ascending key order.
+prop_mergeAMapSet
+  :: WhenMissingSpec Int A
+  -> WhenMissingMapSetSpec Int A
+  -> WhenMatchedMapSetSpec Int A
+  -> Map Int A
+  -> Set Int
+  -> Property
+prop_mergeAMapSet miss1 miss2 match m1 s2 =
+  valid m .&&.
+  m ===
+    (mapMaybeWithKey (\k x -> snd (runWhenMissing miss1' k x)) m1Only `union`
+     mapMaybe id (fromSet (snd . MergeSet.runWhenMissingSet miss2') s2Only) `union`
+     mapMaybeWithKey (\k x -> snd (MergeSet.runWhenMatched match' k x)) m12Both) .&&.
+  ks ===
+    sort
+      (concat
+         (fmap (\(k,x) -> fst (runWhenMissing miss1' k x)) (toList m1Only) ++
+          fmap (fst . MergeSet.runWhenMissingSet miss2') (Set.toList s2Only) ++
+          fmap (\(k,x) -> fst (MergeSet.runWhenMatched match' k x)) (toList m12Both)))
+  where
+    miss1' = whenMissing miss1
+    miss2' = whenMissingSet miss2
+    match' = whenMatched match
+
+    (ks, m) = MergeSet.mergeA miss1' miss2' match' m1 s2
+
+    m1Only = filterKeys (`Set.notMember` s2) m1
+    s2Only = Set.filter (`notMember` m1) s2
+    m12Both = filterKeys (`Set.member` s2) m1
+
+    whenMissing spec = case spec of
+      DropMissing -> MergeSet.dropMissing
+      PreserveMissing -> MergeSet.preserveMissing
+      FilterMissing f -> MergeSet.filterAMissing (\k x -> ([k], applyFun2 f k x))
+      MapMissing f -> MergeSet.traverseMissing (\k x -> ([k], applyFun2 f k x))
+      MapMaybeMissing f -> MergeSet.traverseMaybeMissing (\k x -> ([k], applyFun2 f k x))
+    whenMissingSet spec = case spec of
+      DropMissingMapSet -> MergeSet.dropMissingSet
+      GenerateMissingMapSet f -> MergeSet.generateAMissingSet (\k -> ([k], applyFun f k))
+    whenMatched spec = case spec of
+      FilterMatchedMapSet f -> MergeSet.filterAMatched (\k x -> ([k], applyFun2 f k x))
+      MapMatchedMapSet f -> MergeSet.traverseMatched (\k x -> ([k], applyFun2 f k x))
+      MapMaybeMatchedMapSet f -> MergeSet.traverseMaybeMatched (\k x -> ([k], applyFun2 f k x))
+
+data WhenMissingMapSetSpec k a
+  = DropMissingMapSet
+  | GenerateMissingMapSet (Fun k a)
+  deriving Show
+
+instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
+  => Arbitrary (WhenMissingMapSetSpec k a) where
+  arbitrary = oneof
+    [ pure DropMissingMapSet
+    , GenerateMissingMapSet <$> arbitrary
+    ]
+
+data WhenMatchedMapSetSpec k a
+  = FilterMatchedMapSet (Fun (k, a) Bool)
+  | MapMatchedMapSet (Fun (k, a) a)
+  | MapMaybeMatchedMapSet (Fun (k, a) (Maybe a))
+  deriving Show
+
+instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
+  => Arbitrary (WhenMatchedMapSetSpec k a) where
+  arbitrary = oneof
+    [ FilterMatchedMapSet <$> arbitrary
+    , MapMatchedMapSet <$> arbitrary
+    , MapMaybeMatchedMapSet <$> arbitrary
     ]
 
 ----------------------------------------------------------------
