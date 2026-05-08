@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 import qualified Data.IntSet as IntSet
+import Data.Coerce (coerce)
 import Data.List (nub, sort, sortBy)
 import qualified Data.List as List
 import Data.Maybe (isJust, fromJust)
@@ -25,6 +26,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import qualified Data.List.NonEmpty as NE
 
 import Utils.ArbitrarySetMap (mkArbSet, setFromList)
+import Utils.QuickCheck (NubSorted(..))
 import Utils.QuickCheckClasses (testLaws)
 
 main :: IO ()
@@ -509,39 +511,41 @@ prop_fromList xs =
            t === List.foldr insert empty xs
   where t = fromList xs
 
-prop_fromAscList :: [Int] -> Property
-prop_fromAscList xs =
+prop_fromAscList :: SortedList Int -> Property
+prop_fromAscList (Sorted xs) =
     valid t .&&.
-    toList t === nubSortedXs
+    t === fromList xs .&&.
+    toList t === nubXs
   where
-    sortedXs = sort xs
-    nubSortedXs = List.map NE.head $ NE.group sortedXs
-    t = fromAscList sortedXs
+    nubXs = List.map NE.head $ NE.group xs
+    t = fromAscList xs
 
-prop_fromDistinctAscList :: [Int] -> Property
-prop_fromDistinctAscList xs =
+prop_fromDistinctAscList :: NubSorted Int -> Property
+prop_fromDistinctAscList (NubSorted xs) =
     valid t .&&.
-    toList t === nubSortedXs
+    t === fromList xs .&&.
+    toList t === xs
   where
-    nubSortedXs = List.map NE.head $ NE.group $ sort xs
-    t = fromDistinctAscList nubSortedXs
+    t = fromDistinctAscList xs
 
-prop_fromDescList :: [Int] -> Property
-prop_fromDescList xs =
+prop_fromDescList :: SortedList (Down Int) -> Property
+prop_fromDescList xs' =
     valid t .&&.
-    toList t === reverse nubDownSortedXs
+    t === fromList xs .&&.
+    toList t === reverse nubXs
   where
-    downSortedXs = sortBy (comparing Down) xs
-    nubDownSortedXs = List.map NE.head $ NE.group downSortedXs
-    t = fromDescList downSortedXs
+    xs = coerce xs' :: [Int]
+    nubXs = List.map NE.head $ NE.group xs
+    t = fromDescList xs
 
-prop_fromDistinctDescList :: [Int] -> Property
-prop_fromDistinctDescList xs =
+prop_fromDistinctDescList :: NubSorted (Down Int) -> Property
+prop_fromDistinctDescList xs' =
     valid t .&&.
-    toList t === reverse nubDownSortedXs
+    t === fromList xs .&&.
+    toList t === reverse xs
   where
-    nubDownSortedXs = List.map NE.head $ NE.group $ sortBy (comparing Down) xs
-    t = fromDistinctDescList nubDownSortedXs
+    xs = coerce xs' :: [Int]
+    t = fromDistinctDescList xs
 
 {--------------------------------------------------------------------
   Set operations are like IntSet operations

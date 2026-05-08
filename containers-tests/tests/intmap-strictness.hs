@@ -12,9 +12,8 @@ import Data.Function (on)
 import Data.Functor.Compose
 import Data.Functor.Identity (Identity(..))
 import qualified Data.List as List
-import qualified Data.List.NonEmpty as NE
 import Data.Maybe (catMaybes, mapMaybe)
-import Data.Ord (Down(..), comparing)
+import Data.Ord (Down(..))
 import Test.ChasingBottoms.IsBottom
 import Test.Tasty (TestTree, defaultMain, testGroup)
 import Test.Tasty.QuickCheck (testProperty)
@@ -39,7 +38,7 @@ import qualified Data.IntMap.Merge.Lazy as LMerge
 import Data.Containers.ListUtils
 
 import Utils.MergeFunc (WhenMatchedFunc(..), WhenMissingFunc(..))
-import Utils.NubSorted (NubSortedOnFst(..))
+import Utils.QuickCheck (NubSortedOnFst(..), SortedOnFst(..))
 import Utils.Strictness
   (Bot(..), Func, Func2, Func3, applyFunc, applyFunc2, applyFunc3)
 
@@ -162,100 +161,102 @@ prop_lazyFromListUpsert fun kvs = isNotBottomProp (L.fromListUpsert f kvs')
     f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
     kvs' = coerce kvs :: [(Key, A)]
 
-prop_strictFromAscList :: [(Key, Bot A)] -> Property
+prop_strictFromAscList :: SortedOnFst Key (Bot A) -> Property
 prop_strictFromAscList kvs =
   isBottom (M.fromAscList kvs') === isBottom (M.fromList kvs')
   where
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_lazyFromAscList :: [(Key, Bot A)] -> Property
+prop_lazyFromAscList :: SortedOnFst Key (Bot A) -> Property
 prop_lazyFromAscList kvs = isNotBottomProp (L.fromAscList kvs')
   where
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_strictFromAscListWith :: Func2 A A (Bot A) -> [(Key, Bot A)] -> Property
+prop_strictFromAscListWith
+  :: Func2 A A (Bot A) -> SortedOnFst Key (Bot A) -> Property
 prop_strictFromAscListWith fun kvs =
   isBottom (M.fromAscListWith f kvs') === isBottom (M.fromListWith f kvs')
   where
     f = coerce (applyFunc2 fun)
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_lazyFromAscListWith :: Func2 A A (Bot A) -> [(Key, Bot A)] -> Property
+prop_lazyFromAscListWith
+  :: Func2 A A (Bot A) -> SortedOnFst Key (Bot A) -> Property
 prop_lazyFromAscListWith fun kvs = isNotBottomProp (L.fromAscListWith f kvs')
   where
     f = coerce (applyFunc2 fun)
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_strictFromAscListWithKey
-  :: Func3 Key A A (Bot A) -> [(Key, Bot A)] -> Property
+  :: Func3 Key A A (Bot A) -> SortedOnFst Key (Bot A) -> Property
 prop_strictFromAscListWithKey fun kvs =
   isBottom (M.fromAscListWithKey f kvs') ===
   isBottom (M.fromListWithKey f kvs')
   where
     f = coerce (applyFunc3 fun)
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_lazyFromAscListWithKey
-  :: Func3 Key A A (Bot A) -> [(Key, Bot A)] -> Property
+  :: Func3 Key A A (Bot A) -> SortedOnFst Key (Bot A) -> Property
 prop_lazyFromAscListWithKey fun kvs =
   isNotBottomProp (L.fromAscListWithKey f kvs')
   where
     f = coerce (applyFunc3 fun)
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_strictFromAscListUpsert
-  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+  :: Func2 A (Maybe B) (Bot B) -> SortedOnFst Key (Bot A) -> Property
 prop_strictFromAscListUpsert fun kvs =
   isBottom (M.fromAscListUpsert f kvs') === isBottom (M.fromListUpsert f kvs')
   where
     f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_lazyFromAscListUpsert
-  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+  :: Func2 A (Maybe B) (Bot B) -> SortedOnFst Key (Bot A) -> Property
 prop_lazyFromAscListUpsert fun kvs =
   isNotBottomProp (L.fromAscListUpsert f kvs')
   where
     f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
-    kvs' = List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_strictFromDistinctAscList :: [(Key, Bot A)] -> Property
+prop_strictFromDistinctAscList :: NubSortedOnFst Key (Bot A) -> Property
 prop_strictFromDistinctAscList kvs =
   isBottom (M.fromDistinctAscList kvs') === isBottom (M.fromList kvs')
   where
-    kvs' = uniqOn fst $ List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_lazyFromDistinctAscList :: [(Key, Bot A)] -> Property
+prop_lazyFromDistinctAscList :: NubSortedOnFst Key (Bot A) -> Property
 prop_lazyFromDistinctAscList kvs = isNotBottomProp (L.fromDistinctAscList kvs')
   where
-    kvs' = uniqOn fst $ List.sortBy (comparing fst) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_strictFromDescList :: [(Key, Bot A)] -> Property
+prop_strictFromDescList :: SortedOnFst (Down Key) (Bot A) -> Property
 prop_strictFromDescList kvs =
   isBottom (M.fromDescList kvs') === isBottom (M.fromList kvs')
   where
-    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
-prop_lazyFromDescList :: [(Key, Bot A)] -> Property
+prop_lazyFromDescList :: SortedOnFst (Down Key) (Bot A) -> Property
 prop_lazyFromDescList kvs = isNotBottomProp (L.fromDescList kvs')
   where
-    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_strictFromDescListUpsert
-  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+  :: Func2 A (Maybe B) (Bot B) -> SortedOnFst (Down Key) (Bot A) -> Property
 prop_strictFromDescListUpsert fun kvs =
   isBottom (M.fromDescListUpsert f kvs') === isBottom (M.fromListUpsert f kvs')
   where
     f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
-    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_lazyFromDescListUpsert
-  :: Func2 A (Maybe B) (Bot B) -> [(Key, Bot A)] -> Property
+  :: Func2 A (Maybe B) (Bot B) -> SortedOnFst (Down Key) (Bot A) -> Property
 prop_lazyFromDescListUpsert fun kvs =
   isNotBottomProp (L.fromDescListUpsert f kvs')
   where
     f = coerce (applyFunc2 fun) :: A -> Maybe B -> B
-    kvs' = List.sortBy (comparing (Down . fst)) (coerce kvs) :: [(Key, A)]
+    kvs' = coerce kvs :: [(Key, A)]
 
 prop_strictInsert :: Key -> Bot A -> IntMap A -> Property
 prop_strictInsert k (Bot x) m = isBottom (M.insert k x m) === isBottom x
@@ -1185,10 +1186,6 @@ const2 x _ _ = x
 
 const3 :: a -> b -> c -> d -> a
 const3 x _ _ _ = x
-
--- | Keep the first of adjacent equal elements.
-uniqOn :: Eq b => (a -> b) -> [a] -> [a]
-uniqOn f = map NE.head . NE.groupBy ((==) `on` f)
 
 {--------------------------------------------------------------------
   Merge stuff
