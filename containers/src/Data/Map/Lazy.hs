@@ -250,6 +250,7 @@ module Data.Map.Lazy (
     , filterWithKey
     , restrictKeys
     , withoutKeys
+    , partitionKeys
     , partition
     , partitionWithKey
     , takeWhileAntitone
