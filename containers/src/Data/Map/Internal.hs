@@ -350,9 +350,6 @@ module Data.Map.Internal (
     -- Used by the strict version
     , AreWeStrict (..)
     , atKeyImpl
-#ifdef __GLASGOW_HASKELL__
-    , atKeyPlain
-#endif
     , bin
     , balance
     , balanceL
@@ -1348,42 +1345,8 @@ replaceAlong q  x (Bin sz ky y l r) =
 
 #ifdef __GLASGOW_HASKELL__
 atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
-atKeyIdentity k f t = Identity $ atKeyPlain Lazy k (coerce f) t
+atKeyIdentity k f t = Identity (alter (coerce f) k t)
 {-# INLINABLE atKeyIdentity #-}
-
-atKeyPlain :: Ord k => AreWeStrict -> k -> (Maybe a -> Maybe a) -> Map k a -> Map k a
-atKeyPlain strict k0 f0 t = case go k0 f0 t of
-    AltSmaller t' -> t'
-    AltBigger t' -> t'
-    AltAdj t' -> t'
-    AltSame -> t
-  where
-    go :: Ord k => k -> (Maybe a -> Maybe a) -> Map k a -> Altered k a
-    go !k f Tip = case f Nothing of
-                   Nothing -> AltSame
-                   Just x  -> case strict of
-                     Lazy -> AltBigger $ singleton k x
-                     Strict -> x `seq` (AltBigger $ singleton k x)
-
-    go k f (Bin sx kx x l r) = case compare k kx of
-                   LT -> case go k f l of
-                           AltSmaller l' -> AltSmaller $ balanceR kx x l' r
-                           AltBigger l' -> AltBigger $ balanceL kx x l' r
-                           AltAdj l' -> AltAdj $ Bin sx kx x l' r
-                           AltSame -> AltSame
-                   GT -> case go k f r of
-                           AltSmaller r' -> AltSmaller $ balanceL kx x l r'
-                           AltBigger r' -> AltBigger $ balanceR kx x l r'
-                           AltAdj r' -> AltAdj $ Bin sx kx x l r'
-                           AltSame -> AltSame
-                   EQ -> case f (Just x) of
-                           Just x' -> case strict of
-                             Lazy -> AltAdj $ Bin sx kx x' l r
-                             Strict -> x' `seq` (AltAdj $ Bin sx kx x' l r)
-                           Nothing -> AltSmaller $ glue l r
-{-# INLINE atKeyPlain #-}
-
-data Altered k a = AltSmaller !(Map k a) | AltBigger !(Map k a) | AltAdj !(Map k a) | AltSame
 #endif
 
 #ifdef DEFINE_ALTERF_FALLBACK
