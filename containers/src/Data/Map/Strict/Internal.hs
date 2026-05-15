@@ -331,9 +331,6 @@ import Data.Map.Internal
   , argSet
   , assocs
   , atKeyImpl
-#ifdef __GLASGOW_HASKELL__
-  , atKeyPlain
-#endif
   , balance
   , balanceL
   , balanceR
@@ -801,7 +798,7 @@ alterF f k m = atKeyImpl Strict k f m
  #-}
 
 atKeyIdentity :: Ord k => k -> (Maybe a -> Identity (Maybe a)) -> Map k a -> Identity (Map k a)
-atKeyIdentity k f t = Identity $ atKeyPlain Strict k (coerce f) t
+atKeyIdentity k f t = Identity (alter (coerce f) k t)
 {-# INLINABLE atKeyIdentity #-}
 #endif
 
