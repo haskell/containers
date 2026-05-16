@@ -7,11 +7,6 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
-#define USE_MAGIC_PROXY 1
-#endif
-
-#ifdef USE_MAGIC_PROXY
-{-# LANGUAGE MagicHash #-}
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
@@ -419,9 +414,6 @@ import Language.Haskell.TH.Lift (Lift)
 import Language.Haskell.TH.Syntax (Lift)
 -- See Note [ Template Haskell Dependencies ]
 import Language.Haskell.TH ()
-#  endif
-#  ifdef USE_MAGIC_PROXY
-import GHC.Exts (Proxy#, proxy# )
 #  endif
 import qualified GHC.Exts as GHCExts
 import Data.Data
@@ -1243,7 +1235,7 @@ atKeyImpl strict !k f m = case lookupTrace k m of
     case fres of
       Nothing -> case mv of
                    Nothing -> m
-                   Just old -> deleteAlong old q m
+                   Just _ -> deleteAlong q m
       Just new -> case strict of
          Strict -> new `seq` case mv of
                       Nothing -> insertAlong q k new m
@@ -1294,47 +1286,13 @@ insertAlong q kx x (Bin sz ky y l r) =
 
 -- Delete from a location (which will always be a node)
 -- described by the path passed in.
---
--- This is fairly horrifying! We don't actually have any
--- use for the old value we're deleting. But if GHC sees
--- that, then it will allocate a thunk representing the
--- Map with the key deleted before we have any reason to
--- believe we'll actually want that. This transformation
--- enhances sharing, but we don't care enough about that.
--- So deleteAlong needs to take the old value, and we need
--- to convince GHC somehow that it actually uses it. We
--- can't NOINLINE deleteAlong, because that would prevent
--- the BitQueue from being unboxed. So instead we pass the
--- old value to a NOINLINE constant function and then
--- convince GHC that we use the result throughout the
--- computation. Doing the obvious thing and just passing
--- the value itself through the recursion costs 3-4% time,
--- so instead we convert the value to a magical zero-width
--- proxy that's ultimately erased.
-deleteAlong :: any -> BitQueue -> Map k a -> Map k a
-deleteAlong old !q0 !m = go (bogus old) q0 m where
-#ifdef USE_MAGIC_PROXY
-  go :: Proxy# () -> BitQueue -> Map k a -> Map k a
-#else
-  go :: any -> BitQueue -> Map k a -> Map k a
-#endif
-  go !_ !_ Tip = Tip
-  go foom q (Bin _ ky y l r) =
-      case unconsQ q of
-        Just (False, tl) -> balanceR ky y (go foom tl l) r
-        Just (True, tl) -> balanceL ky y l (go foom tl r)
-        Nothing -> glue l r
-
-#ifdef USE_MAGIC_PROXY
-{-# NOINLINE bogus #-}
-bogus :: a -> Proxy# ()
-bogus _ = proxy#
-#else
--- No point hiding in this case.
-{-# INLINE bogus #-}
-bogus :: a -> a
-bogus a = a
-#endif
+deleteAlong :: BitQueue -> Map k a -> Map k a
+deleteAlong !_ Tip = Tip
+deleteAlong !q (Bin _ ky y l r) =
+  case unconsQ q of
+    Just (False, tl) -> balanceR ky y (deleteAlong tl l) r
+    Just (True, tl) -> balanceL ky y l (deleteAlong tl r)
+    Nothing -> glue l r
 
 -- Replace the value found in the node described
 -- by the given path with a new one.
