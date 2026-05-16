@@ -4311,7 +4311,7 @@ balance_ k x l r = case l of
                    (_, _) -> error "Failure in Data.Map.balance"
 {-# NOINLINE balance_ #-}
 
--- Functions balanceL and balanceR are specialised versions of balance.
+-- Functions balanceL and balanceR are specialized versions of balance.
 -- balanceL only checks whether the left subtree is too big,
 -- balanceR only checks whether the right subtree is too big.
 
