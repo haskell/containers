@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
 
 import qualified Data.List as List

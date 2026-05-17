@@ -5,8 +5,6 @@
 #endif
 {-# OPTIONS_HADDOCK not-home #-}
 
-#include "containers.h"
-
 -----------------------------------------------------------------------------
 -- |
 -- Module      :  Data.Map.Strict.Internal
