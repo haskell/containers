@@ -1,6 +1,3 @@
-{-# LANGUAGE CPP #-}
-#include "containers.h"
-
 module Data.Map.Internal.Debug where
 
 import Data.Map.Internal (Map (..), size, delta)

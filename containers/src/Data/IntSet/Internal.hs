@@ -1,9 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE PatternGuards #-}
 #ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveLift #-}
-{-# LANGUAGE MagicHash #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE Trustworthy #-}

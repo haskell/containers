@@ -1,8 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE PatternGuards #-}
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |

@@ -1,10 +1,7 @@
 {-# LANGUAGE CPP #-}
 #ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE MagicHash #-}
-{-# LANGUAGE Trustworthy #-}
 #endif
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |

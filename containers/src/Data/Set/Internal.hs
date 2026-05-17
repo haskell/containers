@@ -1,6 +1,5 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE PatternGuards #-}
 #ifdef __GLASGOW_HASKELL__
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE DeriveLift #-}
@@ -10,8 +9,6 @@
 #endif
 
 {-# OPTIONS_HADDOCK not-home #-}
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |
