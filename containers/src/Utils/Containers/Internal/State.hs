@@ -1,5 +1,3 @@
-{-# LANGUAGE CPP #-}
-#include "containers.h"
 {-# OPTIONS_HADDOCK hide #-}
 
 -- | A clone of Control.Monad.State.Strict.
