@@ -1957,7 +1957,7 @@ ratio = 2
 -- Only balanceL and balanceR are needed at the moment, so balance is not here anymore.
 -- In case it is needed, it can be found in Data.Map.
 
--- Functions balanceL and balanceR are specialised versions of balance.
+-- Functions balanceL and balanceR are specialized versions of balance.
 -- balanceL only checks whether the left subtree is too big,
 -- balanceR only checks whether the right subtree is too big.
 

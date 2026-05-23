@@ -407,8 +407,8 @@ foldToMaybeWithIndexTree :: (b -> b -> b)
                          -> Maybe b
 foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
   where
-    {-# SPECIALISE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b #-}
-    {-# SPECIALISE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> Maybe b #-}
+    {-# SPECIALIZE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> FingerTree (Elem y) -> Maybe b #-}
+    {-# SPECIALIZE foldToMaybeWithIndexTree' :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> FingerTree (Node y) -> Maybe b #-}
     foldToMaybeWithIndexTree'
         :: Sized a
         => (b -> b -> b) -> (Int -> a -> b) -> Int -> FingerTree a -> Maybe b
@@ -422,14 +422,14 @@ foldToMaybeWithIndexTree = foldToMaybeWithIndexTree'
         m' = foldToMaybeWithIndexTree' (<+>) (node (<+>) f) sPspr m
         !sPspr = s + size pr
         !sPsprm = sPspr + size m
-    {-# SPECIALISE digit :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> b #-}
-    {-# SPECIALISE digit :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Digit (Node y) -> b #-}
+    {-# SPECIALIZE digit :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Digit (Elem y) -> b #-}
+    {-# SPECIALIZE digit :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Digit (Node y) -> b #-}
     digit
         :: Sized a
         => (b -> b -> b) -> (Int -> a -> b) -> Int -> Digit a -> b
     digit = foldWithIndexDigit
-    {-# SPECIALISE node :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Node (Elem y) -> b #-}
-    {-# SPECIALISE node :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Node (Node y) -> b #-}
+    {-# SPECIALIZE node :: (b -> b -> b) -> (Int -> Elem y -> b) -> Int -> Node (Elem y) -> b #-}
+    {-# SPECIALIZE node :: (b -> b -> b) -> (Int -> Node y -> b) -> Int -> Node (Node y) -> b #-}
     node
         :: Sized a
         => (b -> b -> b) -> (Int -> a -> b) -> Int -> Node a -> b
