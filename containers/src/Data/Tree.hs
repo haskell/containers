@@ -1,5 +1,4 @@
 {-# LANGUAGE BangPatterns #-}
-{-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE CPP #-}
 #if __GLASGOW_HASKELL__
 {-# LANGUAGE DeriveDataTypeable #-}
@@ -7,8 +6,6 @@
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE Trustworthy #-}
 #endif
-
-#include "containers.h"
 
 -----------------------------------------------------------------------------
 -- |

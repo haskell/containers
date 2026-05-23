@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 import qualified Data.IntSet as IntSet
 import Data.Coerce (coerce)
