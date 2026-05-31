@@ -615,48 +615,47 @@ pop x0 t0 = case go x0 t0 of
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
 --
 -- @since 0.6.3.1
+
+-- See Note [alterF implementation]
 alterF :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> Set a -> f (Set a)
 alterF f k s = fmap choose (f member_)
   where
-    (member_, inserted, deleted) = case alteredSet k s of
-        Deleted d           -> (True , s, d)
-        Inserted i          -> (False, i, s)
-
+    MemberIndex member_ i = memberIndex k s
+    inserted = if member_ then s else insertAt i k s
+    deleted = if member_ then deleteAt i s else s
     choose True  = inserted
     choose False = deleted
 #ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [2] alterF #-}
+{-# INLINE [2] alterF #-}
 
 {-# RULES
 "alterF/Const" forall k (f :: Bool -> Const a Bool) . alterF f k = \s -> Const . getConst . f $ member k s
  #-}
 #endif
 
-{-# SPECIALIZE alterF :: Ord a => (Bool -> Identity Bool) -> a -> Set a -> Identity (Set a) #-}
+data MemberIndex = MemberIndex !Bool {-# UNPACK #-} !Int
 
-data AlteredSet a
-      -- | The needle is present in the original set.
-      -- We return the set where the needle is deleted.
-    = Deleted !(Set a)
-
-      -- | The needle is not present in the original set.
-      -- We return the set with the needle inserted.
-    | Inserted !(Set a)
-
-alteredSet :: Ord a => a -> Set a -> AlteredSet a
-alteredSet x0 s0 = go x0 s0
+-- Whether the element is a member of the set along with its index.
+-- If it is not a member, the index is the index it would have if inserted.
+memberIndex :: Ord a => a -> Set a -> MemberIndex
+memberIndex = go 0
   where
-    go :: Ord a => a -> Set a -> AlteredSet a
-    go x Tip           = Inserted (singleton x)
-    go x (Bin _ y l r) = case compare x y of
-        LT -> case go x l of
-            Deleted d           -> Deleted (balanceR y d r)
-            Inserted i          -> Inserted (balanceL y i r)
-        GT -> case go x r of
-            Deleted d           -> Deleted (balanceL y l d)
-            Inserted i          -> Inserted (balanceR y l i)
-        EQ -> Deleted (glue l r)
-{-# INLINABLE alteredSet #-}
+    go !i !_ Tip = MemberIndex False i
+    go !i !x (Bin _ y l r) = case compare x y of
+      LT -> go i x l
+      EQ -> MemberIndex True (i + size l)
+      GT -> go (i + size l + 1) x r
+{-# INLINABLE memberIndex #-}
+
+-- Insert the element at the given index. The caller must ensure that the index
+-- is correct and will not violate Set invariants.
+insertAt :: Int -> a -> Set a -> Set a
+insertAt !_ !x Tip = singleton x
+insertAt !i !x (Bin _ y l r)
+  | i <= sizeL = balanceL y (insertAt i x l) r
+  | otherwise = balanceR y l (insertAt (i - sizeL - 1) x r)
+  where
+    !sizeL = size l
 
 {--------------------------------------------------------------------
   Subset
@@ -2625,3 +2624,34 @@ validsize t
 -- = O(\sum_{i=2}^m k_i - k_{i-1})
 -- = O(k_m - k_1)
 -- = O(log n)
+
+-- Note [alterF implementation]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- When implementing alterF, there are various costs to consider:
+--
+-- 1. The number of times we travel down the tree to the target
+-- 2. The number of times we travel back up the tree
+-- 3. The number of element comparisons we perform
+-- 4. The number of times we apply fmap
+-- 5. The amount of allocations we perform
+--
+-- The weights of these further depend on the Ord instance of the element type,
+-- the Functor used, and GHC optimizations. Unfortunately, there is no clear
+-- winning implementation which performs best in all situations. The current
+-- implementation is chosen for its good characteristics:
+--
+-- 1. It travels down the tree once if the membership is demanded, and once more
+--    if the changed Set is demanded.
+-- 2. It travels up the tree once if the changed Set is demanded.
+-- 3. It compares the given element against stored elements on the path to the
+--    target at most once.
+-- 4. It applies fmap exactly once.
+-- 5. It allocates the changed Set if it is demanded. It does not allocate any
+--    intermediate structure.
+--
+-- Note that 2,3,4,5 are all optimal. As for 1, implementations that travel down
+-- the tree at most once are possible, but they are worse in at least one of the
+-- other categories.
+-- See https://github.com/haskell/containers/issues/1209#issuecomment-4530740850
+-- for some other implementations and benchmarks.
