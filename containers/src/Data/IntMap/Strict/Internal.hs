@@ -601,26 +601,25 @@ alter f !k t =
 -- or update a value in an 'IntMap'.  In short : @'lookup' k \<$\> 'alterF' f k m = f
 -- ('lookup' k m)@.
 --
--- Example:
---
--- @
--- interactiveAlter :: Int -> IntMap String -> IO (IntMap String)
--- interactiveAlter k m = alterF f k m where
---   f Nothing = do
---      putStrLn $ show k ++
---          " was not found in the map. Would you like to add it?"
---      getUserResponse1 :: IO (Maybe String)
---   f (Just old) = do
---      putStrLn $ "The key is currently bound to " ++ show old ++
---          ". Would you like to change or delete it?"
---      getUserResponse2 :: IO (Maybe String)
--- @
---
 -- 'alterF' is the most general operation for working with an individual
 -- key that may or may not be in a given map.
-
+--
 -- Note: 'alterF' is a flipped version of the 'at' combinator from
 -- 'Control.Lens.At'.
+--
+-- === Examples
+--
+-- @
+-- -- Lookup the value at the key, and also remove the existing value or set a new value.
+-- lookupAndSet :: Key -> Maybe a -> IntMap a -> (Maybe a, IntMap a)
+-- lookupAndSet k new = alterF (\\old -> (old, new)) k
+-- @
+--
+-- @
+-- -- Delete the value at the key. If it is absent the result is Nothing.
+-- mustDelete :: Key -> IntMap a -> Maybe (IntMap a)
+-- mustDelete = alterF (Nothing <$)
+-- @
 --
 -- @since 0.5.8
 

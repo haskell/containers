@@ -609,6 +609,20 @@ pop x0 t0 = case go x0 t0 of
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
 --
+-- === Examples
+--
+-- @
+-- -- Get whether the element is a member, and also insert or remove it.
+-- getAndSet :: Key -> Bool -> IntSet -> (Bool, IntSet)
+-- getAndSet x new = alterF (\\old -> (old, new)) x
+-- @
+--
+-- @
+-- -- Delete the element. If it is absent the result is Nothing.
+-- mustDelete :: Key -> IntSet -> Maybe IntSet
+-- mustDelete = alterF (\\b -> if b then Just False else Nothing)
+-- @
+--
 -- @since 0.6.3.1
 alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f IntSet
 alterF f k s = fmap choose (f member_)
