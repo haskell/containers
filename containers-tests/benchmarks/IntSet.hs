@@ -91,6 +91,11 @@ main = do
         , bench "compareSize:sparse:2" $ whnf (flip IS.compareSize 2) s_sparse
         , bench "compareSize:n" $ whnf (flip IS.compareSize bound) s
         , bench "compareSize:sparse:n" $ whnf (flip IS.compareSize bound) s_sparse
+        , bench "alterF:member" $ whnf (alterF_memberMany elems) s
+        , bench "alterF:insert:absent" $ whnf (alterF_insertMany elems_odd) s_even
+        , bench "alterF:insert:present" $ whnf (alterF_insertMany elems_even) s_even
+        , bench "alterF:delete:present" $ whnf (alterF_deleteMany elems_even) s_even
+        , bench "alterF:delete:absent" $ whnf (alterF_deleteMany elems_odd) s_even
         , bgroup "folds:dense" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s
         , bgroup "folds:sparse" $ foldBenchmarks IS.foldr IS.foldl IS.foldr' IS.foldl' IS.foldMap s_sparse
         ]
@@ -125,6 +130,29 @@ ins xs s0 = foldl' (\s a -> IS.insert a s) s0 xs
 
 del :: [Int] -> IS.IntSet -> IS.IntSet
 del xs s0 = foldl' (\s k -> IS.delete k s) s0 xs
+
+alterF_memberMany :: [Int] -> IS.IntSet -> ()
+alterF_memberMany xs s0 = foldl' (\_ x -> member' x s0 `seq` ()) () xs
+  where
+    member' k s = getConsty (IS.alterF Consty k s)
+
+alterF_insertMany :: [Int] -> IS.IntSet -> IS.IntSet
+alterF_insertMany xs s0 = foldl' (flip insert') s0 xs
+  where
+    insert' k s = runIdent (IS.alterF (\_ -> Ident True) k s)
+
+alterF_deleteMany :: [Int] -> IS.IntSet -> IS.IntSet
+alterF_deleteMany xs s0 = foldl' (flip delete') s0 xs
+  where
+    delete' k s = runIdent (IS.alterF (\_ -> Ident False) k s)
+
+newtype Consty a b = Consty { getConsty :: a }
+instance Functor (Consty a) where
+  fmap _ (Consty a) = Consty a
+
+newtype Ident a = Ident { runIdent :: a }
+instance Functor Ident where
+  fmap f (Ident a) = Ident (f a)
 
 -- NOINLINE to work around an issue where the inlined function doesn't get
 -- optimized (see GHC #25878).
