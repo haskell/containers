@@ -388,8 +388,12 @@ toggle k s =
         then delete k s
         else insert k s
 
-prop_alterF :: Fun Bool [Bool] -> Int -> Set Int -> Property
-prop_alterF f k s = fmap (member k) (alterF (apply f) k s) === apply f (member k s)
+prop_alterF :: Fun Bool Bool -> Int -> Set Int -> Property
+prop_alterF f k s = valid s' .&&. s' === expected
+  where
+    s' = runIdent (alterF (Ident . applyFun f) k s)
+    member' = applyFun f (member k s)
+    expected = if member' then insert k s else delete k s
 
 prop_alterF_insert :: Int -> Set Int -> Property
 prop_alterF_insert k s = runIdent (alterF (const (Ident True)) k s) === insert k s

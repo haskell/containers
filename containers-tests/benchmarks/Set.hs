@@ -15,10 +15,11 @@ main = do
     let s = S.fromList elems :: S.Set Int
         s_even = S.fromList elems_even :: S.Set Int
         s_odd = S.fromList elems_odd :: S.Set Int
-        strings_s = S.fromList strings
+        strings_s = S.fromList strings :: S.Set String
     evaluate $ rnf [s, s_even, s_odd]
     evaluate $ rnf
       [elems_distinct_asc, elems_distinct_desc, elems_asc, elems_desc]
+    evaluate $ rnf strings_s
     defaultMain
         [ bench "member" $ whnf (member elems) s
         , bench "insert" $ whnf (ins elems) S.empty
@@ -57,12 +58,12 @@ main = do
         , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
         , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
         , bench "alterF:member" $ whnf (alterF_member elems) s
-        , bench "alterF:insert" $ whnf (alterF_ins elems) S.empty
-        , bench "alterF:delete" $ whnf (alterF_del elems) s
+        , bench "alterF:insert:absent" $ whnf (alterF_ins elems_odd) s_even
+        , bench "alterF:insert:present" $ whnf (alterF_ins elems_even) s_even
+        , bench "alterF:delete:present" $ whnf (alterF_del elems_even) s_even
+        , bench "alterF:delete:absent" $ whnf (alterF_del elems_odd) s_even
         , bench "alterF:four" $ whnf (alterF_four elems) s
         , bench "alterF:four:strings" $ whnf (alterF_four strings) strings_s
-        , bench "alterF_naive:four" $ whnf (alterF_naive_four elems) s
-        , bench "alterF_naive:four:strings" $ whnf (alterF_naive_four strings) strings_s
         , bench "powerSet (15)" $ whnf S.powerSet (S.fromList[1..15])
         , bench "powerSet (16)" $ whnf S.powerSet (S.fromList[1..16])
         , bench "member.powerSet (14)" $ whnf (\ s -> all (flip S.member s) s) (S.powerSet (S.fromList [1..14]))
@@ -114,15 +115,6 @@ alterF_del xs s0 = foldl' (\s k -> delete' k s) s0 xs
 
 alterF_four :: Ord a => [a] -> S.Set a -> S.Set a
 alterF_four xs s0 = foldl' (\s k -> S.alterF four k s `seq` s) s0 xs
-
-alterF_naive_four :: Ord a => [a] -> S.Set a -> S.Set a
-alterF_naive_four xs s0 = foldl' (\s k -> alterF_naive four k s `seq` s) s0 xs
-
-alterF_naive :: (Ord a, Functor f) => (Bool -> f Bool) -> a -> S.Set a -> f (S.Set a)
-alterF_naive f k s = fmap g (f (k `S.member` s))
-  where
-    g True  = S.insert k s
-    g False = S.delete k s
 
 four :: Bool -> Four Bool
                -- insert  delete  reinsert  toggle
