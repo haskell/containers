@@ -532,8 +532,7 @@ singleton x
 {--------------------------------------------------------------------
   Insert
 --------------------------------------------------------------------}
--- | \(O(\min(n,W))\). Add a value to the set. There is no left- or right bias for
--- IntSets.
+-- | \(O(\min(n,W))\). Add a value to the set.
 insert :: Key -> IntSet -> IntSet
 insert !x = insertBM (prefixOf x) (bitmapOf x)
 
