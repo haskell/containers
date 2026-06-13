@@ -239,7 +239,6 @@ import Language.Haskell.TH ()
 #endif
 
 import qualified Data.Foldable as Foldable
-import Data.Functor.Identity (Identity(..))
 
 infixl 9 \\{-This comment teaches CPP correct behaviour -}
 
@@ -627,22 +626,17 @@ alterF :: Functor f => (Bool -> f Bool) -> Key -> IntSet -> f IntSet
 alterF f k s = fmap choose (f member_)
   where
     member_ = member k s
-
-    (inserted, deleted)
-      | member_   = (s         , delete k s)
-      | otherwise = (insert k s, s         )
-
+    inserted = if member_ then s else insert k s
+    deleted = if member_ then delete k s else s
     choose True  = inserted
     choose False = deleted
 #ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [2] alterF #-}
+{-# INLINE [2] alterF #-}
 
 {-# RULES
 "alterF/Const" forall k (f :: Bool -> Const a Bool) . alterF f k = \s -> Const . getConst . f $ member k s
  #-}
 #endif
-
-{-# SPECIALIZE alterF :: (Bool -> Identity Bool) -> Key -> IntSet -> Identity IntSet #-}
 
 {--------------------------------------------------------------------
   Union

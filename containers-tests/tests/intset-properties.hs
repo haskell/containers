@@ -91,6 +91,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testProperty "takeWhileAntitone" prop_takeWhileAntitone
                    , testProperty "dropWhileAntitone" prop_dropWhileAntitone
                    , testProperty "spanAntitone" prop_spanAntitone
+                   , testProperty "prop_alterF" prop_alterF
                    , testProperty "prop_alterF_list" prop_alterF_list
                    , testProperty "prop_alterF_const" prop_alterF_const
                    , testProperty "intersections" prop_intersections
@@ -513,6 +514,17 @@ prop_spanAntitone x ys =
       valid r .&&.
       l === fromList (List.filter (<x) ys) .&&.
       r === fromList (List.filter (>=x) ys)
+
+prop_alterF :: Fun Bool Bool -> Int -> IntSet -> Property
+prop_alterF f k s = valid s' .&&. s' === expected
+  where
+    s' = runIdent (alterF (Ident . applyFun f) k s)
+    member' = applyFun f (member k s)
+    expected = if member' then insert k s else delete k s
+
+newtype Ident a = Ident { runIdent :: a }
+instance Functor Ident where
+  fmap f (Ident a) = Ident (f a)
 
 prop_alterF_list
     :: Fun Bool [Bool]
