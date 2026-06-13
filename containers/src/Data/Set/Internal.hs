@@ -614,6 +614,20 @@ pop x0 t0 = case go x0 t0 of
 --
 -- Note: 'alterF' is a variant of the @at@ combinator from "Control.Lens.At".
 --
+-- === Examples
+--
+-- @
+-- -- Get whether the element is a member, and also insert or remove it.
+-- getAndSet :: Ord a => a -> Bool -> Set a -> (Bool, Set a)
+-- getAndSet x new = alterF (\\old -> (old, new)) x
+-- @
+--
+-- @
+-- -- Delete the element. If it is absent the result is Nothing.
+-- mustDelete :: Ord a => a -> Set a -> Maybe (Set a)
+-- mustDelete = alterF (\\b -> if b then Just False else Nothing)
+-- @
+--
 -- @since 0.6.3.1
 
 -- See Note [alterF implementation]
