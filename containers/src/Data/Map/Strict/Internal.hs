@@ -785,7 +785,7 @@ alterF :: (Functor f, Ord k)
 alterF f k m = atKeyImpl Strict k f m
 
 #ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [2] alterF #-}
+{-# INLINE [2] alterF #-}
 
 -- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.

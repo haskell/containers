@@ -1201,7 +1201,7 @@ alterF :: (Functor f, Ord k)
 alterF f k m = atKeyImpl Lazy k f m
 
 #ifdef __GLASGOW_HASKELL__
-{-# INLINABLE [2] alterF #-}
+{-# INLINE [2] alterF #-}
 
 -- We can save a little time by recognizing the special case of
 -- `Control.Applicative.Const` and just doing a lookup.
@@ -1254,7 +1254,14 @@ alterFCutoff = case wordSize of
 #endif
 #endif
 
-data TraceResult a = TraceResult (Maybe a) {-# UNPACK #-} !BitQueue
+-- On GHC >=9.6 we can unpack sum types, so we unbox the Maybe to avoid the
+-- allocation.
+data TraceResult a = TraceResult
+#if __GLASGOW_HASKELL__ >= 906
+  {-# UNPACK #-}
+#endif
+  !(Maybe a)
+  {-# UNPACK #-} !BitQueue
 
 -- Look up a key and return a result indicating whether it was found
 -- and what path was taken.
