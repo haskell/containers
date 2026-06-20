@@ -15,7 +15,7 @@
 
 * Add `takeR`, `dropR` and `splitAtR` for `Seq`. (Phil Crissman)
   (see [#159](https://github.com/haskell/containers/issues/159))
-  ([#NNNN](https://github.com/haskell/containers/pull/NNNN))
+  ([#1222](https://github.com/haskell/containers/pull/1222))
 
 ### Performance improvements
 
