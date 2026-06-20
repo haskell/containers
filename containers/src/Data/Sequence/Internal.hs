@@ -136,10 +136,13 @@ module Data.Sequence.Internal (
     adjust',        -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
     take,           -- :: Int -> Seq a -> Seq a
+    takeR,          -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
+    dropR,          -- :: Int -> Seq a -> Seq a
     insertAt,       -- :: Int -> a -> Seq a -> Seq a
     deleteAt,       -- :: Int -> Seq a -> Seq a
     splitAt,        -- :: Int -> Seq a -> (Seq a, Seq a)
+    splitAtR,       -- :: Int -> Seq a -> (Seq a, Seq a)
     -- ** Indexing with predicates
     -- | These functions perform sequential searches from the left
     -- or right ends of the sequence, returning indices of matching
@@ -3478,6 +3481,15 @@ take i xs@(Seq t)
   | i <= 0 = empty
   | otherwise = xs
 
+-- | \( O(\log(\min(i,n-i))) \). The last @i@ elements of a sequence.
+-- If @i@ is negative, @'takeR' i s@ yields the empty sequence.
+-- If the sequence contains fewer than @i@ elements, the whole sequence
+-- is returned.
+--
+-- @since FIXME
+takeR :: Int -> Seq a -> Seq a
+takeR i xs = drop (length xs - i) xs
+
 takeTreeE :: Int -> FingerTree (Elem a) -> FingerTree (Elem a)
 takeTreeE !_i EmptyT = EmptyT
 takeTreeE i t@(Single _)
@@ -3639,6 +3651,15 @@ drop i xs@(Seq t)
       Seq (takeTreeER (length xs - i) t)
   | i <= 0 = xs
   | otherwise = empty
+
+-- | \( O(\log(\min(i,n-i))) \). Elements of a sequence before the last @i@.
+-- If @i@ is negative, @'dropR' i s@ yields the whole sequence.
+-- If the sequence contains fewer than @i@ elements, the empty sequence
+-- is returned.
+--
+-- @since FIXME
+dropR :: Int -> Seq a -> Seq a
+dropR i xs = take (length xs - i) xs
 
 -- We implement `drop` using a "take from the rear" strategy.  There's no
 -- particular technical reason for this; it just lets us reuse the arithmetic
@@ -3808,6 +3829,14 @@ splitAt i xs@(Seq t)
         l :*: r -> (Seq l, Seq r)
   | i <= 0 = (empty, xs)
   | otherwise = (xs, empty)
+
+-- | \( O(\log(\min(i,n-i))) \). Split a sequence at a given position,
+-- with the position being counted from the last (rightmost) element.
+-- @'splitAtR' i s = ('dropR' i s, 'takeR' i s)@.
+--
+-- @since FIXME
+splitAtR :: Int -> Seq a -> (Seq a, Seq a)
+splitAtR i xs = splitAt (length xs - i) xs
 
 -- | \( O(\log(\min(i,n-i))) \) A version of 'splitAt' that does not attempt to
 -- enhance sharing when the split point is less than or equal to 0, and that
