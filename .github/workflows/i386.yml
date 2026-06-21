@@ -27,7 +27,6 @@ jobs:
     - uses: actions/checkout@v1 # This version must stay old enough to remain compatible with the container image
     - name: Test
       run: |
-        source ~/.ghcup/env
         ghc --version
         cabal --version
         cabal update
