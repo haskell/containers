@@ -19,6 +19,9 @@ jobs:
     container:
       image: i386/ubuntu:bionic
     steps:
+    - name: Update
+      run: |
+        apt-get update -y
     - name: Install
       uses: haskell/ghcup-setup@v1
       with:
