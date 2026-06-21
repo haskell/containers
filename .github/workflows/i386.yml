@@ -19,17 +19,11 @@ jobs:
     container:
       image: i386/ubuntu:bionic
     steps:
-    - name: Update
+    - name: Install
+      # Install GHC via apt because GHCup currently fails.
       run: |
         apt-get update -y
-    - name: Install
-      uses: haskell/ghcup-setup@v1
-      with:
-        ghc: recommended
-        cabal: recommended
-        config: |
-          meta-cache: 0
-          verbose: True
+        apt-get install -y ghc cabal-install
     - uses: actions/checkout@v1 # This version must stay old enough to remain compatible with the container image
     - name: Test
       run: |
