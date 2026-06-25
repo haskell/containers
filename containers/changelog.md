@@ -13,6 +13,9 @@
 * Add `fromSetA` for `Map` and `IntMap`. (L0neGamer)
   ([#1163](https://github.com/haskell/containers/pull/1163))
 
+* Added `HasCallStack` to many partial functions when compiling for GHC. (L0neGamer & dwincort)
+  ([#1160](https://github.com/haskell/containers/pull/1160))
+
 ### Performance improvements
 
 * Improved performance for `Data.IntMap.restrictKeys` and
