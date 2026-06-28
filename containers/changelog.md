@@ -13,6 +13,10 @@
 * Add `fromSetA` for `Map` and `IntMap`. (L0neGamer)
   ([#1163](https://github.com/haskell/containers/pull/1163))
 
+* Add `takeR`, `dropR` and `splitAtR` for `Seq`. (Phil Crissman)
+  (see [#159](https://github.com/haskell/containers/issues/159))
+  ([#1222](https://github.com/haskell/containers/pull/1222))
+
 ### Performance improvements
 
 * Improved performance for `Data.IntMap.restrictKeys` and

@@ -210,10 +210,13 @@ module Data.Sequence (
     adjust',        -- :: (a -> a) -> Int -> Seq a -> Seq a
     update,         -- :: Int -> a -> Seq a -> Seq a
     take,           -- :: Int -> Seq a -> Seq a
+    takeR,          -- :: Int -> Seq a -> Seq a
     drop,           -- :: Int -> Seq a -> Seq a
+    dropR,          -- :: Int -> Seq a -> Seq a
     insertAt,       -- :: Int -> a -> Seq a -> Seq a
     deleteAt,       -- :: Int -> Seq a -> Seq a
     splitAt,        -- :: Int -> Seq a -> (Seq a, Seq a)
+    splitAtR,       -- :: Int -> Seq a -> (Seq a, Seq a)
     -- ** Indexing with predicates
     -- | These functions perform sequential searches from the left
     -- or right ends of the sequence, returning indices of matching

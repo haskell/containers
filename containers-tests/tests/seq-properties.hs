@@ -126,6 +126,9 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "take" prop_take
        , testProperty "drop" prop_drop
        , testProperty "splitAt" prop_splitAt
+       , testProperty "takeR" prop_takeR
+       , testProperty "dropR" prop_dropR
+       , testProperty "splitAtR" prop_splitAtR
        , testProperty "chunksOf" prop_chunksOf
        , testProperty "elemIndexL" prop_elemIndexL
        , testProperty "elemIndicesL" prop_elemIndicesL
@@ -788,6 +791,29 @@ prop_splitAt n xs =
   (toList ys, toList zs) === Prelude.splitAt n (toList xs)
   where
     (ys, zs) = splitAt n xs
+
+prop_takeR :: Int -> Seq A -> Property
+prop_takeR n xs =
+  valid ys .&&.
+  toList ys === Prelude.reverse (Prelude.take n (Prelude.reverse (toList xs)))
+  where
+    ys = takeR n xs
+
+prop_dropR :: Int -> Seq A -> Property
+prop_dropR n xs =
+  valid ys .&&.
+  toList ys === Prelude.reverse (Prelude.drop n (Prelude.reverse (toList xs)))
+  where
+    ys = dropR n xs
+
+prop_splitAtR :: Int -> Seq A -> Property
+prop_splitAtR n xs =
+  valid ys .&&.
+  valid zs .&&.
+  (toList ys, toList zs) === (Prelude.reverse rl, Prelude.reverse rr)
+  where
+    (ys, zs) = splitAtR n xs
+    (rr, rl) = Prelude.splitAt n (Prelude.reverse (toList xs))
 
 prop_chunksOf :: Seq A -> Property
 prop_chunksOf xs =
