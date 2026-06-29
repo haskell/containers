@@ -1175,6 +1175,7 @@ alterF f k m = (<$> f mv) $ \fres ->
     Nothing -> maybe m (const (delete k m)) mv
     Just v' -> insert k v' m
   where mv = lookup k m
+{-# INLINE alterF #-}
 
 {--------------------------------------------------------------------
   Union
