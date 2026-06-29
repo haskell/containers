@@ -20,10 +20,17 @@ jobs:
       image: i386/ubuntu:bionic
     steps:
     - name: Install
+      # We install GHC 9.6.7 because trying to installing 9.8 and above fails
+      # with "version `GLIBC_2.28' not found".
       run: |
         apt-get update -y
         apt-get install -y autoconf build-essential zlib1g-dev libgmp-dev curl libncurses5 libtinfo5 libncurses5-dev libtinfo-dev
-        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | BOOTSTRAP_HASKELL_NONINTERACTIVE=1 BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 BOOTSTRAP_HASKELL_VERBOSE=1 BOOTSTRAP_HASKELL_GHC_VERSION=9.8.4 sh
+        curl --proto '=https' --tlsv1.2 -sSf https://get-ghcup.haskell.org | \
+          BOOTSTRAP_HASKELL_NONINTERACTIVE=1 \
+          BOOTSTRAP_HASKELL_INSTALL_NO_STACK=1 \
+          BOOTSTRAP_HASKELL_VERBOSE=1 \
+          BOOTSTRAP_HASKELL_GHC_VERSION=9.6.7 \
+          sh
     - uses: actions/checkout@v1 # This version must stay old enough to remain compatible with the container image
     - name: Test
       run: |
