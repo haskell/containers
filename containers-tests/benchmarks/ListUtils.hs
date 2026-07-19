@@ -10,21 +10,26 @@ main :: IO ()
 main = do
   evaluate $ rnf [xs_distinct, xs_repeat]
   evaluate $ rnf [xss_distinct, xss_repeat]
+  evaluate $ rnf [strings_distinct, strings_repeat]
   defaultMain
     [ bgroup "nubOrd"
-      [ bench "no_fusion_distinct" $
+      [ bench "noFusion_distinct" $
           whnf (consumeNoFusion . LU.nubOrd) xs_distinct
-      , bench "no_fusion_repeat" $
+      , bench "noFusion_repeat" $
           whnf (consumeNoFusion . LU.nubOrd) xs_repeat
       , bench "issue1202_distinct" $
           whnf (consumeNoFusion . collectFrameworksDirs) xss_distinct
       , bench "issue1202_repeat" $
           whnf (consumeNoFusion . collectFrameworksDirs) xss_repeat
+      , bench "strings_noFusion_distinct" $
+          whnf (consumeNoFusion . LU.nubOrd) strings_distinct
+      , bench "strings_noFusion_repeat" $
+          whnf (consumeNoFusion . LU.nubOrd) strings_repeat
       ]
     , bgroup "nubInt"
-      [ bench "no_fusion_distinct" $
+      [ bench "noFusion_distinct" $
           whnf (consumeNoFusion . LU.nubInt) xs_distinct
-      , bench "no_fusion_repeat" $
+      , bench "noFusion_repeat" $
           whnf (consumeNoFusion . LU.nubInt) xs_repeat
       , bench "issue1202_distinct" $
           whnf (consumeNoFusion . collectFrameworksDirs_nubInt) xss_distinct
@@ -33,11 +38,16 @@ main = do
       ]
     ]
   where
-    bound = 1000 :: Int
+    !bound = 1000 :: Int
+
     xs_distinct = [1..bound]
     xs_repeat = replicate bound 1 :: [Int]
     xss_distinct = [[i] | i <- [1..bound]]
     xss_repeat = replicate bound [1] :: [[Int]]
+
+    -- Use strings as an example of expensive Ord comparisons.
+    strings_distinct = map show xs_distinct
+    strings_repeat = map show xs_repeat
 
 -- Simple version of the case reported in
 -- https://github.com/haskell/containers/issues/1202

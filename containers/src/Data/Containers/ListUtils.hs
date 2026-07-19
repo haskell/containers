@@ -82,10 +82,14 @@ nubOrdOnExcluding :: Ord b => (a -> b) -> Set b -> [a] -> [a]
 nubOrdOnExcluding f = go
   where
     go _ [] = []
-    go s (x:xs)
-      | fx `Set.member` s = go s xs
-      | otherwise = x : go (Set.insert fx s) xs
+    go s (x:xs) = case tryInsertSet fx s of
+      Nothing -> go s xs
+      Just s' -> x : go s' xs
       where !fx = f x
+
+tryInsertSet :: Ord a => a -> Set a -> Maybe (Set a)
+tryInsertSet = Set.alterF (\found -> if found then Nothing else Just True)
+{-# INLINE tryInsertSet #-}
 
 #ifdef __GLASGOW_HASKELL__
 -- We want this inlinable to specialize to the necessary Ord instance.
@@ -112,9 +116,9 @@ nubOrdOnFB :: Ord b
 nubOrdOnFB f c =  -- Inline with 2 args
   \x r -> oneShot (\s ->
     let !y = f x
-    in if y `Set.member` s
-       then r s
-       else x `c` r (Set.insert y s))
+    in case tryInsertSet y s of
+         Nothing -> r s
+         Just s' -> x `c` r s')
 {-# INLINE [0] nubOrdOnFB #-}
 
 constNubOn :: a -> b -> a
