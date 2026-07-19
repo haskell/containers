@@ -50,15 +50,6 @@ For quicker test and benchmark build times, remove `containers` from the
 `packages` stanza of the `cabal.project` file. This will avoid recompiling
 some test and benchmark dependencies that depend on `containers`.
 
-#### For Windows users
-
-To compile `containers-tests`, you need symbolic links to be activated on git.
-To do so on Windows 10 or higher, follow these steps:
-
-1. Activate developer mode in your Windows preferences.
-2. Enable git symlinks: `git config --global core.symlinks true`.
-3. Clone the repository again once git is properly configured.
-
 ### Benchmarking script
 
 To run the all benchmarks of your branch against master, you can run the script
