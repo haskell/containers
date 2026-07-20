@@ -36,10 +36,17 @@ import Data.Map.Merge.Lazy (WhenMatched, WhenMissing)
 import qualified Data.Map.Merge.Lazy as LMerge
 import Data.Set (Set)
 import qualified Data.Set as Set
+import qualified Data.Map.Merge.Set.Lazy as MergeSetLazy
+import qualified Data.Map.Merge.Set.Strict as MergeSetStrict
 
 import Utils.ArbitrarySetMap (setFromList, mapFromKeysList)
 import Utils.QuickCheck (NubSorted(..), NubSortedOnFst(..), SortedOnFst(..))
-import Utils.MergeFunc (WhenMatchedFunc(..), WhenMissingFunc(..))
+import Utils.MergeFunc
+  ( WhenMatchedFunc(..)
+  , WhenMissingFunc(..)
+  , MapSet_WhenMatchedFunc(..)
+  , MapSet_WhenMissingSetFunc(..)
+  )
 import Utils.Strictness
   (Bot(..), Func, Func2, Func3, applyFunc, applyFunc2, applyFunc3)
 
@@ -1043,6 +1050,86 @@ prop_lazyMergeA misfun1 misfun2 matfun m1 m2 =
     mis2 = toLazyWhenMissingA (coerce misfun2 :: WhenMissingFunc OrdA B C C C)
     mat = toLazyWhenMatchedA (coerce matfun :: WhenMatchedFunc OrdA A B C C C)
 
+prop_strictMapSetMerge
+  :: WhenMissingFunc OrdA A (Bot B) B (Bot B)
+  -> MapSet_WhenMissingSetFunc OrdA (Bot B)
+  -> MapSet_WhenMatchedFunc OrdA A (Bot B)
+  -> Map OrdA A
+  -> Set OrdA
+  -> Property
+prop_strictMapSetMerge misfun1 misfun2 matfun m1 s2 =
+  isBottom (MergeSetStrict.merge mis1 mis2 mat m1 s2) ===
+  any isBottom
+    (catMaybes $ concat
+      [ [matf k x | (k,x) <- M.toList m1, k `Set.member` s2]
+      , [misf1 k x | (k,x) <- M.toList m1, k `Set.notMember` s2]
+      , [misf2 k | k <- Set.toList s2, k `M.notMember` m1]
+      ])
+  where
+    misfun1' = coerce misfun1 :: WhenMissingFunc OrdA A B B B
+    misfun2' = coerce misfun2 :: MapSet_WhenMissingSetFunc OrdA B
+    matfun' = coerce matfun :: MapSet_WhenMatchedFunc OrdA A B
+    mis1 = toStrictWhenMissing misfun1'
+    mis2 = toStrictMapSetWhenMissingSet misfun2'
+    mat = toStrictMapSetWhenMatched matfun'
+    misf1 = whenMissingApplyStrict misfun1'
+    misf2 = mapSetWhenMissingSetApply misfun2'
+    matf = mapSetWhenMatchedApply matfun'
+
+prop_lazyMapSetMerge
+  :: WhenMissingFunc OrdA A (Bot B) B (Bot B)
+  -> MapSet_WhenMissingSetFunc OrdA (Bot B)
+  -> MapSet_WhenMatchedFunc OrdA A (Bot B)
+  -> Map OrdA A
+  -> Set OrdA
+  -> Property
+prop_lazyMapSetMerge misfun1 misfun2 matfun m1 m2 =
+  isNotBottomProp (MergeSetLazy.merge mis1 mis2 mat m1 m2)
+  where
+    mis1 = toLazyWhenMissing (coerce misfun1 :: WhenMissingFunc OrdA A B B B)
+    mis2 = toLazyMapSetWhenMissingSet (coerce misfun2 :: MapSet_WhenMissingSetFunc OrdA B)
+    mat = toLazyMapSetWhenMatched (coerce matfun :: MapSet_WhenMatchedFunc OrdA A B)
+
+prop_strictMapSetMergeA
+  :: WhenMissingFunc OrdA A (Bot B) B (Bot B)
+  -> MapSet_WhenMissingSetFunc OrdA (Bot B)
+  -> MapSet_WhenMatchedFunc OrdA A (Bot B)
+  -> Map OrdA A
+  -> Set OrdA
+  -> Property
+prop_strictMapSetMergeA misfun1 misfun2 matfun m1 s2 =
+  isBottom (runIdentity (MergeSetStrict.mergeA mis1 mis2 mat m1 s2)) ===
+  any isBottom
+    (catMaybes $ concat
+      [ [matf k x | (k,x) <- M.toList m1, k `Set.member` s2]
+      , [misf1 k x | (k,x) <- M.toList m1, k `Set.notMember` s2]
+      , [misf2 k | k <- Set.toList s2, k `M.notMember` m1]
+      ])
+  where
+    misfun1' = coerce misfun1 :: WhenMissingFunc OrdA A B B B
+    misfun2' = coerce misfun2 :: MapSet_WhenMissingSetFunc OrdA B
+    matfun' = coerce matfun :: MapSet_WhenMatchedFunc OrdA A B
+    mis1 = toStrictWhenMissingA misfun1'
+    mis2 = toStrictMapSetWhenMissingSetA misfun2'
+    mat = toStrictMapSetWhenMatchedA matfun'
+    misf1 = whenMissingApplyStrict misfun1'
+    misf2 = mapSetWhenMissingSetApply misfun2'
+    matf = mapSetWhenMatchedApply matfun'
+
+prop_lazyMapSetMergeA
+  :: WhenMissingFunc OrdA A (Bot B) B (Bot B)
+  -> MapSet_WhenMissingSetFunc OrdA (Bot B)
+  -> MapSet_WhenMatchedFunc OrdA A (Bot B)
+  -> Map OrdA A
+  -> Set OrdA
+  -> Property
+prop_lazyMapSetMergeA misfun1 misfun2 matfun m1 m2 =
+  isNotBottomProp (runIdentity (MergeSetLazy.mergeA mis1 mis2 mat m1 m2))
+  where
+    mis1 = toLazyWhenMissingA (coerce misfun1 :: WhenMissingFunc OrdA A B B B)
+    mis2 = toLazyMapSetWhenMissingSetA (coerce misfun2 :: MapSet_WhenMissingSetFunc OrdA B)
+    mat = toLazyMapSetWhenMatchedA (coerce matfun :: MapSet_WhenMatchedFunc OrdA A B)
+
 ------------------------------------------------------------------------
 -- ** Strict module
 
@@ -1287,6 +1374,8 @@ tests =
       , testPropStrictLazy "updateMaxWithKey" prop_strictUpdateMaxWithKey prop_lazyUpdateMaxWithKey
       , testPropStrictLazy "merge" prop_strictMerge prop_lazyMerge
       , testPropStrictLazy "mergeA" prop_strictMergeA prop_lazyMergeA
+      , testPropStrictLazy "Merge.Set.merge" prop_strictMapSetMerge prop_lazyMapSetMerge
+      , testPropStrictLazy "Merge.Set.mergeA" prop_strictMapSetMergeA prop_lazyMapSetMergeA
       ]
     ]
 
@@ -1443,3 +1532,66 @@ whenMissingApplyStrict wmf = case wmf of
     \k x -> Just $
       applyFunc fun2 $! -- Strict in the intermediate result
       applyFunc2 fun1 k x
+
+toStrictMapSetWhenMatched
+  :: MapSet_WhenMatchedFunc k a b -> MergeSetStrict.WhenMatched Identity k a b
+toStrictMapSetWhenMatched wmf = case wmf of
+  MapSet_MapMaybeMatchedFunc fun ->
+    MergeSetStrict.mapMaybeMatched (applyFunc2 fun)
+  MapSet_MapMatchedFunc fun -> MergeSetStrict.mapMatched (applyFunc2 fun)
+
+toStrictMapSetWhenMatchedA
+  :: MapSet_WhenMatchedFunc k a b -> MergeSetStrict.WhenMatched Identity k a b
+toStrictMapSetWhenMatchedA wmf = case wmf of
+  MapSet_MapMaybeMatchedFunc fun ->
+    MergeSetStrict.traverseMaybeMatched (coerce (applyFunc2 fun))
+  MapSet_MapMatchedFunc fun ->
+    MergeSetStrict.traverseMatched (coerce (applyFunc2 fun))
+
+toLazyMapSetWhenMatched
+  :: MapSet_WhenMatchedFunc k a b -> MergeSetLazy.WhenMatched Identity k a b
+toLazyMapSetWhenMatched wmf = case wmf of
+  MapSet_MapMaybeMatchedFunc fun ->
+    MergeSetLazy.mapMaybeMatched (applyFunc2 fun)
+  MapSet_MapMatchedFunc fun -> MergeSetLazy.mapMatched (applyFunc2 fun)
+
+toLazyMapSetWhenMatchedA
+  :: MapSet_WhenMatchedFunc k a b -> MergeSetLazy.WhenMatched Identity k a b
+toLazyMapSetWhenMatchedA wmf = case wmf of
+  MapSet_MapMaybeMatchedFunc fun ->
+    MergeSetLazy.traverseMaybeMatched (coerce (applyFunc2 fun))
+  MapSet_MapMatchedFunc fun ->
+    MergeSetLazy.traverseMatched (coerce (applyFunc2 fun))
+
+mapSetWhenMatchedApply :: MapSet_WhenMatchedFunc k a b -> k -> a -> Maybe b
+mapSetWhenMatchedApply wmf = case wmf of
+  MapSet_MapMaybeMatchedFunc fun -> applyFunc2 fun
+  MapSet_MapMatchedFunc fun -> \k x -> Just (applyFunc2 fun k x)
+
+toStrictMapSetWhenMissingSet
+  :: MapSet_WhenMissingSetFunc k a -> MergeSetStrict.WhenMissingSet Identity k a
+toStrictMapSetWhenMissingSet mswmsf = case mswmsf of
+  MapSet_GenerateMissingSetFunc fun ->
+    MergeSetStrict.generateMissingSet (applyFunc fun)
+
+toStrictMapSetWhenMissingSetA
+  :: MapSet_WhenMissingSetFunc k a -> MergeSetStrict.WhenMissingSet Identity k a
+toStrictMapSetWhenMissingSetA wmf = case wmf of
+  MapSet_GenerateMissingSetFunc fun ->
+    MergeSetStrict.generateAMissingSet (coerce (applyFunc fun))
+
+toLazyMapSetWhenMissingSet
+  :: MapSet_WhenMissingSetFunc k a -> MergeSetLazy.WhenMissingSet Identity k a
+toLazyMapSetWhenMissingSet wmf = case wmf of
+  MapSet_GenerateMissingSetFunc fun ->
+    MergeSetLazy.generateMissingSet (applyFunc fun)
+
+toLazyMapSetWhenMissingSetA
+  :: MapSet_WhenMissingSetFunc k a -> MergeSetLazy.WhenMissingSet Identity k a
+toLazyMapSetWhenMissingSetA wmf = case wmf of
+  MapSet_GenerateMissingSetFunc fun ->
+    MergeSetLazy.generateAMissingSet (coerce (applyFunc fun))
+
+mapSetWhenMissingSetApply :: MapSet_WhenMissingSetFunc k a -> k -> Maybe a
+mapSetWhenMissingSetApply wmf = case wmf of
+  MapSet_GenerateMissingSetFunc fun -> Just . applyFunc fun
