@@ -1,5 +1,7 @@
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 #ifdef STRICT
 import Data.Map.Strict as Data.Map
@@ -246,6 +248,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "mapKeys"              prop_mapKeys
          , testProperty "mapKeysWith"          prop_mapKeysWith
          , testProperty "mapKeysMonotonic"     prop_mapKeysMonotonic
+         , testProperty "mapAssocsMonotonic"   prop_mapAssocsMonotonic
          , testProperty "split"                prop_splitModel
          , testProperty "fold"                 prop_fold
          , testProperty "foldMap"              prop_foldMap
@@ -1698,13 +1701,28 @@ prop_mapKeysWith f g m =
   where
     m' = mapKeysWith (applyFun2 f) (applyFun g) m
 
-prop_mapKeysMonotonic :: Positive Integer -> Integer -> Map Int A -> Property
-prop_mapKeysMonotonic (Positive p) q m =
+prop_mapKeysMonotonic :: MonotonicFun -> Map Int A -> Property
+prop_mapKeysMonotonic f m =
   valid m' .&&.
-  toList m' == [(f k, x) | (k,x) <- toList m]
+  toList m' === [(applyMonotonicFun f k, x) | (k,x) <- toList m]
   where
-    m' = mapKeysMonotonic f m
-    f x = fromIntegral x * p + q
+    m' = mapKeysMonotonic (applyMonotonicFun f) m
+
+prop_mapAssocsMonotonic
+  :: MonotonicFun -> Fun (Int, A) B -> Map Int A -> Property
+prop_mapAssocsMonotonic f1 f2 m =
+  valid m' .&&.
+  toList m' === fmap (uncurry f) (toList m)
+  where
+    m' = mapAssocsMonotonic f m
+    f k x = (applyMonotonicFun f1 k, applyFun2 f2 k x)
+
+newtype MonotonicFun = MonotonicFun (Positive Integer, Integer)
+  deriving stock Show
+  deriving newtype Arbitrary
+
+applyMonotonicFun :: MonotonicFun -> Int -> Integer
+applyMonotonicFun (MonotonicFun (Positive p, q)) x = fromIntegral x * p + q
 
 prop_splitModel :: Int -> [(Int, Int)] -> Property
 prop_splitModel n ys = length ys > 0 ==>

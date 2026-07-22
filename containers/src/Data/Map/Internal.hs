@@ -241,6 +241,7 @@ module Data.Map.Internal (
     , mapKeys
     , mapKeysWith
     , mapKeysMonotonic
+    , mapAssocsMonotonic
 
     -- * Folds
     , foldr
@@ -3154,9 +3155,23 @@ mapKeysWith c f m =
 -- > valid (mapKeysMonotonic (\ _ -> 1)     (fromList [(5,"a"), (3,"b")])) == False
 
 mapKeysMonotonic :: (k1->k2) -> Map k1 a -> Map k2 a
-mapKeysMonotonic _ Tip = Tip
-mapKeysMonotonic f (Bin sz k x l r) =
-    Bin sz (f k) x (mapKeysMonotonic f l) (mapKeysMonotonic f r)
+mapKeysMonotonic f = mapAssocsMonotonic (\k x -> (f k, x))
+
+-- | \(O(n)\). Map over keys and values with a function @f@ that is
+-- monotonically strictly increasing in the keys. That is, for keys @kx@ and
+-- @ky@ and values @x@ and @y@, if @kx@ < @ky@ then
+-- @fst (f kx x)@ < @fst (f ky y)@.
+--
+-- __Warning__: This function should be used only if @f@ is monotonically
+-- strictly increasing in the key. This precondition is not checked.
+--
+-- @since FIXME
+mapAssocsMonotonic :: (k1 -> a1 -> (k2, a2)) -> Map k1 a1 -> Map k2 a2
+mapAssocsMonotonic f = go
+  where
+    go Tip = Tip
+    go (Bin sz k1 x1 l r) = case f k1 x1 of
+      (k2, x2) -> Bin sz k2 x2 (go l) (go r)
 
 {--------------------------------------------------------------------
   Folds

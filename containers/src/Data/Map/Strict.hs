@@ -228,6 +228,7 @@ module Data.Map.Strict
     , mapKeys
     , mapKeysWith
     , mapKeysMonotonic
+    , mapAssocsMonotonic
 
     -- * Folds
     , foldr
