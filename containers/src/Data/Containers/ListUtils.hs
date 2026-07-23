@@ -81,10 +81,10 @@ nubOrdOn f =  -- Inline with 1 arg
 nubOrdOnExcluding :: Ord b => (a -> b) -> Set b -> [a] -> [a]
 nubOrdOnExcluding f = go
   where
-    go _ [] = []
-    go s (x:xs) = case tryInsertSet fx s of
+    go !_ [] = []
+    go !s (x:xs) = case tryInsertSet fx s of
       Nothing -> go s xs
-      Just s' -> x : go s' xs
+      Just !s' -> x : go s' xs
       where !fx = f x
 
 tryInsertSet :: Ord a => a -> Set a -> Maybe (Set a)
@@ -114,15 +114,15 @@ nubOrdOnFB :: Ord b
            -> Set b
            -> r
 nubOrdOnFB f c =  -- Inline with 2 args
-  \x r -> oneShot (\s ->
+  \x r -> oneShot (\ !s ->
     let !y = f x
     in case tryInsertSet y s of
          Nothing -> r s
-         Just s' -> x `c` r s')
+         Just !s' -> x `c` r s')
 {-# INLINE [0] nubOrdOnFB #-}
 
 constNubOn :: a -> b -> a
-constNubOn x _ = x
+constNubOn x !_ = x
 {-# INLINE [0] constNubOn #-}
 #endif
 
@@ -167,10 +167,11 @@ nubIntOn f =  -- Inline with 1 arg
 nubIntOnExcluding :: (a -> Int) -> IntSet -> [a] -> [a]
 nubIntOnExcluding f = go
   where
-    go _ [] = []
-    go s (x:xs)
+    go !_ [] = []
+    go !s (x:xs)
       | fx `IntSet.member` s = go s xs
-      | otherwise = x : go (IntSet.insert fx s) xs
+      | otherwise = let !s' = IntSet.insert fx s
+                    in x : go s' xs
       where !fx = f x
 
 #ifdef __GLASGOW_HASKELL__
@@ -194,10 +195,11 @@ nubIntOnFB :: (a -> Int)
            -> IntSet
            -> r
 nubIntOnFB f c =  -- Inline with 2 args
-  \x r -> oneShot (\s ->
+  \x r -> oneShot (\ !s ->
     let !y = f x
     in if y `IntSet.member` s
        then r s
-       else x `c` r (IntSet.insert y s))
+       else let !s' = IntSet.insert y s
+            in x `c` r s')
 {-# INLINE [0] nubIntOnFB #-}
 #endif
