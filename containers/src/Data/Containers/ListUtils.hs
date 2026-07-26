@@ -81,10 +81,11 @@ nubOrdOn f =  -- Inline with 1 arg
 nubOrdOnExcluding :: Ord b => (a -> b) -> Set b -> [a] -> [a]
 nubOrdOnExcluding f = go
   where
-    go _ [] = []
-    go s (x:xs) = case tryInsertSet fx s of
+    go !_ [] = []
+    go !s (x:xs) = case tryInsertSet fx s of
       Nothing -> go s xs
-      Just s' -> x : go s' xs
+      Just !s' -> -- See Note [Eager set insertions]
+        x : go s' xs
       where !fx = f x
 
 tryInsertSet :: Ord a => a -> Set a -> Maybe (Set a)
@@ -114,15 +115,16 @@ nubOrdOnFB :: Ord b
            -> Set b
            -> r
 nubOrdOnFB f c =  -- Inline with 2 args
-  \x r -> oneShot (\s ->
+  \x r -> oneShot (\ !s ->
     let !y = f x
     in case tryInsertSet y s of
          Nothing -> r s
-         Just s' -> x `c` r s')
+         Just !s' -> -- See Note [Eager set insertions]
+           x `c` r s')
 {-# INLINE [0] nubOrdOnFB #-}
 
 constNubOn :: a -> b -> a
-constNubOn x _ = x
+constNubOn x !_ = x
 {-# INLINE [0] constNubOn #-}
 #endif
 
@@ -167,10 +169,12 @@ nubIntOn f =  -- Inline with 1 arg
 nubIntOnExcluding :: (a -> Int) -> IntSet -> [a] -> [a]
 nubIntOnExcluding f = go
   where
-    go _ [] = []
-    go s (x:xs)
+    go !_ [] = []
+    go !s (x:xs)
       | fx `IntSet.member` s = go s xs
-      | otherwise = x : go (IntSet.insert fx s) xs
+      | otherwise =
+          let !s' = IntSet.insert fx s -- See Note [Eager set insertions]
+          in x : go s' xs
       where !fx = f x
 
 #ifdef __GLASGOW_HASKELL__
@@ -194,10 +198,24 @@ nubIntOnFB :: (a -> Int)
            -> IntSet
            -> r
 nubIntOnFB f c =  -- Inline with 2 args
-  \x r -> oneShot (\s ->
+  \x r -> oneShot (\ !s ->
     let !y = f x
     in if y `IntSet.member` s
        then r s
-       else x `c` r (IntSet.insert y s))
+       else let !s' = IntSet.insert y s -- See Note [Eager set insertions]
+            in x `c` r s')
 {-# INLINE [0] nubIntOnFB #-}
 #endif
+
+-- Note [Eager set insertions]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--
+-- In nubOrd and nubInt we insert new elements into the set eagerly. This means
+-- that we perform a bit of work before we yield the current element which is
+-- not strictly necessary.
+--
+-- The lazier option would be to create a thunk for the new set, which would get
+-- forced by the membership check in the next step. However, a thunk has a small
+-- overhead, and the small costs of thunks at every step adds up to a noticeable
+-- amount of time and allocations overall. So, we avoid this and perform the
+-- insertions eagerly instead.
