@@ -127,6 +127,44 @@ dropMissingSet = WhenMissingSet
 
 -- | Merge a map and a set into a map.
 --
+-- 'merge' takes a 'M.SimpleWhenMissing' tactic, a 'SimpleWhenMissingSet'
+-- tactic, a 'SimpleWhenMatched' tactic, a map and a set. It uses the tactics to
+-- merge the map and the set into a map.
+--
+-- Its behavior is best understood via the tactics @mapMaybeMissing@,
+-- @generateMaybeMissingSet@, and @mapMaybeMatched@. Consider
+--
+-- @
+-- merge (mapMaybeMissing g1) (generateMaybeMissingSet g2) (mapMaybeMatched f) m1 s2
+-- @
+--
+-- @
+-- g1 k x = if k == 2 then Just ("1" ++ x) else Nothing
+-- g2 k = if k == 3 then Just "2" else Nothing
+-- f k x = if k == 6 then Just ("3" ++ x) else Nothing
+-- m1 = fromList [(2,"a"), (4,"b"), (6,"c"), (8,"d"), (10,"e"), (12,"f")]
+-- s2 = fromList [3, 6, 9, 12]
+-- @
+--
+-- 'merge' will pass the keys and values to @g1@, @g2@, or @f@ as appropriate,
+-- producing a @Maybe@ for each element.
+--
+-- @
+-- m1:      [ (2, "a"),           (4, "b"),  (6, "c"), (8, "d"),          (10, "e"), (12, "f")]
+-- s2:      [                  3,                   6,                 9,                   12]
+-- result:  [ g1 2 "a",     g2 3, g1 4 "b",   f 6 "c", g1 8 "d",    g2 9, g1 10 "e",  f 12 "f"]
+--        = [Just "1a", Just "2",  Nothing, Just "3c",  Nothing, Nothing,   Nothing,   Nothing]
+-- @
+--
+-- The result map contains the @Just@ values.
+--
+-- >>> merge (mapMaybeMissing g1) (generateMaybeMissingSet g2) (mapMaybeMatched f) m1 s2
+-- fromList [(2,"1a"), (3,"2g"), (6,"3c")]
+--
+-- When 'merge' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should typically use 'merge'
+-- to define your custom combining functions.
+--
 -- @since FIXME
 merge
   :: Ord k
@@ -140,6 +178,53 @@ merge miss1 miss2 match = \t1 t2 -> runIdentity (mergeA miss1 miss2 match t1 t2)
 {-# INLINE merge #-}
 
 -- | Merge a map and a set into a map. Applicative version of 'merge'.
+--
+-- 'mergeA' takes a 'M.WhenMissing' tactic, a 'WhenMissingSet' tactic, a
+-- 'WhenMatched' tactic, a map and a set. It uses the tactics to merge the map
+-- and the set into a map.
+--
+-- Behaves just like 'merge' while allowing @Applicative@ effects. Effects are
+-- performed in increasing order of keys.
+--
+-- Consider
+--
+-- @
+-- mergeA (traverseMaybeMissing g1)
+--        (generateMaybeAMissingSet g2)
+--        (traverseMaybeMatched f)
+--        m1
+--        s2
+-- @
+--
+-- @
+-- g1 k x = let z = if k == 2 then Just ("1" ++ x) else Nothing
+--          in z <$ putStrLn ("g1 " ++ show (k, x))
+-- g2 k = let z = if k == 3 then Just "2" else Nothing
+--        in z <$ putStrLn ("g2 " ++ show k)
+-- f k x = let z = if k == 6 then Just ("3" ++ x) else Nothing
+--         in z <$ putStrLn ("f " ++ show (k, x))
+-- m1 = fromList [(2,"a"), (4,"b"), (6,"c"), (8,"d"), (10,"e"), (12,"f")]
+-- m2 = fromList [3, 6, 9, 12]
+-- @
+--
+-- As with 'merge', the result map is @[(2,"1a"), (3,"2"), (6,"3c")]@.
+-- Additionally, @g1@, @g2@, and @f@ perform @IO@ effects, printing in
+-- increasing order of key.
+--
+-- >>> mergeA (traverseMaybeMissing g1) (generateMaybeAMissingSet g2) (traverseMaybeMatched f) m1 s2
+-- g1 (2,"a")
+-- g2 3
+-- g1 (4,"b")
+-- f (6,"c")
+-- g1 (8,"d")
+-- g2 9
+-- g1 (10,"e")
+-- f (12,"f")
+-- fromList [(2,"1a"),(3,"2"),(6,"3c")]
+--
+-- When 'mergeA' is given three arguments, it is inlined at the call
+-- site. To prevent excessive inlining, you should generally only use
+-- 'mergeA' to define custom combining functions.
 --
 -- @since FIXME
 mergeA
