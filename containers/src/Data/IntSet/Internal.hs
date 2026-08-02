@@ -912,7 +912,7 @@ disjoint Nil _ = True
 {--------------------------------------------------------------------
   Filter
 --------------------------------------------------------------------}
--- | \(O(n)\). Filter all elements that satisfy some predicate.
+-- | \(O(n)\). Keep all elements that satisfy some predicate.
 filter :: (Key -> Bool) -> IntSet -> IntSet
 filter predicate t
   = case t of

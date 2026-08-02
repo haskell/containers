@@ -968,7 +968,7 @@ symmetricDifference (Bin _ x l1 r1) t2
 {--------------------------------------------------------------------
   Filter and partition
 --------------------------------------------------------------------}
--- | \(O(n)\). Filter all elements that satisfy the predicate.
+-- | \(O(n)\). Keep all elements that satisfy the predicate.
 filter :: (a -> Bool) -> Set a -> Set a
 filter _ Tip = Tip
 filter p t@(Bin _ x l r)
