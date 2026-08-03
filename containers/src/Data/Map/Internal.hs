@@ -264,6 +264,8 @@ module Data.Map.Internal (
     , argSet
     , fromSet
     , fromSetA
+    , fromSetMaybe
+    , fromSetMaybeA
     , fromArgSet
 
     -- ** Lists
@@ -3353,30 +3355,67 @@ argSet :: Map k a -> Set.Set (Arg k a)
 argSet Tip = Set.Tip
 argSet (Bin sz kx x l r) = Set.Bin sz (Arg kx x) (argSet l) (argSet r)
 
--- | \(O(n)\). Build a map from a set of keys and a function which for each key
--- computes its value.
+-- | \(O(n)\). Build a map from a 'Set' of keys and a function which for each
+-- key computes its value.
 --
--- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
--- > fromSet undefined Data.Set.empty == empty
+-- > fromSet (\k -> replicate k 'a') (Data.Set.fromList [3,5]) == fromList [(3,"aaa"), (5,"aaaaa")]
 
-fromSet :: (k -> a) -> Set.Set k -> Map k a
+fromSet :: (k -> a) -> Set k -> Map k a
 #ifdef __GLASGOW_HASKELL__
-fromSet f = runIdentity . fromSetA (coerce f)
+fromSet =
+  (coerce :: ((k -> Identity a) -> Set k -> Identity (Map k a))
+          -> (k -> a) -> Set k -> Map k a)
+    fromSetA
 #else
 fromSet f = runIdentity . fromSetA (pure . f)
 #endif
 
--- | \(O(n)\). Build a map from a set of keys and a function which for each key
--- computes its value in an 'Applicative' context.
+-- | \(O(n)\). Build a map from a 'Set' of keys and a function which for each
+-- key computes its value in an 'Applicative' context.
 --
--- > fromSetA (\k -> pure $ replicate k 'a') (Data.Set.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
--- > fromSetA undefined Data.Set.empty == pure empty
-
-fromSetA :: Applicative f => (k -> f a) -> Set.Set k -> f (Map k a)
+-- The @Applicative@ actions are sequenced in order of increasing key.
+--
+-- > let f k = if k == 0 then Nothing else Just (6 `div` k)
+-- > fromSetA f (Data.Set.fromList [1,2,3,4]) == Just (fromList [(1,6),(2,3),(3,2),(4,1)])
+-- > fromSetA f (Data.Set.fromList [0,1,2]) == Nothing
+--
+-- @since FIXME
+fromSetA :: Applicative f => (k -> f a) -> Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
 fromSetA f (Set.Bin sz x l r) =
   liftA3 (flip (Bin sz x)) (fromSetA f l) (f x) (fromSetA f r)
 {-# INLINABLE fromSetA #-}
+
+-- | \(O(n)\). Build a map from a 'Set' of keys and a function which for each
+-- key optionally computes its value.
+--
+-- > let f k = if even k then Just (replicate k 'a') else Nothing
+-- > fromSetMaybe f (Data.Set.fromList [1,2,3,4]) == fromList [(2,"aa"), (4,"aaaa")]
+--
+-- @since FIXME
+fromSetMaybe :: (k -> Maybe a) -> Set k -> Map k a
+#ifdef __GLASGOW_HASKELL__
+fromSetMaybe =
+  (coerce :: ((k -> Identity (Maybe a)) -> Set k -> Identity (Map k a))
+          -> (k -> Maybe a) -> Set k -> Map k a)
+     fromSetMaybeA
+#else
+fromSetMaybe f s = runIdentity (fromSetMaybeA (Identity . f) s)
+#endif
+
+-- | \(O(n)\). Build a map from a 'Set' of keys and a function which for each
+-- key optionally computes its values in an 'Applicative' context.
+--
+-- The @Applicative@ actions are sequenced in order of increasing key.
+--
+-- @since FIXME
+fromSetMaybeA :: Applicative f => (k -> f (Maybe a)) -> Set k -> f (Map k a)
+fromSetMaybeA f = go
+  where
+    go Set.Tip = pure Tip
+    go (Set.Bin _ k l r) =
+      liftA3 (\l' mx r' -> maybe link2 (link k) mx l' r') (go l) (f k) (go r)
+{-# INLINABLE fromSetMaybeA #-}
 
 -- | \(O(n)\). Build a map from a set of elements contained inside 'Arg's.
 --

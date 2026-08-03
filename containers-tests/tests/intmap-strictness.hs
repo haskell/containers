@@ -104,6 +104,32 @@ prop_fromSetA_equiv_strictness fun set =
   bottomOn = (===) `on` isBottom . getSolo
   f = MkSolo . applyFunc fun
 
+prop_strictFromSetMaybe :: Func Int (Maybe (Bot A)) -> IntSet -> Property
+prop_strictFromSetMaybe fun s =
+  isBottom (M.fromSetMaybe f s) === any isBottom (mapMaybe f (IntSet.toList s))
+  where
+    f = coerce (applyFunc fun) :: Int -> Maybe A
+
+prop_lazyFromSetMaybe :: Func Int (Maybe (Bot A)) -> IntSet -> Property
+prop_lazyFromSetMaybe fun s = isNotBottomProp (L.fromSetMaybe f s)
+  where
+    f = coerce (applyFunc fun) :: Int -> Maybe A
+
+prop_strictFromSetMaybeA
+  :: Func Int (Identity (Maybe (Bot A))) -> IntSet -> Property
+prop_strictFromSetMaybeA fun s =
+  isBottom (runIdentity (M.fromSetMaybeA f s)) ===
+    any isBottom (mapMaybe (runIdentity . f) (IntSet.toList s))
+  where
+    f = coerce (applyFunc fun) :: Int -> Identity (Maybe A)
+
+prop_lazyFromSetMaybeA
+  :: Func Int (Identity (Maybe (Bot A))) -> IntSet -> Property
+prop_lazyFromSetMaybeA fun s =
+  isNotBottomProp (runIdentity (L.fromSetMaybeA f s))
+  where
+    f = coerce (applyFunc fun) :: Int -> Identity (Maybe A)
+
 prop_strictFromList :: [(Key, Bot A)] -> Property
 prop_strictFromList kvs =
   isBottom (M.fromList kvs') === any (isBottom . snd) kvs'
@@ -1107,6 +1133,8 @@ tests =
       , testPropStrictLazy "fromSet" prop_strictFromSet prop_lazyFromSet
       , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
       , testProperty       "fromSetA equivalences" prop_fromSetA_equiv_strictness
+      , testPropStrictLazy "fromSetMaybe" prop_strictFromSetMaybe prop_lazyFromSetMaybe
+      , testPropStrictLazy "fromSetMaybeA" prop_strictFromSetMaybeA prop_lazyFromSetMaybeA
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
       , testPropStrictLazy "fromListWithKey" prop_strictFromListWithKey prop_lazyFromListWithKey

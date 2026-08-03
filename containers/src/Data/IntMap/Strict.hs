@@ -118,8 +118,6 @@ module Data.IntMap.Strict (
     -- * Construction
     , empty
     , singleton
-    , fromSet
-    , fromSetA
 
     -- ** From Unordered Lists
     , fromList
@@ -135,6 +133,12 @@ module Data.IntMap.Strict (
     , fromDistinctAscList
     , fromDescList
     , fromDescListUpsert
+
+    -- * From @IntSet@
+    , fromSet
+    , fromSetA
+    , fromSetMaybe
+    , fromSetMaybeA
 
     -- * Insertion
     , insert
