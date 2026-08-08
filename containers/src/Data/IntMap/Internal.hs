@@ -2747,7 +2747,7 @@ mapKeysMonotonic f t =
 {--------------------------------------------------------------------
   Filter
 --------------------------------------------------------------------}
--- | \(O(n)\). Filter all values that satisfy some predicate.
+-- | \(O(n)\). Keep all values that satisfy some predicate.
 --
 -- > filter (> "a") (fromList [(5,"a"), (3,"b")]) == singleton 3 "b"
 -- > filter (> "x") (fromList [(5,"a"), (3,"b")]) == empty
@@ -2757,7 +2757,7 @@ filter :: (a -> Bool) -> IntMap a -> IntMap a
 filter p m
   = filterWithKey (\_ x -> p x) m
 
--- | \(O(n)\). Filter all keys that satisfy some predicate.
+-- | \(O(n)\). Keep all keys that satisfy some predicate.
 --
 -- @
 -- filterKeys p = 'filterWithKey' (\\k _ -> p k)
@@ -2770,7 +2770,7 @@ filter p m
 filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
 filterKeys predicate = filterWithKey (\k _ -> predicate k)
 
--- | \(O(n)\). Filter all keys\/values that satisfy some predicate.
+-- | \(O(n)\). Keep all keys\/values that satisfy some predicate.
 --
 -- > filterWithKey (\k _ -> k > 4) (fromList [(5,"a"), (3,"b")]) == singleton 5 "a"
 
