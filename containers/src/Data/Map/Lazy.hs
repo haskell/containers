@@ -214,6 +214,7 @@ module Data.Map.Lazy (
     , mapKeys
     , mapKeysWith
     , mapKeysMonotonic
+    , mapAssocsMonotonic
 
     -- * Folds
     , foldr
