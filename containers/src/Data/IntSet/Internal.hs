@@ -380,7 +380,7 @@ size = go 0
 -- @compareSize m c@ returns the same result as @compare ('size' m) c@ but is
 -- more efficient when @c@ is smaller than the size of the set.
 --
--- @since FIXME
+-- @since 0.8.1
 compareSize :: IntSet -> Int -> Ordering
 compareSize Nil c0 = compare 0 c0
 compareSize _ c0 | c0 <= 0 = GT
@@ -573,7 +573,7 @@ deleteBM _ _ Nil = Nil
 -- pop 2 (fromList [0,2,4]) == Just (fromList [0,4])
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 pop :: Key -> IntSet -> Maybe IntSet
 pop x0 t0 = case go x0 t0 of
   True :*: t -> Just t
@@ -930,7 +930,7 @@ filter predicate t
 -- If the function is monotonically non-decreasing or monotonically
 -- non-increasing, 'mapMaybe' takes \(O(n)\) time.
 --
--- @since FIXME
+-- @since 0.8.1
 mapMaybe :: (Key -> Maybe Key) -> IntSet -> IntSet
 mapMaybe f t = finishB (foldl' go emptyB t)
   where go b x = case f x of
@@ -1542,7 +1542,7 @@ fromDistinctAscList = fromAscList
 -- non-increasing order. This precondition is not checked. Use 'fromList' if the
 -- precondition may not hold.
 --
--- @since FIXME
+-- @since 0.8.1
 
 -- See Note [fromAscList implementation] in Data.IntMap.Internal.
 fromDescList :: [Key] -> IntSet

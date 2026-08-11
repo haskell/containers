@@ -581,7 +581,7 @@ delete = go
 -- pop 2 (fromList [0,2,4]) == Just (fromList [0,4])
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 pop :: Ord a => a -> Set a -> Maybe (Set a)
 pop x0 t0 = case go x0 t0 of
   True :*: t -> Just t
@@ -1025,7 +1025,7 @@ partition p0 t0 = toPair $ go p0 t0
 -- If the function is monotonically non-decreasing, this function takes \(O(n)\)
 -- time.
 --
--- @since FIXME
+-- @since 0.8.1
 mapMaybe :: Ord b => (a -> Maybe b) -> Set a -> Set b
 mapMaybe f t = finishB (foldl' go emptyB t)
   where go b x = case f x of
@@ -1795,7 +1795,7 @@ linkR_ x !lsz l r = case r of
   Tip -> Bin (1+lsz) x l Tip
 
 -- insertMin and insertMax don't perform potentially expensive comparisons.
--- @since FIXME
+-- @since 0.8.1
 insertMax :: a -> Set a -> Set a
 insertMax x t
   = case t of
@@ -1803,7 +1803,7 @@ insertMax x t
       Bin _ y l r
           -> balanceR y l (insertMax x r)
 
--- @since FIXME
+-- @since 0.8.1
 insertMin :: a -> Set a -> Set a
 insertMin x t
   = case t of
@@ -1814,7 +1814,7 @@ insertMin x t
 {--------------------------------------------------------------------
   [link2 l r]: merges two trees.
 --------------------------------------------------------------------}
--- @since FIXME
+-- @since 0.8.1
 link2 :: Set a -> Set a -> Set a
 link2 Tip r   = r
 link2 l Tip   = l
@@ -1841,7 +1841,7 @@ link2R_ !lsz l r = case r of
   [glue l r]: glues two trees together.
   Assumes that [l] and [r] are already balanced with respect to each other.
 --------------------------------------------------------------------}
--- @since FIXME
+-- @since 0.8.1
 glue :: Set a -> Set a -> Set a
 glue Tip r = r
 glue l Tip = l
@@ -1985,7 +1985,7 @@ ratio = 2
 
 -- balanceL is called when left subtree might have been inserted to or when
 -- right subtree might have been deleted from.
--- @since FIXME
+-- @since 0.8.1
 balanceL :: a -> Set a -> Set a -> Set a
 balanceL x l r = case (l, r) of
   (Bin ls _ _ _, Bin rs _ _ _)
@@ -2016,7 +2016,7 @@ balanceL_ x l r = case r of
 
 -- balanceR is called when right subtree might have been inserted to or when
 -- left subtree might have been deleted from.
--- @since FIXME
+-- @since 0.8.1
 balanceR :: a -> Set a -> Set a -> Set a
 balanceR x l r = case (l, r) of
   (Bin ls _ _ _, Bin rs _ _ _)
@@ -2212,7 +2212,7 @@ disjointUnion as bs = link2 (mapMonotonic Left as) (mapMonotonic Right bs)
 -- A tactic of type @WhenMissing f a@ is an abstract representation of a
 -- function of type @a -> f Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 data WhenMissing f a = WhenMissing
   { missingSubtree :: Set a -> f (Set a)
   , missingElem :: a -> f Bool
@@ -2224,13 +2224,13 @@ data WhenMissing f a = WhenMissing
 -- A tactic of type @SimpleWhenMissing a@ is an abstract representation
 -- of a function of type @a -> Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 type SimpleWhenMissing = WhenMissing Identity
 
 -- | Along with 'filterAMissing', witnesses the isomorphism between
 -- @WhenMissing f a@ and @a -> f Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 runWhenMissing :: WhenMissing f a -> a -> f Bool
 runWhenMissing = missingElem
 
@@ -2240,7 +2240,7 @@ runWhenMissing = missingElem
 -- A tactic of type @WhenMatched f a@ is an abstract representation of a
 -- function of type @a -> f Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 newtype WhenMatched f a = WhenMatched { matchedElem :: a -> f Bool }
 
 -- | A tactic for dealing with elements present in both sets in 'merge'.
@@ -2248,20 +2248,20 @@ newtype WhenMatched f a = WhenMatched { matchedElem :: a -> f Bool }
 -- A tactic of type @SimpleWhenMatched a@ is an abstract representation of a
 -- function of type @a -> Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 type SimpleWhenMatched = WhenMatched Identity
 
 -- | Along with 'filterAMatched', witnesses the isomorphism between
 -- @WhenMatched f a@ and @a -> f Bool@.
 --
--- @since FIXME
+-- @since 0.8.1
 runWhenMatched :: WhenMatched f a -> a -> f Bool
 runWhenMatched = matchedElem
 
 -- | When an element is found in both sets, choose whether to keep the element
 -- in the merged set.
 --
--- @since FIXME
+-- @since 0.8.1
 filterMatched :: Applicative f => (a -> Bool) -> WhenMatched f a
 filterMatched f = WhenMatched (pure . f)
 {-# INLINE filterMatched #-}
@@ -2269,7 +2269,7 @@ filterMatched f = WhenMatched (pure . f)
 -- | When an element is found in both sets, choose whether to keep the element
 -- in the merged set.
 --
--- @since FIXME
+-- @since 0.8.1
 filterAMatched :: (a -> f Bool) -> WhenMatched f a
 filterAMatched = WhenMatched
 
@@ -2283,7 +2283,7 @@ filterAMatched = WhenMatched
 --
 -- but @dropMissing@ is more efficient.
 --
--- @since FIXME
+-- @since 0.8.1
 dropMissing :: Applicative f => WhenMissing f a
 dropMissing = WhenMissing
   { missingSubtree = \_ -> pure Tip
@@ -2301,7 +2301,7 @@ dropMissing = WhenMissing
 --
 -- but @preserveMissing@ is more efficient.
 --
--- @since FIXME
+-- @since 0.8.1
 preserveMissing :: Applicative f => WhenMissing f a
 preserveMissing = WhenMissing
   { missingSubtree = pure
@@ -2315,7 +2315,7 @@ preserveMissing = WhenMissing
 -- filterMissing :: (a -> Bool) -> 'SimpleWhenMissing' a
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 filterMissing :: Applicative f => (a -> Bool) -> WhenMissing f a
 filterMissing f = WhenMissing
   { missingSubtree = pure . filter f
@@ -2326,7 +2326,7 @@ filterMissing f = WhenMissing
 -- | Filter the elements that are missing from the other set using some
 -- 'Applicative' action.
 --
--- @since FIXME
+-- @since 0.8.1
 filterAMissing :: Applicative f => (a -> f Bool) -> WhenMissing f a
 filterAMissing f = WhenMissing
   { missingSubtree = filterA f
@@ -2378,7 +2378,7 @@ filterAMissing f = WhenMissing
 -- site. To prevent excessive inlining, you should typically use 'merge'
 -- to define your custom combining functions.
 --
--- @since FIXME
+-- @since 0.8.1
 merge
   :: Ord a
   => SimpleWhenMissing a -- ^ What to do with elements in @s1@ but not @s2@
@@ -2430,7 +2430,7 @@ merge g1 g2 f = \s1 s2 -> runIdentity (mergeA g1 g2 f s1 s2)
 -- site. To prevent excessive inlining, you should generally only use
 -- 'mergeA' to define custom combining functions.
 --
--- @since FIXME
+-- @since 0.8.1
 mergeA
   :: (Applicative f, Ord a)
   => WhenMissing f a -- ^ What to do with elements in @s1@ but not @s2@
