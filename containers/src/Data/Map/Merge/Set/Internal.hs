@@ -18,7 +18,7 @@
 -- This module defines common constructs used by both "Data.Map.Merge.Set.Lazy"
 -- and "Data.Map.Merge.Set.Strict".
 --
--- @since FIXME
+-- @since 0.8.1
 --
 module Data.Map.Merge.Set.Internal
   ( WhenMatched(..)
@@ -51,14 +51,14 @@ import qualified Data.Map.Internal as M
 -- A tactic of type @WhenMatched f k a b@ is an abstract representation of
 -- a function of type @k -> a -> f (Maybe b)@.
 --
--- @since FIXME
+-- @since 0.8.1
 newtype WhenMatched f k a b = WhenMatched
   { matchedKey :: k -> a -> f (Maybe b)
   }
 
 -- | Run @WhenMatched@.
 --
--- @since FIXME
+-- @since 0.8.1
 runWhenMatched :: WhenMatched f k a b -> k -> a -> f (Maybe b)
 runWhenMatched = matchedKey
 
@@ -68,12 +68,12 @@ runWhenMatched = matchedKey
 -- A tactic of type @SimpleWhenMatched k a b@ is an abstract representation of
 -- a function of type @k -> a -> Maybe b@.
 --
--- @since FIXME
+-- @since 0.8.1
 type SimpleWhenMatched = WhenMatched Identity
 
 -- | When a key is found in both the map and the set, drop the key and value.
 --
--- @since FIXME
+-- @since 0.8.1
 dropMatched :: Applicative f => WhenMatched f k a b
 dropMatched = WhenMatched (\_ _ -> pure Nothing)
 {-# INLINE dropMatched #-}
@@ -82,7 +82,7 @@ dropMatched = WhenMatched (\_ _ -> pure Nothing)
 -- key and the value in the map and keep the value in the merged map if the
 -- result is @True@.
 --
--- @since FIXME
+-- @since 0.8.1
 filterMatched :: Applicative f => (k -> a -> Bool) -> WhenMatched f k a a
 filterMatched f =
   WhenMatched (\k x -> if f k x then pure (Just x) else pure Nothing)
@@ -92,7 +92,7 @@ filterMatched f =
 -- key and the value in the map and keep the value in the merged map if the
 -- result of the action is @True@.
 --
--- @since FIXME
+-- @since 0.8.1
 filterAMatched :: Functor f => (k -> a -> f Bool) -> WhenMatched f k a a
 filterAMatched f =
   WhenMatched (\k x -> (\b -> if b then Just x else Nothing) <$> f k x)
@@ -104,7 +104,7 @@ filterAMatched f =
 -- A tactic of type @WhenMissingSet f k a@ is an abstract representation of
 -- a function of type @k -> f (Maybe a)@.
 --
--- @since FIXME
+-- @since 0.8.1
 data WhenMissingSet f k a = WhenMissingSet
   { missingSubtree :: Set k -> f (Map k a)
   , missingKey :: k -> f (Maybe a)
@@ -112,7 +112,7 @@ data WhenMissingSet f k a = WhenMissingSet
 
 -- | Run @WhenMissingSet@.
 --
--- @since FIXME
+-- @since 0.8.1
 runWhenMissingSet :: WhenMissingSet f k a -> k -> f (Maybe a)
 runWhenMissingSet = missingKey
 
@@ -122,12 +122,12 @@ runWhenMissingSet = missingKey
 -- A tactic of type @SimpleWhenMissingSet k a@ is an abstract representation of
 -- a function of type @k -> Maybe a@.
 --
--- @since FIXME
+-- @since 0.8.1
 type SimpleWhenMissingSet = WhenMissingSet Identity
 
 -- | Drop keys that are present in the set but missing from the map.
 --
--- @since FIXME
+-- @since 0.8.1
 dropMissingSet :: Applicative f => WhenMissingSet f k a
 dropMissingSet = WhenMissingSet
   { missingSubtree = \_ -> pure M.empty
@@ -175,7 +175,7 @@ dropMissingSet = WhenMissingSet
 -- site. To prevent excessive inlining, you should typically use 'merge'
 -- to define your custom combining functions.
 --
--- @since FIXME
+-- @since 0.8.1
 merge
   :: Ord k
   => M.SimpleWhenMissing k a b -- ^ What to do with keys in @m1@ but not @s2@
@@ -267,7 +267,7 @@ merge miss1 miss2 match = \t1 t2 -> runIdentity (mergeA miss1 miss2 match t1 t2)
 --     isEmpty = whenMissing (\\_k _x -> Const (All False)) (\\m -> Const (All (null m)))
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 mergeA
   :: (Applicative f, Ord k)
   => M.WhenMissing f k a b -- ^ What to do with keys in @m1@ but not @s2@
