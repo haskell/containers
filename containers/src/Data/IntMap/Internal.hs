@@ -354,6 +354,8 @@ import Data.IntSet.Internal.IntTreeCommons
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL, wordSize)
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
+import Utils.Containers.Internal.UnboxedMaybe (UMaybe)
+import qualified Utils.Containers.Internal.UnboxedMaybe as UMaybe
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
@@ -649,26 +651,25 @@ notMember k m = not $ member k m
 
 -- | \(O(\min(n,W))\). Look up the value at a key in the map. See also 'Data.Map.lookup'.
 
--- See Note: Local 'go' functions and capturing
 lookup :: Key -> IntMap a -> Maybe a
-lookup !k = go
-  where
-    go (Bin p l r) | left k p  = go l
-                   | otherwise = go r
-    go (Tip kx x) | k == kx   = Just x
-                  | otherwise = Nothing
-    go Nil = Nothing
+lookup k m = UMaybe.toMaybe (lookupGo k m)
+-- Inline so that GHC can eliminate the Maybe if it matched on at the call-site.
+{-# INLINE lookup #-}
 
--- See Note: Local 'go' functions and capturing]
+lookupGo :: Key -> IntMap a -> UMaybe a
+lookupGo !k (Bin p l r)
+  | left k p = lookupGo k l
+  | otherwise = lookupGo k r
+lookupGo !k (Tip kx x)
+  | k == kx = UMaybe.just x
+  | otherwise = UMaybe.nothing ()
+lookupGo !_ Nil = UMaybe.nothing ()
+
 find :: Key -> IntMap a -> a
-find !k = go
+find k m = case lookup k m of
+  Nothing -> not_found
+  Just x -> x
   where
-    go (Bin p l r) | left k p  = go l
-                   | otherwise = go r
-    go (Tip kx x) | k == kx   = x
-                  | otherwise = not_found
-    go Nil = not_found
-
     not_found = error ("IntMap.!: key " ++ show k ++ " is not an element of the map")
 
 -- | \(O(\min(n,W))\). The expression @('findWithDefault' def k map)@

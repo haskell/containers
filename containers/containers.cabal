@@ -92,5 +92,6 @@ Library
         Utils.Containers.Internal.EqOrdUtil
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
+        Utils.Containers.Internal.UnboxedMaybe
 
     include-dirs: include
