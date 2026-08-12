@@ -121,9 +121,6 @@ module Data.Map.Strict
     -- * Construction
     , empty
     , singleton
-    , fromSet
-    , fromSetA
-    , fromArgSet
 
     -- ** From Unordered Lists
     , fromList
@@ -144,6 +141,13 @@ module Data.Map.Strict
     , fromDescListWithKey
     , fromDescListUpsert
     , fromDistinctDescList
+
+    -- ** From @Set@
+    , fromSet
+    , fromSetA
+    , fromSetMaybe
+    , fromSetMaybeA
+    , fromArgSet
 
     -- * Insertion
     , insert

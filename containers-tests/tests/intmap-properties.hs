@@ -37,6 +37,7 @@ import qualified Prelude (map, filter)
 import Data.List (nub,sort)
 import qualified Data.List as List
 import qualified Data.List.NonEmpty as NE
+import Data.IntSet (IntSet)
 import qualified Data.IntSet as IntSet
 import Test.Tasty
 import Test.Tasty.HUnit
@@ -223,7 +224,9 @@ main = defaultMain $ testGroup "intmap-properties"
                  prop_FoldableTraversableCompat
              , testProperty "keysSet"              prop_keysSet
              , testProperty "fromSet"              prop_fromSet
-             , testProperty "fromSetA eval order"  prop_fromSetA_action_order
+             , testProperty "fromSetA"             prop_fromSetA
+             , testProperty "fromSetMaybe"         prop_fromSetMaybe
+             , testProperty "fromSetMaybeA"        prop_fromSetMaybeA
              , testProperty "restrictKeys"         prop_restrictKeys
              , testProperty "withoutKeys"          prop_withoutKeys
              , testProperty "traverseWithKey identity"              prop_traverseWithKey_identity
@@ -304,6 +307,10 @@ instance Arbitrary a => Arbitrary (IntMap a) where
     where
       go kgen = fromList <$> listOf ((,) <$> kgen <*> arbitrary)
   shrink = fmap fromList . shrink . toAscList
+
+instance Arbitrary IntSet where
+  arbitrary = IntSet.fromList <$> arbitrary
+  shrink = fmap IntSet.fromList . shrink . IntSet.toList
 
 newtype NonEmptyIntMap a = NonEmptyIntMap {getNonEmptyIntMap :: IntMap a} deriving (Eq, Show)
 
@@ -1807,27 +1814,43 @@ prop_keysSet :: [Int] -> Property
 prop_keysSet keys =
   keysSet (fromList (fmap (, ()) keys)) === IntSet.fromList keys
 
-prop_fromSet :: [Int] -> Fun Int A -> Property
+prop_fromSet :: IntSet -> Fun Int A -> Property
 prop_fromSet keys funF =
   let f = apply funF
-      m = fromSet f (IntSet.fromList keys)
+      m = fromSet f keys
   in
     valid m .&&.
-    m === fromList (fmap (id &&& f) keys)
+    toList m === fmap (id &&& f) (IntSet.toList keys)
 
-prop_fromSetA_action_order :: [Int] -> Fun Int A -> Property
-prop_fromSetA_action_order keys funF =
-  let set = IntSet.fromList keys
-      setList = IntSet.toList set
+prop_fromSetA :: IntSet -> Fun Int A -> Property
+prop_fromSetA keys funF =
+  let setList = IntSet.toList keys
       f = apply funF
       action = \k ->
         let v = f k
         in tell [v] $> v
-      (writtenMap, writtenOutput) = runWriter (fromSetA action set)
+      (writtenMap, writtenOutput) = runWriter (fromSetA action keys)
   in
     valid writtenMap .&&.
     writtenOutput === List.map f setList .&&.
     toList writtenMap === fmap (id &&& f) setList
+
+prop_fromSetMaybe :: IntSet -> Fun Int (Maybe A) -> Property
+prop_fromSetMaybe keys f =
+  valid m .&&.
+  toList m ===
+    Maybe.mapMaybe (\k -> (,) k <$> applyFun f k) (IntSet.toList keys)
+  where
+    m = fromSetMaybe (applyFun f) keys
+
+prop_fromSetMaybeA :: IntSet -> Fun Int (Maybe A) -> Property
+prop_fromSetMaybeA keys f =
+  valid m .&&.
+  ks === IntSet.toList keys .&&.
+  toList m ===
+    Maybe.mapMaybe (\k -> (,) k <$> applyFun f k) (IntSet.toList keys)
+  where
+    (ks, m) = fromSetMaybeA (\k -> ([k], applyFun f k)) keys
 
 newtype Identity a = Identity a
     deriving (Eq, Show)

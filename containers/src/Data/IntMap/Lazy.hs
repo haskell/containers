@@ -100,8 +100,6 @@ module Data.IntMap.Lazy (
     -- * Construction
     , empty
     , singleton
-    , fromSet
-    , fromSetA
 
     -- ** From Unordered Lists
     , fromList
@@ -117,6 +115,12 @@ module Data.IntMap.Lazy (
     , fromDistinctAscList
     , fromDescList
     , fromDescListUpsert
+
+    -- * From @IntSet@
+    , fromSet
+    , fromSetA
+    , fromSetMaybe
+    , fromSetMaybeA
 
     -- * Insertion
     , insert

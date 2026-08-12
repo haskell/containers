@@ -105,6 +105,8 @@ module Data.IntMap.Internal (
     , singleton
     , fromSet
     , fromSetA
+    , fromSetMaybe
+    , fromSetMaybeA
 
     -- ** Insertion
     , insert
@@ -305,6 +307,7 @@ module Data.IntMap.Internal (
     , finishB
     , moveToB
     , MoveResult(..)
+    , treeFromIntSetTip
 
     -- * Used by "IntMap.Merge.Lazy" and "IntMap.Merge.Strict"
     , mapWhenMissing
@@ -3337,31 +3340,80 @@ keysSet (Bin p l r)
         computeBm acc (Tip kx _) = acc .|. IntSet.bitmapOf kx
         computeBm _   Nil = error "Data.IntSet.keysSet: Nil"
 
--- | \(O(n)\). Build a map from a set of keys and a function which for each key
--- computes its value.
+-- | \(O(n)\). Build a map from an 'IntSet' of keys and a function which for
+-- each key computes its value.
 --
 -- > fromSet (\k -> replicate k 'a') (Data.IntSet.fromList [3, 5]) == fromList [(5,"aaaaa"), (3,"aaa")]
--- > fromSet undefined Data.IntSet.empty == empty
-
 fromSet :: (Key -> a) -> IntSet -> IntMap a
 #ifdef __GLASGOW_HASKELL__
-fromSet f = runIdentity . fromSetA (coerce f)
+fromSet =
+  (coerce :: ((Key -> Identity a) -> IntSet -> Identity (IntMap a))
+          -> (Key -> a) -> IntSet -> IntMap a)
+    fromSetA
 #else
 fromSet f = runIdentity . fromSetA (pure . f)
 #endif
 
--- | \(O(n)\). Build a map from a set of keys and a function which for each key
--- computes its value, while within an 'Applicative' context.
+-- | \(O(n)\). Build a map from an 'IntSet' of keys and a function which for
+-- each key computes its value, while within an 'Applicative' context.
 --
--- > fromSetA (\k -> pure $ replicate k 'a') (Data.IntSet.fromList [3, 5]) == pure (fromList [(5,"aaaaa"), (3,"aaa")])
--- > fromSetA undefined Data.IntSet.empty == pure empty
-
+-- The @Applicative@ actions are sequenced in order of increasing key.
+--
+-- > let f k = if k == 0 then Nothing else Just (6 `div` k)
+-- > fromSetA f (Data.Set.fromList [1,2,3,4]) == Just (fromList [(1,6),(2,3),(3,2),(4,1)])
+-- > fromSetA f (Data.Set.fromList [0,1,2]) == Nothing
+--
+-- @since FIXME
 fromSetA :: Applicative f => (Key -> f a) -> IntSet -> f (IntMap a)
 fromSetA _ IntSet.Nil = pure Nil
 fromSetA f (IntSet.Bin p l r)
   | signBranch p = liftA2 (flip (Bin p)) (fromSetA f r) (fromSetA f l)
   | otherwise = liftA2 (Bin p) (fromSetA f l) (fromSetA f r)
-fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
+fromSetA f (IntSet.Tip kx bm) =
+  treeFromIntSetTip (\kx' -> Tip kx' <$> f kx') (\p -> liftA2 (Bin p)) kx bm
+{-# INLINABLE fromSetA #-}
+
+-- | \(O(n)\). Build a map from an 'IntSet' of keys and a function which for each
+-- key optionally computes its value.
+--
+-- > let f k = if even k then Just (replicate k 'a') else Nothing
+-- > fromSetMaybe f (Data.IntSet.fromList [1,2,3,4]) == fromList [(2,"aa"), (4,"aaaa")]
+--
+-- @since FIXME
+fromSetMaybe :: (Key -> Maybe a) -> IntSet -> IntMap a
+#ifdef __GLASGOW_HASKELL__
+fromSetMaybe =
+  (coerce :: ((Key -> Identity (Maybe a)) -> IntSet -> Identity (IntMap a))
+          -> (Key -> Maybe a) -> IntSet -> IntMap a)
+    fromSetMaybeA
+#else
+fromSetMaybe f s = runIdentity (fromSetMaybeA (Identity . f) s)
+#endif
+
+-- | \(O(n)\). Build a map from an 'IntSet' of keys and a function which for
+-- each key optionally computes its value in an 'Applicative' context.
+--
+-- The @Applicative@ actions are sequenced in order of increasing key.
+--
+-- @since FIXME
+fromSetMaybeA :: Applicative f => (Key -> f (Maybe a)) -> IntSet -> f (IntMap a)
+fromSetMaybeA f = go
+  where
+   go IntSet.Nil = pure Nil
+   go (IntSet.Bin p l r)
+     | signBranch p = liftA2 (flip (bin p)) (go r) (go l)
+     | otherwise = liftA2 (bin p) (go l) (go r)
+   go (IntSet.Tip kx bm) =
+     treeFromIntSetTip
+       (\kx' -> maybe Nil (Tip kx') <$> f kx')
+       (\p -> liftA2 (bin p))
+       kx
+       bm
+{-# INLINABLE fromSetMaybeA #-}
+
+-- Internal helper used by fromSet and friends.
+treeFromIntSetTip :: (Int -> a) -> (Prefix -> a -> a -> a) -> Int -> Word -> a
+treeFromIntSetTip tipf binf kx bm = buildTree kx bm (IntSet.suffixBitMask + 1)
   where
     -- This is slightly complicated, as we to convert the dense
     -- representation of IntSet into tree representation of IntMap.
@@ -3371,20 +3423,19 @@ fromSetA f (IntSet.Tip kx bm) = buildTree f kx bm (IntSet.suffixBitMask + 1)
     -- to left and right subtree. If they are both nonempty, we
     -- create a Bin node, otherwise exactly one of them is nonempty
     -- and we construct the IntMap from that half.
-    buildTree g !prefix !bmask bits = case bits of
-      0 -> Tip prefix <$> (g prefix)
+    buildTree !prefix !bmask bits = case bits of
+      0 -> tipf prefix
       _ -> case bits `iShiftRL` 1 of
         bits2
           | bmask .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-              buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2
+              buildTree (prefix + bits2) (bmask `shiftRL` bits2) bits2
           | (bmask `shiftRL` bits2) .&. ((1 `shiftLL` bits2) - 1) == 0 ->
-              buildTree g prefix bmask bits2
+              buildTree prefix bmask bits2
           | otherwise ->
-              liftA2
-                (Bin (Prefix (prefix .|. bits2)))
-                  (buildTree g prefix bmask bits2)
-                  (buildTree g (prefix + bits2) (bmask `shiftRL` bits2) bits2)
-{-# INLINABLE fromSetA #-}
+             binf (Prefix (prefix .|. bits2))
+                  (buildTree prefix bmask bits2)
+                  (buildTree (prefix + bits2) (bmask `shiftRL` bits2) bits2)
+{-# INLINE treeFromIntSetTip #-}
 
 {--------------------------------------------------------------------
   Lists

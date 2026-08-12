@@ -36,7 +36,9 @@ import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, dr
 import qualified Prelude
 
 import Data.List (nub,sort)
+import qualified Data.Maybe as Maybe
 import qualified Data.List as List
+import Data.Set (Set)
 import qualified Data.Set as Set
 
 import Test.Tasty
@@ -46,8 +48,8 @@ import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
 import qualified Test.QuickCheck.Classes.Base as Laws
 
-import Utils.ArbitrarySetMap (mkArbMap)
-import Utils.QuickCheck (NubSortedOnFst(..), SortedOnFst(..))
+import Utils.ArbitrarySetMap (mkArbMap, setFromList)
+import Utils.QuickCheck (NubSorted(..), NubSortedOnFst(..), SortedOnFst(..))
 import Utils.QuickCheckClasses (testLaws)
 
 default (Int)
@@ -270,7 +272,9 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "keysSet"              prop_keysSet
          , testProperty "argSet"               prop_argSet
          , testProperty "fromSet"              prop_fromSet
-         , testProperty "fromSetA eval order"  prop_fromSetA_action_order
+         , testProperty "fromSetA"             prop_fromSetA
+         , testProperty "fromSetMaybe"         prop_fromSetMaybe
+         , testProperty "fromSetMaybeA"        prop_fromSetMaybeA
          , testProperty "fromArgSet"           prop_fromArgSet
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
@@ -392,6 +396,11 @@ instance (IsInt k, Arbitrary v) => Arbitrary (Map k v) where
         let i' = i + diff
         put i'
         pure (fromInt i')
+
+instance (Arbitrary a, Ord a) => Arbitrary (Set a) where
+  arbitrary = do
+    NubSorted xs <- arbitrary
+    setFromList xs
 
 -- A type with a peculiar Eq instance designed to make sure keys
 -- come from where they're supposed to.
@@ -1837,27 +1846,41 @@ prop_argSet :: [(OrdA, B)] -> Property
 prop_argSet xs =
   argSet (fromList xs) === Set.fromList (List.map (uncurry Arg) xs)
 
-prop_fromSet :: [OrdA] -> Fun OrdA B -> Property
+prop_fromSet :: Set OrdA -> Fun OrdA B -> Property
 prop_fromSet keys funF =
   let f = apply funF
-      m = fromSet f (Set.fromList keys)
+      m = fromSet f keys
   in
     valid m .&&.
-    m === fromList (fmap (id &&& f) keys)
+    toList m === fmap (id &&& f) (Set.toList keys)
 
-prop_fromSetA_action_order :: [OrdA] -> Fun OrdA B -> Property
-prop_fromSetA_action_order keys funF =
-  let set = Set.fromList keys
-      setList = Set.toList set
+prop_fromSetA :: Set OrdA -> Fun OrdA B -> Property
+prop_fromSetA keys funF =
+  let setList = Set.toList keys
       f = apply funF
       action = \k ->
         let v = f k
         in tell [v] $> v
-      (writtenMap, writtenOutput) = runWriter (fromSetA action set)
+      (writtenMap, writtenOutput) = runWriter (fromSetA action keys)
   in
     valid writtenMap .&&.
     writtenOutput === List.map f setList .&&.
     toList writtenMap === fmap (id &&& f) setList
+
+prop_fromSetMaybe :: Set OrdA -> Fun OrdA (Maybe B) -> Property
+prop_fromSetMaybe keys f =
+  valid m .&&.
+  toList m === Maybe.mapMaybe (\k -> (,) k <$> applyFun f k) (Set.toList keys)
+  where
+    m = fromSetMaybe (applyFun f) keys
+
+prop_fromSetMaybeA :: Set OrdA -> Fun OrdA (Maybe B) -> Property
+prop_fromSetMaybeA keys f =
+  valid m .&&.
+  ks === Set.toList keys .&&.
+  toList m === Maybe.mapMaybe (\k -> (,) k <$> applyFun f k) (Set.toList keys)
+  where
+    (ks, m) = fromSetMaybeA (\k -> ([k], applyFun f k)) keys
 
 prop_fromArgSet :: [(OrdA, B)] -> Property
 prop_fromArgSet ys =

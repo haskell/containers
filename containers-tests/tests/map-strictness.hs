@@ -168,6 +168,32 @@ prop_fromSetA_equiv_strictness fun set =
   bottomOn = (===) `on` isBottom . getSolo
   f = MkSolo . applyFunc fun
 
+prop_strictFromSetMaybe :: Func OrdA (Maybe (Bot A)) -> Set OrdA -> Property
+prop_strictFromSetMaybe fun s =
+  isBottom (M.fromSetMaybe f s) === any isBottom (mapMaybe f (Set.toList s))
+  where
+    f = coerce (applyFunc fun) :: OrdA -> Maybe A
+
+prop_lazyFromSetMaybe :: Func OrdA (Maybe (Bot A)) -> Set OrdA -> Property
+prop_lazyFromSetMaybe fun s = isNotBottomProp (L.fromSetMaybe f s)
+  where
+    f = coerce (applyFunc fun) :: OrdA -> Maybe A
+
+prop_strictFromSetMaybeA
+  :: Func OrdA (Identity (Maybe (Bot A))) -> Set OrdA -> Property
+prop_strictFromSetMaybeA fun s =
+  isBottom (runIdentity (M.fromSetMaybeA f s)) ===
+    any isBottom (mapMaybe (runIdentity . f) (Set.toList s))
+  where
+    f = coerce (applyFunc fun) :: OrdA -> Identity (Maybe A)
+
+prop_lazyFromSetMaybeA
+  :: Func OrdA (Identity (Maybe (Bot A))) -> Set OrdA -> Property
+prop_lazyFromSetMaybeA fun s =
+  isNotBottomProp (runIdentity (L.fromSetMaybeA f s))
+  where
+    f = coerce (applyFunc fun) :: OrdA -> Identity (Maybe A)
+
 prop_strictFromArgSet :: Func OrdA (Bot A) -> Set OrdA -> Property
 prop_strictFromArgSet fun set =
   isBottom (M.fromArgSet set') ===
@@ -1234,6 +1260,8 @@ tests =
       , testPropStrictLazy "fromSetA" prop_strictFromSetA prop_lazyFromSetA
       , testProperty       "fromSetA equivalences" prop_fromSetA_equiv_strictness
       , testPropStrictLazy "fromArgSet" prop_strictFromArgSet prop_lazyFromArgSet
+      , testPropStrictLazy "fromSetMaybe" prop_strictFromSetMaybe prop_lazyFromSetMaybe
+      , testPropStrictLazy "fromSetMaybeA" prop_strictFromSetMaybeA prop_lazyFromSetMaybeA
       , testPropStrictLazy "fromList" prop_strictFromList prop_lazyFromList
       , testPropStrictLazy "fromListWith" prop_strictFromListWith prop_lazyFromListWith
       , testPropStrictLazy "fromListWithKey" prop_strictFromListWithKey prop_lazyFromListWithKey
