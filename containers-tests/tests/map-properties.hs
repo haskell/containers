@@ -1427,6 +1427,7 @@ prop_mergeMapSet miss1 miss2 match m1 s2 =
     whenMissingSet spec = case spec of
       DropMissingMapSet -> MergeSet.dropMissingSet
       GenerateMissingMapSet f -> MergeSet.generateMissingSet (applyFun f)
+      GenerateMaybeMissingMapSet f -> MergeSet.generateMaybeMissingSet (applyFun f)
     whenMatched spec = case spec of
       FilterMatchedMapSet f -> MergeSet.filterMatched (applyFun2 f)
       MapMatchedMapSet f -> MergeSet.mapMatched (applyFun2 f)
@@ -1474,6 +1475,7 @@ prop_mergeAMapSet miss1 miss2 match m1 s2 =
     whenMissingSet spec = case spec of
       DropMissingMapSet -> MergeSet.dropMissingSet
       GenerateMissingMapSet f -> MergeSet.generateAMissingSet (\k -> ([k], applyFun f k))
+      GenerateMaybeMissingMapSet f -> MergeSet.generateMaybeAMissingSet (\k -> ([k], applyFun f k))
     whenMatched spec = case spec of
       FilterMatchedMapSet f -> MergeSet.filterAMatched (\k x -> ([k], applyFun2 f k x))
       MapMatchedMapSet f -> MergeSet.traverseMatched (\k x -> ([k], applyFun2 f k x))
@@ -1482,6 +1484,7 @@ prop_mergeAMapSet miss1 miss2 match m1 s2 =
 data WhenMissingMapSetSpec k a
   = DropMissingMapSet
   | GenerateMissingMapSet (Fun k a)
+  | GenerateMaybeMissingMapSet (Fun k (Maybe a))
   deriving Show
 
 instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
@@ -1489,7 +1492,12 @@ instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
   arbitrary = oneof
     [ pure DropMissingMapSet
     , GenerateMissingMapSet <$> arbitrary
+    , GenerateMaybeMissingMapSet <$> arbitrary
     ]
+  shrink spec = case spec of
+    DropMissingMapSet -> []
+    GenerateMissingMapSet f -> GenerateMissingMapSet <$> shrink f
+    GenerateMaybeMissingMapSet f -> GenerateMaybeMissingMapSet <$> shrink f
 
 data WhenMatchedMapSetSpec k a
   = FilterMatchedMapSet (Fun (k, a) Bool)
@@ -1504,6 +1512,10 @@ instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
     , MapMatchedMapSet <$> arbitrary
     , MapMaybeMatchedMapSet <$> arbitrary
     ]
+  shrink spec = case spec of
+    FilterMatchedMapSet f -> FilterMatchedMapSet <$> shrink f
+    MapMatchedMapSet f -> MapMatchedMapSet <$> shrink f
+    MapMaybeMatchedMapSet f -> MapMaybeMatchedMapSet <$> shrink f
 
 ----------------------------------------------------------------
 

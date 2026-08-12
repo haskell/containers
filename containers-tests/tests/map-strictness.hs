@@ -1598,28 +1598,37 @@ mapSetWhenMatchedApply wmf = case wmf of
 
 toStrictMapSetWhenMissingSet
   :: MapSet_WhenMissingSetFunc k a -> MergeSetStrict.WhenMissingSet Identity k a
-toStrictMapSetWhenMissingSet mswmsf = case mswmsf of
+toStrictMapSetWhenMissingSet wmf = case wmf of
   MapSet_GenerateMissingSetFunc fun ->
     MergeSetStrict.generateMissingSet (applyFunc fun)
+  MapSet_GenerateMaybeMissingSetFunc fun ->
+    MergeSetStrict.generateMaybeMissingSet (applyFunc fun)
 
 toStrictMapSetWhenMissingSetA
   :: MapSet_WhenMissingSetFunc k a -> MergeSetStrict.WhenMissingSet Identity k a
 toStrictMapSetWhenMissingSetA wmf = case wmf of
   MapSet_GenerateMissingSetFunc fun ->
     MergeSetStrict.generateAMissingSet (coerce (applyFunc fun))
+  MapSet_GenerateMaybeMissingSetFunc fun ->
+    MergeSetStrict.generateMaybeAMissingSet (coerce (applyFunc fun))
 
 toLazyMapSetWhenMissingSet
   :: MapSet_WhenMissingSetFunc k a -> MergeSetLazy.WhenMissingSet Identity k a
 toLazyMapSetWhenMissingSet wmf = case wmf of
   MapSet_GenerateMissingSetFunc fun ->
     MergeSetLazy.generateMissingSet (applyFunc fun)
+  MapSet_GenerateMaybeMissingSetFunc fun ->
+    MergeSetLazy.generateMaybeMissingSet (applyFunc fun)
 
 toLazyMapSetWhenMissingSetA
   :: MapSet_WhenMissingSetFunc k a -> MergeSetLazy.WhenMissingSet Identity k a
 toLazyMapSetWhenMissingSetA wmf = case wmf of
   MapSet_GenerateMissingSetFunc fun ->
     MergeSetLazy.generateAMissingSet (coerce (applyFunc fun))
+  MapSet_GenerateMaybeMissingSetFunc fun ->
+    MergeSetLazy.generateMaybeAMissingSet (coerce (applyFunc fun))
 
 mapSetWhenMissingSetApply :: MapSet_WhenMissingSetFunc k a -> k -> Maybe a
 mapSetWhenMissingSetApply wmf = case wmf of
   MapSet_GenerateMissingSetFunc fun -> Just . applyFunc fun
+  MapSet_GenerateMaybeMissingSetFunc fun -> applyFunc fun

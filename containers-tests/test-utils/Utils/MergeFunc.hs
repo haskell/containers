@@ -1,6 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE DerivingStrategies #-}
-
 module Utils.MergeFunc
   ( WhenMatchedFunc(..)
   , WhenMissingFunc(..)
@@ -97,7 +94,20 @@ instance
 
 -- For Set-Map to Map merge.
 -- k: key, a: result map value
-newtype MapSet_WhenMissingSetFunc k a
+data MapSet_WhenMissingSetFunc k a
   = MapSet_GenerateMissingSetFunc (Func k a)
-  deriving stock Show
-  deriving newtype Arbitrary
+  | MapSet_GenerateMaybeMissingSetFunc (Func k (Maybe a))
+  deriving Show
+
+instance
+  (CoArbitrary k, Function k, Arbitrary a)
+  => Arbitrary (MapSet_WhenMissingSetFunc k a) where
+  arbitrary = oneof
+    [ MapSet_GenerateMissingSetFunc <$> arbitrary
+    , MapSet_GenerateMaybeMissingSetFunc <$> arbitrary
+    ]
+  shrink wmf = case wmf of
+    MapSet_GenerateMissingSetFunc fun ->
+      MapSet_GenerateMissingSetFunc <$> shrink fun
+    MapSet_GenerateMaybeMissingSetFunc fun ->
+      MapSet_GenerateMaybeMissingSetFunc <$> shrink fun

@@ -36,6 +36,7 @@ module Data.Map.Merge.Set.Lazy
   -- *** @WhenMissingSet@ tactics
   , Internal.dropMissingSet
   , generateMissingSet
+  , generateMaybeMissingSet
 
   -- ** Applicative merge tactic types
   , M.WhenMissing
@@ -57,6 +58,7 @@ module Data.Map.Merge.Set.Lazy
 
   -- *** @WhenMissingSet@ tactics
   , generateAMissingSet
+  , generateMaybeAMissingSet
 
   -- ** Miscellaneous
   , Internal.runWhenMatched
@@ -123,3 +125,28 @@ generateAMissingSet f = WhenMissingSet
   , missingKey = \k -> Just <$> f k
   }
 {-# INLINE generateAMissingSet #-}
+
+-- | For keys that are present in the set but missing from the map, apply a
+-- function and maybe use the result as the value for the merged map.
+--
+-- @since FIXME
+generateMaybeMissingSet
+  :: Applicative f => (k -> Maybe a) -> WhenMissingSet f k a
+generateMaybeMissingSet f = WhenMissingSet
+  { missingSubtree = \s -> pure (M.fromSetMaybe f s)
+  , missingKey = \k -> pure (f k)
+  }
+{-# INLINE generateMaybeMissingSet #-}
+
+-- | For keys that are present in the set but missing from the map, apply a
+-- function, and maybe use the result of the action as the value for the merged
+-- map.
+--
+-- @since FIXME
+generateMaybeAMissingSet
+  :: Applicative f => (k -> f (Maybe a)) -> WhenMissingSet f k a
+generateMaybeAMissingSet f = WhenMissingSet
+  { missingSubtree = M.fromSetMaybeA f
+  , missingKey = f
+  }
+{-# INLINE generateMaybeAMissingSet #-}
