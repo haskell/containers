@@ -419,6 +419,21 @@ data IntMap a = Bin {-# UNPACK #-} !Prefix
 --
 -- * All bits to the right of the mask bit are set to 0 in a Prefix.
 --
+--
+-- As an example, consider that on a 32-bit system we have a Bin with Prefix
+--
+-- 0b00000000000100100000011000000000
+--                         ^ mask bit
+--   ^^^^^^^^^^^^^^^^^^^^^^ shared prefix
+--
+-- The key
+-- 0b00000000000100100000010000010100 belongs under this Bin, since it matches
+-- the shared prefix. The mask bit is 0, so it belongs in the left child and not
+-- the right.
+--
+-- The key
+-- 0b00000000000100000000010000010100 does not belong under this Bin, since it
+-- does not match the shared prefix.
 
 -- See Note [Okasaki-Gill] for how the implementation here relates to the one in
 -- Okasaki and Gill's paper.

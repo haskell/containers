@@ -300,14 +300,43 @@ type BitMap = Word
 --
 -- * In the context of a Tip, the highest (WORD_SIZE - lg(WORD_SIZE)) bits of
 --   a key are called "prefix" and the lowest lg(WORD_SIZE) bits are called
---   "suffix". In Tip kx bm, kx is the shared prefix and bm is a bitmask of the
---   suffixes of the keys. In other words, the keys of Tip kx bm are (kx .|. i)
---   for every set bit i in bm.
---
--- * In Tip kx _, the lowest lg(WORD_SIZE) bits of kx are set to 0.
+--   "suffix". In Tip kx bm, kx is the shared prefix of
+--   (WORD_SIZE - lg(WORD_SIZE)) bits followed by lg(WORD_SIZE) 0s and bm is a
+--   bitmask of the suffixes of the keys. In other words, the keys of Tip kx bm
+--   are (kx .|. i) for every set bit i in bm.
 --
 -- * In Tip _ bm, bm is never 0.
 --
+--
+-- As an example, consider that on a 32-bit system we have a Bin with Prefix
+--
+-- 0b00000000000100100000011000000000
+--                         ^ mask bit
+--   ^^^^^^^^^^^^^^^^^^^^^^ shared prefix
+--
+-- The key
+-- 0b00000000000100100000010000010100 belongs under this Bin, since it matches
+-- the shared prefix. The mask bit is 0, so it belongs in the left child and not
+-- the right.
+--
+-- The key
+-- 0b00000000000100000000010000010100 does not belong under this Bin, since it
+-- does not match the shared prefix.
+--
+--
+-- Now consider that we have a (Tip kx bm) with kx and bm as
+--
+-- 0b00000000001010000000000001000000  0b00000000000100000100000000000100
+--                                                  ^     ^           ^
+--                                                 20    14           2  -- suffixes
+--   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ shared prefix
+--
+-- This Tip has 3 keys, which can be recovered by bitwise-or-ing the prefix and
+-- the suffixes:
+--
+-- 0b00000000001010000000000001000010
+-- 0b00000000001010000000000001001110
+-- 0b00000000001010000000000001010100
 
 #ifdef __GLASGOW_HASKELL__
 -- | @since 0.6.6
