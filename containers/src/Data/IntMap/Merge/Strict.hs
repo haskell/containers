@@ -41,6 +41,7 @@ module Data.IntMap.Merge.Strict (
     , merge
 
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
 
@@ -94,6 +95,7 @@ import Data.IntMap.Internal
   , WhenMatched (..)
   , mergeA
   , filterAMissing
+  , dropMatched
   , runWhenMatched
   , runWhenMissing
   )

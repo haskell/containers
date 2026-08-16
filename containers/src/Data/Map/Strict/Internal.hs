@@ -141,6 +141,7 @@ module Data.Map.Strict.Internal
     , runWhenMissing
 
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
 
@@ -315,6 +316,7 @@ import Data.Map.Internal
   , dropMissing
   , filterMissing
   , filterAMissing
+  , dropMatched
   , merge
   , mergeA
   , ascLinkTop

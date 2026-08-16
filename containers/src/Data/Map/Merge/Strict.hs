@@ -45,6 +45,7 @@ module Data.Map.Merge.Strict (
     , merge
 
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
 

@@ -158,6 +158,7 @@ module Data.IntMap.Internal (
     , runWhenMissing
     , merge
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
     -- *** @WhenMissing@ tactics
@@ -1831,6 +1832,12 @@ mapWhenMatched f (WhenMatched g) =
 -- @since 0.5.9
 type SimpleWhenMatched = WhenMatched Identity
 
+-- | When a key is found in both maps, drop the key and values.
+--
+-- @since FIXME
+dropMatched :: Applicative f => WhenMatched f x y z
+dropMatched = WhenMatched (\_ _ _ -> pure Nothing)
+{-# INLINE dropMatched #-}
 
 -- | When a key is found in both maps, apply a function to the key
 -- and values and use the result in the merged map.

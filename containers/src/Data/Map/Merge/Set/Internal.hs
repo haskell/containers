@@ -23,6 +23,7 @@
 module Data.Map.Merge.Set.Internal
   ( WhenMatched(..)
   , SimpleWhenMatched
+  , dropMatched
   , filterMatched
   , filterAMatched
 
@@ -69,6 +70,13 @@ runWhenMatched = matchedKey
 --
 -- @since FIXME
 type SimpleWhenMatched = WhenMatched Identity
+
+-- | When a key is found in both the map and the set, drop the key and value.
+--
+-- @since FIXME
+dropMatched :: Applicative f => WhenMatched f k a b
+dropMatched = WhenMatched (\_ _ -> pure Nothing)
+{-# INLINE dropMatched #-}
 
 -- | When a key is found in both the map and the set, apply a function to the
 -- key and the value in the map and keep the value in the merged map if the

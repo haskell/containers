@@ -23,6 +23,7 @@ module Data.Map.Merge.Set.Lazy
   , Internal.merge
 
   -- *** @WhenMatched@ tactics
+  , Internal.dropMatched
   , Internal.filterMatched
   , mapMatched
   , mapMaybeMatched

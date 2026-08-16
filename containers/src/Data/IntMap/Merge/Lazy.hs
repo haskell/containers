@@ -40,6 +40,7 @@ module Data.IntMap.Merge.Lazy (
     , merge
 
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
 
