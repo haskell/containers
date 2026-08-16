@@ -967,7 +967,7 @@ delete = go
 -- pop 2 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Just ("b",fromList [(0,"a"),(4,"c")])
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 pop :: Ord k => k -> Map k a -> Maybe (a, Map k a)
 pop k0 t0 = case go k0 t0 of
   Popped (Just y) t -> Just (y, t)
@@ -1084,7 +1084,7 @@ updateWithKey = go
 -- upsert inc \'b\' (fromList [(\'a\',1),(\'c\',2)]) == fromList [(\'a\',1),(\'b\',1),(\'c\',2)]
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 upsert :: Ord k => (Maybe a -> a) -> k -> Map k a -> Map k a
 upsert f !k (Bin sz kx x l r) =
   case compare k kx of
@@ -3167,7 +3167,7 @@ mapKeysMonotonic f = mapAssocsMonotonic (\k x -> (f k, x))
 -- __Warning__: This function should be used only if @f@ is monotonically
 -- strictly increasing in the key. This precondition is not checked.
 --
--- @since FIXME
+-- @since 0.8.1
 mapAssocsMonotonic :: (k1 -> a1 -> (k2, a2)) -> Map k1 a1 -> Map k2 a2
 mapAssocsMonotonic f = go
   where
@@ -3530,7 +3530,7 @@ fromListWithKey f xs =
 -- > let f x = maybe [x] (x:)
 -- > fromListUpsert f [(5,'a'), (5,'b'), (3,'c'), (3,'d'), (5,'e')] == fromList [(3,"dc"), (5,"eba")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromListUpsert :: Ord k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
 fromListUpsert f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> upsertB (f x) kx b) emptyB xs)
@@ -3736,7 +3736,7 @@ fromDescListWithKey f xs = descLinkAll (Foldable.foldl' next Nada xs)
 -- > let f x = maybe [x] (x:)
 -- > fromAscListUpsert f [(3,'a'), (3,'b'), (5,'c'), (5,'d'), (5,'e')] == fromList [(3,"ba"), (5,"edc")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromAscListUpsert :: Eq k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
 fromAscListUpsert f xs = ascLinkAll (Foldable.foldl' next Nada xs)
   where
@@ -3758,7 +3758,7 @@ fromAscListUpsert f xs = ascLinkAll (Foldable.foldl' next Nada xs)
 -- > let f x = maybe [x] (x:)
 -- > fromDescListUpsert f [(5,'a'), (5,'b'), (5,'c'), (3,'d'), (3,'e')] == fromList [(3,"ed"), (5,"cba")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromDescListUpsert :: Eq k => (a -> Maybe b -> b) -> [(k, a)] -> Map k b
 fromDescListUpsert f xs = descLinkAll (Foldable.foldl' next Nada xs)
   where

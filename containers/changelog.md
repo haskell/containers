@@ -1,27 +1,178 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
-## Next release
+## 0.8.1  *August 2026*
 
 ### Additions
 
 * Add `compareSize` for `IntSet` and `IntMap`. (Soumik Sarkar)
-  ([#1135](https://github.com/haskell/containers/pull/1135))
+  ([#1135](https://github.com/haskell/containers/pull/1135),
+  [#1139](https://github.com/haskell/containers/pull/1139))
 
 * Add `mapMaybe` for `Seq`, `Set` and `IntSet`. (Phil Hazelden)
   ([#1159](https://github.com/haskell/containers/pull/1159))
 
 * Add `fromSetA` for `Map` and `IntMap`. (L0neGamer)
-  ([#1163](https://github.com/haskell/containers/pull/1163))
+  ([#1163](https://github.com/haskell/containers/pull/1163),
+  [#1165](https://github.com/haskell/containers/pull/1165))
+
+* Export `Tree` field selectors from `Data.Graph`. (Soumik Sarkar)
+  ([#1144](https://github.com/haskell/containers/pull/1144))
+
+* Add `upsert` for `Map` and `IntMap`. (Soumik Sarkar)
+  ([#1145](https://github.com/haskell/containers/pull/1145))
+
+* Add `pop` for `Map`, `Set`, `IntMap`, `IntSet`. (Soumik Sarkar)
+  ([#1152](https://github.com/haskell/containers/pull/1152))
+
+* Add `Data.Set.Merge`, a merge API for `Set`s. (Soumik Sarkar)
+  ([#1169](https://github.com/haskell/containers/pull/1169))
+
+* Add `Data.Sequence.toList`. (Soumik Sarkar)
+  ([#1192](https://github.com/haskell/containers/pull/1192))
+
+* Add `fromDescList` for `IntSet` and `IntMap` (Soumik Sarkar)
+  ([#1194](https://github.com/haskell/containers/pull/1194))
+
+* Add `fromListUpsert` for `Map` and `IntMap` (Soumik Sarkar)
+  ([#1190](https://github.com/haskell/containers/pull/1190))
+
+* Add `fromAscListUpsert` and `fromDescListUpsert` for `Map` and `IntMap`.
+  (Soumik Sarkar)
+  ([#1199](https://github.com/haskell/containers/pull/1199))
 
 * Add `takeR`, `dropR` and `splitAtR` for `Seq`. (Phil Crissman)
   (see [#159](https://github.com/haskell/containers/issues/159))
   ([#1222](https://github.com/haskell/containers/pull/1222))
 
+* Add `mapAssocsMonotonic` for `Map`. (Soumik Sarkar)
+  ([#1230](https://github.com/haskell/containers/pull/1230))
+
 ### Performance improvements
+
+* Improve performance of `Data.IntMap.fromAscList` and
+  `Data.IntSet.fromAscList`. (Soumik Sarkar)
+  ([#1123](https://github.com/haskell/containers/pull/1123))
+
+* Improve performance of `Data.IntMap.fromList` and `Data.IntSet.fromList`.
+  (Soumik Sarkar)
+  ([#1129](https://github.com/haskell/containers/pull/1129),
+  [#1137](https://github.com/haskell/containers/pull/1137))
 
 * Improved performance for `Data.IntMap.restrictKeys` and
   `Data.IntMap.withoutKeys`. (Soumik Sarkar)
   ([#1131](https://github.com/haskell/containers/pull/1131))
+
+* Minor performance improvements for `IntMap` and `IntSet` by skipping some
+  unnecessary checks. (Soumik Sarkar)
+  ([#1136](https://github.com/haskell/containers/pull/1136))
+
+* Improve performance of folds over `IntMap` and `IntSet`. (Soumik Sarkar)
+  ([#1149](https://github.com/haskell/containers/pull/1149))
+
+* Improve performance of mapping for keys for `IntMap` and `IntSet`.
+  (Soumik Sarkar)
+  ([#1148](https://github.com/haskell/containers/pull/1148))
+
+* Improve performance of `graphFromEdges`. (Soumik Sarkar)
+  ([#1151](https://github.com/haskell/containers/pull/1151))
+
+* Improve performance of `Map`-`Map` and `Set`-`Set` operations.
+  (Soumik Sarkar)
+  ([#1141](https://github.com/haskell/containers/pull/1141))
+
+* Improve performance of `Set` intersection. (Soumik Sarkar)
+  ([#1170](https://github.com/haskell/containers/pull/1170),
+  [#1172](https://github.com/haskell/containers/pull/1172))
+
+* Improve performance of `nubOrdOn` and `nubIntOn`. (Soumik Sarkar)
+  ([#1206](https://github.com/haskell/containers/pull/1206),
+  [#1228](https://github.com/haskell/containers/pull/1228),
+  [#1229](https://github.com/haskell/containers/pull/1229))
+
+* Use a different strategy for `Data.Set.alterF`, improving performance in
+  typical scenarios. (Soumik Sarkar)
+  ([#1215](https://github.com/haskell/containers/pull/1215),
+
+* Reduce allocations when using `Data.Map.alterF`. (Soumik Sarkar)
+  ([#1219](https://github.com/haskell/containers/pull/1219),
+
+### Documentation
+
+* Update contributing instructions. (Soumik Sarkar)
+  ([#1125](https://github.com/haskell/containers/pull/1125),
+  [#1150](https://github.com/haskell/containers/pull/1150))
+
+* Add and improve documentation (Jonathan Knowles, Soumik Sarkar, Tom Smeding,
+  Alexey Kuleshevich, RikuMinamiyama, Steve Shuck)
+  ([#1127](https://github.com/haskell/containers/pull/1127),
+  [#1138](https://github.com/haskell/containers/pull/1138),
+  [#1140](https://github.com/haskell/containers/pull/1140),
+  [#1143](https://github.com/haskell/containers/pull/1143),
+  [#1158](https://github.com/haskell/containers/pull/1158),
+  [#1164](https://github.com/haskell/containers/pull/1164),
+  [#1161](https://github.com/haskell/containers/pull/1161),
+  [#1168](https://github.com/haskell/containers/pull/1168),
+  [#1179](https://github.com/haskell/containers/pull/1179),
+  [#1189](https://github.com/haskell/containers/pull/1189),
+  [#1204](https://github.com/haskell/containers/pull/1204),
+  [#1218](https://github.com/haskell/containers/pull/1218),
+  [#1216](https://github.com/haskell/containers/pull/1216),
+  [#1225](https://github.com/haskell/containers/pull/1225),
+  [#1231](https://github.com/haskell/containers/pull/1231))
+
+### Miscellaneous/internal
+
+* Fix bounds for `deepseq`. (Soumik Sarkar)
+  ([#1119](https://github.com/haskell/containers/pull/1119))
+
+* Remove redundant `mappend` definitions in preparation for
+  [CLC #328](https://github.com/haskell/core-libraries-committee/issues/328).
+  (Soumik Sarkar)
+  ([#1142](https://github.com/haskell/containers/pull/1142))
+
+* CI improvements. (Soumik Sarkar, Lennart Augustsson)
+  ([#1147](https://github.com/haskell/containers/pull/1147),
+  [#1173](https://github.com/haskell/containers/pull/1173),
+  [#1177](https://github.com/haskell/containers/pull/1177),
+  [#1183](https://github.com/haskell/containers/pull/1183),
+  [#1180](https://github.com/haskell/containers/pull/1180),
+  [#1196](https://github.com/haskell/containers/pull/1196),
+  [#1207](https://github.com/haskell/containers/pull/1207),
+  [#1224](https://github.com/haskell/containers/pull/1224))
+
+* Miscellaneous internal improvements. (Soumik Sarkar, Simon Hengel)
+  ([#1126](https://github.com/haskell/containers/pull/1126),
+  [#1167](https://github.com/haskell/containers/pull/1167),
+  [#1175](https://github.com/haskell/containers/pull/1175),
+  [#1211](https://github.com/haskell/containers/pull/1211),
+  [#1210](https://github.com/haskell/containers/pull/1210),
+  [#1212](https://github.com/haskell/containers/pull/1212),
+  [#1213](https://github.com/haskell/containers/pull/1213),
+  [#1217](https://github.com/haskell/containers/pull/1217),
+  [#1223](https://github.com/haskell/containers/pull/1223))
+
+* Additional exports from `Data.Set.Internal`. (Frank Staals)
+  ([#1178](https://github.com/haskell/containers/pull/1178))
+
+* Test improvements. (Soumik Sarkar)
+  ([#1181](https://github.com/haskell/containers/pull/1181),
+  [#1188](https://github.com/haskell/containers/pull/1188),
+  [#1191](https://github.com/haskell/containers/pull/1191),
+  [#1198](https://github.com/haskell/containers/pull/1198),
+  [#1197](https://github.com/haskell/containers/pull/1197),
+  [#1203](https://github.com/haskell/containers/pull/1203))
+
+* Use template-haskell-lift for GHC>=9.14 (Teo Camarasu)
+  ([#1162](https://github.com/haskell/containers/pull/1162))
+
+* Add some benchmarks. (Soumik Sarkar)
+  ([#1182](https://github.com/haskell/containers/pull/1182))
+
+* Drop redundant Applicative constraints. (Soumik Sarkar)
+  ([#1193](https://github.com/haskell/containers/pull/1193))
+
+* Drop symlinks to make development easier on Windows. (AndreasPK)
+  ([#886](https://github.com/haskell/containers/pull/886))
 
 ## 0.8  *March 2025*
 
