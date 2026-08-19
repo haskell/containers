@@ -354,13 +354,14 @@ import Data.IntSet.Internal.IntTreeCommons
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL, wordSize)
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
+import Utils.Containers.Internal.PtrEquality (ptrEq)
 
 #ifdef __GLASGOW_HASKELL__
 import Data.Coerce
 import Data.Data (Data(..), Constr, mkConstr, constrIndex,
                   DataType, mkDataType, gcast1)
 import qualified Data.Data as Data
-import GHC.Exts (build)
+import GHC.Exts (build, lazy)
 import qualified GHC.Exts as GHCExts
 #  if __GLASGOW_HASKELL__ >= 914
 import Language.Haskell.TH.Lift (Lift)
@@ -1263,9 +1264,68 @@ unionWithKey f m1 m2
 --
 -- > difference (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 3 "b"
 
+-- Pointer equality is used to return the first map unchanged (rather than an
+-- equal copy) when no keys are removed, preserving sharing and avoiding
+-- allocation.
 difference :: IntMap a -> IntMap b -> IntMap a
-difference m1 m2
-  = mergeWithKey (\_ _ _ -> Nothing) id (const Nil) m1 m2
+difference t1@(Bin p1 l1 r1) t2@(Bin p2 l2 r2) = case treeTreeBranch p1 p2 of
+  ABL | l' `ptrEq` l1 -> t1
+      | otherwise -> binCheckL p1 l' r1
+    where !l' = difference l1 t2
+  ABR | r' `ptrEq` r1 -> t1
+      | otherwise -> binCheckR p1 l1 r'
+    where !r' = difference r1 t2
+  -- `lazy` hides t1's constructor from SpecConstr, whose reboxing would
+  -- defeat the ptrEq checks; see Note [difference and SpecConstr]
+  BAL -> difference (lazy t1) l2
+  BAR -> difference (lazy t1) r2
+  EQL | l' `ptrEq` l1 && r' `ptrEq` r1 -> t1
+      | otherwise -> bin p1 l' r'
+    where !l' = difference l1 l2
+          !r' = difference r1 r2
+  NOM -> t1
+difference t1@(Bin _ _ _) (Tip k2 _) = go (lazy t1)
+  where
+    go t@(Bin p l r)
+      | nomatch k2 p = t
+      | left k2 p = let !l' = go l in if l' `ptrEq` l then t else binCheckL p l' r
+      | otherwise = let !r' = go r in if r' `ptrEq` r then t else binCheckR p l r'
+    go t@(Tip k1 _)
+      | k1 == k2 = Nil
+      | otherwise = t
+    go Nil = Nil
+difference t1@(Bin _ _ _) Nil = t1
+difference t1@(Tip k1 _) t2
+  | k1 `member` t2 = Nil
+  | otherwise = t1
+difference Nil _ = Nil
+
+#ifndef __GLASGOW_HASKELL__
+lazy :: a -> a
+lazy a = a
+#endif
+
+-- Note [difference and SpecConstr]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- difference uses ptrEq to return the first map itself, rather than a
+-- reallocated copy, when a recursive call removes nothing from a subtree.
+-- For this to work the recursive calls must actually return the original
+-- subtree object. SpecConstr (enabled at -O2) breaks that: it creates a
+-- specialization of difference for a Bin first argument that receives the
+-- Bin's fields individually, and every "return t1 unchanged" branch in the
+-- specialization must rebox them into a fresh Bin. That fresh node fails
+-- the caller's ptrEq check, so all sharing collapses. This is SpecConstr's
+-- known reboxing problem: see Note [Reboxing] in GHC.Core.Opt.SpecConstr and
+-- GHC #27628; GHC #13331 documents the same hazard for ptrEq in Data.Map,
+-- where worker/wrapper is the reboxing pass and `lazy` is likewise the fix.
+--
+-- Only specialization on the first argument is harmful; the second map does
+-- not contribute nodes to the result. The calls that trigger it are the ones
+-- passing a case binder whose constructor is statically known: t1 in the
+-- BAL/BAR branches, and t1 at the entry call of `go` in the Bin/Tip case.
+-- Wrapping t1 in `lazy` there hides the constructor from SpecConstr's
+-- call-pattern analysis: `lazy` survives until CorePrep, after SpecConstr
+-- has run, and then vanishes, so it costs nothing at runtime.
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- Difference with a combining function.
