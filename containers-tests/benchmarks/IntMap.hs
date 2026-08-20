@@ -25,25 +25,25 @@ import Utils.Random (shuffle)
 
 main = do
     let m     = M.fromAscList elems_hits   :: M.IntMap Int
-    let m'    = M.fromAscList elems_mid    :: M.IntMap Int
-    let m''   = M.fromAscList elems_most   :: M.IntMap Int
-    let m'''  = M.fromAscList elems_misses :: M.IntMap Int
-    let m'''' = M.fromAscList elems_mixed  :: M.IntMap Int
-        m_random = M.fromList elems_random
+        m_mid = M.fromAscList elems_mid :: M.IntMap Int
+        m_most = M.fromAscList elems_most :: M.IntMap Int
+        m_misses = M.fromAscList elems_misses :: M.IntMap Int
+        m_mixed = M.fromList elems_mixed :: M.IntMap Int
+        m_random = M.fromList elems_random :: M.IntMap ()
         s = S.fromList keys
         s_random2 = S.fromList keys_random2
     evaluate $
       rnf [elems_asc, elems_random, elems_randomDups, elems_fromListWorstCase]
-    evaluate $ rnf [m, m', m'', m''', m'''']
+    evaluate $ rnf [m, m_mid, m_most, m_misses, m_mixed]
     evaluate $ rnf m_random
     evaluate $ rnf [s, s_random2]
     evaluate $ rnf evens
     defaultMain
         [ bench "lookup_hits" $ whnf (lookup keys) m
-        , bench "lookup_half" $ whnf (lookup keys) m'
-        , bench "lookup_most" $ whnf (lookup keys) m''
-        , bench "lookup_misses" $ whnf (lookup keys'') m'''
-        , bench "lookup_mixed" $ whnf (lookup keys) m''''
+        , bench "lookup_half" $ whnf (lookup keys) m_mid
+        , bench "lookup_most" $ whnf (lookup keys) m_most
+        , bench "lookup_misses" $ whnf (lookup keys'') m_misses
+        , bench "lookup_mixed" $ whnf (lookup keys) m_mixed
         , bench "index" $ whnf (indexMany evens) m
         , bench "insert" $ whnf (ins elems) M.empty
         , bench "insertWith empty" $ whnf (insWith elems) M.empty

@@ -401,6 +401,8 @@ import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.BitQueue
 import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
+import Utils.Containers.Internal.UnboxedMaybe (UMaybe)
+import qualified Utils.Containers.Internal.UnboxedMaybe as UMaybe
 #ifdef DEFINE_ALTERF_FALLBACK
 import Utils.Containers.Internal.BitUtil (wordSize)
 #endif
@@ -572,14 +574,17 @@ size (Bin sz _ _ _ _) = sz
 -- >   John's currency: Just "Euro"
 -- >   Pete's currency: Nothing
 lookup :: Ord k => k -> Map k a -> Maybe a
-lookup = go
-  where
-    go !_ Tip = Nothing
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> Just x
-{-# INLINABLE lookup #-}
+lookup k m = UMaybe.toMaybe (lookupGo k m)
+-- Inline so that GHC can eliminate the Maybe if it matched on at the call-site.
+{-# INLINE lookup #-}
+
+lookupGo :: Ord k => k -> Map k a -> UMaybe a
+lookupGo !_ Tip = UMaybe.nothing ()
+lookupGo !k (Bin _ kx x l r) = case compare k kx of
+  LT -> lookupGo k l
+  GT -> lookupGo k r
+  EQ -> UMaybe.just x
+{-# INLINABLE lookupGo #-}
 
 -- | \(O(\log n)\). Is the key a member of the map? See also 'notMember'.
 --
@@ -605,13 +610,9 @@ notMember k m = not $ member k m
 {-# INLINABLE notMember #-}
 
 find :: Ord k => k -> Map k a -> a
-find = go
-  where
-    go !_ Tip = error "Map.!: given key is not an element in the map"
-    go k (Bin _ kx x l r) = case compare k kx of
-      LT -> go k l
-      GT -> go k r
-      EQ -> x
+find k m = case lookup k m of
+  Nothing -> error "Map.!: given key is not an element in the map"
+  Just x -> x
 {-# INLINABLE find #-}
 
 -- | \(O(\log n)\). The expression @('findWithDefault' def k map)@ returns
