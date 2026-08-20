@@ -34,7 +34,7 @@ import Data.Functor
 import qualified Data.Foldable as Foldable
 import qualified Data.Bifoldable as Bifoldable
 import Data.Proxy (Proxy(..))
-import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt)
+import Prelude hiding (lookup, null, map, filter, foldr, foldl, foldl', take, drop, splitAt, curry, uncurry)
 import qualified Prelude
 
 import Data.List (nub,sort)
@@ -278,6 +278,7 @@ main = defaultMain $ testGroup "map-properties"
          , testProperty "fromSetMaybe"         prop_fromSetMaybe
          , testProperty "fromSetMaybeA"        prop_fromSetMaybeA
          , testProperty "fromArgSet"           prop_fromArgSet
+         , testProperty "curry"                prop_curry
          , testProperty "takeWhileAntitone"    prop_takeWhileAntitone
          , testProperty "dropWhileAntitone"    prop_dropWhileAntitone
          , testProperty "spanAntitone"         prop_spanAntitone
@@ -1576,7 +1577,7 @@ prop_fromList :: [Int] -> Bool
 prop_fromList xs
   = case fromList (zip xs xs) of
       t -> t == fromAscList (zip sort_xs sort_xs) &&
-           t == List.foldr (uncurry insert) empty (zip xs xs)
+           t == List.foldr (Prelude.uncurry insert) empty (zip xs xs)
   where sort_xs = sort xs
 
 prop_fromAscList :: SortedOnFst Int A -> Property
@@ -1848,7 +1849,7 @@ prop_mapAssocsMonotonic
   :: MonotonicFun -> Fun (Int, A) B -> Map Int A -> Property
 prop_mapAssocsMonotonic f1 f2 m =
   valid m' .&&.
-  toList m' === fmap (uncurry f) (toList m)
+  toList m' === fmap (Prelude.uncurry f) (toList m)
   where
     m' = mapAssocsMonotonic f m
     f k x = (applyMonotonicFun f1 k, applyFun2 f2 k x)
@@ -1878,7 +1879,7 @@ prop_foldMap = \m -> Foldable.foldMap f m === Foldable.foldMap f (elems m)
     f v = [v]
 
 prop_foldMapWithKey :: Map Int A -> Property
-prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === Foldable.foldMap f (toList m)
+prop_foldMapWithKey = \m -> foldMapWithKey (Prelude.curry f) m === Foldable.foldMap f (toList m)
   where
     f kv = [kv]
 
@@ -1887,7 +1888,7 @@ prop_foldMapWithKey = \m -> foldMapWithKey (curry f) m === Foldable.foldMap f (t
 prop_foldr :: Fun (A, B) B -> B -> [(Int, A)] -> Property
 prop_foldr c n ys = foldr c' n m === Foldable.foldr c' n (snd <$> xs)
   where
-    c' = curry (apply c)
+    c' = Prelude.curry (apply c)
     xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
     m  = fromList xs
 
@@ -1895,7 +1896,7 @@ prop_foldr c n ys = foldr c' n m === Foldable.foldr c' n (snd <$> xs)
 -- toList is implemented in terms of foldrWithKey, so we don't want to rely on it
 -- when we're trying to test foldrWithKey.
 prop_foldrWithKey :: Fun (Int, A, B) B -> B -> [(Int, A)] -> Property
-prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (uncurry c') n xs
+prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (Prelude.uncurry c') n xs
   where
     c' k v acc = apply c (k, v, acc)
     xs = List.sortBy (comparing fst) (List.nubBy ((==) `on` fst) ys)
@@ -1904,30 +1905,30 @@ prop_foldrWithKey c n ys = foldrWithKey c' n m === Foldable.foldr (uncurry c') n
 prop_foldr' :: Fun (A, B) B -> B -> Map Int A -> Property
 prop_foldr' c n m = foldr' c' n m === Foldable.foldr' c' n (elems m)
   where
-    c' = curry (apply c)
+    c' = Prelude.curry (apply c)
 
 prop_foldrWithKey' :: Fun (Int, A, B) B -> B -> Map Int A -> Property
-prop_foldrWithKey' c n m = foldrWithKey' c' n m === Foldable.foldr' (uncurry c') n (toList m)
+prop_foldrWithKey' c n m = foldrWithKey' c' n m === Foldable.foldr' (Prelude.uncurry c') n (toList m)
   where
     c' k v acc = apply c (k, v, acc)
 
 prop_foldl :: Fun (B, A) B -> B -> Map Int A -> Property
 prop_foldl c n m = foldl c' n m === Foldable.foldl c' n (elems m)
   where
-    c' = curry (apply c)
+    c' = Prelude.curry (apply c)
 
 prop_foldlWithKey :: Fun (B, Int, A) B -> B -> Map Int A -> Property
-prop_foldlWithKey c n m = foldlWithKey c' n m === Foldable.foldl (uncurry . c') n (toList m)
+prop_foldlWithKey c n m = foldlWithKey c' n m === Foldable.foldl (Prelude.uncurry . c') n (toList m)
   where
     c' acc k v = apply c (acc, k, v)
 
 prop_foldl' :: Fun (B, A) B -> B -> Map Int A -> Property
 prop_foldl' c n m = foldl' c' n m === Foldable.foldl' c' n (elems m)
   where
-    c' = curry (apply c)
+    c' = Prelude.curry (apply c)
 
 prop_foldlWithKey' :: Fun (B, Int, A) B -> B -> Map Int A -> Property
-prop_foldlWithKey' c n m = foldlWithKey' c' n m === Foldable.foldl' (uncurry . c') n (toList m)
+prop_foldlWithKey' c n m = foldlWithKey' c' n m === Foldable.foldl' (Prelude.uncurry . c') n (toList m)
   where
     c' acc k v = apply c (acc, k, v)
 
@@ -1940,29 +1941,29 @@ prop_bifoldMap m = Bifoldable.bifoldMap (:[]) (:[]) m === Foldable.foldMap (\(k,
 prop_bifoldr :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
 prop_bifoldr ck cv n m = Bifoldable.bifoldr ck' cv' n m === Foldable.foldr c' n (toList m)
   where
-    ck' = curry (apply ck)
-    cv' = curry (apply cv)
+    ck' = Prelude.curry (apply ck)
+    cv' = Prelude.curry (apply cv)
     (k,v) `c'` acc = k `ck'` (v `cv'` acc)
 
 prop_bifoldr' :: Fun (Int, B) B -> Fun (A, B) B -> B -> Map Int A -> Property
 prop_bifoldr' ck cv n m = Bifoldable.bifoldr' ck' cv' n m === Foldable.foldr' c' n (toList m)
   where
-    ck' = curry (apply ck)
-    cv' = curry (apply cv)
+    ck' = Prelude.curry (apply ck)
+    cv' = Prelude.curry (apply cv)
     (k,v) `c'` acc = k `ck'` (v `cv'` acc)
 
 prop_bifoldl :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
 prop_bifoldl ck cv n m = Bifoldable.bifoldl ck' cv' n m === Foldable.foldl c' n (toList m)
   where
-    ck' = curry (apply ck)
-    cv' = curry (apply cv)
+    ck' = Prelude.curry (apply ck)
+    cv' = Prelude.curry (apply cv)
     acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 
 prop_bifoldl' :: Fun (B, Int) B -> Fun (B, A) B -> B -> Map Int A -> Property
 prop_bifoldl' ck cv n m = Bifoldable.bifoldl' ck' cv' n m === Foldable.foldl' c' n (toList m)
   where
-    ck' = curry (apply ck)
-    cv' = curry (apply cv)
+    ck' = Prelude.curry (apply ck)
+    cv' = Prelude.curry (apply cv)
     acc `c'` (k,v) = (acc `ck'` k) `cv'` v
 
 prop_keysSet :: [OrdA] -> Property
@@ -1971,7 +1972,7 @@ prop_keysSet keys =
 
 prop_argSet :: [(OrdA, B)] -> Property
 prop_argSet xs =
-  argSet (fromList xs) === Set.fromList (List.map (uncurry Arg) xs)
+  argSet (fromList xs) === Set.fromList (List.map (Prelude.uncurry Arg) xs)
 
 prop_fromSet :: Set OrdA -> Fun OrdA B -> Property
 prop_fromSet keys funF =
@@ -2011,7 +2012,11 @@ prop_fromSetMaybeA keys f =
 
 prop_fromArgSet :: [(OrdA, B)] -> Property
 prop_fromArgSet ys =
-  fromArgSet (Set.fromList $ List.map (uncurry Arg) ys) === fromList ys
+  fromArgSet (Set.fromList $ List.map (Prelude.uncurry Arg) ys) === fromList ys
+
+prop_curry :: Map Int (Map Int A) -> Property
+prop_curry m = m' === Data.Map.uncurry (Data.Map.curry m')
+  where m' = Data.Map.uncurry m
 
 prop_eq :: Map Int A -> Map Int A -> Property
 prop_eq m1 m2 = (m1 == m2) === (toList m1 == toList m2)

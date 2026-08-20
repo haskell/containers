@@ -268,6 +268,10 @@ module Data.Map.Internal (
     , fromSetMaybeA
     , fromArgSet
 
+    -- ** Maps
+    , curry
+    , uncurry
+
     -- ** Lists
     , toList
     , fromList
@@ -391,7 +395,7 @@ import Control.DeepSeq (NFData(rnf),NFData1(liftRnf),NFData2(liftRnf2))
 import qualified Data.Foldable as Foldable
 import Data.Bifoldable
 import Utils.Containers.Internal.Prelude hiding
-  (lookup, map, filter, foldr, foldl, foldl', null, splitAt, take, drop)
+  (lookup, map, filter, foldr, foldl, foldl', null, splitAt, take, drop, curry, uncurry)
 import Prelude ()
 
 import qualified Data.Set.Internal as Set
@@ -3426,6 +3430,35 @@ fromSetMaybeA f = go
 fromArgSet :: Set.Set (Arg k a) -> Map k a
 fromArgSet Set.Tip = Tip
 fromArgSet (Set.Bin sz (Arg x v) l r) = Bin sz x v (fromArgSet l) (fromArgSet r)
+
+{--------------------------------------------------------------------
+  Maps
+--------------------------------------------------------------------}
+-- | \(O(n)\). Group map entries by the first component.
+--
+-- > curry $ fromList [((1,2),12),((1,3),13)] == fromList [(1,fromList [(2,12),(3,13)])]
+--
+-- @since FIXME
+curry :: (Ord a, Ord b) => Map (a,b) c -> Map a (Map b c)
+curry m = fmap (fromDescList . ($ [])) $ fromAscListWith (.) $ fmap (\((a,b),c) -> (a, ((b,c):))) $ toAscList m
+
+-- | \(O(n)\). Flatten nested maps.
+--
+-- Note
+--
+-- > uncurry . curry = id
+--
+-- but not the other way around
+--
+-- > uncurry (fromList [(1, fromList [])]) == fromList []
+-- > uncurry (fromList [(1, fromList [(2,12),(3,13)])]) == fromList [((1,2),12),((1,3),13)]
+--
+-- @since FIXME
+uncurry :: (Ord a, Ord b) => Map a (Map b c) -> Map (a,b) c
+uncurry m = fromAscList $ do
+  (a,b2c) <- toAscList m
+  (b,c) <- toAscList b2c
+  pure ((a,b), c)
 
 {--------------------------------------------------------------------
   Lists
