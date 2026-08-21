@@ -43,6 +43,7 @@ module Data.Tree(
     -- * Elimination
     , foldTree
     , flatten
+    , filterTree
     , levels
     , leaves
     , edges
@@ -61,6 +62,7 @@ import Data.Bits ((.&.))
 import Data.Foldable (toList)
 import qualified Data.Foldable as Foldable
 import Data.List.NonEmpty (NonEmpty(..))
+import Data.Maybe (mapMaybe)
 import Data.Traversable (foldMapDefault)
 import Control.Monad (liftM)
 import Control.Monad.Fix (MonadFix (..), fix)
@@ -389,6 +391,41 @@ draw (Node x ts0) = lines x ++ drawSubTrees ts0
 -- > flatten (Node 1 [Node 2 [], Node 3 []]) == [1,2,3]
 flatten :: Tree a -> [a]
 flatten = toList
+
+-- | Apply a predicate on a tree and prune off branches 
+-- when a node does not satisfy the predicate.
+--
+-- ==== __Examples__
+--
+-- >>> filterTree (< 3) (Node 1 [Node 2 [], Node 3 [Node 4 [], Node 1 [Node 2 []]]])
+-- Just (Node 1 [Node 2 []])
+--
+-- @
+-- 1                     1
+-- |                     |
+-- +- 2                  `- 2
+-- |
+-- `- 3         => 
+--    |
+--    +- 4
+--    |
+--    `- 1
+--       |
+--       `- 2
+-- @
+--
+-- @since FIXME
+
+filterTree
+  :: (a -> Bool)
+  -- ^ Predicate
+  -> Tree a
+  -> Maybe (Tree a)
+filterTree predicate (Node root forest)
+  | predicate root = Just (Node root (pruneForest forest))
+  | otherwise = Nothing
+  where
+    pruneForest = mapMaybe (filterTree predicate)
 
 -- | Returns the list of nodes at each level of the tree.
 --
