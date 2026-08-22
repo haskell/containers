@@ -220,6 +220,10 @@ module Data.Map.Strict.Internal
     , fromSetMaybeA
     , fromArgSet
 
+    -- ** Maps
+    , curry
+    , uncurry
+
     -- ** Lists
     , toList
     , fromList
@@ -299,7 +303,7 @@ module Data.Map.Strict.Internal
     ) where
 
 import Utils.Containers.Internal.Prelude hiding
-  (lookup,map,filter,foldr,foldl,foldl',null,take,drop,splitAt)
+  (lookup,map,filter,foldr,foldl,foldl',null,take,drop,splitAt,curry,uncurry)
 import Prelude ()
 
 import Data.Map.Internal
@@ -1429,7 +1433,7 @@ fromSet f = runIdentity . fromSetA (pure . f)
 -- @since FIXME
 fromSetA :: Applicative f => (k -> f a) -> Set k -> f (Map k a)
 fromSetA _ Set.Tip = pure Tip
-fromSetA f (Set.Bin sz x l r) = 
+fromSetA f (Set.Bin sz x l r) =
   liftA3 (flip (Bin sz x $!)) (fromSetA f l) (f x) (fromSetA f r)
 {-# INLINABLE fromSetA #-}
 
@@ -1472,6 +1476,35 @@ fromSetMaybeA f = go
 fromArgSet :: Set.Set (Arg k a) -> Map k a
 fromArgSet Set.Tip = Tip
 fromArgSet (Set.Bin sz (Arg x v) l r) = v `seq` Bin sz x v (fromArgSet l) (fromArgSet r)
+
+{--------------------------------------------------------------------
+  Maps
+--------------------------------------------------------------------}
+-- | \(O(n)\). Group map entries by the first component.
+--
+-- > curry $ fromList [((1,2),12),((1,3),13)] == fromList [(1,fromList [(2,12),(3,13)])]
+--
+-- @since FIXME
+curry :: (Ord a, Ord b) => Map (a,b) c -> Map a (Map b c)
+curry m = fmap (fromDescList . ($ [])) $ fromAscListWith (.) $ fmap (\((a,b),c) -> (a, ((b,c):))) $ toAscList m
+
+-- | \(O(n)\). Flatten nested maps.
+--
+-- Note
+--
+-- > uncurry . curry = id
+--
+-- but not the other way around
+--
+-- > uncurry (fromList [(1, fromList [])]) == fromList []
+-- > uncurry (fromList [(1, fromList [(2,12),(3,13)])]) == fromList [((1,2),12),((1,3),13)]
+--
+-- @since FIXME
+uncurry :: (Ord a, Ord b) => Map a (Map b c) -> Map (a,b) c
+uncurry m = fromAscList $ do
+  (a,b2c) <- toAscList m
+  (b,c) <- toAscList b2c
+  pure ((a,b), c)
 
 {--------------------------------------------------------------------
   Lists

@@ -254,6 +254,10 @@ module Data.Map.Strict
     , keysSet
     , argSet
 
+    -- ** Maps
+    , curry
+    , uncurry
+
     -- ** Lists
     , toList
 
