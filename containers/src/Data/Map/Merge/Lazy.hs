@@ -40,6 +40,7 @@ module Data.Map.Merge.Lazy (
     , merge
 
     -- *** @WhenMatched@ tactics
+    , dropMatched
     , zipWithMaybeMatched
     , zipWithMatched
 

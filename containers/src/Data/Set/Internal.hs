@@ -227,6 +227,8 @@ module Data.Set.Internal (
             , runWhenMissing
             , WhenMatched(..)
             , SimpleWhenMatched
+            , dropMatched
+            , preserveMatched
             , filterMatched
             , filterAMatched
             , runWhenMatched
@@ -2257,6 +2259,20 @@ type SimpleWhenMatched = WhenMatched Identity
 -- @since FIXME
 runWhenMatched :: WhenMatched f a -> a -> f Bool
 runWhenMatched = matchedElem
+
+-- | When an element is found in both sets, drop the element.
+--
+-- @since FIXME
+dropMatched :: Applicative f => WhenMatched f a
+dropMatched = WhenMatched (\_ -> pure False)
+{-# INLINE dropMatched #-}
+
+-- | When an element is found in both sets, keep the element.
+--
+-- @since FIXME
+preserveMatched :: Applicative f => WhenMatched f a
+preserveMatched = WhenMatched (\_ -> pure True)
+{-# INLINE preserveMatched #-}
 
 -- | When an element is found in both sets, choose whether to keep the element
 -- in the merged set.

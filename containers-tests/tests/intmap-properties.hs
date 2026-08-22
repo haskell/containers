@@ -1461,6 +1461,7 @@ prop_merge miss1 miss2 match m1 m2 =
       MapMissing f -> mapMissing (applyFun2 f)
       MapMaybeMissing f -> mapMaybeMissing (applyFun2 f)
     whenMatched spec = case spec of
+      DropMatched -> dropMatched
       ZipWithMatched f -> zipWithMatched (applyFun3 f)
       ZipWithMaybeMatched f -> zipWithMaybeMatched (applyFun3 f)
 
@@ -1504,6 +1505,7 @@ prop_mergeA miss1 miss2 match m1 m2 =
       MapMissing f -> traverseMissing (\k x -> ([k], applyFun2 f k x))
       MapMaybeMissing f -> traverseMaybeMissing (\k x -> ([k], applyFun2 f k x))
     whenMatched spec = case spec of
+      DropMatched -> dropMatched
       ZipWithMatched f -> zipWithAMatched (\k x y -> ([k], applyFun3 f k x y))
       ZipWithMaybeMatched f -> zipWithMaybeAMatched (\k x y -> ([k], applyFun3 f k x y))
 
@@ -1526,14 +1528,16 @@ instance (Arbitrary a, CoArbitrary a, Function a)
     ]
 
 data WhenMatchedSpec a
-  = ZipWithMatched (Fun (Int, a, a) a)
+  = DropMatched
+  | ZipWithMatched (Fun (Int, a, a) a)
   | ZipWithMaybeMatched (Fun (Int, a, a) (Maybe a))
   deriving Show
 
 instance (Arbitrary a, CoArbitrary a, Function a)
   => Arbitrary (WhenMatchedSpec a) where
   arbitrary = oneof
-    [ ZipWithMatched <$> arbitrary
+    [ pure DropMatched
+    , ZipWithMatched <$> arbitrary
     , ZipWithMaybeMatched <$> arbitrary
     ]
 

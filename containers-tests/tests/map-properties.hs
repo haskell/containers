@@ -1318,6 +1318,7 @@ prop_merge miss1 miss2 match m1 m2 =
       MapMissing f -> mapMissing (applyFun2 f)
       MapMaybeMissing f -> mapMaybeMissing (applyFun2 f)
     whenMatched spec = case spec of
+      DropMatched -> dropMatched
       ZipWithMatched f -> zipWithMatched (applyFun3 f)
       ZipWithMaybeMatched f -> zipWithMaybeMatched (applyFun3 f)
 
@@ -1361,6 +1362,7 @@ prop_mergeA miss1 miss2 match m1 m2 =
       MapMissing f -> traverseMissing (\k x -> ([k], applyFun2 f k x))
       MapMaybeMissing f -> traverseMaybeMissing (\k x -> ([k], applyFun2 f k x))
     whenMatched spec = case spec of
+      DropMatched -> dropMatched
       ZipWithMatched f -> zipWithAMatched (\k x y -> ([k], applyFun3 f k x y))
       ZipWithMaybeMatched f -> zipWithMaybeAMatched (\k x y -> ([k], applyFun3 f k x y))
 
@@ -1383,14 +1385,16 @@ instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
     ]
 
 data WhenMatchedSpec k a
-  = ZipWithMatched (Fun (k, a, a) a)
+  = DropMatched
+  | ZipWithMatched (Fun (k, a, a) a)
   | ZipWithMaybeMatched (Fun (k, a, a) (Maybe a))
   deriving Show
 
 instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
   => Arbitrary (WhenMatchedSpec k a) where
   arbitrary = oneof
-    [ ZipWithMatched <$> arbitrary
+    [ pure DropMatched
+    , ZipWithMatched <$> arbitrary
     , ZipWithMaybeMatched <$> arbitrary
     ]
 
@@ -1429,6 +1433,7 @@ prop_mergeMapSet miss1 miss2 match m1 s2 =
       GenerateMissingMapSet f -> MergeSet.generateMissingSet (applyFun f)
       GenerateMaybeMissingMapSet f -> MergeSet.generateMaybeMissingSet (applyFun f)
     whenMatched spec = case spec of
+      DropMatchedMapSet -> MergeSet.dropMatched
       FilterMatchedMapSet f -> MergeSet.filterMatched (applyFun2 f)
       MapMatchedMapSet f -> MergeSet.mapMatched (applyFun2 f)
       MapMaybeMatchedMapSet f -> MergeSet.mapMaybeMatched (applyFun2 f)
@@ -1477,6 +1482,7 @@ prop_mergeAMapSet miss1 miss2 match m1 s2 =
       GenerateMissingMapSet f -> MergeSet.generateAMissingSet (\k -> ([k], applyFun f k))
       GenerateMaybeMissingMapSet f -> MergeSet.generateMaybeAMissingSet (\k -> ([k], applyFun f k))
     whenMatched spec = case spec of
+      DropMatchedMapSet -> MergeSet.dropMatched
       FilterMatchedMapSet f -> MergeSet.filterAMatched (\k x -> ([k], applyFun2 f k x))
       MapMatchedMapSet f -> MergeSet.traverseMatched (\k x -> ([k], applyFun2 f k x))
       MapMaybeMatchedMapSet f -> MergeSet.traverseMaybeMatched (\k x -> ([k], applyFun2 f k x))
@@ -1500,7 +1506,8 @@ instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
     GenerateMaybeMissingMapSet f -> GenerateMaybeMissingMapSet <$> shrink f
 
 data WhenMatchedMapSetSpec k a
-  = FilterMatchedMapSet (Fun (k, a) Bool)
+  = DropMatchedMapSet
+  | FilterMatchedMapSet (Fun (k, a) Bool)
   | MapMatchedMapSet (Fun (k, a) a)
   | MapMaybeMatchedMapSet (Fun (k, a) (Maybe a))
   deriving Show
@@ -1508,11 +1515,13 @@ data WhenMatchedMapSetSpec k a
 instance (Arbitrary a, CoArbitrary a, Function a, CoArbitrary k, Function k)
   => Arbitrary (WhenMatchedMapSetSpec k a) where
   arbitrary = oneof
-    [ FilterMatchedMapSet <$> arbitrary
+    [ pure DropMatchedMapSet
+    , FilterMatchedMapSet <$> arbitrary
     , MapMatchedMapSet <$> arbitrary
     , MapMaybeMatchedMapSet <$> arbitrary
     ]
   shrink spec = case spec of
+    DropMatchedMapSet -> []
     FilterMatchedMapSet f -> FilterMatchedMapSet <$> shrink f
     MapMatchedMapSet f -> MapMatchedMapSet <$> shrink f
     MapMaybeMatchedMapSet f -> MapMaybeMatchedMapSet <$> shrink f

@@ -26,6 +26,7 @@ module Data.Map.Merge.Set.Strict
   , Internal.merge
 
   -- *** @WhenMatched@ tactics
+  , Internal.dropMatched
   , Internal.filterMatched
   , mapMatched
   , mapMaybeMatched

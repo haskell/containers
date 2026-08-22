@@ -1,4 +1,3 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 import qualified Data.IntSet as IntSet
 import Data.Coerce (coerce)
 import Data.List (nub, sort, sortBy)
@@ -809,7 +808,10 @@ prop_merge miss1 miss2 match s1 s2 =
       PreserveMissing -> preserveMissing
       FilterMissing f -> filterMissing (applyFun f)
 
-    toSimpleWhenMatched (FilterMatched f) = filterMatched (applyFun f)
+    toSimpleWhenMatched spec = case spec of
+      DropMatched -> dropMatched
+      PreserveMatched -> preserveMatched
+      FilterMatched f -> filterMatched (applyFun f)
 
 prop_mergeA
   :: WhenMissingSpec Int
@@ -841,7 +843,10 @@ prop_mergeA miss1 miss2 match s1 s2 =
       PreserveMissing -> preserveMissing
       FilterMissing f -> filterAMissing (\x -> ([x], applyFun f x))
 
-    toWhenMatched (FilterMatched f) = filterAMatched (\x -> ([x], applyFun f x))
+    toWhenMatched spec = case spec of
+      DropMatched -> dropMatched
+      PreserveMatched -> preserveMatched
+      FilterMatched f -> filterAMatched (\x -> ([x], applyFun f x))
 
 data WhenMissingSpec a
   = DropMissing
@@ -849,8 +854,7 @@ data WhenMissingSpec a
   | FilterMissing (Fun a Bool)
   deriving Show
 
-instance (Arbitrary a, CoArbitrary a, Function a)
-  => Arbitrary (WhenMissingSpec a) where
+instance (CoArbitrary a, Function a) => Arbitrary (WhenMissingSpec a) where
   arbitrary = oneof
     [ pure DropMissing
     , pure PreserveMissing
@@ -861,5 +865,19 @@ instance (Arbitrary a, CoArbitrary a, Function a)
     PreserveMissing -> []
     FilterMissing f -> FilterMissing <$> shrink f
 
-newtype WhenMatchedSpec a = FilterMatched (Fun a Bool)
-  deriving (Show, Arbitrary)
+data WhenMatchedSpec a
+  = DropMatched
+  | PreserveMatched
+  | FilterMatched (Fun a Bool)
+  deriving Show
+
+instance (CoArbitrary a, Function a) => Arbitrary (WhenMatchedSpec a) where
+  arbitrary = oneof
+    [ pure DropMatched
+    , pure PreserveMatched
+    , FilterMatched <$> arbitrary
+    ]
+  shrink spec = case spec of
+    DropMatched -> []
+    PreserveMatched -> []
+    FilterMatched f -> FilterMatched <$> shrink f

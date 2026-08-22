@@ -23,6 +23,8 @@ module Data.Set.Merge
   , filterMissing
 
     -- *** @WhenMatched@ tactics
+  , dropMatched
+  , preserveMatched
   , filterMatched
 
     -- ** Applicative merge tactic types
