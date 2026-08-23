@@ -47,6 +47,16 @@
 * Add `mapAssocsMonotonic` for `Map`. (Soumik Sarkar)
   ([#1230](https://github.com/haskell/containers/pull/1230))
 
+* Add `fromSetMaybe` and `fromSetMaybeA` for `Map` and `IntMap`. (Soumik Sarkar)
+  ([#1234](https://github.com/haskell/containers/pull/1234))
+
+* Add `Data.Map.Merge.Set.Lazy` and `Data.Map.Merge.Set.Strict`, an API to
+  merge a `Map` and a `Set` into a `Map`. (Soumik Sarkar)
+  ([#1227](https://github.com/haskell/containers/pull/1227))
+
+* Add the `dropMatched` merge strategy for `Map` and `IntMap`. (Soumik Sarkar)
+  ([#1240](https://github.com/haskell/containers/pull/1240))
+
 ### Performance improvements
 
 * Improve performance of `Data.IntMap.fromAscList` and
@@ -91,10 +101,10 @@
 
 * Use a different strategy for `Data.Set.alterF`, improving performance in
   typical scenarios. (Soumik Sarkar)
-  ([#1215](https://github.com/haskell/containers/pull/1215),
+  ([#1215](https://github.com/haskell/containers/pull/1215))
 
 * Reduce allocations when using `Data.Map.alterF`. (Soumik Sarkar)
-  ([#1219](https://github.com/haskell/containers/pull/1219),
+  ([#1219](https://github.com/haskell/containers/pull/1219))
 
 ### Documentation
 
@@ -118,7 +128,8 @@
   [#1218](https://github.com/haskell/containers/pull/1218),
   [#1216](https://github.com/haskell/containers/pull/1216),
   [#1225](https://github.com/haskell/containers/pull/1225),
-  [#1231](https://github.com/haskell/containers/pull/1231))
+  [#1231](https://github.com/haskell/containers/pull/1231),
+  [#1235](https://github.com/haskell/containers/pull/1235))
 
 ### Miscellaneous/internal
 
@@ -130,7 +141,7 @@
   (Soumik Sarkar)
   ([#1142](https://github.com/haskell/containers/pull/1142))
 
-* CI improvements. (Soumik Sarkar, Lennart Augustsson)
+* CI maintenance and improvements. (Soumik Sarkar, Lennart Augustsson)
   ([#1147](https://github.com/haskell/containers/pull/1147),
   [#1173](https://github.com/haskell/containers/pull/1173),
   [#1177](https://github.com/haskell/containers/pull/1177),
@@ -138,7 +149,8 @@
   [#1180](https://github.com/haskell/containers/pull/1180),
   [#1196](https://github.com/haskell/containers/pull/1196),
   [#1207](https://github.com/haskell/containers/pull/1207),
-  [#1224](https://github.com/haskell/containers/pull/1224))
+  [#1224](https://github.com/haskell/containers/pull/1224),
+  [#1236](https://github.com/haskell/containers/pull/1236))
 
 * Miscellaneous internal improvements. (Soumik Sarkar, Simon Hengel)
   ([#1126](https://github.com/haskell/containers/pull/1126),
