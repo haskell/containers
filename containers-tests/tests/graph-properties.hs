@@ -7,6 +7,7 @@ import qualified Data.Foldable as F
 import qualified Data.Graph as G
 import qualified Data.List as L
 import qualified Data.Set as S
+import qualified Data.Tree as Tree
 
 default (Int)
 
@@ -128,14 +129,14 @@ prop_dfs (Graph g) =
   in forAll vsgen $ \vs ->
     let ts = G.dfs g vs
     in S.fromList (concatMap F.toList ts) `S.isSubsetOf` S.fromList (G.vertices g) .&&.
-       S.fromList (concatMap treeEdges ts) `S.isSubsetOf` S.fromList (G.edges g)
+       S.fromList (concatMap Tree.edges ts) `S.isSubsetOf` S.fromList (G.edges g)
 
 -- Note: This tests some simple properties but not complete correctness
 prop_dff :: Graph -> Property
 prop_dff (Graph g) =
   let ts = G.dff g
   in L.sort (concatMap F.toList ts) === G.vertices g .&&.
-     S.fromList (concatMap treeEdges ts) `S.isSubsetOf` S.fromList (G.edges g)
+     S.fromList (concatMap Tree.edges ts) `S.isSubsetOf` S.fromList (G.edges g)
 
 prop_topSort :: DAG -> Property
 prop_topSort (DAG g) =
@@ -147,7 +148,7 @@ prop_scc :: Graph -> Property
 prop_scc (Graph g) =
   let ts = G.scc g
   in L.sort (concatMap F.toList ts) === G.vertices g .&&.
-     S.fromList (concatMap treeEdges ts) `S.isSubsetOf` S.fromList (G.edges g) .&&.
+     S.fromList (concatMap Tree.edges ts) `S.isSubsetOf` S.fromList (G.edges g) .&&.
      -- vertices in a component are mutually reachable
      and [G.path g u v | t <- ts, u <- F.toList t, v <- F.toList t] .&&.
      -- vertices in later components are not reachable from earlier components, due to reverse
@@ -160,7 +161,7 @@ prop_bcc (UndirectedG g) =
       comps = concatMap F.toList ts :: [[G.Vertex]]
   in S.fromList (concat comps) `S.isSubsetOf` S.fromList (G.vertices g) .&&.
      all testBCC comps .&&.
-     all (uncurry testBCCs) (concatMap treeEdges ts)
+     all (uncurry testBCCs) (concatMap Tree.edges ts)
   where
     -- a biconnected component remains connected even if any single vertex is removed
     testBCC c = and [subsetComponents (L.delete x c) == 1 | x <- c]
@@ -194,7 +195,3 @@ prop_stronglyConnCompR (AdjList adj) =
     testSCC (G.AcyclicSCC (_, k, ks)) = k `notElem` ks
     testSCC (G.CyclicSCC [(_, k, ks)]) = k `elem` ks
     testSCC (G.CyclicSCC xs) = and [G.path g (getv k) (getv k') | (_,k,_) <- xs , (_,k',_) <- xs]
-
-treeEdges :: G.Tree a -> [(a, a)]
-treeEdges t = go t []
-  where go (G.Node x ts) acc = [(x,y) | G.Node y _ <- ts] ++ foldr go acc ts

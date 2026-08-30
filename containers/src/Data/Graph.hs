@@ -119,6 +119,7 @@ import Data.IntSet (IntSet)
 import qualified Data.IntSet as Set
 #endif
 import Data.Tree (Tree(..), Forest)
+import qualified Data.Tree as Tree
 
 -- std interfaces
 import Data.Foldable as F
@@ -647,15 +648,6 @@ run _ f = fst (runSetM (f contains include) Set.empty)
 -- Algorithm 1: depth first search numbering
 ------------------------------------------------------------
 
-preorder' :: Tree a -> [a] -> [a]
-preorder' (Node a ts) = (a :) . preorderF' ts
-
-preorderF' :: [Tree a] -> [a] -> [a]
-preorderF' ts = foldr (.) id $ map preorder' ts
-
-preorderF :: [Tree a] -> [a]
-preorderF ts = preorderF' ts []
-
 tabulate        :: Bounds -> [Vertex] -> UArray Vertex Int
 tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
 -- Why zipWith (flip (,)) instead of just using zip with the
@@ -664,20 +656,11 @@ tabulate bnds vs = UA.array bnds (zipWith (flip (,)) [1..] vs)
 -- list argument.
 
 preArr          :: Bounds -> [Tree Vertex] -> UArray Vertex Int
-preArr bnds      = tabulate bnds . preorderF
+preArr bnds      = tabulate bnds . concatMap Tree.flatten
 
 ------------------------------------------------------------
 -- Algorithm 2: topological sorting
 ------------------------------------------------------------
-
-postorder :: Tree a -> [a] -> [a]
-postorder (Node a ts) = postorderF ts . (a :)
-
-postorderF   :: [Tree a] -> [a] -> [a]
-postorderF ts = foldr (.) id $ map postorder ts
-
-postOrd :: Graph -> [Vertex]
-postOrd g = postorderF (dff g) []
 
 -- | \(O(V+E)\). A topological sort of the graph.
 -- The order is partially specified by the condition that a vertex /i/
@@ -686,8 +669,14 @@ postOrd g = postorderF (dff g) []
 -- Note: A topological sort exists only when there are no cycles in the graph.
 -- If the graph has cycles, the output of this function will not be a
 -- topological sort. In such a case consider using 'scc'.
-topSort      :: Graph -> [Vertex]
-topSort       = reverse . postOrd
+topSort :: Graph -> [Vertex]
+topSort = reversePostOrder' . dff
+
+-- Generates the result list at once. This is more efficient that being lazy if
+-- we will consume the full result anyway.
+reversePostOrder' :: [Tree a] -> [a]
+reversePostOrder' =
+  F.foldl' (\xs t -> F.foldl' (flip (:)) xs (Tree.PostOrder t)) []
 
 -- | \(O(V+E)\). Reverse ordering of `topSort`.
 --
@@ -695,7 +684,7 @@ topSort       = reverse . postOrd
 --
 -- @since 0.6.4
 reverseTopSort :: Graph -> [Vertex]
-reverseTopSort = postOrd
+reverseTopSort = concatMap (F.toList . Tree.PostOrder) . dff
 
 ------------------------------------------------------------
 -- Algorithm 3: connected components
@@ -721,8 +710,8 @@ undirected g  = buildG (bounds g) (edges g ++ reverseE g)
 -- >   == [Node {rootLabel = 0, subForest = [Node {rootLabel = 1, subForest = [Node {rootLabel = 2, subForest = []}]}]}
 -- >      ,Node {rootLabel = 3, subForest = []}]
 
-scc  :: Graph -> [Tree Vertex]
-scc g = dfs g (reverse (postOrd (transposeG g)))
+scc :: Graph -> [Tree Vertex]
+scc g = dfs g (reversePostOrder' (dff (transposeG g)))
 
 ------------------------------------------------------------
 -- Algorithm 5: Classifying edges
@@ -764,7 +753,7 @@ mapT f t = array (bounds t) [ (,) v (f v (t!v)) | v <- indices t ]
 --
 -- > reachable (buildG (0,2) [(0,1), (1,2)]) 0 == [0,1,2]
 reachable :: Graph -> Vertex -> [Vertex]
-reachable g v = preorderF (dfs g [v])
+reachable g v = concatMap Tree.flatten (dfs g [v])
 
 -- | \(O(V+E)\). Returns @True@ if the second vertex reachable from the first.
 --
