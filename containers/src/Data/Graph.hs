@@ -6,8 +6,10 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DeriveLift #-}
 {-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE Safe #-}
 {-# LANGUAGE TemplateHaskellQuotes #-}
+#if !MIN_VERSION_array(0,5,7)
+{-# LANGUAGE Trustworthy #-}
+#endif
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
