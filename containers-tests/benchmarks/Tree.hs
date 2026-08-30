@@ -45,6 +45,8 @@ main = do
       , bgroup "foldlMap1" $ forTs ts $ whnf (Foldable1.foldlMap1 id (+))
       ]
 #endif
+    , bgroup "leaves" $ forTs ts $ nf T.leaves
+    , bgroup "edges" $ forTs ts $ nf T.edges
     , bgroup "PostOrder"
       [ bgroup "Foldable"
         [ bgroup "folds"
