@@ -3,11 +3,11 @@
 {-# LANGUAGE Safe #-}
 #endif
 
--- This module defines an API for writing functions that merge two sets. The key
+-- | This module defines an API for writing functions that merge two sets. The key
 -- functions are 'merge' and 'mergeA'. Each of these can be used with several
 -- different \"merge tactics\".
 --
--- @since FIXME
+-- @since 0.8.1
 module Data.Set.Merge
   (
     -- ** Simple merge tactic types
