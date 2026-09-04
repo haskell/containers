@@ -57,6 +57,7 @@ module Data.Map.Merge.Set.Lazy
   , M.filterAMissing
   , M.traverseMissing
   , M.traverseMaybeMissing
+  , M.whenMissing
 
   -- *** @WhenMissingSet@ tactics
   , generateAMissingSet

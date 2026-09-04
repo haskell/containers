@@ -73,6 +73,7 @@ module Data.IntMap.Merge.Strict (
     , traverseMaybeMissing
     , traverseMissing
     , filterAMissing
+    , Internal.whenMissing
 
     -- ** Covariant maps for tactics
     , mapWhenMissing
@@ -99,6 +100,7 @@ import Data.IntMap.Internal
   , runWhenMatched
   , runWhenMissing
   )
+import qualified Data.IntMap.Internal as Internal
 import Data.IntMap.Strict.Internal
 import Prelude hiding (filter, map, foldl, foldr)
 
