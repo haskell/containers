@@ -63,6 +63,7 @@ jobs:
     - name: install deps
       if: ${{ matrix.ghc == '8.2.2' }}
       run: |
+        sudo apt-get update
         sudo apt-get install -y libtinfo5  # See https://github.com/haskell/ghcup-hs/issues/947
     - name: install ghc
       uses: haskell/ghcup-setup@v1
