@@ -211,10 +211,7 @@ instance Foldable Tree where
 
     foldr f z = \t -> go t z  -- Use a lambda to allow inlining with two arguments
       where
-        go (Node x ts) = f x . foldr (\t k -> go t . k) id ts
-        -- This is equivalent to the following simpler definition, but has been found to optimize
-        -- better in benchmarks:
-        -- go (Node x ts) z' = f x (foldr go z' ts)
+        go (Node x ts) z' = f x (foldrTreeList go z' ts)
     {-# INLINE foldr #-}
 
     foldl' f = go
@@ -242,6 +239,17 @@ instance Foldable Tree where
 
     product = foldlMap1' id (*)
     {-# INLINABLE product #-}
+
+-- This is the same as List's foldr, but unlike GHC's implementation the z is
+-- passed along in go instead of go closing over it.
+-- When folding over a Tree this avoids a closure per Node, which results in
+-- significant reductions in time and allocations according to benchmarks.
+foldrTreeList :: (Tree a -> b -> b) -> b -> [Tree a] -> b
+foldrTreeList f = go
+  where
+    go z [] = z
+    go z (t:ts) = f t (go z ts)
+{-# INLINE foldrTreeList #-}
 
 #if MIN_VERSION_base(4,18,0)
 -- | Folds in pre-order.
@@ -571,7 +579,7 @@ leaves :: Tree a -> [a]
 #ifdef __GLASGOW_HASKELL__
 leaves t = GHC.Exts.build $ \cons nil ->
   let go (Node x []) z = cons x z
-      go (Node _ ts) z = foldr go z ts
+      go (Node _ ts) z = foldrTreeList go z ts
   in go t nil
 {-# INLINE leaves #-} -- Inline for list fusion
 #else
@@ -607,8 +615,9 @@ leaves t =
 edges :: Tree a -> [(a, a)]
 #ifdef __GLASGOW_HASKELL__
 edges (Node x0 ts0) = GHC.Exts.build $ \cons nil ->
-  let go p = foldr (\(Node x ts) z -> cons (p, x) (go x z ts))
-  in go x0 nil ts0
+  let go _ [] z = z
+      go p (Node x ts : ts') z = cons (p, x) (go x ts (go p ts' z))
+  in go x0 ts0 nil
 {-# INLINE edges #-} -- Inline for list fusion
 #else
 edges (Node x0 ts0) =
@@ -723,7 +732,7 @@ instance Foldable PostOrder where
 
     foldr f z0 = \(PostOrder t) -> go t z0  -- Use a lambda to inline with two arguments
       where
-        go (Node x ts) z = foldr go (f x z) ts
+        go (Node x ts) z = foldrTreeList go (f x z) ts
     {-# INLINE foldr #-}
 
     foldl' f z0 = \(PostOrder t) -> go z0 t  -- Use a lambda to inline with two arguments
@@ -778,7 +787,7 @@ instance Foldable1.Foldable1 PostOrder where
     where
       go (Node x []) z = x :| z
       go (Node x (t:ts)) z =
-        go t (foldr (\t' z' -> foldr (:) z' (PostOrder t')) (x:z) ts)
+        go t (foldrTreeList (\t' z' -> foldr (:) z' (PostOrder t')) (x:z) ts)
 
   maximum = Foldable.maximum
   {-# INLINABLE maximum #-}
