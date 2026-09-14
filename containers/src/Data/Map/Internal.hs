@@ -1742,7 +1742,7 @@ maxView t = case maxViewWithKey t of
 unions :: (Foldable f, Ord k) => f (Map k a) -> Map k a
 unions ts
   = Foldable.foldl' union empty ts
-{-# INLINABLE unions #-}
+{-# INLINE unions #-} -- Inline for list fusion
 
 -- | The union of a list of maps, with a combining operation:
 --   (@'unionsWith' f == 'Prelude.foldl' ('unionWith' f) 'empty'@).
@@ -2972,6 +2972,7 @@ traverseMaybeWithKey = go
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
           Just x' -> link kx x' l' r'
+{-# INLINABLE traverseMaybeWithKey #-}
 
 -- | \(O(n)\). Map values and separate the 'Left' and 'Right' results.
 --
@@ -3182,6 +3183,8 @@ mapAssocsMonotonic f = go
     go Tip = Tip
     go (Bin sz k1 x1 l r) = case f k1 x1 of
       (k2, x2) -> Bin sz k2 x2 (go l) (go r)
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE mapAssocsMonotonic #-}
 
 {--------------------------------------------------------------------
   Folds
