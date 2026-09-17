@@ -209,6 +209,7 @@ benchmark tree-benchmarks
 
   build-depends:
       benchmark-utils
+    , transformers
 
 benchmark sequence-benchmarks
   import: benchmark-deps, warnings
