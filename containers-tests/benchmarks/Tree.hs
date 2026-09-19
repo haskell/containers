@@ -1,8 +1,11 @@
 {-# LANGUAGE CPP #-}
+{-# LANGUAGE BangPatterns #-}
 module Main where
 
 import Control.DeepSeq (NFData, rnf)
 import Control.Exception (evaluate)
+import Control.Monad (filterM)
+import qualified Control.Monad.Trans.State.Strict as State
 import Data.Coerce (coerce)
 import qualified Data.Foldable as F
 import Data.Monoid (All(..))
@@ -10,6 +13,7 @@ import Data.Monoid (All(..))
 import Data.Monoid (Sum(..))
 import qualified Data.Foldable1 as Foldable1
 #endif
+import qualified Data.IntSet as IntSet
 import Test.Tasty.Bench (Benchmark, Benchmarkable, bench, bgroup, defaultMain, whnf, nf)
 import qualified Data.Tree as T
 
@@ -47,6 +51,8 @@ main = do
 #endif
     , bgroup "leaves" $ forTs ts $ nf T.leaves
     , bgroup "edges" $ forTs ts $ nf T.edges
+    , bench "unfoldForestM" $ whnf unfoldForestM_sum 100
+    , bench "unfoldForestM_BF" $ whnf unfoldForestM_BF_bfs 1000
     , bgroup "PostOrder"
       [ bgroup "Foldable"
         [ bgroup "folds"
@@ -105,3 +111,24 @@ lineTree n = Tree label t
   where
     label = "line,n=" ++ show n
     t = T.unfoldTree (\x -> (x, [x+1 | x+1 <= n])) 1
+
+unfoldForestM_sum :: Int -> Int
+unfoldForestM_sum !n = State.execState (T.unfoldForestM step [2..10]) 0
+  where
+    step x = (x, [2*x, 3*x .. n]) <$ State.modify' (+x)
+
+unfoldForestM_BF_bfs :: Int -> [T.Tree Int]
+unfoldForestM_BF_bfs !n = bfs (\x -> [2*x, 3*x .. n]) [10, 9 .. 2]
+
+-- Adapted from
+-- https://hackage-content.haskell.org/package/algebraic-graphs-0.8/docs/Algebra-Graph-AdjacencyMap-Algorithm.html#v:bfsForest
+bfs :: (Int -> [Int]) -> [Int] -> [T.Tree Int]
+bfs neighbors start = State.evalState (explore start) IntSet.empty
+  where
+    explore vs = filterM discovered vs >>= T.unfoldForestM_BF walk
+    walk !v = (,) v <$> filterM discovered (neighbors v)
+    discovered !v =
+      State.state (IntSet.alterF (\b -> (not b, True)) v) <* forceState
+
+forceState ::  State.State s ()
+forceState = State.modify' id

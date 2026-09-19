@@ -13,6 +13,7 @@ import qualified Test.QuickCheck.Classes.Base as Laws
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
 import Data.Foldable (fold, foldl', toList)
+import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
 import Data.Proxy (Proxy(..))
@@ -63,6 +64,10 @@ main = defaultMain $ testGroup "tree-properties"
          , testProperty "edges"                    prop_edges
          , testProperty "pathsToRoot"              prop_pathsToRoot
          , testProperty "pathsFromRoot"            prop_pathsFromRoot
+         , testProperty "unfoldTreeM"              prop_unfoldTreeM
+         , testProperty "unfoldForestM"            prop_unfoldForestM
+         , testProperty "unfoldTreeM_BF"           prop_unfoldTreeM_BF
+         , testProperty "unfoldForestM_BF"         prop_unfoldForestM_BF
          , testLaws $ Laws.eqLaws (Proxy :: Proxy (Tree A))
          , testLaws $ Laws.ordLaws (Proxy :: Proxy (Tree OrdA))
          , testLaws $ Laws.showLaws (Proxy :: Proxy (Tree A))
@@ -344,6 +349,38 @@ prop_pathsFromRoot :: Tree A -> Property
 prop_pathsFromRoot t = pathsFromRoot t === foldTree f t []
   where
     f x ks ps = Node (NE.reverse (x :| ps)) (map ($ (x:ps)) ks)
+
+prop_unfoldTreeM :: Tree A -> Property
+prop_unfoldTreeM t =
+  t' === t .&&.
+  xs === toList t'
+  where
+    (xs, t') = T.unfoldTreeM f t
+    f (Node x ts) = ([x], (x, ts))
+
+prop_unfoldForestM :: [Tree A] -> Property
+prop_unfoldForestM ts =
+  ts' === ts .&&.
+  xs === concatMap toList ts'
+  where
+    (xs, ts') = T.unfoldForestM f ts
+    f (Node x ts) = ([x], (x, ts))
+
+prop_unfoldTreeM_BF :: Tree A -> Property
+prop_unfoldTreeM_BF t =
+  t' === t .&&.
+  xs === concat (T.levels t')
+  where
+    (xs, t') = T.unfoldTreeM_BF f t
+    f (Node x ts1) = ([x], (x, ts1))
+
+prop_unfoldForestM_BF :: [Tree A] -> Property
+prop_unfoldForestM_BF ts =
+  ts' === ts .&&.
+  xs === concat (concat (List.transpose (map T.levels ts')))
+  where
+    (xs, ts') = T.unfoldForestM_BF f ts
+    f (Node x ts1) = ([x], (x, ts1))
 
 prop_PostOrder_toList :: PostOrder A -> Property
 prop_PostOrder_toList t = toList t === foldr (:) [] t
