@@ -506,10 +506,12 @@ unfoldTreeM f b = do
     (a, bs) <- f b
     ts <- unfoldForestM f bs
     return (Node a ts)
+{-# INLINABLE unfoldTreeM #-}
 
 -- | Monadic forest builder, in depth-first order.
 unfoldForestM :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM f = Prelude.mapM (unfoldTreeM f)
+{-# INLINABLE unfoldForestM #-}
 
 -- | Monadic tree builder, in breadth-first order.
 --
@@ -524,6 +526,7 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
     getElement xs = case viewl xs of
         x :< _ -> x
         EmptyL -> error "unfoldTreeM_BF"
+{-# INLINABLE unfoldTreeM_BF #-}
 
 -- | Monadic forest builder, in breadth-first order.
 --
@@ -534,6 +537,7 @@ unfoldTreeM_BF f b = liftM getElement $ unfoldForestQ f (singleton b)
 -- by Chris Okasaki, /ICFP'00/.
 unfoldForestM_BF :: Monad m => (b -> m (a, [b])) -> [b] -> m ([Tree a])
 unfoldForestM_BF f = liftM toList . unfoldForestQ f . fromList
+{-# INLINABLE unfoldForestM_BF #-}
 
 -- Takes a sequence (queue) of seeds and produces a sequence (reversed queue) of
 -- trees of the same length.
@@ -551,6 +555,7 @@ unfoldForestQ f aQ = case viewl aQ of
     splitOnto as (_:bs) q = case viewr q of
         q' :> a -> splitOnto (a:as) bs q'
         EmptyR -> error "unfoldForestQ"
+{-# INLINABLE unfoldForestQ #-}
 
 -- | \(O(n)\). The leaves of the tree in left-to-right order.
 --
