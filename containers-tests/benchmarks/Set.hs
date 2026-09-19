@@ -37,6 +37,7 @@ main = do
         , bench "unions" $ whnf S.unions [s_even, s_odd]
         , bench "union" $ whnf (S.union s_even) s_odd
         , bench "difference" $ whnf (S.difference s) s_even
+        , bench "symmetricDifference" $ whnf (S.symmetricDifference s) s_even
         , bench "intersection" $ whnf (S.intersection s) s_even
         , bench "fromList" $ whnf S.fromList elems
         , bench "fromList-distinctAsc" $ whnf S.fromList elems_distinct_asc
@@ -55,6 +56,8 @@ main = do
         , bench "fromDistinctDescList:fusion" $ whnf (\n -> S.fromDistinctDescList [n,n-1..1]) bound
         , bench "disjoint:false" $ whnf (S.disjoint s) s_even
         , bench "disjoint:true" $ whnf (S.disjoint s_odd) s_even
+        , bench "isSubsetOf:false" $ whnf (S.isSubsetOf s_odd) s_even
+        , bench "isSubsetOf:true" $ whnf (S.isSubsetOf s_even) s
         , bench "null.intersection:false" $ whnf (S.null. S.intersection s) s_even
         , bench "null.intersection:true" $ whnf (S.null. S.intersection s_odd) s_even
         , bench "alterF:member" $ whnf (alterF_member elems) s
