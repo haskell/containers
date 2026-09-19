@@ -401,7 +401,7 @@ import Utils.Containers.Internal.PtrEquality (ptrEq)
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.BitQueue
-import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
+import Utils.Containers.Internal.ShortCircuit (EqM(..), OrdM(..))
 #ifdef DEFINE_ALTERF_FALLBACK
 import Utils.Containers.Internal.BitUtil (wordSize)
 #endif

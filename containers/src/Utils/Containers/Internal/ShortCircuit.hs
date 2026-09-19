@@ -1,5 +1,5 @@
 {-# LANGUAGE CPP #-}
-module Utils.Containers.Internal.EqOrdUtil
+module Utils.Containers.Internal.ShortCircuit
   ( EqM(..)
   , OrdM(..)
   ) where

@@ -262,7 +262,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.PtrEquality
-import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
+import Utils.Containers.Internal.ShortCircuit (EqM(..), OrdM(..))
 
 #if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec

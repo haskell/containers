@@ -137,7 +137,7 @@ library
     Utils.Containers.Internal.PtrEquality
     Utils.Containers.Internal.State
     Utils.Containers.Internal.Strict
-    Utils.Containers.Internal.EqOrdUtil
+    Utils.Containers.Internal.ShortCircuit
 
   if impl(ghc >= 8.6)
     ghc-options: -Werror
