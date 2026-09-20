@@ -252,7 +252,7 @@ import Utils.Containers.Internal.Prelude hiding
 import Prelude ()
 import Control.Applicative (Const(..), liftA3)
 import qualified Data.List as List
-import Data.Semigroup (Semigroup(..), stimesIdempotentMonoid, stimesIdempotent)
+import Data.Semigroup (All (..), Semigroup (..), stimesIdempotent, stimesIdempotentMonoid)
 import Data.Functor.Classes
 import Data.Functor.Identity (Identity(..))
 import qualified Data.Foldable as Foldable
@@ -262,7 +262,7 @@ import Data.List.NonEmpty (NonEmpty(..))
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.PtrEquality
-import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
+import Utils.Containers.Internal.ShortCircuit (ShortCircuit(..))
 
 #if defined(__GLASGOW_HASKELL__) || defined(__MHS__)
 import Text.Read ( readPrec, Read (..), Lexeme (..), parens, prec
@@ -1356,11 +1356,11 @@ instance Eq1 Set where
 -- Assumes the sets are of equal size to skip the final check.
 sameSizeLiftEq :: (a -> b -> Bool) -> Set a -> Set b -> Bool
 sameSizeLiftEq eq s1 s2 =
-  case runEqM (foldMap f s1) (iterator s2) of e :*: _ -> e
+  case runShortCircuit (foldMap f s1) (iterator s2) of All e :*: _ -> e
   where
-    f x = EqM $ \it -> case iterNext it of
-      Nothing -> False :*: it
-      Just (y :*: it') -> eq x y :*: it'
+    f x = ShortCircuit $ \it -> case iterNext it of
+      Nothing -> All False :*: it
+      Just (y :*: it') -> All (eq x y) :*: it'
 {-# INLINE sameSizeLiftEq #-}
 
 {--------------------------------------------------------------------
@@ -1377,10 +1377,10 @@ instance Ord1 Set where
   {-# INLINE liftCompare #-}
 
 liftCmp :: (a -> b -> Ordering) -> Set a -> Set b -> Ordering
-liftCmp cmp s1 s2 = case runOrdM (foldMap f s1) (iterator s2) of
+liftCmp cmp s1 s2 = case runShortCircuit (foldMap f s1) (iterator s2) of
   o :*: it -> o <> if iterNull it then EQ else LT
   where
-    f x = OrdM $ \it -> case iterNext it of
+    f x = ShortCircuit $ \it -> case iterNext it of
       Nothing -> GT :*: it
       Just (y :*: it') -> cmp x y :*: it'
 {-# INLINE liftCmp #-}
