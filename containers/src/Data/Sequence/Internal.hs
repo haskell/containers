@@ -2380,7 +2380,7 @@ viewRTree (Deep s pr m (Four w x y z)) =
 
 -- | \(O(n)\). Convert to a list of elements.
 --
--- @since FIXME
+-- @since 0.8.1
 toList :: Seq a -> [a]
 toList = F.toList
 
@@ -3486,7 +3486,7 @@ take i xs@(Seq t)
 -- If the sequence contains fewer than @i@ elements, the whole sequence
 -- is returned.
 --
--- @since FIXME
+-- @since 0.8.1
 takeR :: Int -> Seq a -> Seq a
 takeR i xs = drop (length xs - i) xs
 
@@ -3657,7 +3657,7 @@ drop i xs@(Seq t)
 -- If the sequence contains fewer than @i@ elements, the empty sequence
 -- is returned.
 --
--- @since FIXME
+-- @since 0.8.1
 dropR :: Int -> Seq a -> Seq a
 dropR i xs = take (length xs - i) xs
 
@@ -3834,7 +3834,7 @@ splitAt i xs@(Seq t)
 -- with the position being counted from the last (rightmost) element.
 -- @'splitAtR' i s = ('dropR' i s, 'takeR' i s)@.
 --
--- @since FIXME
+-- @since 0.8.1
 splitAtR :: Int -> Seq a -> (Seq a, Seq a)
 splitAtR i xs = splitAt (length xs - i) xs
 
@@ -4235,7 +4235,7 @@ filter p = foldl' (\ xs x -> if p x then xs `snoc'` x else xs) empty
 
 -- | \( O(n) \). Map elements and collect the 'Just' results.
 --
--- @since FIXME
+-- @since 0.8.1
 mapMaybe :: (a -> Maybe b) -> Seq a -> Seq b
 mapMaybe f = foldl' go empty
   where go xs x = case f x of

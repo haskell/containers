@@ -626,7 +626,7 @@ size = go 0
 -- @compareSize m c@ returns the same result as @compare ('size' m) c@ but is
 -- more efficient when @c@ is smaller than the size of the map.
 --
--- @since FIXME
+-- @since 0.8.1
 compareSize :: IntMap a -> Int -> Ordering
 compareSize Nil c0 = compare 0 c0
 compareSize _ c0 | c0 <= 0 = GT
@@ -1003,7 +1003,7 @@ delete _k Nil = Nil
 -- pop 2 (fromList [(0,"a"),(2,"b"),(4,"c")]) == Just ("b",fromList [(0,"a"),(4,"c")])
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 pop :: Key -> IntMap a -> Maybe (a, IntMap a)
 pop k0 t0 = case go k0 t0 of
   Popped (Just y) t -> Just (y, t)
@@ -1101,7 +1101,7 @@ updateWithKey _ _ Nil = Nil
 -- upsert inc 200 (fromList [(100,1),(300,2)]) == fromList [(100,1),(200,1),(300,2)]
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 upsert :: (Maybe a -> a) -> Key -> IntMap a -> IntMap a
 upsert f !k t@(Bin p l r)
   | nomatch k p = linkKey k (Tip k (f Nothing)) p t
@@ -1688,7 +1688,7 @@ instance Monad f => Monad (WhenMissing f x) where
 --     -- Note that this satisfies g = traverseMaybeWithKey f
 -- @
 --
--- @since FIXME
+-- @since 0.8.1
 whenMissing
   :: (Key -> x -> f (Maybe y))
   -> (IntMap x -> f (IntMap y))
@@ -1878,7 +1878,7 @@ type SimpleWhenMatched = WhenMatched Identity
 
 -- | When a key is found in both maps, drop the key and values.
 --
--- @since FIXME
+-- @since 0.8.1
 dropMatched :: Applicative f => WhenMatched f x y z
 dropMatched = WhenMatched (\_ _ _ -> pure Nothing)
 {-# INLINE dropMatched #-}
@@ -3466,7 +3466,7 @@ fromSet f = runIdentity . fromSetA (pure . f)
 -- > fromSetA f (Data.Set.fromList [1,2,3,4]) == Just (fromList [(1,6),(2,3),(3,2),(4,1)])
 -- > fromSetA f (Data.Set.fromList [0,1,2]) == Nothing
 --
--- @since FIXME
+-- @since 0.8.1
 fromSetA :: Applicative f => (Key -> f a) -> IntSet -> f (IntMap a)
 fromSetA _ IntSet.Nil = pure Nil
 fromSetA f (IntSet.Bin p l r)
@@ -3482,7 +3482,7 @@ fromSetA f (IntSet.Tip kx bm) =
 -- > let f k = if even k then Just (replicate k 'a') else Nothing
 -- > fromSetMaybe f (Data.IntSet.fromList [1,2,3,4]) == fromList [(2,"aa"), (4,"aaaa")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromSetMaybe :: (Key -> Maybe a) -> IntSet -> IntMap a
 #ifdef __GLASGOW_HASKELL__
 fromSetMaybe =
@@ -3498,7 +3498,7 @@ fromSetMaybe f s = runIdentity (fromSetMaybeA (Identity . f) s)
 --
 -- The @Applicative@ actions are sequenced in order of increasing key.
 --
--- @since FIXME
+-- @since 0.8.1
 fromSetMaybeA :: Applicative f => (Key -> f (Maybe a)) -> IntSet -> f (IntMap a)
 fromSetMaybeA f = go
   where
@@ -3708,7 +3708,7 @@ fromListWithKey f xs =
 -- > let f x = maybe [x] (x:)
 -- > fromListUpsert f [(5,'a'), (5,'b'), (3,'c'), (3,'d'), (5,'e')] == fromList [(3,"dc"), (5,"eba")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
 fromListUpsert f xs =
   finishB (Foldable.foldl' (\b (kx, x) -> upsertB (f x) kx b) emptyB xs)
@@ -3783,7 +3783,7 @@ fromAscListWithKey f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
 -- > let f x = maybe [x] (x:)
 -- > fromAscListUpsert f [(3,'a'), (3,'b'), (5,'c'), (5,'d'), (5,'e')] == fromList [(3,"ba"), (5,"edc")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromAscListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
 fromAscListUpsert f xs = ascLinkAll (Foldable.foldl' next MSNada xs)
   where
@@ -3824,7 +3824,7 @@ fromDistinctAscList = fromAscList
 -- > fromDescList [(5,"a"), (3,"b")]          == fromList [(3,"b"), (5,"a")]
 -- > fromDescList [(5,"a"), (5,"b"), (3,"b")] == fromList [(3,"b"), (5,"b")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromDescList :: [(Key,a)] -> IntMap a
 fromDescList xs =
   descLinkAll (Foldable.foldl' (\s (ky, y) -> descInsert ky y s) MSNada xs)
@@ -3840,7 +3840,7 @@ fromDescList xs =
 -- > let f x = maybe [x] (x:)
 -- > fromDescListUpsert f [(5,'a'), (5,'b'), (5,'c'), (3,'d'), (3,'e')] == fromList [(3,"ed"), (5,"cba")]
 --
--- @since FIXME
+-- @since 0.8.1
 fromDescListUpsert :: (a -> Maybe b -> b) -> [(Key, a)] -> IntMap b
 fromDescListUpsert f xs = descLinkAll (Foldable.foldl' next MSNada xs)
   where
