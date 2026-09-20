@@ -288,7 +288,7 @@ import Data.Coerce (coerce)
 --------------------------------------------------------------------}
 infixl 9 \\ --
 
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). See 'difference'.
+-- | \(O(n+m)\). See 'difference'.
 (\\) :: Ord a => Set a -> Set a -> Set a
 m1 \\ m2 = difference m1 m2
 {-# INLINABLE (\\) #-}
@@ -535,26 +535,6 @@ lazy :: a -> a
 lazy a = a
 #endif
 
--- Insert an element to the set only if it is not in the set.
--- Used by `union`.
-
--- See Note: Type of local 'go' function
--- See Note: Avoiding worker/wrapper (in Data.Map.Internal)
-insertR :: Ord a => a -> Set a -> Set a
-insertR x0 = go x0 x0
-  where
-    go :: Ord a => a -> a -> Set a -> Set a
-    go orig !_ Tip = singleton (lazy orig)
-    go orig !x t@(Bin _ y l r) = case compare x y of
-        LT | l' `ptrEq` l -> t
-           | otherwise -> balanceL y l' r
-           where !l' = go orig x l
-        GT | r' `ptrEq` r -> t
-           | otherwise -> balanceR y l r'
-           where !r' = go orig x r
-        EQ -> t
-{-# INLINABLE insertR #-}
-
 -- | \(O(\log n)\). Delete an element from a set.
 
 -- See Note: Type of local 'go' function
@@ -676,7 +656,7 @@ insertAt !i !x (Bin _ y l r)
 {--------------------------------------------------------------------
   Subset
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- | \(O(n+m)\).
 -- @(s1 \`isProperSubsetOf\` s2)@ indicates whether @s1@ is a
 -- proper subset of @s2@.
 --
@@ -689,7 +669,7 @@ isProperSubsetOf s1 s2
 {-# INLINABLE isProperSubsetOf #-}
 
 
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- | \(O(n+m)\).
 -- @(s1 \`isSubsetOf\` s2)@ indicates whether @s1@ is a subset of @s2@.
 --
 -- @
@@ -706,41 +686,21 @@ isSubsetOf t1 t2
 -- Test whether a set is a subset of another without the *initial*
 -- size test.
 --
--- This function is structured very much like `difference`, `union`,
--- and `intersection`. Whereas the bounds proofs for those in Blelloch
--- et al needed to account for both "split work" and "merge work", we
--- only have to worry about split work here, which is the same as in
--- those functions.
 isSubsetOfX :: Ord a => Set a -> Set a -> Bool
-isSubsetOfX Tip _ = True
-isSubsetOfX _ Tip = False
--- Skip the final split when we hit a singleton.
-isSubsetOfX (Bin 1 x _ _) t = member x t
-isSubsetOfX (Bin _ x l r) t
-  = found &&
-    -- Cheap size checks can sometimes save expensive recursive calls when the
-    -- result will be False. Suppose we check whether [1..10] (with root 4) is
-    -- a subset of [0..9]. After the first split, we have to check if [1..3] is
-    -- a subset of [0..3] and if [5..10] is a subset of [5..9]. But we can bail
-    -- immediately because size [5..10] > size [5..9].
-    --
-    -- Why not just call `isSubsetOf` on each side to do the size checks?
-    -- Because that could make a recursive call on the left even though the
-    -- size check would fail on the right. In principle, we could take this to
-    -- extremes by maintaining a queue of pairs of sets to be checked, working
-    -- through the tree level-wise. But that would impose higher administrative
-    -- costs without obvious benefits. It might be worth considering if we find
-    -- a way to use it to tighten the bounds in some useful/comprehensible way.
-    size l <= size lt && size r <= size gt &&
-    isSubsetOfX l lt && isSubsetOfX r gt
+isSubsetOfX t1 t2 = go (toAscList t1) (toAscList t2)
   where
-    (lt,found,gt) = splitMember x t
+    go (x:xs) (y:ys) = case compare x y of
+      EQ -> go xs ys
+      LT -> False
+      GT -> go (x:xs) ys
+    go [] _ = True
+    go _ _ = False
 {-# INLINABLE isSubsetOfX #-}
 
 {--------------------------------------------------------------------
   Disjoint
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Check whether two sets are disjoint
+-- | \(O(n+m)\). Check whether two sets are disjoint
 -- (i.e., their intersection is empty).
 --
 -- > disjoint (fromList [2,4,6])   (fromList [1,3])     == True
@@ -755,15 +715,13 @@ isSubsetOfX (Bin _ x l r) t
 -- @since 0.5.11
 
 disjoint :: Ord a => Set a -> Set a -> Bool
-disjoint Tip _ = True
-disjoint _ Tip = True
--- Avoid a split for the singleton case.
-disjoint (Bin 1 x _ _) t = x `notMember` t
-disjoint (Bin _ x l r) t
-  -- Analogous implementation to `subsetOfX`
-  = not found && disjoint l lt && disjoint r gt
+disjoint a b = go (toAscList a) (toAscList b)
   where
-    (lt,found,gt) = splitMember x t
+    go (x:xs) (y:ys) = case compare x y of
+      EQ -> False
+      LT -> go xs (y:ys)
+      GT -> go (x:xs) ys
+    go _ _ = True
 
 {--------------------------------------------------------------------
   Minimal, Maximal
@@ -842,44 +800,43 @@ unions :: (Foldable f, Ord a) => f (Set a) -> Set a
 unions = Foldable.foldl' union empty
 {-# INLINABLE unions #-}
 
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The union of two sets, preferring the first set when
+-- | \(O(n+m)\). The union of two sets, preferring the first set when
 -- equal elements are encountered.
 union :: Ord a => Set a -> Set a -> Set a
-union t1 Tip  = t1
-union t1 (Bin 1 x _ _) = insertR x t1
-union (Bin 1 x _ _) t2 = insert x t2
-union Tip t2  = t2
-union t1@(Bin _ x l1 r1) t2 = case splitS x t2 of
-  (l2 :*: r2)
-    | l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1 -> t1
-    | otherwise -> link x l1l2 r1r2
-    where !l1l2 = union l1 l2
-          !r1r2 = union r1 r2
+union a b = fromDescList $ go [] (toAscList a) (toAscList b)
+  where
+    go acc (x:xs) (y:ys) = case compare x y of
+      EQ -> go (x:acc) xs ys
+      LT -> go (x:acc) xs (y:ys)
+      GT -> go (y:acc) (x:xs) ys
+    go acc (x:xs) [] = go (x:acc) xs []
+    go acc [] (y:ys) = go (y:acc) [] ys
+    go acc [] [] = acc
 {-# INLINABLE union #-}
 
 {--------------------------------------------------------------------
   Difference
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). Difference of two sets.
+-- | \(O(n+m)\). Difference of two sets.
 --
 -- Return elements of the first set not existing in the second set.
 --
 -- > difference (fromList [5, 3]) (fromList [5, 7]) == singleton 3
 difference :: Ord a => Set a -> Set a -> Set a
-difference Tip _   = Tip
-difference t1 Tip  = t1
-difference t1 (Bin _ x l2 r2) = case split x t1 of
-   (l1, r1)
-     | size l1l2 + size r1r2 == size t1 -> t1
-     | otherwise -> link2 l1l2 r1r2
-     where !l1l2 = difference l1 l2
-           !r1r2 = difference r1 r2
+difference a b = fromDescList $ go [] (toAscList a) (toAscList b)
+  where
+    go acc (x:xs) (y:ys) = case compare x y of
+      EQ -> go acc xs ys
+      LT -> go (x:acc) xs (y:ys)
+      GT -> go acc (x:xs) ys
+    go acc (x:xs) [] = go (x:acc) xs []
+    go acc [] _ = acc
 {-# INLINABLE difference #-}
 
 {--------------------------------------------------------------------
   Intersection
 --------------------------------------------------------------------}
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The intersection of two sets.
+-- | \(O(n+m)\). The intersection of two sets.
 -- Elements of the result come from the first set, so for example
 --
 -- > import qualified Data.Set as S
@@ -891,17 +848,13 @@ difference t1 (Bin _ x l2 r2) = case split x t1 of
 --
 -- prints @(fromList [A],fromList [B])@.
 intersection :: Ord a => Set a -> Set a -> Set a
-intersection Tip _ = Tip
-intersection _ Tip = Tip
-intersection t1@(Bin _ x l1 r1) t2
-  | b = if l1l2 `ptrEq` l1 && r1r2 `ptrEq` r1
-        then t1
-        else link x l1l2 r1r2
-  | otherwise = link2 l1l2 r1r2
+intersection a b = fromDescList $ go [] (toAscList a) (toAscList b)
   where
-    !(l2, b, r2) = splitMember x t2
-    !l1l2 = intersection l1 l2
-    !r1r2 = intersection r1 r2
+    go acc (x:xs) (y:ys) = case compare x y of
+      EQ -> go (x:acc) xs ys
+      LT -> go acc xs (y:ys)
+      GT -> go acc (x:xs) ys
+    go acc _ _ = acc
 {-# INLINABLE intersection #-}
 
 -- | The intersection of a series of sets. Intersections are performed
@@ -945,7 +898,7 @@ instance (Ord a) => Semigroup (Intersection a) where
   Symmetric difference
 --------------------------------------------------------------------}
 
--- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\).
+-- | \(O(n+m)\).
 -- The symmetric difference of two sets.
 --
 -- The result contains elements that appear in exactly one of the two sets.
@@ -956,15 +909,15 @@ instance (Ord a) => Semigroup (Intersection a) where
 --
 -- @since 0.8
 symmetricDifference :: Ord a => Set a -> Set a -> Set a
-symmetricDifference Tip t2 = t2
-symmetricDifference t1 Tip = t1
-symmetricDifference (Bin _ x l1 r1) t2
-  | found = link2 l1l2 r1r2
-  | otherwise = link x l1l2 r1r2
+symmetricDifference a b = fromDescList $ go [] (toAscList a) (toAscList b)
   where
-    !(l2, found, r2) = splitMember x t2
-    !l1l2 = symmetricDifference l1 l2
-    !r1r2 = symmetricDifference r1 r2
+    go acc (x:xs) (y:ys) = case compare x y of
+      EQ -> go acc xs ys
+      LT -> go (x:acc) xs (y:ys)
+      GT -> go (y:acc) (x:xs) ys
+    go acc (x:xs) [] = go (x:acc) xs []
+    go acc [] (y:ys) = go (y:acc) [] ys
+    go acc [] [] = acc
 {-# INLINABLE symmetricDifference #-}
 
 {--------------------------------------------------------------------
