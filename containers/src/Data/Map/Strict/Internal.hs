@@ -1220,6 +1220,7 @@ traverseMaybeWithKey = go
         combine !l' mx !r' = case mx of
           Nothing -> link2 l' r'
           Just !x' -> link kx x' l' r'
+{-# INLINABLE traverseMaybeWithKey #-}
 
 -- | \(O(n)\). Map values and separate the 'Left' and 'Right' results.
 --
@@ -1397,6 +1398,8 @@ mapAssocsMonotonic f = go
     go Tip = Tip
     go (Bin sz k1 x1 l r) = case f k1 x1 of
       (k2, !x2) -> Bin sz k2 x2 (go l) (go r)
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE mapAssocsMonotonic #-}
 
 {--------------------------------------------------------------------
   Conversions

@@ -674,7 +674,7 @@ alterF f k s = fmap choose (f member_)
 unions :: Foldable f => f IntSet -> IntSet
 unions xs
   = Foldable.foldl' union empty xs
-
+{-# INLINE unions #-} -- Inline for list fusion
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The union of two sets.
@@ -965,6 +965,8 @@ mapMaybe f t = finishB (foldl' go emptyB t)
   where go b x = case f x of
           Nothing -> b
           Just x' -> insertB x' b
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE mapMaybe #-}
 
 -- | \(O(n)\). partition the set according to some predicate.
 partition :: (Key -> Bool) -> IntSet -> (IntSet,IntSet)
@@ -1276,6 +1278,8 @@ deleteMax = maybe Nil snd . maxView
 
 map :: (Key -> Key) -> IntSet -> IntSet
 map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE map #-}
 
 -- | \(O(n)\). The
 --
@@ -1293,6 +1297,8 @@ map f t = finishB (foldl' (\b x -> insertB (f x) b) emptyB t)
 -- @since 0.6.3.1
 mapMonotonic :: (Key -> Key) -> IntSet -> IntSet
 mapMonotonic f t = ascLinkAll (foldl' (\s x -> ascInsert s (f x)) MSNada t)
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE mapMonotonic #-}
 
 {--------------------------------------------------------------------
   Fold

@@ -646,6 +646,7 @@ alterF f k m = (<$> f mv) $ \fres ->
 unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
   = Foldable.foldl' (unionWith f) empty ts
+{-# INLINE unionsWith #-} -- Inline for list fusion
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The union with a combining function.
@@ -655,8 +656,8 @@ unionsWith f ts
 -- Also see the performance note on 'fromListWith'.
 
 unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
-unionWith f m1 m2
-  = unionWithKey (\_ x y -> f x y) m1 m2
+unionWith f = unionWithKey (\_ x y -> f x y)
+{-# INLINE unionWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The union with a combining function.
@@ -672,6 +673,8 @@ unionWithKey f m1 m2
   where
     f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 $! f k1 x1 x2
     f' _ _ = error "not Tip"
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE unionWithKey #-}
 
 {--------------------------------------------------------------------
   Difference
@@ -685,8 +688,8 @@ unionWithKey f m1 m2
 -- >     == singleton 3 "b:B"
 
 differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
-differenceWith f m1 m2
-  = differenceWithKey (\_ x y -> f x y) m1 m2
+differenceWith f = differenceWithKey (\_ x y -> f x y)
+{-# INLINE differenceWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- Difference with a combining function. When two equal keys are
@@ -701,6 +704,8 @@ differenceWith f m1 m2
 differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWithKey f m1 m2
   = mergeWithKey f id (const Nil) m1 m2
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE differenceWithKey #-}
 
 {--------------------------------------------------------------------
   Intersection
@@ -712,8 +717,8 @@ differenceWithKey f m1 m2
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: (a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
-intersectionWith f m1 m2
-  = intersectionWithKey (\_ x y -> f x y) m1 m2
+intersectionWith f = intersectionWithKey (\_ x y -> f x y)
+{-# INLINE intersectionWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The intersection with a combining function.
@@ -727,6 +732,8 @@ intersectionWithKey f m1 m2
   where
     f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 $! f k1 x1 x2
     f' _ _ = error "not Tip"
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE intersectionWithKey #-}
 
 {--------------------------------------------------------------------
   MergeWithKey
@@ -926,6 +933,7 @@ traverseMaybeWithKey f = go
     go (Bin p l r)
       | signBranch p = liftA2 (flip (bin p)) (go r) (go l)
       | otherwise = liftA2 (bin p) (go l) (go r)
+{-# INLINE traverseMaybeWithKey #-}
 
 -- | \(O(n)\). The function @'mapAccum'@ threads an accumulating
 -- argument through the map in ascending order of keys.
@@ -1004,6 +1012,8 @@ mapAccumRWithKey f0 a0 t0 = toPair $ go f0 a0 t0
 mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
 mapKeysWith c f t =
   finishB (foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB t)
+-- See Note [INLINABLE to expose unfoldings] in Data.IntMap.Internal
+{-# INLINABLE mapKeysWith #-}
 
 {--------------------------------------------------------------------
   Filter

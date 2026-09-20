@@ -840,7 +840,7 @@ deleteMax Tip             = Tip
 -- | The union of the sets in a Foldable structure : (@'unions' == 'foldl' 'union' 'empty'@).
 unions :: (Foldable f, Ord a) => f (Set a) -> Set a
 unions = Foldable.foldl' union empty
-{-# INLINABLE unions #-}
+{-# INLINE unions #-} -- Inline for list fusion
 
 -- | \(O\bigl(m \log\bigl(\frac{n}{m}+1\bigr)\bigr), \; 0 < m \leq n\). The union of two sets, preferring the first set when
 -- equal elements are encountered.

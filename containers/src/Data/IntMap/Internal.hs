@@ -1209,6 +1209,7 @@ alterF f k m = (<$> f mv) $ \fres ->
 unions :: Foldable f => f (IntMap a) -> IntMap a
 unions xs
   = Foldable.foldl' union empty xs
+{-# INLINE unions #-} -- Inline for list fusion
 
 -- | The union of a list of maps, with a combining operation.
 --
@@ -1218,6 +1219,7 @@ unions xs
 unionsWith :: Foldable f => (a->a->a) -> f (IntMap a) -> IntMap a
 unionsWith f ts
   = Foldable.foldl' (unionWith f) empty ts
+{-# INLINE unionsWith #-} -- Inline for list fusion
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The (left-biased) union of two maps.
@@ -1238,8 +1240,8 @@ union m1 m2
 -- Also see the performance note on 'fromListWith'.
 
 unionWith :: (a -> a -> a) -> IntMap a -> IntMap a -> IntMap a
-unionWith f m1 m2
-  = unionWithKey (\_ x y -> f x y) m1 m2
+unionWith f = unionWithKey (\_ x y -> f x y)
+{-# INLINE unionWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The union with a combining function.
@@ -1255,6 +1257,7 @@ unionWithKey f m1 m2
   where
     f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 (f k1 x1 x2)
     f' _ _ = error "not Tip"
+{-# INLINABLE unionWithKey #-} -- See Note [INLINABLE to expose unfoldings]
 
 {--------------------------------------------------------------------
   Difference
@@ -1276,8 +1279,8 @@ difference m1 m2
 -- >     == singleton 3 "b:B"
 
 differenceWith :: (a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
-differenceWith f m1 m2
-  = differenceWithKey (\_ x y -> f x y) m1 m2
+differenceWith f = differenceWithKey (\_ x y -> f x y)
+{-# INLINE differenceWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- Difference with a combining function. When two equal keys are
@@ -1292,7 +1295,7 @@ differenceWith f m1 m2
 differenceWithKey :: (Key -> a -> b -> Maybe a) -> IntMap a -> IntMap b -> IntMap a
 differenceWithKey f m1 m2
   = mergeWithKey f id (const Nil) m1 m2
-
+{-# INLINABLE differenceWithKey #-} -- See Note [INLINABLE to expose unfoldings]
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- Remove all the keys in a given set from a map.
@@ -1417,8 +1420,8 @@ w2i = fromIntegral
 -- > intersectionWith (++) (fromList [(5, "a"), (3, "b")]) (fromList [(5, "A"), (7, "C")]) == singleton 5 "aA"
 
 intersectionWith :: (a -> b -> c) -> IntMap a -> IntMap b -> IntMap c
-intersectionWith f m1 m2
-  = intersectionWithKey (\_ x y -> f x y) m1 m2
+intersectionWith f = intersectionWithKey (\_ x y -> f x y)
+{-# INLINE intersectionWith #-}
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The intersection with a combining function.
@@ -1432,6 +1435,8 @@ intersectionWithKey f m1 m2
   where
     f' (Tip k1 x1) (Tip _k2 x2) = Tip k1 (f k1 x1 x2)
     f' _ _ = error "not Tip"
+-- See Note [INLINABLE to expose unfoldings]
+{-# INLINABLE intersectionWithKey #-}
 
 {--------------------------------------------------------------------
   Symmetric difference
@@ -2055,7 +2060,7 @@ traverseMaybeWithKey f = go
     go (Bin p l r)
       | signBranch p = liftA2 (flip (bin p)) (go r) (go l)
       | otherwise = liftA2 (bin p) (go l) (go r)
-
+{-# INLINE traverseMaybeWithKey #-}
 
 -- | Merge two maps.
 --
@@ -2726,6 +2731,7 @@ mapAccumRWithKey f a t
 
 mapKeys :: (Key->Key) -> IntMap a -> IntMap a
 mapKeys f t = finishB (foldlWithKey' (\b kx x -> insertB (f kx) x b) emptyB t)
+{-# INLINABLE mapKeys #-} -- See Note [INLINABLE to expose unfoldings]
 
 -- | \(O(n \min(n,W))\).
 -- @'mapKeysWith' c f s@ is the map obtained by applying @f@ to each key of @s@.
@@ -2745,6 +2751,7 @@ mapKeys f t = finishB (foldlWithKey' (\b kx x -> insertB (f kx) x b) emptyB t)
 mapKeysWith :: (a -> a -> a) -> (Key->Key) -> IntMap a -> IntMap a
 mapKeysWith c f t =
   finishB (foldlWithKey' (\b kx x -> insertWithB c (f kx) x b) emptyB t)
+{-# INLINABLE mapKeysWith #-} -- See Note [INLINABLE to expose unfoldings]
 
 -- | \(O(n)\).
 -- @'mapKeysMonotonic' f s == 'mapKeys' f s@, but works only when @f@
@@ -2768,6 +2775,7 @@ mapKeysWith c f t =
 mapKeysMonotonic :: (Key->Key) -> IntMap a -> IntMap a
 mapKeysMonotonic f t =
   ascLinkAll (foldlWithKey' (\s kx x -> ascInsert s (f kx) x) MSNada t)
+{-# INLINABLE mapKeysMonotonic #-} -- See Note [INLINABLE to expose unfoldings]
 
 {--------------------------------------------------------------------
   Filter
@@ -2779,8 +2787,8 @@ mapKeysMonotonic f t =
 -- > filter (< "a") (fromList [(5,"a"), (3,"b")]) == empty
 
 filter :: (a -> Bool) -> IntMap a -> IntMap a
-filter p m
-  = filterWithKey (\_ x -> p x) m
+filter p = filterWithKey (\_ x -> p x)
+{-# INLINE filter #-}
 
 -- | \(O(n)\). Keep all keys that satisfy some predicate.
 --
@@ -2794,6 +2802,7 @@ filter p m
 
 filterKeys :: (Key -> Bool) -> IntMap a -> IntMap a
 filterKeys predicate = filterWithKey (\k _ -> predicate k)
+{-# INLINE filterKeys #-}
 
 -- | \(O(n)\). Keep all keys\/values that satisfy some predicate.
 --
@@ -2805,6 +2814,7 @@ filterWithKey predicate = go
     go Nil         = Nil
     go t@(Tip k x) = if predicate k x then t else Nil
     go (Bin p l r) = bin p (go l) (go r)
+{-# INLINABLE filterWithKey #-} -- See Note [INLINABLE to expose unfoldings]
 
 -- | \(O(n)\). Partition the map according to some predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -2815,8 +2825,8 @@ filterWithKey predicate = go
 -- > partition (> "x") (fromList [(5,"a"), (3,"b")]) == (empty, fromList [(3, "b"), (5, "a")])
 
 partition :: (a -> Bool) -> IntMap a -> (IntMap a,IntMap a)
-partition p m
-  = partitionWithKey (\_ x -> p x) m
+partition p = partitionWithKey (\_ x -> p x)
+{-# INLINE partition #-}
 
 -- | \(O(n)\). Partition the map according to some predicate. The first
 -- map contains all elements that satisfy the predicate, the second all
@@ -4438,3 +4448,31 @@ withEmpty bars = "   ":bars
 --    once. This allows `f` to be inlined into `go` even if `f` is big, since
 --    it's likely to be the only place `f` is used, and not inlining `f` means
 --    missing out on optimizations. See GHC #25259 for more on this.
+
+-- Note [INLINABLE to expose unfoldings]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- We have many functions that could be inlined (i.e. not recursive at the top
+-- level) but we mark a function with the INLINE pragma only if believe that
+-- it will simplify after inlining and improve performance in most situations.
+-- Otherwise, inlining just increases code size and compilation times. Fold
+-- functions are good examples of functions we surely want to INLINE.
+--
+-- For the rest, depending on the function, e.g. if it closes over a
+-- user-supplied function, it may improve performance to inline it in certain
+-- situations. We want to allow the user to force inlining with GHC.Exts.inline
+-- in such situations, so we mark the function as INLINABLE to make its
+-- unfolding available in the interface file.
+--
+-- For reference see
+-- https://downloads.haskell.org/ghc/9.14.1/docs/users_guide/exts/pragmas.html#inlinable-pragma.
+--
+-- Note that the user's ability to inline is limited to the body of the
+-- function.
+--
+-- unionWith f = unionWithKey (\_k x y -> f x y)
+-- {-# INLINABLE unionWith #-}
+-- unionWithKey f = ...large rhs...
+-- {-# INLINABLE unionWithKey #-}
+--
+-- Writing `GHC.Exts.inline unionWith` doesn't also inline the body of
+-- unionWithKey. If the user wants that, they have to use unionWithKey instead.
