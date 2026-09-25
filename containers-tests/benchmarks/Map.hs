@@ -2,7 +2,7 @@
 {-# LANGUAGE BangPatterns #-}
 module Main where
 
-import Control.Applicative (Const(Const, getConst), pure)
+import Control.Applicative (Const(Const, getConst), liftA2, pure)
 import Control.DeepSeq (rnf)
 import Control.Exception (evaluate)
 import Test.Tasty.Bench (bench, bgroup, defaultMain, whnf, nf)
@@ -31,12 +31,16 @@ main = do
     let m = M.fromList elems :: M.Map Int Int
         m_even = M.fromList elems_even :: M.Map Int Int
         m_odd = M.fromList elems_odd :: M.Map Int Int
+        m_uncurried = M.fromList elems_uncurried :: M.Map (Int, Int) Int
+        m_curried = M.curry m_uncurried :: M.Map Int (M.Map Int Int)
         s_random = Set.fromList keys_random :: Set.Set Int
     evaluate $ rnf [m, m_even, m_odd]
     evaluate $ rnf [s_random]
     evaluate $ rnf
       [elems_distinct_asc, elems_distinct_desc, elems_asc, elems_desc]
     evaluate $ rnf [keys_random]
+    evaluate $ rnf [m_uncurried]
+    evaluate $ rnf [m_curried]
     defaultMain
         [ bench "lookup absent" $ whnf (lookup evens) m_odd
         , bench "lookup present" $ whnf (lookup evens) m_even
@@ -143,6 +147,8 @@ main = do
         , bench "Strict.fromSetA outer" $ whnf (MS.fromSetA (MkSolo . pred)) s_random
         , bench "Lazy.fromSetA inner" $ whnf (getSolo . M.fromSetA (MkSolo . pred)) s_random
         , bench "Strict.fromSetA inner" $ whnf (getSolo . MS.fromSetA (MkSolo . pred)) s_random
+        , bench "curry" $ whnf M.curry m_uncurried
+        , bench "uncurry" $ whnf M.uncurry m_curried
         , bench "minView" $ whnf (\m' -> case M.minViewWithKey m' of {Nothing -> 0; Just ((k,v),m'') -> k+v+M.size m''}) (M.fromAscList $ zip [1..10::Int] [100..110::Int])
         , bench "eq" $ whnf (\m' -> m' == m') m -- worst case, compares everything
         , bench "compare" $ whnf (\m' -> compare m' m') m -- worst case, compares everything
@@ -155,7 +161,8 @@ main = do
         , bench "mapKeysWith:desc" $ whnf (M.mapKeysWith (+) (negate . (`div` 2))) m
         ]
   where
-    bound = 2^14
+    magnitude = 14
+    bound = 2^magnitude
     elems = shuffle elems_distinct_asc
     elems_even = zip evens evens
     elems_odd = zip odds odds
@@ -172,6 +179,11 @@ main = do
     sumkv k v1 v2 = k + v1 + v2
     consPair k v xs = (k, v) : xs
     keys_random = take bound (randoms gen)
+    elems_uncurried = zip xs evens
+      where
+        left = magnitude `div` 2
+        right = magnitude - left
+        xs = shuffle $ liftA2 (,) [1..2^left] $ reverse [1..2^right]
 
 add3 :: Int -> Int -> Int -> Int
 add3 x y z = x + y + z
