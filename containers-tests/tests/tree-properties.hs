@@ -10,9 +10,12 @@ import Test.Tasty.QuickCheck
 import Test.QuickCheck.Function (apply)
 import Test.QuickCheck.Poly (A, B, C, OrdA)
 import qualified Test.QuickCheck.Classes.Base as Laws
+import Test.ChasingBottoms.IsBottom (isBottom)
 import Control.Monad.Fix (MonadFix (..))
 import Control.Monad (ap)
+import Data.Coerce (coerce)
 import Data.Foldable (fold, foldl', toList)
+import qualified Data.Foldable as Foldable
 import qualified Data.List as List
 import Data.List.NonEmpty (NonEmpty (..))
 import qualified Data.List.NonEmpty as NE
@@ -26,6 +29,7 @@ import qualified Data.Foldable1 as Foldable1
 #endif
 
 import Utils.QuickCheckClasses (testLaws)
+import Utils.Strictness (Bot(..), Func2, applyFunc2)
 
 default (Int)
 
@@ -107,6 +111,16 @@ main = defaultMain $ testGroup "tree-properties"
            , testLaws $ Laws.functorLaws (Proxy :: Proxy PostOrder)
            , testLaws $ Laws.traversableLaws (Proxy :: Proxy PostOrder)
 #endif
+           ]
+         , testGroup "strictness"
+           [ testProperty "foldr" prop_strictness_foldr
+           , testProperty "foldl'" prop_strictness_foldl'
+           , testGroup "PostOrder"
+             [ testProperty "foldr" prop_PostOrder_strictness_foldr
+             , testProperty "foldl" prop_PostOrder_strictness_foldl
+             , testProperty "foldr'" prop_PostOrder_strictness_foldr'
+             , testProperty "foldl'" prop_PostOrder_strictness_foldl'
+             ]
            ]
          ]
 
@@ -463,3 +477,58 @@ prop_PostOrder_foldlMap1 t =
   where
     f z x = z :* Inj x
 #endif
+
+-- * Strictness tests
+
+-- See Note [Testing strictness of folds] in map-strictness.hs
+
+prop_strictness_foldr :: Tree A -> Func2 A B (Bot B) -> Bot B -> Property
+prop_strictness_foldr t fun (Bot z) =
+  isBottom (Foldable.foldr f z t) ===
+  isBottom (Foldable.foldr f z (T.flatten t))
+  where
+    f = coerce (applyFunc2 fun) :: A -> B -> B
+
+prop_strictness_foldl' :: Tree A -> Func2 B A (Bot B) -> Bot B -> Property
+prop_strictness_foldl' t fun (Bot z) =
+  isBottom (Foldable.foldl' f z t) ===
+  isBottom (Foldable.foldl' f z (T.flatten t))
+  where
+    f = coerce (applyFunc2 fun) :: B -> A -> B
+
+prop_PostOrder_strictness_foldr
+  :: PostOrder A -> Func2 A B (Bot B) -> Bot B -> Property
+prop_PostOrder_strictness_foldr t fun (Bot z) =
+  isBottom (Foldable.foldr f z t) ===
+  isBottom (Foldable.foldr f z (toPostOrderList t))
+  where
+    f = coerce (applyFunc2 fun) :: A -> B -> B
+
+prop_PostOrder_strictness_foldl
+  :: PostOrder A -> Func2 B A (Bot B) -> Bot B -> Property
+prop_PostOrder_strictness_foldl t fun (Bot z) =
+  isBottom (Foldable.foldl f z t) ===
+  isBottom (Foldable.foldl f z (toPostOrderList t))
+  where
+    f = coerce (applyFunc2 fun) :: B -> A -> B
+
+prop_PostOrder_strictness_foldr'
+  :: PostOrder A -> Func2 A B (Bot B) -> Bot B -> Property
+prop_PostOrder_strictness_foldr' t fun (Bot z) =
+  isBottom (Foldable.foldr' f z t) ===
+  isBottom (z `seq` Foldable.foldr' f z (toPostOrderList t))
+  where
+    f = coerce (applyFunc2 fun) :: A -> B -> B
+
+prop_PostOrder_strictness_foldl'
+  :: PostOrder A -> Func2 B A (Bot B) -> Bot B -> Property
+prop_PostOrder_strictness_foldl' t fun (Bot z) =
+  isBottom (Foldable.foldl' f z t) ===
+  isBottom (Foldable.foldl' f z (toPostOrderList t))
+  where
+    f = coerce (applyFunc2 fun) :: B -> A -> B
+
+toPostOrderList :: PostOrder a -> [a]
+toPostOrderList (PostOrder t) = go t []
+  where
+    go (Node x ts) xs = foldr go (x:xs) ts
