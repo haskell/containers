@@ -706,6 +706,25 @@ toNonEmptyBQ (BQ x0 _ f r) = case r of
 
 -- | A newtype over 'Tree' that folds and traverses in post-order.
 --
+-- ==== __@Foldable@ examples__
+--
+-- >>> import Data.Foldable (toList)
+-- >>> toList $ PostOrder $ Node 1 [Node 2 [Node 3 [], Node 4 []], Node 5 []]
+-- [3,4,2,5,1]
+--
+-- @foldr@ can produce elements incrementally, inspecting the structure of
+-- @Tree@ just as much as necessary.
+--
+-- >>> take 3 $ foldr (:) [] $ PostOrder $ Node 1 ([Node 2 [Node 3 [], Node 4 []]] ++ undefined)
+-- [3,4,2]
+--
+-- @foldl@ is also able to produce elements incrementally.
+--
+-- >>> foldl (flip (:)) [] $ PostOrder $ Node 1 [Node 2 [Node 3 [], Node 4 []], Node 5 []]
+-- [1,5,2,4,3]
+-- >>> take 4 $ foldl (flip (:)) [] $ PostOrder $ Node 1 [Node 2 [undefined, Node 4 []], Node 5 []]
+-- [1,5,2,4]
+--
 -- @since 0.8
 newtype PostOrder a = PostOrder { unPostOrder :: Tree a }
 #ifdef __GLASGOW_HASKELL__
@@ -747,9 +766,25 @@ instance Foldable PostOrder where
           in f z' x
     {-# INLINE foldl' #-}
 
+    foldl f z0 = -- Inline with two arguments
+      \(PostOrder t) -> go z0 t
+      where
+        go z (Node x ts) = f (Foldable.foldl go z ts) x
+    {-# INLINE foldl #-}
+
+    foldr' f z0 = -- Inline with two arguments
+      \(PostOrder t) -> go t z0
+      where
+        go (Node x ts) !z =
+          let !z' = f x z
+          in foldrTreeList go z' ts
+    {-# INLINE foldr' #-}
+
     foldr1 = foldrMap1PostOrder id
+    {-# INLINE foldr1 #-}
 
     foldl1 = foldlMap1PostOrder id
+    {-# INLINE foldl1 #-}
 
     null _ = False
     {-# INLINE null #-}
@@ -801,10 +836,18 @@ instance Foldable1.Foldable1 PostOrder where
   {-# INLINABLE minimum #-}
 
   foldrMap1 = foldrMap1PostOrder
+  {-# INLINE foldrMap1 #-}
 
   foldlMap1' = foldlMap1'PostOrder
+  {-# INLINE foldlMap1' #-}
 
   foldlMap1 = foldlMap1PostOrder
+  {-# INLINE foldlMap1 #-}
+
+  foldrMap1' f g = -- Inline with two arguments
+    \(PostOrder (Node x ts)) ->
+      foldr (\t !z -> Foldable.foldr' g z (PostOrder t)) (f x) ts
+  {-# INLINE foldrMap1' #-}
 #endif
 
 foldrMap1PostOrder :: (a -> b) -> (a -> b -> b) -> PostOrder a -> b
