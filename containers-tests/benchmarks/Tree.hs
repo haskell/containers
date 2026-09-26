@@ -29,7 +29,7 @@ main = do
         | Tree label t <- ts
         ]
       , bgroup "foldr1" $ forTs tsBool $ whnf (foldr1 (&&))
-      , bgroup "foldl1" $ forTs ts $ whnf (foldl1 (+))
+      , bgroup "foldl1" $ forTs tsBool $ whnf (foldl1 (flip (&&)))
       , bgroup "toList" $ forTs ts $ nf F.toList
       , bgroup "elem" $ forTs ts $ whnf (elem 0)
       , bgroup "maximum" $ forTs ts $ whnf maximum
@@ -46,7 +46,7 @@ main = do
       , bgroup "foldrMap1_1" $ forTs tsBool $ whnf (Foldable1.foldrMap1 id (&&))
       , bgroup "foldrMap1_2" $ forTs ts $ whnf (length . Foldable1.foldrMap1 (:[]) (:))
       , bgroup "foldlMap1'" $ forTs ts $ whnf (Foldable1.foldlMap1' id (+))
-      , bgroup "foldlMap1" $ forTs ts $ whnf (Foldable1.foldlMap1 id (+))
+      , bgroup "foldlMap1" $ forTs tsBool $ whnf (Foldable1.foldlMap1 id (flip (&&)))
       ]
 #endif
     , bgroup "leaves" $ forTs ts $ nf T.leaves
@@ -61,7 +61,7 @@ main = do
           | Tree label t <- ts
           ]
         , bgroup "foldr1" $ forPostOrders tsBool $ whnf (foldr1 (&&))
-        , bgroup "foldl1" $ forPostOrders ts $ whnf (foldl1 (+))
+        , bgroup "foldl1" $ forPostOrders tsBool $ whnf (foldl1 (flip (&&)))
         , bgroup "toList" $ forPostOrders ts $ nf F.toList
         , bgroup "elem" $ forPostOrders ts $ whnf (elem 0)
         , bgroup "maximum" $ forPostOrders ts $ whnf maximum
@@ -77,7 +77,7 @@ main = do
         , bgroup "foldrMap1_1" $ forPostOrders tsBool $ whnf (Foldable1.foldrMap1 id (&&))
         , bgroup "foldrMap1_2" $ forPostOrders ts $ whnf (length . Foldable1.foldrMap1 (:[]) (:))
         , bgroup "foldlMap1'" $ forPostOrders ts $ whnf (Foldable1.foldlMap1' id (+))
-        , bgroup "foldlMap1" $ forPostOrders ts $ whnf (Foldable1.foldlMap1 id (+))
+        , bgroup "foldlMap1" $ forTs tsBool $ whnf (Foldable1.foldlMap1 id (flip (&&)))
         ]
 #endif
       ]
