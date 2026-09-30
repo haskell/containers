@@ -466,6 +466,7 @@ test-suite tree-properties
 
   build-depends:
       test-utils
+    , ChasingBottoms
 
   other-extensions:
     BangPatterns
