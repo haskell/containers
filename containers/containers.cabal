@@ -92,7 +92,7 @@ Library
         Utils.Containers.Internal.State
         Utils.Containers.Internal.Strict
         Utils.Containers.Internal.PtrEquality
-        Utils.Containers.Internal.EqOrdUtil
+        Utils.Containers.Internal.ShortCircuit
         Utils.Containers.Internal.BitUtil
         Utils.Containers.Internal.BitQueue
 
