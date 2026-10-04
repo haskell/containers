@@ -10,7 +10,7 @@
 -- then the results will be forced before they are inserted. If you use
 -- 'Data.Map.Merge.Set.Lazy.mapMissing' from this module then they will not.
 --
--- @since FIXME
+-- @since 0.8.1
 --
 module Data.Map.Merge.Set.Lazy
   (
@@ -76,7 +76,7 @@ import Data.Map.Merge.Set.Internal (WhenMatched(..), WhenMissingSet(..))
 -- key and the value in the map and use the result as the value for the merged
 -- map.
 --
--- @since FIXME
+-- @since 0.8.1
 mapMatched :: Applicative f => (k -> a -> b) -> WhenMatched f k a b
 mapMatched f = WhenMatched (\k x -> pure (Just (f k x)))
 {-# INLINE mapMatched #-}
@@ -85,7 +85,7 @@ mapMatched f = WhenMatched (\k x -> pure (Just (f k x)))
 -- key and the value in the map and maybe use the result as the value for the
 -- merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 mapMaybeMatched :: Applicative f => (k -> a -> Maybe b) -> WhenMatched f k a b
 mapMaybeMatched f = WhenMatched (\k x -> pure (f k x))
 {-# INLINE mapMaybeMatched #-}
@@ -94,7 +94,7 @@ mapMaybeMatched f = WhenMatched (\k x -> pure (f k x))
 -- key and the value in the map, and use the result of the action as the value
 -- for the merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 traverseMatched :: Functor f => (k -> a -> f b) -> WhenMatched f k a b
 traverseMatched f = WhenMatched (\k x -> Just <$> f k x)
 {-# INLINE traverseMatched #-}
@@ -103,14 +103,14 @@ traverseMatched f = WhenMatched (\k x -> Just <$> f k x)
 -- key and the value in the map, and maybe use the result of the action as the
 -- value for the merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 traverseMaybeMatched :: (k -> a -> f (Maybe b)) -> WhenMatched f k a b
 traverseMaybeMatched = WhenMatched
 
 -- | For keys that are present in the set but missing from the map, apply a
 -- function and use the result as the value for the merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 generateMissingSet :: Applicative f => (k -> a) -> WhenMissingSet f k a
 generateMissingSet f = WhenMissingSet
   { missingSubtree = \s -> pure (M.fromSet f s)
@@ -121,7 +121,7 @@ generateMissingSet f = WhenMissingSet
 -- | For keys that are present in the set but missing from the map, apply a
 -- function, and use the result of the action as the value for the merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 generateAMissingSet :: Applicative f => (k -> f a) -> WhenMissingSet f k a
 generateAMissingSet f = WhenMissingSet
   { missingSubtree = M.fromSetA f
@@ -132,7 +132,7 @@ generateAMissingSet f = WhenMissingSet
 -- | For keys that are present in the set but missing from the map, apply a
 -- function and maybe use the result as the value for the merged map.
 --
--- @since FIXME
+-- @since 0.8.1
 generateMaybeMissingSet
   :: Applicative f => (k -> Maybe a) -> WhenMissingSet f k a
 generateMaybeMissingSet f = WhenMissingSet
@@ -145,7 +145,7 @@ generateMaybeMissingSet f = WhenMissingSet
 -- function, and maybe use the result of the action as the value for the merged
 -- map.
 --
--- @since FIXME
+-- @since 0.8.1
 generateMaybeAMissingSet
   :: Applicative f => (k -> f (Maybe a)) -> WhenMissingSet f k a
 generateMaybeAMissingSet f = WhenMissingSet

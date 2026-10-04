@@ -35,8 +35,8 @@ source-repository head
 
 common deps
   build-depends:
-      array    >=0.4.0.0
-    , base     >=4.10    && <5
+      base >= 4.10 && < 5
+    , array >= 0.5.2.0
     , deepseq >= 1.4.3.0 && < 1.6
 
   if impl(ghc >= 9.14)
