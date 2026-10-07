@@ -54,6 +54,9 @@
   ([#1240](https://github.com/haskell/containers/pull/1240),
   [#1185](https://github.com/haskell/containers/pull/1185))
 
+* Added `HasCallStack` to many partial functions when compiling for GHC. (L0neGamer & dwincort)
+  ([#1160](https://github.com/haskell/containers/pull/1160))
+
 ### Performance improvements
 
 * Improve performance of `Data.IntMap.fromAscList` and
