@@ -240,6 +240,10 @@ module Data.Map.Lazy (
     , keysSet
     , argSet
 
+    -- ** Maps
+    , curry
+    , uncurry
+
     -- ** Lists
     , toList
 
