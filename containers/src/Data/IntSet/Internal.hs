@@ -2197,36 +2197,40 @@ highestBitSet n0 =
         b6      = if n5 .&. 0x2 /= 0                then                   1+b5   else     b5
     in b6
 
+-- In these folds, the index passed along with the last bit shifted out is
+-- maxBound + 1 when the bitmap holds maxBound, which overflows. It is never
+-- used, so the equation for 0 doesn't force it.
+
 foldlBits prefix f z bm = let lb = lowestBitSet bm
                           in  go (prefix+lb) z (bm `shiftRL` lb)
-  where go !_ acc 0 = acc
-        go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
-                    | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
+  where go _ acc 0 = acc
+        go !bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
+                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldl'Bits prefix f z bm = let lb = lowestBitSet bm
                            in  go (prefix+lb) z (bm `shiftRL` lb)
-  where go !_ !acc 0 = acc
-        go bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
-                    | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
+  where go _ !acc 0 = acc
+        go !bi acc n | n `testBit` 0 = go (bi + 1) (f acc bi) (n `shiftRL` 1)
+                     | otherwise     = go (bi + 1)    acc     (n `shiftRL` 1)
 
 foldrBits prefix f z bm = let lb = lowestBitSet bm
                           in  go (prefix+lb) (bm `shiftRL` lb)
-  where go !_ 0 = z
-        go bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
-                | otherwise     =       go (bi + 1) (n `shiftRL` 1)
+  where go _ 0 = z
+        go !bi n | n `testBit` 0 = f bi (go (bi + 1) (n `shiftRL` 1))
+                 | otherwise     =       go (bi + 1) (n `shiftRL` 1)
 
 foldr'Bits prefix f z bm = let lb = lowestBitSet bm
                            in  go (prefix+lb) (bm `shiftRL` lb)
   where
-        go !_ 0 = z
-        go bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
-                | otherwise     =         go (bi + 1) (n `shiftRL` 1)
+        go _ 0 = z
+        go !bi n | n `testBit` 0 = f bi $! go (bi + 1) (n `shiftRL` 1)
+                 | otherwise     =         go (bi + 1) (n `shiftRL` 1)
 
 foldMapBits prefix f bm = go x0 (x0 + 1) ((bm `shiftRL` lb) `shiftRL` 1)
   where
     lb = lowestBitSet bm
     x0 = prefix + lb
-    go !x !_ 0 = f x
+    go !x _ 0 = f x
     go !x !bi n
 #if MIN_VERSION_base(4,11,0)
       | n `testBit` 0 = f x <> go bi (bi + 1) (n `shiftRL` 1)
