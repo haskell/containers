@@ -6,7 +6,7 @@ module IntMapValidity
 
 import Data.Bits (finiteBitSize, testBit, xor, (.&.))
 import Data.List (intercalate, elemIndex)
-import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch, i2w, w2i)
 import Data.IntMap.Internal
 import Numeric (showHex)
 import Test.QuickCheck (Property, counterexample, property, (.&&.))
@@ -45,7 +45,9 @@ prefixesOk t = case t of
   Bin p l r -> currentOk .&&. prefixesOk l .&&. prefixesOk r
     where
       px = unPrefix p
-      m = px .&. (-px)
+      -- Negate on Word: px is minBound at the root of a tree with both
+      -- negative and non-negative keys, and negating it as an Int overflows.
+      m = px .&. w2i (negate (i2w px))
       keysl = keys l
       keysr = keys r
       debugStr = concat

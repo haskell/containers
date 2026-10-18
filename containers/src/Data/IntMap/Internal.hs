@@ -351,6 +351,7 @@ import Data.IntSet.Internal.IntTreeCommons
   , TreeTreeBranch(..)
   , treeTreeBranch
   , i2w
+  , w2i
   , Order(..)
   )
 import Utils.Containers.Internal.BitUtil (shiftLL, shiftRL, iShiftRL, wordSize)
@@ -1411,9 +1412,6 @@ restrictBM t@(Tip k _) !bm
   | IntSet.bitmapOf k .&. bm /= 0 = t
   | otherwise = Nil
 restrictBM Nil !_ = Nil
-
-w2i :: Word -> Int
-w2i = fromIntegral
 
 -- | \(O(\min(n, m \log \frac{2^W}{m})), m \leq n\).
 -- The intersection with a combining function.

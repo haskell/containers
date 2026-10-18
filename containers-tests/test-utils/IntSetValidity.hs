@@ -2,7 +2,7 @@
 module IntSetValidity (valid) where
 
 import Data.Bits (xor, (.&.))
-import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch)
+import Data.IntSet.Internal.IntTreeCommons (Prefix(..), nomatch, i2w, w2i)
 import Data.IntSet.Internal
 import Data.List (intercalate)
 import Numeric (showHex)
@@ -45,7 +45,9 @@ prefixesOk t = case t of
   Bin p l r -> currentOk .&&. prefixesOk l .&&. prefixesOk r
     where
       px = unPrefix p
-      m = px .&. (-px)
+      -- Negate on Word: px is minBound at the root of a tree with both
+      -- negative and non-negative keys, and negating it as an Int overflows.
+      m = px .&. w2i (negate (i2w px))
       keysl = elems l
       keysr = elems r
       debugStr = concat

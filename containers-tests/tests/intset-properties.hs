@@ -33,6 +33,7 @@ main = defaultMain $ testGroup "intset-properties"
                    , testCase "split" test_split
                    , testCase "isProperSubsetOf" test_isProperSubsetOf
                    , testCase "compareSize" test_compareSize
+                   , testCase "mixedSignKeys" test_mixedSignKeys
                    , testProperty "prop_Valid" prop_Valid
                    , testProperty "prop_EmptyValid" prop_EmptyValid
                    , testProperty "prop_SingletonValid" prop_SingletonValid
@@ -166,6 +167,24 @@ test_compareSize :: Assertion
 test_compareSize = do
   compareSize (fromList [1]) minBound @?= GT
   compareSize (fromList [1]) maxBound @?= LT
+
+-- Keys of both signs put a Bin with Prefix minBound at the root. Operations
+-- on it must not negate that Int, which overflows.
+test_mixedSignKeys :: Assertion
+test_mixedSignKeys = do
+  let ks = [minBound, minBound+1, -65, -64, -1, 0, 1, 63, 64, maxBound-1, maxBound]
+      s = fromList ks
+  toList s @?= ks
+  List.map (`member` s) ks @?= List.map (const True) ks
+  member 2 s @?= False
+  member (-2) s @?= False
+  toList (insert 1000000 (insert (-3) (singleton 5))) @?= [-3, 5, 1000000]
+  toList (union (fromList [-1, maxBound]) (fromList [minBound, 1])) @?= [minBound, -1, 1, maxBound]
+  toList (delete minBound (delete maxBound s)) @?= List.filter (\k -> k /= minBound && k /= maxBound) ks
+  lookupLT 0 s @?= Just (-1)
+  lookupGE (-63) s @?= Just (-1)
+  split 0 s @?= (fromList (List.filter (< 0) ks), fromList (List.filter (> 0) ks))
+  toList (fromRange (-70, 70)) @?= [-70 .. 70]
 
 {--------------------------------------------------------------------
   Arbitrary, reasonably balanced trees

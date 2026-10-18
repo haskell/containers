@@ -37,6 +37,7 @@ module Data.IntSet.Internal.IntTreeCommons
   , branchMask
   , branchPrefix
   , i2w
+  , w2i
   , Order(..)
   ) where
 
@@ -81,7 +82,9 @@ nomatch :: Int -> Prefix -> Bool
 nomatch i p = (i `xor` px) .&. prefixMask /= 0
   where
     px = unPrefix p
-    prefixMask = px `xor` (-px)
+    -- px is minBound for a sign-branch prefix. Negate through Word, which
+    -- wraps; Int overflow is not defined to wrap by the Haskell Report.
+    prefixMask = px `xor` w2i (negate (i2w px))
 {-# INLINE nomatch #-}
 
 -- | Whether the @Int@ is to the left of the split created by a @Bin@ with this
@@ -151,7 +154,8 @@ signBranch p = unPrefix p == (minBound :: Int)
 
 -- | The prefix of @Int@ @i@ up to the switching bit @m@.
 mask :: Int -> Int -> Prefix
-mask i m = Prefix ((i .&. negate m) .|. m)
+-- m is minBound for a sign-branch prefix, so negate through Word as in nomatch.
+mask i m = Prefix ((i .&. w2i (negate (i2w m))) .|. m)
 {-# INLINE mask #-}
 
 -- | The first switching bit where the two @Int@s disagree.
@@ -173,6 +177,10 @@ branchPrefix i1 i2 = Prefix ((i1 .|. i2) .&. m)
 i2w :: Int -> Word
 i2w = fromIntegral
 {-# INLINE i2w #-}
+
+w2i :: Word -> Int
+w2i = fromIntegral
+{-# INLINE w2i #-}
 
 -- Used to compare IntSets and IntMaps
 data Order

@@ -151,6 +151,7 @@ main = defaultMain $ testGroup "intmap-properties"
              , testCase "minimum" test_minimum
              , testCase "maximum" test_maximum
              , testCase "compareSize" test_compareSize
+             , testCase "mixedSignKeys" test_mixedSignKeys
              , testProperty "valid"                prop_valid
              , testProperty "hasPrefix"            prop_hasPrefix
              , testProperty "empty valid"          prop_emptyValid
@@ -1247,6 +1248,29 @@ test_compareSize :: Assertion
 test_compareSize = do
   compareSize (fromList [(1,'a')]) minBound @?= GT
   compareSize (fromList [(1,'a')]) maxBound @?= LT
+
+-- Keys of both signs put a Bin with Prefix minBound at the root. Operations
+-- on it must not negate that Int, which overflows.
+test_mixedSignKeys :: Assertion
+test_mixedSignKeys = do
+  let ks = [minBound, minBound+1, -65, -64, -1, 0, 1, 63, 64, maxBound-1, maxBound]
+      m = fromList [(k, k) | k <- ks]
+  toList m @?= [(k, k) | k <- ks]
+  List.map (`lookup` m) ks @?= List.map Just ks
+  lookup 2 m @?= Nothing
+  member (-2) m @?= False
+  toList (insert 1000000 'c' (insert (-3) 'b' (singleton 5 'a')))
+    @?= [(-3,'b'), (5,'a'), (1000000,'c')]
+  keys (union (fromList [(-1,()), (maxBound,())]) (fromList [(minBound,()), (1,())]))
+    @?= [minBound, -1, 1, maxBound]
+  keys (delete minBound (delete maxBound m)) @?= List.filter (\k -> k /= minBound && k /= maxBound) ks
+  lookupLT 0 m @?= Just (-1, -1)
+  lookupGE (-63) m @?= Just (-1, -1)
+  lookupGT maxBound m @?= Nothing
+  lookupLE minBound m @?= Just (minBound, minBound)
+  split 0 m @?= (fromList [(k, k) | k <- ks, k < 0], fromList [(k, k) | k <- ks, k > 0])
+  alter (fmap (+ 1)) (-1) m ! (-1) @?= 0
+  keys (unionWith (+) m (fromList [(minBound, 1), (2, 2)])) @?= List.sort (2 : ks)
 
 testOrdMap :: IntMap (OrdWith Int)
 testOrdMap = fromList [(1,OrdWith "max" 1),(-1,OrdWith "min" 1)]

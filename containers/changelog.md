@@ -1,5 +1,14 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## Next release
+
+### Bug fixes
+
+* `IntMap` and `IntSet` no longer negate an `Int` that can be `minBound`
+  (the prefix of a node splitting negative and non-negative keys). That
+  overflows, and under MicroHs, where `Int` overflow raises an exception, any
+  map or set holding both negative and non-negative keys failed. (kejace)
+
 ## 0.8.1  *October 2026*
 
 ### Additions
