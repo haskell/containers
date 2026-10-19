@@ -8,6 +8,7 @@
   (the prefix of a node splitting negative and non-negative keys). That
   overflows, and under MicroHs, where `Int` overflow raises an exception, any
   map or set holding both negative and non-negative keys failed. (kejace)
+  ([#1264](https://github.com/haskell/containers/pull/1264))
 
 ## 0.8.1  *October 2026*
 
