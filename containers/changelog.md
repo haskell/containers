@@ -1,5 +1,12 @@
 # Changelog for [`containers` package](http://github.com/haskell/containers)
 
+## Next release
+
+### Bug fixes
+
+* Fix bugs in `Seq`'s `takeR`, `dropR`, `splitAtR` where incorrect results
+  could be returned for negative splitting points.
+
 ## 0.8.1  *October 2026*
 
 ### Additions
