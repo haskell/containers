@@ -7,6 +7,7 @@ import Control.Exception (evaluate)
 import Control.Monad.Trans.State.Strict
 import Test.Tasty.Bench (bench, bgroup, defaultMain, nf, whnf)
 import Data.Foldable (foldl', foldr')
+import Data.Sequence (Seq)
 import qualified Data.Sequence as S
 import qualified Data.Foldable
 import Data.Traversable (traverse, sequenceA)
@@ -50,6 +51,18 @@ main = do
          [ bench "10" $ nf (shuffle r10) s10
          , bench "100" $ nf (shuffle r100) s100
          , bench "1000" $ nf (shuffle r1000) s1000
+         ]
+      , bgroup "cons"
+         [ bench "10" $ nf consN 10
+         , bench "10000" $ nf consN 10000
+         ]
+      , bgroup "snoc"
+         [ bench "10" $ nf snocN 10
+         , bench "10000" $ nf snocN 10000
+         ]
+      , bgroup "append"
+         [ bench "10" $ nf appendN 10
+         , bench "10000" $ nf appendN 10000
          ]
       , bgroup "fromList"
          [ bench "10" $ nf S.fromList [(0 :: Int)..9]
@@ -272,3 +285,38 @@ multiplyDownMap = flip evalState 0 . sequenceA . S.mapWithIndex go where
     s <- get
     put (s - 1)
     return (s * i * x)
+
+consN :: Int -> Seq Int
+consN = go S.empty
+  where
+    go !xs 0 = xs
+    go !xs n = go (n S.<| xs) (n - 1)
+
+snocN :: Int -> Seq Int
+snocN = go S.empty
+  where
+    go !xs 0 = xs
+    go !xs n = go (xs S.|> n) (n - 1)
+
+appendN :: Int -> Seq Int
+appendN = go S.empty
+  where
+    go !xs 0 = xs
+    go !xs n = go xs' (n - 1)
+      where
+        ys = smallSeq (n `mod` 5)
+        xs' = if even n then xs <> ys else ys <> xs
+
+    -- Share these Seqs, we don't want to construct copies in the go loop.
+    ys0 = S.empty
+    ys1 = S.singleton 1
+    ys2 = S.fromList [1,2]
+    ys3 = S.fromList [1,2,3]
+    ys4 = S.fromList [1,2,3,4]
+    smallSeq n = case n of
+      0 -> ys0
+      1 -> ys1
+      2 -> ys2
+      3 -> ys3
+      4 -> ys4
+      _ -> error "urk!"
