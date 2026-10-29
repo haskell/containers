@@ -193,6 +193,10 @@ main = defaultMain $ testGroup "seq-properties"
          , testProperty "foldl" prop_strictness_foldl
          , testProperty "foldr'" prop_strictness_foldr'
          , testProperty "foldl'" prop_strictness_foldl'
+         , testCase "liftA2" test_strictness_liftA2
+         , testCase "ap" test_strictness_ap
+         , testCase "then" test_strictness_then
+         , testCase "before" test_strictness_before
          ]
        ]
 
@@ -1151,6 +1155,28 @@ prop_strictness_foldl' xs fun (Bot z) =
     s = fromList xs
     f = coerce (applyFunc2 fun) :: B -> A -> B
 
+test_strictness_liftA2 :: Assertion
+test_strictness_liftA2 = do
+  liftA2 (\_ _ -> ()) empty (error "bottom") @?= empty
+  assertBottom $ liftA2 (\_ _ -> ()) (error "bottom") empty
+
+test_strictness_ap :: Assertion
+test_strictness_ap = do
+  empty <*> error "bottom" @?= (empty :: Seq ())
+  assertBottom (error "bottom" <*> empty :: Seq ())
+
+test_strictness_then :: Assertion
+test_strictness_then = do
+  -- TODO: Make the strictness of *> consistent with liftA2 in the next
+  -- major version.
+  assertBottom (empty *> error "bottom" :: Seq ())
+  assertBottom (error "bottom" *> empty :: Seq ())
+
+test_strictness_before :: Assertion
+test_strictness_before = do
+  empty <* error "bottom" @?= (empty :: Seq ())
+  assertBottom (error "bottom" <* empty :: Seq ())
+
 -- Simple test monad
 
 data M a = Action Int a
@@ -1189,3 +1215,12 @@ test_liftTyped = testCase "liftTyped" $ do
   (mempty :: Seq Int) @=? $$([|| $$(TH.liftTyped (fromList [])) ||])
   fromList [1..3 :: Int] @=? $$([|| $$(TH.liftTyped (fromList [1..3])) ||])
 #endif
+
+------------------------------------------------------------------------
+-- Utils
+------------------------------------------------------------------------
+
+assertBottom :: Show a => a -> Assertion
+assertBottom x
+  | isBottom x = pure ()
+  | otherwise = assertFailure ("expected bottom\nbut got: " ++ show x)
