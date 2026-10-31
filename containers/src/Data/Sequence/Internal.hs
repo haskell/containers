@@ -3475,8 +3475,7 @@ fromArray a = fromList2 (Data.Array.rangeSize (Data.Array.bounds a)) (Data.Array
 -- is returned.
 take :: Int -> Seq a -> Seq a
 take i xs@(Seq t)
-    -- See note on unsigned arithmetic in splitAt
-  | fromIntegral i - 1 < (fromIntegral (length xs) - 1 :: Word) =
+  | doSplitTree i (length xs) =
       Seq (takeTreeE i t)
   | i <= 0 = empty
   | otherwise = xs
@@ -3488,7 +3487,10 @@ take i xs@(Seq t)
 --
 -- @since 0.8.1
 takeR :: Int -> Seq a -> Seq a
-takeR i xs = drop (length xs - i) xs
+takeR i xs@(Seq t)
+  | doSplitTree i (length xs) = Seq (takeTreeER i t)
+  | i <= 0 = empty
+  | otherwise = xs
 
 takeTreeE :: Int -> FingerTree (Elem a) -> FingerTree (Elem a)
 takeTreeE !_i EmptyT = EmptyT
@@ -3646,11 +3648,11 @@ takeSuffixN i s pr m (Four a b c d)
 -- is returned.
 drop            :: Int -> Seq a -> Seq a
 drop i xs@(Seq t)
-    -- See note on unsigned arithmetic in splitAt
-  | fromIntegral i - 1 < (fromIntegral (length xs) - 1 :: Word) =
-      Seq (takeTreeER (length xs - i) t)
+  | doSplitTree i sz = Seq (takeTreeER (sz - i) t)
   | i <= 0 = xs
   | otherwise = empty
+  where
+    !sz = length xs
 
 -- | \( O(\log(\min(i,n-i))) \). Elements of a sequence before the last @i@.
 -- If @i@ is negative, @'dropR' i s@ yields the whole sequence.
@@ -3659,7 +3661,12 @@ drop i xs@(Seq t)
 --
 -- @since 0.8.1
 dropR :: Int -> Seq a -> Seq a
-dropR i xs = take (length xs - i) xs
+dropR i xs@(Seq t)
+  | doSplitTree i sz = Seq (takeTreeE (sz - i) t)
+  | i <= 0 = xs
+  | otherwise = empty
+  where
+    !sz = length xs
 
 -- We implement `drop` using a "take from the rear" strategy.  There's no
 -- particular technical reason for this; it just lets us reuse the arithmetic
@@ -3819,12 +3826,7 @@ takePrefixNR i s (Four a b c d) m sf
 -- @'splitAt' i s = ('take' i s, 'drop' i s)@.
 splitAt                  :: Int -> Seq a -> (Seq a, Seq a)
 splitAt i xs@(Seq t)
-  -- We use an unsigned comparison to make the common case
-  -- faster. This only works because our representation of
-  -- sizes as (signed) Ints gives us a free high bit to play
-  -- with. Note also that there's no sharing to lose in the
-  -- case that the length is 0.
-  | fromIntegral i - 1 < (fromIntegral (length xs) - 1 :: Word) =
+  | doSplitTree i (length xs) =
       case splitTreeE i t of
         l :*: r -> (Seq l, Seq r)
   | i <= 0 = (empty, xs)
@@ -3836,7 +3838,25 @@ splitAt i xs@(Seq t)
 --
 -- @since 0.8.1
 splitAtR :: Int -> Seq a -> (Seq a, Seq a)
-splitAtR i xs = splitAt (length xs - i) xs
+splitAtR i xs@(Seq t)
+  | doSplitTree i sz = case splitTreeE (sz - i) t of
+      l :*: r -> (Seq l, Seq r)
+  | i <= 0 = (xs, empty)
+  | otherwise = (empty, xs)
+  where
+    !sz = length xs
+
+-- Whether to proceed with splitting the tree. Used by `split` and friends.
+--
+-- We use an unsigned comparison to make the common case of `sz > 0` faster.
+-- This only works because our representation of sizes as (signed) Ints gives us
+-- a free high bit to play with.
+--
+-- When this function returns False, we can return the original Seq unchanged.
+-- When `sz = 0` this may return True, but there's no sharing to lose in this
+-- case.
+doSplitTree :: Int -> Int -> Bool
+doSplitTree i sz = fromIntegral i - 1 < (fromIntegral sz - 1 :: Word)
 
 -- | \( O(\log(\min(i,n-i))) \) A version of 'splitAt' that does not attempt to
 -- enhance sharing when the split point is less than or equal to 0, and that

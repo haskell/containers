@@ -127,8 +127,11 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "drop" prop_drop
        , testProperty "splitAt" prop_splitAt
        , testProperty "takeR" prop_takeR
+       , testCase "test_takeR" test_takeR
        , testProperty "dropR" prop_dropR
+       , testCase "test_dropR" test_dropR
        , testProperty "splitAtR" prop_splitAtR
+       , testCase "test_splitAtR" test_splitAtR
        , testProperty "chunksOf" prop_chunksOf
        , testProperty "elemIndexL" prop_elemIndexL
        , testProperty "elemIndicesL" prop_elemIndicesL
@@ -796,6 +799,11 @@ prop_splitAt n xs =
   where
     (ys, zs) = splitAt n xs
 
+test_takeR :: Assertion
+test_takeR = do
+  -- See GitHub #1267
+  takeR (negate maxBound) (singleton ()) @?= empty
+
 prop_takeR :: Int -> Seq A -> Property
 prop_takeR n xs =
   valid ys .&&.
@@ -803,12 +811,22 @@ prop_takeR n xs =
   where
     ys = takeR n xs
 
+test_dropR :: Assertion
+test_dropR = do
+  -- See GitHub #1267
+  dropR (negate maxBound) (singleton ()) @?= singleton ()
+
 prop_dropR :: Int -> Seq A -> Property
 prop_dropR n xs =
   valid ys .&&.
   toList ys === Prelude.reverse (Prelude.drop n (Prelude.reverse (toList xs)))
   where
     ys = dropR n xs
+
+test_splitAtR :: Assertion
+test_splitAtR = do
+  -- See GitHub #1267
+  splitAtR (negate maxBound) (singleton ()) @?= (singleton (), empty)
 
 prop_splitAtR :: Int -> Seq A -> Property
 prop_splitAtR n xs =
