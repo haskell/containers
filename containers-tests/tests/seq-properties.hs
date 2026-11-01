@@ -173,6 +173,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "Right view pattern" prop_viewr_pat
        , testProperty "Right view constructor" prop_viewr_con
        , testProperty "stimes" prop_stimes
+       , testCase "test_stimes" test_stimes
        , testProperty "traverse" prop_traverse
        , testLaws $ Laws.eqLaws (Proxy :: Proxy (Seq A))
        , testLaws $ Laws.ordLaws (Proxy :: Proxy (Seq OrdA))
@@ -200,6 +201,7 @@ main = defaultMain $ testGroup "seq-properties"
          , testCase "ap" test_strictness_ap
          , testCase "then" test_strictness_then
          , testCase "before" test_strictness_before
+         , testCase "stimes" test_strictness_stimes
          ]
        ]
 
@@ -1107,9 +1109,33 @@ prop_bind xs f =
 
 -- Semigroup operations
 
-prop_stimes :: NonNegative Int -> Seq A -> Property
-prop_stimes (NonNegative n) s =
-  stimes n s === stimesMonoid n s
+prop_stimes :: Integer -> Seq A -> Property
+prop_stimes n s
+  | n < 0 = stimes n s === empty
+  | otherwise = stimes n s === stimesMonoid n s
+
+test_stimes :: Assertion
+test_stimes = do
+  -- Int
+  stimes (maxBound :: Int) empty @?= (empty :: Seq ())
+  stimes (minBound :: Int) empty @?= (empty :: Seq ())
+  stimes (-1 :: Int) (singleton ()) @?= empty
+  stimes (minBound :: Int) (singleton ()) @?= empty
+  length (stimes (maxBound :: Int) (singleton ())) @?= maxBound
+  -- Word
+  stimes (maxBound :: Word) empty @?= (empty :: Seq ())
+  length (stimes (fromIntegral (maxBound :: Int) :: Word) (singleton ())) @?= maxBound
+  assertBottom $ stimes (fromIntegral (maxBound :: Int) + 1 :: Word) (singleton ())
+  assertBottom $ stimes (maxBound :: Word) (singleton ())
+  -- Integer
+  let hugeN = 2 ^ (256 :: Int) :: Integer
+  stimes hugeN empty @?= (empty :: Seq ())
+  stimes (-1 :: Integer) empty @?= (empty :: Seq ())
+  stimes (-hugeN) empty @?= (empty :: Seq ())
+  length (stimes (toInteger (maxBound :: Int)) (singleton ())) @?= maxBound
+  assertBottom $ stimes (toInteger (maxBound :: Int) + 1) (singleton ())
+  assertBottom $ stimes hugeN (singleton ())
+  stimes (-hugeN) (singleton ()) @?= empty
 
 -- MonadFix operation
 
@@ -1194,6 +1220,13 @@ test_strictness_before :: Assertion
 test_strictness_before = do
   empty <* error "bottom" @?= (empty :: Seq ())
   assertBottom (error "bottom" <* empty :: Seq ())
+
+test_strictness_stimes :: Assertion
+test_strictness_stimes = do
+  stimes (0 :: Int) (error "bottom" :: Seq ()) @?= empty
+  stimes (minBound :: Int) (error "bottom" :: Seq ()) @?= empty
+  assertBottom $ stimes (1 :: Int) (error "bottom" :: Seq ())
+  assertBottom $ stimes (error "bottom") (empty :: Seq ())
 
 -- Simple test monad
 

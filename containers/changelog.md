@@ -7,6 +7,9 @@
 * Fix bugs in `Seq`'s `takeR`, `dropR`, `splitAtR` where incorrect results
   could be returned for negative splitting points.
 
+* Fix a bug in `Seq`'s `stimes` where incorrect results could be returned for
+  `n` with value outside the bounds of `Int`.
+
 ## 0.8.1  *October 2026*
 
 ### Additions

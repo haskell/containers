@@ -1016,7 +1016,16 @@ instance Monoid (Seq a) where
 -- @since 0.5.7
 instance Semigroup.Semigroup (Seq a) where
     (<>)    = (><)
-    stimes = cycleNTimes . fromIntegral
+
+    stimes n xs
+      | n <= 0 = empty
+      | null xs = empty
+        -- cycleNTimes checks whether the result is too large, so here we only
+        -- need to check whether n fits in an Int.
+      | toInteger n <= toInteger (maxBound :: Int)
+      = cycleNTimes (fromIntegral n) xs
+      | otherwise = seqTooLargeError
+    {-# INLINABLE stimes #-}
 
 #if __GLASGOW_HASKELL__
 instance Data a => Data (Seq a) where
@@ -1818,6 +1827,8 @@ cycleTaking n xs = cycleNTimes reps xs >< take final xs
 -- \( O(\log(kn)) \). @'cycleNTimes' k xs@ concatenates @k@ copies of @xs@. This
 -- operation uses time and additional space logarithmic in the size of its
 -- result.
+
+-- TODO: Check whether the result is too large
 cycleNTimes :: Int -> Seq a -> Seq a
 cycleNTimes n !xs
   | n <= 0    = empty
@@ -5101,3 +5112,7 @@ fromList2 n = execState (replicateA n (State ht))
   where
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
+
+seqTooLargeError :: a
+seqTooLargeError =
+  error "result Seq too large; length must be <= (maxBound :: Int)"
