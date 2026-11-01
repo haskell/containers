@@ -75,8 +75,11 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "mappend" prop_mappend
        , testProperty "singleton" prop_singleton
        , testProperty "(<|)" prop_cons
+       , testCase "test_cons" test_cons
        , testProperty "(|>)" prop_snoc
+       , testCase "test_snoc" test_snoc
        , testProperty "(><)" prop_append
+       , testCase "test_append" test_append
        , testProperty "fromList" prop_fromList
        , testProperty "fromList_long" prop_fromList_long
        , testProperty "fromFunction" prop_fromFunction
@@ -92,11 +95,15 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "viewl" prop_viewl
        , testProperty "viewr" prop_viewr
        , testProperty "scanl" prop_scanl
+       , testCase "test_scanl" test_scanl
        , testProperty "scanl1" prop_scanl1
        , testProperty "scanr" prop_scanr
+       , testCase "test_scanr" test_scanr
        , testProperty "scanr1" prop_scanr1
        , testProperty "tails" prop_tails
+       , testCase "test_tails" test_tails
        , testProperty "inits" prop_inits
+       , testCase "test_inits" test_inits
        , testProperty "takeWhileL" prop_takeWhileL
        , testProperty "takeWhileR" prop_takeWhileR
        , testProperty "dropWhileL" prop_dropWhileL
@@ -121,6 +128,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "adjust" prop_adjust
        , testProperty "adjust'" prop_adjust'
        , testProperty "insertAt" prop_insertAt
+       , testCase "test_insertAt" test_insertAt
        , testProperty "deleteAt" prop_deleteAt
        , testProperty "update" prop_update
        , testProperty "take" prop_take
@@ -159,12 +167,18 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "munzip-lazy" prop_munzipLazy
        , testProperty "<*>" prop_ap
        , testProperty "<*> NOINLINE" prop_ap_NOINLINE
+       , testCase "test_ap" test_ap
        , testProperty "liftA2" prop_liftA2
+       , testCase "test_liftA2" test_liftA2
        , testProperty "*>" prop_then
+       , testCase "test_then" test_then
        , testProperty "<*" prop_before
+       , testCase "test_before" test_before
        , testProperty "cycleTaking" prop_cycleTaking
        , testProperty "intersperse" prop_intersperse
+       , testCase "test_intersperse" test_intersperse
        , testProperty ">>=" prop_bind
+       , testCase "test_bind" test_bind
        , testProperty "mfix" test_mfix
        , testProperty "Empty pattern" prop_empty_pat
        , testProperty "Empty constructor" prop_empty_con
@@ -283,10 +297,16 @@ instance (Sized a, Valid a) => Valid (FingerTree a) where
     valid EmptyT = True
     valid (Single x) = valid x
     valid (Deep s pr m sf) =
-        s == size pr + size m + size sf && valid pr && valid m && valid sf
+      s > 0 &&
+      s == size pr + size m + size sf &&
+      valid pr &&
+      valid m &&
+      valid sf
 
 instance (Sized a, Valid a) => Valid (Node a) where
-    valid node = size node == sum (fmap size node) && all valid node
+    valid node =
+      size node > 0 &&
+      size node == sum (fmap size node) && all valid node
 
 instance Valid a => Valid (Digit a) where
     valid = all valid
@@ -402,6 +422,14 @@ prop_cons x xs =
   where
     xs' = x <| xs
 
+test_cons :: Assertion
+test_cons = do
+  length (() <| replicate (maxBound - 1) ()) @?= maxBound
+  length (() :<| replicate (maxBound - 1) ()) @?= maxBound
+
+  assertBottom $ () <| replicate maxBound ()
+  assertBottom $ () :<| replicate maxBound ()
+
 prop_snoc :: Seq A -> A -> Property
 prop_snoc xs x =
   valid xs' .&&.
@@ -409,12 +437,37 @@ prop_snoc xs x =
   where
     xs' = xs |> x
 
+test_snoc :: Assertion
+test_snoc = do
+  length (replicate (maxBound - 1) () |> ()) @?= maxBound
+  length (replicate (maxBound - 1) () :|> ()) @?= maxBound
+
+  assertBottom $ replicate maxBound () |> ()
+  assertBottom $ replicate maxBound () :|> ()
+
 prop_append :: Seq A -> Seq A -> Property
 prop_append xs ys =
   valid zs .&&.
   toList zs === toList xs ++ toList ys
   where
     zs = xs >< ys
+
+test_append :: Assertion
+test_append = do
+  length (replicate (maxBound - 1) () >< singleton ()) @?= maxBound
+  length (singleton () >< replicate (maxBound - 1) ()) @?= maxBound
+  length (replicate (maxBound - 10) () >< replicate 10 ()) @?= maxBound
+  length (replicate 10 () >< replicate (maxBound - 10) ()) @?= maxBound
+  let mid1 = maxBound `div` 2 :: Int
+      mid2 = maxBound - mid1
+  length (replicate mid1 () >< replicate mid2 ()) @?= maxBound
+
+  assertBottom $ replicate maxBound () >< singleton ()
+  assertBottom $ replicate (maxBound - 10) () >< replicate 11 ()
+  assertBottom $ replicate 11 () >< replicate (maxBound - 10) ()
+  assertBottom $ replicate maxBound () >< replicate maxBound ()
+  assertBottom $ replicate maxBound () >< replicate maxBound ()
+  assertBottom $ replicate mid1 () >< replicate (mid2 + 1) ()
 
 prop_fromList :: [A] -> Property
 prop_fromList xs =
@@ -524,6 +577,12 @@ prop_scanl f z xs =
   where
     ys = scanl (applyFun2 f) z xs
 
+test_scanl :: Assertion
+test_scanl = do
+  length (scanl (\_ _ -> ()) () (replicate (maxBound - 1) ())) @?= maxBound
+
+  assertBottom $ scanl (\_ _ -> ()) () (replicate maxBound ())
+
 prop_scanl1 :: Fun (A, A) A -> Seq A -> Property
 prop_scanl1 f xs =
   not (null xs) ==>
@@ -538,6 +597,12 @@ prop_scanr f z xs =
   toList ys === Data.List.scanr (applyFun2 f) z (toList xs)
   where
     ys = scanr (applyFun2 f) z xs
+
+test_scanr :: Assertion
+test_scanr = do
+  length (scanr (\_ _ -> ()) () (replicate (maxBound - 1) ())) @?= maxBound
+
+  assertBottom $ scanr (\_ _ -> ()) () (replicate maxBound ())
 
 prop_scanr1 :: Fun (A, A) A -> Seq A -> Property
 prop_scanr1 f xs =
@@ -556,12 +621,24 @@ prop_tails xs =
   where
     xss = tails xs
 
+test_tails :: Assertion
+test_tails = do
+  length (tails (replicate (maxBound - 1) ())) @?= maxBound
+
+  assertBottom $ tails (replicate maxBound ())
+
 prop_inits :: Seq A -> Property
 prop_inits xs =
   conjoin (fmap valid (toList xss)) .&&.
   fmap toList (toList xss) === Data.List.inits (toList xs)
   where
     xss = inits xs
+
+test_inits :: Assertion
+test_inits = do
+  length (inits (replicate (maxBound - 1) ())) @?= maxBound
+
+  assertBottom $ inits (replicate maxBound ())
 
 -- ** Sequential searches
 
@@ -749,6 +826,20 @@ prop_insertAt x xs =
   forAll (choose (-3, length xs + 3)) $ \i ->
       let res = insertAt i x xs
       in valid res .&&. res === case splitAt i xs of (front, back) -> front >< x <| back
+
+test_insertAt :: Assertion
+test_insertAt = do
+  length (insertAt 0 () (replicate (maxBound - 1) ())) @?= maxBound
+  length (insertAt (-1) () (replicate (maxBound - 1) ())) @?= maxBound
+  length (insertAt minBound () (replicate (maxBound - 1) ())) @?= maxBound
+  length (insertAt (maxBound - 1) () (replicate (maxBound - 1) ())) @?= maxBound
+  length (insertAt maxBound () (replicate (maxBound - 1) ())) @?= maxBound
+
+  assertBottom $ insertAt 0 () (replicate maxBound ())
+  assertBottom $ insertAt (-1) () (replicate maxBound ())
+  assertBottom $ insertAt minBound () (replicate maxBound ())
+  assertBottom $ insertAt (maxBound - 1) () (replicate maxBound ())
+  assertBottom $ insertAt maxBound () (replicate maxBound ())
 
 prop_deleteAt :: Seq A -> Property
 prop_deleteAt xs =
@@ -1029,6 +1120,19 @@ prop_ap_NOINLINE xs ys =
   where
     zs = ((,) <$> xs) `apNOINLINE` ys
 
+test_ap :: Assertion
+test_ap = do
+  length (replicate maxBound id <*> singleton ()) @?= maxBound
+  length (singleton id <*> replicate maxBound ()) @?= maxBound
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so mid*2 is ok and (mid+1)*2 overflows
+  length (replicate mid id <*> fromList [(),()]) @?= (mid * 2)
+  length (fromList [id,id] <*> replicate mid ()) @?= (mid * 2)
+
+  assertBottom $ fromList [id,id] <*> replicate (mid + 1) ()
+  assertBottom $ replicate (mid + 1) id <*> fromList [(),()]
+  assertBottom $ replicate maxBound id <*> replicate maxBound ()
+
 {-# NOINLINE apNOINLINE #-}
 apNOINLINE :: Seq (a -> b) -> Seq a -> Seq b
 apNOINLINE fs xs = fs <*> xs
@@ -1039,12 +1143,38 @@ prop_liftA2 xs ys = valid q .&&.
   where
     q = liftA2 (,) xs ys
 
+test_liftA2 :: Assertion
+test_liftA2 = do
+  length (liftA2 (\_ _ -> ()) (replicate maxBound ()) (singleton ())) @?= maxBound
+  length (liftA2 (\_ _ -> ()) (singleton ()) (replicate maxBound ())) @?= maxBound
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so mid*2 is ok and (mid+1)*2 overflows
+  length (liftA2 (\_ _ -> ()) (replicate mid ()) (fromList [(),()])) @?= (mid * 2)
+  length (liftA2 (\_ _ -> ()) (fromList [(),()]) (replicate mid ())) @?= (mid * 2)
+
+  assertBottom $ liftA2 (\_ _ -> ()) (fromList [(),()]) (replicate (mid + 1) ())
+  assertBottom $ liftA2 (\_ _ -> ()) (replicate (mid + 1) ()) (fromList [(),()])
+  assertBottom $ liftA2 (\_ _ -> ()) (replicate maxBound ()) (replicate maxBound ())
+
 prop_then :: Seq A -> Seq B -> Property
 prop_then xs ys =
   valid zs .&&.
   toList zs === (toList xs *> toList ys)
   where
     zs = xs *> ys
+
+test_then :: Assertion
+test_then = do
+  length (replicate maxBound () *> singleton ()) @?= maxBound
+  length (singleton () *> replicate maxBound ()) @?= maxBound
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so mid*2 is ok and (mid+1)*2 overflows
+  length (replicate mid () *> fromList [(),()]) @?= (mid * 2)
+  length (fromList [(),()] *> replicate mid ()) @?= (mid * 2)
+
+  assertBottom $ fromList [(),()] *> replicate (mid + 1) ()
+  assertBottom $ replicate (mid + 1) () *> fromList [(),()]
+  assertBottom $ replicate maxBound () *> replicate maxBound ()
 
 -- We take only the length of the second sequence because
 -- the implementation throws the rest away; there's no
@@ -1058,12 +1188,34 @@ prop_before xs (NonNegative lys) =
     ys = replicate lys ()
     zs = xs <* ys
 
+test_before :: Assertion
+test_before = do
+  length (replicate maxBound () <* singleton ()) @?= maxBound
+  length (singleton () <* replicate maxBound ()) @?= maxBound
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so mid*2 is ok and (mid+1)*2 overflows
+  length (replicate mid () <* fromList [(),()]) @?= (mid * 2)
+  length (fromList [(),()] <* replicate mid ()) @?= (mid * 2)
+
+  assertBottom $ fromList [(),()] <* replicate (mid + 1) ()
+  assertBottom $ replicate (mid + 1) () <* fromList [(),()]
+  assertBottom $ replicate maxBound () <* replicate maxBound ()
+
 prop_intersperse :: A -> Seq A -> Property
 prop_intersperse x xs =
   valid xs' .&&.
   toList xs' === Data.List.intersperse x (toList xs)
   where
     xs' = intersperse x xs
+
+test_intersperse :: Assertion
+test_intersperse = do
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so 2*mid + 1 == maxBound
+  length (intersperse () (replicate (mid + 1) ())) @?= maxBound
+
+  assertBottom $ intersperse () (replicate (mid + 2) ())
+  assertBottom $ intersperse () (replicate maxBound ())
 
 prop_cycleTaking :: Int -> Seq A -> Property
 prop_cycleTaking n xs =
@@ -1107,6 +1259,15 @@ prop_bind xs f =
   where
     ys = xs >>= applyFun f
 
+test_bind :: Assertion
+test_bind = do
+  length (fromList [maxBound] >>= flip replicate ()) @?= maxBound
+  length (fromList [maxBound, 0] >>= flip replicate ()) @?= maxBound
+  length (fromList [10, 90, maxBound - 100] >>= flip replicate ()) @?= maxBound
+
+  assertBottom $ fromList [maxBound, 1] >>= flip replicate ()
+  assertBottom $ fromList [10, 90, maxBound - 99] >>= flip replicate ()
+
 -- Semigroup operations
 
 prop_stimes :: Integer -> Seq A -> Property
@@ -1122,6 +1283,9 @@ test_stimes = do
   stimes (-1 :: Int) (singleton ()) @?= empty
   stimes (minBound :: Int) (singleton ()) @?= empty
   length (stimes (maxBound :: Int) (singleton ())) @?= maxBound
+  let mid = maxBound `div` 2 :: Int
+  -- maxBound is odd, so mid*2 is ok and (mid+1)*2 overflows
+  assertBottom $ stimes (mid + 1) (fromList [(),()])
   -- Word
   stimes (maxBound :: Word) empty @?= (empty :: Seq ())
   length (stimes (fromIntegral (maxBound :: Int) :: Word) (singleton ())) @?= maxBound
