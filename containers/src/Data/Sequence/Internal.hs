@@ -12,6 +12,8 @@
 {-# LANGUAGE Trustworthy #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# LANGUAGE TypeOperators #-}
+{-# LANGUAGE MagicHash #-}
+{-# LANGUAGE UnboxedTuples #-}
 #endif
 #ifdef DEFINE_PATTERN_SYNONYMS
 {-# LANGUAGE PatternSynonyms #-}
@@ -543,17 +545,21 @@ apSeq fs xs@(Seq xsFT) = case viewl fs of
   firstf :< fs' -> case viewr fs' of
     EmptyR -> fmap firstf xs
     Seq fs''FT :> lastf -> case rigidify xsFT of
-         RigidEmpty -> empty
-         RigidOne (Elem x) -> fmap ($ x) fs
-         RigidTwo (Elem x1) (Elem x2) ->
-            Seq $ ap2FT firstf fs''FT lastf (x1, x2)
-         RigidThree (Elem x1) (Elem x2) (Elem x3) ->
-            Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
-         RigidFull r@(Rigid s pr _m sf) -> Seq $
-               Deep (s * length fs)
-                    (fmap (fmap firstf) (nodeToDigit pr))
-                    (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
-                    (fmap (fmap lastf) (nodeToDigit sf))
+      RigidEmpty -> empty
+      RigidOne (Elem x) -> fmap ($ x) fs
+                   -- See Note [Size overflow checks]
+      rigidXsFT -> case sizeProduct (length fs) (rigidifiedSize rigidXsFT) of
+        Nothing -> seqTooLargeError
+        Just sz -> case rigidXsFT of
+          RigidTwo (Elem x1) (Elem x2) ->
+             Seq $ ap2FT firstf fs''FT lastf (x1, x2)
+          RigidThree (Elem x1) (Elem x2) (Elem x3) ->
+             Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
+          RigidFull r@(Rigid _ pr _m sf) -> Seq $
+             Deep sz
+                  (fmap (fmap firstf) (nodeToDigit pr))
+                  (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                  (fmap (fmap lastf) (nodeToDigit sf))
 {-# NOINLINE [1] apSeq #-}
 
 {-# RULES
@@ -605,15 +611,19 @@ liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
     Seq xs''FT :> lastx -> case rigidify ysFT of
       RigidEmpty -> empty
       RigidOne (Elem y) -> fmap (\x -> f x y) xs
-      RigidTwo (Elem y1) (Elem y2) ->
-        Seq $ lift2FT f firstx xs''FT lastx (y1, y2)
-      RigidThree (Elem y1) (Elem y2) (Elem y3) ->
-        Seq $ lift3FT f firstx xs''FT lastx (y1, y2, y3)
-      RigidFull r@(Rigid s pr _m sf) -> Seq $
-        Deep (s * length xs)
-             (fmap (fmap (f firstx)) (nodeToDigit pr))
-             (liftA2Middle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
-             (fmap (fmap (f lastx)) (nodeToDigit sf))
+                   -- See Note [Size overflow checks]
+      rigidYsFT -> case sizeProduct (length xs) (rigidifiedSize rigidYsFT) of
+        Nothing -> seqTooLargeError
+        Just sz -> case rigidYsFT of
+          RigidTwo (Elem y1) (Elem y2) ->
+            Seq $ lift2FT f firstx xs''FT lastx (y1, y2)
+          RigidThree (Elem y1) (Elem y2) (Elem y3) ->
+            Seq $ lift3FT f firstx xs''FT lastx (y1, y2, y3)
+          RigidFull r@(Rigid _ pr _m sf) -> Seq $
+            Deep sz
+                 (fmap (fmap (f firstx)) (nodeToDigit pr))
+                 (liftA2Middle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
+                 (fmap (fmap (f lastx)) (nodeToDigit sf))
   where
     lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
 #ifdef __GLASGOW_HASKELL__
@@ -658,6 +668,14 @@ data Digit12 a = One12 a | Two12 a a
 -- | Sometimes, we want to emphasize that we are viewing a node as a top-level
 -- digit of a 'Rigid' tree.
 type Digit23 a = Node a
+
+rigidifiedSize :: Rigidified a -> Int
+rigidifiedSize r = case r of
+  RigidEmpty -> 0
+  RigidOne _ -> 1
+  RigidTwo _ _ -> 2
+  RigidThree _ _ _ -> 3
+  RigidFull (Rigid s _ _ _) -> s
 
 -- | 'liftA2Middle' does most of the hard work of computing @liftA2 f xs ys@.  It
 -- produces the center part of a finger tree, with a prefix corresponding to
@@ -1568,38 +1586,42 @@ replicateEach lenys xs = case viewl xs of
     Seq midxs :> lastx -> case lenys of
       0 -> empty
       1 -> xs
-      2 ->
-        Seq $ rep2EachFT fxE midxs lxE
-      3 ->
-        Seq $ rep3EachFT fxE midxs lxE
-      _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
-             (q,0) -> Deep (lenys * length xs) fd3
-               (repEachMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
-               ld3
-                   where
-                    lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
-             (q,1) -> Deep (lenys * length xs) fd2
-               (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
-               ld2
-                   where
-                    lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
-             (q,_) -> Deep (lenys * length xs) fd3
-               (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
-               ld2
-                   where
-                    lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
-        where
-          repEachMiddle_ = repEachMiddle midxs lenys 3 fn3 ln3
-          fd2 = Two fxE fxE
-          fd3 = Three fxE fxE fxE
-          ld2 = Two lxE lxE
-          ld3 = Three lxE lxE lxE
-          fn2 = Node2 2 fxE fxE
-          fn3 = Node3 3 fxE fxE fxE
-          ln2 = Node2 2 lxE lxE
-          ln3 = Node3 3 lxE lxE lxE
-          n3 a = Node3 3 (Elem a) (Elem a) (Elem a)
-          n2 a = Node2 2 (Elem a) (Elem a)
+           -- See Note [Size overflow checks]
+      _ -> case sizeProduct lenys (length xs) of
+        Nothing -> seqTooLargeError
+        Just sz -> case lenys of
+          2 ->
+            Seq $ rep2EachFT fxE midxs lxE
+          3 ->
+            Seq $ rep3EachFT fxE midxs lxE
+          _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
+                 (q,0) -> Deep sz fd3
+                   (repEachMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
+                   ld3
+                       where
+                        lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
+                 (q,1) -> Deep sz fd2
+                   (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
+                   ld2
+                       where
+                        lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
+                 (q,_) -> Deep sz fd3
+                   (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
+                   ld2
+                       where
+                        lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
+            where
+              repEachMiddle_ = repEachMiddle midxs lenys 3 fn3 ln3
+              fd2 = Two fxE fxE
+              fd3 = Three fxE fxE fxE
+              ld2 = Two lxE lxE
+              ld3 = Three lxE lxE lxE
+              fn2 = Node2 2 fxE fxE
+              fn3 = Node3 3 fxE fxE fxE
+              ln2 = Node2 2 lxE lxE
+              ln3 = Node3 3 lxE lxE lxE
+              n3 a = Node3 3 (Elem a) (Elem a) (Elem a)
+              n2 a = Node2 2 (Elem a) (Elem a)
       where
           fxE = Elem firstx
           lxE = Elem lastx
@@ -1827,27 +1849,29 @@ cycleTaking n xs = cycleNTimes reps xs >< take final xs
 -- \( O(\log(kn)) \). @'cycleNTimes' k xs@ concatenates @k@ copies of @xs@. This
 -- operation uses time and additional space logarithmic in the size of its
 -- result.
-
--- TODO: Check whether the result is too large
 cycleNTimes :: Int -> Seq a -> Seq a
 cycleNTimes n !xs
   | n <= 0    = empty
   | n == 1    = xs
 cycleNTimes n (Seq xsFT) = case rigidify xsFT of
-             RigidEmpty -> empty
-             RigidOne (Elem x) -> replicate n x
+         RigidEmpty -> empty
+         RigidOne (Elem x) -> replicate n x
+                      -- See Note [Size overflow checks]
+         rigidXsFT -> case sizeProduct n (rigidifiedSize rigidXsFT) of
+           Nothing -> seqTooLargeError
+           Just sz -> case rigidXsFT of
              RigidTwo x1 x2 -> Seq $
-               Deep (n*2) pair
+               Deep sz pair
                     (runIdentity $ applicativeTree (n-2) 2 (Identity (node2 x1 x2)))
                     pair
                where pair = Two x1 x2
              RigidThree x1 x2 x3 -> Seq $
-               Deep (n*3) triple
+               Deep sz triple
                     (runIdentity $ applicativeTree (n-2) 3 (Identity (node3 x1 x2 x3)))
                     triple
                where triple = Three x1 x2 x3
-             RigidFull r@(Rigid s pr _m sf) -> Seq $
-                   Deep (n*s)
+             RigidFull r@(Rigid _ pr _m sf) -> Seq $
+                   Deep sz
                         (nodeToDigit pr)
                         (cycleNMiddle (n-2) r)
                         (nodeToDigit sf)
@@ -1889,7 +1913,13 @@ cycleNMiddle n
 -- | \( O(1) \). Add an element to the left end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
 (<|)            :: a -> Seq a -> Seq a
-x <| Seq xs     =  Seq (Elem x `consTree` xs)
+x <| xs
+    -- See Note [Size overflow checks]
+  | sizePlusOneOverflows (length xs) = seqTooLargeError
+  | otherwise = cons x xs
+
+cons :: a -> Seq a -> Seq a
+cons x (Seq xs) = Seq (Elem x `consTree` xs)
 
 {-# SPECIALIZE consTree :: Elem a -> FingerTree (Elem a) -> FingerTree (Elem a) #-}
 {-# SPECIALIZE consTree :: Node a -> FingerTree (Node a) -> FingerTree (Node a) #-}
@@ -1938,7 +1968,13 @@ consTree' a (Deep s (One b) m sf) =
 -- | \( O(1) \). Add an element to the right end of a sequence.
 -- Mnemonic: a triangle with the single element at the pointy end.
 (|>)            :: Seq a -> a -> Seq a
-Seq xs |> x     =  Seq (xs `snocTree` Elem x)
+xs |> x
+    -- See Note [Size overflow checks]
+  | sizePlusOneOverflows (length xs) = seqTooLargeError
+  | otherwise = snoc xs x
+
+snoc :: Seq a -> a -> Seq a
+snoc (Seq xs) x = Seq (xs `snocTree` Elem x)
 
 {-# SPECIALIZE snocTree :: FingerTree (Elem a) -> Elem a -> FingerTree (Elem a) #-}
 {-# SPECIALIZE snocTree :: FingerTree (Node a) -> Node a -> FingerTree (Node a) #-}
@@ -1984,12 +2020,19 @@ appendTree0 EmptyT xs =
     xs
 appendTree0 xs EmptyT =
     xs
-appendTree0 (Single x) xs =
-    x `consTree` xs
-appendTree0 xs (Single x) =
-    xs `snocTree` x
+appendTree0 (Single x) xs
+    -- See Note [Size overflow checks]
+  | sizePlusOneOverflows (size xs) = seqTooLargeError
+  | otherwise = x `consTree` xs
+appendTree0 xs (Single x)
+    -- See Note [Size overflow checks]
+  | sizePlusOneOverflows (size xs) = seqTooLargeError
+  | otherwise = xs `snocTree` x
 appendTree0 (Deep s1 pr1 m1 sf1) (Deep s2 pr2 m2 sf2) =
-    Deep (s1 + s2) pr1 m sf2
+  -- See Note [Size overflow checks]
+  case sizeSum s1 s2 of
+    Nothing -> seqTooLargeError
+    Just sz -> Deep sz pr1 m sf2
   where !m = addDigits0 m1 sf1 pr2 m2
 
 addDigits0 :: FingerTree (Node (Elem a)) -> Digit (Elem a) -> Digit (Elem a) -> FingerTree (Node (Elem a)) -> FingerTree (Node (Elem a))
@@ -2220,11 +2263,15 @@ addDigits4 m1 (Four a b c d) !e !f !g !h (Four i j k l) m2 =
 unfoldr :: (b -> Maybe (a, b)) -> b -> Seq a
 unfoldr f = unfoldr' empty
   -- uses tail recursion rather than, for instance, the List implementation.
+  -- Since we snoc one at a time, we expect that size overflow will not
+  -- realistically occur. See Note [Size overflow checks].
   where unfoldr' !as b = maybe as (\ (a, b') -> unfoldr' (as `snoc'` a) b') (f b)
 
 -- | @'unfoldl' f x@ is equivalent to @'reverse' ('unfoldr' ('fmap' swap . f) x)@.
 unfoldl :: (b -> Maybe (b, a)) -> b -> Seq a
 unfoldl f = unfoldl' empty
+  -- Since we cons one at a time, we expect that size overflow will not
+  -- realistically occur. See Note [Size overflow checks].
   where unfoldl' !as b = maybe as (\ (b', a) -> unfoldl' (a `cons'` as) b') (f b)
 
 -- | \( O(n) \).  Constructs a sequence by repeated application of a function
@@ -2740,10 +2787,14 @@ adjustDigit f i (Four a b c d)
 -- @since 0.5.8
 insertAt :: Int -> a -> Seq a -> Seq a
 insertAt i a s@(Seq xs)
-  | fromIntegral i < (fromIntegral (size xs) :: Word)
+    -- See Note [Size overflow checks]
+  | sizePlusOneOverflows sz = seqTooLargeError
+  | fromIntegral i < (fromIntegral sz :: Word)
       = Seq (insTree (`seq` InsTwo (Elem a)) i xs)
-  | i <= 0 = a <| s
-  | otherwise = s |> a
+  | i <= 0 = cons a s
+  | otherwise = snoc s a
+  where
+    !sz = size xs
 
 data Ins a = InsOne a | InsTwo a a
 
@@ -5113,6 +5164,58 @@ fromList2 n = execState (replicateA n (State ht))
     ht (x:xs) = (xs, x)
     ht []     = error "fromList2: short list"
 
+-- Take a size (must be >=0) and check if adding 1 to it overflows.
+sizePlusOneOverflows :: Int -> Bool
+sizePlusOneOverflows sz = sz == maxBound
+
+-- Take two sizes (must be >=0) and return their sum if it does not overflow.
+sizeSum :: Int -> Int -> Maybe Int
+#ifdef __GLASGOW_HASKELL__
+sizeSum (GHC.Exts.I# sz1#) (GHC.Exts.I# sz2#) =
+  case GHC.Exts.addIntC# sz1# sz2# of
+    (# r#, 0# #) -> Just (GHC.Exts.I# r#)
+    _ -> Nothing
+#else
+sizeSum sz1 sz2 =
+  let r = sz1 + sz2
+  in if r < 0
+     then Nothing
+     else Just r
+#endif
+{-# INLINE sizeSum #-}
+
+-- Take two sizes (must be >=0) and return their product if it does not
+-- overflow.
+sizeProduct :: Int -> Int -> Maybe Int
+-- timesInt2# is available since base-4.15.0.0
+#if defined(__GLASGOW_HASKELL__) && MIN_VERSION_base(4,15,0)
+sizeProduct (GHC.Exts.I# sz1#) (GHC.Exts.I# sz2#) =
+  case GHC.Exts.timesInt2# sz1# sz2# of
+    (# 0#, _high#, low# #) -> Just (GHC.Exts.I# low#)
+    _ -> Nothing
+#else
+sizeProduct sz1 sz2 =
+  -- This is rather inefficient, but using more complicated alternatives doesn't
+  -- seem worth the trouble.
+  let r = toInteger sz1 * toInteger sz2
+  in if r <= toInteger (maxBound :: Int)
+     then Just (fromIntegral r)
+     else Nothing
+#endif
+{-# INLINE sizeProduct #-}
+
 seqTooLargeError :: a
 seqTooLargeError =
   error "result Seq too large; length must be <= (maxBound :: Int)"
+
+---------------------------------------------------------------------
+
+-- Note [Size overflow checks]
+-- ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-- The size of a Seq must not exceed `maxBound :: Int` since we rely on size
+-- arithmetic for a lot of operations. Such extremely large Seqs are unlikely
+-- to occur in most applications, but it is quite easy to construct gigantic
+-- Seqs thanks to structural sharing using operations like `><`, `liftA2` or
+-- `replicate`. So we must assume that Seqs can be very large and in every
+-- operation in the public API where there is a possibility of size overflow, we
+-- check for it and call `error` rather than silently return an invalid Seq.
