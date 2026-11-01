@@ -305,7 +305,7 @@ appendN = go S.empty
     go !xs n = go xs' (n - 1)
       where
         ys = smallSeq (n `mod` 5)
-        xs' = if even n then xs <> ys else ys <> xs
+        xs' = if even n then xs S.>< ys else ys S.>< xs
 
     -- Share these Seqs, we don't want to construct copies in the go loop.
     ys0 = S.empty
