@@ -383,7 +383,7 @@ module Data.Map.Internal (
 import Data.Functor.Identity (Identity (..))
 import Control.Applicative (liftA3)
 import Data.Functor.Classes
-import Data.Semigroup (stimesIdempotentMonoid)
+import Data.Semigroup (All (..), stimesIdempotentMonoid)
 import Data.Semigroup (Arg(..), Semigroup(stimes))
 #if !(MIN_VERSION_base(4,11,0))
 import Data.Semigroup (Semigroup((<>)))
@@ -402,7 +402,7 @@ import Utils.Containers.Internal.PtrEquality (ptrEq)
 import Utils.Containers.Internal.Strict
   (StrictPair(..), StrictTriple(..), toPair)
 import Utils.Containers.Internal.BitQueue
-import Utils.Containers.Internal.EqOrdUtil (EqM(..), OrdM(..))
+import Utils.Containers.Internal.ShortCircuit (ShortCircuit(..))
 #ifdef DEFINE_ALTERF_FALLBACK
 import Utils.Containers.Internal.BitUtil (wordSize)
 #endif
@@ -4468,11 +4468,11 @@ instance Eq2 Map where
 sameSizeLiftEq2
   :: (ka -> kb -> Bool) -> (a -> b -> Bool) -> Map ka a -> Map kb b -> Bool
 sameSizeLiftEq2 keq eq m1 m2 =
-  case runEqM (foldMapWithKey f m1) (iterator m2) of e :*: _ -> e
+  case runShortCircuit (foldMapWithKey f m1) (iterator m2) of All e :*: _ -> e
   where
-    f kx x = EqM $ \it -> case iterNext it of
-      Nothing -> False :*: it
-      Just (KeyValue ky y :*: it') -> (keq kx ky && eq x y) :*: it'
+    f kx x = ShortCircuit $ \it -> case iterNext it of
+      Nothing -> All False :*: it
+      Just (KeyValue ky y :*: it') -> All (keq kx ky && eq x y) :*: it'
 {-# INLINE sameSizeLiftEq2 #-}
 
 {--------------------------------------------------------------------
@@ -4499,10 +4499,10 @@ liftCmp2
   -> Map ka a
   -> Map kb b
   -> Ordering
-liftCmp2 kcmp cmp m1 m2 = case runOrdM (foldMapWithKey f m1) (iterator m2) of
+liftCmp2 kcmp cmp m1 m2 = case runShortCircuit (foldMapWithKey f m1) (iterator m2) of
   o :*: it -> o <> if iterNull it then EQ else LT
   where
-    f kx x = OrdM $ \it -> case iterNext it of
+    f kx x = ShortCircuit $ \it -> case iterNext it of
       Nothing -> GT :*: it
       Just (KeyValue ky y :*: it') -> (kcmp kx ky <> cmp x y) :*: it'
 {-# INLINE liftCmp2 #-}
