@@ -1166,11 +1166,11 @@ splitMember x t =
 maxView :: IntSet -> Maybe (Key, IntSet)
 maxView t =
   case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go l of (result, l') -> Just (result, binCheckL p l' r)
-            _ -> Just (go t)
+            Bin p l r | signBranch p -> case go l of (result :*: l') -> case binCheckL p l' r of !t' -> Just (result, t')
+            _ -> case go t of (result :*: t') -> Just (result, t')
   where
-    go (Bin p l r) = case go r of (result, r') -> (result, binCheckR p l r')
-    go (Tip kx bm) = case highestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go (Bin p l r) = case go r of (result :*: r') -> result :*: binCheckR p l r'
+    go (Tip kx bm) = case highestBitSet bm of bi -> (kx + bi) :*: tip kx (bm .&. complement (bitmapOfSuffix bi))
     go Nil = error "maxView Nil"
 
 -- | \(O(\min(n,W))\). Retrieves the minimal key of the set, and the set
@@ -1178,11 +1178,11 @@ maxView t =
 minView :: IntSet -> Maybe (Key, IntSet)
 minView t =
   case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go r of (result, r') -> Just (result, binCheckR p l r')
-            _ -> Just (go t)
+            Bin p l r | signBranch p -> case go r of (result :*: r') -> case binCheckR p l r' of !t' -> Just (result, t')
+            _ -> case go t of (result :*: t') -> Just (result, t')
   where
-    go (Bin p l r) = case go l of (result, l') -> (result, binCheckL p l' r)
-    go (Tip kx bm) = case lowestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go (Bin p l r) = case go l of (result :*: l') -> result :*: binCheckL p l' r
+    go (Tip kx bm) = case lowestBitSet bm of bi -> (kx + bi) :*: tip kx (bm .&. complement (bitmapOfSuffix bi))
     go Nil = error "minView Nil"
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
