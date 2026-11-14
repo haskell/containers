@@ -175,6 +175,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "<*" prop_before
        , testCase "test_before" test_before
        , testProperty "cycleTaking" prop_cycleTaking
+       , testCase "test_cycleTaking" test_cycleTaking
        , testProperty "intersperse" prop_intersperse
        , testCase "test_intersperse" test_intersperse
        , testProperty ">>=" prop_bind
@@ -1218,12 +1219,18 @@ test_intersperse = do
   assertBottom $ intersperse () (replicate maxBound ())
 
 prop_cycleTaking :: Int -> Seq A -> Property
-prop_cycleTaking n xs =
-  (n <= 0 || not (null xs)) ==>
-    valid xs' .&&.
-    toList xs' === Data.List.take n (Data.List.cycle (toList xs))
+prop_cycleTaking n xs
+  | n <= 0 = property $ null xs'
+  | null xs = property $ isBottom xs'
+  | otherwise =
+      valid xs' .&&.
+      toList xs' === Data.List.take n (Data.List.cycle (toList xs))
   where
     xs' = cycleTaking n xs
+
+test_cycleTaking :: Assertion
+test_cycleTaking = do
+  length (cycleTaking maxBound (singleton ())) @?= maxBound
 
 prop_empty_pat :: Seq A -> Bool
 prop_empty_pat xs@Empty = null xs
