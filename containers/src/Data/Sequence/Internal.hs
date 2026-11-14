@@ -545,21 +545,21 @@ apSeq fs xs@(Seq xsFT) = case viewl fs of
   firstf :< fs' -> case viewr fs' of
     EmptyR -> fmap firstf xs
     Seq fs''FT :> lastf -> case rigidify xsFT of
-      RigidEmpty -> empty
-      RigidOne (Elem x) -> fmap ($ x) fs
-                   -- See Note [Size overflow checks]
-      rigidXsFT -> case sizeProduct (length fs) (rigidifiedSize rigidXsFT) of
-        Nothing -> seqTooLargeError
-        Just sz -> case rigidXsFT of
-          RigidTwo (Elem x1) (Elem x2) ->
-             Seq $ ap2FT firstf fs''FT lastf (x1, x2)
-          RigidThree (Elem x1) (Elem x2) (Elem x3) ->
-             Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
-          RigidFull r@(Rigid _ pr _m sf) -> Seq $
-             Deep sz
-                  (fmap (fmap firstf) (nodeToDigit pr))
-                  (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
-                  (fmap (fmap lastf) (nodeToDigit sf))
+         RigidEmpty -> empty
+         RigidOne (Elem x) -> fmap ($ x) fs
+                      -- See Note [Size overflow checks]
+         rigidXsFT -> case sizeProduct (length fs) (rigidifiedSize rigidXsFT) of
+           Nothing -> seqTooLargeError
+           Just sz -> case rigidXsFT of
+             RigidTwo (Elem x1) (Elem x2) ->
+                Seq $ ap2FT firstf fs''FT lastf (x1, x2)
+             RigidThree (Elem x1) (Elem x2) (Elem x3) ->
+                Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
+             RigidFull r@(Rigid _ pr _m sf) -> Seq $
+                Deep sz
+                     (fmap (fmap firstf) (nodeToDigit pr))
+                     (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                     (fmap (fmap lastf) (nodeToDigit sf))
 {-# NOINLINE [1] apSeq #-}
 
 {-# RULES
