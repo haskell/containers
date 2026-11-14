@@ -141,6 +141,10 @@ library
 
   if impl(ghc >= 8.6)
     ghc-options: -Werror
+  if impl(ghc < 9.0)
+    -- Disable because of false positives.
+    -- GHC >= 9.0.1 has smarter pattern coverage checking.
+    ghc-options: -Wno-incomplete-patterns
 
 -----------------------------
 -- B E N C H M A R K I N G --
