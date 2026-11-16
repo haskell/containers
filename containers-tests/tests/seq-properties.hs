@@ -179,7 +179,7 @@ main = defaultMain $ testGroup "seq-properties"
        , testProperty "intersperse" prop_intersperse
        , testCase "test_intersperse" test_intersperse
        , testProperty ">>=" prop_bind
-       , testCase "test_bind" test_bind
+       , testProperty "prop_bind_sizeOverflow" prop_bind_sizeOverflow
        , testProperty "mfix" test_mfix
        , testProperty "Empty pattern" prop_empty_pat
        , testProperty "Empty constructor" prop_empty_con
@@ -1266,14 +1266,31 @@ prop_bind xs f =
   where
     ys = xs >>= applyFun f
 
-test_bind :: Assertion
-test_bind = do
-  length (fromList [maxBound] >>= flip replicate ()) @?= maxBound
-  length (fromList [maxBound, 0] >>= flip replicate ()) @?= maxBound
-  length (fromList [10, 90, maxBound - 100] >>= flip replicate ()) @?= maxBound
+newtype LargeInts = LargeInts (Seq Int)
+  deriving Show
 
-  assertBottom $ fromList [maxBound, 1] >>= flip replicate ()
-  assertBottom $ fromList [10, 90, maxBound - 99] >>= flip replicate ()
+-- Produces a Seq with sum greater than maxBound::Int around 60% of the time.
+instance Arbitrary LargeInts where
+  arbitrary = LargeInts . fromList <$> loop (maxBound :: Int)
+    where
+      loop n = do
+        stopNow <- (0==) <$> chooseInt (0, 31)
+        if n <= 0 || stopNow
+        then fmap (\(NonNegative (Large x)) -> [x]) arbitrary
+        else do
+          x <- chooseInt (0, n)
+          fmap (x:) (loop (n - x))
+
+prop_bind_sizeOverflow :: LargeInts -> Property
+prop_bind_sizeOverflow (LargeInts xs) =
+  label (if isValid then "valid" else "size overflow") $
+    if isValid
+    then length ys === fromIntegral xsum
+    else property $ isBottom ys
+  where
+    ys = xs >>= flip replicate ()
+    xsum = sum $ fmap toInteger $ toList xs
+    isValid = xsum <= toInteger (maxBound :: Int)
 
 -- Semigroup operations
 
