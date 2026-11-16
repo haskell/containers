@@ -542,24 +542,23 @@ instance Applicative Seq where
 apSeq :: Seq (a -> b) -> Seq a -> Seq b
 apSeq fs xs@(Seq xsFT) = case viewl fs of
   EmptyL -> empty
-  firstf :< fs' -> case viewr fs' of
-    EmptyR -> fmap firstf xs
-    Seq fs''FT :> lastf -> case rigidify xsFT of
+                   -- See Note [Size overflow checks]
+  firstf :< fs' -> case sizeProduct (length fs) (length xs) of
+    Nothing -> seqTooLargeError
+    Just sz -> case viewr fs' of
+      EmptyR -> fmap firstf xs
+      Seq fs''FT :> lastf -> case rigidify xsFT of
          RigidEmpty -> empty
          RigidOne (Elem x) -> fmap ($ x) fs
-                      -- See Note [Size overflow checks]
-         rigidXsFT -> case sizeProduct (length fs) (rigidifiedSize rigidXsFT) of
-           Nothing -> seqTooLargeError
-           Just sz -> case rigidXsFT of
-             RigidTwo (Elem x1) (Elem x2) ->
-                Seq $ ap2FT firstf fs''FT lastf (x1, x2)
-             RigidThree (Elem x1) (Elem x2) (Elem x3) ->
-                Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
-             RigidFull r@(Rigid _ pr _m sf) -> Seq $
-                Deep sz
-                     (fmap (fmap firstf) (nodeToDigit pr))
-                     (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
-                     (fmap (fmap lastf) (nodeToDigit sf))
+         RigidTwo (Elem x1) (Elem x2) ->
+            Seq $ ap2FT firstf fs''FT lastf (x1, x2)
+         RigidThree (Elem x1) (Elem x2) (Elem x3) ->
+            Seq $ ap3FT firstf fs''FT lastf (x1, x2, x3)
+         RigidFull r@(Rigid _ pr _m sf) -> Seq $
+               Deep sz
+                    (fmap (fmap firstf) (nodeToDigit pr))
+                    (liftA2Middle (fmap firstf) (fmap lastf) fmap fs''FT r)
+                    (fmap (fmap lastf) (nodeToDigit sf))
 {-# NOINLINE [1] apSeq #-}
 
 {-# RULES
@@ -606,24 +605,23 @@ lift3FT f firstx xs lastx (y1,y2,y3) =
 liftA2Seq :: (a -> b -> c) -> Seq a -> Seq b -> Seq c
 liftA2Seq f xs ys@(Seq ysFT) = case viewl xs of
   EmptyL -> empty
-  firstx :< xs' -> case viewr xs' of
-    EmptyR -> f firstx <$> ys
-    Seq xs''FT :> lastx -> case rigidify ysFT of
-      RigidEmpty -> empty
-      RigidOne (Elem y) -> fmap (\x -> f x y) xs
                    -- See Note [Size overflow checks]
-      rigidYsFT -> case sizeProduct (length xs) (rigidifiedSize rigidYsFT) of
-        Nothing -> seqTooLargeError
-        Just sz -> case rigidYsFT of
-          RigidTwo (Elem y1) (Elem y2) ->
-            Seq $ lift2FT f firstx xs''FT lastx (y1, y2)
-          RigidThree (Elem y1) (Elem y2) (Elem y3) ->
-            Seq $ lift3FT f firstx xs''FT lastx (y1, y2, y3)
-          RigidFull r@(Rigid _ pr _m sf) -> Seq $
-            Deep sz
-                 (fmap (fmap (f firstx)) (nodeToDigit pr))
-                 (liftA2Middle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
-                 (fmap (fmap (f lastx)) (nodeToDigit sf))
+  firstx :< xs' -> case sizeProduct (length xs) (length ys) of
+    Nothing -> seqTooLargeError
+    Just sz -> case viewr xs' of
+      EmptyR -> f firstx <$> ys
+      Seq xs''FT :> lastx -> case rigidify ysFT of
+        RigidEmpty -> empty
+        RigidOne (Elem y) -> fmap (\x -> f x y) xs
+        RigidTwo (Elem y1) (Elem y2) ->
+          Seq $ lift2FT f firstx xs''FT lastx (y1, y2)
+        RigidThree (Elem y1) (Elem y2) (Elem y3) ->
+          Seq $ lift3FT f firstx xs''FT lastx (y1, y2, y3)
+        RigidFull r@(Rigid _ pr _m sf) -> Seq $
+          Deep sz
+               (fmap (fmap (f firstx)) (nodeToDigit pr))
+               (liftA2Middle (fmap (f firstx)) (fmap (f lastx)) (lift_elem f) xs''FT r)
+               (fmap (fmap (f lastx)) (nodeToDigit sf))
   where
     lift_elem :: (a -> b -> c) -> a -> Elem b -> Elem c
 #ifdef __GLASGOW_HASKELL__
@@ -668,14 +666,6 @@ data Digit12 a = One12 a | Two12 a a
 -- | Sometimes, we want to emphasize that we are viewing a node as a top-level
 -- digit of a 'Rigid' tree.
 type Digit23 a = Node a
-
-rigidifiedSize :: Rigidified a -> Int
-rigidifiedSize r = case r of
-  RigidEmpty -> 0
-  RigidOne _ -> 1
-  RigidTwo _ _ -> 2
-  RigidThree _ _ _ -> 3
-  RigidFull (Rigid s _ _ _) -> s
 
 -- | 'liftA2Middle' does most of the hard work of computing @liftA2 f xs ys@.  It
 -- produces the center part of a finger tree, with a prefix corresponding to
@@ -1581,48 +1571,47 @@ replicateEach :: Int -> Seq a -> Seq a
 -- the last.
 replicateEach lenys xs = case viewl xs of
   EmptyL -> empty
-  firstx :< xs' -> case viewr xs' of
-    EmptyR -> replicate lenys firstx
-    Seq midxs :> lastx -> case lenys of
-      0 -> empty
-      1 -> xs
-           -- See Note [Size overflow checks]
-      _ -> case sizeProduct lenys (length xs) of
-        Nothing -> seqTooLargeError
-        Just sz -> case lenys of
-          2 ->
-            Seq $ rep2EachFT fxE midxs lxE
-          3 ->
-            Seq $ rep3EachFT fxE midxs lxE
-          _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
-                 (q,0) -> Deep sz fd3
-                   (repEachMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
-                   ld3
-                       where
-                        lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
-                 (q,1) -> Deep sz fd2
-                   (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
-                   ld2
-                       where
-                        lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
-                 (q,_) -> Deep sz fd3
-                   (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
-                   ld2
-                       where
-                        lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
-            where
-              repEachMiddle_ = repEachMiddle midxs lenys 3 fn3 ln3
-              fd2 = Two fxE fxE
-              fd3 = Three fxE fxE fxE
-              ld2 = Two lxE lxE
-              ld3 = Three lxE lxE lxE
-              fn2 = Node2 2 fxE fxE
-              fn3 = Node3 3 fxE fxE fxE
-              ln2 = Node2 2 lxE lxE
-              ln3 = Node3 3 lxE lxE lxE
-              n3 a = Node3 3 (Elem a) (Elem a) (Elem a)
-              n2 a = Node2 2 (Elem a) (Elem a)
-      where
+                   -- See Note [Size overflow checks]
+  firstx :< xs' -> case sizeProduct lenys (length xs) of
+    Nothing -> seqTooLargeError
+    Just sz -> case viewr xs' of
+      EmptyR -> replicate lenys firstx
+      Seq midxs :> lastx -> case lenys of
+        0 -> empty
+        1 -> xs
+        2 ->
+          Seq $ rep2EachFT fxE midxs lxE
+        3 ->
+          Seq $ rep3EachFT fxE midxs lxE
+        _ -> Seq $ case lenys `quotRem` 3 of  -- lenys > 3
+               (q,0) -> Deep sz fd3
+                 (repEachMiddle_ lift_elem (RCountMid fn3 (q - 2) ln3))
+                 ld3
+                     where
+                      lift_elem a = let n3a = n3 a in (n3a, n3a, n3a)
+               (q,1) -> Deep sz fd2
+                 (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln2))
+                 ld2
+                     where
+                      lift_elem a = let n2a = n2 a in (n2a, n3 a, n2a)
+               (q,_) -> Deep sz fd3
+                 (repEachMiddle_ lift_elem (RCountMid fn2 (q - 1) ln3))
+                 ld2
+                     where
+                      lift_elem a = let n3a = n3 a in (n3a, n3a, n2 a)
+          where
+            repEachMiddle_ = repEachMiddle midxs lenys 3 fn3 ln3
+            fd2 = Two fxE fxE
+            fd3 = Three fxE fxE fxE
+            ld2 = Two lxE lxE
+            ld3 = Three lxE lxE lxE
+            fn2 = Node2 2 fxE fxE
+            fn3 = Node3 3 fxE fxE fxE
+            ln2 = Node2 2 lxE lxE
+            ln3 = Node3 3 lxE lxE lxE
+            n3 a = Node3 3 (Elem a) (Elem a) (Elem a)
+            n2 a = Node2 2 (Elem a) (Elem a)
+        where
           fxE = Elem firstx
           lxE = Elem lastx
 
@@ -1850,16 +1839,15 @@ cycleTaking n xs = cycleNTimes reps xs >< take final xs
 -- operation uses time and additional space logarithmic in the size of its
 -- result.
 cycleNTimes :: Int -> Seq a -> Seq a
-cycleNTimes n !xs
+cycleNTimes n !xs@(Seq xsFT)
   | n <= 0    = empty
   | n == 1    = xs
-cycleNTimes n (Seq xsFT) = case rigidify xsFT of
-         RigidEmpty -> empty
-         RigidOne (Elem x) -> replicate n x
-                      -- See Note [Size overflow checks]
-         rigidXsFT -> case sizeProduct n (rigidifiedSize rigidXsFT) of
-           Nothing -> seqTooLargeError
-           Just sz -> case rigidXsFT of
+                -- See Note [Size overflow checks]
+  | otherwise = case sizeProduct n (length xs) of
+      Nothing -> seqTooLargeError
+      Just sz -> case rigidify xsFT of
+             RigidEmpty -> empty
+             RigidOne (Elem x) -> replicate n x
              RigidTwo x1 x2 -> Seq $
                Deep sz pair
                     (runIdentity $ applicativeTree (n-2) 2 (Identity (node2 x1 x2)))
