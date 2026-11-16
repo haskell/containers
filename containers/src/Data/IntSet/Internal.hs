@@ -1161,29 +1161,45 @@ splitMember x t =
   Min/Max
 ----------------------------------------------------------------------}
 
+data View = View {-# UNPACK #-} !Key !IntSet
+
 -- | \(O(\min(n,W))\). Retrieves the maximal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 maxView :: IntSet -> Maybe (Key, IntSet)
-maxView t =
-  case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go l of (result, l') -> Just (result, binCheckL p l' r)
-            _ -> Just (go t)
+maxView t = case t of
+  Nil -> Nothing
+  _ -> Just $ case maxViewSure t of View result t' -> (result, t')
+{-# INLINE maxView #-}
+
+maxViewSure :: IntSet -> View
+maxViewSure t =
+  case t of Nil -> error "maxViewSure Nil"
+            Bin p l r | signBranch p -> case go l of View result l' -> View result (binCheckL p l' r)
+            _ -> go t
   where
-    go (Bin p l r) = case go r of (result, r') -> (result, binCheckR p l r')
-    go (Tip kx bm) = case highestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go (Bin p l r) = case go r of View result r' -> View result (binCheckR p l r')
+    go (Tip kx bm) = case highestBitSet bm of bi -> View (kx + bi) (tip kx (bm .&. complement (bitmapOfSuffix bi)))
     go Nil = error "maxView Nil"
+{-# NOINLINE maxViewSure #-}
 
 -- | \(O(\min(n,W))\). Retrieves the minimal key of the set, and the set
 -- stripped of that element, or 'Nothing' if passed an empty set.
 minView :: IntSet -> Maybe (Key, IntSet)
-minView t =
-  case t of Nil -> Nothing
-            Bin p l r | signBranch p -> case go r of (result, r') -> Just (result, binCheckR p l r')
-            _ -> Just (go t)
+minView t = case t of
+  Nil -> Nothing
+  _ -> Just $ case minViewSure t of View result t' -> (result, t')
+{-# INLINE minView #-}
+
+minViewSure :: IntSet -> View
+minViewSure t =
+  case t of Nil -> error "minViewSure Nil"
+            Bin p l r | signBranch p -> case go r of View result r' -> View result (binCheckR p l r')
+            _ -> go t
   where
-    go (Bin p l r) = case go l of (result, l') -> (result, binCheckL p l' r)
-    go (Tip kx bm) = case lowestBitSet bm of bi -> (kx + bi, tip kx (bm .&. complement (bitmapOfSuffix bi)))
+    go (Bin p l r) = case go l of View result l' -> View result (binCheckL p l' r)
+    go (Tip kx bm) = case lowestBitSet bm of bi -> View (kx + bi) (tip kx (bm .&. complement (bitmapOfSuffix bi)))
     go Nil = error "minView Nil"
+{-# NOINLINE minViewSure #-}
 
 -- | \(O(\min(n,W))\). Delete and find the minimal element.
 --
