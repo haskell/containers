@@ -114,12 +114,12 @@
 --
 -- == Warning
 --
--- The size of a 'Seq' must not exceed @maxBound::Int@. Violation
--- of this condition is not detected and if the size limit is exceeded, the
--- behaviour of the sequence is undefined. This is unlikely to occur in most
--- applications, but some care may be required when using '><', '<*>', '*>', or
--- '>>', particularly repeatedly and particularly in combination with
--- 'replicate' or 'fromFunction'.
+-- The maximum supported length of a 'Seq' is @maxBound::Int@. Functions in
+-- this module that construct @Seq@s will call 'error' if the size of the @Seq@
+-- would exceed this limit. This is unlikely to occur in most applications,
+-- but some care may be required when using '><', '<*>', '*>', or '>>',
+-- particularly repeatedly and particularly in combination with 'replicate'
+-- or 'fromFunction'.
 --
 -- == Implementation
 --
