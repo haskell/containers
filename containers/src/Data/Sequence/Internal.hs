@@ -1500,6 +1500,7 @@ instance NFData1 Elem where
 -- is put in the second argument), and replicates it as many times as
 -- specified.  This is a generalization of 'replicateA', which itself
 -- is a generalization of many Data.Sequence methods.
+{-# INLINABLE applicativeTree #-}
 {-# SPECIALIZE applicativeTree :: Int -> Int -> State s a -> State s (FingerTree a) #-}
 {-# SPECIALIZE applicativeTree :: Int -> Int -> Identity a -> Identity (FingerTree a) #-}
 -- Special note: the Identity specialization automatically does node sharing,
@@ -1794,6 +1795,7 @@ replicateA :: Applicative f => Int -> f a -> f (Seq a)
 replicateA n x
   | n >= 0      = Seq <$> applicativeTree n 1 (Elem <$> x)
   | otherwise   = error "replicateA takes a nonnegative integer argument"
+{-# INLINABLE replicateA #-}
 {-# SPECIALIZE replicateA :: Int -> State a b -> State a (Seq b) #-}
 
 -- | Synonym for 'replicateA'.
