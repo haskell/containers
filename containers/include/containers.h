@@ -18,9 +18,10 @@
 
 #ifdef __GLASGOW_HASKELL__
 # define USE_ST_MONAD 1
-#ifndef WORDS_BIGENDIAN
+#if !defined(WORDS_BIGENDIAN) || MIN_VERSION_array(0,5,6)
 /*
- * Unboxed arrays are broken on big-endian architectures.
+ * Before array-0.5.6.0, unboxed arrays of Bool are broken on big-endian
+ * architectures: newArray does not initialize all the bits that it reads.
  * See https://gitlab.haskell.org/ghc/ghc/-/issues/16998
  */
 # define USE_UNBOXED_ARRAYS 1
