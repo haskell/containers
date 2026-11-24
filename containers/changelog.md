@@ -10,6 +10,14 @@
 * Fix a bug in `Seq`'s `stimes` where incorrect results could be returned for
   `n` with value outside the bounds of `Int`.
 
+### Performance improvements
+
+* Use unboxed arrays in `Data.Graph` on big-endian architectures when `array`
+  is at least 0.5.6.0. That version has the fix for
+  [GHC #16998](https://gitlab.haskell.org/ghc/ghc/-/issues/16998).
+  (Sylvain Henry)
+  ([#1278](https://github.com/haskell/containers/pull/1278))
+
 ## 0.8.1  *October 2026*
 
 ### Additions
